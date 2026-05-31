@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 70
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Select Xcode 26.1.1 (if present) or fallback to default
         run: |
