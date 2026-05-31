@@ -1,5 +1,6 @@
 import AppKit
 import CodexBarCore
+import CodexBarSync
 import Foundation
 import SweetCookieKit
 
