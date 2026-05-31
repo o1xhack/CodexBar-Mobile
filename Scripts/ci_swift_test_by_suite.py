@@ -38,7 +38,17 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
 
 
 def swift_test_list() -> list[str]:
-    result = subprocess.run(["swift", "test", "list"], check=True, capture_output=True, text=True)
+    result = subprocess.run(["swift", "test", "list"], check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("swift test list failed", file=sys.stderr, flush=True)
+        if result.stdout:
+            print("stdout:", file=sys.stderr, flush=True)
+            print(result.stdout, file=sys.stderr, flush=True)
+        if result.stderr:
+            print("stderr:", file=sys.stderr, flush=True)
+            print(result.stderr, file=sys.stderr, flush=True)
+        returncode = result.returncode
+        raise subprocess.CalledProcessError(returncode, result.args, output=result.stdout, stderr=result.stderr)
     suites: set[str] = set()
     for line in result.stdout.splitlines():
         if "/" not in line:
