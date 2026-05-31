@@ -146,8 +146,11 @@ struct PlanUtilizationHistoryChartMenuView: View {
                     }
                     .chartLegend(.hidden)
                     .frame(height: Layout.chartHeight)
-                    .accessibilityLabel("Plan utilization chart")
-                    .accessibilityValue(model.points.isEmpty ? "No data" : "\(model.points.count) utilization samples")
+                    .accessibilityLabel(L("Plan utilization chart"))
+                    .accessibilityValue(
+                        model.points.isEmpty
+                            ? L("No data")
+                            : String(format: L("%d utilization samples"), model.points.count))
                     .chartOverlay { proxy in
                         GeometryReader { geo in
                             MouseLocationReader { location in
@@ -608,9 +611,9 @@ struct PlanUtilizationHistoryChartMenuView: View {
     {
         switch name {
         case .session:
-            metadata?.sessionLabel ?? "Session"
+            L(metadata?.sessionLabel ?? "Session")
         case .weekly:
-            metadata?.weeklyLabel ?? "Weekly"
+            L(metadata?.weeklyLabel ?? "Weekly")
         case .opus:
             metadata?.opusLabel ?? "Opus"
         default:
@@ -640,9 +643,9 @@ struct PlanUtilizationHistoryChartMenuView: View {
 
     private nonisolated static func emptyStateText(title: String?) -> String {
         if let title {
-            return "No \(title.lowercased()) utilization data yet."
+            return String(format: L("No %@ utilization data yet."), title.lowercased())
         }
-        return "No utilization data yet."
+        return L("No utilization data yet.")
     }
 
     #if DEBUG
@@ -707,7 +710,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
     #endif
 
     private func xValue(for index: Int) -> PlottableValue<Double> {
-        .value("Series", Double(index))
+        .value(L("Series"), Double(index))
     }
 
     @ViewBuilder
@@ -729,14 +732,14 @@ struct PlanUtilizationHistoryChartMenuView: View {
         ForEach(model.points) { point in
             BarMark(
                 x: self.xValue(for: point.index),
-                yStart: .value("Capacity Start", 0),
-                yEnd: .value("Capacity End", 100),
+                yStart: .value(L("Capacity Start"), 0),
+                yEnd: .value(L("Capacity End"), 100),
                 width: .fixed(Layout.barWidth))
                 .foregroundStyle(model.trackColor)
             BarMark(
                 x: self.xValue(for: point.index),
-                yStart: .value("Utilization Start", 0),
-                yEnd: .value("Utilization End", point.usedPercent),
+                yStart: .value(L("Utilization Start"), 0),
+                yEnd: .value(L("Utilization End"), point.usedPercent),
                 width: .fixed(Layout.barWidth))
                 .foregroundStyle(model.barColor)
         }
@@ -809,16 +812,23 @@ extension PlanUtilizationHistoryChartMenuView {
             return "\(dateLabel): -"
         }
         let usedText = used.formatted(.number.precision(.fractionLength(0...1)))
-        return "\(dateLabel): \(usedText)% used"
+        return L("%@: %@%% used", dateLabel, usedText)
     }
 
     private nonisolated static func detailDateLabel(for date: Date, windowMinutes: Int) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = codexBarLocalizedLocale()
         formatter.timeZone = TimeZone.current
-        formatter.amSymbol = "am"
-        formatter.pmSymbol = "pm"
-        formatter.dateFormat = "MMM d, h:mm a"
-        return formatter.string(from: date)
+        formatter.setLocalizedDateFormatFromTemplate("MMM d, h:mm a")
+        var rendered = formatter.string(from: date).replacingOccurrences(of: "\u{202F}", with: " ")
+        let amSymbol = formatter.amSymbol ?? ""
+        let pmSymbol = formatter.pmSymbol ?? ""
+        if !amSymbol.isEmpty {
+            rendered = rendered.replacingOccurrences(of: amSymbol, with: amSymbol.lowercased())
+        }
+        if !pmSymbol.isEmpty {
+            rendered = rendered.replacingOccurrences(of: pmSymbol, with: pmSymbol.lowercased())
+        }
+        return rendered
     }
 }

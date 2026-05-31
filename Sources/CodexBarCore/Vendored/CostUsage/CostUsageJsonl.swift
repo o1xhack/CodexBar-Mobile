@@ -15,6 +15,25 @@ enum CostUsageJsonl {
         onLine: (Line) -> Void) throws
         -> Int64
     {
+        try self.scan(
+            fileURL: fileURL,
+            offset: offset,
+            maxLineBytes: maxLineBytes,
+            prefixBytes: prefixBytes,
+            checkCancellation: nil,
+            onLine: onLine)
+    }
+
+    @discardableResult
+    static func scan(
+        fileURL: URL,
+        offset: Int64 = 0,
+        maxLineBytes: Int,
+        prefixBytes: Int,
+        checkCancellation: (() throws -> Void)? = nil,
+        onLine: (Line) -> Void) throws
+        -> Int64
+    {
         let handle = try FileHandle(forReadingFrom: fileURL)
         defer { try? handle.close() }
 
@@ -53,12 +72,14 @@ enum CostUsageJsonl {
         }
 
         while true {
+            try checkCancellation?()
             let chunk = try handle.read(upToCount: 256 * 1024) ?? Data()
             if chunk.isEmpty {
                 flushLine()
                 break
             }
 
+            try checkCancellation?()
             bytesRead += Int64(chunk.count)
             chunk.withUnsafeBytes { rawBuffer in
                 guard let base = rawBuffer.bindMemory(to: UInt8.self).baseAddress else { return }
@@ -76,6 +97,7 @@ enum CostUsageJsonl {
                     appendSegment(base.advanced(by: segmentStart), count: rawBuffer.count - segmentStart)
                 }
             }
+            try checkCancellation?()
         }
 
         return startOffset + bytesRead

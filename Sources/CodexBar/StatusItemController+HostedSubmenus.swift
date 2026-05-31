@@ -8,7 +8,6 @@ extension StatusItemController {
             Self.usageBreakdownChartID,
             Self.creditsHistoryChartID,
             Self.costHistoryChartID,
-            Self.openAIAPIUsageChartID,
             Self.usageHistoryChartID,
             Self.storageBreakdownID,
             Self.zaiHourlyUsageChartID,
@@ -63,14 +62,6 @@ extension StatusItemController {
             } else {
                 false
             }
-        case Self.openAIAPIUsageChartID:
-            if let providerRawValue = placeholder.toolTip,
-               let provider = UsageProvider(rawValue: providerRawValue)
-            {
-                self.appendOpenAIAPIUsageChartItem(to: menu, provider: provider, width: width)
-            } else {
-                false
-            }
         case Self.usageHistoryChartID:
             if let providerRawValue = placeholder.toolTip,
                let provider = UsageProvider(rawValue: providerRawValue)
@@ -100,11 +91,82 @@ extension StatusItemController {
         }
 
         guard !didHydrate else { return }
+        self.appendHostedSubviewUnavailableItem(to: menu, chartID: chartID, providerRawValue: placeholder.toolTip)
+    }
 
-        let unavailableItem = NSMenuItem(title: "No data available", action: nil, keyEquivalent: "")
+    func refreshHostedSubviewMenu(_ menu: NSMenu) {
+        let width = self.renderedMenuWidth(for: menu)
+        guard let identity = self.hostedSubviewIdentity(for: menu) else {
+            self.refreshHostedSubviewHeights(in: menu)
+            return
+        }
+
+        menu.removeAllItems()
+        let didHydrate: Bool = switch identity.chartID {
+        case Self.usageBreakdownChartID:
+            self.appendUsageBreakdownChartItem(to: menu, width: width)
+        case Self.creditsHistoryChartID:
+            self.appendCreditsHistoryChartItem(to: menu, width: width)
+        case Self.costHistoryChartID:
+            if let provider = identity.provider {
+                self.appendCostHistoryChartItem(to: menu, provider: provider, width: width)
+            } else {
+                false
+            }
+        case Self.usageHistoryChartID:
+            if let provider = identity.provider {
+                self.appendUsageHistoryChartItem(to: menu, provider: provider, width: width)
+            } else {
+                false
+            }
+        case Self.storageBreakdownID:
+            if let provider = identity.provider {
+                self.appendStorageBreakdownItem(to: menu, provider: provider, width: width)
+            } else {
+                false
+            }
+        case Self.zaiHourlyUsageChartID:
+            if let provider = identity.provider {
+                self.appendZaiHourlyUsageChartItem(to: menu, provider: provider, width: width)
+            } else {
+                false
+            }
+        default:
+            false
+        }
+
+        if didHydrate {
+            self.refreshHostedSubviewHeights(in: menu)
+        } else {
+            self.appendHostedSubviewUnavailableItem(
+                to: menu,
+                chartID: identity.chartID,
+                providerRawValue: identity.provider?.rawValue ?? identity.providerRawValue)
+        }
+    }
+
+    private func hostedSubviewIdentity(for menu: NSMenu)
+    -> (chartID: String, provider: UsageProvider?, providerRawValue: String?)? {
+        for item in menu.items {
+            guard let chartID = item.representedObject as? String else { continue }
+            let providerRawValue = item.toolTip
+            return (
+                chartID: chartID,
+                provider: providerRawValue.flatMap(UsageProvider.init(rawValue:)),
+                providerRawValue: providerRawValue)
+        }
+        return nil
+    }
+
+    private func appendHostedSubviewUnavailableItem(
+        to menu: NSMenu,
+        chartID: String,
+        providerRawValue: String?)
+    {
+        let unavailableItem = NSMenuItem(title: L("No data available"), action: nil, keyEquivalent: "")
         unavailableItem.isEnabled = false
         unavailableItem.representedObject = chartID
-        unavailableItem.toolTip = placeholder.toolTip
+        unavailableItem.toolTip = providerRawValue
         menu.addItem(unavailableItem)
     }
 
@@ -169,13 +231,14 @@ extension StatusItemController {
         provider: UsageProvider,
         width: CGFloat) -> Bool
     {
-        guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return false }
+        guard let tokenSnapshot = self.tokenSnapshotForCostHistorySubmenu(provider: provider) else { return false }
         guard !tokenSnapshot.daily.isEmpty else { return false }
 
         if !Self.menuCardRenderingEnabled {
             let chartItem = NSMenuItem()
             chartItem.isEnabled = true
             chartItem.representedObject = Self.costHistoryChartID
+            chartItem.toolTip = provider.rawValue
             submenu.addItem(chartItem)
             return true
         }
@@ -184,7 +247,9 @@ extension StatusItemController {
             provider: provider,
             daily: tokenSnapshot.daily,
             totalCostUSD: tokenSnapshot.last30DaysCostUSD,
+            currencyCode: tokenSnapshot.currencyCode,
             historyDays: tokenSnapshot.historyDays,
+            windowLabel: tokenSnapshot.historyLabel,
             width: width)
         let hosting = MenuHostingView(rootView: chartView)
         let controller = NSHostingController(rootView: chartView)
@@ -195,40 +260,7 @@ extension StatusItemController {
         chartItem.view = hosting
         chartItem.isEnabled = true
         chartItem.representedObject = Self.costHistoryChartID
-        submenu.addItem(chartItem)
-        return true
-    }
-
-    @discardableResult
-    func appendOpenAIAPIUsageChartItem(
-        to submenu: NSMenu,
-        provider: UsageProvider,
-        width: CGFloat)
-        -> Bool
-    {
-        guard provider == .openai,
-              let snapshot = self.store.snapshot(for: provider)?.openAIAPIUsage,
-              !snapshot.daily.isEmpty
-        else { return false }
-
-        if !Self.menuCardRenderingEnabled {
-            let chartItem = NSMenuItem()
-            chartItem.isEnabled = true
-            chartItem.representedObject = Self.openAIAPIUsageChartID
-            submenu.addItem(chartItem)
-            return true
-        }
-
-        let chartView = OpenAIAPIUsageChartMenuView(snapshot: snapshot, width: width)
-        let hosting = MenuHostingView(rootView: chartView)
-        let controller = NSHostingController(rootView: chartView)
-        let size = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
-
-        let chartItem = NSMenuItem()
-        chartItem.view = hosting
-        chartItem.isEnabled = true
-        chartItem.representedObject = Self.openAIAPIUsageChartID
+        chartItem.toolTip = provider.rawValue
         submenu.addItem(chartItem)
         return true
     }

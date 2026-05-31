@@ -26,30 +26,7 @@ extension UsageStore {
         let codexExpectedGuard = provider == .codex ? self.currentCodexAccountScopedRefreshGuard() : nil
 
         if !spec.isEnabled(), !allowDisabled {
-            self.refreshingProviders.remove(provider)
-            await MainActor.run {
-                self.snapshots.removeValue(forKey: provider)
-                self.lastKnownResetSnapshots.removeValue(forKey: provider)
-                self.errors[provider] = nil
-                self.lastSourceLabels.removeValue(forKey: provider)
-                self.lastFetchAttempts.removeValue(forKey: provider)
-                self.accountSnapshots.removeValue(forKey: provider)
-                if provider == .codex {
-                    self.codexAccountSnapshots = []
-                }
-                if provider == .kilo {
-                    self.kiloScopeSnapshots = []
-                }
-                self.tokenSnapshots.removeValue(forKey: provider)
-                self.tokenErrors[provider] = nil
-                self.failureGates[provider]?.reset()
-                self.tokenFailureGates[provider]?.reset()
-                self.statuses.removeValue(forKey: provider)
-                self.lastKnownSessionRemaining.removeValue(forKey: provider)
-                self.lastKnownSessionWindowSource.removeValue(forKey: provider)
-                self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
-                self.lastTokenFetchAt.removeValue(forKey: provider)
-            }
+            await self.clearDisabledProviderRefreshState(provider)
             return
         }
 
@@ -133,6 +110,14 @@ extension UsageStore {
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
+                if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
+                    self.tokenSnapshots[provider] = tokenSnapshot
+                    self.tokenErrors[provider] = nil
+                    self.tokenFailureGates[provider]?.recordSuccess()
+                } else if Self.tokenCostRequiresProviderSnapshot(provider) {
+                    self.tokenSnapshots.removeValue(forKey: provider)
+                    self.tokenErrors[provider] = nil
+                }
                 self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
                 self.failureGates[provider]?.recordSuccess()
@@ -163,6 +148,7 @@ extension UsageStore {
             {
                 return
             }
+            self.recordStartupConnectivityRetryableFailure(error)
             if claudeCredentialsChanged {
                 await self.clearClaudeCredentialDerivedStateForCredentialSwap()
             }
@@ -170,6 +156,33 @@ extension UsageStore {
                 _ = await Self.consumeClaudeKeychainFingerprintChangeWithoutPrompt()
             }
             await self.handleProviderFetchFailure(provider: provider, error: error)
+        }
+    }
+
+    private func clearDisabledProviderRefreshState(_ provider: UsageProvider) async {
+        self.refreshingProviders.remove(provider)
+        await MainActor.run {
+            self.snapshots.removeValue(forKey: provider)
+            self.lastKnownResetSnapshots.removeValue(forKey: provider)
+            self.errors[provider] = nil
+            self.lastSourceLabels.removeValue(forKey: provider)
+            self.lastFetchAttempts.removeValue(forKey: provider)
+            self.accountSnapshots.removeValue(forKey: provider)
+            if provider == .codex {
+                self.codexAccountSnapshots = []
+            }
+            if provider == .kilo {
+                self.kiloScopeSnapshots = []
+            }
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.failureGates[provider]?.reset()
+            self.tokenFailureGates[provider]?.reset()
+            self.statuses.removeValue(forKey: provider)
+            self.lastKnownSessionRemaining.removeValue(forKey: provider)
+            self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+            self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
+            self.lastTokenFetchAt.removeValue(forKey: provider)
         }
     }
 
@@ -287,6 +300,16 @@ extension UsageStore {
             let shouldSurface =
                 self.failureGates[provider]?
                     .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
+            let preservesClaudeWebSessionFailure =
+                provider == .claude &&
+                hadPriorData &&
+                Self.isClaudeWebSessionRefreshFailure(error)
+            if preservesClaudeWebSessionFailure,
+               !shouldSurface
+            {
+                self.errors[provider] = nil
+                return
+            }
             if provider == .claude,
                preservesPriorData,
                Self.isClaudeUsageProbeTimeout(error)
@@ -300,7 +323,7 @@ extension UsageStore {
             }
             if shouldSurface {
                 self.errors[provider] = error.localizedDescription
-                if !preservesPriorData {
+                if !preservesPriorData, !preservesClaudeWebSessionFailure {
                     self.snapshots.removeValue(forKey: provider)
                 }
             } else {
@@ -347,9 +370,48 @@ extension UsageStore {
         }
     }
 
+    static func startupConnectivityRetryDelay(forAttempt attempt: Int) -> TimeInterval? {
+        let delays: [TimeInterval] = [15, 45, 120, 300]
+        guard attempt >= 1, attempt <= delays.count else { return nil }
+        return delays[attempt - 1]
+    }
+
+    static func isStartupConnectivityRetryableError(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorTimedOut,
+                 NSURLErrorNetworkConnectionLost,
+                 NSURLErrorNotConnectedToInternet,
+                 NSURLErrorCannotFindHost,
+                 NSURLErrorCannotConnectToHost,
+                 NSURLErrorDNSLookupFailed:
+                return true
+            default:
+                return false
+            }
+        }
+
+        let message = error.localizedDescription.lowercased()
+        return message.contains("timed out") ||
+            message.contains("timeout") ||
+            message.contains("network connection was lost") ||
+            message.contains("not connected to the internet") ||
+            message.contains("cannot find host") ||
+            message.contains("cannot connect to host") ||
+            message.contains("dns lookup")
+    }
+
     private static func isClaudeUsageProbeTimeout(_ error: Error) -> Bool {
         if case ClaudeStatusProbeError.timedOut = error { return true }
         return error.localizedDescription == ClaudeStatusProbeError.timedOut.localizedDescription
+    }
+
+    private static func isClaudeWebSessionRefreshFailure(_ error: Error) -> Bool {
+        if case ClaudeWebAPIFetcher.FetchError.unauthorized = error { return true }
+        return error.localizedDescription == ClaudeWebAPIFetcher.FetchError.unauthorized.localizedDescription
     }
 
     nonisolated static func isPermissionPromptWaiting(_ error: Error) -> Bool {
@@ -370,7 +432,7 @@ extension UsageStore {
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         AppNotifications.shared.post(
             idPrefix: "permission-prompt-\(provider.rawValue)",
-            title: "\(providerName) is waiting for permission",
+            title: L("%@ is waiting for permission", providerName),
             body: error.localizedDescription,
             soundEnabled: false)
     }

@@ -18,9 +18,20 @@ struct AmpUsageFetcherTests {
     }
 
     @Test
+    func `rejects non https amp urls`() {
+        #expect(!AmpUsageFetcher.shouldAttachCookie(to: URL(string: "http://ampcode.com/settings")))
+        #expect(!AmpUsageFetcher.shouldAttachCookie(to: URL(string: "http://www.ampcode.com")))
+        #expect(!AmpUsageFetcher.shouldAttachCookie(to: URL(string: "http://app.ampcode.com/path")))
+    }
+
+    @Test
     func `detects login redirects`() throws {
         let signIn = try #require(URL(string: "https://ampcode.com/auth/sign-in?returnTo=%2Fsettings"))
         #expect(AmpUsageFetcher.isLoginRedirect(signIn))
+
+        let downgradedSignIn = try #require(URL(string: "http://ampcode.com/auth/sign-in?returnTo=%2Fsettings"))
+        #expect(AmpUsageFetcher.isLoginRedirect(downgradedSignIn))
+        #expect(!AmpUsageFetcher.shouldAttachCookie(to: downgradedSignIn))
 
         let sso = try #require(URL(string: "https://ampcode.com/auth/sso?returnTo=%2Fsettings"))
         #expect(AmpUsageFetcher.isLoginRedirect(sso))

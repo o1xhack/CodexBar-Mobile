@@ -14,7 +14,7 @@ extension StatusItemController {
         guard let submenu = self.makeUsageHistorySubmenu(provider: provider, width: width) else { return false }
         let item = self.makeMenuCardItem(
             HStack(spacing: 0) {
-                Text("Subscription Utilization")
+                Text(L("Subscription Utilization"))
                     .font(.system(size: NSFont.menuFont(ofSize: 0).pointSize))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,6 +55,7 @@ extension StatusItemController {
             let chartItem = NSMenuItem()
             chartItem.isEnabled = true
             chartItem.representedObject = Self.usageHistoryChartID
+            chartItem.toolTip = provider.rawValue
             submenu.addItem(chartItem)
             return true
         }
@@ -73,6 +74,7 @@ extension StatusItemController {
         chartItem.view = hosting
         chartItem.isEnabled = true
         chartItem.representedObject = Self.usageHistoryChartID
+        chartItem.toolTip = provider.rawValue
         submenu.addItem(chartItem)
         return true
     }

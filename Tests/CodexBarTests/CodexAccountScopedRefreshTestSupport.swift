@@ -429,6 +429,17 @@ actor BlockingWidgetSnapshotSaver {
         }
     }
 
+    func waitUntilStartedWithin(count: Int, timeout: Duration = .seconds(5)) async -> Bool {
+        let startedAt = ContinuousClock.now
+        while self.snapshots.count < count {
+            if startedAt.duration(to: .now) >= timeout {
+                return false
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return true
+    }
+
     func startedCount() -> Int {
         self.snapshots.count
     }
@@ -437,6 +448,29 @@ actor BlockingWidgetSnapshotSaver {
         guard !self.waiters.isEmpty else { return }
         let waiter = self.waiters.removeFirst()
         waiter.resume()
+    }
+
+    func savedSnapshots() -> [WidgetSnapshot] {
+        self.snapshots
+    }
+}
+
+actor RecordingWidgetSnapshotSaver {
+    private var snapshots: [WidgetSnapshot] = []
+
+    func save(_ snapshot: WidgetSnapshot) {
+        self.snapshots.append(snapshot)
+    }
+
+    func waitUntilSavedWithin(count: Int, timeout: Duration = .seconds(5)) async -> Bool {
+        let startedAt = ContinuousClock.now
+        while self.snapshots.count < count {
+            if startedAt.duration(to: .now) >= timeout {
+                return false
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return true
     }
 
     func savedSnapshots() -> [WidgetSnapshot] {

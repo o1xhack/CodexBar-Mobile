@@ -697,8 +697,9 @@ extension CostUsageScanner {
         input: CodexFileScanInput,
         context: CodexFileScanContext,
         cache: inout CostUsageCache,
-        state: inout CodexScanState) -> Bool
+        state: inout CodexScanState) throws -> Bool
     {
+        try context.checkCancellation?()
         guard let cached = input.cached, cached.sessionId != nil, !context.forceFullScan else { return false }
         guard !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) else { return false }
         let startOffset = cached.parsedBytes ?? cached.size
@@ -710,7 +711,7 @@ extension CostUsageScanner {
             && cached.forkedFromId == nil
         guard canIncremental else { return false }
 
-        let delta = Self.parseCodexFile(
+        let delta = try Self.parseCodexFileCancellable(
             fileURL: input.fileURL,
             range: context.range,
             startOffset: startOffset,
@@ -718,7 +719,11 @@ extension CostUsageScanner {
             initialTotals: initialCountedTotals,
             initialRawTotalsBaseline: initialRawTotalsBaseline,
             initialHasDivergentTotals: cached.hasDivergentTotals ?? (cached.lastTotals == nil),
-            initialCodexTurnID: cached.lastCodexTurnID)
+            initialCodexTurnID: cached.lastCodexTurnID,
+            checkCancellation: context.checkCancellation)
+        if delta.forkedFromId != nil {
+            return false
+        }
         let sessionId = delta.sessionId ?? cached.sessionId
         if let sessionId, state.seenSessionIds.contains(sessionId) {
             Self.dropCachedCodexFile(path: input.metadata.path, cached: cached, cache: &cache)
@@ -786,8 +791,9 @@ extension CostUsageScanner {
         input: CodexFileScanInput,
         context: CodexFileScanContext,
         cache: inout CostUsageCache,
-        state: inout CodexScanState)
+        state: inout CodexScanState) throws
     {
+        try context.checkCancellation?()
         if let cached = input.cached {
             self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
         }
@@ -796,10 +802,11 @@ extension CostUsageScanner {
             ? [:]
             : Self.fileDaysOutsideScanWindow(migratedCached?.days ?? [:], range: context.range)
 
-        let parsed = Self.parseCodexFile(
+        let parsed = try Self.parseCodexFileCancellable(
             fileURL: input.fileURL,
             range: context.range,
-            inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:))
+            inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:),
+            checkCancellation: context.checkCancellation)
         let sessionId = parsed.sessionId ?? input.cached?.sessionId
         if let sessionId, state.seenSessionIds.contains(sessionId) {
             cache.files.removeValue(forKey: input.metadata.path)

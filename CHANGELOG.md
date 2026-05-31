@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.32.1.1 (Mobile 1.9.0 · build 76.1) — 2026-05-31 — upstream v0.32.1 sync
+
+Syncs the Mac app to upstream v0.32.1 while keeping the paired iOS companion at 1.9.0. This release folds in upstream v0.29.1 through v0.32.1.
+
+### Upstream highlights
+
+- Claude OAuth now keeps Claude CLI-owned refresh tokens delegated to Claude Code when CLI storage is present, preventing forced re-login after refresh-token rotation (#1161, #1239).
+- Claude usage refreshes preserve cached credentials during rate limits and transient unauthorized responses.
+- Provider security is tightened by requiring HTTPS before reattaching imported cookies on redirects.
+- Menu-bar startup and open-menu refresh work is deferred/coalesced to reduce focus freezes, keychain prompts, and WebKit CPU spikes.
+- Upstream provider/UI additions include provider search, Spark quota lanes, DeepSeek web-session cost summaries, Alibaba Token Plan endpoint updates, and localization updates.
+
+### Compatibility
+
+- iPhone companion remains iOS 1.9.0. No CloudKit schema deploy is required for this sync by itself.
+- The Sparkle appcast is not updated in this merge commit; it should be regenerated only after the signed release artifacts are created.
+
 ## 0.29.0.1 (Mobile 1.9.0 · build 68.1) — 2026-05-27 — upstream v0.29.0 + iOS 1.9.0
 
 Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.

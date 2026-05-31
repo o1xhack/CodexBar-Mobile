@@ -92,6 +92,7 @@ final class AugmentProviderRuntime: ProviderRuntime {
     private func forceRefresh(context: ProviderRuntimeContext) async {
         #if os(macOS)
         context.store.augmentLogger.info("Augment force refresh requested")
+        CookieHeaderCache.clear(provider: .augment)
         guard let keepalive = self.keepalive else {
             context.store.augmentLogger.warning("Augment keepalive not running; starting")
             self.startKeepalive(context: context)
@@ -105,8 +106,6 @@ final class AugmentProviderRuntime: ProviderRuntime {
         }
 
         await keepalive.forceRefresh()
-        context.store.augmentLogger.info("Refreshing Augment usage after session refresh")
-        await context.store.refreshProvider(.augment)
         #endif
     }
 }

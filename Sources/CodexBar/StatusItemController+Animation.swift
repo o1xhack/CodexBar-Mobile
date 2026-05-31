@@ -10,7 +10,6 @@ extension StatusItemController {
     static let loadingAnimationPhaseIncrement: Double =
         2.7 / StatusItemController.loadingAnimationFPS
     private static let loadingAnimationMaxContinuousDuration: TimeInterval = 30.0
-
     func needsMenuBarIconAnimation() -> Bool {
         if self.shouldMergeIcons {
             let primaryProvider = self.primaryProviderForUnifiedIcon()
@@ -338,6 +337,9 @@ extension StatusItemController {
                 "anim=\(needsAnimation ? "1" : "0")",
             ].joined(separator: "|")
             if self.shouldSkipMergedIconRender(signature) {
+                // AppKit can lose button title/image-position state independently of the cached render signature.
+                // Keep the cheap title path self-healing even when the icon image itself can be skipped.
+                self.setButtonTitle(displayText, for: button)
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -667,6 +669,11 @@ extension StatusItemController {
                 mode: self.settings.kiroMenuBarDisplayMode,
                 showUsed: self.settings.usageBarsShowUsed)
         }
+        if self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .extraUsage,
+           let spend = Self.extraUsageSpendDisplayText(snapshot: snapshot)
+        {
+            return spend
+        }
 
         let percentWindow = self.menuBarPercentWindow(for: provider, snapshot: snapshot)
         let mode = self.settings.menuBarDisplayMode
@@ -750,6 +757,16 @@ extension StatusItemController {
             from: snapshot?.identity?.loginMethod,
             prefix: "Credits:",
             removingSuffix: " left")
+    }
+
+    nonisolated static func extraUsageSpendDisplayText(snapshot: UsageSnapshot?) -> String? {
+        guard let cost = snapshot?.providerCost,
+              cost.limit > 0,
+              cost.used >= 0
+        else {
+            return nil
+        }
+        return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
     }
 
     nonisolated static func kiroDisplayText(
@@ -900,7 +917,7 @@ extension StatusItemController {
         {
             return selected
         }
-        for provider in UsageProvider.allCases {
+        for provider in self.store.enabledProviders() {
             if self.store.isEnabled(provider), self.store.snapshot(for: provider) != nil {
                 return provider
             }

@@ -426,6 +426,13 @@ extension UsageStore {
                         token: token)
                 }
             },
+            providerManualTokenUpdater: { [weak settings = self.settings] provider, token in
+                await MainActor.run {
+                    if provider == .stepfun {
+                        settings?.stepfunToken = token
+                    }
+                }
+            },
             costUsageHistoryDays: self.settings.costUsageHistoryDays)
     }
 

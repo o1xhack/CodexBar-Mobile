@@ -521,7 +521,7 @@ struct StatusMenuTests {
     }
 
     @Test
-    func `open merged menu rebuilds switcher when usage bars mode changes`() {
+    func `open merged menu rebuilds switcher when usage bars mode changes`() async {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -562,6 +562,11 @@ struct StatusMenuTests {
 
         settings.usageBarsShowUsed = true
         controller.handleProviderConfigChange(reason: "usageBarsShowUsed")
+        for _ in 0..<20
+            where initialSwitcherID == (menu.items.first?.view as? ProviderSwitcherView).map(ObjectIdentifier.init)
+        {
+            await Task.yield()
+        }
 
         let updatedSwitcher = menu.items.first?.view as? ProviderSwitcherView
         #expect(updatedSwitcher != nil)
@@ -879,8 +884,8 @@ extension StatusMenuTests {
             statusBar: self.makeStatusBarForTesting())
 
         let codexItem = try #require(controller.statusItems[.codex])
-        #expect(!controller.statusItem.autosaveName.hasPrefix("codexbar-"))
-        #expect(!codexItem.autosaveName.hasPrefix("codexbar-"))
+        #expect(controller.statusItem.autosaveName == "codexbar-merged")
+        #expect(codexItem.autosaveName == "codexbar-codex")
 
         try settings.setProviderEnabled(
             provider: .gemini,
@@ -889,8 +894,8 @@ extension StatusMenuTests {
         controller.handleProviderConfigChange(reason: "test")
 
         #expect(controller.statusItems[.codex] === codexItem)
-        #expect(controller.statusItems[.codex]?.autosaveName.hasPrefix("codexbar-") == false)
-        #expect(controller.statusItems[.gemini]?.autosaveName.hasPrefix("codexbar-") == false)
+        #expect(controller.statusItems[.codex]?.autosaveName == "codexbar-codex")
+        #expect(controller.statusItems[.gemini]?.autosaveName == "codexbar-gemini")
     }
 
     @Test
@@ -1220,7 +1225,7 @@ extension StatusMenuTests {
         let usageItem = menu.items.first { ($0.representedObject as? String) == "menuCardUsage" }
 
         #expect(usageItem?.submenu?.items
-            .contains { ($0.representedObject as? String) == StatusItemController.openAIAPIUsageChartID } == true)
+            .contains { ($0.representedObject as? String) == StatusItemController.costHistoryChartID } == true)
         #expect(menu.items.contains { ($0.representedObject as? String) == "menuCardHeader" } == false)
         #expect(menu.items.contains { ($0.representedObject as? String) == "menuCardExtraUsage" } == false)
     }

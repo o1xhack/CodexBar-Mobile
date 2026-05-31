@@ -39,6 +39,26 @@ extension CostUsageScanner {
         modelsDevCatalog: ModelsDevCatalog? = nil,
         modelsDevCacheRoot: URL? = nil) -> ClaudeParseResult
     {
+        (
+            try? self.parseClaudeFileCancellable(
+                fileURL: fileURL,
+                range: range,
+                providerFilter: providerFilter,
+                startOffset: startOffset,
+                modelsDevCatalog: modelsDevCatalog,
+                modelsDevCacheRoot: modelsDevCacheRoot,
+                checkCancellation: nil)) ?? ClaudeParseResult(days: [:], rows: [], parsedBytes: startOffset)
+    }
+
+    static func parseClaudeFileCancellable(
+        fileURL: URL,
+        range: CostUsageDayRange,
+        providerFilter: ClaudeLogProviderFilter,
+        startOffset: Int64 = 0,
+        modelsDevCatalog: ModelsDevCatalog? = nil,
+        modelsDevCacheRoot: URL? = nil,
+        checkCancellation: CancellationCheck? = nil) throws -> ClaudeParseResult
+    {
         struct ClaudeTokens: Sendable {
             let input: Int
             let cacheRead: Int
@@ -85,95 +105,103 @@ extension CostUsageScanner {
         let prefixBytes = maxLineBytes
         let costScale = 1_000_000_000.0
 
-        let parsedBytes = (try? CostUsageJsonl.scan(
-            fileURL: fileURL,
-            offset: startOffset,
-            maxLineBytes: maxLineBytes,
-            prefixBytes: prefixBytes,
-            onLine: { line in
-                guard !line.bytes.isEmpty else { return }
-                guard !line.wasTruncated else { return }
-                guard line.bytes.containsAscii(#""type":"assistant""#) else { return }
-                guard line.bytes.containsAscii(#""usage""#) else { return }
+        let parsedBytes: Int64
+        do {
+            parsedBytes = try CostUsageJsonl.scan(
+                fileURL: fileURL,
+                offset: startOffset,
+                maxLineBytes: maxLineBytes,
+                prefixBytes: prefixBytes,
+                checkCancellation: checkCancellation,
+                onLine: { line in
+                    guard !line.bytes.isEmpty else { return }
+                    guard !line.wasTruncated else { return }
+                    guard line.bytes.containsAscii(#""type":"assistant""#) else { return }
+                    guard line.bytes.containsAscii(#""usage""#) else { return }
 
-                autoreleasepool {
-                    guard
-                        let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
-                        let type = obj["type"] as? String,
-                        type == "assistant"
-                    else { return }
-                    guard Self.matchesClaudeProviderFilter(obj: obj, filter: providerFilter) else { return }
+                    autoreleasepool {
+                        guard
+                            let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
+                            let type = obj["type"] as? String,
+                            type == "assistant"
+                        else { return }
+                        guard Self.matchesClaudeProviderFilter(obj: obj, filter: providerFilter) else { return }
 
-                    guard let tsText = obj["timestamp"] as? String else { return }
-                    guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText)
-                    else { return }
+                        guard let tsText = obj["timestamp"] as? String else { return }
+                        guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText)
+                        else { return }
 
-                    guard let message = obj["message"] as? [String: Any] else { return }
-                    guard let model = message["model"] as? String else { return }
-                    guard let usage = message["usage"] as? [String: Any] else { return }
+                        guard let message = obj["message"] as? [String: Any] else { return }
+                        guard let model = message["model"] as? String else { return }
+                        guard let usage = message["usage"] as? [String: Any] else { return }
 
-                    let input = max(0, toInt(usage["input_tokens"]))
-                    let cacheCreate = max(0, toInt(usage["cache_creation_input_tokens"]))
-                    let cacheRead = max(0, toInt(usage["cache_read_input_tokens"]))
-                    let output = max(0, toInt(usage["output_tokens"]))
-                    if input == 0, cacheCreate == 0, cacheRead == 0, output == 0 { return }
+                        let input = max(0, toInt(usage["input_tokens"]))
+                        let cacheCreate = max(0, toInt(usage["cache_creation_input_tokens"]))
+                        let cacheRead = max(0, toInt(usage["cache_read_input_tokens"]))
+                        let output = max(0, toInt(usage["output_tokens"]))
+                        if input == 0, cacheCreate == 0, cacheRead == 0, output == 0 { return }
 
-                    let cost = CostUsagePricing.claudeCostUSD(
-                        model: model,
-                        inputTokens: input,
-                        cacheReadInputTokens: cacheRead,
-                        cacheCreationInputTokens: cacheCreate,
-                        outputTokens: output,
-                        modelsDevCatalog: modelsDevCatalog,
-                        modelsDevCacheRoot: modelsDevCacheRoot)
-                    let costNanos = cost.map { Int(($0 * costScale).rounded()) } ?? 0
-                    let tokens = ClaudeTokens(
-                        input: input,
-                        cacheRead: cacheRead,
-                        cacheCreate: cacheCreate,
-                        output: output,
-                        costNanos: costNanos,
-                        costPriced: cost != nil)
+                        let cost = CostUsagePricing.claudeCostUSD(
+                            model: model,
+                            inputTokens: input,
+                            cacheReadInputTokens: cacheRead,
+                            cacheCreationInputTokens: cacheCreate,
+                            outputTokens: output,
+                            modelsDevCatalog: modelsDevCatalog,
+                            modelsDevCacheRoot: modelsDevCacheRoot)
+                        let costNanos = cost.map { Int(($0 * costScale).rounded()) } ?? 0
+                        let tokens = ClaudeTokens(
+                            input: input,
+                            cacheRead: cacheRead,
+                            cacheCreate: cacheCreate,
+                            output: output,
+                            costNanos: costNanos,
+                            costPriced: cost != nil)
 
-                    guard CostUsageDayRange.isInRange(
-                        dayKey: dayKey,
-                        since: range.scanSinceKey,
-                        until: range.scanUntilKey)
-                    else { return }
+                        guard CostUsageDayRange.isInRange(
+                            dayKey: dayKey,
+                            since: range.scanSinceKey,
+                            until: range.scanUntilKey)
+                        else { return }
 
-                    let messageId = message["id"] as? String
-                    let requestId = obj["requestId"] as? String
-                    let sessionId = obj["sessionId"] as? String
-                        ?? obj["session_id"] as? String
-                        ?? (obj["metadata"] as? [String: Any])?["sessionId"] as? String
-                        ?? (message["metadata"] as? [String: Any])?["sessionId"] as? String
-                    let normalizedModel = CostUsagePricing.normalizeClaudeModel(model)
-                    let row = ClaudeUsageRow(
-                        dayKey: dayKey,
-                        model: normalizedModel,
-                        sessionId: sessionId,
-                        messageId: messageId,
-                        requestId: requestId,
-                        isSidechain: toBool(obj["isSidechain"]),
-                        pathRole: pathRole,
-                        input: tokens.input,
-                        cacheRead: tokens.cacheRead,
-                        cacheCreate: tokens.cacheCreate,
-                        output: tokens.output,
-                        costNanos: tokens.costNanos,
-                        costPriced: tokens.costPriced)
+                        let messageId = message["id"] as? String
+                        let requestId = obj["requestId"] as? String
+                        let sessionId = obj["sessionId"] as? String
+                            ?? obj["session_id"] as? String
+                            ?? (obj["metadata"] as? [String: Any])?["sessionId"] as? String
+                            ?? (message["metadata"] as? [String: Any])?["sessionId"] as? String
+                        let normalizedModel = CostUsagePricing.normalizeClaudeModel(model)
+                        let row = ClaudeUsageRow(
+                            dayKey: dayKey,
+                            model: normalizedModel,
+                            sessionId: sessionId,
+                            messageId: messageId,
+                            requestId: requestId,
+                            isSidechain: toBool(obj["isSidechain"]),
+                            pathRole: pathRole,
+                            input: tokens.input,
+                            cacheRead: tokens.cacheRead,
+                            cacheCreate: tokens.cacheCreate,
+                            output: tokens.output,
+                            costNanos: tokens.costNanos,
+                            costPriced: tokens.costPriced)
 
-                    // Streaming chunks share message.id + requestId inside a file.
-                    // Keep overwriting so the final cumulative chunk wins.
-                    if let messageId, let requestId {
-                        let key = "\(messageId):\(requestId)"
-                        keyedRows[key] = row
-                    } else {
-                        // Older logs omit IDs; treat each line as distinct to avoid dropping usage.
-                        unkeyedRows.append(row)
+                        // Streaming chunks share message.id + requestId inside a file.
+                        // Keep overwriting so the final cumulative chunk wins.
+                        if let messageId, let requestId {
+                            let key = "\(messageId):\(requestId)"
+                            keyedRows[key] = row
+                        } else {
+                            // Older logs omit IDs; treat each line as distinct to avoid dropping usage.
+                            unkeyedRows.append(row)
+                        }
                     }
-                }
-            })) ?? startOffset
+                })
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            parsedBytes = startOffset
+        }
 
         let rows = keyedRows.keys.sorted().compactMap { keyedRows[$0] } + unkeyedRows
         var days: [String: [String: [Int]]] = [:]
@@ -429,6 +457,7 @@ extension CostUsageScanner {
         let forceFullScan: Bool
         let modelsDevCatalog: ModelsDevCatalog?
         let modelsDevCacheRoot: URL?
+        let checkCancellation: CancellationCheck?
 
         init(
             cache: CostUsageCache,
@@ -436,7 +465,8 @@ extension CostUsageScanner {
             providerFilter: ClaudeLogProviderFilter,
             forceFullScan: Bool,
             modelsDevCatalog: ModelsDevCatalog?,
-            modelsDevCacheRoot: URL?)
+            modelsDevCacheRoot: URL?,
+            checkCancellation: CancellationCheck?)
         {
             self.cache = cache
             self.touched = []
@@ -445,6 +475,7 @@ extension CostUsageScanner {
             self.forceFullScan = forceFullScan
             self.modelsDevCatalog = modelsDevCatalog
             self.modelsDevCacheRoot = modelsDevCacheRoot
+            self.checkCancellation = checkCancellation
         }
     }
 
@@ -452,8 +483,9 @@ extension CostUsageScanner {
         url: URL,
         size: Int64,
         mtimeMs: Int64,
-        state: ClaudeScanState)
+        state: ClaudeScanState) throws
     {
+        try state.checkCancellation?()
         let path = url.path
         state.touched.insert(path)
 
@@ -470,13 +502,14 @@ extension CostUsageScanner {
             let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
                 && cached.claudeRows != nil
             if canIncremental {
-                let delta = Self.parseClaudeFile(
+                let delta = try Self.parseClaudeFileCancellable(
                     fileURL: url,
                     range: state.range,
                     providerFilter: state.providerFilter,
                     startOffset: startOffset,
                     modelsDevCatalog: state.modelsDevCatalog,
-                    modelsDevCacheRoot: state.modelsDevCacheRoot)
+                    modelsDevCacheRoot: state.modelsDevCacheRoot,
+                    checkCancellation: state.checkCancellation)
                 let mergedRows = Self.mergeClaudeRows(existing: cached.claudeRows ?? [], delta: delta.rows)
                 state.cache.files[path] = Self.makeClaudeFileUsage(
                     mtimeMs: mtimeMs,
@@ -487,12 +520,13 @@ extension CostUsageScanner {
             }
         }
 
-        let parsed = Self.parseClaudeFile(
+        let parsed = try Self.parseClaudeFileCancellable(
             fileURL: url,
             range: state.range,
             providerFilter: state.providerFilter,
             modelsDevCatalog: state.modelsDevCatalog,
-            modelsDevCacheRoot: state.modelsDevCacheRoot)
+            modelsDevCacheRoot: state.modelsDevCacheRoot,
+            checkCancellation: state.checkCancellation)
         let usage = Self.makeClaudeFileUsage(
             mtimeMs: mtimeMs,
             size: size,
@@ -503,8 +537,9 @@ extension CostUsageScanner {
 
     private static func scanClaudeRoot(
         root: URL,
-        state: ClaudeScanState)
+        state: ClaudeScanState) throws
     {
+        try state.checkCancellation?()
         let rootPath = root.path
         let rootCandidates = Self.claudeRootCandidates(for: rootPath)
         let prefixes = Set(rootCandidates).map { path in
@@ -542,6 +577,7 @@ extension CostUsageScanner {
         else { return }
 
         for case let url as URL in enumerator {
+            try state.checkCancellation?()
             guard url.pathExtension.lowercased() == "jsonl" else { continue }
             guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             guard values.isRegularFile == true else { continue }
@@ -550,7 +586,7 @@ extension CostUsageScanner {
 
             let mtime = values.contentModificationDate?.timeIntervalSince1970 ?? 0
             let mtimeMs = Int64(mtime * 1000)
-            Self.processClaudeFile(
+            try Self.processClaudeFile(
                 url: url,
                 size: size,
                 mtimeMs: mtimeMs,
@@ -564,7 +600,8 @@ extension CostUsageScanner {
         provider: UsageProvider,
         range: CostUsageDayRange,
         now: Date,
-        options: Options) -> CostUsageDailyReport
+        options: Options,
+        checkCancellation: CancellationCheck?) throws -> CostUsageDailyReport
     {
         var cache = CostUsageCacheIO.load(provider: provider, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
@@ -583,6 +620,7 @@ extension CostUsageScanner {
         var touched: Set<String> = []
 
         if shouldRefresh {
+            try checkCancellation?()
             if options.forceRescan {
                 cache = CostUsageCache()
             }
@@ -593,13 +631,15 @@ extension CostUsageScanner {
                 providerFilter: providerFilter,
                 forceFullScan: options.forceRescan || windowExpanded,
                 modelsDevCatalog: modelsDevCatalog,
-                modelsDevCacheRoot: options.cacheRoot)
+                modelsDevCacheRoot: options.cacheRoot,
+                checkCancellation: checkCancellation)
 
             for root in roots {
-                Self.scanClaudeRoot(
+                try Self.scanClaudeRoot(
                     root: root,
                     state: scanState)
             }
+            try checkCancellation?()
 
             cache = scanState.cache
             touched = scanState.touched
@@ -614,6 +654,7 @@ extension CostUsageScanner {
             cache.scanSinceKey = range.scanSinceKey
             cache.scanUntilKey = range.scanUntilKey
             cache.lastScanUnixMs = nowMs
+            try checkCancellation?()
             CostUsageCacheIO.save(provider: provider, cache: cache, cacheRoot: options.cacheRoot)
         }
 

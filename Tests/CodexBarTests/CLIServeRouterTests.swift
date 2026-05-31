@@ -105,6 +105,27 @@ struct CLIServeRouterTests {
             positional: [],
             options: [:],
             flags: [])) == 60)
+
+        #expect(CodexBarCLI.decodeServeRequestTimeout(from: ParsedValues(
+            positional: [],
+            options: ["requestTimeout": ["soon"]],
+            flags: [])) == nil)
+        #expect(CodexBarCLI.decodeServeRequestTimeout(from: ParsedValues(
+            positional: [],
+            options: ["requestTimeout": ["-0.5"]],
+            flags: [])) == nil)
+        #expect(CodexBarCLI.decodeServeRequestTimeout(from: ParsedValues(
+            positional: [],
+            options: ["requestTimeout": ["0"]],
+            flags: [])) == 0)
+        #expect(CodexBarCLI.decodeServeRequestTimeout(from: ParsedValues(
+            positional: [],
+            options: ["requestTimeout": ["12.5"]],
+            flags: [])) == 12.5)
+        #expect(CodexBarCLI.decodeServeRequestTimeout(from: ParsedValues(
+            positional: [],
+            options: [:],
+            flags: [])) == 30)
     }
 
     @Test
@@ -124,6 +145,139 @@ struct CLIServeRouterTests {
         #expect(!CodexBarCLI.shouldCacheServeResponse(routeError))
     }
 
+    @Test
+    func `serve cache coalesces concurrent cache misses`() async {
+        let cache = CLIServeResponseCache()
+        let counter = ServeTestCounter()
+
+        let responses = await withTaskGroup(of: CLILocalHTTPResponse.self) { group -> [CLILocalHTTPResponse] in
+            for _ in 0..<5 {
+                group.addTask {
+                    await CodexBarCLI.cachedServeResponse(
+                        key: "usage:",
+                        cache: cache,
+                        refreshInterval: 60,
+                        requestTimeout: 1)
+                    {
+                        let call = await counter.increment()
+                        try? await Task.sleep(nanoseconds: 50_000_000)
+                        return Self.response("[{\"provider\":\"codex\",\"call\":\(call)}]")
+                    }
+                }
+            }
+
+            var responses: [CLILocalHTTPResponse] = []
+            for await response in group {
+                responses.append(response)
+            }
+            return responses
+        }
+
+        #expect(await counter.current() == 1)
+        #expect(Set(responses.map(Self.bodyString)).count == 1)
+        #expect(responses.allSatisfy { $0.status == .ok })
+        #expect(responses.allSatisfy { Self.bodyString($0).contains("\"call\":1") })
+    }
+
+    @Test
+    func `serve cache does not cache timeouts and recovers on next success`() async {
+        let cache = CLIServeResponseCache()
+        let counter = ServeTestCounter()
+
+        let timeout = await CodexBarCLI.cachedServeResponse(
+            key: "usage:",
+            cache: cache,
+            refreshInterval: 60,
+            requestTimeout: 0.01)
+        {
+            _ = await counter.increment()
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            return Self.response("[{\"provider\":\"codex\",\"call\":1}]")
+        }
+
+        #expect(timeout.status == .gatewayTimeout)
+        #expect(Self.bodyString(timeout).contains("request timed out"))
+
+        let success = await CodexBarCLI.cachedServeResponse(
+            key: "usage:",
+            cache: cache,
+            refreshInterval: 60,
+            requestTimeout: 1)
+        {
+            let call = await counter.increment()
+            return Self.response("[{\"provider\":\"codex\",\"call\":\(call)}]")
+        }
+
+        #expect(success.status == .ok)
+        #expect(Self.bodyString(success).contains("\"call\":2"))
+
+        let cached = await CodexBarCLI.cachedServeResponse(
+            key: "usage:",
+            cache: cache,
+            refreshInterval: 60,
+            requestTimeout: 1)
+        {
+            let call = await counter.increment()
+            return Self.response("[{\"provider\":\"codex\",\"call\":\(call)}]")
+        }
+
+        #expect(cached.status == .ok)
+        #expect(Self.bodyString(cached) == Self.bodyString(success))
+        #expect(await counter.current() == 2)
+    }
+
+    @Test
+    func `serve cache resumes coalesced waiters on timeout`() async {
+        let cache = CLIServeResponseCache()
+        let counter = ServeTestCounter()
+
+        let responses = await withTaskGroup(of: CLILocalHTTPResponse.self) { group -> [CLILocalHTTPResponse] in
+            for _ in 0..<4 {
+                group.addTask {
+                    await CodexBarCLI.cachedServeResponse(
+                        key: "usage:",
+                        cache: cache,
+                        refreshInterval: 60,
+                        requestTimeout: 0.01)
+                    {
+                        _ = await counter.increment()
+                        try? await Task.sleep(nanoseconds: 200_000_000)
+                        return Self.response("[{\"provider\":\"codex\"}]")
+                    }
+                }
+            }
+
+            var responses: [CLILocalHTTPResponse] = []
+            for await response in group {
+                responses.append(response)
+            }
+            return responses
+        }
+
+        #expect(await counter.current() == 1)
+        #expect(responses.count == 4)
+        #expect(responses.allSatisfy { $0.status == .gatewayTimeout })
+        #expect(responses.allSatisfy { Self.bodyString($0).contains("request timed out") })
+    }
+
+    @Test
+    func `serve request timeout zero disables the deadline`() async {
+        let cache = CLIServeResponseCache()
+
+        let response = await CodexBarCLI.cachedServeResponse(
+            key: "usage:",
+            cache: cache,
+            refreshInterval: 0,
+            requestTimeout: 0)
+        {
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            return Self.response("[{\"provider\":\"codex\",\"slow\":true}]")
+        }
+
+        #expect(response.status == .ok)
+        #expect(Self.bodyString(response).contains("\"slow\":true"))
+    }
+
     private static func parsedRequest(host: String) throws -> CLILocalHTTPRequest {
         let raw = "GET /usage?provider=claude HTTP/1.1\r\nHost: \(host)\r\n\r\n"
         return try CLILocalHTTPRequest.parse(Data(raw.utf8)).get()
@@ -136,5 +290,26 @@ struct CLIServeRouterTests {
         case let .failure(error):
             #expect(error == expected)
         }
+    }
+
+    private static func response(_ body: String, status: CLIHTTPStatus = .ok) -> CLILocalHTTPResponse {
+        CLILocalHTTPResponse(status: status, body: Data(body.utf8))
+    }
+
+    private static func bodyString(_ response: CLILocalHTTPResponse) -> String {
+        String(data: response.body, encoding: .utf8) ?? ""
+    }
+}
+
+private actor ServeTestCounter {
+    private var value = 0
+
+    func increment() -> Int {
+        self.value += 1
+        return self.value
+    }
+
+    func current() -> Int {
+        self.value
     }
 }

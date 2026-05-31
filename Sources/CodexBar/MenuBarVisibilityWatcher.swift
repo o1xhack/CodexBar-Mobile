@@ -47,7 +47,6 @@ enum MenuBarVisibilityWatcher {
     static let startupCheckDelay: TimeInterval = 2
     static let screenChangeCheckDelay: Duration = .milliseconds(750)
     static let screenChangeFollowUpDelay: Duration = .seconds(2)
-    static let screenChangeRecoveryRetryLimit = 3
     static let settingsURL = URL(string: "x-apple.systempreferences:com.apple.MenuBarSettings")!
 
     @MainActor
@@ -80,7 +79,16 @@ enum MenuBarVisibilityWatcher {
     static func isBlockedSnapshot(snapshot: StatusItemVisibilitySnapshot) -> Bool {
         guard snapshot.isVisible else { return false }
         guard snapshot.hasButton else { return true }
-        return !snapshot.hasWindow || !snapshot.hasScreen || !snapshot.isOnCurrentScreen || snapshot.buttonWidth <= 0
+        // Menu bar managers can park status-item windows off the current screen while preserving the
+        // underlying NSStatusItem. Recreating in that state makes those managers see a new item.
+        return !snapshot.hasWindow || snapshot.buttonWidth <= 0
+    }
+
+    static func isDisplacedSnapshot(snapshot: StatusItemVisibilitySnapshot) -> Bool {
+        guard snapshot.isVisible, snapshot.hasButton, snapshot.hasWindow, snapshot.buttonWidth > 0 else {
+            return false
+        }
+        return !snapshot.hasScreen || !snapshot.isOnCurrentScreen
     }
 
     static func hasBlockedVisibleSnapshots(_ snapshots: [StatusItemVisibilitySnapshot]) -> Bool {
@@ -94,6 +102,12 @@ enum MenuBarVisibilityWatcher {
     static func hasAnyBlockedVisibleSnapshot(_ snapshots: [StatusItemVisibilitySnapshot]) -> Bool {
         snapshots.contains { snapshot in
             snapshot.isVisible && self.isBlockedSnapshot(snapshot: snapshot)
+        }
+    }
+
+    static func hasAnyDisplacedVisibleSnapshot(_ snapshots: [StatusItemVisibilitySnapshot]) -> Bool {
+        snapshots.contains { snapshot in
+            self.isDisplacedSnapshot(snapshot: snapshot)
         }
     }
 
@@ -119,27 +133,17 @@ enum MenuBarVisibilityWatcher {
         return self.hasAnyBlockedVisibleSnapshot(snapshots)
     }
 
-    static func shouldAttemptScreenChangeRecovery(
-        previousScreenCount: Int,
-        currentScreenCount: Int,
+    static func shouldRefreshScreenChangePlacement(
+        previousScreenCount _: Int,
+        currentScreenCount _: Int,
         snapshots: [StatusItemVisibilitySnapshot])
         -> Bool
     {
-        if self.hasAnyBlockedVisibleSnapshot(snapshots) {
-            return true
-        }
-        guard currentScreenCount < previousScreenCount else { return false }
-        return snapshots.contains { snapshot in
-            snapshot.isVisible
-        }
+        self.hasAnyDisplacedVisibleSnapshot(snapshots)
     }
 
-    static func shouldRetryScreenChangeRecovery(
-        attempt: Int,
-        snapshots: [StatusItemVisibilitySnapshot])
-        -> Bool
-    {
-        attempt < self.screenChangeRecoveryRetryLimit && self.hasAnyBlockedVisibleSnapshot(snapshots)
+    static func shouldAttemptScreenChangeRecovery(snapshots: [StatusItemVisibilitySnapshot]) -> Bool {
+        self.hasAnyBlockedVisibleSnapshot(snapshots)
     }
 
     static func shouldShowGuidance(defaults: UserDefaults, now: Date = Date()) -> Bool {
@@ -199,7 +203,10 @@ extension StatusItemController {
 
         self.menuLogger.error(
             "Status item failed to materialize; recreating status items",
-            metadata: ["snapshots": snapshots.map(\.description).joined(separator: " | ")])
+            metadata: [
+                "snapshots": snapshots.map(\.description).joined(separator: " | "),
+                "windows": self.statusItemWindowDiagnosticsDescription(),
+            ])
         self.recreateStatusItemsForVisibilityRecovery()
 
         let recoveredSnapshots = MenuBarVisibilityWatcher.visibilitySnapshots(self.startupVisibilityStatusItems)
@@ -216,7 +223,10 @@ extension StatusItemController {
 
         self.menuLogger.error(
             "Status item still failed to materialize after recreation",
-            metadata: ["snapshots": recoveredSnapshots.map(\.description).joined(separator: " | ")])
+            metadata: [
+                "snapshots": recoveredSnapshots.map(\.description).joined(separator: " | "),
+                "windows": self.statusItemWindowDiagnosticsDescription(),
+            ])
         guard #available(macOS 26.0, *),
               MenuBarVisibilityWatcher.shouldShowGuidance(defaults: self.settings.userDefaults, now: now)
         else {
@@ -260,7 +270,22 @@ extension StatusItemController {
         let settledCurrentScreenCount = NSScreen.screens.count
         self.lastKnownScreenCount = settledCurrentScreenCount
         let snapshots = MenuBarVisibilityWatcher.visibilitySnapshots(self.startupVisibilityStatusItems)
-        guard MenuBarVisibilityWatcher.shouldAttemptScreenChangeRecovery(
+        if MenuBarVisibilityWatcher.shouldAttemptScreenChangeRecovery(snapshots: snapshots) {
+            self.menuLogger.error(
+                "Display configuration changed; recreating status items",
+                metadata: [
+                    "previousScreenCount": "\(previousScreenCount)",
+                    "currentScreenCount": "\(settledCurrentScreenCount)",
+                    "capturedScreenCount": "\(currentScreenCount)",
+                    "snapshots": snapshots.map(\.description).joined(separator: " | "),
+                    "windows": self.statusItemWindowDiagnosticsDescription(),
+                ])
+            self.recreateStatusItemsForVisibilityRecovery()
+            self.schedulePostScreenChangeRecoveryVerification(attempt: 1)
+            return
+        }
+
+        guard MenuBarVisibilityWatcher.shouldRefreshScreenChangePlacement(
             previousScreenCount: previousScreenCount,
             currentScreenCount: settledCurrentScreenCount,
             snapshots: snapshots)
@@ -268,16 +293,15 @@ extension StatusItemController {
             return
         }
 
-        self.menuLogger.error(
-            "Display configuration changed; recreating status items",
+        self.menuLogger.info(
+            "Display configuration changed; refreshing existing status items",
             metadata: [
                 "previousScreenCount": "\(previousScreenCount)",
                 "currentScreenCount": "\(settledCurrentScreenCount)",
                 "capturedScreenCount": "\(currentScreenCount)",
                 "snapshots": snapshots.map(\.description).joined(separator: " | "),
             ])
-        self.recreateStatusItemsForVisibilityRecovery()
-        self.schedulePostScreenChangeRecoveryVerification(attempt: 1)
+        self.refreshExistingStatusItemsForVisibilityRecovery()
     }
 
     private func schedulePostScreenChangeRecoveryVerification(attempt: Int) {
@@ -300,32 +324,41 @@ extension StatusItemController {
             return
         }
 
-        guard MenuBarVisibilityWatcher.shouldRetryScreenChangeRecovery(attempt: attempt, snapshots: snapshots) else {
-            self.menuLogger.error(
-                "Status item still blocked after display-change recovery retries",
-                metadata: [
-                    "attempt": "\(attempt)",
-                    "snapshots": snapshots.map(\.description).joined(separator: " | "),
-                ])
-            guard #available(macOS 26.0, *),
-                  MenuBarVisibilityWatcher.shouldShowGuidance(defaults: self.settings.userDefaults)
-            else {
-                return
-            }
-            MenuBarVisibilityWatcher.presentGuidance(defaults: self.settings.userDefaults)
-            return
-        }
         self.menuLogger.error(
             "Status item still blocked after display-change recovery; recreating status items again",
             metadata: [
                 "attempt": "\(attempt)",
                 "snapshots": snapshots.map(\.description).joined(separator: " | "),
+                "windows": self.statusItemWindowDiagnosticsDescription(),
             ])
         self.recreateStatusItemsForVisibilityRecovery()
-        self.schedulePostScreenChangeRecoveryVerification(attempt: attempt + 1)
+        // No further async retries: a menu bar manager may park the newly recreated item in a state
+        // that still looks blocked, causing repeated NSStatusItem destruction that corrupts Control Center.
+        // Instead, do one synchronous re-check to surface guidance if macOS itself is blocking the item.
+        let finalSnapshots = MenuBarVisibilityWatcher.visibilitySnapshots(self.startupVisibilityStatusItems)
+        guard MenuBarVisibilityWatcher.hasAnyBlockedVisibleSnapshot(finalSnapshots) else { return }
+        self.menuLogger.error(
+            "Status item still blocked after display-change recovery recreation",
+            metadata: [
+                "snapshots": finalSnapshots.map(\.description).joined(separator: " | "),
+                "windows": self.statusItemWindowDiagnosticsDescription(),
+            ])
+        guard #available(macOS 26.0, *),
+              MenuBarVisibilityWatcher.shouldShowGuidance(defaults: self.settings.userDefaults)
+        else { return }
+        MenuBarVisibilityWatcher.presentGuidance(defaults: self.settings.userDefaults)
     }
 
     private var startupVisibilityStatusItems: [NSStatusItem] {
         [self.statusItem] + Array(self.statusItems.values)
+    }
+
+    private func statusItemWindowDiagnosticsDescription() -> String {
+        let names = Set(self.startupVisibilityStatusItems.compactMap { item in
+            item.autosaveName.isEmpty ? nil : item.autosaveName
+        })
+        let snapshots = MenuBarStatusItemWindowProbe.snapshots(matching: names)
+        guard !snapshots.isEmpty else { return "none" }
+        return snapshots.map(\.description).joined(separator: " | ")
     }
 }

@@ -79,7 +79,7 @@ final class ProviderSwitcherView: NSView {
                 Segment(
                     selection: .overview,
                     image: overviewIcon,
-                    title: "Overview"),
+                    title: L("Overview")),
                 at: 0)
         }
         self.segments = segments
@@ -102,7 +102,7 @@ final class ProviderSwitcherView: NSView {
             maxAllowedSegmentWidth: initialMaxAllowedSegmentWidth,
             stackedIcons: self.stackedIcons)
         self.rowSpacing = self.stackedIcons ? 4 : 2
-        self.rowHeight = Self.switcherRowHeight(stackedIcons: self.stackedIcons, rowCount: self.rowCount)
+        self.rowHeight = Self.switcherRowHeight(stackedIcons: self.stackedIcons)
         let height: CGFloat = self.rowHeight * CGFloat(self.rowCount)
             + self.rowSpacing * CGFloat(max(0, self.rowCount - 1))
         self.preferredWidth = width
@@ -309,6 +309,12 @@ final class ProviderSwitcherView: NSView {
             return
         }
         self.applySelection(at: pressedTag)
+    }
+
+    func handleKeyboardSelection(at index: Int) -> Bool {
+        guard self.segments.indices.contains(index) else { return false }
+        self.applySelection(at: index)
+        return true
     }
 
     private func applySelection(at index: Int) {
@@ -547,12 +553,8 @@ final class ProviderSwitcherView: NSView {
         return rows
     }
 
-    private static func switcherRowHeight(stackedIcons: Bool, rowCount: Int) -> CGFloat {
-        let baseRowHeight: CGFloat = if stackedIcons, rowCount >= 3 {
-            40
-        } else {
-            stackedIcons ? 36 : 30
-        }
+    private static func switcherRowHeight(stackedIcons: Bool) -> CGFloat {
+        let baseRowHeight: CGFloat = stackedIcons ? 36 : 30
         return baseRowHeight + self.quotaIndicatorReservedHeight
     }
 
@@ -663,6 +665,14 @@ final class ProviderSwitcherView: NSView {
 
     func _test_buttonFittingSizes() -> [NSSize] {
         self.buttons.map(\.fittingSize)
+    }
+
+    func _test_rowCount() -> Int {
+        self.rowCount
+    }
+
+    func _test_rowHeight() -> CGFloat {
+        self.rowHeight
     }
 
     func _test_setHoveredButtonTag(_ tag: Int?) {

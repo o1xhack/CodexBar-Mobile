@@ -1,4 +1,9 @@
+import CodexBarCore
 import Foundation
+
+enum CodexBarLocalizationOverride {
+    @TaskLocal static var appLanguage: String?
+}
 
 private func appLanguageDefaults() -> UserDefaults {
     if Bundle.main.bundleIdentifier != nil {
@@ -9,6 +14,31 @@ private func appLanguageDefaults() -> UserDefaults {
     }
     // Fallback for running outside a .app bundle (swift run / debug builds)
     return UserDefaults(suiteName: "CodexBar") ?? .standard
+}
+
+private func isRunningTestsProcess() -> Bool {
+    let env = ProcessInfo.processInfo.environment
+    if env["XCTestConfigurationFilePath"] != nil { return true }
+    if env["TESTING_LIBRARY_VERSION"] != nil { return true }
+    if env["SWIFT_TESTING"] != nil { return true }
+    return NSClassFromString("XCTestCase") != nil
+}
+
+private let standardAppLanguageAtProcessStart = UserDefaults.standard.string(forKey: "appLanguage")
+
+private func resolvedAppLanguage() -> String {
+    if let override = CodexBarLocalizationOverride.appLanguage {
+        return override
+    }
+    if isRunningTestsProcess() {
+        let current = UserDefaults.standard.string(forKey: "appLanguage")
+        return current == standardAppLanguageAtProcessStart ? "en" : current ?? ""
+    }
+    return appLanguageDefaults().string(forKey: "appLanguage") ?? ""
+}
+
+func codexBarLocalizationSignature() -> String {
+    resolvedAppLanguage()
 }
 
 func codexBarLocalizationResourceBundle(
@@ -36,7 +66,7 @@ func codexBarLocalizationResourceBundle(
 
 private func localizedBundle() -> Bundle {
     let resourceBundle = codexBarLocalizationResourceBundle()
-    let language = appLanguageDefaults().string(forKey: "appLanguage") ?? ""
+    let language = resolvedAppLanguage()
     if !language.isEmpty {
         if let bundle = lprojBundle(named: language, in: resourceBundle) {
             return bundle
@@ -79,6 +109,21 @@ func L(_ key: String, _ arguments: CVarArg...) -> String {
     String(format: L(key), arguments: arguments)
 }
 
+func codexBarLocalizedLocale() -> Locale {
+    let language = resolvedAppLanguage()
+    guard !language.isEmpty else { return .current }
+    switch language.lowercased() {
+    case "zh-hans":
+        return Locale(identifier: "zh-Hans")
+    case "zh-hant":
+        return Locale(identifier: "zh-Hant")
+    case "pt-br":
+        return Locale(identifier: "pt-BR")
+    default:
+        return Locale(identifier: language)
+    }
+}
+
 func codexBarLocalizedString(_ key: String, bundle: Bundle, resourceBundle: Bundle) -> String {
     let value = bundle.localizedString(forKey: key, value: nil, table: nil)
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -94,4 +139,14 @@ func codexBarLocalizedString(_ key: String, bundle: Bundle, resourceBundle: Bund
 
     let fallback = englishBundle.localizedString(forKey: key, value: nil, table: nil)
     return fallback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? key : fallback
+}
+
+func configureUsageFormatterLocalizationProvider() {
+    UsageFormatter.setLocalizationProvider { key in
+        let resourceBundle = codexBarLocalizationResourceBundle()
+        return codexBarLocalizedString(key, bundle: localizedBundle(), resourceBundle: resourceBundle)
+    }
+    UsageFormatter.setLocaleProvider {
+        codexBarLocalizedLocale()
+    }
 }

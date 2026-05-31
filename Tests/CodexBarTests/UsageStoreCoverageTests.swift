@@ -353,6 +353,44 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `widget snapshot projects provider derived token usage`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-widget-provider-cost")
+        let store = Self.makeUsageStore(settings: settings)
+        let day = MistralDailyUsageBucket(
+            day: "2026-05-26",
+            cost: 1.2,
+            inputTokens: 10,
+            cachedTokens: 0,
+            outputTokens: 5,
+            models: [])
+        store._setSnapshotForTesting(MistralUsageSnapshot(
+            totalCost: 9,
+            currency: "eur",
+            currencySymbol: "€",
+            totalInputTokens: 10,
+            totalOutputTokens: 5,
+            totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [day],
+            startDate: nil,
+            endDate: nil,
+            updatedAt: Date()).toUsageSnapshot(), provider: .mistral)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "provider-cost")
+        await store.widgetSnapshotPersistTask?.value
+
+        let mistralEntry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .mistral })
+        #expect(mistralEntry.tokenUsage?.currencyCode == "EUR")
+        #expect(mistralEntry.tokenUsage?.sessionLabel == "Latest billing day")
+        #expect(mistralEntry.tokenUsage?.last30DaysLabel == "This month")
+        #expect(mistralEntry.tokenUsage?.last30DaysCostUSD == 9)
+    }
+
+    @Test
     func `unavailable provider with only cached status gets single cleanup pass`() async throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-background-status-cleanup")
         settings.refreshFrequency = .manual
@@ -388,7 +426,9 @@ struct UsageStoreCoverageTests {
     func `status indicators and failure gate`() {
         #expect(!ProviderStatusIndicator.none.hasIssue)
         #expect(ProviderStatusIndicator.maintenance.hasIssue)
-        #expect(ProviderStatusIndicator.unknown.label == "Status unknown")
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(ProviderStatusIndicator.unknown.label == "Status unknown")
+        }
 
         var gate = ConsecutiveFailureGate()
         let first = gate.shouldSurfaceError(onFailureWithPriorData: true)
@@ -431,6 +471,90 @@ struct UsageStoreCoverageTests {
             NSError(domain: NSCocoaErrorDomain, code: 0)))
     }
 
+    @Test
+    func `startup status network failure schedules bounded retry`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-startup-status-retry")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = true
+        try Self.enableOnly(.codex, settings: settings)
+
+        let store = Self.makeUsageStore(settings: settings)
+        store._test_providerRefreshOverride = { _ in }
+        defer { store._test_providerRefreshOverride = nil }
+        store._test_providerStatusFetchOverride = { _ in
+            throw URLError(.notConnectedToInternet)
+        }
+        defer { store._test_providerStatusFetchOverride = nil }
+
+        var scheduled: [(attempt: Int, delay: TimeInterval)] = []
+        store._test_startupConnectivityRetryScheduled = { attempt, delay in
+            scheduled.append((attempt, delay))
+        }
+        defer { store._test_startupConnectivityRetryScheduled = nil }
+
+        await store.refresh()
+        defer {
+            store.startupConnectivityRetryTask?.cancel()
+            store.startupConnectivityRetryTask = nil
+        }
+
+        #expect(scheduled.map(\.attempt) == [1])
+        #expect(scheduled.map(\.delay) == [15])
+        #expect(store.statuses[.codex]?.indicator == .unknown)
+        #expect(store.statuses[.codex]?.description?.isEmpty == false)
+    }
+
+    @Test
+    func `startup connectivity retry refreshes status and clears retry task after recovery`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-startup-status-recovery")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = true
+        try Self.enableOnly(.codex, settings: settings)
+
+        let store = Self.makeUsageStore(settings: settings)
+        store._test_providerRefreshOverride = { _ in }
+        defer { store._test_providerRefreshOverride = nil }
+
+        var statusAttempts = 0
+        store._test_providerStatusFetchOverride = { _ in
+            statusAttempts += 1
+            if statusAttempts == 1 {
+                throw URLError(.cannotFindHost)
+            }
+            return ProviderStatus(indicator: .none, description: "Operational", updatedAt: Date())
+        }
+        defer { store._test_providerStatusFetchOverride = nil }
+
+        let sleepGate = StartupConnectivityRetrySleepGate()
+        store._test_startupConnectivityRetrySleepOverride = { delay in
+            try await sleepGate.sleep(delay)
+        }
+        defer { store._test_startupConnectivityRetrySleepOverride = nil }
+
+        await store.refresh()
+        await sleepGate.waitUntilSleeping()
+        let retryTask = try #require(store.startupConnectivityRetryTask)
+
+        await sleepGate.resume()
+        await retryTask.value
+
+        #expect(statusAttempts == 2)
+        #expect(store.statuses[.codex]?.indicator == ProviderStatusIndicator.none)
+        #expect(store.statuses[.codex]?.description == "Operational")
+        #expect(store.startupConnectivityRetryTask == nil)
+    }
+
+    @Test
+    func `startup connectivity retry classification is bounded and excludes cancellation`() {
+        #expect(UsageStore.startupConnectivityRetryDelay(forAttempt: 1) == 15)
+        #expect(UsageStore.startupConnectivityRetryDelay(forAttempt: 4) == 300)
+        #expect(UsageStore.startupConnectivityRetryDelay(forAttempt: 5) == nil)
+        #expect(UsageStore.isStartupConnectivityRetryableError(URLError(.timedOut)))
+        #expect(UsageStore.isStartupConnectivityRetryableError(URLError(.notConnectedToInternet)))
+        #expect(!UsageStore.isStartupConnectivityRetryableError(URLError(.cancelled)))
+        #expect(!UsageStore.isStartupConnectivityRetryableError(CancellationError()))
+    }
+
     private static func makeSettingsStore(
         suite: String,
         zaiTokenStore: any ZaiTokenStoring = NoopZaiTokenStore(),
@@ -469,6 +593,49 @@ struct UsageStoreCoverageTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             environmentBase: [:])
+    }
+
+    private static func enableOnly(_ enabledProvider: UsageProvider, settings: SettingsStore) throws {
+        let metadata = ProviderRegistry.shared.metadata
+        for provider in UsageProvider.allCases {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(metadata[provider]),
+                enabled: provider == enabledProvider)
+        }
+    }
+}
+
+private actor StartupConnectivityRetrySleepGate {
+    private var continuation: CheckedContinuation<Void, Error>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func sleep(_ delay: TimeInterval) async throws {
+        #expect(delay == 15)
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            self.resumeWaiters()
+        }
+    }
+
+    func waitUntilSleeping() async {
+        if self.continuation != nil { return }
+        await withCheckedContinuation { continuation in
+            self.waiters.append(continuation)
+        }
+    }
+
+    func resume() {
+        self.continuation?.resume()
+        self.continuation = nil
+    }
+
+    private func resumeWaiters() {
+        let waiters = self.waiters
+        self.waiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
     }
 }
 

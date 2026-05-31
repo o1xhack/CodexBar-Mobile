@@ -5,6 +5,7 @@ import Testing
 #if os(macOS)
 import SweetCookieKit
 
+@Suite(.serialized)
 struct BrowserDetectionTests {
     @Test
     func `safari always installed`() {
@@ -104,26 +105,72 @@ struct BrowserDetectionTests {
         var preflightCount = 0
 
         KeychainAccessGate.withTaskOverrideForTesting(false) {
-            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
-                preflightCount += 1
-                return .interactionRequired
-            } operation: {
-                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start) == false)
-            }
+            ProviderInteractionContext.$current.withValue(.userInitiated) {
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    preflightCount += 1
+                    return .interactionRequired
+                } operation: {
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start) == false)
+                }
 
-            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
-                preflightCount += 1
-                return .allowed
-            } operation: {
-                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start.addingTimeInterval(60)) == false)
-                #expect(
-                    BrowserCookieAccessGate.shouldAttempt(
-                        .chrome,
-                        now: start.addingTimeInterval((60 * 60 * 6) + 1)) == true)
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    preflightCount += 1
+                    return .allowed
+                } operation: {
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start.addingTimeInterval(60)) == false)
+                    #expect(
+                        BrowserCookieAccessGate.shouldAttempt(
+                            .chrome,
+                            now: start.addingTimeInterval((60 * 60 * 6) + 1)) == true)
+                }
             }
         }
 
         #expect(preflightCount == 2)
+    }
+
+    @Test
+    func `background cookie import allows authorized chromium keychain sources`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        var preflightCount = 0
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                preflightCount += 1
+                return .allowed
+            } operation: {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome) == true)
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.safari) == true)
+                }
+            }
+        }
+
+        #expect(preflightCount == 1)
+    }
+
+    @Test
+    func `background cookie import suppresses chromium keychain sources requiring interaction`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        var preflightCount = 0
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                preflightCount += 1
+                return .interactionRequired
+            } operation: {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.chrome) == false)
+                    #expect(BrowserCookieAccessGate.shouldAttempt(.safari) == true)
+                }
+            }
+        }
+
+        #expect(preflightCount == 1)
     }
 
     @Test

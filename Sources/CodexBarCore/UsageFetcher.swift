@@ -88,6 +88,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let kiroUsage: KiroUsageDetails?
     public let zaiUsage: ZaiUsageSnapshot?
     public let minimaxUsage: MiniMaxUsageSnapshot?
+    public let deepseekUsage: DeepSeekUsageSummary?
     public let openRouterUsage: OpenRouterUsageSnapshot?
     public let perplexityUsage: PerplexityUsageSnapshot?
     public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
@@ -144,6 +145,7 @@ public struct UsageSnapshot: Codable, Sendable {
         providerCost: ProviderCostSnapshot? = nil,
         zaiUsage: ZaiUsageSnapshot? = nil,
         minimaxUsage: MiniMaxUsageSnapshot? = nil,
+        deepseekUsage: DeepSeekUsageSummary? = nil,
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
         perplexityUsage: PerplexityUsageSnapshot? = nil,
         openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
@@ -168,6 +170,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = providerCost
         self.zaiUsage = zaiUsage
         self.minimaxUsage = minimaxUsage
+        self.deepseekUsage = deepseekUsage
         self.openRouterUsage = openRouterUsage
         self.perplexityUsage = perplexityUsage
         self.openAIAPIUsage = openAIAPIUsage
@@ -195,6 +198,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.kiroUsage = try container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
         self.zaiUsage = nil // Not persisted, fetched fresh each time
         self.minimaxUsage = nil // Not persisted, fetched fresh each time
+        self.deepseekUsage = nil // Not persisted, fetched fresh each time
         self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
         self.perplexityUsage = nil // Not persisted, fetched fresh each time
         self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
@@ -348,6 +352,7 @@ public struct UsageSnapshot: Codable, Sendable {
             providerCost: self.providerCost,
             zaiUsage: self.zaiUsage,
             minimaxUsage: self.minimaxUsage,
+            deepseekUsage: self.deepseekUsage,
             openRouterUsage: self.openRouterUsage,
             openAIAPIUsage: self.openAIAPIUsage,
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
@@ -382,6 +387,7 @@ public struct UsageSnapshot: Codable, Sendable {
             providerCost: self.providerCost,
             zaiUsage: self.zaiUsage,
             minimaxUsage: self.minimaxUsage,
+            deepseekUsage: self.deepseekUsage,
             openRouterUsage: self.openRouterUsage,
             openAIAPIUsage: self.openAIAPIUsage,
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,

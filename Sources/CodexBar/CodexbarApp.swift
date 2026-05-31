@@ -45,9 +45,10 @@ struct CodexBarApp: App {
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
         Self.applyLanguagePreference(from: settings)
+        configureUsageFormatterLocalizationProvider()
         let managedCodexAccountCoordinator = ManagedCodexAccountCoordinator()
         managedCodexAccountCoordinator.onManagedAccountsDidChange = {
-            _ = settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
+            _ = settings.refreshCodexAccountReconciliationAfterManagedAccountsDidChange()
         }
         _ = settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
         let fetcher = UsageFetcher()
@@ -364,6 +365,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?
     private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
     private var hasInstalledWeeklyLimitResetObserver = false
+    var terminateActiveProcessesForAppShutdown: () -> Void = {
+        TTYCommandRunner.terminateActiveProcessesForAppShutdown()
+    }
 
     func configure(_ dependencies: Dependencies) {
         self.store = dependencies.store
@@ -397,8 +401,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        self.statusController?.prepareForAppShutdown()
         self.confettiOverlayController.dismiss()
-        TTYCommandRunner.terminateActiveProcessesForAppShutdown()
+        self.dismissAppKitWindowsForShutdown()
+        self.terminateActiveProcessesForAppShutdown()
     }
 
     func runProviderLoginFlow(_ provider: UsageProvider) async {
@@ -444,6 +450,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static func classicIconURL() -> URL? {
         Bundle.main.url(forResource: "Icon-classic", withExtension: "icns")
+    }
+
+    private func dismissAppKitWindowsForShutdown() {
+        guard let app = NSApp else { return }
+        for window in app.windows {
+            window.orderOut(nil)
+        }
     }
 
     private func ensureStatusController() {

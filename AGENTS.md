@@ -8,6 +8,12 @@ This is the complete development workflow for any AI agent working on CodexBar M
 
 ---
 
+## Mac Upstream Testing Guardrails
+
+- Never run checks or ad-hoc validation that can display macOS Keychain prompts unless explicitly requested.
+- Prefer parser, provider, and state/model tests over live app-bundle flows when behavior is CLI-testable.
+- Use `KeychainNoUIQuery` or stubs for credential paths; do not touch real provider accounts during routine validation.
+
 ## Development Lifecycle
 
 Every feature or fix follows these 7 steps in order:

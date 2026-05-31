@@ -36,16 +36,25 @@ if [[ $(printf "%s\n" "$key_lines" | wc -l) -ne 1 ]]; then
   exit 1
 fi
 
+NOTARIZATION_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-notarize.XXXXXX")
+chmod 700 "$NOTARIZATION_TEMP_DIR"
+API_KEY_PATH="$NOTARIZATION_TEMP_DIR/codexbar-api-key.p8"
+NOTARIZATION_ZIP="$NOTARIZATION_TEMP_DIR/${APP_NAME}Notarize.zip"
+trap 'rm -rf "$NOTARIZATION_TEMP_DIR" "$RELEASE_STAGE_DIR"' EXIT
+
 if [[ -n "${APP_STORE_CONNECT_API_KEY_FILE:-}" ]]; then
   if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
     echo "App Store Connect API key file not found: $APP_STORE_CONNECT_API_KEY_FILE" >&2
     exit 1
   fi
-  cp "$APP_STORE_CONNECT_API_KEY_FILE" /tmp/codexbar-api-key.p8
+  cp "$APP_STORE_CONNECT_API_KEY_FILE" "$API_KEY_PATH"
 else
-  echo "$APP_STORE_CONNECT_API_KEY_P8" | sed 's/\\n/\n/g' > /tmp/codexbar-api-key.p8
+  (
+    umask 077
+    printf '%s' "$APP_STORE_CONNECT_API_KEY_P8" | sed 's/\\n/\n/g' > "$API_KEY_PATH"
+  )
 fi
-trap 'rm -f /tmp/codexbar-api-key.p8 /tmp/${APP_NAME}Notarize.zip; rm -rf "$RELEASE_STAGE_DIR"' EXIT
+chmod 600 "$API_KEY_PATH"
 
 # Allow building a universal binary if ARCHES is provided; default to universal (arm64 + x86_64).
 ARCHES_VALUE=${ARCHES:-"arm64 x86_64"}
@@ -82,11 +91,11 @@ codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
   "$APP_BUNDLE"
 
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
-"$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"
+"$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$NOTARIZATION_ZIP"
 
 echo "Submitting for notarization"
-xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
-  --key /tmp/codexbar-api-key.p8 \
+xcrun notarytool submit "$NOTARIZATION_ZIP" \
+  --key "$API_KEY_PATH" \
   --key-id "$APP_STORE_CONNECT_KEY_ID" \
   --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
   --wait

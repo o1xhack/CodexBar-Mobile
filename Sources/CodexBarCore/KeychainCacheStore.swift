@@ -101,11 +101,12 @@ public enum KeychainCacheStore {
             return
         }
 
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.serviceName,
             kSecAttrAccount as String: key.account,
         ]
+        KeychainNoUIQuery.apply(to: &query)
 
         let updateStatus = SecItemUpdate(
             query as CFDictionary,
@@ -140,20 +141,16 @@ public enum KeychainCacheStore {
         }
         guard self.canUseRealKeychain else { return false }
         #if os(macOS)
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.serviceName,
             kSecAttrAccount as String: key.account,
         ]
-        let status = SecItemDelete(query as CFDictionary)
-        if status == errSecSuccess {
-            return true
-        }
-        if status != errSecItemNotFound {
-            self.log.error("Keychain cache delete failed (\(key.account)): \(status)")
-        }
-        #endif
+        KeychainNoUIQuery.apply(to: &query)
+        return self.clearResultForKeychainDeleteStatus(SecItemDelete(query as CFDictionary), key: key)
+        #else
         return false
+        #endif
     }
 
     public static func keys(category: String) -> [Key] {
@@ -229,6 +226,10 @@ public enum KeychainCacheStore {
     }
 
     static var canUseRealKeychainForTesting: Bool {
+        self.canUseRealKeychain
+    }
+
+    static var canEnumerateOrDeleteRealKeychainForTesting: Bool {
         self.canUseRealKeychain
     }
 
@@ -311,6 +312,21 @@ public enum KeychainCacheStore {
         default:
             self.log.error("Keychain cache read failed (\(key.account)): \(status)")
             return .invalid
+        }
+    }
+
+    static func clearResultForKeychainDeleteStatus(_ status: OSStatus, key: Key) -> Bool {
+        switch status {
+        case errSecSuccess:
+            return true
+        case errSecItemNotFound:
+            return false
+        case errSecInteractionNotAllowed:
+            self.log.info("Keychain cache delete temporarily unavailable (\(key.account))")
+            return false
+        default:
+            self.log.error("Keychain cache delete failed (\(key.account)): \(status)")
+            return false
         }
     }
 
