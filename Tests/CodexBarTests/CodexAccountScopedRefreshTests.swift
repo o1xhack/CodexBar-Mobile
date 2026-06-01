@@ -448,124 +448,74 @@ struct CodexAccountScopedRefreshTests {
     }
 
     @Test
-    func `dashboard display only keeps dashboard visible and clears dashboard derived data`() async throws {
-        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-display-only-cleanup")
-        let managedHome = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: managedHome) }
-        try Self.writeCodexAuthFile(
-            homeURL: managedHome,
-            email: "shared@example.com",
-            plan: "pro",
-            accountId: "acct-managed")
+    func `dashboard display only keeps dashboard visible and clears dashboard derived data`() {
+        let decision = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .emailOnly(normalizedEmail: "shared@example.com"),
+                expectedScopedEmail: nil,
+                trustedCurrentUsageEmail: nil,
+                dashboardSignedInEmail: "shared@example.com",
+                knownOwners: [
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .providerAccount(id: "acct-managed"),
+                        normalizedEmail: "shared@example.com"),
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .emailOnly(normalizedEmail: "shared@example.com"),
+                        normalizedEmail: "shared@example.com"),
+                ]),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: "shared@example.com",
+                lastKnownDashboardRoutingEmail: nil)))
 
-        let managedAccount = ManagedCodexAccount(
-            id: UUID(),
-            email: "shared@example.com",
-            managedHomePath: managedHome.path,
-            createdAt: 1,
-            updatedAt: 1,
-            lastAuthenticatedAt: 1)
-        let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
-        defer {
-            settings._test_managedCodexAccountStoreURL = nil
-            try? FileManager.default.removeItem(at: managedStoreURL)
-            OpenAIDashboardCacheStore.clear()
-        }
-
-        settings.refreshFrequency = .manual
-        settings.codexCookieSource = .auto
-        settings._test_managedCodexAccountStoreURL = managedStoreURL
-        settings._test_liveSystemCodexAccount = self.liveAccount(
-            email: "shared@example.com",
-            identity: .emailOnly(normalizedEmail: "shared@example.com"))
-        settings.codexActiveSource = .liveSystem
-
-        let store = self.makeUsageStore(settings: settings)
-        store._setSnapshotForTesting(self.codexSnapshot(email: "shared@example.com", usedPercent: 20), provider: .codex)
-        store.lastSourceLabels[.codex] = "openai-web"
-        let staleCredits = self.credits(remaining: 20)
-        store.credits = staleCredits
-        store.lastCreditsSnapshot = staleCredits
-        store.lastCreditsSnapshotAccountKey = "shared@example.com"
-        store.lastCreditsSource = .dashboardWeb
-        OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
-            accountEmail: "shared@example.com",
-            snapshot: self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20)))
-
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex] == nil)
-        #expect(store.lastSourceLabels[.codex] == nil)
-        #expect(store.credits == nil)
-        #expect(store.lastCreditsSource == .none)
-        #expect(OpenAIDashboardCacheStore.load() == nil)
+        #expect(decision.disposition == .displayOnly)
+        #expect(decision.reason == .sameEmailAmbiguity(email: "shared@example.com"))
+        #expect(decision.allowedEffects.isEmpty)
+        #expect(decision.cleanup == Set(CodexDashboardCleanup.allCases))
     }
 
     @Test
-    func `dashboard downgrade from real attach to display only retires owned state immediately`() async throws {
-        OpenAIDashboardCacheStore.clear()
-        defer { OpenAIDashboardCacheStore.clear() }
+    func `dashboard downgrade from real attach to display only retires owned state immediately`() {
+        let attached = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .emailOnly(normalizedEmail: "shared@example.com"),
+                expectedScopedEmail: nil,
+                trustedCurrentUsageEmail: nil,
+                dashboardSignedInEmail: "shared@example.com",
+                knownOwners: [
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .emailOnly(normalizedEmail: "shared@example.com"),
+                        normalizedEmail: "shared@example.com"),
+                ]),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: "shared@example.com",
+                lastKnownDashboardRoutingEmail: nil)))
+        let downgraded = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .emailOnly(normalizedEmail: "shared@example.com"),
+                expectedScopedEmail: nil,
+                trustedCurrentUsageEmail: nil,
+                dashboardSignedInEmail: "shared@example.com",
+                knownOwners: [
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .emailOnly(normalizedEmail: "shared@example.com"),
+                        normalizedEmail: "shared@example.com"),
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .providerAccount(id: "acct-managed"),
+                        normalizedEmail: "shared@example.com"),
+                ]),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: "shared@example.com",
+                lastKnownDashboardRoutingEmail: nil)))
 
-        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-downgrade")
-        let managedHome = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: managedHome) }
-        try Self.writeCodexAuthFile(
-            homeURL: managedHome,
-            email: "shared@example.com",
-            plan: "pro",
-            accountId: "acct-managed")
-
-        let managedAccount = ManagedCodexAccount(
-            id: UUID(),
-            email: "shared@example.com",
-            managedHomePath: managedHome.path,
-            createdAt: 1,
-            updatedAt: 1,
-            lastAuthenticatedAt: 1)
-        let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
-        defer {
-            settings._test_managedCodexAccountStoreURL = nil
-            try? FileManager.default.removeItem(at: managedStoreURL)
-        }
-
-        settings.refreshFrequency = .manual
-        settings.codexCookieSource = .auto
-        settings._test_liveSystemCodexAccount = self.liveAccount(
-            email: "shared@example.com",
-            identity: .emailOnly(normalizedEmail: "shared@example.com"))
-        settings.codexActiveSource = .liveSystem
-
-        let store = self.makeUsageStore(settings: settings)
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "shared@example.com")
-        #expect(store.lastSourceLabels[.codex] == "openai-web")
-        #expect(store.credits?.remaining == 20)
-        #expect(store.lastCreditsSource == .dashboardWeb)
-        #expect(OpenAIDashboardCacheStore.load()?.accountEmail == "shared@example.com")
-
-        settings._test_managedCodexAccountStoreURL = managedStoreURL
-
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex] == nil)
-        #expect(store.lastSourceLabels[.codex] == nil)
-        #expect(store.credits == nil)
-        #expect(store.lastCreditsSource == .none)
-        #expect(OpenAIDashboardCacheStore.load() == nil)
+        #expect(attached.disposition == .attach)
+        #expect(attached.cleanup.isEmpty)
+        #expect(downgraded.disposition == .displayOnly)
+        #expect(downgraded.reason == .sameEmailAmbiguity(email: "shared@example.com"))
+        #expect(downgraded.allowedEffects.isEmpty)
+        #expect(downgraded.cleanup == Set(CodexDashboardCleanup.allCases))
     }
 
     @Test
