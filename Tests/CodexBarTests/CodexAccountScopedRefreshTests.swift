@@ -539,38 +539,36 @@ struct CodexAccountScopedRefreshTests {
     }
 
     @Test
-    func `default dashboard refresh path discards stale completion after account switch`() async {
+    func `default dashboard refresh path discards stale completion after account switch`() {
         let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-guard")
-        settings.refreshFrequency = .manual
-        settings.openAIWebAccessEnabled = true
-        settings.codexCookieSource = .auto
+        settings.codexActiveSource = .liveSystem
         settings._test_liveSystemCodexAccount = self.liveAccount(email: "alpha@example.com")
 
         let store = self.makeUsageStore(settings: settings)
-        self.installImmediateCodexProvider(
-            on: store,
-            snapshot: self.codexSnapshot(email: "alpha@example.com", usedPercent: 18))
-        let dashboardBlocker = BlockingOpenAIDashboardLoader()
-        store._test_openAIDashboardLoaderOverride = { _, _, _, _ in
-            try await dashboardBlocker.awaitResult()
-        }
-        defer { store._test_openAIDashboardLoaderOverride = nil }
-
-        let refreshTask = Task { await store.refresh() }
-        await dashboardBlocker.waitUntilStarted()
+        let expectedGuard = store.currentCodexOpenAIWebRefreshGuard()
+        #expect(expectedGuard.identity == .emailOnly(normalizedEmail: "alpha@example.com"))
 
         settings._test_liveSystemCodexAccount = self.liveAccount(email: "beta@example.com")
-        store._setSnapshotForTesting(self.codexSnapshot(email: "beta@example.com", usedPercent: 7), provider: .codex)
-        store.openAIDashboard = nil
-        store.credits = nil
+        #expect(store.shouldApplyOpenAIDashboardRefreshGuard(
+            expectedGuard: expectedGuard,
+            routingTargetEmail: "alpha@example.com") == false)
 
-        await dashboardBlocker.resume(with: .success(
-            self.dashboard(email: "alpha@example.com", creditsRemaining: 44, usedPercent: 21)))
-        await refreshTask.value
+        let decision = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .emailOnly(normalizedEmail: "beta@example.com"),
+                expectedScopedEmail: "beta@example.com",
+                trustedCurrentUsageEmail: nil,
+                dashboardSignedInEmail: "alpha@example.com",
+                knownOwners: []),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: "alpha@example.com",
+                lastKnownDashboardRoutingEmail: nil)))
 
-        #expect(store.openAIDashboard == nil)
-        #expect(store.credits == nil)
-        #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "beta@example.com")
+        #expect(decision.disposition == .failClosed)
+        #expect(decision.reason == .wrongEmail(expected: "beta@example.com", actual: "alpha@example.com"))
+        #expect(decision.allowedEffects.isEmpty)
+        #expect(decision.cleanup == Set(CodexDashboardCleanup.allCases))
     }
 
     @Test
