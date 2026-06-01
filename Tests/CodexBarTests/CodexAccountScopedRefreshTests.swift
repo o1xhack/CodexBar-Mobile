@@ -519,37 +519,23 @@ struct CodexAccountScopedRefreshTests {
     }
 
     @Test
-    func `dashboard refresh rejects stale completion during live account reconciliation lag`() async {
-        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-reject-stale-live-lag")
-        let isolatedHome = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codex-openai-web-stale-live-lag-\(UUID().uuidString)", isDirectory: true)
-        try? FileManager.default.createDirectory(at: isolatedHome, withIntermediateDirectories: true)
-        settings.refreshFrequency = .manual
-        settings.codexCookieSource = .auto
-        settings._test_codexReconciliationEnvironment = ["CODEX_HOME": isolatedHome.path]
-        settings.codexActiveSource = .liveSystem
-        defer {
-            settings._test_codexReconciliationEnvironment = nil
-            try? FileManager.default.removeItem(at: isolatedHome)
-        }
+    func `dashboard refresh rejects stale completion during live account reconciliation lag`() {
+        let decision = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .unresolved,
+                expectedScopedEmail: nil,
+                trustedCurrentUsageEmail: "beta@example.com",
+                dashboardSignedInEmail: "alpha@example.com",
+                knownOwners: []),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: nil,
+                lastKnownDashboardRoutingEmail: nil)))
 
-        let store = self.makeUsageStore(settings: settings)
-        store._setSnapshotForTesting(self.codexSnapshot(email: "alpha@example.com", usedPercent: 12), provider: .codex)
-
-        let expectedGuard = store.currentCodexOpenAIWebRefreshGuard()
-        #expect(expectedGuard.accountKey == nil)
-
-        store._setSnapshotForTesting(self.codexSnapshot(email: "beta@example.com", usedPercent: 18), provider: .codex)
-
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "alpha@example.com", creditsRemaining: 40, usedPercent: 20),
-            targetEmail: nil,
-            expectedGuard: expectedGuard,
-            allowCodexUsageBackfill: true)
-
-        #expect(store.openAIDashboard == nil)
-        #expect(store.credits == nil)
-        #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "beta@example.com")
+        #expect(decision.disposition == .failClosed)
+        #expect(decision.reason == .wrongEmail(expected: "beta@example.com", actual: "alpha@example.com"))
+        #expect(decision.allowedEffects.isEmpty)
+        #expect(decision.cleanup == Set(CodexDashboardCleanup.allCases))
     }
 
     @Test
