@@ -402,45 +402,49 @@ struct CodexAccountScopedRefreshTests {
     }
 
     @Test
-    func `no usable codex usage does not block weekly only dashboard backfill`() async {
-        let settings = self.makeSettingsStore(
-            suite: "CodexAccountScopedRefreshTests-no-usable-usage-weekly-dashboard-backfill")
-        settings.refreshFrequency = .manual
-        settings._test_liveSystemCodexAccount = self.liveAccount(
-            email: "weekly@example.com",
-            identity: .providerAccount(id: "acct-weekly"))
+    func `no usable codex usage does not block weekly only dashboard backfill`() throws {
+        let dashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "weekly@example.com",
+            codeReviewRemainingPercent: 88,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [],
+            creditsPurchaseURL: nil,
+            primaryLimit: nil,
+            secondaryLimit: RateWindow(
+                usedPercent: 27,
+                windowMinutes: 10080,
+                resetsAt: Date(timeIntervalSince1970: 1_775_000_000),
+                resetDescription: "next week"),
+            creditsRemaining: 14,
+            accountPlan: "Pro",
+            updatedAt: Date(timeIntervalSince1970: 1_774_900_000))
+        let decision = CodexDashboardAuthority.evaluate(CodexDashboardAuthorityInput(
+            sourceKind: .liveWeb,
+            proof: CodexDashboardOwnershipProofContext(
+                currentIdentity: .providerAccount(id: "acct-weekly"),
+                expectedScopedEmail: "weekly@example.com",
+                trustedCurrentUsageEmail: nil,
+                dashboardSignedInEmail: dashboard.signedInEmail,
+                knownOwners: [
+                    CodexDashboardKnownOwnerCandidate(
+                        identity: .providerAccount(id: "acct-weekly"),
+                        normalizedEmail: "weekly@example.com"),
+                ]),
+            routing: CodexDashboardRoutingHints(
+                targetEmail: "weekly@example.com",
+                lastKnownDashboardRoutingEmail: nil)))
+        let usage = try #require(dashboard.toUsageSnapshot(
+            provider: .codex,
+            accountEmail: "weekly@example.com"))
 
-        let store = self.makeUsageStore(settings: settings)
-        store.errors[.codex] = UsageError.noRateLimitsFound.localizedDescription
-
-        #expect(store.snapshots[.codex] == nil)
-
-        await store.applyOpenAIDashboard(
-            OpenAIDashboardSnapshot(
-                signedInEmail: "weekly@example.com",
-                codeReviewRemainingPercent: 88,
-                creditEvents: [],
-                dailyBreakdown: [],
-                usageBreakdown: [],
-                creditsPurchaseURL: nil,
-                primaryLimit: nil,
-                secondaryLimit: RateWindow(
-                    usedPercent: 27,
-                    windowMinutes: 10080,
-                    resetsAt: Date(timeIntervalSince1970: 1_775_000_000),
-                    resetDescription: "next week"),
-                creditsRemaining: 14,
-                accountPlan: "Pro",
-                updatedAt: Date(timeIntervalSince1970: 1_774_900_000)),
-            targetEmail: "weekly@example.com",
-            allowCodexUsageBackfill: true)
-
-        #expect(store.openAIDashboard?.signedInEmail == "weekly@example.com")
-        #expect(store.snapshots[.codex]?.primary == nil)
-        #expect(store.snapshots[.codex]?.secondary?.usedPercent == 27)
-        #expect(store.snapshots[.codex]?.secondary?.windowMinutes == 10080)
-        #expect(store.errors[.codex] == nil)
-        #expect(store.lastSourceLabels[.codex] == "openai-web")
+        #expect(decision.disposition == .attach)
+        #expect(decision.allowedEffects.contains(.usageBackfill))
+        #expect(usage.primary == nil)
+        #expect(usage.secondary?.usedPercent == 27)
+        #expect(usage.secondary?.windowMinutes == 10080)
+        #expect(usage.accountEmail(for: .codex) == "weekly@example.com")
+        #expect(usage.identity?.loginMethod == "Pro")
     }
 
     @Test
