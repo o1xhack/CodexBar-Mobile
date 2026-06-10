@@ -75,6 +75,16 @@ Full status definitions and index are in `CodexBarMobile/Research/README.md`.
 - Verify on simulator or real device as needed
 - Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts. Live provider probes, browser-cookie imports, `codexbar usage` against real accounts, and real SecItem reads must be explicitly requested; otherwise use parser tests, stubs, test stores, or `KeychainNoUIQuery`.
 
+### Multi-device iCloud Sync Compatibility Gate
+
+When a release changes Mac→CloudKit→iOS sync, Shared payloads, CloudKit schema, provider display data, cache behavior, or cross-version rendering, testing must include the minimum real-device compatibility matrix:
+
+- 2 Macs
+- 2 iPhones
+- each device independently on old or new version
+
+This yields 16 old/new combinations. The release `Research/NNN-*/03-testing.md` must list the matrix and record pass/fail, substituted validation, or residual risk. A simple "old Mac/new iOS" 2×2 table is not enough when per-device identity, merge behavior, cache, silent push, or CloudKit records can affect the result.
+
 ## Step 5 — Documentation
 
 After code is complete:
