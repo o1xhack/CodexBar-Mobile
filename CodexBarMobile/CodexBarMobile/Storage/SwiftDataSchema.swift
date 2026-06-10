@@ -68,6 +68,8 @@ final class ProviderSnapshotModel {
     var statusMessage: String?
     var isError: Bool
     var lastUpdated: Date
+    var subscriptionExpiresAt: Date?
+    var subscriptionRenewsAt: Date?
 
     /// JSON-encoded `[SyncRateWindow]` — opaque blob, decoded on read.
     var rateWindowsData: Data
@@ -95,6 +97,8 @@ final class ProviderSnapshotModel {
         statusMessage: String? = nil,
         isError: Bool = false,
         lastUpdated: Date,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil,
         rateWindowsData: Data = Data("[]".utf8),
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
@@ -113,6 +117,8 @@ final class ProviderSnapshotModel {
         self.statusMessage = statusMessage
         self.isError = isError
         self.lastUpdated = lastUpdated
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.subscriptionRenewsAt = subscriptionRenewsAt
         self.rateWindowsData = rateWindowsData
         self.costSummaryData = costSummaryData
         self.budgetData = budgetData

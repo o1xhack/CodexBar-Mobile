@@ -981,7 +981,11 @@ public struct TTYCommandRunner {
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         proc.arguments = [tool]
         var env = ProcessInfo.processInfo.environment
-        env["PATH"] = PathBuilder.effectivePATH(purposes: [.tty, .nodeTooling], env: env)
+        let loginPATH = LoginShellPathCache.shared.currentOrCapture()
+        env["PATH"] = PathBuilder.effectivePATH(
+            purposes: [.tty, .nodeTooling],
+            env: env,
+            loginPATH: loginPATH)
         proc.environment = env
         let pipe = Pipe()
         proc.standardOutput = pipe

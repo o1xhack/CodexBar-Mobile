@@ -169,6 +169,8 @@ enum SwiftDataBridge {
             existing.statusMessage = provider.statusMessage
             existing.isError = provider.isError
             existing.lastUpdated = provider.lastUpdated
+            existing.subscriptionExpiresAt = provider.subscriptionExpiresAt
+            existing.subscriptionRenewsAt = provider.subscriptionRenewsAt
             existing.rateWindowsData = rateWindowsData
             existing.costSummaryData = costSummaryData
             existing.budgetData = budgetData
@@ -185,6 +187,8 @@ enum SwiftDataBridge {
                 statusMessage: provider.statusMessage,
                 isError: provider.isError,
                 lastUpdated: provider.lastUpdated,
+                subscriptionExpiresAt: provider.subscriptionExpiresAt,
+                subscriptionRenewsAt: provider.subscriptionRenewsAt,
                 rateWindowsData: rateWindowsData,
                 costSummaryData: costSummaryData,
                 budgetData: budgetData,
@@ -342,6 +346,8 @@ enum SwiftDataBridge {
                     lastUpdated: row.lastUpdated,
                     costSummary: costSummary,
                     budget: budget,
+                    subscriptionExpiresAt: row.subscriptionExpiresAt,
+                    subscriptionRenewsAt: row.subscriptionRenewsAt,
                     rateWindows: rateWindows,
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
                     perplexityCredits: perplexityCredits))

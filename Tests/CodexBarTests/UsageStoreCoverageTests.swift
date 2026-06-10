@@ -1,10 +1,28 @@
 import CodexBarCore
 import Foundation
+import Observation
 import Testing
 @testable import CodexBar
 
 @MainActor
 struct UsageStoreCoverageTests {
+    private final class ObservationFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = false
+
+        func set() {
+            self.lock.lock()
+            self.value = true
+            self.lock.unlock()
+        }
+
+        func get() -> Bool {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return self.value
+        }
+    }
+
     @Test
     func `provider with highest usage and icon style`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-highest")
@@ -68,6 +86,36 @@ struct UsageStoreCoverageTests {
 
         let label = store.sourceLabel(for: .codex)
         #expect(label.contains("openai-web"))
+    }
+
+    @Test
+    func `account info caches codex auth parsing until config revision changes`() throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-account-info-cache")
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "usage-store-account-info-\(UUID().uuidString)",
+            isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        try Self.writeCodexAuthFile(homeURL: home, email: "first@example.com", plan: "plus")
+        let env = ["CODEX_HOME": home.path]
+        settings._test_codexReconciliationEnvironment = env
+        defer { settings._test_codexReconciliationEnvironment = nil }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: env),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: env)
+
+        let first = store.accountInfo(for: .codex)
+        try Self.writeCodexAuthFile(homeURL: home, email: "second@example.com", plan: "pro")
+        let cached = store.accountInfo(for: .codex)
+        settings.configRevision &+= 1
+        let refreshed = store.accountInfo(for: .codex)
+
+        #expect(first.email == "first@example.com")
+        #expect(cached.email == "first@example.com")
+        #expect(refreshed.email == "second@example.com")
     }
 
     @Test
@@ -472,6 +520,38 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `background work settings observation ignores menu provider selection churn`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-switcher-selection-observation")
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        try Self.enableOnly(.codex, settings: settings)
+
+        let store = Self.makeUsageStore(settings: settings)
+        let didChange = ObservationFlag()
+
+        withObservationTracking {
+            _ = store.backgroundWorkSettingsObservationToken
+        } onChange: {
+            didChange.set()
+        }
+
+        settings.selectedMenuProvider = .codex
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        #expect(didChange.get() == false)
+
+        let refreshDidChange = ObservationFlag()
+        withObservationTracking {
+            _ = store.backgroundWorkSettingsObservationToken
+        } onChange: {
+            refreshDidChange.set()
+        }
+
+        settings.refreshFrequency = .oneMinute
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        #expect(refreshDidChange.get() == true)
+    }
+
+    @Test
     func `startup status network failure schedules bounded retry`() async throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-startup-status-retry")
         settings.refreshFrequency = .manual
@@ -593,6 +673,38 @@ struct UsageStoreCoverageTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             environmentBase: [:])
+    }
+
+    private static func writeCodexAuthFile(homeURL: URL, email: String, plan: String) throws {
+        try FileManager.default.createDirectory(at: homeURL, withIntermediateDirectories: true)
+        let auth = try [
+            "tokens": [
+                "accessToken": "access-token",
+                "refreshToken": "refresh-token",
+                "idToken": Self.fakeCodexJWT(email: email, plan: plan),
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: auth)
+        try data.write(to: homeURL.appendingPathComponent("auth.json"), options: .atomic)
+    }
+
+    private static func fakeCodexJWT(email: String, plan: String) throws -> String {
+        let header = try JSONSerialization.data(withJSONObject: ["alg": "none"])
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "email": email,
+            "chatgpt_plan_type": plan,
+            "https://api.openai.com/auth": [
+                "chatgpt_plan_type": plan,
+            ],
+        ])
+        return "\(Self.base64URL(header)).\(Self.base64URL(payload))."
+    }
+
+    private static func base64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "=", with: "")
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
     }
 
     private static func enableOnly(_ enabledProvider: UsageProvider, settings: SettingsStore) throws {

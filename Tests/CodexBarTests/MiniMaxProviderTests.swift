@@ -124,6 +124,18 @@ struct MiniMaxCookieHeaderTests {
         #expect(override?.authorizationToken == "token-abc")
         #expect(override?.groupID == "98765")
     }
+
+    @Test
+    func `extracts group ID from combo curl header and cookie`() {
+        let raw = """
+        curl 'https://www.minimaxi.com/v1/api/openplatform/charge/combo/cycle_audio_resource_package' \
+          -b 'foo=bar; minimax_group_id_v2=2013894056999916075' \
+          -H 'x-group-id: 2013894056999916075'
+        """
+        let override = MiniMaxCookieHeader.override(from: raw)
+        #expect(override?.cookieHeader == "foo=bar; minimax_group_id_v2=2013894056999916075")
+        #expect(override?.groupID == "2013894056999916075")
+    }
 }
 
 struct MiniMaxUsageParserTests {
@@ -1007,6 +1019,24 @@ struct MiniMaxAPIRegionTests {
         #expect(codingPlan.host == "platform.minimaxi.com")
         #expect(remains.host == "platform.minimaxi.com")
         #expect(codingPlan.query == "cycle_type=3")
+    }
+
+    @Test
+    func `resolves web remains fallback hosts`() {
+        let global = MiniMaxUsageFetcher.resolveRemainsURLs(region: .global, environment: [:])
+        let china = MiniMaxUsageFetcher.resolveRemainsURLs(region: .chinaMainland, environment: [:])
+
+        #expect(global.map(\.host).contains("platform.minimax.io"))
+        #expect(global.map(\.host).contains("www.minimax.io"))
+        #expect(china.map(\.host).contains("platform.minimaxi.com"))
+        #expect(china.map(\.host).contains("www.minimaxi.com"))
+    }
+
+    @Test
+    func `resolves official token plan remains URL`() {
+        let url = MiniMaxUsageFetcher.resolveTokenPlanRemainsURL(region: .chinaMainland)
+        #expect(url.host == "api.minimaxi.com")
+        #expect(url.path == "/v1/token_plan/remains")
     }
 
     @Test

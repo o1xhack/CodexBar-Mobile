@@ -2,6 +2,28 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.12.0 (152)] — 2026-06-10 — v0.32.5 upstream sync
+
+### Added
+
+- **MiniMax subscription metadata** — when Mac CodexBar 0.32.5.1 syncs renewal or
+  expiration dates from upstream v0.32.5, iOS now preserves the fields and shows a
+  compact renewal/expiration line on the provider card. 4-language localized.
+
+### Fixed
+
+- **Cross-version multi-Mac merge** — rich account-level synced fields are now
+  preserved with latest-non-nil merge semantics when one Mac is updated and another
+  Mac is still on an older build. This prevents optional provider details from
+  flickering to empty after an older Mac refreshes.
+
+### Notes
+
+- Wire-format change is additive only: older iOS builds ignore the new payload keys,
+  and newer iOS builds decode old Mac payloads with the subscription fields nil.
+
+---
+
 ## [1.11.1 (151)] — 2026-06-06 — Daily Spend chart scroll fix
 
 ### Fixed

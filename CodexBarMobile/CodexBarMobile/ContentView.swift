@@ -2438,8 +2438,26 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.11.1",
+            version: "1.12.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 0.32.5 sync: smoother Mac menu updates and MiniMax renewal details now appear on iPhone when your Mac sends them."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card."),
+                        String(localized: "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version."),
+                        String(localized: "Mac sync — includes upstream 0.32.5 provider accuracy and menu reliability fixes."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.32.5.1 (fork build 80.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new MiniMax details appear once Mac is updated."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.11.1",
+            status: "",
             summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."),
             sections: [
                 .init(

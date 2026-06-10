@@ -664,6 +664,8 @@ final class SyncCoordinator {
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
+            subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
+            subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
             perplexityCredits: perplexityCredits,

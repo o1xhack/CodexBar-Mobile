@@ -77,6 +77,42 @@ struct CloudKitMergeTests {
         #expect(merged.providers[0].primary?.usedPercent == 80.0) // Newer data wins
     }
 
+    @Test("Same provider old/new Mac merge preserves non-nil subscription metadata")
+    func sameProviderPreservesSubscriptionMetadata() throws {
+        let renewal = Date(timeIntervalSince1970: 1_801_000_000)
+        let oldMacLatestProvider = makeProvider(
+            id: "minimax", name: "MiniMax", email: "user@a.com",
+            lastUpdated: newerDate, usedPercent: 70.0)
+        let newMacOlderProvider = ProviderUsageSnapshot(
+            providerID: "minimax",
+            providerName: "MiniMax",
+            primary: SyncRateWindow(
+                usedPercent: 40.0,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "user@a.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: olderDate,
+            subscriptionRenewsAt: renewal)
+
+        let oldMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old",
+            providers: [oldMacLatestProvider])
+        let newMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new",
+            providers: [newMacOlderProvider])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+        let provider = try #require(merged.providers.first)
+        #expect(provider.primary?.usedPercent == 70.0)
+        #expect(provider.subscriptionRenewsAt == renewal)
+        #expect(provider.subscriptionExpiresAt == nil)
+    }
+
     // MARK: - Same provider, different accounts → keep both
 
     @Test("Same provider + different accounts are preserved as separate entries")

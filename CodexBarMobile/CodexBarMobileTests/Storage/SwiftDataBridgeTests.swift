@@ -27,7 +27,9 @@ struct SwiftDataBridgeTests {
         name: String = "Claude",
         email: String? = "user@example.com",
         lastUpdated: Date,
-        utilization: [SyncUtilizationSeries]? = nil
+        utilization: [SyncUtilizationSeries]? = nil,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil
     ) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: id,
@@ -39,6 +41,8 @@ struct SwiftDataBridgeTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: lastUpdated,
+            subscriptionExpiresAt: subscriptionExpiresAt,
+            subscriptionRenewsAt: subscriptionRenewsAt,
             rateWindows: [],
             utilizationHistory: utilization)
     }
@@ -152,6 +156,30 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
         #expect(providers.first?.providerName == "Claude Code")
         #expect(providers.first?.lastUpdated == self.ts2)
+    }
+
+    @Test("Subscription metadata survives SwiftData bridge round-trip")
+    func testSubscriptionMetadataRoundTrip() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let expiresAt = Date(timeIntervalSince1970: 1_801_000_000)
+        let renewsAt = Date(timeIntervalSince1970: 1_800_500_000)
+        let provider = self.makeProvider(
+            id: "minimax",
+            name: "MiniMax",
+            lastUpdated: self.ts1,
+            subscriptionExpiresAt: expiresAt,
+            subscriptionRenewsAt: renewsAt)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-subscription",
+            providers: [provider],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+        let decoded = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
+        let decodedProvider = try #require(decoded.first?.providers.first)
+        #expect(decodedProvider.subscriptionExpiresAt == expiresAt)
+        #expect(decodedProvider.subscriptionRenewsAt == renewsAt)
     }
 
     @Test("Snapshots without deviceID map to a deterministic fallback row")

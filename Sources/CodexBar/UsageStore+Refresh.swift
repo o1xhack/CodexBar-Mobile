@@ -23,7 +23,7 @@ extension UsageStore {
     func refreshProvider(_ provider: UsageProvider, allowDisabled: Bool = false) async {
         self.prepareRefreshState(for: provider)
         guard let spec = await self.providerRefreshSpec(provider) else { return }
-        let codexExpectedGuard = provider == .codex ? self.currentCodexAccountScopedRefreshGuard() : nil
+        let codexExpectedGuard = provider == .codex ? self.freshCodexAccountScopedRefreshGuard() : nil
 
         if !spec.isEnabled(), !allowDisabled {
             await self.clearDisabledProviderRefreshState(provider)
@@ -105,7 +105,10 @@ extension UsageStore {
                 if claudeCredentialsChanged {
                     self.clearClaudeCredentialDerivedStateForCredentialSwapNow()
                 }
-                let backfilled = scoped.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
+                let resetBackfillSource = provider == .codex
+                    ? self.codexLastKnownResetSnapshot(matching: codexExpectedGuard)
+                    : self.lastKnownResetSnapshots[provider]
+                let backfilled = scoped.backfillingResetTimes(from: resetBackfillSource)
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
                 self.lastKnownResetSnapshots[provider] = backfilled

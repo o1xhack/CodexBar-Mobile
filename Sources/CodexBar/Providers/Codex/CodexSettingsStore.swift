@@ -70,6 +70,18 @@ extension SettingsStore {
         self.managedCodexRemoteHomePath(forActiveSource: self.codexResolvedActiveSource)
     }
 
+    func liveSystemCodexHomePath(forActiveSource source: CodexActiveSource) -> String? {
+        guard source == .liveSystem else {
+            return nil
+        }
+        let path = self.codexAccountReconciliationSnapshot(activeSourceOverride: source)
+            .liveSystemAccount?.codexHomePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let path, !path.isEmpty else {
+            return nil
+        }
+        return path
+    }
+
     func managedCodexRemoteHomePath(forActiveSource source: CodexActiveSource) -> String? {
         guard case let .managedAccount(id) = source else {
             return nil

@@ -4,21 +4,22 @@ import Foundation
 extension UsageMenuCardView.Model {
     static func minimaxMetrics(services: [MiniMaxServiceUsage], input: Input) -> [Metric] {
         let percentStyle: PercentStyle = .used
-        let textGenerationCount = services.count { $0.displayName == "Text Generation" }
+        let displayNameCounts = Dictionary(grouping: services.map(\.displayName), by: { $0 }).mapValues(\.count)
 
         return services.enumerated().map { index, service in
             let used = service.usage
             let displayPercent = min(100, max(0, service.percent))
-            let usageLabel = String(
-                format: L("minimax_usage_amount_format"),
-                used.formatted(),
-                service.limit.formatted())
-            let usedLabel = String(
-                format: L("minimax_used_percent_format"),
-                String(format: "%.0f%%", displayPercent))
+            let usageLabel = if service.isUnlimited {
+                nil as String?
+            } else {
+                String(
+                    format: L("minimax_usage_amount_format"),
+                    used.formatted(),
+                    service.limit.formatted())
+            }
             let localizedName = Self.localizedMiniMaxServiceName(service.displayName)
-            let title = if localizedName == L("minimax_service_text_generation"), textGenerationCount > 1 {
-                "\(L("minimax_service_text_generation")) · \(Self.displayWindowBadge(for: service.windowType))"
+            let title = if (displayNameCounts[service.displayName] ?? 0) > 1 {
+                "\(localizedName) · \(Self.displayWindowBadge(for: service.windowType))"
             } else {
                 localizedName
             }
@@ -28,13 +29,60 @@ extension UsageMenuCardView.Model {
                 title: title,
                 percent: displayPercent,
                 percentStyle: percentStyle,
+                statusText: service.isUnlimited ? "∞ Unlimited" : nil,
                 resetText: Self.localizedMiniMaxResetDescription(service.resetDescription),
-                detailText: service.timeRange,
+                detailText: nil,
                 detailLeftText: usageLabel,
-                detailRightText: usedLabel,
+                detailRightText: nil,
                 pacePercent: nil,
                 paceOnTop: true,
-                cardStyle: true)
+                warningMarkerPercents: service.isUnlimited
+                    ? []
+                    : Self.miniMaxWarningMarkerPercents(service: service, input: input),
+                cardStyle: false)
+        }
+    }
+
+    private static func miniMaxWarningMarkerPercents(service: MiniMaxServiceUsage, input: Input) -> [Double] {
+        switch self.miniMaxQuotaWarningWindow(for: service) {
+        case .session:
+            warningMarkerPercents(
+                thresholds: input.quotaWarningThresholds[.session],
+                showUsed: true)
+        case .weekly:
+            markerPercents(
+                thresholds: input.quotaWarningThresholds[.weekly],
+                showUsed: true,
+                workDays: input.workDaysPerWeek,
+                windowMinutes: self.miniMaxWindowMinutes(for: service.windowType),
+                includeWorkdayMarkers: true)
+        }
+    }
+
+    private static func miniMaxQuotaWarningWindow(for service: MiniMaxServiceUsage) -> QuotaWarningWindow {
+        service.windowType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "weekly" ? .weekly : .session
+    }
+
+    private static func miniMaxWindowMinutes(for windowType: String) -> Int? {
+        let normalized = windowType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized == "weekly" {
+            return 7 * 24 * 60
+        }
+        if normalized == "today" || normalized == "daily" {
+            return 24 * 60
+        }
+        if normalized == "5h" {
+            return 5 * 60
+        }
+        let pieces = normalized.split(separator: " ")
+        guard pieces.count >= 2, let value = Int(pieces[0]) else { return nil }
+        switch pieces[1] {
+        case "hour", "hours", "hr", "hrs":
+            return value * 60
+        case "minute", "minutes", "min", "mins":
+            return value
+        default:
+            return nil
         }
     }
 

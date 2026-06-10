@@ -6869,6 +6869,62 @@
         }
       }
     },
+    "Renews %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ に更新"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 续费"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 續費"
+          }
+        }
+      }
+    },
+    "Plan expires %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan expires %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にプラン終了"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 套餐到期"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 方案到期"
+          }
+        }
+      }
+    },
     "Selected Cost": {
       "localizations": {
         "en": {
@@ -14416,6 +14472,146 @@
           "stringUnit": {
             "state": "translated",
             "value": "將 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可顯示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前相容舊版 Mac —— 新卡片會先隱藏，待 Mac 更新後自動出現。"
+          }
+        }
+      }
+    },
+    "CodexBar 0.32.5 sync: smoother Mac menu updates and MiniMax renewal details now appear on iPhone when your Mac sends them.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.32.5 sync: smoother Mac menu updates and MiniMax renewal details now appear on iPhone when your Mac sends them."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.32.5 同期：Mac 側のメニュー更新がよりスムーズになり、Mac から送られた MiniMax の更新情報が iPhone に表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.32.5 同步：Mac 菜单更新更顺畅，Mac 发送 MiniMax 续费详情后，iPhone 也会显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.32.5 同步：Mac 選單更新更順暢，Mac 傳送 MiniMax 續費詳情後，iPhone 也會顯示。"
+          }
+        }
+      }
+    },
+    "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax — プランの更新日と終了日が Mac から同期され、プロバイダーカードに表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax —— 套餐续费和到期日期现在会从 Mac 同步，并显示在 provider 卡片上。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax —— 方案續費和到期日期現在會從 Mac 同步，並顯示在 provider 卡片上。"
+          }
+        }
+      }
+    },
+    "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider データ — 片方の Mac だけを更新し、もう一方が旧バージョンのままでも、同期された詳細情報を保持します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 数据 —— 一台 Mac 已更新、另一台仍是旧版时，也会保留丰富的同步详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 資料 —— 一台 Mac 已更新、另一台仍是舊版時，也會保留豐富的同步詳情。"
+          }
+        }
+      }
+    },
+    "Mac sync — includes upstream 0.32.5 provider accuracy and menu reliability fixes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac sync — includes upstream 0.32.5 provider accuracy and menu reliability fixes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同期 — 上流 0.32.5 の provider 精度向上とメニュー信頼性修正を含みます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含上游 0.32.5 的 provider 准确性和菜单可靠性修复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含上游 0.32.5 的 provider 準確性和選單可靠性修復。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.32.5.1 (fork build 80.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new MiniMax details appear once Mac is updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.32.5.1 (fork build 80.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new MiniMax details appear once Mac is updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 版 CodexBar を 0.32.5.1（fork build 80.1 以降）に更新してください。iPhone 1.12.0 は古い Mac ビルドとも互換性があり、新しい MiniMax 詳細は Mac 更新後に表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.32.5.1（fork build 80.1 或更高）。iPhone 1.12.0 仍兼容旧版 Mac；新的 MiniMax 详情会在 Mac 更新后出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.32.5.1（fork build 80.1 或更高）。iPhone 1.12.0 仍相容舊版 Mac；新的 MiniMax 詳情會在 Mac 更新後出現。"
           }
         }
       }

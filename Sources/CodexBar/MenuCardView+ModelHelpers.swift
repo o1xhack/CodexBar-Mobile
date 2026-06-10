@@ -133,6 +133,25 @@ extension UsageMenuCardView.Model {
             paceOnTop: paceOnTop)
     }
 
+    static func cursorBillingCyclePaceDetail(
+        window: RateWindow,
+        input: Input,
+        pace: UsagePace? = nil) -> PaceDetail?
+    {
+        guard input.provider == .cursor,
+              window.windowMinutes != nil
+        else { return nil }
+        let resolved = pace ?? UsagePace.weekly(window: window, now: input.now, defaultWindowMinutes: 10080)
+        guard let resolved,
+              resolved.expectedUsedPercent >= 3
+        else { return nil }
+        return Self.weeklyPaceDetail(
+            window: window,
+            now: input.now,
+            pace: resolved,
+            showUsed: input.usageBarsShowUsed)
+    }
+
     static func antigravityMetrics(input: Input, snapshot: UsageSnapshot) -> [Metric] {
         let percentStyle: PercentStyle = input.usageBarsShowUsed ? .used : .left
         var metrics = [
@@ -175,7 +194,11 @@ extension UsageMenuCardView.Model {
             return []
         }
         return extraRateWindows.map { namedWindow in
-            Metric(
+            let paceDetail = Self.extraRateWindowPaceDetail(
+                provider: input.provider,
+                window: namedWindow.window,
+                input: input)
+            return Metric(
                 id: namedWindow.id,
                 title: namedWindow.title,
                 percent: Self.clamped(
@@ -188,10 +211,36 @@ extension UsageMenuCardView.Model {
                     style: input.resetTimeDisplayStyle,
                     now: input.now),
                 detailText: nil,
-                detailLeftText: nil,
-                detailRightText: nil,
-                pacePercent: nil,
-                paceOnTop: true)
+                detailLeftText: paceDetail?.leftLabel,
+                detailRightText: paceDetail?.rightLabel,
+                pacePercent: paceDetail?.pacePercent,
+                paceOnTop: paceDetail?.paceOnTop ?? true)
+        }
+    }
+
+    private static func extraRateWindowPaceDetail(
+        provider: UsageProvider,
+        window: RateWindow,
+        input: Input) -> PaceDetail?
+    {
+        guard provider == .codex else { return nil }
+        switch window.windowMinutes {
+        case 300:
+            return self.sessionPaceDetail(
+                provider: provider,
+                window: window,
+                now: input.now,
+                showUsed: input.usageBarsShowUsed)
+        case 10080:
+            let pace = UsagePace.weekly(window: window, now: input.now, defaultWindowMinutes: 10080)
+                .flatMap { $0.expectedUsedPercent >= 3 ? $0 : nil }
+            return Self.weeklyPaceDetail(
+                window: window,
+                now: input.now,
+                pace: pace,
+                showUsed: input.usageBarsShowUsed)
+        default:
+            return nil
         }
     }
 

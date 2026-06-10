@@ -112,15 +112,22 @@ public struct ClaudeStatusProbe: Sendable {
                 "opusPercentLeft": "\(snap.opusPercentLeft ?? -1)",
             ])
             if !keepAlive {
-                await ClaudeCLISession.shared.reset()
+                await Self.resetTransientCLISessionAndCleanupProbeArtifacts()
             }
             return snap
         } catch {
             if !keepAlive {
-                await ClaudeCLISession.shared.reset()
+                await Self.resetTransientCLISessionAndCleanupProbeArtifacts()
             }
             throw error
         }
+    }
+
+    private static func resetTransientCLISessionAndCleanupProbeArtifacts() async {
+        await ClaudeCLISession.current.reset()
+        let removed = ClaudeProbeSessionArtifactCleaner.cleanupProbeSessionArtifacts()
+        guard !removed.isEmpty else { return }
+        Self.log.debug("Claude probe session artifacts removed", metadata: ["count": "\(removed.count)"])
     }
 
     // MARK: - Parsing helpers

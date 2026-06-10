@@ -166,6 +166,15 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
+        if provider == .minimax, cost.period == "MiniMax points balance" {
+            let balance = String(format: "%.0f", cost.used)
+            return ProviderCostSection(
+                title: L("Credits"),
+                percentUsed: nil,
+                spendLine: "\(L("Balance")): \(balance)",
+                percentLine: nil)
+        }
+
         if provider == .openai || provider == .claude, cost.limit <= 0 {
             let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")

@@ -30,9 +30,14 @@ public struct RateWindow: Codable, Equatable, Sendable {
     public func backfillingResetTime(from cached: RateWindow?, now: Date = .init()) -> RateWindow {
         if self.resetsAt != nil { return self }
         guard let cachedReset = cached?.resetsAt, cachedReset > now else { return self }
+        let windowMinutes = if let windowMinutes = self.windowMinutes, windowMinutes > 0 {
+            windowMinutes
+        } else {
+            cached?.windowMinutes
+        }
         return RateWindow(
             usedPercent: self.usedPercent,
-            windowMinutes: self.windowMinutes ?? cached?.windowMinutes,
+            windowMinutes: windowMinutes,
             resetsAt: cachedReset,
             resetDescription: self.resetDescription ?? cached?.resetDescription,
             nextRegenPercent: self.nextRegenPercent)
@@ -110,6 +115,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
     /// gap G — transient, like azureOpenAIUsage.
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
+    public let subscriptionExpiresAt: Date?
+    public let subscriptionRenewsAt: Date?
     public let updatedAt: Date
     public let identity: ProviderIdentitySnapshot?
 
@@ -129,6 +136,8 @@ public struct UsageSnapshot: Codable, Sendable {
         case elevenLabsUsage
         case groqUsage
         case llmProxyUsage
+        case subscriptionExpiresAt
+        case subscriptionRenewsAt
         case updatedAt
         case identity
         case accountEmail
@@ -159,6 +168,8 @@ public struct UsageSnapshot: Codable, Sendable {
         cursorRequests: CursorRequestUsage? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil,
         updatedAt: Date,
         identity: ProviderIdentitySnapshot? = nil)
     {
@@ -184,6 +195,8 @@ public struct UsageSnapshot: Codable, Sendable {
         self.cursorRequests = cursorRequests
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.subscriptionRenewsAt = subscriptionRenewsAt
         self.updatedAt = updatedAt
         self.identity = identity
     }
@@ -219,6 +232,8 @@ public struct UsageSnapshot: Codable, Sendable {
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
+        self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
+        self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {
             self.identity = identity
@@ -256,6 +271,8 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.elevenLabsUsage, forKey: .elevenLabsUsage)
         try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
         try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
+        try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
+        try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(self.identity, forKey: .identity)
         try container.encodeIfPresent(self.identity?.accountEmail, forKey: .accountEmail)
@@ -358,7 +375,15 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            grokUsage: self.grokUsage,
+            elevenLabsUsage: self.elevenLabsUsage,
+            groqUsage: self.groqUsage,
+            llmProxyUsage: self.llmProxyUsage,
             cursorRequests: self.cursorRequests,
+            azureOpenAIUsage: self.azureOpenAIUsage,
+            alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            subscriptionExpiresAt: self.subscriptionExpiresAt,
+            subscriptionRenewsAt: self.subscriptionRenewsAt,
             updatedAt: self.updatedAt,
             identity: identity)
     }
@@ -384,6 +409,7 @@ public struct UsageSnapshot: Codable, Sendable {
             secondary: secondary,
             tertiary: tertiary,
             extraRateWindows: self.extraRateWindows,
+            kiroUsage: self.kiroUsage,
             providerCost: self.providerCost,
             zaiUsage: self.zaiUsage,
             minimaxUsage: self.minimaxUsage,
@@ -393,7 +419,15 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            grokUsage: self.grokUsage,
+            elevenLabsUsage: self.elevenLabsUsage,
+            groqUsage: self.groqUsage,
+            llmProxyUsage: self.llmProxyUsage,
             cursorRequests: self.cursorRequests,
+            azureOpenAIUsage: self.azureOpenAIUsage,
+            alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            subscriptionExpiresAt: self.subscriptionExpiresAt,
+            subscriptionRenewsAt: self.subscriptionRenewsAt,
             updatedAt: self.updatedAt,
             identity: self.identity)
     }

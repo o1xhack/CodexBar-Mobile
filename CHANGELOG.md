@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.32.5.1 (Mobile 1.12.0 · build 80.1) — 2026-06-10 — upstream v0.32.5 sync
+
+Syncs the Mac app to upstream CodexBar **v0.32.5** and ships the paired iOS **1.12.0** companion. This is a menu-bar reliability and provider-accuracy release: upstream menu switching/performance fixes are preserved, MiniMax token-plan metadata flows through to iPhone where possible, and new subscription renewal/expiration metadata is carried on the shared sync payload.
+
+### Fixed / Improved
+
+- **Mac menu bar** — pulls in upstream provider-switching, merged-menu, readiness-signature, hosted-chart sizing, status-icon, Quit, and provider-switcher performance fixes from v0.32.5.
+- **Mac localization** — includes upstream French, Ukrainian, Dutch, and Vietnamese selectable app languages. iOS remains on the project-mandated 4-language set.
+- **MiniMax** — token-plan quota and points-balance fixes flow through existing provider cost/budget lanes; subscription renewal/expiration dates now sync to iPhone as additive optional metadata.
+- **Codex / Cursor / Claude / Antigravity** — upstream v0.32.5 accuracy fixes are merged on Mac; iOS verifies the existing rate-window sync lanes remain compatible.
+- **Pricing cache** — includes upstream models.dev catalog memoization and parser hash update.
+
+### Compatibility
+
+- Adds only optional JSON keys inside the existing provider payload. Old iPhones ignore the new metadata, old Macs simply do not send it, and new iPhones use latest non-nil values when one Mac is upgraded and another is still old.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.32.5**，并配套发布 iOS **1.12.0**。本轮以菜单栏可靠性和 provider 数据准确性为主：完整保留上游菜单切换/性能修复，MiniMax token plan 与点数余额尽可能通过现有成本/预算通道同步到 iPhone，并新增可选同步字段显示订阅续费/到期时间。
+
+### 修复 / 改进
+
+- **Mac 菜单栏** —— 合入上游 v0.32.5 的 provider 切换、merged menu、readiness signature、图表子菜单尺寸、状态图标、Quit 延后和 provider switcher 性能修复。
+- **Mac 本地化** —— 合入上游新增的法语、乌克兰语、荷兰语、越南语可选语言；iOS 仍遵循项目规定的 4 语言规则。
+- **MiniMax** —— token plan 配额与点数余额修复通过现有 provider cost/budget 通道到达 iPhone；订阅续费/到期时间改为可选同步元数据。
+- **Codex / Cursor / Claude / Antigravity** —— 合入上游 v0.32.5 的 Mac 端准确性修复；iOS 侧验证既有 rate-window 同步通道继续兼容。
+- **定价缓存** —— 合入上游 models.dev catalog memoization 和 parser hash 更新。
+
+### 兼容性
+
+- 仅在现有 provider payload 中增加 optional JSON key。旧 iPhone 会忽略新元数据，旧 Mac 不发送这些字段；一台 Mac 升级、一台 Mac 仍旧版时，新 iPhone 使用最新的非空值，不会被旧版设备清空。
+
+---
+
 ## iOS 1.11.1 (build 151) — 2026-06-06 — Daily Spend chart scroll fix (iOS-only; Mac unchanged at 0.32.4.1)
 
 iOS-only patch on top of 1.11.0. The Cost tab's **Daily Spend** chart now shows a ~30-day viewport and scrolls horizontally through the full accumulated history (50 / 90 / 365-day windows) instead of cramming every day into one non-scrollable screen. No Mac change — Mac stays at 0.32.4.1. Re-versioned from the unreleased build 150 because iOS 1.11.0 (build 149) is already in App Store review.

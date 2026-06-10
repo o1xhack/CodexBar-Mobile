@@ -24,7 +24,9 @@ struct SyncModelTests {
             loginMethod: "Pro",
             statusMessage: nil,
             isError: false,
-            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            subscriptionExpiresAt: Date(timeIntervalSince1970: 1_701_000_000),
+            subscriptionRenewsAt: Date(timeIntervalSince1970: 1_700_500_000))
 
         let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(snapshot)
@@ -43,6 +45,8 @@ struct SyncModelTests {
         #expect(decoded.isError == false)
         #expect(decoded.costSummary == nil)
         #expect(decoded.budget == nil)
+        #expect(decoded.subscriptionExpiresAt == Date(timeIntervalSince1970: 1_701_000_000))
+        #expect(decoded.subscriptionRenewsAt == Date(timeIntervalSince1970: 1_700_500_000))
     }
 
     @Test("SyncedUsageSnapshot round-trips through JSON")
@@ -151,6 +155,8 @@ struct SyncModelTests {
         #expect(decoded.primary?.usedPercent == 42.5)
         #expect(decoded.costSummary == nil)
         #expect(decoded.budget == nil)
+        #expect(decoded.subscriptionExpiresAt == nil)
+        #expect(decoded.subscriptionRenewsAt == nil)
         #expect(decoded.secondary == nil)
         #expect(decoded.statusMessage == nil)
     }

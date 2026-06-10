@@ -399,6 +399,10 @@
 "language_chinese_simplified" = "Chinês simplificado";
 "language_chinese_traditional" = "Chinês tradicional";
 "language_portuguese_brazilian" = "Português (Brasil)";
+"language_swedish" = "Sueco";
+"language_dutch" = "Nederlands";
+"language_french" = "Francês";
+"language_ukrainian" = "Ucraniano";
 "start_at_login_title" = "Iniciar ao fazer login";
 "start_at_login_subtitle" = "Abre o CodexBar automaticamente ao iniciar o Mac.";
 "show_cost_summary" = "Mostrar resumo de custos";
@@ -1059,3 +1063,5 @@
 "Clear" = "Limpar";
 "No matching providers" = "Nenhum provedor correspondente";
 "Search providers" = "Buscar provedores";
+
+"language_vietnamese" = "Vietnamita";

@@ -974,6 +974,8 @@ extension TokenAccountEnvironmentPrecedenceTests {
                 rateLimit: nil,
                 updatedAt: now),
             cursorRequests: CursorRequestUsage(used: 7, limit: 70),
+            subscriptionExpiresAt: reset.addingTimeInterval(86400),
+            subscriptionRenewsAt: reset.addingTimeInterval(43200),
             updatedAt: now,
             identity: identity)
     }
@@ -993,6 +995,8 @@ extension TokenAccountEnvironmentPrecedenceTests {
         #expect(after.openRouterUsage?.rateLimit?.requests == before.openRouterUsage?.rateLimit?.requests)
         #expect(after.cursorRequests?.used == before.cursorRequests?.used)
         #expect(after.cursorRequests?.limit == before.cursorRequests?.limit)
+        #expect(after.subscriptionExpiresAt == before.subscriptionExpiresAt)
+        #expect(after.subscriptionRenewsAt == before.subscriptionRenewsAt)
         #expect(after.updatedAt == before.updatedAt)
     }
 }

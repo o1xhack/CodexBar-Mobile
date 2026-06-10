@@ -261,6 +261,21 @@ struct AlibabaTokenPlanUsageParsingTests {
     }
 
     @Test
+    func `post only token payload maps to login required`() {
+        let json = """
+        {
+          "code": "PostonlyOrTokenError",
+          "message": "Your request has expired. Please refresh the page.",
+          "successResponse": false
+        }
+        """
+
+        #expect(throws: AlibabaTokenPlanUsageError.loginRequired) {
+            try AlibabaTokenPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+        }
+    }
+
+    @Test
     func `nested unsuccessful subscription summary maps to API error`() throws {
         let body = """
         {
@@ -280,6 +295,21 @@ struct AlibabaTokenPlanUsageParsingTests {
     func `forbidden payload maps to invalid credentials`() {
         let json = """
         {
+          "statusCode": 403,
+          "message": "Forbidden"
+        }
+        """
+
+        #expect(throws: AlibabaTokenPlanUsageError.invalidCredentials) {
+            try AlibabaTokenPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+        }
+    }
+
+    @Test
+    func `failed forbidden payload maps to invalid credentials`() {
+        let json = """
+        {
+          "successResponse": false,
           "statusCode": 403,
           "message": "Forbidden"
         }
@@ -311,7 +341,7 @@ struct AlibabaTokenPlanUsageParsingTests {
     }
 
     @Test
-    func `cookie only request continues without SEC token`() async throws {
+    func `SEC token preflight falls back to user info`() async throws {
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
@@ -319,8 +349,31 @@ struct AlibabaTokenPlanUsageParsingTests {
         AlibabaTokenPlanStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
 
-            if url.host == "alibaba-token-plan.test", request.httpMethod == "GET" {
+            if url.host == "alibaba-token-plan.test",
+               url.path == "/cn-beijing",
+               request.httpMethod == "GET"
+            {
+                #expect(url.port == 9443)
                 return Self.makeResponse(url: url, body: "<html></html>", statusCode: 200)
+            }
+
+            if url.host == "alibaba-token-plan.test",
+               url.path == "/tool/user/info.json",
+               request.httpMethod == "GET"
+            {
+                #expect(url.port == 9443)
+                #expect(request.value(forHTTPHeaderField: "Cookie") == "login_aliyunid_ticket=ticket; raw_only=keep")
+                #expect(request.value(forHTTPHeaderField: "Accept") == "application/json, text/plain, */*")
+                let json = """
+                {
+                  "code": "200",
+                  "data": {
+                    "secToken": "user-info-token"
+                  },
+                  "successResponse": true
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
             }
 
             if url.host == "alibaba-token-plan.test", request.httpMethod == "POST" {
@@ -329,7 +382,7 @@ struct AlibabaTokenPlanUsageParsingTests {
                 #expect(request.value(forHTTPHeaderField: "Referer") == AlibabaTokenPlanUsageFetcher.dashboardURL
                     .absoluteString)
                 let body = Self.requestBodyString(from: request)
-                #expect(!body.contains("sec_token="))
+                #expect(body.contains("sec_token=user-info-token"))
                 #expect(body.contains("GetSubscriptionSummary"))
                 #expect(body.contains("BssOpenAPI-V3"))
                 #expect(body.contains("ProductCode"))
@@ -356,7 +409,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
             apiCookieHeader: "login_aliyunid_ticket=ticket; raw_only=keep",
             dashboardCookieHeader: "login_aliyunid_ticket=ticket; raw_only=keep",
-            environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://alibaba-token-plan.test"],
+            environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://alibaba-token-plan.test:9443"],
             session: session)
 
         #expect(snapshot.planName == "TOKEN PLAN")

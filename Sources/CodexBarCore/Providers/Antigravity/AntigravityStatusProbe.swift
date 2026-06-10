@@ -559,7 +559,7 @@ public struct AntigravityStatusProbe: Sendable {
 
     // MARK: - Port detection
 
-    private struct ProcessInfoResult {
+    struct ProcessInfoResult {
         let pid: Int
         let extensionPort: Int?
         let extensionServerCSRFToken: String?
@@ -592,14 +592,25 @@ public struct AntigravityStatusProbe: Sendable {
             timeout: timeout,
             label: "antigravity-ps")
 
-        let lines = result.stdout.split(separator: "\n")
-        var sawAntigravity = false
+        return try Self.processInfo(fromProcessListOutput: result.stdout)
+    }
+
+    static func processInfo(fromProcessListOutput output: String) throws -> ProcessInfoResult {
+        let lines = output.split(separator: "\n")
+        var sawTokenlessIDE = false
         for line in lines {
             let text = String(line)
             guard let match = Self.matchProcessLine(text) else { continue }
-            guard Self.isAntigravityLanguageServerCommandLine(match.command) else { continue }
-            sawAntigravity = true
-            guard let token = Self.extractFlag("--csrf_token", from: match.command) else { continue }
+            guard let kind = Self.antigravityProcessKind(match.command) else { continue }
+            // The IDE language server authenticates local requests with a
+            // `--csrf_token` and must keep requiring it: skip a tokenless IDE
+            // match so a later valid IDE server can still be found (and surface
+            // `missingCSRFToken` if none is). The CLI's language server exposes
+            // no token flag and needs none, so an empty token is allowed there.
+            guard let token = Self.resolvedCSRFToken(forKind: kind, command: match.command) else {
+                sawTokenlessIDE = true
+                continue
+            }
             let port = Self.extractPort("--extension_server_port", from: match.command)
             let extensionServerCSRFToken = Self.extractFlag("--extension_server_csrf_token", from: match.command)
             return ProcessInfoResult(
@@ -610,7 +621,7 @@ public struct AntigravityStatusProbe: Sendable {
                 commandLine: match.command)
         }
 
-        if sawAntigravity {
+        if sawTokenlessIDE {
             throw AntigravityStatusProbeError.missingCSRFToken
         }
         throw AntigravityStatusProbeError.notRunning
@@ -629,14 +640,61 @@ public struct AntigravityStatusProbe: Sendable {
         return ProcessLineMatch(pid: pid, command: String(parts[1]))
     }
 
+    enum AntigravityProcessKind: Equatable {
+        /// IDE language server (`language_server*`). Requires a `--csrf_token`.
+        case ide
+        /// CLI language server (`agy` / `antigravity-cli`). Needs no CSRF token.
+        case cli
+    }
+
     static func isAntigravityLanguageServerCommandLine(_ command: String) -> Bool {
+        self.antigravityProcessKind(command) != nil
+    }
+
+    /// Classify a process command line as the Antigravity IDE language server,
+    /// the Antigravity CLI language server, or neither. The IDE match takes
+    /// precedence so its CSRF-token requirement is preserved.
+    static func antigravityProcessKind(_ command: String) -> AntigravityProcessKind? {
         let lower = command.lowercased()
-        return Self.isLanguageServerCommandLine(lower) && Self.isAntigravityCommandLine(lower)
+        if Self.isLanguageServerCommandLine(lower), Self.isAntigravityCommandLine(lower) {
+            return .ide
+        }
+        if Self.isAntigravityCLICommandLine(lower) {
+            return .cli
+        }
+        return nil
+    }
+
+    /// Resolve the CSRF token to use for a matched process, or `nil` when the
+    /// match must be skipped. IDE matches keep requiring `--csrf_token`
+    /// (tokenless IDE matches are skipped). CLI matches accept an empty token
+    /// because the CLI's language server requires none.
+    static func resolvedCSRFToken(forKind kind: AntigravityProcessKind, command: String) -> String? {
+        if let token = extractFlag("--csrf_token", from: command) {
+            return token
+        }
+        switch kind {
+        case .ide: return nil
+        case .cli: return ""
+        }
     }
 
     private static func isLanguageServerCommandLine(_ lowerCommand: String) -> Bool {
         let pattern = #"(^|[/\\])language_server(_macos|\.exe)?(\s|$)"#
         return lowerCommand.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    /// The Antigravity CLI (`agy` / `antigravity-cli`) hosts the same language
+    /// server locally as the IDE, but launches it without a `--csrf_token` flag
+    /// and under a different process name. Match it so usage can be probed when
+    /// only the CLI is running.
+    private static func isAntigravityCLICommandLine(_ lowerCommand: String) -> Bool {
+        let cliPathPattern = #"(^|[/\\])(antigravity-cli|antigravity_cli)([\s/\\]|$)"#
+        if lowerCommand.range(of: cliPathPattern, options: .regularExpression) != nil {
+            return true
+        }
+        let agyPattern = #"(^|[/\\])agy(\s|$)"#
+        return lowerCommand.range(of: agyPattern, options: .regularExpression) != nil
     }
 
     private static func isAntigravityCommandLine(_ command: String) -> Bool {

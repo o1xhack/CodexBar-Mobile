@@ -15,7 +15,7 @@ extension UsageStore {
 
     func scheduleCreditsRefreshIfNeeded(minimumSnapshotUpdatedAt: Date? = nil) {
         let refreshKey = self.codexCreditsRefreshKey(
-            expectedGuard: self.currentCodexAccountScopedRefreshGuard())
+            expectedGuard: self.freshCodexAccountScopedRefreshGuard())
         if let existing = self.creditsRefreshTask,
            !existing.isCancelled,
            self.creditsRefreshTaskKey == refreshKey
@@ -71,18 +71,19 @@ extension UsageStore {
             sourceKey,
             identityKey,
             expectedGuard.accountKey ?? "account:nil",
+            "auth:\(expectedGuard.authFingerprint ?? "nil")",
         ].joined(separator: "|")
     }
 
     func refreshCreditsIfNeeded(minimumSnapshotUpdatedAt: Date? = nil) async {
         guard self.isEnabled(.codex) else { return }
-        var expectedGuard = self.currentCodexAccountScopedRefreshGuard()
+        var expectedGuard = self.freshCodexAccountScopedRefreshGuard()
         if expectedGuard.identity == .unresolved,
            let minimumSnapshotUpdatedAt,
            case .liveSystem = expectedGuard.source
         {
             _ = await self.waitForCodexSnapshotOrRefreshCompletion(minimumUpdatedAt: minimumSnapshotUpdatedAt)
-            expectedGuard = self.currentCodexAccountScopedRefreshGuard()
+            expectedGuard = self.freshCodexAccountScopedRefreshGuard()
         }
         guard expectedGuard.identity != .unresolved,
               expectedGuard.accountKey != nil
@@ -92,15 +93,16 @@ extension UsageStore {
         do {
             let credits = try await self.loadLatestCodexCredits()
             guard !Task.isCancelled else { return }
-            guard self.shouldApplyCodexScopedNonUsageResult(expectedGuard: expectedGuard) else { return }
+            guard let applyGuard = self.codexScopedNonUsageSuccessApplyGuard(
+                expectedGuard: expectedGuard) else { return }
             await MainActor.run {
                 self.credits = credits
                 self.lastCreditsError = nil
                 self.lastCreditsSnapshot = credits
-                self.lastCreditsSnapshotAccountKey = expectedGuard.accountKey
+                self.lastCreditsSnapshotAccountKey = applyGuard.accountKey
                 self.lastCreditsSource = .api
                 self.creditsFailureStreak = 0
-                self.lastCodexAccountScopedRefreshGuard = expectedGuard
+                self.lastCodexAccountScopedRefreshGuard = applyGuard
             }
             let codexSnapshot = await MainActor.run {
                 self.snapshots[.codex]
@@ -123,7 +125,7 @@ extension UsageStore {
             guard !Task.isCancelled else { return }
             let message = error.localizedDescription
             if message.localizedCaseInsensitiveContains("data not available yet") {
-                guard self.shouldApplyCodexScopedNonUsageResult(expectedGuard: expectedGuard) else { return }
+                guard self.shouldApplyCodexScopedNonUsageFailure(expectedGuard: expectedGuard) else { return }
                 await MainActor.run {
                     if let cached = self.lastCreditsSnapshot,
                        self.lastCreditsSnapshotAccountKey == expectedGuard.accountKey
@@ -140,7 +142,7 @@ extension UsageStore {
                 return
             }
 
-            guard self.shouldApplyCodexScopedNonUsageResult(expectedGuard: expectedGuard) else { return }
+            guard self.shouldApplyCodexScopedNonUsageFailure(expectedGuard: expectedGuard) else { return }
             await MainActor.run {
                 self.creditsFailureStreak += 1
                 if let cached = self.lastCreditsSnapshot,

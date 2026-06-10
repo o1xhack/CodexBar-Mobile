@@ -48,6 +48,21 @@ struct ProviderUsageView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 16)
 
+            if let subscriptionLine = self.subscriptionMetadataLine() {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.caption)
+                    Text(subscriptionLine)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                .accessibilityIdentifier("provider-subscription-metadata-\(self.provider.providerID)")
+            }
+
             // Usage metrics — dynamic count per provider
             VStack(spacing: 10) {
                 ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
@@ -314,6 +329,35 @@ struct ProviderUsageView: View {
         case 1: return String(localized: "Weekly")
         default: return "\(String(localized: "Limit")) \(index + 1)"
         }
+    }
+
+    private func subscriptionMetadataLine() -> String? {
+        if let renewsAt = self.provider.subscriptionRenewsAt {
+            let template = String(localized: "Renews %@")
+            return String(format: template, self.subscriptionDateString(renewsAt))
+        }
+        if let expiresAt = self.provider.subscriptionExpiresAt {
+            let template = String(localized: "Plan expires %@")
+            return String(format: template, self.subscriptionDateString(expiresAt))
+        }
+        return nil
+    }
+
+    private func subscriptionDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        formatter.timeZone = self.subscriptionDateTimeZone
+        return formatter.string(from: date)
+    }
+
+    private var subscriptionDateTimeZone: TimeZone {
+        if self.provider.providerID == "minimax",
+           let shanghai = TimeZone(identifier: "Asia/Shanghai")
+        {
+            return shanghai
+        }
+        return .current
     }
 
     private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }

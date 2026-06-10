@@ -26,6 +26,7 @@ public enum AlibabaTokenPlanUsageError: LocalizedError, Sendable, Equatable {
     }
 }
 
+// swiftlint:disable:next type_body_length
 public struct AlibabaTokenPlanUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger("alibaba-token-plan")
     private static let gatewayBaseURLString = "https://bailian.console.aliyun.com"
@@ -306,6 +307,14 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             return token
         }
 
+        if let token = await self.fetchSECTokenFromUserInfo(
+            cookieHeader: dashboardCookieHeader,
+            environment: environment,
+            session: session)
+        {
+            return token
+        }
+
         if let cookieSECToken, !cookieSECToken.isEmpty {
             Self.log.info("Resolved Alibaba Token Plan sec_token from cookies")
             return cookieSECToken
@@ -318,6 +327,55 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 "apiCookieNames": self.cookieNamesDescription(from: apiCookieHeader),
             ])
         return nil
+    }
+
+    private static func fetchSECTokenFromUserInfo(
+        cookieHeader: String,
+        environment: [String: String],
+        session: URLSession) async -> String?
+    {
+        let baseURL = self.consoleBaseURL(environment: environment)
+        let userInfoURL = baseURL.appendingPathComponent("tool/user/info.json")
+        var request = URLRequest(url: userInfoURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.setValue(Self.safariLikeUserAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
+        let referer = baseURL.absoluteString.hasSuffix("/") ? baseURL.absoluteString : "\(baseURL.absoluteString)/"
+        request.setValue(referer, forHTTPHeaderField: "Referer")
+
+        guard let (data, response) = try? await session.data(for: request),
+              let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200,
+              let object = try? JSONSerialization.jsonObject(with: data, options: [])
+        else {
+            return nil
+        }
+
+        let expanded = self.expandedJSON(object)
+        guard let token = self.findFirstString(forKeys: ["secToken", "sec_token"], in: expanded),
+              !token.isEmpty
+        else {
+            return nil
+        }
+
+        Self.log.info(
+            "Resolved Alibaba Token Plan sec_token from user info",
+            metadata: [
+                "userInfoHost": userInfoURL.host ?? "unknown",
+                "bodyBytes": "\(data.count)",
+            ])
+        return token
+    }
+
+    private static func consoleBaseURL(environment: [String: String]) -> URL {
+        let dashboard = self.dashboardURL(environment: environment)
+        var components = URLComponents()
+        components.scheme = dashboard.scheme
+        components.host = dashboard.host
+        components.port = dashboard.port
+        return components.url ?? URL(string: Self.dashboardOriginURLString)!
     }
 
     private static func quotaURL(from rawHost: String) -> URL? {
@@ -408,11 +466,27 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     }
 
     private static func throwIfErrorPayload(_ dictionary: [String: Any]) throws {
+        if self.parseBool(dictionary["successResponse"]) == false {
+            if let statusCode = self.findFirstInt(forKeys: ["statusCode", "status_code", "code"], in: dictionary),
+               statusCode == 401 || statusCode == 403
+            {
+                throw AlibabaTokenPlanUsageError.invalidCredentials
+            }
+            let code = self.findFirstString(forKeys: ["code", "status", "statusCode"], in: dictionary)
+            let message = self.findFirstString(forKeys: ["message", "msg", "statusMessage"], in: dictionary) ??
+                code ??
+                "request was not successful"
+            if self.isLoginOrTokenError(code: code, message: message) {
+                throw AlibabaTokenPlanUsageError.loginRequired
+            }
+            throw AlibabaTokenPlanUsageError.apiError(message)
+        }
+
         if self.findBoolValues(forKeys: ["Success", "success"], in: dictionary).contains(false) {
+            let code = self.findFirstString(forKeys: ["Code", "code"], in: dictionary)
             let message = self.findFirstString(forKeys: ["Message", "message", "msg", "Code", "code"], in: dictionary)
                 ?? "request was not successful"
-            let lowered = message.lowercased()
-            if lowered.contains("needlogin") || lowered.contains("login") {
+            if self.isLoginOrTokenError(code: code, message: message) {
                 throw AlibabaTokenPlanUsageError.loginRequired
             }
             throw AlibabaTokenPlanUsageError.apiError(message)
@@ -435,13 +509,22 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let codeText = self.findFirstString(forKeys: ["code", "status", "statusCode"], in: dictionary)?.lowercased()
         let messageText = self.findFirstString(forKeys: ["message", "msg", "statusMessage"], in: dictionary)?
             .lowercased()
-        if codeText?.contains("needlogin") == true ||
-            codeText?.contains("login") == true ||
-            messageText?.contains("log in") == true ||
-            messageText?.contains("login") == true
-        {
+        if self.isLoginOrTokenError(code: codeText, message: messageText) {
             throw AlibabaTokenPlanUsageError.loginRequired
         }
+    }
+
+    private static func isLoginOrTokenError(code: String?, message: String?) -> Bool {
+        let combined = [code, message]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+        return combined.contains("needlogin") ||
+            combined.contains("login") ||
+            combined.contains("postonlyortokenerror") ||
+            combined.contains("tokenerror") ||
+            combined.contains("request has expired") ||
+            combined.contains("refresh page") ||
+            combined.contains("请求已经过期")
     }
 
     private static let planNameKeys = [

@@ -142,19 +142,16 @@ struct ProviderRegistry {
                 }
             }
         }
-        // Managed Codex routing only scopes remote account fetches such as identity, plan,
-        // quotas, and dashboard data, and only when the active source is a managed account.
-        // Token-cost/session history is intentionally not routed through the managed home
-        // because that data is currently treated as provider-level local telemetry from this
-        // Mac's Codex sessions, not as account-owned remote state. If we later want
-        // account-scoped token history in the UI, that needs an explicit product decision and
-        // presentation change so the two concepts are not conflated.
+        // Codex account routing scopes remote account fetches such as identity, plan,
+        // quotas, and dashboard data. Token-cost/session history is intentionally handled
+        // separately because it is provider-level local telemetry from this Mac's Codex sessions,
+        // not account-owned remote state.
         if provider == .codex {
             let codexActiveSource = codexActiveSourceOverride ?? settings.codexResolvedActiveSource
-            if case .managedAccount = codexActiveSource,
-               let managedHomePath = settings.managedCodexRemoteHomePath(forActiveSource: codexActiveSource)
-            {
+            if let managedHomePath = settings.managedCodexRemoteHomePath(forActiveSource: codexActiveSource) {
                 env = CodexHomeScope.scopedEnvironment(base: env, codexHome: managedHomePath)
+            } else if let liveHomePath = settings.liveSystemCodexHomePath(forActiveSource: codexActiveSource) {
+                env = CodexHomeScope.scopedEnvironment(base: env, codexHome: liveHomePath)
             }
         }
         return env

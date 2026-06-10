@@ -531,7 +531,7 @@ struct FactoryMenuCardModelTests {
 
 struct MiniMaxMenuCardModelTests {
     @Test
-    func `minimax service metrics use quota card copy`() throws {
+    func `minimax service metrics use codex aligned quota copy`() throws {
         let now = Date()
         let minimax = MiniMaxUsageSnapshot(
             planName: "Max",
@@ -587,10 +587,10 @@ struct MiniMaxMenuCardModelTests {
 
         #expect(used.metrics.first?.title == "Text Generation")
         #expect(used.metrics.first?.detailLeftText == "Usage: 2 / 10")
-        #expect(used.metrics.first?.detailRightText == "Used 20%")
-        #expect(used.metrics.first?.detailText == "10:00-15:00(UTC+8)")
+        #expect(used.metrics.first?.detailRightText == nil)
+        #expect(used.metrics.first?.detailText == nil)
         #expect(used.metrics.first?.percent == 20)
-        #expect(used.metrics.first?.cardStyle == true)
+        #expect(used.metrics.first?.cardStyle == false)
     }
 
     @Test
