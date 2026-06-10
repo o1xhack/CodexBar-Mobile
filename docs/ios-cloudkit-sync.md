@@ -119,25 +119,10 @@ When iOS fetches snapshots from multiple Macs:
 
 ## Cross-version Multi-device Test Matrix
 
-Any release that changes Mac→CloudKit→iOS sync, Shared payloads, CloudKit schema, provider display data, cache behavior, or cross-version rendering must validate the minimum real-device matrix:
-
-- Mac A: old or new version
-- Mac B: old or new version
-- iPhone A: old or new version
-- iPhone B: old or new version
-
-That is `2^4 = 16` combinations. Do not collapse this to a simple Mac-version × iOS-version table when the change can depend on device identity, per-device CloudKit records, merge order, local cache, silent push delivery, or fallback state.
-
-Each release's `CodexBarMobile/Research/NNN-*/03-testing.md` should record the 16 combinations and verify:
-
-- new and old Macs can write without corrupting each other's CloudKit records
-- new and old iPhones can read, merge, fallback, cache, and render without crashes or data loss
-- new Mac payloads and optional fields do not break old iOS clients
-- new iOS clients can gracefully read old Mac payloads
-- multi-Mac merge rules remain correct with both writers present
-- both iPhones converge to the same visible state after CloudKit fetch or silent push
-
-If a combination cannot be tested on real hardware, document the reason, the substituted validation path, and the remaining risk in the release testing document.
+The canonical cross-version multi-device test gate lives in
+[`docs/ios-sync-compatibility-testing.md`](ios-sync-compatibility-testing.md).
+Use that document for the reusable 2 Mac × 2 iPhone old/new matrix and record
+per-release evidence in that release's `CodexBarMobile/Research/NNN-*/03-testing.md`.
 
 ## Entitlements Required
 

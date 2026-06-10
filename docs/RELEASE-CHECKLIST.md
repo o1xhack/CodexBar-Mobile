@@ -19,6 +19,7 @@
 - [ ] `bash Scripts/lint.sh lint` 全过 = swiftformat --lint + swiftlint --strict + `audit_xcstrings` + `audit_parser_version` + `check_codex_parser_hash`
 - [ ] 全量 `swift test` 绿。**已知 flake**：`SyncCoordinatorTests` 的「L1 retry test flake」在全套件并行下偶发（Todoist 有立项 P3），独立 / filter 运行能过 → **不算回归**，别为它阻塞
 - [ ] 多账号 / 多设备枚举：`swift test --filter 'AccountIdentity|MultiAccount|DualZoneReader'` 全过（用户最在意这块）
+- [ ] 如果本轮改动触及 Mac→CloudKit→iOS sync、Shared payload、CloudKit schema、provider 显示数据、缓存或跨版本渲染：按 `docs/ios-sync-compatibility-testing.md` 执行 2 Mac × 2 iPhone old/new 兼容矩阵，并把本轮证据写入 `CodexBarMobile/Research/NNN-*/03-testing.md`
 
 ## 2. 上游 merge 特有
 - [ ] Codex/Claude parser 文件（`CostUsageScanner*.swift` / `CostUsageJsonl.swift`）只要动了 → **bump `parserLogicVersion`**（`CostUsagePricing.swift`）+ **重生成** `CodexParserHash`（`bash Scripts/regenerate-codex-parser-hash.sh`）。两个失效轴都要滚。
