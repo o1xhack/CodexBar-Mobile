@@ -3,6 +3,46 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.32.5.1</title>
+            <pubDate>Fri, 12 Jun 2026 17:00:39 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>80.1.1.12.0</sparkle:version>
+            <sparkle:shortVersionString>0.32.5.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.32.5.1-Mobile 1.12.0</h2>
+Syncs the Mac app to upstream CodexBar <strong>v0.32.5</strong> and ships the paired iOS <strong>1.12.0</strong> companion. This is a menu-bar reliability and provider-accuracy release: upstream menu switching/performance fixes are preserved, MiniMax token-plan metadata flows through to iPhone where possible, and new subscription renewal/expiration metadata is carried on the shared sync payload.
+<h3>Fixed / Improved</h3>
+<ul>
+<li><strong>Mac menu bar</strong> — pulls in upstream provider-switching, merged-menu, readiness-signature, hosted-chart sizing, status-icon, Quit, and provider-switcher performance fixes from v0.32.5.</li>
+<li><strong>Mac localization</strong> — includes upstream French, Ukrainian, Dutch, and Vietnamese selectable app languages. iOS remains on the project-mandated 4-language set.</li>
+<li><strong>MiniMax</strong> — token-plan quota and points-balance fixes flow through existing provider cost/budget lanes; subscription renewal/expiration dates now sync to iPhone as additive optional metadata.</li>
+<li><strong>Codex / Cursor / Claude / Antigravity</strong> — upstream v0.32.5 accuracy fixes are merged on Mac; iOS verifies the existing rate-window sync lanes remain compatible.</li>
+<li><strong>Pricing cache</strong> — includes upstream models.dev catalog memoization and parser hash update.</li>
+</ul>
+<h3>Compatibility</h3>
+<ul>
+<li>Adds only optional JSON keys inside the existing provider payload. Old iPhones ignore the new metadata, old Macs simply do not send it, and new iPhones use latest non-nil values when one Mac is upgraded and another is still old.</li>
+</ul>
+<h3>中文说明</h3>
+同步 Mac 端到上游 CodexBar <strong>v0.32.5</strong>，并配套发布 iOS <strong>1.12.0</strong>。本轮以菜单栏可靠性和 provider 数据准确性为主：完整保留上游菜单切换/性能修复，MiniMax token plan 与点数余额尽可能通过现有成本/预算通道同步到 iPhone，并新增可选同步字段显示订阅续费/到期时间。
+<h3>修复 / 改进</h3>
+<ul>
+<li><strong>Mac 菜单栏</strong> —— 合入上游 v0.32.5 的 provider 切换、merged menu、readiness signature、图表子菜单尺寸、状态图标、Quit 延后和 provider switcher 性能修复。</li>
+<li><strong>Mac 本地化</strong> —— 合入上游新增的法语、乌克兰语、荷兰语、越南语可选语言；iOS 仍遵循项目规定的 4 语言规则。</li>
+<li><strong>MiniMax</strong> —— token plan 配额与点数余额修复通过现有 provider cost/budget 通道到达 iPhone；订阅续费/到期时间改为可选同步元数据。</li>
+<li><strong>Codex / Cursor / Claude / Antigravity</strong> —— 合入上游 v0.32.5 的 Mac 端准确性修复；iOS 侧验证既有 rate-window 同步通道继续兼容。</li>
+<li><strong>定价缓存</strong> —— 合入上游 models.dev catalog memoization 和 parser hash 更新。</li>
+</ul>
+<h3>兼容性</h3>
+<ul>
+<li>仅在现有 provider payload 中增加 optional JSON key。旧 iPhone 会忽略新元数据，旧 Mac 不发送这些字段；一台 Mac 升级、一台 Mac 仍旧版时，新 iPhone 使用最新的非空值，不会被旧版设备清空。</li>
+</ul>
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.32.5.1-mobile.1.12.0/CodexBar-0.32.5.1-mobile.1.12.0.zip" length="48045958" type="application/octet-stream" sparkle:edSignature="MiR4H+8KW4G9cL+v5b+bijF8XuZ855M+8ou1eQywWgVJHB1vrloDbmCC7MZaf6rSV/vRefYcMtEr0byGmPDeCA=="/>
+        </item>
+        <item>
             <title>0.32.4.1</title>
             <pubDate>Sat, 06 Jun 2026 14:10:38 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -69,66 +109,6 @@ Hotfix on top of 0.31.0.1: forces the Codex and Claude cost-usage caches to re-s
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.31.0.2-mobile.1.10.0/CodexBar-0.31.0.2-mobile.1.10.0.zip" length="46826244" type="application/octet-stream" sparkle:edSignature="QrwMbJiQaOefZ9i/MTJjlhre38JJVSg69CwbFxrvrrDuhWCgIJQ96BEueyR3BwYcGekHtMZmSY2Ji5pp2RoIDA=="/>
-        </item>
-        <item>
-            <title>0.29.0.1</title>
-            <pubDate>Sat, 30 May 2026 11:24:45 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>68.1.1.9.0</sparkle:version>
-            <sparkle:shortVersionString>0.29.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.29.0.1-Mobile 1.9.0</h2>
-Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
-<h3>New providers</h3>
-<ul>
-<li><strong>Azure OpenAI</strong> — validate a deployment via API key, endpoint, and deployment name.</li>
-<li><strong>Alibaba Token Plan (Bailian)</strong> — monthly token-plan quota via browser or manual cookies.</li>
-<li><strong>T3 Chat</strong> — web-session usage with a 4-hour base window and a monthly overage window; paste a full browser cURL if a cookie-only refresh hits a 429 challenge.</li>
-</ul>
-<h3>Also from upstream</h3>
-<ul>
-<li>Codex cost history now splits standard vs fast spend/token usage in model breakdowns.</li>
-<li>OpenCode / OpenCode Go show workspace renewal dates.</li>
-<li>Ollama can authenticate with an API key as an alternative to browser cookies.</li>
-<li>Plus the upstream v0.28/v0.29 menu-bar, Codex, Antigravity, and localization fixes.</li>
-</ul>
-<h3>Compatibility</h3>
-<ul>
-<li>Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new providers and older Macs simply don't send them. No crashes or data loss across any new/old device combination.</li>
-</ul>
-<h3>Required versions</h3>
-<ul>
-<li>iPhone companion: iOS 1.9.0 (build 139), via TestFlight / App Store.</li>
-<li>This Mac build: 0.29.0.1 (fork build 68.1). Update both for the full feature set.</li>
-</ul>
-<h3>中文说明</h3>
-同步 Mac 端到上游 CodexBar v0.29.0，并配套发布 iOS 1.9.0。本次新增三个 provider —— Azure OpenAI、Alibaba Token Plan（百炼）和 T3 Chat —— 外加上游 v0.28.0 + v0.29.0 的修复。
-<h3>新增 provider</h3>
-<ul>
-<li><strong>Azure OpenAI</strong> —— 通过 API key、endpoint 和部署名称校验部署。</li>
-<li><strong>Alibaba Token Plan（百炼）</strong> —— 通过浏览器或手动 cookie 跟踪每月 token 套餐额度。</li>
-<li><strong>T3 Chat</strong> —— web session 用量，含 4 小时基础窗口和每月超额窗口；若 cookie 刷新遇到 429 挑战，可粘贴完整的浏览器 cURL。</li>
-</ul>
-<h3>同样来自上游</h3>
-<ul>
-<li>Codex 费用历史现在区分标准 / 快速的消费和 token 用量。</li>
-<li>OpenCode / OpenCode Go 显示工作区续费日期。</li>
-<li>Ollama 可用 API key 作为浏览器 cookie 之外的认证方式。</li>
-<li>以及上游 v0.28/v0.29 的菜单栏、Codex、Antigravity 和本地化修复。</li>
-</ul>
-<h3>兼容性</h3>
-<ul>
-<li>在 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新 provider，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。</li>
-</ul>
-<h3>所需版本</h3>
-<ul>
-<li>iPhone 配套：iOS 1.9.0（build 139），经 TestFlight / App Store。</li>
-<li>本 Mac 版本：0.29.0.1（fork build 68.1）。两边都更新才能用全套功能。</li>
-</ul>
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.29.0.1-mobile.1.9.0/CodexBar-0.29.0.1-mobile.1.9.0.zip" length="45575165" type="application/octet-stream" sparkle:edSignature="dWvIZdiTu7GC3zS4JRttYmxjUWVZLKwQjbQC9ItmztI5j8CzzwWJXN4DvNfFtucPcT7gPKLr9j1Lr+IZVrltAw=="/>
         </item>
         <item>
             <title>0.14.0</title>
