@@ -139,6 +139,12 @@ Result: passed.
 xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj -scheme CodexBarMobile -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' test
 Result: ** TEST SUCCEEDED **, 441 unit tests in 35 suites plus 3 UI tests passed.
 xcresult: /Users/yuxiao/Library/Developer/Xcode/DerivedData/CodexBarMobile-fywzrshyicotmkhjufflfswwbceb/Logs/Test/Test-CodexBarMobile-2026.06.14_17-14-51--0700.xcresult
+
+./Scripts/upload_ios_testflight.sh
+Result: passed. Pre-flight lint passed, archive succeeded, export/upload
+succeeded, and App Store Connect accepted the uploaded package for processing.
+Uploaded build: CodexBarMobile 1.12.0 (153).
+Archive: /tmp/CodexBarMobile-20260614-174608.xcarchive
 ```
 
 Release and lint gates:

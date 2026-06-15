@@ -139,6 +139,10 @@ Release outcome:
   <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.35.0.1-mobile.1.12.0>
 - Sparkle appcast:
   <https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml>
+- iOS TestFlight upload:
+  `CodexBarMobile` `1.12.0 (153)` uploaded successfully; App Store Connect
+  accepted the package for processing from archive
+  `/tmp/CodexBarMobile-20260614-174608.xcarchive`.
 - `version.env` shipped upstream baseline updated to `UPSTREAM_VERSION=v0.35.0`
   and `UPSTREAM_SYNC_DATE=2026-06-14`.
 - The notarized production Mac app was installed at `/Applications/CodexBar.app`

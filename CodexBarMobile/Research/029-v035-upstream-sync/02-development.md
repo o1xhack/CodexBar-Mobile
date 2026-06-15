@@ -130,3 +130,18 @@ before packaging:
 - Devin was added to the iOS quota provider list, iOS color palette, and Mac
   mock provider injector/test counts so manual sync QA can exercise the new
   upstream provider without a live Devin account.
+
+## Round 6 — Packaging and Release
+
+- Ran `./Scripts/release.sh` to build, sign, notarize, staple, package, tag, and
+  create the Mac draft release for `v0.35.0.1-mobile.1.12.0`.
+- After user QA approval, ran `./Scripts/release.sh --finalize` to publish the
+  GitHub release, generate the signed Sparkle appcast, and push the appcast
+  update to `mobile-dev`.
+- Installed the notarized production Mac app at `/Applications/CodexBar.app` and
+  verified `CFBundleShortVersionString=0.35.0.1`,
+  `CFBundleVersion=85.1.1.12.0`, notarization, and Production CloudKit
+  entitlement.
+- Ran `./Scripts/upload_ios_testflight.sh` for iOS `1.12.0 (153)`. Pre-flight
+  lint passed, archive succeeded, export/upload succeeded, and App Store
+  Connect accepted the uploaded package for TestFlight processing.
