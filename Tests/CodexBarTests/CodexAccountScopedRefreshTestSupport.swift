@@ -199,6 +199,16 @@ extension CodexAccountScopedRefreshTests {
         }
     }
 
+    func installContextualCodexProvider(
+        on store: UsageStore,
+        loader: @escaping @Sendable (ProviderFetchContext) async throws -> UsageSnapshot)
+    {
+        let baseSpec = store.providerSpecs[.codex]!
+        store.providerSpecs[.codex] = Self.makeCodexProviderSpec(baseSpec: baseSpec) { _ in
+            [ContextualTestCodexFetchStrategy(loader: loader, sourceLabel: "test-codex")]
+        }
+    }
+
     static func makeCodexProviderSpec(
         baseSpec: ProviderSpec,
         loader: @escaping @Sendable () async throws -> UsageSnapshot) -> ProviderSpec
@@ -319,6 +329,30 @@ struct TestCodexFetchStrategy: ProviderFetchStrategy {
         return self.makeResult(
             usage: snapshot,
             credits: self.credits,
+            sourceLabel: self.sourceLabel)
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
+}
+
+struct ContextualTestCodexFetchStrategy: ProviderFetchStrategy {
+    let loader: @Sendable (ProviderFetchContext) async throws -> UsageSnapshot
+    let sourceLabel: String
+
+    var id = "contextual-test-codex"
+    var kind: ProviderFetchKind = .cli
+
+    func isAvailable(_: ProviderFetchContext) async -> Bool {
+        true
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let snapshot = try await self.loader(context)
+        return self.makeResult(
+            usage: snapshot,
+            credits: nil,
             sourceLabel: self.sourceLabel)
     }
 

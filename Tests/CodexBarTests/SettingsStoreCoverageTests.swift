@@ -75,6 +75,49 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
+    func `minimax settings snapshot uses selected token account as manual cookie`() {
+        let settings = Self.makeSettingsStore(suiteName: "SettingsStoreCoverageTests-minimax-token-account")
+        settings.minimaxCookieSource = .auto
+        settings.minimaxCookieHeader = "HERTZ-SESSION=global"
+        settings.addTokenAccount(provider: .minimax, label: "account", token: "HERTZ-SESSION=selected")
+
+        let snapshot = settings.minimaxSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.cookieSource == .manual)
+        #expect(snapshot.manualCookieHeader == "HERTZ-SESSION=selected")
+    }
+
+    @Test
+    func `minimax settings snapshot falls back to global cookie without token accounts`() {
+        let settings = Self.makeSettingsStore(suiteName: "SettingsStoreCoverageTests-minimax-global-cookie")
+        settings.minimaxCookieSource = .auto
+        settings.minimaxCookieHeader = "HERTZ-SESSION=global"
+
+        let snapshot = settings.minimaxSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.cookieSource == .auto)
+        #expect(snapshot.manualCookieHeader == "HERTZ-SESSION=global")
+    }
+
+    @Test
+    func `copilot budget extras default off and persist in provider snapshot`() throws {
+        let suite = "SettingsStoreCoverageTests-copilot-budget-extras"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let initial = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(initial.copilotBudgetExtrasEnabled == false)
+        #expect(initial.copilotSettingsSnapshot(tokenOverride: nil).budgetExtrasEnabled == false)
+
+        initial.copilotBudgetExtrasEnabled = true
+
+        let reloaded = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(reloaded.copilotBudgetExtrasEnabled)
+        #expect(reloaded.copilotSettingsSnapshot(tokenOverride: nil).budgetExtrasEnabled)
+    }
+
+    @Test
     func `multi account menu layout persists and bridges legacy show all token accounts`() throws {
         let suite = "SettingsStoreCoverageTests-multi-account-layout"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -168,6 +211,21 @@ struct SettingsStoreCoverageTests {
         #expect(settings.tokenAccounts(for: .copilot).isEmpty)
         #expect(settings.copilotAPIToken.isEmpty)
         #expect(settings.copilotSettingsSnapshot(tokenOverride: nil).apiToken == nil)
+    }
+
+    @Test
+    func `copilot settings snapshot carries selected account identifier`() {
+        let settings = Self.makeSettingsStore()
+        settings.addTokenAccount(
+            provider: .copilot,
+            label: "octocat (Pro)",
+            token: "token-1",
+            externalIdentifier: "github:user:123")
+
+        let snapshot = settings.copilotSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.apiToken == "token-1")
+        #expect(snapshot.selectedAccountExternalIdentifier == "github:user:123")
     }
 
     @Test

@@ -143,24 +143,39 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
         sourceLabel: String,
         authenticatedByAuthFile: Bool)
     {
+        let credentialsResult: Result<GrokCredentials, Error> = Result {
+            try GrokCredentialsStore.load(env: context.env)
+        }
+        let browserCredentials = try? credentialsResult.get()
+
         #if os(macOS)
         if Self.canImportBrowserCookies(runtime: context.runtime, env: context.env) {
             var lastCookieError: Error?
             do {
                 let sessions = try GrokCookieImporter.importSessions(browserDetection: context.browserDetection)
-                let (snapshot, sourceLabel) = try await Self.fetchFirstValidCookieSession(sessions)
+                let (snapshot, sourceLabel) = try await Self.fetchFirstValidCookieSession(
+                    sessions,
+                    credentials: browserCredentials)
                 return (snapshot, sourceLabel, false)
             } catch {
                 lastCookieError = error
             }
-            if !FileManager.default.fileExists(atPath: GrokCredentialsStore.authFileURL(env: context.env).path) {
+            if browserCredentials == nil {
+                if FileManager.default.fileExists(
+                    atPath: GrokCredentialsStore.authFileURL(env: context.env).path)
+                {
+                    _ = try credentialsResult.get()
+                }
                 throw lastCookieError ?? GrokWebBillingError.missingCredentials
             }
         }
         #endif
 
-        let credentials = try GrokCredentialsStore.load(env: context.env)
-        let snapshot = try await GrokWebBillingFetcher.fetch(credentials: credentials)
+        let authCredentials = try credentialsResult.get()
+        guard !authCredentials.isExpired else {
+            throw GrokWebBillingError.missingCredentials
+        }
+        let snapshot = try await GrokWebBillingFetcher.fetch(credentials: authCredentials)
         return (snapshot, "grok-web", true)
     }
 
@@ -174,20 +189,32 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
     #if os(macOS)
     static func fetchFirstValidCookieSession(
         _ sessions: [GrokCookieImporter.SessionInfo],
-        fetch: (String) async throws -> GrokWebBillingSnapshot = { cookieHeader in
-            try await GrokWebBillingFetcher.fetch(cookieHeader: cookieHeader)
-        }) async throws -> (GrokWebBillingSnapshot, String)
+        credentials: GrokCredentials? = nil,
+        fetch: ((String, GrokCredentials?) async throws -> GrokWebBillingSnapshot)? = nil) async throws
+        -> (GrokWebBillingSnapshot, String)
     {
+        let fetchSnapshot = fetch ?? { cookieHeader, credentials in
+            try await GrokWebBillingFetcher.fetch(
+                cookieHeader: cookieHeader,
+                credentials: credentials)
+        }
         var lastError: Error?
         for session in sessions {
-            do {
-                let snapshot = try await fetch(session.cookieHeader)
-                return (snapshot, session.sourceLabel)
-            } catch {
-                lastError = error
+            for authCredentials in Self.cookieAuthAttempts(credentials: credentials) {
+                do {
+                    let snapshot = try await fetchSnapshot(session.cookieHeader, authCredentials)
+                    return (snapshot, session.sourceLabel)
+                } catch {
+                    lastError = error
+                }
             }
         }
         throw lastError ?? GrokWebBillingError.missingCredentials
+    }
+
+    static func cookieAuthAttempts(credentials: GrokCredentials?) -> [GrokCredentials?] {
+        guard let credentials, !credentials.isExpired else { return [nil] }
+        return [credentials, nil]
     }
     #endif
 

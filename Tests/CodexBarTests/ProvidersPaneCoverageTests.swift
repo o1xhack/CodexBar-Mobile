@@ -52,6 +52,35 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
+    func `copilot menu card preview follows budget extras setting`() {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-copilot-budget-preview")
+        let store = Self.makeUsageStore(settings: settings)
+        let budgetTitle = "Budget - Copilot Agent Premium Requests"
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "copilot-budget-agent",
+                        title: budgetTitle,
+                        window: RateWindow(
+                            usedPercent: 65,
+                            windowMinutes: nil,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                ],
+                updatedAt: Date()),
+            provider: .copilot)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        #expect(!pane._test_menuCardModel(for: .copilot).metrics.map(\.title).contains(budgetTitle))
+
+        settings.copilotBudgetExtrasEnabled = true
+        #expect(pane._test_menuCardModel(for: .copilot).metrics.map(\.title).contains(budgetTitle))
+    }
+
+    @Test
     func `open router menu bar metric picker shows only automatic and primary`() {
         Self.withEnglishLocalization {
             let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-openrouter-picker")
@@ -306,6 +335,41 @@ struct ProvidersPaneCoverageTests {
             #expect(row?.label == "Plan")
             #expect(row?.value == "Pro")
         }
+    }
+
+    @Test
+    func `provider detail renders metric status without progress`() {
+        let metric = UsageMenuCardView.Model.Metric(
+            id: "fixture",
+            title: "Example quota",
+            percent: 0,
+            percentStyle: .left,
+            statusText: "Unavailable",
+            resetText: nil,
+            detailText: nil,
+            detailLeftText: nil,
+            detailRightText: nil,
+            pacePercent: nil,
+            paceOnTop: false)
+
+        #expect(ProviderDetailView<EmptyView>.metricInlinePresentation(metric) == .status("Unavailable"))
+    }
+
+    @Test
+    func `provider detail renders ordinary metric progress`() {
+        let metric = UsageMenuCardView.Model.Metric(
+            id: "fixture",
+            title: "Example quota",
+            percent: 50,
+            percentStyle: .left,
+            resetText: nil,
+            detailText: nil,
+            detailLeftText: nil,
+            detailRightText: nil,
+            pacePercent: nil,
+            paceOnTop: false)
+
+        #expect(ProviderDetailView<EmptyView>.metricInlinePresentation(metric) == .progress)
     }
 
     @Test

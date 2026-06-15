@@ -331,7 +331,7 @@ struct SyncMultiAccountEdgeCasesTests {
     // MARK: - E6: 27 providers all enabled (single-account stress)
 
     @Test("R5 E6: All 27 providers enabled, single-account each → 27 records, no missing")
-    func all27ProvidersSingleAccount() async throws {
+    func all27ProvidersSingleAccount() async {
         let settings = self.makeSettingsStore(suite: "R5E6-All27")
         settings.iCloudSyncEnabled = true
         let allProviders = UsageProvider.allCases
@@ -339,7 +339,7 @@ struct SyncMultiAccountEdgeCasesTests {
             // Some providers may not have metadata defaults — skip
             // gracefully if so.
             guard let meta = ProviderDefaults.metadata[provider] else { continue }
-            try settings.setProviderEnabled(
+            settings.setProviderEnabled(
                 provider: provider, metadata: meta, enabled: true)
         }
         let store = self.makeUsageStore(settings: settings)

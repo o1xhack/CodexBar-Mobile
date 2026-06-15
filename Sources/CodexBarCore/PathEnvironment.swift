@@ -77,6 +77,31 @@ public enum BinaryLocator {
         ]
     }
 
+    public static func resolveAntigravityBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "agy",
+            overrideKey: "ANTIGRAVITY_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: [
+                "\(home)/.local/bin/agy",
+                "/opt/homebrew/bin/agy",
+                "/usr/local/bin/agy",
+            ],
+            fileManager: fileManager,
+            home: home)
+    }
+
     public static func resolveCodexBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
@@ -152,6 +177,36 @@ public enum BinaryLocator {
             wellKnownPaths: self.grokWellKnownPaths(home: home),
             fileManager: fileManager,
             home: home)
+    }
+
+    public static func resolveAmpBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "amp",
+            overrideKey: "AMP_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: self.ampWellKnownPaths(home: home),
+            fileManager: fileManager,
+            home: home)
+    }
+
+    static func ampWellKnownPaths(home: String) -> [String] {
+        [
+            "\(home)/.local/bin/amp",
+            "\(home)/.amp/bin/amp",
+            "/opt/homebrew/bin/amp",
+            "/usr/local/bin/amp",
+        ]
     }
 
     /// Well-known install locations for the Grok Build CLI binary.
@@ -905,9 +960,11 @@ public enum PathBuilder {
 }
 
 enum LoginShellPathCapturer {
+    static let defaultTimeout: TimeInterval = 6.0
+
     static func capture(
         shell: String? = ProcessInfo.processInfo.environment["SHELL"],
-        timeout: TimeInterval = 2.0) -> [String]?
+        timeout: TimeInterval = Self.defaultTimeout) -> [String]?
     {
         let shellPath = (shell?.isEmpty == false) ? shell! : "/bin/zsh"
         let isCI = ["1", "true"].contains(ProcessInfo.processInfo.environment["CI"]?.lowercased())
@@ -944,9 +1001,14 @@ public final class LoginShellPathCache: @unchecked Sendable {
     public static let shared = LoginShellPathCache()
 
     private let lock = NSLock()
+    private let capture: @Sendable (String?, TimeInterval) -> [String]?
     private var captured: [String]?
     private var isCapturing = false
     private var callbacks: [([String]?) -> Void] = []
+
+    init(capture: @escaping @Sendable (String?, TimeInterval) -> [String]? = LoginShellPathCapturer.capture) {
+        self.capture = capture
+    }
 
     public var current: [String]? {
         self.lock.lock()
@@ -957,7 +1019,7 @@ public final class LoginShellPathCache: @unchecked Sendable {
 
     public func captureOnce(
         shell: String? = ProcessInfo.processInfo.environment["SHELL"],
-        timeout: TimeInterval = 2.0,
+        timeout: TimeInterval = 6.0,
         onFinish: (([String]?) -> Void)? = nil)
     {
         self.lock.lock()
@@ -979,8 +1041,9 @@ public final class LoginShellPathCache: @unchecked Sendable {
         self.isCapturing = true
         self.lock.unlock()
 
+        let capture = self.capture
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let result = LoginShellPathCapturer.capture(shell: shell, timeout: timeout)
+            let result = capture(shell, timeout)
             guard let self else { return }
 
             self.lock.lock()
@@ -992,5 +1055,43 @@ public final class LoginShellPathCache: @unchecked Sendable {
 
             callbacks.forEach { $0(result) }
         }
+    }
+
+    public func currentOrCapture(
+        shell: String? = ProcessInfo.processInfo.environment["SHELL"],
+        timeout: TimeInterval = 6.0) -> [String]?
+    {
+        self.lock.lock()
+        if let captured {
+            self.lock.unlock()
+            return captured
+        }
+
+        if self.isCapturing {
+            let semaphore = DispatchSemaphore(value: 0)
+            var callbackResult: [String]?
+            self.callbacks.append { result in
+                callbackResult = result
+                semaphore.signal()
+            }
+            self.lock.unlock()
+            let deadline = DispatchTime.now() + timeout
+            _ = semaphore.wait(timeout: deadline)
+            return callbackResult ?? self.current
+        }
+
+        self.isCapturing = true
+        self.lock.unlock()
+
+        let result = self.capture(shell, timeout)
+        self.lock.lock()
+        self.captured = result
+        self.isCapturing = false
+        let callbacks = self.callbacks
+        self.callbacks.removeAll()
+        self.lock.unlock()
+
+        callbacks.forEach { $0(result) }
+        return result
     }
 }

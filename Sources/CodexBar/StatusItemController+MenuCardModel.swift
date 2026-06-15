@@ -85,6 +85,10 @@ extension StatusItemController {
                 self.store.weeklyPace(provider: target, window: window, now: now)
             }
         }
+        let fallbackAccount = accountOverride
+            ?? (metadata.usesAccountFallback
+                ? self.store.accountInfo(for: target)
+                : AccountInfo(email: nil, plan: nil))
         let input = UsageMenuCardView.Model.Input(
             provider: target,
             metadata: metadata,
@@ -96,8 +100,8 @@ extension StatusItemController {
             dashboardError: dashboardError,
             tokenSnapshot: tokenSnapshot,
             tokenError: tokenError,
-            account: accountOverride ?? self.store.accountInfo(for: target),
-            isRefreshing: self.store.shouldShowRefreshingMenuCard(for: target),
+            account: fallbackAccount,
+            isRefreshing: self.store.shouldShowRefreshingMenuCardIndicator(for: target),
             lastError: errorOverride
                 ?? codexProjection?.userFacingErrors.usage
                 ?? self.store.userFacingError(for: target),
@@ -105,6 +109,7 @@ extension StatusItemController {
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
             tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: target),
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             sourceLabel: sourceLabel,
             kiloAutoMode: kiloAutoMode,
             hidePersonalInfo: self.settings.hidePersonalInfo,
@@ -114,6 +119,7 @@ extension StatusItemController {
                 .weekly: self.quotaWarningMarkerThresholds(provider: target, window: .weekly),
             ],
             workDaysPerWeek: self.settings.weeklyProgressWorkDays,
+            usesLiveSubtitle: surface == .liveCard,
             now: now)
         return UsageMenuCardView.Model.make(input)
     }

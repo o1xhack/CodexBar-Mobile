@@ -159,7 +159,9 @@ struct KeychainCacheStoreTests {
     @Test
     func `delete interaction not allowed is non fatal`() {
         let key = KeychainCacheStore.Key(category: "test", identifier: UUID().uuidString)
-        #expect(KeychainCacheStore.clearResultForKeychainDeleteStatus(errSecInteractionNotAllowed, key: key) == false)
+        #expect(KeychainCacheStore.clearResultForKeychainDeleteStatus(
+            errSecInteractionNotAllowed,
+            key: key) == .failed)
     }
 
     @Test

@@ -197,6 +197,12 @@ enum ProviderColorPalette {
             // magenta by being a brighter rose.
             return Color(red: 0.91, green: 0.29, blue: 0.60)
         }
+        if normalized.contains("devin") {
+            // Devin — blue-green (#2FAE92). Distinct from Azure/OpenCode
+            // blues and Perplexity teal while staying in the calm
+            // productivity-tool family for the provider grid.
+            return Color(red: 0.18, green: 0.68, blue: 0.57)
+        }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {

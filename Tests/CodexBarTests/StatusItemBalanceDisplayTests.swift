@@ -32,6 +32,49 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
+    func `reset time mode preserves automatic open router balance`() {
+        let settings = self.makeSettings(
+            suiteName: "StatusItemBalanceDisplayTests-openrouter-reset-time",
+            provider: .openrouter)
+        settings.menuBarDisplayMode = .resetTime
+        settings.setMenuBarMetricPreference(.automatic, for: .openrouter)
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        let snapshot = Self.openRouterSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .openrouter)
+        store._setErrorForTesting(nil, provider: .openrouter)
+
+        let displayText = controller.menuBarDisplayText(for: .openrouter, snapshot: snapshot)
+
+        #expect(displayText == "$12.34")
+    }
+
+    @Test
+    func `reset time mode preserves balance when provider has no quota window`() {
+        let settings = self.makeSettings(
+            suiteName: "StatusItemBalanceDisplayTests-moonshot-reset-time",
+            provider: .moonshot)
+        settings.menuBarDisplayMode = .resetTime
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: Date(),
+            identity: ProviderIdentitySnapshot(
+                providerID: .moonshot,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Balance: $49.58 · $0.42 in deficit"))
+
+        store._setSnapshotForTesting(snapshot, provider: .moonshot)
+        store._setErrorForTesting(nil, provider: .moonshot)
+
+        let displayText = controller.menuBarDisplayText(for: .moonshot, snapshot: snapshot)
+
+        #expect(displayText == "$49.58")
+    }
+
+    @Test
     func `menu bar display text respects open router primary metric preference`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-openrouter-primary-metric",
@@ -69,6 +112,53 @@ struct StatusItemBalanceDisplayTests {
         let displayText = controller.menuBarDisplayText(for: .deepseek, snapshot: snapshot)
 
         #expect(displayText == "$9.32")
+    }
+
+    @Test
+    func `menu bar display text uses mimo balance without token plan`() {
+        let settings = self.makeSettings(
+            suiteName: "StatusItemBalanceDisplayTests-mimo-balance",
+            provider: .mimo)
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        let snapshot = MiMoUsageSnapshot(
+            balance: 25.51,
+            currency: "USD",
+            cashBalance: 20,
+            giftBalance: 5.51,
+            updatedAt: Date())
+            .toUsageSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .mimo)
+        store._setErrorForTesting(nil, provider: .mimo)
+
+        let displayText = controller.menuBarDisplayText(for: .mimo, snapshot: snapshot)
+
+        #expect(displayText == "$25.51")
+    }
+
+    @Test
+    func `menu bar display text uses selected mimo balance with token plan`() {
+        let settings = self.makeSettings(
+            suiteName: "StatusItemBalanceDisplayTests-mimo-token-plan",
+            provider: .mimo)
+        settings.setMenuBarMetricPreference(.secondary, for: .mimo)
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        let snapshot = MiMoUsageSnapshot(
+            balance: 25.51,
+            currency: "USD",
+            planCode: "standard",
+            tokenUsed: 10,
+            tokenLimit: 100,
+            tokenPercent: 0.1,
+            updatedAt: Date())
+            .toUsageSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .mimo)
+        store._setErrorForTesting(nil, provider: .mimo)
+
+        let displayText = controller.menuBarDisplayText(for: .mimo, snapshot: snapshot)
+
+        #expect(displayText == "$25.51")
     }
 
     @Test

@@ -41,6 +41,9 @@ struct CodexBarApp: App {
 
         KeychainAccessGate.isDisabled = UserDefaults.standard.bool(forKey: "debugDisableKeychainAccess")
         KeychainPromptCoordinator.install()
+        if MainThreadHangWatchdog.isEnabledForCurrentProcess {
+            MainThreadHangWatchdog.shared.start()
+        }
 
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
@@ -386,7 +389,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppNotifications.shared.requestAuthorizationOnStartup()
         self.ensureStatusController()
         KeyboardShortcuts.onKeyUp(for: .openMenu) { [weak self] in
-            Task { @MainActor [weak self] in
+            // KeyboardShortcuts dispatches both normal and menu-tracking hotkeys on the main event loop.
+            MainActor.assumeIsolated {
                 self?.statusController?.openMenuFromShortcut()
             }
         }

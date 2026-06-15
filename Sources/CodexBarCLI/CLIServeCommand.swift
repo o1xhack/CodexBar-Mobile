@@ -65,6 +65,11 @@ private struct ServeHealthPayload: Encodable {
     let status: String
 }
 
+struct CLIServeConfigSnapshot {
+    let config: CodexBarConfig
+    let cacheToken: String
+}
+
 private final class CLIServeDeadlineState: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<CLILocalHTTPResponse, Never>?
@@ -125,32 +130,72 @@ private final class CLIServeDeadlineState: @unchecked Sendable {
     }
 }
 
-private enum CLIServeCacheLookup {
+enum CLIServeCacheLookup {
     case response(CLILocalHTTPResponse)
     case miss
 }
 
 actor CLIServeResponseCache {
+    static let maximumStaleTTL: TimeInterval = 3600
+
     private struct Entry {
         let expiresAt: Date
         let response: CLILocalHTTPResponse
     }
 
+    struct CachePolicy {
+        /// How long a successful response stays fresh.
+        let ttl: TimeInterval
+        /// How long a last-good response may stand in for a failed refresh.
+        let staleTTL: TimeInterval
+    }
+
+    private struct LastGoodEntry {
+        let recordedAt: Date
+        let response: CLILocalHTTPResponse
+    }
+
+    private struct UsageItemKey: Hashable {
+        let provider: String
+        let accountID: String
+    }
+
+    private struct LastGoodUsageItem {
+        let recordedAt: Date
+        let data: Data
+    }
+
+    private struct UsageMergeResult {
+        let response: CLILocalHTTPResponse
+    }
+
     private var entries: [String: Entry] = [:]
+    private var lastGood: [String: LastGoodEntry] = [:]
+    private var lastGoodUsageItems: [String: [UsageItemKey: LastGoodUsageItem]] = [:]
     private var inFlightKeys: Set<String> = []
     private var waiters: [String: [CheckedContinuation<CLIServeCacheLookup, Never>]] = [:]
 
-    private func response(for key: String, now: Date) -> CLILocalHTTPResponse? {
-        guard let entry = self.entries[key] else { return nil }
-        guard entry.expiresAt > now else {
-            self.entries[key] = nil
-            return nil
+    private func pruneExpiredEntries(now: Date) {
+        self.entries = self.entries.filter { $0.value.expiresAt > now }
+        self.lastGood = self.lastGood.filter {
+            now.timeIntervalSince($0.value.recordedAt) <= Self.maximumStaleTTL
         }
+        self.lastGoodUsageItems = self.lastGoodUsageItems.compactMapValues { items in
+            let retained = items.filter {
+                now.timeIntervalSince($0.value.recordedAt) <= Self.maximumStaleTTL
+            }
+            return retained.isEmpty ? nil : retained
+        }
+    }
+
+    private func response(for key: String) -> CLILocalHTTPResponse? {
+        guard let entry = self.entries[key] else { return nil }
         return entry.response
     }
 
-    fileprivate func responseOrStartFetch(for key: String, now: Date) async -> CLIServeCacheLookup {
-        if let cached = self.response(for: key, now: now) {
+    func responseOrStartFetch(for key: String, now: Date) async -> CLIServeCacheLookup {
+        self.pruneExpiredEntries(now: now)
+        if let cached = self.response(for: key) {
             return .response(cached)
         }
 
@@ -164,26 +209,173 @@ actor CLIServeResponseCache {
         return .miss
     }
 
-    fileprivate func completeFetch(
+    /// Completes an in-flight fetch and returns the response delivered to
+    /// waiters. Successful responses are cached normally. Failed non-usage
+    /// fetches may use a whole-response fallback within `staleTTL`; usage
+    /// responses only replace keyed error rows from the same identified account.
+    func completeFetch(
         _ response: CLILocalHTTPResponse,
         for key: String,
-        ttl: TimeInterval,
+        policy: CachePolicy,
         now: Date,
-        shouldCache: Bool)
+        shouldCache: Bool) -> CLILocalHTTPResponse
     {
+        let delivered: CLILocalHTTPResponse
+        let staleResponse = self.staleResponse(for: key, staleTTL: policy.staleTTL, now: now)
+        let usageMerge = self.mergeLastGoodUsageItems(
+            into: response,
+            for: key,
+            staleTTL: policy.staleTTL,
+            now: now,
+            replaceCachedItems: shouldCache)
         if shouldCache {
-            self.store(response, for: key, ttl: ttl, now: now)
+            self.store(response, for: key, ttl: policy.ttl, now: now)
+            if key.hasPrefix("usage:") {
+                self.lastGood[key] = nil
+            } else {
+                self.lastGood[key] = LastGoodEntry(recordedAt: now, response: response)
+            }
+            delivered = response
+        } else if let usageMerge {
+            delivered = usageMerge.response
+            self.lastGood[key] = nil
+        } else {
+            delivered = staleResponse ?? response
         }
         self.inFlightKeys.remove(key)
         let waiters = self.waiters.removeValue(forKey: key) ?? []
         for waiter in waiters {
-            waiter.resume(returning: .response(response))
+            waiter.resume(returning: .response(delivered))
         }
+        return delivered
+    }
+
+    private func staleResponse(
+        for key: String,
+        staleTTL: TimeInterval,
+        now: Date) -> CLILocalHTTPResponse?
+    {
+        guard staleTTL > 0 else { return nil }
+        // A timeout cannot prove which usage account is currently active.
+        if key.hasPrefix("usage:") {
+            return nil
+        }
+        if let entry = self.lastGood[key],
+           now.timeIntervalSince(entry.recordedAt) <= staleTTL
+        {
+            return entry.response
+        }
+        if self.lastGood[key] != nil {
+            self.lastGood[key] = nil
+        }
+        return nil
+    }
+
+    private func mergeLastGoodUsageItems(
+        into response: CLILocalHTTPResponse,
+        for key: String,
+        staleTTL: TimeInterval,
+        now: Date,
+        replaceCachedItems: Bool) -> UsageMergeResult?
+    {
+        guard key.hasPrefix("usage:"),
+              response.status == .ok,
+              staleTTL > 0,
+              var items = try? JSONSerialization.jsonObject(with: response.body) as? [[String: Any]]
+        else {
+            return nil
+        }
+
+        var cachedItems = replaceCachedItems ? [:] : self.lastGoodUsageItems[key] ?? [:]
+        if !replaceCachedItems {
+            cachedItems = cachedItems.filter { now.timeIntervalSince($0.value.recordedAt) <= staleTTL }
+        }
+        let itemKeys = items.indices.compactMap { index in
+            Self.usageItemKey(
+                items[index],
+                accountID: Self.cacheAccountKey(at: index, in: response.usageCacheKeys))
+        }
+        let duplicateKeys = Set(
+            Dictionary(grouping: itemKeys, by: { $0 })
+                .filter { $0.value.count > 1 }
+                .map(\.key))
+        for duplicateKey in duplicateKeys {
+            cachedItems[duplicateKey] = nil
+        }
+        var replacedError = false
+
+        for index in items.indices {
+            let item = items[index]
+            guard let itemKey = Self.usageItemKey(
+                item,
+                accountID: Self.cacheAccountKey(at: index, in: response.usageCacheKeys))
+            else {
+                continue
+            }
+            guard !duplicateKeys.contains(itemKey) else {
+                continue
+            }
+
+            if Self.hasError(item) {
+                if let cached = cachedItems[itemKey],
+                   let cachedItem = try? JSONSerialization.jsonObject(with: cached.data) as? [String: Any]
+                {
+                    items[index] = cachedItem
+                    replacedError = true
+                }
+            } else {
+                if let data = try? JSONSerialization.data(withJSONObject: item, options: [.sortedKeys]) {
+                    cachedItems[itemKey] = LastGoodUsageItem(recordedAt: now, data: data)
+                }
+            }
+        }
+        self.lastGoodUsageItems[key] = cachedItems
+
+        guard replacedError,
+              let body = try? JSONSerialization.data(withJSONObject: items, options: [.sortedKeys])
+        else {
+            return UsageMergeResult(response: response)
+        }
+        return UsageMergeResult(
+            response: CLILocalHTTPResponse(
+                status: response.status,
+                body: body,
+                contentType: response.contentType,
+                usageCacheKeys: response.usageCacheKeys))
+    }
+
+    private static func usageItemKey(_ item: [String: Any], accountID: String?) -> UsageItemKey? {
+        guard let provider = item["provider"] as? String,
+              !provider.isEmpty,
+              let accountID,
+              !accountID.isEmpty
+        else {
+            return nil
+        }
+        return UsageItemKey(provider: provider, accountID: accountID)
+    }
+
+    private static func cacheAccountKey(at index: Int, in keys: [String?]?) -> String? {
+        guard let keys, keys.indices.contains(index) else { return nil }
+        return keys[index]
+    }
+
+    private static func hasError(_ item: [String: Any]) -> Bool {
+        guard let error = item["error"] else { return false }
+        return !(error is NSNull)
     }
 
     private func store(_ response: CLILocalHTTPResponse, for key: String, ttl: TimeInterval, now: Date) {
         guard ttl > 0, response.status == .ok else { return }
         self.entries[key] = Entry(expiresAt: now.addingTimeInterval(ttl), response: response)
+    }
+
+    func cachedEntryCount() -> Int {
+        self.entries.count
+    }
+
+    func cachedStaleVariantCount() -> Int {
+        self.lastGood.count + self.lastGoodUsageItems.count
     }
 }
 
@@ -240,24 +432,36 @@ extension CodexBarCLI {
                 kind: .args)
         }
 
-        let config = Self.loadConfig(output: output)
+        let configStore = CodexBarConfigStore()
         let cache = CLIServeResponseCache()
         let server = CLILocalHTTPServer(host: "127.0.0.1", port: port) { request in
             await Self.handleServeRequest(
                 request,
-                config: config,
+                configStore: configStore,
                 cache: cache,
                 refreshInterval: refreshInterval,
                 requestTimeout: requestTimeout)
         }
+        let signalMonitor = CLITerminationSignalMonitor { _ in
+            TTYCommandRunner.terminateActiveProcessesForAppShutdown()
+            server.stop()
+        }
+        defer { signalMonitor.cancel() }
 
         do {
             try await server.run {
                 Self.writeStderr("CodexBar server listening on http://127.0.0.1:\(port)\n")
             }
         } catch {
+            await Self.shutdownServeSessions()
             Self.exit(code: .failure, message: error.localizedDescription, output: output, kind: .runtime)
         }
+        await Self.shutdownServeSessions()
+    }
+
+    private static func shutdownServeSessions() async {
+        await ProviderCLISessionLifecycle.shutdownPersistentSessions()
+        TTYCommandRunner.terminateActiveProcessesForAppShutdown()
     }
 
     static func decodeServePort(from values: ParsedValues) -> UInt16? {
@@ -282,7 +486,7 @@ extension CodexBarCLI {
         } else {
             parsed = 60
         }
-        guard parsed >= 0 else { return nil }
+        guard parsed.isFinite, parsed >= 0 else { return nil }
         return parsed
     }
 
@@ -301,7 +505,7 @@ extension CodexBarCLI {
 
     private static func handleServeRequest(
         _ request: CLILocalHTTPRequest,
-        config: CodexBarConfig,
+        configStore: CodexBarConfigStore,
         cache: CLIServeResponseCache,
         refreshInterval: TimeInterval,
         requestTimeout: TimeInterval) async -> CLILocalHTTPResponse
@@ -322,24 +526,64 @@ extension CodexBarCLI {
         case .health:
             return Self.serveJSON(ServeHealthPayload(status: "ok"))
         case let .usage(provider):
+            let snapshot: CLIServeConfigSnapshot
+            do {
+                snapshot = try Self.loadServeConfigSnapshot(configStore: configStore)
+            } catch {
+                return Self.serveError(status: .internalServerError, message: error.localizedDescription)
+            }
             return await Self.cachedServeResponse(
-                key: "usage:\(provider ?? "")",
+                key: Self.serveCacheKey(kind: "usage", provider: provider, configToken: snapshot.cacheToken),
                 cache: cache,
                 refreshInterval: refreshInterval,
                 requestTimeout: requestTimeout)
             {
-                await Self.serveUsage(provider: provider, config: config)
+                await Self.serveUsage(
+                    provider: provider,
+                    config: snapshot.config,
+                    refreshInterval: refreshInterval)
             }
         case let .cost(provider):
+            let snapshot: CLIServeConfigSnapshot
+            do {
+                snapshot = try Self.loadServeConfigSnapshot(configStore: configStore)
+            } catch {
+                return Self.serveError(status: .internalServerError, message: error.localizedDescription)
+            }
             return await Self.cachedServeResponse(
-                key: "cost:\(provider ?? "")",
+                key: Self.serveCacheKey(kind: "cost", provider: provider, configToken: snapshot.cacheToken),
                 cache: cache,
                 refreshInterval: refreshInterval,
                 requestTimeout: requestTimeout)
             {
-                await Self.serveCost(provider: provider, config: config)
+                await Self.serveCost(provider: provider, config: snapshot.config)
             }
         }
+    }
+
+    static func loadServeConfigSnapshot(
+        configStore: CodexBarConfigStore = CodexBarConfigStore()) throws -> CLIServeConfigSnapshot
+    {
+        let config = try configStore.load() ?? CodexBarConfig.makeDefault()
+        return try CLIServeConfigSnapshot(
+            config: config,
+            cacheToken: Self.serveConfigCacheToken(for: config))
+    }
+
+    static func serveCacheKey(kind: String, provider: String?, configToken: String) -> String {
+        "\(kind):\(provider ?? ""):\(configToken)"
+    }
+
+    static func serveConfigCacheToken(for config: CodexBarConfig) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(config.normalized())
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash = hash &* 1_099_511_628_211
+        }
+        return String(hash, radix: 16)
     }
 
     static func cachedServeResponse(
@@ -356,13 +600,14 @@ extension CodexBarCLI {
             let response = await Self.serveResponseWithDeadline(seconds: requestTimeout) {
                 await makeResponse()
             }
-            await cache.completeFetch(
+            return await cache.completeFetch(
                 response,
                 for: key,
-                ttl: refreshInterval,
+                policy: CLIServeResponseCache.CachePolicy(
+                    ttl: refreshInterval,
+                    staleTTL: Self.serveStaleTTL(refreshInterval: refreshInterval)),
                 now: Date(),
                 shouldCache: Self.shouldCacheServeResponse(response))
-            return response
         }
     }
 
@@ -399,6 +644,19 @@ extension CodexBarCLI {
         }
     }
 
+    /// How long a last-good response may be served in place of a failed
+    /// refresh. Ten refresh intervals, with a five-minute floor and one-hour
+    /// ceiling. Zero (stale fallback disabled) when response caching is disabled.
+    static func serveStaleTTL(refreshInterval: TimeInterval) -> TimeInterval {
+        guard refreshInterval > 0 else { return 0 }
+        guard refreshInterval.isFinite else { return CLIServeResponseCache.maximumStaleTTL }
+        return min(max(refreshInterval * 10, 300), CLIServeResponseCache.maximumStaleTTL)
+    }
+
+    static func serveCLISessionIdleWindow(refreshInterval: TimeInterval) -> TimeInterval {
+        max(180, refreshInterval + 60)
+    }
+
     static func shouldCacheServeResponse(_ response: CLILocalHTTPResponse) -> Bool {
         guard response.status == .ok else { return false }
         guard let payload = try? JSONSerialization.jsonObject(with: response.body) as? [[String: Any]] else {
@@ -412,7 +670,8 @@ extension CodexBarCLI {
 
     private static func serveUsage(
         provider rawProvider: String?,
-        config: CodexBarConfig) async -> CLILocalHTTPResponse
+        config: CodexBarConfig,
+        refreshInterval: TimeInterval) async -> CLILocalHTTPResponse
     {
         let selection: ProviderSelection
         do {
@@ -447,7 +706,9 @@ extension CodexBarCLI {
             includeAllCodexAccounts: true,
             fetcher: UsageFetcher(),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
-            browserDetection: browserDetection)
+            browserDetection: browserDetection,
+            persistCLISessions: true,
+            persistentCLISessionIdleWindow: Self.serveCLISessionIdleWindow(refreshInterval: refreshInterval))
 
         var output = UsageCommandOutput()
         for provider in selection.asList {
@@ -461,7 +722,9 @@ extension CodexBarCLI {
             output.merge(providerOutput)
         }
 
-        return Self.serveJSON(output.payload)
+        return Self.serveJSON(
+            output.payload,
+            usageCacheKeys: output.payload.map(\.cacheAccountKey))
     }
 
     private static func serveCost(provider rawProvider: String?, config: CodexBarConfig) async -> CLILocalHTTPResponse {
@@ -506,9 +769,16 @@ extension CodexBarCLI {
         return selection
     }
 
-    private static func serveJSON(_ payload: some Encodable, status: CLIHTTPStatus = .ok) -> CLILocalHTTPResponse {
+    private static func serveJSON(
+        _ payload: some Encodable,
+        status: CLIHTTPStatus = .ok,
+        usageCacheKeys: [String?]? = nil) -> CLILocalHTTPResponse
+    {
         let json = Self.encodeJSON(payload, pretty: false) ?? "{}"
-        return CLILocalHTTPResponse(status: status, body: Data(json.utf8))
+        return CLILocalHTTPResponse(
+            status: status,
+            body: Data(json.utf8),
+            usageCacheKeys: usageCacheKeys)
     }
 
     private static func serveError(status: CLIHTTPStatus, message: String) -> CLILocalHTTPResponse {

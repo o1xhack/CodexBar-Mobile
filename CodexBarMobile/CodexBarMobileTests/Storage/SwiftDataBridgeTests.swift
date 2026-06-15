@@ -27,7 +27,11 @@ struct SwiftDataBridgeTests {
         name: String = "Claude",
         email: String? = "user@example.com",
         lastUpdated: Date,
-        utilization: [SyncUtilizationSeries]? = nil
+        utilization: [SyncUtilizationSeries]? = nil,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil,
+        accountIdentities: [String]? = nil,
+        quotaWarnings: SyncQuotaWarningConfig? = nil
     ) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: id,
@@ -39,8 +43,12 @@ struct SwiftDataBridgeTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: lastUpdated,
+            subscriptionExpiresAt: subscriptionExpiresAt,
+            subscriptionRenewsAt: subscriptionRenewsAt,
             rateWindows: [],
-            utilizationHistory: utilization)
+            utilizationHistory: utilization,
+            accountIdentities: accountIdentities,
+            quotaWarnings: quotaWarnings)
     }
 
     private func makeSnapshot(
@@ -152,6 +160,57 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
         #expect(providers.first?.providerName == "Claude Code")
         #expect(providers.first?.lastUpdated == self.ts2)
+    }
+
+    @Test("Subscription metadata survives SwiftData bridge round-trip")
+    func testSubscriptionMetadataRoundTrip() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let expiresAt = Date(timeIntervalSince1970: 1_801_000_000)
+        let renewsAt = Date(timeIntervalSince1970: 1_800_500_000)
+        let provider = self.makeProvider(
+            id: "minimax",
+            name: "MiniMax",
+            lastUpdated: self.ts1,
+            subscriptionExpiresAt: expiresAt,
+            subscriptionRenewsAt: renewsAt)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-subscription",
+            providers: [provider],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+        let decoded = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
+        let decodedProvider = try #require(decoded.first?.providers.first)
+        #expect(decodedProvider.subscriptionExpiresAt == expiresAt)
+        #expect(decodedProvider.subscriptionRenewsAt == renewsAt)
+    }
+
+    @Test("Rich provider payload survives SwiftData bridge round-trip")
+    func testRichProviderPayloadRoundTrip() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let quotaWarnings = SyncQuotaWarningConfig(
+            sessionThresholds: [60, 25],
+            sessionEnabled: true,
+            weeklyThresholds: [80],
+            weeklyEnabled: false)
+        let provider = self.makeProvider(
+            id: "minimax",
+            name: "MiniMax",
+            lastUpdated: self.ts1,
+            accountIdentities: ["minimax:email:user@example.com"],
+            quotaWarnings: quotaWarnings)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-rich-payload",
+            providers: [provider],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+        let decoded = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
+        let decodedProvider = try #require(decoded.first?.providers.first)
+        #expect(decodedProvider.accountIdentities == ["minimax:email:user@example.com"])
+        #expect(decodedProvider.quotaWarnings == quotaWarnings)
     }
 
     @Test("Snapshots without deviceID map to a deterministic fallback row")

@@ -2,6 +2,26 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var ampUsageDataSource: ProviderSourceMode {
+        get { self.configSnapshot.providerConfig(for: .amp)?.source ?? .auto }
+        set {
+            self.updateProviderConfig(provider: .amp) { entry in
+                entry.source = newValue == .auto ? nil : newValue
+            }
+            self.logProviderModeChange(provider: .amp, field: "source", value: newValue.rawValue)
+        }
+    }
+
+    var ampAPIToken: String {
+        get { self.configSnapshot.providerConfig(for: .amp)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .amp) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .amp, field: "apiKey", value: newValue)
+        }
+    }
+
     var ampCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .amp)?.sanitizedCookieHeader ?? "" }
         set {
@@ -21,6 +41,8 @@ extension SettingsStore {
             self.logProviderModeChange(provider: .amp, field: "cookieSource", value: newValue.rawValue)
         }
     }
+
+    func ensureAmpAPITokenLoaded() {}
 
     func ensureAmpCookieLoaded() {}
 }

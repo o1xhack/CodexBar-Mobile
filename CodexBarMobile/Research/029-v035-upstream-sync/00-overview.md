@@ -114,9 +114,26 @@ CloudKit deploy expectation is unknown until after merge audit. Additive keys
 inside the existing compressed payload do not require deploy; new CloudKit
 record types, top-level fields, indexes, zones, or subscriptions do.
 
+## Upstream Check During Implementation
+
+On 2026-06-14, `steipete/CodexBar` GitHub Releases still reported `v0.35.0`
+as latest. `upstream/main` had already moved to unreleased app version
+`0.35.1` / build `86` at commit `ae7455bad6e2e2a71de4bd46b7ae3816053efed1`,
+23 commits ahead of `v0.35.0`. The target remains `v0.35.0` because this Goal
+uses GitHub Releases as the upstream source of truth.
+
+One unreleased upstream stability fix, `ae7455ba fix: keep token account menu
+data scoped (#1530)`, was selectively backported after the v0.35.0 test suite
+exposed the same token-account switcher race. This is not a target-version
+change and does not pull the branch to unreleased `0.35.1`.
+
 ## Current Outcome
 
 Started on branch `upstream-sync/v0.35.0-mobile.1.12.0` from latest
-`mobile-dev`. Research scope and version plan are recorded. Implementation is
-not yet complete.
-
+`mobile-dev`. Research scope and version plan are recorded. The branch now
+contains the v0.35.0 Mac sync, iOS 1.12.0 Shared/presentation updates for
+MiniMax subscription metadata, Devin iOS provider identity coverage, release
+notes, localization, CloudKit audit, Mac/iOS test evidence, the 16-case sync
+compatibility substitution matrix, and review fixes for SwiftData rich-payload
+hydration plus Mac MiniMax localization. Packaging and draft-release handoff
+remain the next release steps.

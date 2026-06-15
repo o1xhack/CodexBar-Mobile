@@ -207,6 +207,66 @@ struct OpenAIDashboardWebViewCacheTests {
     }
 
     @Test
+    func `Idle prune is scheduled without future cache activity`() async throws {
+        if self.shouldSkipOnCI() { return }
+        let cache = OpenAIDashboardWebViewCache(idleTimeout: 0.2)
+        let store = WKWebsiteDataStore.nonPersistent()
+        let url = try #require(URL(string: "about:blank"))
+
+        var lease: OpenAIDashboardWebViewLease? = try await cache.acquire(
+            websiteDataStore: store,
+            usageURL: url,
+            logger: nil)
+        lease?.release()
+        lease = nil
+
+        #expect(cache.hasCachedEntry(for: store), "WebView should remain cached right after release")
+
+        let deadline = Date().addingTimeInterval(5)
+        while cache.hasCachedEntry(for: store), Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        #expect(
+            !cache.hasCachedEntry(for: store),
+            "Expected the scheduled idle prune to evict the WebView without any further cache activity")
+
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `Later release does not postpone an older idle entry`() async throws {
+        if self.shouldSkipOnCI() { return }
+        let cache = OpenAIDashboardWebViewCache(idleTimeout: 5)
+        let firstStore = WKWebsiteDataStore.nonPersistent()
+        let secondStore = WKWebsiteDataStore.nonPersistent()
+        let url = try #require(URL(string: "about:blank"))
+
+        let firstLease = try await cache.acquire(
+            websiteDataStore: firstStore,
+            usageURL: url,
+            logger: nil)
+        firstLease.release()
+        let firstDeadline = try #require(cache.idlePruneDeadlineForTesting)
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        let secondLease = try await cache.acquire(
+            websiteDataStore: secondStore,
+            usageURL: url,
+            logger: nil)
+        secondLease.release()
+        let rescheduledDeadline = try #require(cache.idlePruneDeadlineForTesting)
+
+        #expect(
+            abs(rescheduledDeadline.timeIntervalSince(firstDeadline)) < 0.001,
+            "A later release should keep the prune scheduled for the oldest idle entry")
+        #expect(cache.hasCachedEntry(for: firstStore))
+        #expect(cache.hasCachedEntry(for: secondStore), "A later release should keep its own idle window")
+        cache.clearAllForTesting()
+    }
+
+    @Test
     func `Reused page reset clears one shot scraper globals`() async throws {
         if self.shouldSkipOnCI() { return }
         let cache = OpenAIDashboardWebViewCache()

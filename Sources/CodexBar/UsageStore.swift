@@ -54,30 +54,7 @@ extension UsageStore {
 
     func observeSettingsChanges() {
         withObservationTracking {
-            _ = self.settings.refreshFrequency
-            _ = self.settings.statusChecksEnabled
-            _ = self.settings.sessionQuotaNotificationsEnabled
-            _ = self.settings.quotaWarningNotificationsEnabled
-            _ = self.settings.quotaWarningThresholds
-            _ = self.settings.quotaWarningThresholds(.session)
-            _ = self.settings.quotaWarningThresholds(.weekly)
-            _ = self.settings.quotaWarningSoundEnabled
-            _ = self.settings.usageBarsShowUsed
-            _ = self.settings.costUsageEnabled
-            _ = self.settings.costUsageHistoryDays
-            _ = self.settings.randomBlinkEnabled
-            _ = self.settings.configRevision
-            for implementation in ProviderCatalog.all {
-                implementation.observeSettings(self.settings)
-            }
-            _ = self.settings.multiAccountMenuLayout
-            _ = self.settings.tokenAccountsByProvider
-            _ = self.settings.mergeIcons
-            _ = self.settings.selectedMenuProvider
-            _ = self.settings.debugLoadingPattern
-            _ = self.settings.debugKeepCLISessionsAlive
-            _ = self.settings.historicalTrackingEnabled
-            _ = self.settings.providerStorageFootprintsEnabled
+            _ = self.backgroundWorkSettingsObservationToken
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -88,9 +65,36 @@ extension UsageStore {
                 self.startTimer()
                 self.updateProviderRuntimes()
                 await self.refreshHistoricalDatasetIfNeeded()
-                await self.refresh()
+                await self.refreshForSettingsChange()
             }
         }
+    }
+
+    var backgroundWorkSettingsObservationToken: Int {
+        _ = self.settings.refreshFrequency
+        _ = self.settings.statusChecksEnabled
+        _ = self.settings.sessionQuotaNotificationsEnabled
+        _ = self.settings.quotaWarningNotificationsEnabled
+        _ = self.settings.quotaWarningThresholds
+        _ = self.settings.quotaWarningThresholds(.session)
+        _ = self.settings.quotaWarningThresholds(.weekly)
+        _ = self.settings.quotaWarningSoundEnabled
+        _ = self.settings.usageBarsShowUsed
+        _ = self.settings.costUsageEnabled
+        _ = self.settings.costUsageHistoryDays
+        _ = self.settings.randomBlinkEnabled
+        _ = self.settings.configRevision
+        for implementation in ProviderCatalog.all {
+            implementation.observeSettings(self.settings)
+        }
+        _ = self.settings.multiAccountMenuLayout
+        _ = self.settings.tokenAccountsByProvider
+        _ = self.settings.mergeIcons
+        _ = self.settings.debugLoadingPattern
+        _ = self.settings.debugKeepCLISessionsAlive
+        _ = self.settings.historicalTrackingEnabled
+        _ = self.settings.providerStorageFootprintsEnabled
+        return 0
     }
 
     var attachedOpenAIDashboardSnapshot: OpenAIDashboardSnapshot? {
@@ -104,6 +108,16 @@ extension UsageStore {
 final class UsageStore {
     private struct ProviderAvailabilityCacheEntry {
         let available: Bool
+        let configRevision: Int
+        let expiresAt: Date
+
+        func isValid(now: Date, configRevision: Int) -> Bool {
+            self.configRevision == configRevision && self.expiresAt > now
+        }
+    }
+
+    struct AccountInfoCacheEntry {
+        let account: AccountInfo
         let configRevision: Int
         let expiresAt: Date
 
@@ -215,7 +229,13 @@ final class UsageStore {
     @ObservationIgnored var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     @ObservationIgnored let providerMetadata: [UsageProvider: ProviderMetadata]
     @ObservationIgnored var providerRuntimes: [UsageProvider: any ProviderRuntime] = [:]
+    @ObservationIgnored var providerRefreshTasks: [UsageProvider: [ProviderRefreshTaskState]] = [:]
+    @ObservationIgnored var providerRefreshTaskGeneration: UInt64 = 0
+    @ObservationIgnored var providerRefreshWaiterGeneration: UInt64 = 0
+    @ObservationIgnored var latestProviderRefreshGenerations: [UsageProvider: UInt64] = [:]
+    @ObservationIgnored var providerRefreshCounts: [UsageProvider: Int] = [:]
     @ObservationIgnored private var providerAvailabilityCache: [UsageProvider: ProviderAvailabilityCacheEntry] = [:]
+    @ObservationIgnored var accountInfoCache: [UsageProvider: AccountInfoCacheEntry] = [:]
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
@@ -226,7 +246,9 @@ final class UsageStore {
     @ObservationIgnored var storageRefreshTask: Task<Void, Never>?
     @ObservationIgnored var storageRefreshGeneration: UInt64 = 0
     @ObservationIgnored var storageRefreshInFlightSignature: String?
+    @ObservationIgnored var storageRefreshInFlightRequestKey: String?
     @ObservationIgnored var lastStorageRefreshSignature: String?
+    @ObservationIgnored var lastStorageRefreshRequestKey: String?
     @ObservationIgnored var lastStorageRefreshAt: Date?
     @ObservationIgnored var managedCodexAccountsForStorageOverride: [ManagedCodexAccount]?
     @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?
@@ -247,6 +269,7 @@ final class UsageStore {
     @ObservationIgnored var weeklyLimitResetDetectorStates: [String: WeeklyLimitResetDetectorState] = [:]
     @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let providerAvailabilityCacheTTL: TimeInterval = 1
+    @ObservationIgnored let accountInfoCacheTTL: TimeInterval = 30
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
     @ObservationIgnored let startupBehavior: StartupBehavior
@@ -305,7 +328,7 @@ final class UsageStore {
         self.weeklyLimitResetDetectorStates = Self.loadWeeklyLimitResetDetectorStates(from: settings.userDefaults)
         if let codexAccountUsageSnapshotStore = self.codexAccountUsageSnapshotStore {
             self.codexAccountSnapshots = codexAccountUsageSnapshotStore.load(
-                for: settings.codexVisibleAccountProjection.visibleAccounts)
+                for: self.freshCodexVisibleAccountsForSnapshotHydration())
         }
         self.logStartupState()
         self.bindSettings()
@@ -535,8 +558,8 @@ final class UsageStore {
 
     func runRefresh(
         forceTokenUsage: Bool = false,
-        startupConnectivityRetryAttempt: Int?)
-        async
+        startupConnectivityRetryAttempt: Int?,
+        coalesceProviderRefreshesOverride: Bool? = nil) async
     {
         guard !self.isRefreshing else { return }
         self.prepareRefreshState()
@@ -569,7 +592,12 @@ final class UsageStore {
 
             await withTaskGroup(of: Void.self) { group in
                 for provider in refreshProviders {
-                    group.addTask { await self.refreshProvider(provider) }
+                    group.addTask {
+                        await self.refreshProvider(
+                            provider,
+                            coalesceIfRefreshing: coalesceProviderRefreshesOverride ??
+                                (ProviderInteractionContext.current == .background))
+                    }
                     if availableRefreshProviders.contains(provider) {
                         group.addTask { await self.refreshStatus(provider) }
                     }
@@ -612,7 +640,7 @@ final class UsageStore {
                     "phase": openAIWebRefreshPhase == .startup ? "startup" : "regular",
                 ])
             if shouldRefreshOpenAIWeb {
-                let codexDashboardGuard = self.currentCodexOpenAIWebRefreshGuard()
+                let codexDashboardGuard = self.freshCodexOpenAIWebRefreshGuard()
                 if forceTokenUsage {
                     await self.refreshOpenAIDashboardIfNeeded(
                         force: true,
@@ -744,24 +772,6 @@ final class UsageStore {
         var firedThresholds: Set<Int> = []
     }
 
-    private func sessionQuotaWindow(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
-    {
-        if let primary = snapshot.primary, Self.isSessionWindow(primary) {
-            return (primary, .primary)
-        }
-        if provider == .copilot, let secondary = snapshot.secondary {
-            return (secondary, .copilotSecondaryFallback)
-        }
-        return nil
-    }
-
-    private static func isSessionWindow(_ window: RateWindow) -> Bool {
-        guard let minutes = window.windowMinutes else { return true }
-        return minutes <= 6 * 60
-    }
-
     func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
         // Capture account identity up front so both the depleted/restored
         // and warning paths can attribute the push to the triggering
@@ -855,15 +865,17 @@ final class UsageStore {
         guard self.settings.quotaWarningNotificationsEnabled else { return }
 
         let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
+        let primaryWindow = provider == .mimo ? nil : snapshot.primary
+        let secondaryWindow = provider == .mimo ? nil : snapshot.secondary
         self.handleQuotaWarningTransition(
             provider: provider,
             window: .session,
-            rateWindow: snapshot.primary,
+            rateWindow: primaryWindow,
             accountDisplayName: accountDisplayName)
         self.handleQuotaWarningTransition(
             provider: provider,
             window: .weekly,
-            rateWindow: snapshot.secondary,
+            rateWindow: secondaryWindow,
             accountDisplayName: accountDisplayName)
     }
 
@@ -1143,7 +1155,7 @@ extension UsageStore {
                         configToken: nil,
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
-                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot,
+                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot, .devin,
                      .vertexai, .kilo, .kiro, .kimi, .kimik2, .moonshot, .jetbrains, .perplexity, .mimo, .doubao,
                      .abacus, .mistral, .codebuff, .crof, .windsurf, .venice, .manus, .commandcode, .stepfun, .bedrock,
                      .grok, .groq, .t3chat, .llmproxy, .deepgram:

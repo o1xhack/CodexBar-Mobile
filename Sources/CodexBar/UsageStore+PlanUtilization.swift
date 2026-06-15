@@ -36,6 +36,12 @@ extension UsageStore {
     }
 
     func planUtilizationHistory(for provider: UsageProvider) -> [PlanUtilizationSeriesHistory] {
+        self.planUtilizationHistorySelection(for: provider).histories
+    }
+
+    func planUtilizationHistorySelection(for provider: UsageProvider)
+        -> (accountKey: String?, histories: [PlanUtilizationSeriesHistory])
+    {
         var providerBuckets = self.planUtilizationHistory[provider] ?? PlanUtilizationHistoryBuckets()
         let originalProviderBuckets = providerBuckets
         let accountKey = self.resolvePlanUtilizationAccountKey(
@@ -50,6 +56,34 @@ extension UsageStore {
                 await self.planUtilizationPersistenceCoordinator.enqueue(snapshotToPersist)
             }
         }
+        return (accountKey, providerBuckets.histories(for: accountKey))
+    }
+
+    func codexPlanUtilizationHistories(forVisibleAccount account: CodexVisibleAccount)
+        -> [PlanUtilizationSeriesHistory]
+    {
+        var providerBuckets = self.planUtilizationHistory[.codex] ?? PlanUtilizationHistoryBuckets()
+        let originalProviderBuckets = providerBuckets
+        let ownership = self.codexOwnershipContext(forVisibleAccount: account)
+        guard let canonicalKey = ownership.canonicalKey else { return [] }
+
+        if ownership.hasAdjacentEmailScopeAmbiguity {
+            guard canonicalKey != ownership.canonicalEmailHashKey else { return [] }
+            return providerBuckets.histories(for: canonicalKey)
+        }
+
+        let accountKey = self.materializeCodexPlanUtilizationHistoryIfNeeded(
+            into: canonicalKey,
+            ownership: ownership,
+            shouldAdoptUnscopedHistory: true,
+            providerBuckets: &providerBuckets)
+        self.planUtilizationHistory[.codex] = providerBuckets
+        if providerBuckets != originalProviderBuckets {
+            let snapshotToPersist = self.planUtilizationHistory
+            Task {
+                await self.planUtilizationPersistenceCoordinator.enqueue(snapshotToPersist)
+            }
+        }
         return providerBuckets.histories(for: accountKey)
     }
 
@@ -58,6 +92,11 @@ extension UsageStore {
         return isRefreshing
             && self.snapshots[provider] == nil
             && self.error(for: provider) == nil
+    }
+
+    func shouldShowRefreshingMenuCardIndicator(for provider: UsageProvider) -> Bool {
+        let isRefreshing = self.isRefreshing || self.refreshingProviders.contains(provider)
+        return isRefreshing && self.error(for: provider) == nil
     }
 
     func shouldHidePlanUtilizationMenuItem(for provider: UsageProvider) -> Bool {
@@ -733,6 +772,7 @@ extension UsageStore {
                 targetCanonicalKey: canonicalKey,
                 canonicalEmailHashKey: ownership.canonicalEmailHashKey)
             if matchesTargetContinuity,
+               !Self.codexPlanHistoryOwnerIsAmbiguousEmailScope(owner, ownership: ownership),
                let accountHistories = providerBuckets.accounts[rawKey],
                !accountHistories.isEmpty
             {
@@ -774,6 +814,21 @@ extension UsageStore {
         let mergedHistory = Self.mergedPlanUtilizationHistories(provider: .codex, histories: historiesToMerge)
         providerBuckets.setHistories(mergedHistory, for: canonicalKey)
         return canonicalKey
+    }
+
+    private static func codexPlanHistoryOwnerIsAmbiguousEmailScope(
+        _ owner: CodexHistoryPersistedOwner,
+        ownership: CodexOwnershipContext) -> Bool
+    {
+        guard ownership.hasAdjacentEmailScopeAmbiguity else { return false }
+        return switch owner {
+        case let .canonical(key):
+            key == ownership.canonicalEmailHashKey
+        case .legacyEmailHash:
+            true
+        case .legacyOpaqueScoped, .legacyUnscoped:
+            false
+        }
     }
 
     private func materializeLegacyClaudePlanUtilizationHistoryIfNeeded(

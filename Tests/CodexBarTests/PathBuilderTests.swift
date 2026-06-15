@@ -45,6 +45,31 @@ struct PathBuilderTests {
     }
 
     @Test
+    func `login shell cache retries after timed out nil capture`() {
+        let capture = LoginShellPathCaptureStub([
+            nil,
+            ["/login/bin", "/usr/bin"],
+        ])
+
+        let cache = LoginShellPathCache { _, _ in capture.next() }
+        let semaphore = DispatchSemaphore(value: 0)
+        var firstResult: [String]?
+        cache.captureOnce(shell: "/unused", timeout: 0.01) { result in
+            firstResult = result
+            semaphore.signal()
+        }
+
+        #expect(semaphore.wait(timeout: .now() + 2.0) == .success)
+        #expect(firstResult == nil)
+        #expect(cache.current == nil)
+
+        let recovered = cache.currentOrCapture(shell: "/unused", timeout: 2.0)
+        #expect(recovered == ["/login/bin", "/usr/bin"])
+        #expect(cache.current == ["/login/bin", "/usr/bin"])
+        #expect(capture.callCount == 2)
+    }
+
+    @Test
     func `shell runner drains noisy stdout and stderr`() throws {
         let script = """
         i=0
@@ -625,6 +650,29 @@ struct PathBuilderTests {
 
     private static func shellSingleQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
+}
+
+private final class LoginShellPathCaptureStub: @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [[String]?]
+    private var callCountStorage = 0
+
+    var callCount: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.callCountStorage
+    }
+
+    init(_ results: [[String]?]) {
+        self.results = results
+    }
+
+    func next() -> [String]? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.callCountStorage += 1
+        return self.results.isEmpty ? nil : self.results.removeFirst()
     }
 }
 

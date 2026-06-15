@@ -164,6 +164,67 @@ struct CodexBarTests {
     }
 
     @Test
+    func `copilot icon can use selected budget as secondary lane`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "copilot-budget-agent",
+                    title: "Budget - Copilot Agent Premium Requests",
+                    window: RateWindow(usedPercent: 65, windowMinutes: nil, resetsAt: nil, resetDescription: nil)),
+            ],
+            updatedAt: Date())
+
+        let remaining = IconRemainingResolver.resolvedRemaining(
+            snapshot: snapshot,
+            style: .copilot,
+            secondaryOverrideWindowID: "copilot-budget-agent")
+
+        #expect(remaining.primary == 80)
+        #expect(remaining.secondary == 35)
+    }
+
+    @Test
+    func `copying extra rate windows preserves subscription dates`() {
+        let expiresAt = Date(timeIntervalSince1970: 1_810_656_000)
+        let renewsAt = Date(timeIntervalSince1970: 1_810_569_600)
+        let ampUsage = AmpUsageDetails(
+            individualCredits: 12.5,
+            workspaceBalances: [AmpWorkspaceBalance(name: "Team", remaining: 7.25)])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            ampUsage: ampUsage,
+            subscriptionExpiresAt: expiresAt,
+            subscriptionRenewsAt: renewsAt,
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+
+        let copied = snapshot.with(extraRateWindows: [])
+
+        #expect(copied.subscriptionExpiresAt == expiresAt)
+        #expect(copied.subscriptionRenewsAt == renewsAt)
+        #expect(copied.ampUsage == ampUsage)
+    }
+
+    @Test
+    func `copilot icon falls back to chat lane when selected budget is unavailable`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            extraRateWindows: nil,
+            updatedAt: Date())
+
+        let remaining = IconRemainingResolver.resolvedRemaining(
+            snapshot: snapshot,
+            style: .copilot,
+            secondaryOverrideWindowID: "copilot-budget-agent")
+
+        #expect(remaining.primary == 80)
+        #expect(remaining.secondary == 70)
+    }
+
+    @Test
     func `codex icon promotes weekly only window into primary display lane`() {
         let snapshot = UsageSnapshot(
             primary: nil,

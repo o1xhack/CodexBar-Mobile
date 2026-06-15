@@ -161,6 +161,7 @@ enum SwiftDataBridge {
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
         let perplexityCreditsData = provider.perplexityCredits.flatMap { try? encoder.encode($0) }
+        let providerPayloadData = try? encoder.encode(provider)
 
         let model: ProviderSnapshotModel
         if let existing = try context.fetch(descriptor).first {
@@ -169,6 +170,9 @@ enum SwiftDataBridge {
             existing.statusMessage = provider.statusMessage
             existing.isError = provider.isError
             existing.lastUpdated = provider.lastUpdated
+            existing.subscriptionExpiresAt = provider.subscriptionExpiresAt
+            existing.subscriptionRenewsAt = provider.subscriptionRenewsAt
+            existing.providerPayloadData = providerPayloadData
             existing.rateWindowsData = rateWindowsData
             existing.costSummaryData = costSummaryData
             existing.budgetData = budgetData
@@ -185,6 +189,9 @@ enum SwiftDataBridge {
                 statusMessage: provider.statusMessage,
                 isError: provider.isError,
                 lastUpdated: provider.lastUpdated,
+                subscriptionExpiresAt: provider.subscriptionExpiresAt,
+                subscriptionRenewsAt: provider.subscriptionRenewsAt,
+                providerPayloadData: providerPayloadData,
                 rateWindowsData: rateWindowsData,
                 costSummaryData: costSummaryData,
                 budgetData: budgetData,
@@ -296,6 +303,13 @@ enum SwiftDataBridge {
             providers.reserveCapacity(device.providers.count)
 
             for row in device.providers {
+                if let payload = row.providerPayloadData,
+                   let provider = try? decoder.decode(ProviderUsageSnapshot.self, from: payload)
+                {
+                    providers.append(provider)
+                    continue
+                }
+
                 let rateWindows = (try? decoder.decode([SyncRateWindow].self, from: row.rateWindowsData)) ?? []
                 let costSummary = row.costSummaryData.flatMap {
                     try? decoder.decode(SyncCostSummary.self, from: $0)
@@ -342,6 +356,8 @@ enum SwiftDataBridge {
                     lastUpdated: row.lastUpdated,
                     costSummary: costSummary,
                     budget: budget,
+                    subscriptionExpiresAt: row.subscriptionExpiresAt,
+                    subscriptionRenewsAt: row.subscriptionRenewsAt,
                     rateWindows: rateWindows,
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
                     perplexityCredits: perplexityCredits))

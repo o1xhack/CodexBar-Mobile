@@ -309,6 +309,14 @@ extension SettingsStore {
         }
     }
 
+    var copilotIconSecondaryWindowIDRaw: String {
+        get { self.defaultsState.copilotIconSecondaryWindowIDRaw }
+        set {
+            self.defaultsState.copilotIconSecondaryWindowIDRaw = newValue
+            self.userDefaults.set(newValue, forKey: "copilotIconSecondaryWindowID")
+        }
+    }
+
     var costUsageEnabled: Bool {
         get { self.defaultsState.costUsageEnabled }
         set {
@@ -396,6 +404,17 @@ extension SettingsStore {
         set { self.claudeWebExtrasEnabledRaw = newValue }
     }
 
+    var copilotBudgetExtrasEnabled: Bool {
+        get { self.defaultsState.copilotBudgetExtrasEnabled }
+        set {
+            self.defaultsState.copilotBudgetExtrasEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "copilotBudgetExtrasEnabled")
+            CodexBarLog.logger(LogCategories.settings).info(
+                "Copilot budget extras updated",
+                metadata: ["enabled": newValue ? "1" : "0"])
+        }
+    }
+
     private var claudeWebExtrasEnabledRaw: Bool {
         get { self.defaultsState.claudeWebExtrasEnabledRaw }
         set {
@@ -473,9 +492,9 @@ extension SettingsStore {
     }
 
     var mergedMenuLastSelectedWasOverview: Bool {
-        get { self.defaultsState.mergedMenuLastSelectedWasOverview }
+        get { self.mergedMenuLastSelectedWasOverviewStorage }
         set {
-            self.defaultsState.mergedMenuLastSelectedWasOverview = newValue
+            self.mergedMenuLastSelectedWasOverviewStorage = newValue
             self.userDefaults.set(newValue, forKey: "mergedMenuLastSelectedWasOverview")
         }
     }
@@ -489,9 +508,9 @@ extension SettingsStore {
     }
 
     private var selectedMenuProviderRaw: String? {
-        get { self.defaultsState.selectedMenuProviderRaw }
+        get { self.selectedMenuProviderRawStorage }
         set {
-            self.defaultsState.selectedMenuProviderRaw = newValue
+            self.selectedMenuProviderRawStorage = newValue
             if let raw = newValue {
                 self.userDefaults.set(raw, forKey: "selectedMenuProvider")
             } else {
@@ -682,6 +701,14 @@ extension SettingsStore {
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }
         set { self.debugLoadingPatternRaw = newValue?.rawValue }
+    }
+
+    var terminalApp: TerminalApp {
+        get { TerminalApp(rawValue: self.defaultsState.terminalAppRaw ?? "") ?? .terminal }
+        set {
+            self.defaultsState.terminalAppRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "terminalApp")
+        }
     }
 }
 

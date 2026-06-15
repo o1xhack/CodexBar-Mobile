@@ -154,6 +154,62 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `copilot budget secondary picker appears before cookie picker`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-budget-pickers")
+        fixture.settings.copilotBudgetExtrasEnabled = true
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let pickers = CopilotProviderImplementation().settingsPickers(context: context)
+
+        #expect(pickers.map(\.id) == ["copilot-icon-secondary-window", "copilot-budget-cookie-source"])
+        #expect(pickers.first?.title == "Menu bar secondary metric")
+    }
+
+    @Test
+    func `copilot manual cookie field is labelled and refreshable`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-budget-field")
+        fixture.settings.copilotBudgetExtrasEnabled = true
+        fixture.settings.copilotBudgetCookieSource = .manual
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let fields = CopilotProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "copilot-budget-cookie-header" })
+
+        #expect(field.title == "Manual GitHub Cookie header")
+        #expect(field.subtitle.contains("Treat this value like a password"))
+        #expect(field.actions.map(\.id) == ["refresh-copilot-budget-cookie"])
+    }
+
+    @Test
+    func `kimi exposes usage source picker plus api and cookie fields`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-kimi")
+        let context = fixture.settingsContext(provider: .kimi)
+
+        let implementation = KimiProviderImplementation()
+        let pickers = implementation.settingsPickers(context: context)
+        let fields = implementation.settingsFields(context: context)
+
+        #expect(pickers.contains(where: { $0.id == "kimi-usage-source" }))
+        #expect(pickers.contains(where: { $0.id == "kimi-cookie-source" }))
+        #expect(fields.contains(where: { $0.id == "kimi-api-key" }))
+        #expect(fields.contains(where: { $0.id == "kimi-cookie" }))
+    }
+
+    @Test
+    func `kimi presentation follows selected source label`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-kimi-presentation")
+        fixture.settings.kimiUsageDataSource = .api
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.kimi])
+        let context = fixture.presentationContext(provider: .kimi, metadata: metadata)
+
+        let detailLine = KimiProviderImplementation()
+            .presentation(context: context)
+            .detailLine(context)
+
+        #expect(detailLine == "api")
+    }
+
+    @Test
     func `deepgram exposes api key and project id fields`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepgram")
         let context = fixture.settingsContext(provider: .deepgram)
@@ -180,6 +236,20 @@ struct ProviderSettingsDescriptorTests {
             .detailLine(context)
 
         #expect(detailLine == fixture.store.sourceLabel(for: .alibaba))
+    }
+
+    @Test
+    func `devin presentation follows store source label`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-presentation")
+        fixture.store.lastSourceLabels[.devin] = "web"
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.devin])
+        let context = fixture.presentationContext(provider: .devin, metadata: metadata)
+
+        let detailLine = DevinProviderImplementation()
+            .presentation(context: context)
+            .detailLine(context)
+
+        #expect(detailLine == "web")
     }
 
     @Test

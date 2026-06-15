@@ -98,6 +98,8 @@
 "Could not start codex login" = "No se pudo iniciar codex login";
 "Could not switch system account" = "No se pudo cambiar la cuenta del sistema";
 "Credits" = "Créditos";
+"Individual credits" = "Créditos individuales";
+"Workspace" = "Espacio de trabajo";
 "Credits history" = "Historial de créditos";
 "Cursor login failed" = "El inicio de sesión de Cursor falló";
 "Custom" = "Personalizado";
@@ -399,6 +401,13 @@
 "language_chinese_simplified" = "简体中文";
 "language_chinese_traditional" = "繁體中文";
 "language_portuguese_brazilian" = "Português (Brasil)";
+"language_swedish" = "Sueco";
+"language_dutch" = "Nederlands";
+"language_german" = "Deutsch";
+"language_french" = "Francés";
+"language_ukrainian" = "Ucraniano";
+"language_japanese" = "Japonés";
+"language_korean" = "Coreano";
 "start_at_login_title" = "Abrir al iniciar sesión";
 "start_at_login_subtitle" = "Abre CodexBar automáticamente al iniciar tu Mac.";
 "show_cost_summary" = "Mostrar resumen de coste";
@@ -482,6 +491,8 @@
 "show_usage_as_used_subtitle" = "Las barras de progreso se llenan a medida que consumes la cuota (en lugar de mostrar lo restante).";
 "show_quota_warning_markers_title" = "Mostrar marcadores de aviso de cuota";
 "show_quota_warning_markers_subtitle" = "Dibuja marcas de umbral en las barras de uso cuando hay avisos de cuota configurados.";
+"weekly_progress_work_days_title" = "Días laborables del progreso semanal";
+"weekly_progress_work_days_subtitle" = "Define los días laborables para los marcadores de las barras de uso semanal y los cálculos de ritmo.";
 "show_reset_time_as_clock_title" = "Mostrar la hora de reinicio como reloj";
 "show_reset_time_as_clock_subtitle" = "Mostrar las horas de reinicio como valores de reloj absolutos en lugar de cuentas atrás.";
 "show_provider_changelog_links_title" = "Mostrar enlaces al registro de cambios del proveedor";
@@ -606,9 +617,11 @@
 "display_mode_percent" = "Porcentaje";
 "display_mode_pace" = "Ritmo";
 "display_mode_both" = "Ambos";
+"display_mode_reset_time" = "Tiempo de restablecimiento";
 "display_mode_percent_desc" = "Mostrar el porcentaje restante/usado (p. ej. 45 %)";
 "display_mode_pace_desc" = "Mostrar el indicador de ritmo (p. ej. +5 %)";
 "display_mode_both_desc" = "Mostrar porcentaje y ritmo (p. ej. 45 % · +5 %)";
+"display_mode_reset_time_desc" = "Mostrar el tiempo de restablecimiento de la métrica seleccionada (p. ej. ↻ 3:56 PM)";
 
 /* Provider status */
 "status_operational" = "Operativo";
@@ -761,7 +774,7 @@
 "Antigravity login failed" = "Error al iniciar sesión en Antigravity";
 "Antigravity login timed out" = "El inicio de sesión en Antigravity agotó el tiempo";
 "Auth source" = "Fuente de autenticación";
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importa automáticamente las cookies de Chrome desde Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importa automáticamente las cookies del navegador desde Xiaomi MiMo.";
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Importa automáticamente datos de sesión de Windsurf desde localStorage de Chromium.";
 "Automatic imports browser cookies from Bailian." = "Importa automáticamente cookies del navegador desde Bailian.";
 "Automatically imports browser cookies." = "Importa automáticamente cookies del navegador.";
@@ -861,6 +874,7 @@
 "Personal account" = "Cuenta personal";
 "Project ID" = "ID de proyecto";
 "Re-auth" = "Reautenticar";
+"Re-login at claude.ai" = "Volver a iniciar sesión en claude.ai";
 "Re-authenticating…" = "Reautenticando…";
 "Refresh Session" = "Actualizar sesión";
 "Refresh organizations" = "Actualizar organizaciones";
@@ -916,3 +930,9 @@
 "Clear" = "Borrar";
 "No matching providers" = "No hay proveedores coincidentes";
 "Search providers" = "Buscar proveedores";
+
+"language_vietnamese" = "Vietnamita";
+"language_turkish" = "Türkçe";
+"Renews: %@" = "Se renueva: %@";
+"Plan expires: %@" = "El plan vence: %@";
+"∞ Unlimited" = "∞ Ilimitado";

@@ -46,6 +46,50 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `diagnostic export marks named windows with unknown usage`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let summary = ProviderDiagnosticUsageSummary(from: UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "nebula-window",
+                    title: "Nebula Window",
+                    window: RateWindow(
+                        usedPercent: 100,
+                        windowMinutes: nil,
+                        resetsAt: now.addingTimeInterval(3600),
+                        resetDescription: nil),
+                    usageKnown: false),
+            ],
+            updatedAt: now))
+
+        let json = try self.json(summary)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let windows = try #require(object["windows"] as? [[String: Any]])
+
+        #expect(windows.first?["usageKnown"] as? Bool == false)
+    }
+
+    @Test
+    func `diagnostic rate window defaults legacy payloads to known usage`() throws {
+        let json = """
+        {
+          "label": "Legacy Window",
+          "usedPercent": 42,
+          "hasResetDescription": false
+        }
+        """
+
+        let window = try JSONDecoder().decode(
+            ProviderDiagnosticRateWindow.self,
+            from: Data(json.utf8))
+
+        #expect(window.usageKnown)
+    }
+
+    @Test
     func `raw error text never appears in encoded JSON`() throws {
         let export = ProviderDiagnosticExport(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
@@ -98,6 +142,31 @@ struct ProviderDiagnosticExportTests {
 
         let diagParse = ProviderDiagnosticError(from: parseError, authConfigured: true)
         #expect(diagParse.category == "parse")
+    }
+
+    @Test
+    func `diagnostic error maps Alibaba invalid endpoint override to configuration`() {
+        let error = ProviderEndpointOverrideError.alibabaCodingPlan("ALIBABA_CODING_PLAN_QUOTA_URL")
+        let diag = ProviderDiagnosticError(from: error, authConfigured: true)
+
+        #expect(diag.category == "configuration")
+        #expect(diag.safeDescription == "Configuration issue - check provider source and settings")
+    }
+
+    @Test
+    func `endpoint override fetch attempt stays in configuration category`() {
+        let error = ProviderEndpointOverrideError.minimax("MINIMAX_HOST")
+        let attempt = ProviderFetchAttempt(
+            strategyID: "minimax.web",
+            kind: .web,
+            wasAvailable: true,
+            errorDescription: error.localizedDescription)
+
+        let diagError = ProviderDiagnosticError(from: error, authConfigured: true)
+        let diagAttempt = ProviderDiagnosticFetchAttempt(from: attempt)
+
+        #expect(diagError.category == "configuration")
+        #expect(diagAttempt.errorCategory == "configuration")
     }
 
     @Test

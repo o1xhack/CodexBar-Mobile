@@ -43,6 +43,21 @@ struct AntigravityStatusProbeTests {
     }
 
     @Test
+    func `process detection accepts hyphenated language server from app bundle`() throws {
+        let command = """
+        /Applications/Google Antigravity.app/Contents/Resources/bin/language-server --standalone \
+        --csrf_token token --extension_server_port 64123
+        """
+
+        #expect(AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(command))
+
+        let result = try AntigravityStatusProbe.processInfo(fromProcessListOutput: "  321 \(command)")
+        #expect(result.pid == 321)
+        #expect(result.csrfToken == "token")
+        #expect(result.extensionPort == 64123)
+    }
+
+    @Test
     func `process detection keeps ignoring non language server antigravity helpers`() {
         let helper = """
         /Applications/Antigravity.app/Contents/Frameworks/Antigravity Helper.app/Contents/MacOS/Antigravity Helper \
@@ -62,6 +77,146 @@ struct AntigravityStatusProbeTests {
         #expect(AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(command))
     }
 
+    @Test
+    func `process detection accepts antigravity cli without csrf token`() {
+        // The CLI launches its language server without a `--csrf_token` flag.
+        let node = """
+        node /Users/test/.gemini/antigravity-cli/build/mcp-server.cjs \
+        --app_data_dir /Users/test/.gemini/antigravity
+        """
+        #expect(AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(node))
+
+        let agy = "/Users/test/.local/bin/agy -p hello"
+        #expect(AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(agy))
+
+        let agyUnderscore = "/usr/local/bin/agy --app_data_dir /Users/test/.gemini/antigravity_cli"
+        #expect(AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(agyUnderscore))
+    }
+
+    @Test
+    func `process detection ignores unrelated binaries containing agy substring`() {
+        // "agy" must be path-anchored so unrelated commands do not match.
+        #expect(!AntigravityStatusProbe.isAntigravityLanguageServerCommandLine("/usr/bin/legacy --run"))
+        #expect(!AntigravityStatusProbe.isAntigravityLanguageServerCommandLine("/opt/imagymagic/bin/tool"))
+    }
+
+    @Test
+    func `process detection ignores cli names outside explicit cli path segments`() {
+        #expect(
+            !AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(
+                "/usr/bin/node /tmp/not-antigravity-cli/build/server.js"))
+        #expect(
+            !AntigravityStatusProbe.isAntigravityLanguageServerCommandLine(
+                "/usr/bin/helper --workspace antigravity-cli"))
+    }
+
+    @Test
+    func `process kind distinguishes ide language server from cli`() {
+        let ide = """
+        /Applications/Antigravity.app/Contents/Resources/bin/language_server \
+        --csrf_token token --app_data_dir antigravity
+        """
+        #expect(AntigravityStatusProbe.antigravityProcessKind(ide) == .ide)
+        #expect(AntigravityStatusProbe.antigravityProcessKind("/Users/test/.local/bin/agy -p hi") == .cli)
+        #expect(
+            AntigravityStatusProbe.antigravityProcessKind(
+                "node /x/.gemini/antigravity-cli/build/mcp-server.cjs --app_data_dir /x/.gemini/antigravity") == .cli)
+        #expect(AntigravityStatusProbe.antigravityProcessKind("/usr/bin/legacy --run") == nil)
+    }
+
+    @Test
+    func `csrf token stays required for ide but optional for cli`() {
+        // IDE with a token returns it.
+        let ideWithToken = """
+        /Applications/Antigravity.app/Contents/Resources/bin/language_server \
+        --csrf_token ide-token --app_data_dir antigravity
+        """
+        #expect(AntigravityStatusProbe.resolvedCSRFToken(forKind: .ide, command: ideWithToken) == "ide-token")
+
+        // Tokenless IDE is skipped (nil) so detection keeps scanning for a valid
+        // server and preserves the missing-token diagnostic — no empty-token probe.
+        let ideNoToken = """
+        /Applications/Antigravity.app/Contents/Resources/bin/language_server \
+        --app_data_dir antigravity
+        """
+        #expect(AntigravityStatusProbe.resolvedCSRFToken(forKind: .ide, command: ideNoToken) == nil)
+
+        // CLI without a token resolves to an empty token (its server needs none).
+        #expect(
+            AntigravityStatusProbe.resolvedCSRFToken(
+                forKind: .cli, command: "/Users/test/.local/bin/agy -p hi")?.isEmpty == true)
+
+        // A CLI that does carry a token still uses it.
+        #expect(
+            AntigravityStatusProbe.resolvedCSRFToken(
+                forKind: .cli, command: "/Users/test/.local/bin/agy --csrf_token cli-token") == "cli-token")
+    }
+
+    @Test
+    func `process scan skips tokenless ide before later valid ide`() throws {
+        let tokenlessIDE =
+            "  100 /Applications/Antigravity.app/Contents/Resources/bin/language_server --app_data_dir antigravity"
+        let validIDE = "  101 /Applications/Antigravity.app/Contents/Resources/bin/language_server " +
+            "--csrf_token ide-token --app_data_dir antigravity " +
+            "--extension_server_port 64432 --extension_server_csrf_token extension-token"
+        let output = [tokenlessIDE, validIDE].joined(separator: "\n")
+
+        let result = try AntigravityStatusProbe.processInfo(fromProcessListOutput: output)
+
+        #expect(result.pid == 101)
+        #expect(result.csrfToken == "ide-token")
+        #expect(result.extensionPort == 64432)
+        #expect(result.extensionServerCSRFToken == "extension-token")
+    }
+
+    @Test
+    func `process scan reports missing csrf when only tokenless ide matches`() {
+        let output = """
+          100 /Applications/Antigravity.app/Contents/Resources/bin/language_server --app_data_dir antigravity
+        """
+
+        #expect(throws: AntigravityStatusProbeError.missingCSRFToken) {
+            try AntigravityStatusProbe.processInfo(fromProcessListOutput: output)
+        }
+    }
+
+    @Test
+    func `process scan allows empty csrf only for explicit cli match`() throws {
+        let output = """
+          200 /Users/test/.local/bin/agy -p hello
+        """
+
+        let result = try AntigravityStatusProbe.processInfo(fromProcessListOutput: output)
+
+        #expect(result.pid == 200)
+        #expect(result.csrfToken.isEmpty)
+        #expect(result.commandLine == "/Users/test/.local/bin/agy -p hello")
+    }
+
+    @Test
+    func `ideOnly scope skips cli processes and reports not running`() {
+        let output = "  200 /Users/test/.local/bin/agy -p hello"
+
+        #expect(throws: AntigravityStatusProbeError.notRunning) {
+            try AntigravityStatusProbe.processInfo(fromProcessListOutput: output, scope: .ideOnly)
+        }
+    }
+
+    @Test
+    func `ideOnly scope still matches ide server listed after cli process`() throws {
+        let cli = "  200 /Users/test/.local/bin/agy -p hello"
+        let ide = "  101 /Applications/Antigravity.app/Contents/Resources/bin/language_server " +
+            "--csrf_token ide-token --app_data_dir antigravity"
+        let output = cli + "\n" + ide
+
+        let result = try AntigravityStatusProbe.processInfo(fromProcessListOutput: output, scope: .ideOnly)
+
+        #expect(result.pid == 101)
+        #expect(result.csrfToken == "ide-token")
+    }
+}
+
+extension AntigravityStatusProbeTests {
     @Test
     func `localhost trust policy only accepts local server trust challenges`() {
         #expect(
@@ -859,7 +1014,7 @@ extension AntigravityStatusProbeTests {
     }
 
     @Test
-    func `model without remaining fraction keeps reset time`() throws {
+    func `model without remaining fraction stays out of family summary and preserves reset metadata`() throws {
         let resetTime = Date(timeIntervalSince1970: 1_735_000_000)
         let snapshot = AntigravityStatusSnapshot(
             modelQuotas: [
@@ -880,9 +1035,38 @@ extension AntigravityStatusProbeTests {
             accountPlan: nil)
 
         let usage = try snapshot.toUsageSnapshot()
-        #expect(usage.secondary?.remainingPercent.rounded() == 0)
-        #expect(usage.secondary?.resetsAt == resetTime)
+        #expect(usage.secondary == nil)
         #expect(usage.tertiary?.remainingPercent.rounded() == 100)
+        let modelWindow = try #require(usage.extraRateWindows?.first {
+            $0.id == "MODEL_PLACEHOLDER_M36"
+        })
+        #expect(modelWindow.window.resetsAt == resetTime)
+        #expect(modelWindow.usageKnown == false)
+        let knownModelWindow = try #require(usage.extraRateWindows?.first {
+            $0.id == "MODEL_PLACEHOLDER_M47"
+        })
+        #expect(knownModelWindow.usageKnown)
+    }
+
+    @Test
+    func `named rate windows default legacy payloads to known usage`() throws {
+        let json = """
+        {
+          "id": "legacy-window",
+          "title": "Legacy Window",
+          "window": {
+            "usedPercent": 42,
+            "windowMinutes": null,
+            "resetsAt": null,
+            "resetDescription": null,
+            "nextRegenPercent": null
+          }
+        }
+        """
+
+        let decoded = try JSONDecoder().decode(NamedRateWindow.self, from: Data(json.utf8))
+
+        #expect(decoded.usageKnown)
     }
 
     @Test

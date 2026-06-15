@@ -363,6 +363,21 @@ struct ProviderColorPaletteTests {
         let byName = UIColor(ProviderColorPalette.color(for: "Command Code"))
         #expect(byID.isApproximately(byName))
     }
+
+    // MARK: - iOS 1.12.0 · Devin catch-up
+
+    @Test("Devin resolves to blue-green")
+    func devinIsBlueGreen() {
+        let expected = UIColor(red: 0.18, green: 0.68, blue: 0.57, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "devin")).isApproximately(expected))
+    }
+
+    @Test("Devin normalization: ID and displayName resolve identically")
+    func devinNormalization() {
+        let byID = UIColor(ProviderColorPalette.color(for: "devin"))
+        let byName = UIColor(ProviderColorPalette.color(for: "Devin"))
+        #expect(byID.isApproximately(byName))
+    }
 }
 
 // MARK: - Test helpers

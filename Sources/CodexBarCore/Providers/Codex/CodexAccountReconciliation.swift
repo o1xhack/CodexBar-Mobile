@@ -119,7 +119,7 @@ public struct CodexAccountReconciliationSnapshot: Equatable, Sendable {
     }
 }
 
-public struct DefaultCodexAccountReconciler {
+public struct DefaultCodexAccountReconciler: Sendable {
     public let storeLoader: @Sendable () throws -> ManagedCodexAccountSet
     public let systemObserver: any CodexSystemAccountObserving
     public let activeSource: CodexActiveSource

@@ -68,6 +68,12 @@ final class ProviderSnapshotModel {
     var statusMessage: String?
     var isError: Bool
     var lastUpdated: Date
+    var subscriptionExpiresAt: Date?
+    var subscriptionRenewsAt: Date?
+
+    /// JSON-encoded `ProviderUsageSnapshot` — canonical cold-start mirror.
+    /// Older rows leave this nil and fall back to the decomposed columns below.
+    var providerPayloadData: Data?
 
     /// JSON-encoded `[SyncRateWindow]` — opaque blob, decoded on read.
     var rateWindowsData: Data
@@ -95,6 +101,9 @@ final class ProviderSnapshotModel {
         statusMessage: String? = nil,
         isError: Bool = false,
         lastUpdated: Date,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil,
+        providerPayloadData: Data? = nil,
         rateWindowsData: Data = Data("[]".utf8),
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
@@ -113,6 +122,9 @@ final class ProviderSnapshotModel {
         self.statusMessage = statusMessage
         self.isError = isError
         self.lastUpdated = lastUpdated
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.subscriptionRenewsAt = subscriptionRenewsAt
+        self.providerPayloadData = providerPayloadData
         self.rateWindowsData = rateWindowsData
         self.costSummaryData = costSummaryData
         self.budgetData = budgetData

@@ -367,7 +367,7 @@ struct MobilePane: View {
             let testQuerySubID = "mac-test-query-sub"
             defer { Task { try? await db.deleteSubscription(withID: testQuerySubID) } }
             do {
-                try? await db.deleteSubscription(withID: testQuerySubID)
+                _ = try? await db.deleteSubscription(withID: testQuerySubID)
                 let sub = CKQuerySubscription(
                     recordType: CloudSyncConstants.quotaTransitionRecordType,
                     predicate: NSPredicate(format: "state == %@", "depleted"),
@@ -410,7 +410,7 @@ struct MobilePane: View {
                     _ = try await privDB.modifyRecordZones(
                         saving: [CKRecordZone(zoneID: testZoneID)], deleting: [])
                 }
-                try? await privDB.deleteSubscription(withID: testZoneSubID)
+                _ = try? await privDB.deleteSubscription(withID: testZoneSubID)
                 let sub = CKRecordZoneSubscription(
                     zoneID: testZoneID, subscriptionID: testZoneSubID)
                 let info = CKSubscription.NotificationInfo()
@@ -579,7 +579,6 @@ struct MobilePane: View {
         provider: String, providerID: String, window: String, threshold: Int)
     {
         let now = Date()
-        let zone = "Quota-\(providerID)-warningZone"
         let hourBucket = Int(now.timeIntervalSince1970 / 3600)
         let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
         let header = "[\(self.shortTime())] \(provider) warning \(window) \(threshold)%"

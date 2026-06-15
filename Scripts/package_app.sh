@@ -6,9 +6,18 @@ SIGNING_MODE=${CODEXBAR_SIGNING:-}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 LOWER_CONF=$(printf "%s" "$CONF" | tr '[:upper:]' '[:lower:]')
+case "$LOWER_CONF" in
+  debug|release) ;;
+  *)
+    echo "ERROR: Unsupported build configuration: $CONF (expected debug or release)" >&2
+    exit 1
+    ;;
+esac
 
 # Load version info
 source "$ROOT/version.env"
+source "$ROOT/Scripts/package_product_paths.sh"
+source "$ROOT/Scripts/sparkle_signing_paths.sh"
 
 # Clean build only when explicitly requested (slower).
 if [[ "${CODEXBAR_FORCE_CLEAN:-0}" == "1" ]]; then
@@ -105,8 +114,59 @@ if [[ ! -f "$KEYBOARD_SHORTCUTS_UTIL" ]]; then
 fi
 patch_keyboard_shortcuts
 
+# Resolve SwiftPM's current output path without relying on a fixed build-system layout.
+# The output variable keeps the per-arch cache in this shell instead of losing it to
+# command substitution.
+swiftpm_bin_path() {
+  local arch="$1"
+  local output_var="$2"
+  local cache_var="SWIFTPM_BIN_PATH_${arch//[^A-Za-z0-9]/_}"
+  if [[ -z "${!cache_var+set}" ]]; then
+    local resolved
+    if ! resolved=$(codexbar_swiftpm_bin_path "$CONF" "$arch"); then
+      return 1
+    fi
+    printf -v "$cache_var" '%s' "$resolved"
+  fi
+  printf -v "$output_var" '%s' "${!cache_var}"
+}
+
+binary_has_arch() {
+  local binary="$1"
+  local arch="$2"
+  [[ -f "$binary" ]] && lipo -archs "$binary" 2>/dev/null | tr ' ' '\n' | grep -qx "$arch"
+}
+
+# SwiftBuild can reuse one output directory for sequential per-arch builds. Snapshot
+# each fresh slice before the next build can replace it.
+PRODUCT_STAGE_ROOT="$ROOT/.build/package-products/$LOWER_CONF"
+rm -rf "$PRODUCT_STAGE_ROOT"
+
+stage_build_products() {
+  local arch="$1"
+  local bin_dir stage_dir name product
+  swiftpm_bin_path "$arch" bin_dir
+
+  stage_dir="$PRODUCT_STAGE_ROOT/$arch"
+  mkdir -p "$stage_dir"
+  for name in CodexBar CodexBarCLI CodexBarClaudeWatchdog; do
+    if ! product=$(codexbar_require_product_file "$bin_dir" "$name" "$arch"); then
+      return 1
+    fi
+    if ! binary_has_arch "$product" "$arch"; then
+      echo "ERROR: ${product} does not contain required architecture: ${arch}" >&2
+      return 1
+    fi
+    cp "$product" "$stage_dir/$name"
+  done
+  if [[ -d "$bin_dir/CodexBar.dSYM" ]]; then
+    cp -R "$bin_dir/CodexBar.dSYM" "$stage_dir/"
+  fi
+}
+
 for ARCH in "${ARCH_LIST[@]}"; do
   swift build -c "$CONF" --arch "$ARCH"
+  stage_build_products "$ARCH"
 done
 
 # Build the app bundle in /tmp to avoid Dropbox adding resource forks during signing
@@ -251,28 +311,21 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-build_product_path() {
-  local name="$1"
-  local arch="$2"
-  case "$arch" in
-    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
-    *) echo ".build/$CONF/$name" ;;
-  esac
-}
-
-# Resolve path to built binary; some SwiftPM versions use .build/$CONF/ when building for host only.
+# Resolve a built binary from the fresh per-arch snapshot or SwiftPM's reported directory.
 resolve_binary_path() {
   local name="$1"
   local arch="$2"
-  local candidate
-  candidate=$(build_product_path "$name" "$arch")
-  if [[ -f "$candidate" ]]; then
-    echo "$candidate"
-    return
+  local bin_dir candidate
+  swiftpm_bin_path "$arch" bin_dir
+  if ! candidate=$(codexbar_resolve_staged_or_reported_file \
+    "$PRODUCT_STAGE_ROOT" "$bin_dir" "$name" "$arch"); then
+    return 1
   fi
-  if [[ "$arch" == "arm64" || "$arch" == "x86_64" ]] && [[ -f ".build/$CONF/$name" ]]; then
-    echo ".build/$CONF/$name"
+  if ! binary_has_arch "$candidate" "$arch"; then
+    echo "ERROR: ${candidate} does not contain required architecture: ${arch}" >&2
+    return 1
   fi
+  echo "$candidate"
 }
 
 verify_binary_arches() {
@@ -301,9 +354,7 @@ install_binary() {
   local binaries=()
   for arch in "${ARCH_LIST[@]}"; do
     local src
-    src=$(resolve_binary_path "$name" "$arch")
-    if [[ -z "$src" || ! -f "$src" ]]; then
-      echo "ERROR: Missing ${name} build for ${arch} at $(build_product_path "$name" "$arch")" >&2
+    if ! src=$(resolve_binary_path "$name" "$arch"); then
       exit 1
     fi
     binaries+=("$src")
@@ -405,20 +456,20 @@ install_widget_extension() {
 
 install_binary "CodexBar" "$APP/Contents/MacOS/CodexBar"
 # Ship CodexBarCLI alongside the app for easy symlinking.
-if [[ -n "$(resolve_binary_path "CodexBarCLI" "${ARCH_LIST[0]}")" ]]; then
-  install_binary "CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
-fi
+install_binary "CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
 # Watchdog helper: ensures `claude` probes die when CodexBar crashes/gets killed.
-if [[ -n "$(resolve_binary_path "CodexBarClaudeWatchdog" "${ARCH_LIST[0]}")" ]]; then
-  install_binary "CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
-fi
+install_binary "CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
 install_widget_extension
+
+swiftpm_bin_path "${ARCH_LIST[0]}" PREFERRED_BUILD_DIR
+
 # Embed Sparkle.framework
-if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
-  COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
-  chmod -R u+w "$APP/Contents/Frameworks/Sparkle.framework"
-  install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
-  SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+SPARKLE_SOURCE=$(codexbar_require_product_directory "$PREFERRED_BUILD_DIR" Sparkle.framework packaging)
+COPYFILE_DISABLE=1 cp -R "$SPARKLE_SOURCE" "$APP/Contents/Frameworks/"
+chmod -R u+w,a+rX "$APP/Contents/Frameworks/Sparkle.framework"
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
+# Re-sign Sparkle and all nested components with Developer ID + timestamp
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   CODESIGN_ID="-"
   CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
@@ -446,6 +497,16 @@ function resign() {
   fi
 }
 
+sign_sparkle_tree() {
+  local sparkle="$1"
+  local sparkle_signing_targets
+  sparkle_signing_targets=$(codexbar_sparkle_signing_targets "$sparkle")
+  while IFS= read -r sparkle_target; do
+    [[ -z "$sparkle_target" ]] && continue
+    resign "$sparkle_target"
+  done <<<"$sparkle_signing_targets"
+}
+
 copy_app_bundle() {
   local source="$1"
   local destination="$2"
@@ -460,54 +521,8 @@ seal_app_bundle_copy() {
   local sparkle="${bundle}/Contents/Frameworks/Sparkle.framework"
   local widget="${bundle}/Contents/PlugIns/CodexBarWidget.appex"
 
-  if [[ "$SIGNING_MODE" == "adhoc" ]]; then
-    xattr -cr "$bundle" 2>/dev/null || true
-    if [[ -d "$sparkle" ]]; then
-      resign "$sparkle"
-      resign "$sparkle/Versions/B/Sparkle"
-      resign "$sparkle/Versions/B/Autoupdate"
-      resign "$sparkle/Versions/B/Updater.app"
-      resign "$sparkle/Versions/B/Updater.app/Contents/MacOS/Updater"
-      resign "$sparkle/Versions/B/XPCServices/Downloader.xpc"
-      resign "$sparkle/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-      resign "$sparkle/Versions/B/XPCServices/Installer.xpc"
-      resign "$sparkle/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-      resign "$sparkle/Versions/B"
-      resign "$sparkle"
-    fi
-
-    if [[ -f "${bundle}/Contents/Helpers/CodexBarCLI" ]]; then
-      resign "${bundle}/Contents/Helpers/CodexBarCLI"
-    fi
-    if [[ -f "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
-      resign "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog"
-    fi
-
-    if [[ -d "$widget" ]]; then
-      resign "${widget}/Contents/MacOS/CodexBarWidget"
-      codesign --force --sign - \
-        --entitlements "$WIDGET_ENTITLEMENTS" \
-        "$widget"
-    fi
-
-    codesign --force --sign - \
-      --entitlements "$APP_ENTITLEMENTS" \
-      "$bundle"
-    return
-  fi
-
   if [[ -d "$sparkle" ]]; then
-    resign "$sparkle"
-    resign "$sparkle/Versions/B/Sparkle"
-    resign "$sparkle/Versions/B/Autoupdate"
-    resign "$sparkle/Versions/B/Updater.app"
-    resign "$sparkle/Versions/B/Updater.app/Contents/MacOS/Updater"
-    resign "$sparkle/Versions/B/XPCServices/Downloader.xpc"
-    resign "$sparkle/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-    resign "$sparkle/Versions/B/XPCServices/Installer.xpc"
-    resign "$sparkle/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-    resign "$sparkle/Versions/B"
-    resign "$sparkle"
+    sign_sparkle_tree "$sparkle"
   fi
 
   if [[ -f "${bundle}/Contents/Helpers/CodexBarCLI" ]]; then
@@ -528,19 +543,9 @@ seal_app_bundle_copy() {
     --entitlements "$APP_ENTITLEMENTS" \
     "$bundle"
 }
-  # Sign innermost binaries first, then the framework root to seal resources
-  resign "$SPARKLE"
-  resign "$SPARKLE/Versions/B/Sparkle"
-  resign "$SPARKLE/Versions/B/Autoupdate"
-  resign "$SPARKLE/Versions/B/Updater.app"
-  resign "$SPARKLE/Versions/B/Updater.app/Contents/MacOS/Updater"
-  resign "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
-  resign "$SPARKLE/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-  resign "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
-  resign "$SPARKLE/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-  resign "$SPARKLE/Versions/B"
-  resign "$SPARKLE"
-fi
+
+# Sign innermost binaries first, then the framework root to seal resources.
+sign_sparkle_tree "$SPARKLE"
 
 if [[ -f "$ICON_TARGET" ]]; then
   cp "$ICON_TARGET" "$APP/Contents/Resources/Icon.icns"
@@ -557,8 +562,6 @@ if [[ ! -f "$APP/Contents/Resources/Icon-classic.icns" ]]; then
 fi
 
 # SwiftPM resource bundles (e.g. KeyboardShortcuts) are emitted next to the built binary.
-CODEXBAR_BINARY="$(resolve_binary_path "CodexBar" "${ARCH_LIST[0]}")"
-PREFERRED_BUILD_DIR="$(dirname "${CODEXBAR_BINARY:-$(build_product_path "CodexBar" "${ARCH_LIST[0]}")}")"
 shopt -s nullglob
 SWIFTPM_BUNDLES=("${PREFERRED_BUILD_DIR}/"*.bundle)
 shopt -u nullglob

@@ -6869,6 +6869,62 @@
         }
       }
     },
+    "Renews %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ に更新"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 续费"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 續費"
+          }
+        }
+      }
+    },
+    "Plan expires %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan expires %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ にプラン終了"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 套餐到期"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 方案到期"
+          }
+        }
+      }
+    },
     "Selected Cost": {
       "localizations": {
         "en": {
@@ -14416,6 +14472,174 @@
           "stringUnit": {
             "state": "translated",
             "value": "將 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可顯示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前相容舊版 Mac —— 新卡片會先隱藏，待 Mac 更新後自動出現。"
+          }
+        }
+      }
+    },
+    "CodexBar 0.35.0 sync: Devin, Copilot, MiMo, Kimi, MiniMax renewal details, and smoother Mac menu updates now flow through to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.35.0 sync: Devin, Copilot, MiMo, Kimi, MiniMax renewal details, and smoother Mac menu updates now flow through to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.35.0 同期：Devin、Copilot、MiMo、Kimi、MiniMax の更新情報、よりスムーズな Mac メニュー更新が iPhone に反映されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.35.0 同步：Devin、Copilot、MiMo、Kimi、MiniMax 续费详情，以及更顺畅的 Mac 菜单更新现在都会同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.35.0 同步：Devin、Copilot、MiMo、Kimi、MiniMax 續費詳情，以及更順暢的 Mac 選單更新現在都會同步到 iPhone。"
+          }
+        }
+      }
+    },
+    "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax — プランの更新日と終了日が Mac から同期され、プロバイダーカードに表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax —— 套餐续费和到期日期现在会从 Mac 同步，并显示在 provider 卡片上。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MiniMax —— 方案續費和到期日期現在會從 Mac 同步，並顯示在 provider 卡片上。"
+          }
+        }
+      }
+    },
+    "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider データ — 片方の Mac だけを更新し、もう一方が旧バージョンのままでも、同期された詳細情報を保持します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 数据 —— 一台 Mac 已更新、另一台仍是旧版时，也会保留丰富的同步详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 資料 —— 一台 Mac 已更新、另一台仍是舊版時，也會保留豐富的同步詳情。"
+          }
+        }
+      }
+    },
+    "New Mac data — Devin quotas, Copilot budget windows, MiMo balance and token-plan updates, and Kimi Code API usage are carried through the shared sync payload where iOS can display them.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Mac data — Devin quotas, Copilot budget windows, MiMo balance and token-plan updates, and Kimi Code API usage are carried through the shared sync payload where iOS can display them."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい Mac データ — Devin のクォータ、Copilot の予算ウィンドウ、MiMo の残高とトークンプラン更新、Kimi Code API 使用量が、iOS で表示できる範囲で共有同期ペイロードに反映されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新的 Mac 数据 —— Devin 配额、Copilot budget 窗口、MiMo 余额和 token-plan 更新、Kimi Code API 用量，会在 iOS 可显示的范围内通过共享同步 payload 传递。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新的 Mac 資料 —— Devin 配額、Copilot budget 視窗、MiMo 餘額和 token-plan 更新、Kimi Code API 用量，會在 iOS 可顯示的範圍內透過共享同步 payload 傳遞。"
+          }
+        }
+      }
+    },
+    "Mac sync — includes upstream 0.33.0 to 0.35.0 provider accuracy, security, localization, and menu reliability fixes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac sync — includes upstream 0.33.0 to 0.35.0 provider accuracy, security, localization, and menu reliability fixes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同期 — 上流 0.33.0 から 0.35.0 までの provider 精度、セキュリティ、ローカライズ、メニュー信頼性の修正を含みます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含上游 0.33.0 到 0.35.0 的 provider 准确性、安全、本地化和菜单可靠性修复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含上游 0.33.0 到 0.35.0 的 provider 準確性、安全、本地化和選單可靠性修復。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.35.0.1 (fork build 85.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new details appear once Mac is updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.35.0.1 (fork build 85.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new details appear once Mac is updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 版 CodexBar を 0.35.0.1（fork build 85.1 以降）に更新してください。iPhone 1.12.0 は古い Mac ビルドとも互換性があり、新しい詳細は Mac 更新後に表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.35.0.1（fork build 85.1 或更高）。iPhone 1.12.0 仍兼容旧版 Mac；新的详情会在 Mac 更新后出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.35.0.1（fork build 85.1 或更高）。iPhone 1.12.0 仍相容舊版 Mac；新的詳情會在 Mac 更新後出現。"
           }
         }
       }

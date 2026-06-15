@@ -2,6 +2,36 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.12.0 (153)] — 2026-06-14 — v0.35.0 upstream sync
+
+### Added
+
+- **MiniMax subscription metadata** — when Mac CodexBar 0.35.0.1 syncs renewal
+  or expiration dates, iOS preserves the fields and shows a compact
+  renewal/expiration line on the provider card. 4-language localized.
+- **v0.33.0–v0.35.0 sync surface** — shared payload support is ready for the
+  upstream provider data that matters to mobile, including Devin quotas,
+  Copilot budget windows, MiMo balance/token-plan updates, and Kimi Code API
+  usage where iOS can display the generic synced windows.
+
+### Fixed
+
+- **Cross-version multi-Mac merge** — rich account-level synced fields are now
+  preserved with latest-non-nil merge semantics when one Mac is updated and
+  another Mac is still on an older build. This prevents optional provider
+  details from flickering to empty after an older Mac refreshes.
+- **SwiftData cold-start mirror** — subscription renewal/expiration metadata
+  survives the CloudKit → SwiftData → in-memory snapshot round-trip.
+
+### Notes
+
+- Wire-format change is additive only: older iOS builds ignore the new payload
+  keys, and newer iOS builds decode old Mac payloads with subscription fields nil.
+- Paired Mac version: **0.35.0.1 / build 85.1**; this single release covers
+  upstream v0.32.5 through v0.35.0.
+
+---
+
 ## [1.11.1 (151)] — 2026-06-06 — Daily Spend chart scroll fix
 
 ### Fixed

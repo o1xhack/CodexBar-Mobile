@@ -99,6 +99,8 @@
 "Could not start codex login" = "Kunde inte starta codex login";
 "Could not switch system account" = "Kunde inte byta systemkonto";
 "Credits" = "Krediter";
+"Individual credits" = "Individuella krediter";
+"Workspace" = "Arbetsyta";
 "Credits history" = "Kredithistorik";
 "Cursor login failed" = "Cursor-inloggning misslyckades";
 "Custom" = "Anpassat";
@@ -400,7 +402,14 @@
 "language_chinese_simplified" = "简体中文";
 "language_chinese_traditional" = "繁體中文";
 "language_portuguese_brazilian" = "Português (Brasil)";
+"language_dutch" = "Nederlands";
+"language_german" = "Deutsch";
 "language_swedish" = "Svenska";
+"language_french" = "Franska";
+"language_ukrainian" = "Ukrainska";
+"language_japanese" = "Japanska";
+"language_korean" = "Koreanska";
+"language_turkish" = "Türkçe";
 "start_at_login_title" = "Starta vid inloggning";
 "start_at_login_subtitle" = "Öppnar CodexBar automatiskt när du startar din Mac.";
 "show_cost_summary" = "Visa kostnadssammanfattning";
@@ -493,7 +502,7 @@
 "show_quota_warning_markers_title" = "Visa kvotvarningsmarkörer";
 "show_quota_warning_markers_subtitle" = "Rita tröskelmarkeringar på användningsstaplar när kvotvarningar är konfigurerade.";
 "weekly_progress_work_days_title" = "Arbetsdagar i veckoförlopp";
-"weekly_progress_work_days_subtitle" = "Rita dagsgränsmarkeringar på veckostaplar.";
+"weekly_progress_work_days_subtitle" = "Ställ in arbetsdagar för markeringar i veckostaplar och tempoberäkningar.";
 "show_reset_time_as_clock_title" = "Visa återställningstid som klockslag";
 "show_reset_time_as_clock_subtitle" = "Visa återställningstider som klockslag i stället för nedräkningar.";
 "show_provider_changelog_links_title" = "Visa länkar till leverantörers ändringsloggar";
@@ -618,9 +627,11 @@
 "display_mode_percent" = "Procent";
 "display_mode_pace" = "Takt";
 "display_mode_both" = "Båda";
+"display_mode_reset_time" = "Återställningstid";
 "display_mode_percent_desc" = "Visa återstående/förbrukad procent (t.ex. 45 %)";
 "display_mode_pace_desc" = "Visa taktindikator (t.ex. +5 %)";
 "display_mode_both_desc" = "Visa både procent och takt (t.ex. 45 % · +5 %)";
+"display_mode_reset_time_desc" = "Visa återställningstiden för valt mått (t.ex. ↻ 3:56 PM)";
 
 /* Provider status */
 "status_operational" = "Fungerar normalt";
@@ -1001,6 +1012,7 @@
 "Credits used" = "Använda krediter";
 "CodexBar will ask macOS Keychain for your OpenAI cookie header so it can fetch Codex dashboard extras. Click OK to continue." = "CodexBar kommer att be macOS Nyckelring om din OpenAI-cookie-header så att extra Codex-översiktsdata kan hämtas. Klicka på OK för att fortsätta.";
 "Re-auth" = "Autentisera igen";
+"Re-login at claude.ai" = "Logga in igen på claude.ai";
 "cache-miss input" = "cachemiss-indata";
 "Day" = "Dag";
 "Optional. Applies to the configured Admin API key; selected token accounts do not inherit OPENAI_PROJECT_ID." = "Valfritt. Gäller den konfigurerade Admin API-nyckeln. Valda tokenkonton ärver inte OPENAI_PROJECT_ID.";
@@ -1042,7 +1054,7 @@
 "stale data" = "inaktuella data";
 "Quota" = "Kvot";
 "Auth source" = "Autentiseringskälla";
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importerar Chrome-cookies från Xiaomi MiMo automatiskt.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importerar webbläsarcookies från Xiaomi MiMo automatiskt.";
 "No usage configured." = "Ingen användning konfigurerad.";
 "Extra usage" = "Extra användning";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "Kontot finns inte längre i CodexBar. Uppdatera kontolistan och försök igen.";
@@ -1058,3 +1070,8 @@
 "Clear" = "Rensa";
 "No matching providers" = "Inga matchande leverantörer";
 "Search providers" = "Sök leverantörer";
+
+"language_vietnamese" = "Vietnamesiska";
+"Renews: %@" = "Förnyas: %@";
+"Plan expires: %@" = "Planen löper ut: %@";
+"∞ Unlimited" = "∞ Obegränsat";

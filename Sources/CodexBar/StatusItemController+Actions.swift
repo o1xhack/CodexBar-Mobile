@@ -32,6 +32,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     {
         await ProviderInteractionContext.$current.withValue(interaction) {
             await self.store.refresh(forceTokenUsage: forceTokenUsage)
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             self.store.scheduleStorageFootprintRefreshForOverview(force: true)
             if refreshOpenMenusWhenComplete {
                 self.refreshOpenMenusAfterExplicitStoreAction()
@@ -42,11 +43,40 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     func refreshOpenMenusAfterExplicitStoreAction() {
-        self.invalidateMenus(refreshOpenMenus: true)
+        self.invalidateMenus(
+            refreshOpenMenus: true,
+            deferOpenParentMenuRebuild: true)
     }
 
     @objc func refreshNow() {
-        self.refreshStore(forceTokenUsage: true)
+        guard !self.hasPreparedForAppShutdown,
+              self.manualRefreshTask == nil,
+              !self.store.isRefreshing
+        else { return }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.manualRefreshTask = nil
+                self.menuCardRefreshMonitor.isManualRefreshInFlight = false
+                self.updatePersistentRefreshRowsInProgress()
+            }
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+            #if DEBUG
+            if let operation = self._test_manualRefreshOperation {
+                await operation()
+                guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                return
+            }
+            #endif
+            await self.performStoreRefresh(
+                forceTokenUsage: true,
+                refreshOpenMenusWhenComplete: true,
+                interaction: .userInitiated)
+        }
+        self.manualRefreshTask = task
+        self.menuCardRefreshMonitor.isManualRefreshInFlight = true
+        self.updatePersistentRefreshRowsInProgress()
     }
 
     nonisolated func performPersistentRefreshAction() {
@@ -184,7 +214,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
     @objc func openTerminalCommand(_ sender: NSMenuItem) {
         let command = sender.representedObject as? String ?? "claude"
-        Self.openTerminal(command: command)
+        self.openTerminal(command: command)
     }
 
     @objc func openLoginToProvider(_ sender: NSMenuItem) {
@@ -328,7 +358,16 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     @objc func quit() {
-        NSApp.terminate(nil)
+        let openMenus = Array(self.openMenus.values)
+        for menu in openMenus {
+            menu.cancelTrackingWithoutAnimation()
+        }
+
+        self.scheduleQuitTermination { [weak self] in
+            guard let self else { return }
+            self.prepareForAppShutdown()
+            self.terminateApplicationForQuit()
+        }
     }
 
     @objc func copyError(_ sender: NSMenuItem) {
@@ -339,25 +378,48 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
-    private static func openTerminal(command: String) {
-        let escaped = command
-            .replacingOccurrences(of: "\\\\", with: "\\\\\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let script = """
-        tell application "Terminal"
-            activate
-            do script "\(escaped)"
-        end tell
-        """
-        if let appleScript = NSAppleScript(source: script) {
+    func openTerminal(command: String) {
+        let terminal = self.settings.terminalApp
+
+        if terminal == .iTerm, !terminal.isInstalled {
+            CodexBarLog.logger(LogCategories.terminal).warning(
+                "iTerm is not installed, falling back to Terminal.app",
+                metadata: ["terminal": terminal.rawValue])
+            Self.openTerminalInDefaultTerminal(command: command)
+            return
+        }
+
+        if Self.executeAppleScript(terminal.appleScript(command: command)) {
+            return
+        }
+        guard terminal != .terminal else { return }
+
+        CodexBarLog.logger(LogCategories.terminal).warning(
+            "\(terminal.label) AppleScript failed, falling back to Terminal.app",
+            metadata: ["terminal": terminal.rawValue])
+        Self.openTerminalInDefaultTerminal(command: command)
+    }
+
+    private static func openTerminalInDefaultTerminal(command: String) {
+        self.executeAppleScript(TerminalApp.terminal.appleScript(command: command))
+    }
+
+    /// Executes an AppleScript and returns `true` on success, `false` on failure.
+    @discardableResult
+    private static func executeAppleScript(_ source: String) -> Bool {
+        if let appleScript = NSAppleScript(source: source) {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
             if let error {
                 CodexBarLog.logger(LogCategories.terminal).error(
-                    "Failed to open Terminal",
+                    "Failed to execute AppleScript",
                     metadata: ["error": String(describing: error)])
+                return false
             }
+            return true
         }
+        CodexBarLog.logger(LogCategories.terminal).error("Failed to compile AppleScript")
+        return false
     }
 
     private func resolvedShortcutProvider() -> UsageProvider {

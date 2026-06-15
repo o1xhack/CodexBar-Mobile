@@ -34,8 +34,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.sync
         GENERATE_INFOPLIST_FILE: true
-        MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "151"
+        MARKETING_VERSION: "1.12.0"
+        CURRENT_PROJECT_VERSION: "153"
 
   CodexBarMobilePushExtension:
     type: app-extension
@@ -55,8 +55,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.pushextension
-        MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "151"
+        MARKETING_VERSION: "1.12.0"
+        CURRENT_PROJECT_VERSION: "153"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobilePushExtension/PushExtension.entitlements
@@ -75,8 +75,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile
-        MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "151"
+        MARKETING_VERSION: "1.12.0"
+        CURRENT_PROJECT_VERSION: "153"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobile/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobile/CodexBarMobile.entitlements

@@ -24,8 +24,13 @@ extension StatusItemController {
     private func cancelShutdownTasks() {
         self.blinkTask?.cancel()
         self.blinkTask = nil
+        self.menuBarCountdownRefreshTask?.cancel()
+        self.menuBarCountdownRefreshTask = nil
         self.loginTask?.cancel()
         self.loginTask = nil
+        self.manualRefreshTask?.cancel()
+        self.manualRefreshTask = nil
+        self.menuCardRefreshMonitor.isManualRefreshInFlight = false
         self.screenChangeVisibilityTask?.cancel()
         self.screenChangeVisibilityTask = nil
         self.pendingScreenChangePreviousCount = nil
@@ -52,6 +57,13 @@ extension StatusItemController {
         }
         self.openMenuInvalidationRetryTask?.cancel()
         self.openMenuInvalidationRetryTask = nil
+        self.codexAccountMenuProjectionRevalidationTask?.cancel()
+        self.codexAccountMenuProjectionRevalidationTask = nil
+        self.providerSelectionUIRefreshTask?.cancel()
+        self.providerSelectionUIRefreshTask = nil
+        self.deferredMergedIconRenderAfterTracking = false
+        self.providerSwitcherPointerInteractionMenuID = nil
+        self.pendingProviderSwitcherPointerRebuild = nil
     }
 
     private func clearShutdownMenuState() {
@@ -59,12 +71,16 @@ extension StatusItemController {
         self.menuRefreshTasks.removeAll(keepingCapacity: false)
         self.closedMenuRebuildTasks.removeAll(keepingCapacity: false)
         self.closedMenuRebuildTokens.removeAll(keepingCapacity: false)
+        self.closedMenusDeferredUntilNextOpen.removeAll(keepingCapacity: false)
         self.openMenuRebuildTasks.removeAll(keepingCapacity: false)
         self.openMenuRebuildTokens.removeAll(keepingCapacity: false)
         self.openMenuRebuildsClosingHostedSubviewMenus.removeAll(keepingCapacity: false)
         self.parentMenuRebuildsDeferredDuringTracking.removeAll(keepingCapacity: false)
         self.openMenus.removeAll(keepingCapacity: false)
         self.highlightedMenuItems.removeAll(keepingCapacity: false)
+        self.menuCardHeightCache.removeAll(keepingCapacity: false)
+        self.measuredStandardMenuWidthCache.removeAll(keepingCapacity: false)
+        self.mergedSwitcherContentCaches.removeAll(keepingCapacity: false)
         self.menuProviders.removeAll(keepingCapacity: false)
         self.menuVersions.removeAll(keepingCapacity: false)
         self.providerMenus.removeAll(keepingCapacity: false)

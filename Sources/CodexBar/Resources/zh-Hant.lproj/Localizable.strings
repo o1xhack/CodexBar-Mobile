@@ -101,6 +101,8 @@
 "Could not start codex login" = "無法啟動 codex login";
 "Could not switch system account" = "無法切換系統帳號";
 "Credits" = "額度";
+"Individual credits" = "個人額度";
+"Workspace" = "工作區";
 "Credits history" = "額度歷史";
 "Cursor login failed" = "Cursor 登入失敗";
 "Custom" = "自訂";
@@ -406,6 +408,13 @@
 "language_chinese_simplified" = "简体中文";
 "language_chinese_traditional" = "繁體中文";
 "language_portuguese_brazilian" = "Português (Brasil)";
+"language_swedish" = "瑞典語";
+"language_dutch" = "Nederlands";
+"language_german" = "Deutsch";
+"language_french" = "法語";
+"language_ukrainian" = "烏克蘭語";
+"language_japanese" = "日語";
+"language_korean" = "韓語";
 "start_at_login_title" = "登入時啟動";
 "start_at_login_subtitle" = "登入 Mac 時自動開啟 CodexBar。";
 "show_cost_summary" = "顯示費用摘要";
@@ -493,7 +502,7 @@
 "show_quota_warning_markers_title" = "顯示配額提醒標記";
 "show_quota_warning_markers_subtitle" = "設定配額提醒後，在使用量條上繪製門檻刻度標記。";
 "weekly_progress_work_days_title" = "每週進度工作日標記";
-"weekly_progress_work_days_subtitle" = "在每週使用量條上繪製日期邊界刻度標記。";
+"weekly_progress_work_days_subtitle" = "設定用於每週用量條刻度與進度計算的工作日。";
 "show_reset_time_as_clock_title" = "以時鐘時間顯示重置時間";
 "show_reset_time_as_clock_subtitle" = "將重置時間顯示為絕對時鐘值，而不是倒數計時。";
 "show_provider_changelog_links_title" = "顯示提供者版本資訊連結";
@@ -607,9 +616,11 @@
 "display_mode_percent" = "百分比";
 "display_mode_pace" = "進度";
 "display_mode_both" = "兩者";
+"display_mode_reset_time" = "重置時間";
 "display_mode_percent_desc" = "顯示剩餘/已使用百分比（例如 45%）";
 "display_mode_pace_desc" = "顯示進度指示器（例如 +5%）";
 "display_mode_both_desc" = "同時顯示百分比和進度（例如 45% · +5%）";
+"display_mode_reset_time_desc" = "顯示所選指標的重置時間（例如 ↻ 3:56 PM）";
 "status_operational" = "運作正常";
 "status_partial_outage" = "部分服務中斷";
 "status_major_outage" = "重大服務中斷";
@@ -774,7 +785,7 @@
 "Antigravity login failed" = "Antigravity 登入失敗";
 "Antigravity login timed out" = "Antigravity 登入逾時";
 "Auth source" = "認證來源";
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "自動匯入 Xiaomi MiMo 的 Chrome 瀏覽器 Cookie。";
+"Automatic imports browser cookies from Xiaomi MiMo." = "自動匯入 Xiaomi MiMo 的瀏覽器 Cookie。";
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "自動從 Chromium 瀏覽器 localStorage 匯入 Windsurf 工作階段資料。";
 "Automatic imports browser cookies from Bailian." = "自動匯入 Bailian 的瀏覽器 Cookie。";
 "Automatically imports browser cookies." = "自動匯入瀏覽器 Cookie。";
@@ -874,6 +885,7 @@
 "Personal account" = "個人帳號";
 "Project ID" = "專案 ID";
 "Re-auth" = "重新認證";
+"Re-login at claude.ai" = "重新登入 claude.ai";
 "Re-authenticating…" = "正在重新認證…";
 "Refresh Session" = "重新整理工作階段";
 "Refresh organizations" = "重新整理組織";
@@ -929,3 +941,11 @@
 "Clear" = "清除";
 "No matching providers" = "沒有相符的提供者";
 "Search providers" = "搜尋提供者";
+
+"language_vietnamese" = "越南語";
+
+"Request quota: %@ / %@" = "請求額度：%@ / %@";
+"language_turkish" = "Türkçe";
+"Renews: %@" = "續訂：%@";
+"Plan expires: %@" = "方案到期：%@";
+"∞ Unlimited" = "∞ 無限";

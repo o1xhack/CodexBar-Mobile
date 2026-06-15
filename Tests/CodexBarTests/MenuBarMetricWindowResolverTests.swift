@@ -22,6 +22,105 @@ struct MenuBarMetricWindowResolverTests {
     }
 
     @Test
+    func `automatic metric uses minimax weekly token lane when it is most constrained`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 97, windowMinutes: 7 * 24 * 60, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        let window = MenuBarMetricWindowResolver.rateWindow(
+            preference: .automatic,
+            provider: .minimax,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(window?.usedPercent == 97)
+        #expect(window?.windowMinutes == 7 * 24 * 60)
+    }
+
+    @Test
+    func `automatic metric uses constrained antigravity family lane`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: "Claude"),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: "Gemini Pro"),
+            tertiary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: "Gemini Flash"),
+            updatedAt: Date())
+
+        let window = MenuBarMetricWindowResolver.rateWindow(
+            preference: .automatic,
+            provider: .antigravity,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(window?.usedPercent == 100)
+        #expect(window?.resetDescription == "Gemini Pro")
+    }
+
+    @Test
+    func `automatic metric ignores untracked antigravity family lane`() throws {
+        let untrackedReset = Date(timeIntervalSince1970: 1000)
+        let exhaustedReset = Date(timeIntervalSince1970: 2000)
+        let antigravitySnapshot = AntigravityStatusSnapshot(
+            modelQuotas: [
+                AntigravityModelQuota(
+                    label: "Claude Sonnet 4.6",
+                    modelId: "claude-sonnet-4-6",
+                    remainingFraction: nil,
+                    resetTime: untrackedReset,
+                    resetDescription: nil),
+                AntigravityModelQuota(
+                    label: "Gemini 3.1 Pro",
+                    modelId: "gemini-3-1-pro",
+                    remainingFraction: 0,
+                    resetTime: exhaustedReset,
+                    resetDescription: nil),
+            ],
+            accountEmail: nil,
+            accountPlan: nil,
+            source: .local)
+        let snapshot = try antigravitySnapshot.toUsageSnapshot()
+        #expect(snapshot.primary == nil)
+
+        let window = MenuBarMetricWindowResolver.rateWindow(
+            preference: .automatic,
+            provider: .antigravity,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(window?.usedPercent == 100)
+        #expect(window?.resetsAt == exhaustedReset)
+    }
+
+    @Test
+    func `explicit antigravity metric keeps requested family lane`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: "Claude"),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: "Gemini Pro"),
+            tertiary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: "Gemini Flash"),
+            updatedAt: Date())
+
+        let primary = MenuBarMetricWindowResolver.rateWindow(
+            preference: .primary,
+            provider: .antigravity,
+            snapshot: snapshot,
+            supportsAverage: false)
+        let secondary = MenuBarMetricWindowResolver.rateWindow(
+            preference: .secondary,
+            provider: .antigravity,
+            snapshot: snapshot,
+            supportsAverage: false)
+        let tertiary = MenuBarMetricWindowResolver.rateWindow(
+            preference: .tertiary,
+            provider: .antigravity,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(primary?.resetDescription == "Claude")
+        #expect(secondary?.resetDescription == "Gemini Pro")
+        #expect(tertiary?.resetDescription == "Gemini Flash")
+    }
+
+    @Test
     func `extra usage metric maps provider cost into a menu bar window`() {
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),

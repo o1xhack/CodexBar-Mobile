@@ -8,6 +8,8 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/version.env"
 # Load local-only release secrets from ~/.codexbar-secrets if available.
 source "$ROOT/Scripts/load-release-secrets.sh"
+source "$ROOT/Scripts/package_product_paths.sh"
+source "$ROOT/Scripts/release_dsym_paths.sh"
 RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 ZIP_NAME="${RELEASE_ASSET_BASENAME}.zip"
 DSYM_ZIP="${RELEASE_ASSET_BASENAME}.dSYM.zip"
@@ -151,30 +153,46 @@ else
 fi
 
 echo "Packaging dSYM"
-FIRST_ARCH="${ARCH_LIST[0]}"
-PREFERRED_ARCH_DIR=".build/${FIRST_ARCH}-apple-macosx/release"
-DSYM_PATH="${PREFERRED_ARCH_DIR}/${APP_NAME}.dSYM"
-if [[ ! -d "$DSYM_PATH" ]]; then
-  echo "Missing dSYM at $DSYM_PATH" >&2
-  exit 1
-fi
+DSYM_STAGE_ROOT="$ROOT/.build/package-products/release"
+DSYM_PATHS=()
+for ARCH in "${ARCH_LIST[@]}"; do
+  STAGED_DSYM="$DSYM_STAGE_ROOT/$ARCH/${APP_NAME}.dSYM"
+  if [[ -d "$STAGED_DSYM" ]]; then
+    DSYM_PATHS+=("$STAGED_DSYM")
+    continue
+  fi
+  BIN_DIR=$(codexbar_swiftpm_bin_path release "$ARCH")
+  DSYM_PATHS+=("$(codexbar_resolve_dsym_path "$DSYM_STAGE_ROOT" "$BIN_DIR" "$APP_NAME" "$ARCH")")
+done
+
+DSYM_PATH="${DSYM_PATHS[0]}"
+DSYM_DWARF_PATHS=()
+for ((index = 0; index < ${#ARCH_LIST[@]}; index++)); do
+  ARCH="${ARCH_LIST[$index]}"
+  if ! ARCH_DSYM=$(codexbar_require_dsym_dwarf_for_arch "${DSYM_PATHS[$index]}" "$APP_NAME" "$ARCH"); then
+    exit 1
+  fi
+  DSYM_DWARF_PATHS+=("$ARCH_DSYM")
+done
+
 if [[ ${#ARCH_LIST[@]} -gt 1 ]]; then
-  MERGED_DSYM="${PREFERRED_ARCH_DIR}/${APP_NAME}.dSYM-universal"
-  rm -rf "$MERGED_DSYM"
+  MERGED_DSYM_ROOT="${DSYM_STAGE_ROOT}/${APP_NAME}.dSYM-universal"
+  MERGED_DSYM="${MERGED_DSYM_ROOT}/${APP_NAME}.dSYM"
+  rm -rf "$MERGED_DSYM_ROOT"
+  mkdir -p "$MERGED_DSYM_ROOT"
   cp -R "$DSYM_PATH" "$MERGED_DSYM"
   DWARF_PATH="${MERGED_DSYM}/Contents/Resources/DWARF/${APP_NAME}"
-  BINARIES=()
-  for ARCH in "${ARCH_LIST[@]}"; do
-    ARCH_DSYM=".build/${ARCH}-apple-macosx/release/${APP_NAME}.dSYM/Contents/Resources/DWARF/${APP_NAME}"
-    if [[ ! -f "$ARCH_DSYM" ]]; then
-      echo "Missing dSYM for ${ARCH} at $ARCH_DSYM" >&2
-      exit 1
-    fi
-    BINARIES+=("$ARCH_DSYM")
-  done
-  lipo -create "${BINARIES[@]}" -output "$DWARF_PATH"
+  lipo -create "${DSYM_DWARF_PATHS[@]}" -output "$DWARF_PATH"
   DSYM_PATH="$MERGED_DSYM"
 fi
+if [[ ! -d "$DSYM_PATH" ]]; then
+  echo "Missing dSYM at SwiftPM-reported path: $DSYM_PATH" >&2
+  exit 1
+fi
+codexbar_verify_dsym_matches_binary \
+  "$APP_BUNDLE/Contents/MacOS/$APP_NAME" \
+  "$DSYM_PATH/Contents/Resources/DWARF/$APP_NAME" \
+  "${ARCH_LIST[@]}"
 "$DITTO_BIN" --norsrc -c -k --keepParent "$DSYM_PATH" "$DSYM_ZIP"
 
 echo "Done: $ZIP_NAME"

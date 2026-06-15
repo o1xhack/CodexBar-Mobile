@@ -84,7 +84,10 @@ enum MenuBarMetricWindowResolver {
 
     private static func automaticWindow(provider: UsageProvider, snapshot: UsageSnapshot) -> RateWindow? {
         if provider == .antigravity {
-            return self.window(in: snapshot, following: [.primary, .secondary, .tertiary])
+            return self.mostConstrainedWindow(
+                primary: snapshot.primary,
+                secondary: snapshot.secondary,
+                tertiary: snapshot.tertiary)
         }
         if provider == .perplexity {
             return snapshot.automaticPerplexityWindow()
@@ -104,7 +107,7 @@ enum MenuBarMetricWindowResolver {
         {
             return primary.usedPercent >= secondary.usedPercent ? primary : secondary
         }
-        if provider == .cursor {
+        if provider == .cursor || provider == .minimax {
             return Self.mostConstrainedWindow(
                 primary: snapshot.primary,
                 secondary: snapshot.secondary,

@@ -381,11 +381,13 @@ enum CostUsageScanner {
         let sessionId: String?
         let messageId: String?
         let requestId: String?
+        let timestampUnixMs: Int64?
         let isSidechain: Bool
         let pathRole: ClaudePathRole
         let input: Int
         let cacheRead: Int
         let cacheCreate: Int
+        let cacheCreate1h: Int?
         let output: Int
         let costNanos: Int
         let costPriced: Bool?
@@ -447,10 +449,10 @@ enum CostUsageScanner {
                 checkCancellation: checkCancellation)
         case .openai, .azureopenai, .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba,
              .alibabatokenplan, .factory,
-             .copilot, .minimax, .manus, .kilo, .kiro, .kimi, .kimik2, .moonshot, .augment, .jetbrains, .amp, .ollama,
-             .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .abacus, .mistral,
-             .deepseek, .codebuff, .crof, .windsurf, .venice, .commandcode, .stepfun, .bedrock, .grok, .groq,
-             .llmproxy, .deepgram:
+             .copilot, .devin, .minimax, .manus, .kilo, .kiro, .kimi, .kimik2, .moonshot, .augment, .jetbrains, .amp,
+             .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .abacus,
+             .mistral, .deepseek, .codebuff, .crof, .windsurf, .venice, .commandcode, .stepfun, .bedrock, .grok,
+             .groq, .llmproxy, .deepgram:
             return emptyReport
         }
     }
@@ -538,9 +540,11 @@ enum CostUsageScanner {
     private static func cachedCodexSessionFiles(
         cache: CostUsageCache,
         range: CostUsageDayRange,
-        roots: [URL]) -> [URL]
+        roots: [URL],
+        excludingPaths: Set<String>) -> [URL]
     {
         cache.files.compactMap { path, usage in
+            guard !excludingPaths.contains(path) else { return nil }
             let hasRelevantDay = usage.days.keys.contains {
                 CostUsageDayRange.isInRange(dayKey: $0, since: range.scanSinceKey, until: range.scanUntilKey)
             }
@@ -552,10 +556,18 @@ enum CostUsageScanner {
         }
     }
 
-    private static func cachedCodexSessionIndex(cache: CostUsageCache, roots: [URL]) -> [String: URL] {
+    private static func cachedCodexSessionIndex(
+        cache: CostUsageCache,
+        roots: [URL],
+        knownExistingPaths: Set<String>) -> [String: URL]
+    {
         var out: [String: URL] = [:]
         for (path, usage) in cache.files {
             guard let sessionId = usage.sessionId, !sessionId.isEmpty else { continue }
+            if knownExistingPaths.contains(path) {
+                out[sessionId] = URL(fileURLWithPath: path)
+                continue
+            }
             guard FileManager.default.fileExists(atPath: path) else { continue }
             let fileURL = URL(fileURLWithPath: path)
             guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { continue }
@@ -919,15 +931,6 @@ enum CostUsageScanner {
         guard let match = regex.firstMatch(in: filename, range: range) else { return nil }
         guard let matchRange = Range(match.range(at: 1), in: filename) else { return nil }
         return String(filename[matchRange])
-    }
-
-    static func fileIdentityString(fileURL: URL) -> String? {
-        guard let values = try? fileURL.resourceValues(forKeys: [.fileResourceIdentifierKey]) else { return nil }
-        guard let identifier = values.fileResourceIdentifier else { return nil }
-        if let data = identifier as? Data {
-            return data.base64EncodedString()
-        }
-        return String(describing: identifier)
     }
 
     private struct CodexSessionMetadata {
@@ -2297,9 +2300,12 @@ enum CostUsageScanner {
                 }
             }
 
-            for fileURL in Self.cachedCodexSessionFiles(cache: cache, range: range, roots: plan.roots)
+            for fileURL in Self.cachedCodexSessionFiles(
+                cache: cache,
+                range: range,
+                roots: plan.roots,
+                excludingPaths: seenPaths)
                 .sorted(by: { $0.path < $1.path })
-                where !seenPaths.contains(fileURL.path)
             {
                 seenPaths.insert(fileURL.path)
                 files.append(fileURL)
@@ -2310,7 +2316,10 @@ enum CostUsageScanner {
             let fileIndex = CodexSessionFileIndex(
                 files: files,
                 roots: plan.roots,
-                cachedSessionFiles: Self.cachedCodexSessionIndex(cache: cache, roots: plan.roots),
+                cachedSessionFiles: Self.cachedCodexSessionIndex(
+                    cache: cache,
+                    roots: plan.roots,
+                    knownExistingPaths: filePathsInScan),
                 checkCancellation: checkCancellation)
             let inheritedResolver = CodexInheritedTotalsResolver(
                 fileIndex: fileIndex,

@@ -160,6 +160,45 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
+    func `mimo balance and monthly credits do not emit quota notifications`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-mimo-balance")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50, 20]
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+        let balanceSnapshot = MiMoUsageSnapshot(
+            balance: 0,
+            currency: "USD",
+            updatedAt: Date())
+            .toUsageSnapshot()
+        let tokenPlanSnapshot = MiMoUsageSnapshot(
+            balance: 25.51,
+            currency: "USD",
+            planCode: "standard",
+            tokenUsed: 100,
+            tokenLimit: 100,
+            tokenPercent: 1,
+            updatedAt: Date())
+            .toUsageSnapshot()
+
+        for snapshot in [balanceSnapshot, tokenPlanSnapshot] {
+            store.handleSessionQuotaTransition(provider: .mimo, snapshot: snapshot)
+            store.handleQuotaWarningTransitions(provider: .mimo, snapshot: snapshot)
+        }
+
+        #expect(notifier.posts.isEmpty)
+        #expect(notifier.quotaWarningPosts.isEmpty)
+    }
+
+    @Test
     func `claude five hour primary still emits session quota notifications`() {
         let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-claude-session")
         settings.refreshFrequency = .manual
@@ -511,6 +550,35 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
+    func `minimax quota warning posts for session and weekly windows`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-minimax")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50, 20]
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningWindowEnabled(.weekly, enabled: true)
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleQuotaWarningTransitions(
+            provider: .minimax,
+            snapshot: self.minimaxSnapshot(sessionUsed: 40, weeklyUsed: 40))
+        store.handleQuotaWarningTransitions(
+            provider: .minimax,
+            snapshot: self.minimaxSnapshot(sessionUsed: 55, weeklyUsed: 55))
+
+        #expect(notifier.quotaWarningPosts.map(\.provider) == [.minimax, .minimax])
+        #expect(notifier.quotaWarningPosts.map(\.event.window) == [.session, .weekly])
+        #expect(notifier.quotaWarningPosts.map(\.event.threshold) == [50, 50])
+    }
+
+    @Test
     func `disabling quota warning window clears fired state`() {
         let settings = self
             .makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-disabled-clears-state")
@@ -549,5 +617,38 @@ struct UsageStoreSessionQuotaTransitionTests {
 
         #expect(notifier.quotaWarningPosts.count == 1)
         #expect(store.quotaWarningState[UsageStore.QuotaWarningStateKey(provider: .codex, window: .session)] == nil)
+    }
+
+    private func minimaxSnapshot(sessionUsed: Double, weeklyUsed: Double) -> UsageSnapshot {
+        let now = Date()
+        return MiniMaxUsageSnapshot(
+            planName: "Plus",
+            availablePrompts: nil,
+            currentPrompts: nil,
+            remainingPrompts: nil,
+            windowMinutes: nil,
+            usedPercent: nil,
+            resetsAt: nil,
+            updatedAt: now,
+            services: [
+                MiniMaxServiceUsage(
+                    serviceType: "text-generation",
+                    windowType: "5 hours",
+                    timeRange: "15:00-20:00(UTC+8)",
+                    usage: Int(sessionUsed),
+                    limit: 100,
+                    percent: sessionUsed,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: "Resets in 1 hour"),
+                MiniMaxServiceUsage(
+                    serviceType: "text-generation",
+                    windowType: "Weekly",
+                    timeRange: "06/01 00:00 - 06/08 00:00(UTC+8)",
+                    usage: Int(weeklyUsed),
+                    limit: 100,
+                    percent: weeklyUsed,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 3600),
+                    resetDescription: "Resets in 6 days"),
+            ]).toUsageSnapshot()
     }
 }

@@ -29,6 +29,13 @@ extension UsageMenuCardView.Model {
             self.placeholder != nil
     }
 
+    var usesStackedDetailLayout: Bool {
+        !self.metrics.isEmpty ||
+            self.creditsText != nil ||
+            self.providerCost != nil ||
+            self.tokenUsage != nil
+    }
+
     static func progressColor(for provider: UsageProvider) -> Color {
         if provider == .elevenlabs {
             return Color(nsColor: .labelColor)
@@ -36,6 +43,28 @@ extension UsageMenuCardView.Model {
 
         let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
         return Color(red: color.red, green: color.green, blue: color.blue)
+    }
+
+    static func rateWindowLabels(
+        input: Input,
+        snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
+    {
+        if input.provider == .factory, snapshot.tertiary != nil {
+            return ("5-hour", L("Weekly"), L("Monthly"), true)
+        }
+        // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
+        let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
+            "Requests"
+        } else if input.provider == .grok {
+            GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
+        } else {
+            input.metadata.sessionLabel
+        }
+        return (
+            L(primaryLabel),
+            L(input.metadata.weeklyLabel),
+            input.metadata.opusLabel.map(L) ?? L("Sonnet"),
+            input.metadata.supportsOpus)
     }
 
     static func resetText(
@@ -52,7 +81,7 @@ extension UsageMenuCardView.Model {
         }
 
         if input.snapshot == nil, !input.isRefreshing, input.lastError == nil {
-            return L("No usage yet")
+            return self.hasLocalCodexTokenUsage(input) ? nil : L("No usage yet")
         }
 
         return nil
@@ -68,6 +97,28 @@ extension UsageMenuCardView.Model {
             return nil
         }
         return lastError
+    }
+
+    static func dashboardHint(error: String?) -> String? {
+        guard let error, !error.isEmpty else { return nil }
+        return error
+    }
+
+    static func mimoUsageNotes(input: Input, subscriptionNotes: [String]) -> [String] {
+        let source = input.sourceLabel?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard source != "local" else { return [] }
+        return [
+            L("Balance updates in near-real time (up to 5 min lag)"),
+            L("Daily billing data finalizes at 07:00 UTC"),
+        ] + subscriptionNotes
+    }
+
+    private static func hasLocalCodexTokenUsage(_ input: Input) -> Bool {
+        input.provider == .codex &&
+            input.tokenCostUsageEnabled &&
+            self.tokenUsageSnapshot(input: input) != nil
     }
 
     private static func shouldShowRateLimitsUnavailablePlaceholder(input: Input, lastError: String? = nil) -> Bool {
@@ -133,6 +184,43 @@ extension UsageMenuCardView.Model {
             paceOnTop: paceOnTop)
     }
 
+    static func standardWeeklyPace(input: Input, window: RateWindow) -> UsagePace? {
+        if let weeklyPace = input.weeklyPace {
+            return weeklyPace
+        }
+        return Self.displayableWeeklyPace(UsagePace.weekly(
+            window: window,
+            now: input.now,
+            defaultWindowMinutes: 10080,
+            workDays: input.workDaysPerWeek))
+    }
+
+    private static func displayableWeeklyPace(_ pace: UsagePace?) -> UsagePace? {
+        guard let pace else { return nil }
+        return pace.expectedUsedPercent >= 3 || pace.etaSeconds == 0 ? pace : nil
+    }
+
+    static func cursorBillingCyclePaceDetail(
+        window: RateWindow,
+        input: Input,
+        pace: UsagePace? = nil) -> PaceDetail?
+    {
+        guard input.provider == .cursor,
+              window.windowMinutes != nil
+        else { return nil }
+        let resolved = pace ?? UsagePace.weekly(
+            window: window,
+            now: input.now,
+            defaultWindowMinutes: 10080,
+            workDays: input.workDaysPerWeek)
+        guard let resolved = Self.displayableWeeklyPace(resolved) else { return nil }
+        return Self.weeklyPaceDetail(
+            window: window,
+            now: input.now,
+            pace: resolved,
+            showUsed: input.usageBarsShowUsed)
+    }
+
     static func antigravityMetrics(input: Input, snapshot: UsageSnapshot) -> [Metric] {
         let percentStyle: PercentStyle = input.usageBarsShowUsed ? .used : .left
         var metrics = [
@@ -174,8 +262,27 @@ extension UsageMenuCardView.Model {
         if input.provider == .codex, !input.showOptionalCreditsAndExtraUsage {
             return []
         }
+        if input.provider == .copilot, !input.copilotBudgetExtrasEnabled {
+            return []
+        }
         return extraRateWindows.map { namedWindow in
-            Metric(
+            let paceDetail = Self.extraRateWindowPaceDetail(
+                provider: input.provider,
+                window: namedWindow.window,
+                input: input)
+            let usageKnown = namedWindow.usageKnown
+            let resetText = Self.resetText(
+                for: namedWindow.window,
+                style: input.resetTimeDisplayStyle,
+                now: input.now)
+            let statusText: String? = if usageKnown {
+                nil
+            } else if let resetText {
+                "\(L("Unavailable")) - \(resetText)"
+            } else {
+                L("Unavailable")
+            }
+            return Metric(
                 id: namedWindow.id,
                 title: namedWindow.title,
                 percent: Self.clamped(
@@ -183,15 +290,42 @@ extension UsageMenuCardView.Model {
                         ? namedWindow.window.usedPercent
                         : namedWindow.window.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(
-                    for: namedWindow.window,
-                    style: input.resetTimeDisplayStyle,
-                    now: input.now),
+                statusText: statusText,
+                resetText: usageKnown ? resetText : nil,
                 detailText: nil,
-                detailLeftText: nil,
-                detailRightText: nil,
-                pacePercent: nil,
-                paceOnTop: true)
+                detailLeftText: usageKnown ? paceDetail?.leftLabel : nil,
+                detailRightText: usageKnown ? paceDetail?.rightLabel : nil,
+                pacePercent: usageKnown ? paceDetail?.pacePercent : nil,
+                paceOnTop: paceDetail?.paceOnTop ?? true)
+        }
+    }
+
+    private static func extraRateWindowPaceDetail(
+        provider: UsageProvider,
+        window: RateWindow,
+        input: Input) -> PaceDetail?
+    {
+        guard provider == .codex else { return nil }
+        switch window.windowMinutes {
+        case 300:
+            return self.sessionPaceDetail(
+                provider: provider,
+                window: window,
+                now: input.now,
+                showUsed: input.usageBarsShowUsed)
+        case 10080:
+            let pace = Self.displayableWeeklyPace(UsagePace.weekly(
+                window: window,
+                now: input.now,
+                defaultWindowMinutes: 10080,
+                workDays: input.workDaysPerWeek))
+            return Self.weeklyPaceDetail(
+                window: window,
+                now: input.now,
+                pace: pace,
+                showUsed: input.usageBarsShowUsed)
+        default:
+            return nil
         }
     }
 

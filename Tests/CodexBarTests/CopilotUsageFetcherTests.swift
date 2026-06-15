@@ -68,6 +68,40 @@ struct CopilotUsageFetcherTests {
     }
 
     @Test
+    func `fetch keeps explicitly unlimited chat quota`() async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "token gh-token")
+            let response = try HTTPURLResponse(
+                url: #require(request.url),
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"])!
+            let data = Data(
+                """
+                {
+                  "copilot_plan": "individual",
+                  "quota_snapshots": {
+                    "chat_messages": {
+                      "entitlement": 0,
+                      "remaining": 0,
+                      "quota_id": "chat_messages",
+                      "unlimited": true
+                    }
+                  }
+                }
+                """.utf8)
+            return (data, response)
+        }
+        let fetcher = CopilotUsageFetcher(token: "gh-token", transport: transport)
+
+        let snapshot = try await fetcher.fetch()
+
+        #expect(snapshot.primary == nil)
+        #expect(snapshot.secondary?.usedPercent == 0)
+        #expect(snapshot.identity?.loginMethod == "Individual")
+    }
+
+    @Test
     func `makeRateWindow drops business token billing placeholder quota`() {
         // entitlement=0/remaining=0/percent_remaining=100 must not become a "0% used"
         // rate window for Copilot Business token-based billing accounts. (#1258)

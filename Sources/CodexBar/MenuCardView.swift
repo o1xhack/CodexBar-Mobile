@@ -1,6 +1,37 @@
 import AppKit
 import CodexBarCore
+import Observation
 import SwiftUI
+
+struct MenuCardLiveSubtitle {
+    let text: String
+    let style: UsageMenuCardView.Model.SubtitleStyle
+}
+
+/// Narrow observable bridge for updating an already-hosted card subtitle without rebuilding
+/// the tracked NSMenu.
+@MainActor
+@Observable
+final class MenuCardRefreshMonitor {
+    typealias SubtitleResolver = @MainActor (UsageProvider) -> MenuCardLiveSubtitle?
+
+    private let resolveSubtitle: SubtitleResolver
+    var isManualRefreshInFlight = false
+
+    init(resolveSubtitle: @escaping SubtitleResolver) {
+        self.resolveSubtitle = resolveSubtitle
+    }
+
+    func subtitle(
+        for provider: UsageProvider,
+        fallback: MenuCardLiveSubtitle) -> MenuCardLiveSubtitle
+    {
+        if self.isManualRefreshInFlight {
+            return MenuCardLiveSubtitle(text: "\(L("Refreshing"))…", style: .loading)
+        }
+        return self.resolveSubtitle(provider) ?? fallback
+    }
+}
 
 enum UsageMenuCardLayout {
     static let horizontalPadding: CGFloat = 20
@@ -109,6 +140,7 @@ struct UsageMenuCardView: View {
         let email: String
         let subtitleText: String
         let subtitleStyle: SubtitleStyle
+        var usesLiveSubtitle: Bool = false
         let planText: String?
         let metrics: [Metric]
         let usageNotes: [String]
@@ -143,7 +175,7 @@ struct UsageMenuCardView: View {
                 Divider()
             }
 
-            if self.model.metrics.isEmpty {
+            if !self.model.usesStackedDetailLayout {
                 if let dashboard = self.model.inlineUsageDashboard {
                     InlineUsageDashboardContent(model: dashboard)
                 } else if !self.model.usageNotes.isEmpty {
@@ -172,6 +204,10 @@ struct UsageMenuCardView: View {
                                 InlineUsageDashboardContent(model: dashboard)
                             } else if !self.model.usageNotes.isEmpty {
                                 UsageNotesContent(notes: self.model.usageNotes)
+                            } else if let placeholder = self.model.placeholder {
+                                Text(placeholder)
+                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                                    .font(.subheadline)
                             }
                         }
                     }
@@ -244,15 +280,14 @@ struct UsageMenuCardView: View {
     }
 
     private var hasDetails: Bool {
-        self.model.hasUsageContent ||
-            self.model.tokenUsage != nil ||
-            self.model.providerCost != nil
+        self.model.hasUsageContent || self.model.usesStackedDetailLayout
     }
 }
 
 private struct UsageMenuCardHeaderView: View {
     let model: UsageMenuCardView.Model
     @Environment(\.menuItemHighlighted) private var isHighlighted
+    @Environment(\.menuCardRefreshMonitor) private var refreshMonitor
 
     var body: some View {
         VStack(alignment: .leading, spacing: UsageMenuCardLayout.headerLineSpacing) {
@@ -265,19 +300,46 @@ private struct UsageMenuCardHeaderView: View {
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                     .lineLimit(1).truncationMode(.middle)
             }
-            let subtitleAlignment: VerticalAlignment = self.model.subtitleStyle == .error ? .top : .firstTextBaseline
+            let liveSubtitle = self.liveSubtitle
+            // Keep the geometry AppKit measured for this hosted row. A new error stays one line
+            // until the next rebuild; a recovered error keeps its reserved height until then.
+            let usesErrorLayout = self.model.subtitleStyle == .error
+            let subtitleAlignment: VerticalAlignment = usesErrorLayout ? .top : .firstTextBaseline
             HStack(alignment: subtitleAlignment, spacing: UsageMenuCardLayout.headerColumnSpacing) {
-                Text(self.model.subtitleText)
-                    .font(.footnote)
-                    .foregroundStyle(self.subtitleColor)
-                    .lineLimit(self.model.subtitleStyle == .error ? 4 : 1)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .layoutPriority(1)
-                    .padding(.bottom, self.model.subtitleStyle == .error ? 4 : 0)
+                if usesErrorLayout {
+                    Text(self.model.subtitleText)
+                        .font(.footnote)
+                        .lineLimit(4)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, 4)
+                        .hidden()
+                        .overlay(alignment: .topLeading) {
+                            Text(liveSubtitle.text)
+                                .font(.footnote)
+                                .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
+                                .lineLimit(4)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .clipped()
+                        .layoutPriority(1)
+                } else {
+                    Text(liveSubtitle.text)
+                        .font(.footnote)
+                        .foregroundStyle(self.subtitleColor(for: liveSubtitle.style))
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
+                }
                 Spacer()
-                if self.model.subtitleStyle == .error, !self.model.subtitleText.isEmpty {
-                    CopyIconButton(copyText: self.model.subtitleText, isHighlighted: self.isHighlighted)
+                if usesErrorLayout {
+                    let showsCopyButton = liveSubtitle.style == .error && !liveSubtitle.text.isEmpty
+                    CopyIconButton(copyText: liveSubtitle.text, isHighlighted: self.isHighlighted)
+                        .opacity(showsCopyButton ? 1 : 0)
+                        .allowsHitTesting(showsCopyButton)
+                        .accessibilityHidden(!showsCopyButton)
                 }
                 if let plan = self.model.planText {
                     Text(plan)
@@ -289,8 +351,14 @@ private struct UsageMenuCardHeaderView: View {
         }
     }
 
-    private var subtitleColor: Color {
-        switch self.model.subtitleStyle {
+    private var liveSubtitle: MenuCardLiveSubtitle {
+        let fallback = MenuCardLiveSubtitle(text: self.model.subtitleText, style: self.model.subtitleStyle)
+        guard self.model.usesLiveSubtitle else { return fallback }
+        return self.refreshMonitor?.subtitle(for: self.model.provider, fallback: fallback) ?? fallback
+    }
+
+    private func subtitleColor(for style: UsageMenuCardView.Model.SubtitleStyle) -> Color {
+        switch style {
         case .info: MenuHighlightStyle.secondary(self.isHighlighted)
         case .loading: MenuHighlightStyle.secondary(self.isHighlighted)
         case .error: MenuHighlightStyle.error(self.isHighlighted)
@@ -322,17 +390,7 @@ private struct CopyIconButton: View {
 
     var body: some View {
         Button {
-            self.copyToPasteboard()
-            withAnimation(.easeOut(duration: 0.12)) {
-                self.didCopy = true
-            }
-            self.resetTask?.cancel()
-            self.resetTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.9))
-                withAnimation(.easeOut(duration: 0.2)) {
-                    self.didCopy = false
-                }
-            }
+            self.handleCopy()
         } label: {
             Image(systemName: self.didCopy ? "checkmark" : "doc.on.doc")
                 .font(.caption2.weight(.semibold))
@@ -343,10 +401,16 @@ private struct CopyIconButton: View {
         .accessibilityLabel(self.didCopy ? L("Copied") : L("Copy error"))
     }
 
-    private func copyToPasteboard() {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(self.copyText, forType: .string)
+    private func handleCopy() {
+        let text = self.copyText
+        self.resetTask?.cancel()
+        MenuPasteboardCopy.perform(text, completion: {
+            self.didCopy = true
+            self.resetTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.9))
+                self.didCopy = false
+            }
+        })
     }
 }
 
@@ -718,12 +782,14 @@ extension UsageMenuCardView.Model {
         let resetTimeDisplayStyle: ResetTimeDisplayStyle
         let tokenCostUsageEnabled: Bool
         let showOptionalCreditsAndExtraUsage: Bool
+        let copilotBudgetExtrasEnabled: Bool
         let sourceLabel: String?
         let kiloAutoMode: Bool
         let hidePersonalInfo: Bool
         let weeklyPace: UsagePace?
         let quotaWarningThresholds: [QuotaWarningWindow: [Int]]
         let workDaysPerWeek: Int?
+        let usesLiveSubtitle: Bool
         let now: Date
 
         init(
@@ -744,12 +810,14 @@ extension UsageMenuCardView.Model {
             resetTimeDisplayStyle: ResetTimeDisplayStyle,
             tokenCostUsageEnabled: Bool,
             showOptionalCreditsAndExtraUsage: Bool,
+            copilotBudgetExtrasEnabled: Bool = false,
             sourceLabel: String? = nil,
             kiloAutoMode: Bool = false,
             hidePersonalInfo: Bool,
             weeklyPace: UsagePace? = nil,
             quotaWarningThresholds: [QuotaWarningWindow: [Int]] = [:],
             workDaysPerWeek: Int? = nil,
+            usesLiveSubtitle: Bool = false,
             now: Date)
         {
             self.provider = provider
@@ -769,12 +837,14 @@ extension UsageMenuCardView.Model {
             self.resetTimeDisplayStyle = resetTimeDisplayStyle
             self.tokenCostUsageEnabled = tokenCostUsageEnabled
             self.showOptionalCreditsAndExtraUsage = showOptionalCreditsAndExtraUsage
+            self.copilotBudgetExtrasEnabled = copilotBudgetExtrasEnabled
             self.sourceLabel = sourceLabel
             self.kiloAutoMode = kiloAutoMode
             self.hidePersonalInfo = hidePersonalInfo
             self.weeklyPace = weeklyPace
             self.quotaWarningThresholds = quotaWarningThresholds
             self.workDaysPerWeek = workDaysPerWeek
+            self.usesLiveSubtitle = usesLiveSubtitle
             self.now = now
         }
     }
@@ -789,13 +859,18 @@ extension UsageMenuCardView.Model {
         let openAIAPIUsage = input.snapshot?.openAIAPIUsage
         let inlineUsageDashboard = Self.inlineUsageDashboard(input: input)
         let usageNotes = Self.usageNotes(input: input)
-        let creditsText: String? = if input.provider == .openrouter {
+        let rawCreditsText: String? = if input.provider == .openrouter {
             nil
         } else if input.codexProjection != nil, !input.showOptionalCreditsAndExtraUsage {
             nil
         } else {
-            Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
+            Self.creditsLine(
+                metadata: input.metadata,
+                snapshot: input.snapshot,
+                credits: input.credits,
+                error: input.creditsError)
         }
+        let creditsText = PersonalInfoRedactor.redactEmails(in: rawCreditsText, isEnabled: input.hidePersonalInfo)
         let isClaudeAdminAPI = input.provider == .claude &&
             input.snapshot?.identity?.loginMethod == "Admin API"
         let hidesOptionalProviderCost = ((input.provider == .claude && !isClaudeAdminAPI) ||
@@ -829,6 +904,7 @@ extension UsageMenuCardView.Model {
             email: redacted.email,
             subtitleText: redacted.subtitleText,
             subtitleStyle: subtitle.style,
+            usesLiveSubtitle: input.usesLiveSubtitle,
             planText: planText,
             metrics: metrics,
             usageNotes: usageNotes,
@@ -845,8 +921,10 @@ extension UsageMenuCardView.Model {
     }
 
     private static func usageNotes(input: Input) -> [String] {
+        let subscriptionNotes = self.subscriptionMetadataNotes(snapshot: input.snapshot, provider: input.provider)
+
         if input.provider == .kiro {
-            return kiroUsageNotes(input: input)
+            return kiroUsageNotes(input: input) + subscriptionNotes
         }
 
         if input.provider == .kilo {
@@ -860,24 +938,21 @@ extension UsageMenuCardView.Model {
             {
                 notes.append(L("Using CLI fallback"))
             }
-            return notes
+            return notes + subscriptionNotes
         }
 
         if input.provider == .mimo, input.snapshot != nil {
-            return [
-                L("Balance updates in near-real time (up to 5 min lag)"),
-                L("Daily billing data finalizes at 07:00 UTC"),
-            ]
+            return Self.mimoUsageNotes(input: input, subscriptionNotes: subscriptionNotes)
         }
 
         if let notes = apiProviderUsageNotes(input: input) {
-            return notes
+            return notes + subscriptionNotes
         }
 
         guard input.provider == .openrouter,
               let openRouter = input.snapshot?.openRouterUsage
         else {
-            return []
+            return subscriptionNotes
         }
 
         var notes = Self.openRouterSpendNotes(openRouter)
@@ -889,7 +964,35 @@ extension UsageMenuCardView.Model {
         case .unavailable:
             notes.append(L("API key limit unavailable right now"))
         }
-        return notes
+        return notes + subscriptionNotes
+    }
+
+    private static func subscriptionMetadataNotes(snapshot: UsageSnapshot?, provider: UsageProvider) -> [String] {
+        guard let snapshot else { return [] }
+        if let renewsAt = snapshot.subscriptionRenewsAt {
+            return [String(format: L("Renews: %@"), self.subscriptionDateString(renewsAt, provider: provider))]
+        }
+        if let expiresAt = snapshot.subscriptionExpiresAt {
+            return [String(format: L("Plan expires: %@"), self.subscriptionDateString(expiresAt, provider: provider))]
+        }
+        return []
+    }
+
+    private static func subscriptionDateString(_ date: Date, provider: UsageProvider) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = codexBarLocalizedLocale()
+        formatter.timeZone = self.subscriptionDateTimeZone(provider: provider)
+        formatter.setLocalizedDateFormatFromTemplate("MMM d, yyyy")
+        return formatter.string(from: date)
+    }
+
+    private static func subscriptionDateTimeZone(provider: UsageProvider) -> TimeZone {
+        switch provider {
+        case .minimax:
+            TimeZone(identifier: "Asia/Shanghai") ?? .current
+        default:
+            .current
+        }
     }
 
     private static func openRouterSpendNotes(_ usage: OpenRouterUsageSnapshot) -> [String] {
@@ -952,12 +1055,30 @@ extension UsageMenuCardView.Model {
     }
 
     private static func planDisplay(_ text: String, for provider: UsageProvider) -> String {
+        if provider == .minimax {
+            return self.miniMaxPlanDisplay(text)
+        }
         let cleaned = if provider == .codex {
             CodexPlanFormatting.displayName(text) ?? UsageFormatter.cleanPlanName(text)
         } else {
             UsageFormatter.cleanPlanName(text)
         }
         return cleaned.isEmpty ? text : cleaned
+    }
+
+    private static func miniMaxPlanDisplay(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.lowercased()
+        if normalized.contains("tokenplanplus") || normalized.contains("token plan plus") {
+            return "Plus"
+        }
+        if normalized.contains("tokenplanmax") || normalized.contains("token plan max") {
+            return "Max"
+        }
+        if normalized.contains("tokenplanultra") || normalized.contains("token plan ultra") {
+            return "Ultra"
+        }
+        return trimmed
     }
 
     private static func kiloLoginPass(snapshot: UsageSnapshot?) -> String? {
@@ -1001,7 +1122,7 @@ extension UsageMenuCardView.Model {
             return (lastError.trimmingCharacters(in: .whitespacesAndNewlines), .error)
         }
 
-        if isRefreshing, snapshot == nil {
+        if isRefreshing {
             return ("\(L("Refreshing"))…", .loading)
         }
 
@@ -1057,7 +1178,8 @@ extension UsageMenuCardView.Model {
         }
         if input.provider == .minimax {
             if let minimaxUsage = snapshot.minimaxUsage {
-                if let services = minimaxUsage.services, !services.isEmpty {
+                let services = minimaxUsage.orderedQuotaServices
+                if !services.isEmpty {
                     return Self.minimaxMetrics(services: services, input: input)
                 }
             }
@@ -1092,6 +1214,20 @@ extension UsageMenuCardView.Model {
                 title: labels.secondary,
                 zaiTimeDetail: zaiTimeDetail))
         }
+        if input.provider == .mimo, let mimoUsage = snapshot.mimoUsage {
+            metrics.append(Metric(
+                id: "mimo-balance",
+                title: L("Balance"),
+                percent: 0,
+                percentStyle: percentStyle,
+                statusText: mimoUsage.balanceDetail,
+                resetText: nil,
+                detailText: nil,
+                detailLeftText: nil,
+                detailRightText: nil,
+                pacePercent: nil,
+                paceOnTop: true))
+        }
         if labels.showsTertiary, let opus = snapshot.tertiary {
             var tertiaryDetailText: String?
             if input.provider == .alibaba || input.provider == .alibabatokenplan,
@@ -1107,6 +1243,7 @@ extension UsageMenuCardView.Model {
             let opusResetText: String? = input.provider == .perplexity
                 ? opus.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
                 : Self.resetText(for: opus, style: input.resetTimeDisplayStyle, now: input.now)
+            let tertiaryPaceDetail = Self.cursorBillingCyclePaceDetail(window: opus, input: input)
             metrics.append(Metric(
                 id: "tertiary",
                 title: labels.tertiary,
@@ -1114,10 +1251,10 @@ extension UsageMenuCardView.Model {
                 percentStyle: percentStyle,
                 resetText: opusResetText,
                 detailText: tertiaryDetailText,
-                detailLeftText: nil,
-                detailRightText: nil,
-                pacePercent: nil,
-                paceOnTop: true,
+                detailLeftText: tertiaryPaceDetail?.leftLabel,
+                detailRightText: tertiaryPaceDetail?.rightLabel,
+                pacePercent: tertiaryPaceDetail?.pacePercent,
+                paceOnTop: tertiaryPaceDetail?.paceOnTop ?? true,
                 warningMarkerPercents: Self.warningMarkerPercents(
                     thresholds: input.quotaWarningThresholds[.weekly],
                     showUsed: input.usageBarsShowUsed)))
@@ -1160,23 +1297,6 @@ extension UsageMenuCardView.Model {
                 paceOnTop: true))
         }
         return metrics
-    }
-
-    private static func rateWindowLabels(
-        input: Input,
-        snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
-    {
-        if input.provider == .factory, snapshot.tertiary != nil {
-            return ("5-hour", L("Weekly"), L("Monthly"), true)
-        }
-        let primaryLabel = input.provider == .grok
-            ? GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
-            : input.metadata.sessionLabel
-        return (
-            L(primaryLabel),
-            L(input.metadata.weeklyLabel),
-            input.metadata.opusLabel.map(L) ?? L("Sonnet"),
-            input.metadata.supportsOpus)
     }
 
     private static func primaryMetric(
@@ -1269,6 +1389,20 @@ extension UsageMenuCardView.Model {
                     primaryPaceOnTop = paceDetail.paceOnTop
                 }
             }
+        }
+        if let paceDetail = Self.cursorBillingCyclePaceDetail(window: primary, input: input) {
+            primaryDetailLeft = paceDetail.leftLabel
+            primaryDetailRight = paceDetail.rightLabel
+            primaryPacePercent = paceDetail.pacePercent
+            primaryPaceOnTop = paceDetail.paceOnTop
+        }
+        // Legacy request-based Cursor plans: surface the raw used/limit quota on its own line,
+        // since the percentage bar and pace detail alone never spell out the request cap.
+        if input.provider == .cursor, let requests = input.snapshot?.cursorRequests {
+            primaryDetailText = String(
+                format: L("Request quota: %@ / %@"),
+                "\(requests.used)",
+                "\(requests.limit)")
         }
         if input.provider == .synthetic,
            let regen = Self.syntheticRollingRegenDetail(
@@ -1371,6 +1505,13 @@ extension UsageMenuCardView.Model {
         {
             paceDetail = PaceDetail(leftLabel: detail, rightLabel: nil, pacePercent: nil, paceOnTop: true)
         }
+        if let cursorPaceDetail = Self.cursorBillingCyclePaceDetail(
+            window: weekly,
+            input: input,
+            pace: input.weeklyPace)
+        {
+            paceDetail = cursorPaceDetail
+        }
         // Perplexity bonus credits don't reset; show balance without "Resets" prefix.
         if input.provider == .perplexity,
            let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1393,6 +1534,7 @@ extension UsageMenuCardView.Model {
             title: title ?? L(input.metadata.weeklyLabel),
             percent: Self.clamped(input.usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
             percentStyle: percentStyle,
+            statusText: nil,
             resetText: weeklyResetText,
             detailText: weeklyDetailText,
             detailLeftText: paceDetail?.leftLabel,
@@ -1428,9 +1570,7 @@ extension UsageMenuCardView.Model {
                 paceDetail = Self.weeklyPaceDetail(
                     window: window,
                     now: input.now,
-                    pace: input.weeklyPace
-                        ?? UsagePace.weekly(window: window, now: input.now, defaultWindowMinutes: 10080)
-                        .flatMap { $0.expectedUsedPercent >= 3 ? $0 : nil },
+                    pace: Self.standardWeeklyPace(input: input, window: window),
                     showUsed: input.usageBarsShowUsed)
             }
 
@@ -1450,10 +1590,5 @@ extension UsageMenuCardView.Model {
                     lane: lane,
                     windowMinutes: window.windowMinutes))
         }
-    }
-
-    private static func dashboardHint(error: String?) -> String? {
-        guard let error, !error.isEmpty else { return nil }
-        return error
     }
 }

@@ -1,14 +1,12 @@
 import Foundation
 
 enum PiSessionCostCacheIO {
-    /// Artifact version 2 is shared by both upstream's stale-cache rebuild fix
-    /// (78e186d4) and our pricing-fingerprint invalidation (fork 0.23.1):
+    /// Artifact version 3 includes upstream cache layout fixes plus the
+    /// fork's pricing-fingerprint invalidation:
     /// pi-session cache stores per-(day, provider, model) packed usage with
-    /// `costNanos` baked in at parse time. Pre-0.23 entries used pricing
-    /// without `gpt-5.5` and without the fallback resolver, so cached
-    /// `costNanos` are stale. Bumping the file version sidesteps the
-    /// migration entirely (old cache file ignored, fresh scan at next launch).
-    private static let artifactVersion = 2
+    /// `costNanos` baked in at parse time. If either the layout version or
+    /// pricing fingerprint changes, old files are ignored and re-scanned.
+    private static let artifactVersion = 3
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -53,7 +51,11 @@ enum PiSessionCostCacheIO {
         let data = (try? JSONEncoder().encode(stamped)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+            } else {
+                try FileManager.default.moveItem(at: tmp, to: url)
+            }
         } catch {
             try? FileManager.default.removeItem(at: tmp)
         }
@@ -72,7 +74,7 @@ struct PiSessionCostCache: Codable {
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 2, pricingFingerprint: String? = nil) {
+    init(version: Int = 3, pricingFingerprint: String? = nil) {
         self.version = version
         self.pricingFingerprint = pricingFingerprint
     }

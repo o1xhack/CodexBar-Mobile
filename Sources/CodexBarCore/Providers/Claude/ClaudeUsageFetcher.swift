@@ -1167,6 +1167,11 @@ extension ClaudeUsageFetcher {
         let workingDirectory = ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
         var environment = ClaudeCLISession.launchEnvironment(baseEnv: self.environment)
         environment["PWD"] = workingDirectory.path
+        defer {
+            ClaudeProbeSessionArtifactCleaner.cleanupProbeSessionArtifacts(
+                probeDirectory: workingDirectory,
+                environment: environment)
+        }
 
         let result = try await SubprocessRunner.run(
             binary: claudeBinary,

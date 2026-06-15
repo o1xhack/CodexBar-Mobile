@@ -223,6 +223,7 @@ struct StatusMenuCodexSwitcherTests {
             codexHomePath: "/Users/test/.codex",
             observedAt: Date())
         settings.codexActiveSource = .liveSystem
+        _ = settings.codexVisibleAccountProjection
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -285,6 +286,7 @@ struct StatusMenuCodexSwitcherTests {
             codexHomePath: "/Users/test/.codex",
             observedAt: Date())
         settings.codexActiveSource = .liveSystem
+        _ = settings.codexVisibleAccountProjection
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -449,6 +451,7 @@ struct StatusMenuCodexSwitcherTests {
             codexHomePath: "/Users/test/.codex",
             observedAt: Date())
         settings.codexActiveSource = .liveSystem
+        _ = settings.codexVisibleAccountProjection
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)

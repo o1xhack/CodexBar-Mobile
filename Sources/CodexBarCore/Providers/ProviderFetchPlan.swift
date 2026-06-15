@@ -37,6 +37,15 @@ public struct ProviderFetchContext: Sendable {
     public let tokenAccountTokenUpdater: TokenAccountTokenUpdater?
     public let providerManualTokenUpdater: ProviderManualTokenUpdater?
     public let costUsageHistoryDays: Int
+    /// Whether warm CLI helper sessions (such as the managed Antigravity `agy`
+    /// process) may outlive a single fetch. True for long-lived hosts (the app,
+    /// `codexbar serve`); false for one-shot CLI invocations that should reset
+    /// the session after each fetch.
+    public let persistsCLISessions: Bool
+    /// Minimum idle lifetime for persistent CLI helper sessions. Long-lived
+    /// hosts set this beyond their refresh cadence so a slow cold start can
+    /// recover on the next refresh.
+    public let persistentCLISessionIdleWindow: TimeInterval?
 
     public init(
         runtime: ProviderRuntime,
@@ -54,7 +63,9 @@ public struct ProviderFetchContext: Sendable {
         selectedTokenAccountID: UUID? = nil,
         tokenAccountTokenUpdater: TokenAccountTokenUpdater? = nil,
         providerManualTokenUpdater: ProviderManualTokenUpdater? = nil,
-        costUsageHistoryDays: Int = 30)
+        costUsageHistoryDays: Int = 30,
+        persistsCLISessions: Bool = false,
+        persistentCLISessionIdleWindow: TimeInterval? = nil)
     {
         self.runtime = runtime
         self.sourceMode = sourceMode
@@ -72,6 +83,14 @@ public struct ProviderFetchContext: Sendable {
         self.tokenAccountTokenUpdater = tokenAccountTokenUpdater
         self.providerManualTokenUpdater = providerManualTokenUpdater
         self.costUsageHistoryDays = max(1, min(365, costUsageHistoryDays))
+        self.persistsCLISessions = persistsCLISessions
+        self.persistentCLISessionIdleWindow = persistentCLISessionIdleWindow
+    }
+}
+
+public enum ProviderCLISessionLifecycle {
+    public static func shutdownPersistentSessions() async {
+        await AntigravityCLISession.shared.reset()
     }
 }
 

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.35.0.1 (Mobile 1.12.0 · build 85.1) — 2026-06-14 — upstream v0.35.0 sync
+
+Syncs the Mac app to upstream CodexBar **v0.35.0** (spanning v0.32.5–v0.35.0) and ships the paired iOS **1.12.0** companion. This is one combined upstream-sync release; it intentionally folds the open upstream-sync issues for v0.32.5, v0.33.0, v0.34.0, and v0.35.0 into a single user-visible version.
+
+### Added / Improved
+
+- **New upstream providers and data paths** — Devin daily/weekly quota tracking, Copilot billing budget windows, MiMo balance/token-plan improvements, Kimi Code API key usage, and MiMo local session-log fallback.
+- **MiniMax on iPhone** — subscription renewal/expiration dates now sync as additive optional metadata and render on the iOS provider card when Mac sends them.
+- **Menu bar reliability and performance** — upstream fixes for merged-provider menu flicker, delayed switching, tracking-session stalls, shortcut handling, layout stability, and open-menu refresh behavior.
+- **Provider accuracy** — upstream fixes for Antigravity, Cursor, Grok, OpenAI API pagination, Amp, Doubao, Bedrock, Claude pricing/cache behavior, and provider endpoint security validation.
+- **Localization** — upstream adds French, Ukrainian, Dutch, Vietnamese, Japanese, German, Korean, and Turkish Mac localizations.
+- **iOS bridge preparation** — Mac sync payloads and iOS compatibility handling are updated for the upstream fields that matter to the mobile companion, with old/new device matrix testing recorded in Research.
+
+### Compatibility
+
+- CloudKit stays in the Production environment. Any wire/schema decision and the 2 Mac x 2 iPhone old/new compatibility gate are tracked in `CodexBarMobile/Research/029-v035-upstream-sync/03-testing.md`.
+- Existing iOS builds safely ignore fields they do not understand; iOS 1.12.0 is the paired build for the complete v0.35.0 data set.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.35.0**（覆盖 v0.32.5–v0.35.0），并配套发布 iOS **1.12.0**。本次把当前 open 的 v0.32.5、v0.33.0、v0.34.0、v0.35.0 upstream-sync issue 合并为一个用户可见版本，不拆多次发布。
+
+### 新增 / 改进
+
+- **新增上游 provider 与数据通道** —— Devin 每日/每周配额、Copilot billing budget、MiMo 余额与 token-plan 改进、Kimi Code API key 用量、MiMo 本地 session-log fallback。
+- **MiniMax on iPhone** —— 订阅续费/到期日期现在作为可选同步元数据传到 iOS，并在 Mac 发送这些字段时显示在 provider 卡片上。
+- **菜单栏可靠性和性能** —— 合入上游针对合并 provider 菜单闪烁、切换延迟、tracking-session 卡顿、快捷键、布局稳定性和打开菜单刷新行为的修复。
+- **Provider 准确性** —— 合入 Antigravity、Cursor、Grok、OpenAI API 分页、Amp、Doubao、Bedrock、Claude 定价/cache 行为和 provider endpoint 安全校验修复。
+- **本地化** —— 合入上游 Mac 端 French、Ukrainian、Dutch、Vietnamese、Japanese、German、Korean、Turkish 语言支持。
+- **iOS 同步准备** —— 针对 mobile companion 需要展示或兼容的上游字段更新 Mac sync payload 与 iOS 兼容处理；新旧设备矩阵测试记录在 Research 中。
+
+### 兼容性
+
+- CloudKit 保持 Production 环境。wire/schema 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate 记录在 `CodexBarMobile/Research/029-v035-upstream-sync/03-testing.md`。
+- 旧 iOS build 会安全忽略无法识别的新字段；iOS 1.12.0 是完整 v0.35.0 数据集的配套版本。
+
+---
+
 ## iOS 1.11.1 (build 151) — 2026-06-06 — Daily Spend chart scroll fix (iOS-only; Mac unchanged at 0.32.4.1)
 
 iOS-only patch on top of 1.11.0. The Cost tab's **Daily Spend** chart now shows a ~30-day viewport and scrolls horizontally through the full accumulated history (50 / 90 / 365-day windows) instead of cramming every day into one non-scrollable screen. No Mac change — Mac stays at 0.32.4.1. Re-versioned from the unreleased build 150 because iOS 1.11.0 (build 149) is already in App Store review.

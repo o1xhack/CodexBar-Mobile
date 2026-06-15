@@ -225,6 +225,8 @@ enum MockProviderInjector {
         // iOS 1.9.0 catch-up (upstream v0.28.0+v0.29.0 new providers).
         // Must stay in sync with `simpleProviderProfiles` and `QuotaProviderList`.
         "azureopenai", "alibabatokenplan", "t3chat",
+        // iOS 1.12.0 catch-up (upstream v0.34.0 new provider).
+        "devin",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1289,6 +1291,20 @@ enum MockProviderInjector {
                 resetsInSeconds: 18 * 86400,
                 resetDescription: "Overage · 9% used"),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // iOS 1.12.0 — upstream v0.34.0 new provider.
+        .init(
+            providerID: "devin", providerName: "Devin",
+            accountLocal: "org", loginMethod: "Browser session",
+            primaryUsage: 41, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 8 * 3600,
+            primaryResetDescription: "Daily · 41% used",
+            secondary: .init(
+                label: "Weekly", usedPercent: 22,
+                windowMinutes: 10080,
+                resetsInSeconds: 5 * 86400,
+                resetDescription: "Weekly · 22% used"),
+            thirtyDayCostUSD: 12.00, sessionCostUSD: 0.35),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal

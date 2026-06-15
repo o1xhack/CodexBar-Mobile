@@ -108,7 +108,7 @@ extension UsageStore {
                 "batterySaverEnabled": self.settings.openAIWebBatterySaverEnabled ? "1" : "0",
                 "interaction": ProviderInteractionContext.current == .userInitiated ? "user" : "background",
             ])
-        let expectedGuard = self.currentCodexOpenAIWebRefreshGuard()
+        let expectedGuard = self.freshCodexOpenAIWebRefreshGuard()
         Task { await self.refreshOpenAIDashboardIfNeeded(force: forceRefresh, expectedGuard: expectedGuard) }
     }
 
@@ -120,18 +120,25 @@ extension UsageStore {
         allowCodexUsageBackfill: Bool = true) async
     {
         guard self.shouldApplyOpenAIDashboardRefreshTask(token: refreshTaskToken) else { return }
-        if let expectedGuard,
-           !self.shouldApplyOpenAIDashboardRefreshGuard(
-               expectedGuard: expectedGuard,
-               routingTargetEmail: targetEmail)
-        {
-            return
-        }
-
+        self.settings.invalidateCodexAccountReconciliationSnapshotCache()
         let authority = self.evaluateCodexDashboardAuthority(
             dashboard: dash,
             sourceKind: .liveWeb,
             routingTargetEmail: targetEmail)
+        if let expectedGuard {
+            let shouldApply = switch authority.decision.disposition {
+            case .attach:
+                self.shouldApplyOpenAIDashboardRefreshGuard(
+                    expectedGuard: expectedGuard,
+                    routingTargetEmail: targetEmail)
+            case .displayOnly, .failClosed:
+                self.shouldApplyOpenAIDashboardPolicyResult(
+                    expectedGuard: expectedGuard,
+                    routingTargetEmail: targetEmail)
+            }
+            guard shouldApply else { return }
+        }
+
         let attachedAccountEmail = self.codexDashboardAttachmentEmail(from: authority.input)
 
         await self.applyOpenAIDashboardAuthorityDecision(
@@ -832,7 +839,7 @@ extension UsageStore {
             allowCurrentSnapshotFallback: true,
             allowLastKnownLiveFallback: false)
         _ = await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
-        let expectedGuard = self.currentCodexOpenAIWebRefreshGuard()
+        let expectedGuard = self.freshCodexOpenAIWebRefreshGuard()
         await self.refreshOpenAIDashboardIfNeeded(
             force: true,
             expectedGuard: expectedGuard,
@@ -878,7 +885,8 @@ extension UsageStore {
         let source = String(describing: expectedGuard?.source ?? self.settings.codexResolvedActiveSource)
         let identityKey = Self.codexIdentityGuardKey(expectedGuard?.identity ?? .unresolved) ?? "unresolved"
         let accountKey = Self.normalizeCodexAccountScopedKey(targetEmail) ?? "unknown"
-        return "\(source)|\(identityKey)|\(accountKey)"
+        let authFingerprint = CodexAuthFingerprint.normalize(expectedGuard?.authFingerprint) ?? "nil"
+        return "\(source)|\(identityKey)|\(accountKey)|auth:\(authFingerprint)"
     }
 
     private func actionableOpenAIDashboardImportFailure(targetEmail: String?) -> String? {

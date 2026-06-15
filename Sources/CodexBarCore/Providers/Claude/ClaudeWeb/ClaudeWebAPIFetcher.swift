@@ -69,7 +69,7 @@ public enum ClaudeWebAPIFetcher {
             case .invalidResponse:
                 "Invalid response from Claude API."
             case .unauthorized:
-                "Unauthorized. Your Claude session may have expired."
+                "Sign in to claude.ai (or refresh Claude cookies) to load usage data."
             case let .serverError(code):
                 "Claude API error: HTTP \(code)"
             case .noOrganization:

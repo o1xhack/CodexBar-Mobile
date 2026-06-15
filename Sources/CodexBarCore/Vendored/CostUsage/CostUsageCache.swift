@@ -1,6 +1,10 @@
 import Foundation
 
 enum CostUsageCacheIO {
+    private static let compatibleCodexProducerKeys: Set<String> = [
+        "codex:cu:p3c27f997569eb3c5",
+    ]
+
     private static func artifactVersion(for provider: UsageProvider) -> Int {
         switch provider {
         case .codex:
@@ -10,11 +14,9 @@ enum CostUsageCacheIO {
             // fork's prior 4 → 5 → 6 history.
             8
         case .claude, .vertexai:
-            // Bumped 2 → 3 alongside the codex bump for consistency: the
-            // claude pricing table also gained `claude-opus-4-7` and the
-            // fallback resolver, so any cached cost rows from 0.20.3 era
-            // need to be re-derived under the new pricing.
-            3
+            // Upstream bumped these to v4; the fork still validates the
+            // pricing fingerprint below so pricing/table edits force re-scan.
+            4
         default:
             1
         }
@@ -41,10 +43,14 @@ enum CostUsageCacheIO {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
         let expectedFingerprint = CostUsagePricing.pricingFingerprint
         let expectedProducerKey = producerKey ?? self.currentProducerKey(provider: provider)
+        let compatibleProducerKeys = producerKey == nil && provider == .codex
+            ? self.compatibleCodexProducerKeys
+            : []
         if let decoded = self.loadCache(
             at: url,
             expectedFingerprint: expectedFingerprint,
-            expectedProducerKey: expectedProducerKey)
+            expectedProducerKey: expectedProducerKey,
+            compatibleProducerKeys: compatibleProducerKeys)
         {
             return decoded
         }
@@ -58,7 +64,8 @@ enum CostUsageCacheIO {
     private static func loadCache(
         at url: URL,
         expectedFingerprint: String,
-        expectedProducerKey: String?) -> CostUsageCache?
+        expectedProducerKey: String?,
+        compatibleProducerKeys: Set<String>) -> CostUsageCache?
     {
         guard let data = try? Data(contentsOf: url) else { return nil }
         guard let decoded = try? JSONDecoder().decode(CostUsageCache.self, from: data)
@@ -76,7 +83,9 @@ enum CostUsageCacheIO {
         // even when the pricing fingerprint is unchanged. Validate both so a
         // stale cache is discarded if EITHER signal moves.
         if let expectedProducerKey {
-            guard decoded.producerKey == expectedProducerKey else { return nil }
+            guard decoded.producerKey == expectedProducerKey
+                || decoded.producerKey.map(compatibleProducerKeys.contains) == true
+            else { return nil }
         }
         return decoded
     }

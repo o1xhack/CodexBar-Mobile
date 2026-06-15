@@ -664,6 +664,8 @@ final class SyncCoordinator {
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
+            subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
+            subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
             perplexityCredits: perplexityCredits,
@@ -1751,7 +1753,7 @@ final class SyncCoordinator {
             !ModelFallbackPricing.isClaudeModelKnown(modelName)
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
-        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
              .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers — pre-computed costs from

@@ -291,6 +291,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let lastUpdated: Date
     public let costSummary: SyncCostSummary?
     public let budget: SyncBudgetSnapshot?
+    /// Optional subscription lifecycle metadata surfaced by providers such as
+    /// MiniMax. Additive only: old Mac payloads decode as nil, old iOS clients
+    /// ignore the keys, and cross-version merges use latestNonNil semantics.
+    public let subscriptionExpiresAt: Date?
+    public let subscriptionRenewsAt: Date?
     /// Subscription utilization history (session/weekly/opus) for chart display.
     public let utilizationHistory: [SyncUtilizationSeries]?
     /// Perplexity-specific structured credit breakdown. Populated only when
@@ -500,6 +505,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         lastUpdated: Date,
         costSummary: SyncCostSummary? = nil,
         budget: SyncBudgetSnapshot? = nil,
+        subscriptionExpiresAt: Date? = nil,
+        subscriptionRenewsAt: Date? = nil,
         rateWindows: [SyncRateWindow] = [],
         utilizationHistory: [SyncUtilizationSeries]? = nil,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
@@ -538,6 +545,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.lastUpdated = lastUpdated
         self.costSummary = costSummary
         self.budget = budget
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.subscriptionRenewsAt = subscriptionRenewsAt
         self.utilizationHistory = utilizationHistory
         self.perplexityCredits = perplexityCredits
         self.accountIdentities = accountIdentities
@@ -581,6 +590,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             lastUpdated: self.lastUpdated,
             costSummary: self.costSummary,
             budget: self.budget,
+            subscriptionExpiresAt: self.subscriptionExpiresAt,
+            subscriptionRenewsAt: self.subscriptionRenewsAt,
             rateWindows: self.rateWindows,
             utilizationHistory: self.utilizationHistory,
             perplexityCredits: self.perplexityCredits,
@@ -623,6 +634,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         self.costSummary = try container.decodeIfPresent(SyncCostSummary.self, forKey: .costSummary)
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
+        self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
+        self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
         self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
         self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)

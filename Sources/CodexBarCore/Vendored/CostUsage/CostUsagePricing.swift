@@ -57,6 +57,14 @@ enum CostUsagePricing {
         let cacheReadInputCostPerTokenAboveThreshold: Double?
     }
 
+    private struct ClaudeCostTokens {
+        let input: Int
+        let cacheRead: Int
+        let cacheCreation: Int
+        let cacheCreation1h: Int
+        let output: Int
+    }
+
     private static let codex: [String: CodexPricing] = [
         "gpt-5": CodexPricing(
             inputCostPerToken: 1.25e-6,
@@ -205,6 +213,16 @@ enum CostUsagePricing {
     }
 
     private static let claude: [String: ClaudePricing] = [
+        "claude-fable-5": ClaudePricing(
+            inputCostPerToken: 1e-5,
+            outputCostPerToken: 5e-5,
+            cacheCreationInputCostPerToken: 1.25e-5,
+            cacheReadInputCostPerToken: 1e-6,
+            thresholdTokens: nil,
+            inputCostPerTokenAboveThreshold: nil,
+            outputCostPerTokenAboveThreshold: nil,
+            cacheCreationInputCostPerTokenAboveThreshold: nil,
+            cacheReadInputCostPerTokenAboveThreshold: nil),
         "claude-haiku-4-5-20251001": ClaudePricing(
             inputCostPerToken: 1e-6,
             outputCostPerToken: 5e-6,
@@ -300,11 +318,11 @@ enum CostUsagePricing {
             outputCostPerToken: 1.5e-5,
             cacheCreationInputCostPerToken: 3.75e-6,
             cacheReadInputCostPerToken: 3e-7,
-            thresholdTokens: 200_000,
-            inputCostPerTokenAboveThreshold: 6e-6,
-            outputCostPerTokenAboveThreshold: 2.25e-5,
-            cacheCreationInputCostPerTokenAboveThreshold: 7.5e-6,
-            cacheReadInputCostPerTokenAboveThreshold: 6e-7),
+            thresholdTokens: nil,
+            inputCostPerTokenAboveThreshold: nil,
+            outputCostPerTokenAboveThreshold: nil,
+            cacheCreationInputCostPerTokenAboveThreshold: nil,
+            cacheReadInputCostPerTokenAboveThreshold: nil),
         "claude-sonnet-4-5-20250929": ClaudePricing(
             inputCostPerToken: 3e-6,
             outputCostPerToken: 1.5e-5,
@@ -336,6 +354,30 @@ enum CostUsagePricing {
             cacheCreationInputCostPerTokenAboveThreshold: nil,
             cacheReadInputCostPerTokenAboveThreshold: nil),
         "claude-sonnet-4-20250514": ClaudePricing(
+            inputCostPerToken: 3e-6,
+            outputCostPerToken: 1.5e-5,
+            cacheCreationInputCostPerToken: 3.75e-6,
+            cacheReadInputCostPerToken: 3e-7,
+            thresholdTokens: 200_000,
+            inputCostPerTokenAboveThreshold: 6e-6,
+            outputCostPerTokenAboveThreshold: 2.25e-5,
+            cacheCreationInputCostPerTokenAboveThreshold: 7.5e-6,
+            cacheReadInputCostPerTokenAboveThreshold: 6e-7),
+    ]
+
+    private static let claudeFullContextStandardPricingCutoff = Date(timeIntervalSince1970: 1_773_360_000)
+    private static let claudeHistoricalLongContext: [String: ClaudePricing] = [
+        "claude-opus-4-6": ClaudePricing(
+            inputCostPerToken: 5e-6,
+            outputCostPerToken: 2.5e-5,
+            cacheCreationInputCostPerToken: 6.25e-6,
+            cacheReadInputCostPerToken: 5e-7,
+            thresholdTokens: 200_000,
+            inputCostPerTokenAboveThreshold: 1e-5,
+            outputCostPerTokenAboveThreshold: 3.75e-5,
+            cacheCreationInputCostPerTokenAboveThreshold: 1.25e-5,
+            cacheReadInputCostPerTokenAboveThreshold: 1e-6),
+        "claude-sonnet-4-6": ClaudePricing(
             inputCostPerToken: 3e-6,
             outputCostPerToken: 1.5e-5,
             cacheCreationInputCostPerToken: 3.75e-6,
@@ -671,10 +713,31 @@ enum CostUsagePricing {
         inputTokens: Int,
         cacheReadInputTokens: Int,
         cacheCreationInputTokens: Int,
+        cacheCreationInputTokens1h: Int = 0,
         outputTokens: Int,
+        pricingDate: Date? = nil,
         modelsDevCatalog: ModelsDevCatalog? = nil,
         modelsDevCacheRoot: URL? = nil) -> Double?
     {
+        let tokens = ClaudeCostTokens(
+            input: inputTokens,
+            cacheRead: cacheReadInputTokens,
+            cacheCreation: cacheCreationInputTokens,
+            cacheCreation1h: cacheCreationInputTokens1h,
+            output: outputTokens)
+        let key = self.normalizeClaudeModel(model)
+
+        if let pricingDate,
+           let historicalPricing = self.claudeHistoricalLongContext[key],
+           let currentPricing = self.claude[key]
+        {
+            return self.claudeCostUSD(
+                pricing: pricingDate < self.claudeFullContextStandardPricingCutoff
+                    ? historicalPricing
+                    : currentPricing,
+                tokens: tokens)
+        }
+
         // 1) models.dev catalog (upstream 0.25).
         if let lookup = self.modelsDevLookup(
             providerID: self.claudeModelsDevProviderID,
@@ -684,75 +747,56 @@ enum CostUsagePricing {
         {
             return self.claudeCostUSD(
                 pricing: lookup.pricing,
-                inputTokens: inputTokens,
-                cacheReadInputTokens: cacheReadInputTokens,
-                cacheCreationInputTokens: cacheCreationInputTokens,
-                outputTokens: outputTokens)
+                tokens: tokens)
         }
 
         // 2) Exact local-table hit.
-        let key = self.normalizeClaudeModel(model)
         if let pricing = self.claude[key] {
-            return self.claudeCostUSD(
-                pricing: pricing,
-                inputTokens: inputTokens,
-                cacheReadInputTokens: cacheReadInputTokens,
-                cacheCreationInputTokens: cacheCreationInputTokens,
-                outputTokens: outputTokens)
+            return self.claudeCostUSD(pricing: pricing, tokens: tokens)
         }
 
         // 3) Fork's family-fallback ladder (Research/018).
         guard let pricing = self.resolveClaudePricing(model: model) else { return nil }
         return self.claudeCostUSD(
             pricing: pricing,
-            inputTokens: inputTokens,
-            cacheReadInputTokens: cacheReadInputTokens,
-            cacheCreationInputTokens: cacheCreationInputTokens,
-            outputTokens: outputTokens)
+            tokens: tokens)
     }
 
     private static func claudeCostUSD(
         pricing: ClaudePricing,
-        inputTokens: Int,
-        cacheReadInputTokens: Int,
-        cacheCreationInputTokens: Int,
-        outputTokens: Int) -> Double
+        tokens: ClaudeCostTokens) -> Double
     {
-        func tiered(_ tokens: Int, base: Double, above: Double?, threshold: Int?) -> Double {
-            guard let threshold, let above else { return Double(tokens) * base }
-            let below = min(tokens, threshold)
-            let over = max(tokens - threshold, 0)
-            return Double(below) * base + Double(over) * above
-        }
+        let input = max(0, tokens.input)
+        let cacheRead = max(0, tokens.cacheRead)
+        let cacheCreationTotal = max(0, tokens.cacheCreation)
+        let cacheCreation1h = min(max(0, tokens.cacheCreation1h), cacheCreationTotal)
+        let cacheCreation5m = cacheCreationTotal - cacheCreation1h
+        let usesLongContextRates = pricing.thresholdTokens.map {
+            input + cacheRead + cacheCreationTotal > $0
+        } ?? false
+        let inputRate = usesLongContextRates
+            ? pricing.inputCostPerTokenAboveThreshold ?? pricing.inputCostPerToken
+            : pricing.inputCostPerToken
+        let cacheReadRate = usesLongContextRates
+            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? pricing.cacheReadInputCostPerToken
+            : pricing.cacheReadInputCostPerToken
+        let cacheCreation5mRate = usesLongContextRates
+            ? pricing.cacheCreationInputCostPerTokenAboveThreshold ?? pricing.cacheCreationInputCostPerToken
+            : pricing.cacheCreationInputCostPerToken
+        let outputRate = usesLongContextRates
+            ? pricing.outputCostPerTokenAboveThreshold ?? pricing.outputCostPerToken
+            : pricing.outputCostPerToken
 
-        return tiered(
-            max(0, inputTokens),
-            base: pricing.inputCostPerToken,
-            above: pricing.inputCostPerTokenAboveThreshold,
-            threshold: pricing.thresholdTokens)
-            + tiered(
-                max(0, cacheReadInputTokens),
-                base: pricing.cacheReadInputCostPerToken,
-                above: pricing.cacheReadInputCostPerTokenAboveThreshold,
-                threshold: pricing.thresholdTokens)
-            + tiered(
-                max(0, cacheCreationInputTokens),
-                base: pricing.cacheCreationInputCostPerToken,
-                above: pricing.cacheCreationInputCostPerTokenAboveThreshold,
-                threshold: pricing.thresholdTokens)
-            + tiered(
-                max(0, outputTokens),
-                base: pricing.outputCostPerToken,
-                above: pricing.outputCostPerTokenAboveThreshold,
-                threshold: pricing.thresholdTokens)
+        return Double(input) * inputRate
+            + Double(cacheRead) * cacheReadRate
+            + Double(cacheCreation5m) * cacheCreation5mRate
+            + Double(cacheCreation1h) * inputRate * 2
+            + Double(max(0, tokens.output)) * outputRate
     }
 
     private static func claudeCostUSD(
         pricing: ModelsDevPricingInfo,
-        inputTokens: Int,
-        cacheReadInputTokens: Int,
-        cacheCreationInputTokens: Int,
-        outputTokens: Int) -> Double
+        tokens: ClaudeCostTokens) -> Double
     {
         self.claudeCostUSD(
             pricing: ClaudePricing(
@@ -765,10 +809,7 @@ enum CostUsagePricing {
                 outputCostPerTokenAboveThreshold: pricing.outputCostPerTokenAboveThreshold,
                 cacheCreationInputCostPerTokenAboveThreshold: pricing.cacheCreationInputCostPerTokenAboveThreshold,
                 cacheReadInputCostPerTokenAboveThreshold: pricing.cacheReadInputCostPerTokenAboveThreshold),
-            inputTokens: inputTokens,
-            cacheReadInputTokens: cacheReadInputTokens,
-            cacheCreationInputTokens: cacheCreationInputTokens,
-            outputTokens: outputTokens)
+            tokens: tokens)
     }
 
     /// Returns true iff the given raw Claude model name maps to an exact

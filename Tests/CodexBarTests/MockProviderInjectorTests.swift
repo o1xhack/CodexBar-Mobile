@@ -53,9 +53,10 @@ struct MockProviderInjectorTests {
         // (grok/groq/elevenlabs/deepgram/llmproxy). 52 → 57.
         // iOS 1.9.0 adds 3 v0.28+v0.29 provider simple mocks
         // (azureopenai/alibabatokenplan/t3chat). 57 → 60.
+        // iOS 1.12.0 adds Devin. 60 → 61.
         #expect(
-            MockProviderInjector.allMocks().count == 60,
-            "iOS 1.9.0: 57 → 60 (+3 v0.28+v0.29 simple mocks: azureopenai, alibabatokenplan, t3chat).")
+            MockProviderInjector.allMocks().count == 61,
+            "iOS 1.12.0: 60 → 61 (+Devin simple mock).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")

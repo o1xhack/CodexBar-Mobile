@@ -101,6 +101,8 @@
 "Could not start codex login" = "无法启动 codex login";
 "Could not switch system account" = "无法切换系统账户";
 "Credits" = "额度";
+"Individual credits" = "个人额度";
+"Workspace" = "工作区";
 "Credits history" = "额度记录";
 "Cursor login failed" = "Cursor 登录失败";
 "Custom" = "自定义";
@@ -406,6 +408,13 @@
 "language_chinese_simplified" = "简体中文";
 "language_chinese_traditional" = "繁體中文";
 "language_portuguese_brazilian" = "Português (Brasil)";
+"language_swedish" = "瑞典语";
+"language_dutch" = "Nederlands";
+"language_german" = "Deutsch";
+"language_french" = "法语";
+"language_ukrainian" = "乌克兰语";
+"language_japanese" = "日语";
+"language_korean" = "韩语";
 "start_at_login_title" = "开机启动";
 "start_at_login_subtitle" = "启动 Mac 时自动打开 CodexBar。";
 "show_cost_summary" = "显示费用摘要";
@@ -597,9 +606,11 @@
 "display_mode_percent" = "百分比";
 "display_mode_pace" = "进度";
 "display_mode_both" = "两者";
+"display_mode_reset_time" = "重置时间";
 "display_mode_percent_desc" = "显示剩余/已使用百分比（例如 45%）";
 "display_mode_pace_desc" = "显示进度指示器（例如 +5%）";
 "display_mode_both_desc" = "同时显示百分比和进度（例如 45% · +5%）";
+"display_mode_reset_time_desc" = "显示所选指标的重置时间（例如 ↻ 3:56 PM）";
 "status_operational" = "正常运行";
 "status_partial_outage" = "部分中断";
 "status_major_outage" = "重大中断";
@@ -862,7 +873,7 @@
 "Cleanup ideas" = "清理建议";
 "%d unreadable item(s) skipped" = "已跳过 %d 个不可读项目";
 "weekly_progress_work_days_title" = "工作日刻度线";
-"weekly_progress_work_days_subtitle" = "在每周用量条上显示按天分隔的刻度线。";
+"weekly_progress_work_days_subtitle" = "设置用于每周用量条刻度和进度计算的工作日。";
 "copilot_device_code" = "设备代码已复制到剪贴板：%1$@\n\n请在以下地址验证：%2$@";
 "copilot_waiting_text" = "请在浏览器中完成登录。\n登录完成后，此窗口会自动关闭。";
 "vertex_ai_login_instructions" = "要跟踪 Vertex AI 用量，请通过 Google Cloud 进行认证。\n\n1. 打开终端\n2. 运行：gcloud auth application-default login\n3. 按照浏览器提示登录\n4. 设置你的项目：gcloud config set project PROJECT_ID\n\n是否现在打开终端？";
@@ -905,7 +916,7 @@
 "Antigravity login failed" = "Antigravity 登录失败";
 "Antigravity login timed out" = "Antigravity 登录超时";
 "Auth source" = "认证来源";
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "自动导入 Xiaomi MiMo 的 Chrome 浏览器 Cookie。";
+"Automatic imports browser cookies from Xiaomi MiMo." = "自动导入 Xiaomi MiMo 的浏览器 Cookie。";
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "自动从 Chromium 浏览器 localStorage 导入 Windsurf 会话数据。";
 "Automatic imports browser cookies from Bailian." = "自动导入 Bailian 的浏览器 Cookie。";
 "Automatically imports browser cookies." = "自动导入浏览器 Cookie。";
@@ -1005,6 +1016,7 @@
 "Personal account" = "个人账号";
 "Project ID" = "项目 ID";
 "Re-auth" = "重新认证";
+"Re-login at claude.ai" = "重新登录 claude.ai";
 "Re-authenticating…" = "正在重新认证…";
 "Refresh Session" = "刷新会话";
 "Refresh organizations" = "刷新组织";
@@ -1060,3 +1072,11 @@
 "Clear" = "清除";
 "No matching providers" = "没有匹配的提供商";
 "Search providers" = "搜索提供商";
+
+"language_vietnamese" = "越南语";
+
+"Request quota: %@ / %@" = "请求额度：%@ / %@";
+"language_turkish" = "Türkçe";
+"Renews: %@" = "续订：%@";
+"Plan expires: %@" = "方案到期：%@";
+"∞ Unlimited" = "∞ 无限";

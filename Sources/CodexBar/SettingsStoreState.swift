@@ -31,6 +31,8 @@ struct SettingsDefaultsState {
     var notificationPushToiOSEnabled: Bool
     var multiAccountMenuLayoutRaw: String
     var menuBarMetricPreferencesRaw: [String: String]
+    var copilotBudgetExtrasEnabled: Bool
+    var copilotIconSecondaryWindowIDRaw: String
     var costUsageEnabled: Bool
     var costUsageHistoryDays: Int
     var hidePersonalInfo: Bool
@@ -52,4 +54,5 @@ struct SettingsDefaultsState {
     var selectedMenuProviderRaw: String?
     var providerDetectionCompleted: Bool
     var appLanguageRaw: String?
+    var terminalAppRaw: String?
 }

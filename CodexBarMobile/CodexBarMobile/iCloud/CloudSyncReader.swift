@@ -409,11 +409,12 @@ final class CloudSyncReader: @unchecked Sendable {
     ///     **latestNonNil** otherwise (account-level API data; old-Mac
     ///     version-drift protection).
     ///   - Utilization history: MERGE across devices and dedup by hour.
-    ///   - Account-level structured data (`budget` / `perplexityCredits` /
-    ///     `loginMethod`): **latestNonNil** — both Macs observe the same
-    ///     account-level pool, but only Macs running the version that
-    ///     knows the field will populate it. Take any non-nil from newest
-    ///     down so cross-version pairs don't flicker.
+    ///   - Account-level structured data (`budget`, `perplexityCredits`,
+    ///     `subscriptionExpiresAt`, `subscriptionRenewsAt`, provider-specific
+    ///     rich payloads, etc.): **latestNonNil** — both Macs observe the same
+    ///     account-level pool, but only Macs running the version that knows a
+    ///     field will populate it. Take any non-nil from newest down so
+    ///     cross-version pairs don't flicker.
     private static func mergeProviderEntries(_ entries: [ProviderUsageSnapshot]) -> ProviderUsageSnapshot {
         // Take the most recent entry as the base (for rate limits + status)
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
@@ -454,9 +455,33 @@ final class CloudSyncReader: @unchecked Sendable {
             lastUpdated: base.lastUpdated,
             costSummary: mergedCost,
             budget: Self.latestNonNil(entries, \.budget),
+            subscriptionExpiresAt: Self.latestNonNil(entries, \.subscriptionExpiresAt),
+            subscriptionRenewsAt: Self.latestNonNil(entries, \.subscriptionRenewsAt),
             rateWindows: base.rateWindows,
             utilizationHistory: mergedUtilization,
-            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits))
+            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
+            accountIdentities: Self.latestNonNil(entries, \.accountIdentities),
+            quotaWarnings: Self.latestNonNil(entries, \.quotaWarnings),
+            openAIAPIDashboard: Self.latestNonNil(entries, \.openAIAPIDashboard),
+            zaiHourlyUsage: Self.latestNonNil(entries, \.zaiHourlyUsage),
+            kiroCredits: Self.latestNonNil(entries, \.kiroCredits),
+            bedrockCost: Self.latestNonNil(entries, \.bedrockCost),
+            moonshotBalance: Self.latestNonNil(entries, \.moonshotBalance),
+            antigravityAccounts: Self.latestNonNil(entries, \.antigravityAccounts),
+            grokBilling: Self.latestNonNil(entries, \.grokBilling),
+            elevenLabsCredits: Self.latestNonNil(entries, \.elevenLabsCredits),
+            deepgramUsage: Self.latestNonNil(entries, \.deepgramUsage),
+            groqMetrics: Self.latestNonNil(entries, \.groqMetrics),
+            llmProxyStats: Self.latestNonNil(entries, \.llmProxyStats),
+            claudeAdminUsage: Self.latestNonNil(entries, \.claudeAdminUsage),
+            claudeExtraUsage: Self.latestNonNil(entries, \.claudeExtraUsage),
+            openCodeGoZenBalance: Self.latestNonNil(entries, \.openCodeGoZenBalance),
+            minimaxBilling: Self.latestNonNil(entries, \.minimaxBilling),
+            codexWorkspace: Self.latestNonNil(entries, \.codexWorkspace),
+            openRouterStats: Self.latestNonNil(entries, \.openRouterStats),
+            azureOpenAIInfo: Self.latestNonNil(entries, \.azureOpenAIInfo),
+            alibabaTokenPlan: Self.latestNonNil(entries, \.alibabaTokenPlan),
+            deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage))
     }
 
     /// Sums cost data from multiple devices.

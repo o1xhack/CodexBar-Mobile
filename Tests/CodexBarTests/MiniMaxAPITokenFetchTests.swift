@@ -49,9 +49,16 @@ struct MiniMaxAPITokenFetchTests {
             session: Self.makeSession())
 
         #expect(snapshot.planName == "Max")
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.count == 2)
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.first?.url?.host == "api.minimax.io")
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.last?.url?.host == "api.minimaxi.com")
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.map { $0.url?.host } == [
+            "api.minimax.io",
+            "api.minimax.io",
+            "api.minimaxi.com",
+        ])
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.map { $0.url?.path } == [
+            "/v1/token_plan/remains",
+            "/v1/api/openplatform/coding_plan/remains",
+            "/v1/token_plan/remains",
+        ])
     }
 
     @Test
@@ -83,9 +90,18 @@ struct MiniMaxAPITokenFetchTests {
                 session: Self.makeSession())
         }
 
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.count == 2)
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.first?.url?.host == "api.minimax.io")
-        #expect(MiniMaxAPITokenStubURLProtocol.requests.last?.url?.host == "api.minimaxi.com")
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.map { $0.url?.host } == [
+            "api.minimax.io",
+            "api.minimax.io",
+            "api.minimaxi.com",
+            "api.minimaxi.com",
+        ])
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.map { $0.url?.path } == [
+            "/v1/token_plan/remains",
+            "/v1/api/openplatform/coding_plan/remains",
+            "/v1/token_plan/remains",
+            "/v1/api/openplatform/coding_plan/remains",
+        ])
     }
 
     @Test
