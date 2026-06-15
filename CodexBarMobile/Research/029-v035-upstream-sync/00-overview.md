@@ -1,6 +1,6 @@
 # v0.35.0 Upstream Sync + iOS 1.12.0 Overview
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-06-14
 Branch: `upstream-sync/v0.35.0-mobile.1.12.0`
 Issues: [#22](https://github.com/o1xhack/CodexBar-Mobile/issues/22),
@@ -130,10 +130,22 @@ change and does not pull the branch to unreleased `0.35.1`.
 ## Current Outcome
 
 Started on branch `upstream-sync/v0.35.0-mobile.1.12.0` from latest
-`mobile-dev`. Research scope and version plan are recorded. The branch now
-contains the v0.35.0 Mac sync, iOS 1.12.0 Shared/presentation updates for
-MiniMax subscription metadata, Devin iOS provider identity coverage, release
-notes, localization, CloudKit audit, Mac/iOS test evidence, the 16-case sync
-compatibility substitution matrix, and review fixes for SwiftData rich-payload
-hydration plus Mac MiniMax localization. Packaging and draft-release handoff
-remain the next release steps.
+`mobile-dev`. The branch was fast-forwarded into `mobile-dev` and released as
+`v0.35.0.1-mobile.1.12.0`.
+
+Release outcome:
+
+- GitHub release:
+  <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.35.0.1-mobile.1.12.0>
+- Sparkle appcast:
+  <https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml>
+- `version.env` shipped upstream baseline updated to `UPSTREAM_VERSION=v0.35.0`
+  and `UPSTREAM_SYNC_DATE=2026-06-14`.
+- The notarized production Mac app was installed at `/Applications/CodexBar.app`
+  and launched locally as `0.35.0.1` / `85.1.1.12.0`.
+
+The release contains the v0.35.0 Mac sync, iOS 1.12.0 Shared/presentation
+updates for MiniMax subscription metadata, Devin iOS provider identity coverage,
+release notes, localization, CloudKit audit, Mac/iOS test evidence, the 16-case
+sync compatibility substitution matrix, and review fixes for SwiftData
+rich-payload hydration plus Mac MiniMax localization.

@@ -1,6 +1,6 @@
 # v0.35.0 Upstream Sync Development Log
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-06-14
 Branch: `upstream-sync/v0.35.0-mobile.1.12.0`
 

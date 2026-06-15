@@ -1,6 +1,6 @@
 # v0.35.0 Upstream Sync Design
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-06-14
 
 ## Design Principle
@@ -117,4 +117,3 @@ Minimum gates:
   and `parserLogicVersion` bump.
 - Whether any release tooling changes in `Scripts/` should be kept from
   upstream or replaced with fork release pipeline variants.
-

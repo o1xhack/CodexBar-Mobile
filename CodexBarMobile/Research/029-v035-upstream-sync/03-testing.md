@@ -1,6 +1,6 @@
 # v0.35.0 Upstream Sync Testing
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-06-14
 Branch: `upstream-sync/v0.35.0-mobile.1.12.0`
 
@@ -180,5 +180,38 @@ Current review findings fixed during testing:
 - Added Devin iOS quota-provider/color/mock coverage found during the review
   pass.
 
-Blocking review findings are fixed and retested. Packaging review remains the
-next gate.
+Blocking review findings were fixed and retested before packaging.
+
+## Mac Release Evidence
+
+Mac release status: live.
+
+```text
+./Scripts/release.sh
+Result: phase1 passed. Signed, notarized, stapled, packaged, pushed tag
+v0.35.0.1-mobile.1.12.0, and created the draft release.
+Notarization submission: 0ced6380-2c07-4b02-9976-1792e5e675d6
+Notarization result: Accepted.
+
+./Scripts/release.sh --finalize
+Result: phase2 passed. Published the draft, generated signed appcast.xml,
+committed docs: update appcast for 0.35.0.1, and pushed mobile-dev.
+
+gh release view v0.35.0.1-mobile.1.12.0 --repo o1xhack/CodexBar-Mobile
+Result: public, non-draft release with zip and dSYM assets.
+
+Remote appcast parse
+Result: title 0.35.0.1, sparkle:version 85.1.1.12.0,
+sparkle:shortVersionString 0.35.0.1, release zip URL and signature present.
+
+codesign --verify --deep --strict --verbose=2 /Applications/CodexBar.app
+spctl --assess --type execute --verbose /Applications/CodexBar.app
+Result: valid on disk, satisfies designated requirement, accepted as
+Notarized Developer ID.
+
+codesign -d --entitlements :- /Applications/CodexBar.app
+Result: com.apple.developer.icloud-container-environment = Production.
+
+/Applications/CodexBar.app/Contents/Info.plist
+Result: CFBundleShortVersionString 0.35.0.1, CFBundleVersion 85.1.1.12.0.
+```
