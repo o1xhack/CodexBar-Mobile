@@ -142,9 +142,19 @@ xcresult: /Users/yuxiao/Library/Developer/Xcode/DerivedData/CodexBarMobile-fywzr
 
 ./Scripts/upload_ios_testflight.sh
 Result: passed. Pre-flight lint passed, archive succeeded, export/upload
-succeeded, and App Store Connect accepted the uploaded package for processing.
+succeeded, and App Store Connect accepted the uploaded package.
 Uploaded build: CodexBarMobile 1.12.0 (153).
 Archive: /tmp/CodexBarMobile-20260614-174608.xcarchive
+
+App Store Connect REST API build lookup
+Result: build 621a688e-0e6f-45f4-ba60-11dec618b214 is VALID.
+preReleaseVersion: 1.12.0
+buildVersion: 153
+uploadedDate: 2026-06-14T17:48:52-07:00
+
+Archive entitlement check
+Result: main app and Push Extension both have
+com.apple.developer.icloud-container-environment = Production.
 ```
 
 Release and lint gates:

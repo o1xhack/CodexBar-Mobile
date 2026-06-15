@@ -144,4 +144,4 @@ before packaging:
   entitlement.
 - Ran `./Scripts/upload_ios_testflight.sh` for iOS `1.12.0 (153)`. Pre-flight
   lint passed, archive succeeded, export/upload succeeded, and App Store
-  Connect accepted the uploaded package for TestFlight processing.
+  Connect processed the uploaded package to `VALID`.

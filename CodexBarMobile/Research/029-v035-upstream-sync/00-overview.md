@@ -141,7 +141,7 @@ Release outcome:
   <https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml>
 - iOS TestFlight upload:
   `CodexBarMobile` `1.12.0 (153)` uploaded successfully; App Store Connect
-  accepted the package for processing from archive
+  processed build `621a688e-0e6f-45f4-ba60-11dec618b214` to `VALID` from archive
   `/tmp/CodexBarMobile-20260614-174608.xcarchive`.
 - `version.env` shipped upstream baseline updated to `UPSTREAM_VERSION=v0.35.0`
   and `UPSTREAM_SYNC_DATE=2026-06-14`.
