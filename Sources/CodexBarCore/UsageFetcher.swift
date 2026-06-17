@@ -135,6 +135,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
     public let deepgramUsage: DeepgramUsageSnapshot?
+    public let poeUsage: PoeUsageHistorySnapshot?
     // iOS 1.8.0 / Mac 0.27.0 — upstream v0.27.0 added the four providers
     // below; rich data is preserved on UsageSnapshot so SyncCoordinator
     // can thread it into the iOS envelope (V027Snapshots.swift). Each
@@ -169,6 +170,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case claudeAdminAPIUsage
         case mistralUsage
         case deepgramUsage
+        case poeUsage
         case grokUsage
         case elevenLabsUsage
         case groqUsage
@@ -200,6 +202,7 @@ public struct UsageSnapshot: Codable, Sendable {
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
         deepgramUsage: DeepgramUsageSnapshot? = nil,
+        poeUsage: PoeUsageHistorySnapshot? = nil,
         grokUsage: GrokUsageSnapshot? = nil,
         elevenLabsUsage: ElevenLabsUsageSnapshot? = nil,
         groqUsage: GroqUsageSnapshot? = nil,
@@ -229,6 +232,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
         self.deepgramUsage = deepgramUsage
+        self.poeUsage = poeUsage
         self.grokUsage = grokUsage
         self.elevenLabsUsage = elevenLabsUsage
         self.groqUsage = groqUsage
@@ -261,6 +265,40 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            poeUsage: self.poeUsage,
+            grokUsage: self.grokUsage,
+            elevenLabsUsage: self.elevenLabsUsage,
+            groqUsage: self.groqUsage,
+            llmProxyUsage: self.llmProxyUsage,
+            cursorRequests: self.cursorRequests,
+            azureOpenAIUsage: self.azureOpenAIUsage,
+            alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            subscriptionExpiresAt: self.subscriptionExpiresAt,
+            subscriptionRenewsAt: self.subscriptionRenewsAt,
+            updatedAt: self.updatedAt,
+            identity: self.identity)
+    }
+
+    public func with(primary: RateWindow?, secondary: RateWindow?) -> UsageSnapshot {
+        UsageSnapshot(
+            primary: primary,
+            secondary: secondary,
+            tertiary: self.tertiary,
+            extraRateWindows: self.extraRateWindows,
+            kiroUsage: self.kiroUsage,
+            ampUsage: self.ampUsage,
+            providerCost: self.providerCost,
+            zaiUsage: self.zaiUsage,
+            minimaxUsage: self.minimaxUsage,
+            deepseekUsage: self.deepseekUsage,
+            mimoUsage: self.mimoUsage,
+            openRouterUsage: self.openRouterUsage,
+            perplexityUsage: self.perplexityUsage,
+            openAIAPIUsage: self.openAIAPIUsage,
+            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
+            mistralUsage: self.mistralUsage,
+            deepgramUsage: self.deepgramUsage,
+            poeUsage: self.poeUsage,
             grokUsage: self.grokUsage,
             elevenLabsUsage: self.elevenLabsUsage,
             groqUsage: self.groqUsage,
@@ -295,6 +333,7 @@ public struct UsageSnapshot: Codable, Sendable {
             forKey: .claudeAdminAPIUsage)
         self.mistralUsage = try container.decodeIfPresent(MistralUsageSnapshot.self, forKey: .mistralUsage)
         self.deepgramUsage = try container.decodeIfPresent(DeepgramUsageSnapshot.self, forKey: .deepgramUsage)
+        self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
         // iOS 1.8.0 / Mac 0.27.0 — v0.27.0 provider snapshots.
         // `GrokUsageSnapshot` is not Codable (carries auth credentials)
         // so it's not persisted — fetched fresh on every refresh cycle,
@@ -344,6 +383,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.claudeAdminAPIUsage, forKey: .claudeAdminAPIUsage)
         try container.encodeIfPresent(self.mistralUsage, forKey: .mistralUsage)
         try container.encodeIfPresent(self.deepgramUsage, forKey: .deepgramUsage)
+        try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
         // grokUsage skipped — not Codable (see init(from:) for rationale).
         try container.encodeIfPresent(self.elevenLabsUsage, forKey: .elevenLabsUsage)
         try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
@@ -455,6 +495,7 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            poeUsage: self.poeUsage,
             grokUsage: self.grokUsage,
             elevenLabsUsage: self.elevenLabsUsage,
             groqUsage: self.groqUsage,
@@ -502,6 +543,7 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            poeUsage: self.poeUsage,
             grokUsage: self.grokUsage,
             elevenLabsUsage: self.elevenLabsUsage,
             groqUsage: self.groqUsage,
@@ -993,12 +1035,14 @@ public struct UsageFetcher: Sendable {
     private let initializeTimeoutSeconds: TimeInterval
     private let requestTimeoutSeconds: TimeInterval
     private let codexExecutableResolver: CodexExecutableResolver
+    private let codexArguments: [String]
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
         self.initializeTimeoutSeconds = 8.0
         self.requestTimeoutSeconds = 3.0
         self.codexExecutableResolver = defaultCodexExecutableResolver
+        self.codexArguments = ["-s", "read-only", "-a", "untrusted", "app-server"]
         LoginShellPathCache.shared.captureOnce()
     }
 
@@ -1006,12 +1050,14 @@ public struct UsageFetcher: Sendable {
         environment: [String: String],
         initializeTimeoutSeconds: TimeInterval,
         requestTimeoutSeconds: TimeInterval,
+        codexArguments: [String] = ["-s", "read-only", "-a", "untrusted", "app-server"],
         codexExecutableResolver: @escaping CodexExecutableResolver = defaultCodexExecutableResolver)
     {
         self.environment = environment
         self.initializeTimeoutSeconds = initializeTimeoutSeconds
         self.requestTimeoutSeconds = requestTimeoutSeconds
         self.codexExecutableResolver = codexExecutableResolver
+        self.codexArguments = codexArguments
         LoginShellPathCache.shared.captureOnce()
     }
 
@@ -1025,6 +1071,7 @@ public struct UsageFetcher: Sendable {
 
     public func loadLatestCLIAccountSnapshot() async throws -> CodexCLIAccountSnapshot {
         let rpc = try CodexRPCClient(
+            arguments: self.codexArguments,
             environment: self.environment,
             initializeTimeoutSeconds: self.initializeTimeoutSeconds,
             requestTimeoutSeconds: self.requestTimeoutSeconds,
@@ -1084,6 +1131,7 @@ public struct UsageFetcher: Sendable {
     public func debugRawRateLimits() async -> String {
         do {
             let rpc = try CodexRPCClient(
+                arguments: self.codexArguments,
                 environment: self.environment,
                 initializeTimeoutSeconds: self.initializeTimeoutSeconds,
                 requestTimeoutSeconds: self.requestTimeoutSeconds,

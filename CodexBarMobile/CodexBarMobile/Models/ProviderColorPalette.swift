@@ -203,6 +203,29 @@ enum ProviderColorPalette {
             // productivity-tool family for the provider grid.
             return Color(red: 0.18, green: 0.68, blue: 0.57)
         }
+        // iOS 1.13.0 — upstream v0.36.0+v0.36.1 new providers.
+        if normalized.contains("litellm") || normalized.contains("lite-llm") {
+            // LiteLLM — proxy/infrastructure blue (#1A61B8). Cooler and
+            // brighter than LLM Proxy's slate-blue so both proxy providers
+            // stay distinguishable in provider grids and cost charts.
+            return Color(red: 0.10, green: 0.38, blue: 0.72)
+        }
+        if normalized.contains("poe") {
+            // Poe — saturated violet (#6D47DB). Distinct from Perplexity's
+            // teal and from the generic Codex/Cursor purple.
+            return Color(red: 0.43, green: 0.28, blue: 0.86)
+        }
+        if normalized.contains("chutes") {
+            // Chutes — green-teal (#059E73). Distinct from Devin's
+            // blue-green and OpenAI's generic green rule.
+            return Color(red: 0.02, green: 0.62, blue: 0.45)
+        }
+        if normalized.contains("zed") {
+            // Zed — graphite (#333A47). Neutral editor tone, checked
+            // after z.ai so the short `zed` ID does not interfere with
+            // the existing z.ai palette entry.
+            return Color(red: 0.20, green: 0.23, blue: 0.28)
+        }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {

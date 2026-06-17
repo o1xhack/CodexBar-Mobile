@@ -31,7 +31,7 @@ extension StatusItemController {
             scope: scope,
             width: Int((width * 100).rounded()),
             textScale: Self.menuCardHeightTextScaleToken(),
-            fingerprint: fingerprint ?? "version:\(self.menuContentVersion)")
+            fingerprint: fingerprint ?? "version:\(self.menuSession.contentVersion)")
         if let cached = self.menuCardHeightCache[key] {
             return cached
         }
@@ -44,7 +44,7 @@ extension StatusItemController {
     }
 
     func pruneVersionScopedMenuCardHeightCache() {
-        let currentVersionFingerprint = "version:\(self.menuContentVersion)"
+        let currentVersionFingerprint = "version:\(self.menuSession.contentVersion)"
         for key in self.menuCardHeightCache.keys
             where key.fingerprint.hasPrefix("version:") && key.fingerprint != currentVersionFingerprint
         {

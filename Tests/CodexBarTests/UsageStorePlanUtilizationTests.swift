@@ -842,6 +842,107 @@ struct UsageStorePlanUtilizationTests {
 
     @MainActor
     @Test
+    func `antigravity weekly celebration samples stable named bucket maximum`() async {
+        let store = Self.makeStore()
+        let recorder = WeeklyLimitResetEventRecorder(provider: .antigravity, accountLabel: nil)
+        defer { recorder.invalidate() }
+
+        func snapshot(
+            primary: RateWindow,
+            secondary: RateWindow,
+            geminiWeeklyUsed: Double,
+            thirdPartyWeeklyUsed: Double,
+            updatedAt: Date) -> UsageSnapshot
+        {
+            UsageSnapshot(
+                primary: primary,
+                secondary: secondary,
+                tertiary: nil,
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "antigravity-quota-summary-gemini-weekly",
+                        title: "Gemini Weekly",
+                        window: RateWindow(
+                            usedPercent: geminiWeeklyUsed,
+                            windowMinutes: 10080,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: "antigravity-quota-summary-3p-weekly",
+                        title: "Claude + GPT Weekly",
+                        window: RateWindow(
+                            usedPercent: thirdPartyWeeklyUsed,
+                            windowMinutes: 10080,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                ],
+                updatedAt: updatedAt)
+        }
+
+        let firstDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let before = snapshot(
+            primary: RateWindow(
+                usedPercent: 80,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 20,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            geminiWeeklyUsed: 80,
+            thirdPartyWeeklyUsed: 0,
+            updatedAt: firstDate)
+        let representativeChanged = snapshot(
+            primary: RateWindow(
+                usedPercent: 20,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 0,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            geminiWeeklyUsed: 0,
+            thirdPartyWeeklyUsed: 80,
+            updatedAt: firstDate.addingTimeInterval(3600))
+        let reset = snapshot(
+            primary: RateWindow(
+                usedPercent: 20,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 0,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            geminiWeeklyUsed: 0,
+            thirdPartyWeeklyUsed: 0,
+            updatedAt: firstDate.addingTimeInterval(7200))
+
+        await store.recordPlanUtilizationHistorySample(
+            provider: .antigravity,
+            snapshot: before,
+            now: before.updatedAt)
+        await store.recordPlanUtilizationHistorySample(
+            provider: .antigravity,
+            snapshot: representativeChanged,
+            now: representativeChanged.updatedAt)
+        #expect(recorder.events.isEmpty)
+
+        await store.recordPlanUtilizationHistorySample(
+            provider: .antigravity,
+            snapshot: reset,
+            now: reset.updatedAt)
+        #expect(recorder.events.count == 1)
+        #expect(recorder.events.first?.usedPercent == 0)
+    }
+
+    @MainActor
+    @Test
     func `weekly quota celebration fires once across repeated low samples`() async {
         let store = Self.makeStore()
         let accountLabel = "repeated-low@example.com"

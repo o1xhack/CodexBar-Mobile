@@ -19,7 +19,7 @@ struct MainThreadHangWatchdogTests {
     }
 
     @Test
-    func `watchdog reports an unsynchronized main thread stall`() async throws {
+    func `watchdog reports a breadcrumb for a delayed main thread response`() throws {
         let watchdog = MainThreadHangWatchdog(
             pingInterval: 0.01,
             hangThreshold: 0.05,
@@ -31,29 +31,44 @@ struct MainThreadHangWatchdogTests {
             reported.append((duration, activities))
         }
 
+        MainThreadActivityBreadcrumb.push("testStall")
+        watchdog.traceHangForTesting(responseDelay: 0.25)
+        MainThreadActivityBreadcrumb.pop()
+
+        let report = try #require(reported.get().first)
+        #expect(report.1.contains("testStall"))
+        #expect(report.0 >= 0.05)
+    }
+
+    @Test
+    func `watchdog polling loop reports a delayed ping response`() {
+        let pingScheduled = DispatchSemaphore(value: 0)
+        let hangDetected = DispatchSemaphore(value: 0)
+        let reported = DispatchSemaphore(value: 0)
+        let pendingResponse = OSAllocatedBox<(@Sendable () -> Void)?>(nil)
+        let watchdog = MainThreadHangWatchdog(
+            pingInterval: 1,
+            hangThreshold: 0.02,
+            sampleThreshold: 60,
+            sampleCooldown: 3600,
+            schedulePing: { response in
+                pendingResponse.set(response)
+                pingScheduled.signal()
+            })
+        watchdog.onHangForTesting = { _, _ in
+            reported.signal()
+        }
+        watchdog.onHangDetectionForTesting = {
+            hangDetected.signal()
+        }
+
         watchdog.start()
         defer { watchdog.stop() }
 
-        try await Task.sleep(for: .milliseconds(75))
-        await MainActor.run {
-            MainThreadActivityBreadcrumb.push("testStall")
-            Thread.sleep(forTimeInterval: 0.25)
-            MainThreadActivityBreadcrumb.pop()
-        }
-
-        // Concurrent test suites stall the main thread too: a single hang report can span
-        // several of them and is only delivered once the whole stall ends, so poll for our
-        // synthetic stall instead of sleeping a fixed interval.
-        var stallReport: (TimeInterval, [String])?
-        for _ in 0..<200 {
-            if let report = reported.get().first(where: { $0.1.contains("testStall") }) {
-                stallReport = report
-                break
-            }
-            try await Task.sleep(for: .milliseconds(50))
-        }
-        let report = try #require(stallReport)
-        #expect(report.0 >= 0.05)
+        #expect(pingScheduled.wait(timeout: .now() + 10) == .success)
+        #expect(hangDetected.wait(timeout: .now() + 10) == .success)
+        pendingResponse.get()?()
+        #expect(reported.wait(timeout: .now() + 10) == .success)
     }
 
     @Test

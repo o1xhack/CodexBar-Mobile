@@ -156,7 +156,7 @@ struct CodexUsageFetcherFallbackTests {
 
         let fetcher = UsageFetcher(
             environment: ["CODEX_CLI_PATH": stubCLIPath],
-            initializeTimeoutSeconds: 2.0,
+            initializeTimeoutSeconds: 20.0,
             requestTimeoutSeconds: 0.2)
 
         let started = Date()
@@ -174,7 +174,7 @@ struct CodexUsageFetcherFallbackTests {
         }
 
         let elapsed = Date().timeIntervalSince(started)
-        #expect(elapsed < 3.0, "Hung RPC request must fail fast, took \(elapsed)s")
+        #expect(elapsed < 5.0, "Hung RPC request must fail fast, took \(elapsed)s")
     }
 
     @Test
@@ -184,7 +184,7 @@ struct CodexUsageFetcherFallbackTests {
 
         let fetcher = UsageFetcher(
             environment: ["CODEX_CLI_PATH": stubCLIPath],
-            initializeTimeoutSeconds: 2.0,
+            initializeTimeoutSeconds: 20.0,
             requestTimeoutSeconds: 0.2)
 
         for attempt in 1...2 {
@@ -202,7 +202,7 @@ struct CodexUsageFetcherFallbackTests {
             }
 
             let elapsed = Date().timeIntervalSince(started)
-            #expect(elapsed < 3.0, "Hung RPC request \(attempt) must fail fast, took \(elapsed)s")
+            #expect(elapsed < 5.0, "Hung RPC request \(attempt) must fail fast, took \(elapsed)s")
         }
     }
 

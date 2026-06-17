@@ -54,15 +54,37 @@ extension UsageStore {
         if provider == .cursor || provider == .antigravity,
            effectivePreference == .automatic
         {
+            if provider == .antigravity,
+               let percents = Self.antigravityQuotaSummaryUsedPercents(snapshot: snapshot),
+               !percents.isEmpty
+            {
+                return percents.allSatisfy { $0 >= 100 }
+            }
             let percents = [
                 snapshot.primary?.usedPercent,
                 snapshot.secondary?.usedPercent,
                 snapshot.tertiary?.usedPercent,
-            ].compactMap(\.self)
+            ].compactMap(\.self) + (provider == .antigravity
+                ? Self.antigravityLegacyExtraUsedPercents(snapshot: snapshot)
+                : [])
             guard !percents.isEmpty else { return true }
             return percents.allSatisfy { $0 >= 100 }
         }
 
         return true
+    }
+
+    private nonisolated static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
+
+    private nonisolated static func antigravityQuotaSummaryUsedPercents(snapshot: UsageSnapshot) -> [Double]? {
+        snapshot.extraRateWindows?
+            .filter { $0.usageKnown && $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix) }
+            .map(\.window.usedPercent)
+    }
+
+    private nonisolated static func antigravityLegacyExtraUsedPercents(snapshot: UsageSnapshot) -> [Double] {
+        snapshot.extraRateWindows?
+            .filter { $0.usageKnown && !$0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix) }
+            .map(\.window.usedPercent) ?? []
     }
 }

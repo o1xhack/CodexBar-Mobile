@@ -80,7 +80,7 @@ struct TTYCommandRunnerEnvTests {
         #expect(TTYCommandRunner._test_beginTrackedProcessLaunch())
         let fenceSet = DispatchSemaphore(value: 0)
         let completed = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        Thread.detachNewThread {
             _ = TTYCommandRunner._test_drainTrackedProcessesForShutdown {
                 fenceSet.signal()
             }

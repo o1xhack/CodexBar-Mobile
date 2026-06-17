@@ -61,7 +61,9 @@ Linux support via Omarchy: community Waybar module and TUI, driven by the `codex
 - Optional: Settings → Providers → Codex → OpenAI cookies (Automatic or Manual) to add dashboard extras.
 
 ### Set API keys from the CLI
-Provider toggles and API keys live in `~/.codexbar/config.json`. You can script the same provider list that Settings → Providers uses:
+Provider toggles and API keys live in the resolved CodexBar config file. New installs use
+`~/.config/codexbar/config.json`; existing `~/.codexbar/config.json` installs still load from the legacy path. You can
+script the same provider list that Settings → Providers uses:
 
 ```bash
 codexbar config providers
@@ -109,6 +111,7 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
 - [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
 - [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
+- [Zed](docs/zed.md) — Zed editor Keychain session for plan, edit-prediction quota, billing cycle, and overdue invoices.
 - Perplexity — Account usage credits from Perplexity usage data.
 - [Xiaomi MiMo](docs/mimo.md) — Browser cookies for balance and token-plan usage.
 - [Doubao](docs/doubao.md) — API key for Volcengine Ark request-limit probes.
@@ -125,7 +128,10 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
 - [GroqCloud](docs/groqcloud.md) — API key for Enterprise Prometheus request/token/cache-hit metrics.
 - [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
+- [LiteLLM](docs/litellm.md) — Virtual key + proxy URL for personal and team budget/spend tracking.
 - [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
+- [Poe](docs/poe.md) — API key for current point balance and recent points history.
+- [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
@@ -138,17 +144,19 @@ The menu bar icon is a tiny two-bar meter:
 - Multi-provider menu bar with per-provider toggles (Settings → Providers).
 - Session + weekly meters with reset countdowns.
 - Optional Codex web dashboard enrichments (code review remaining, usage breakdown, credits history).
-- Inline spend and usage charts for API-backed providers such as OpenAI, Claude Admin API, OpenRouter, z.ai, MiniMax, Mistral, and AWS Bedrock.
+- Inline spend and usage charts for API-backed providers such as OpenAI, Claude Admin API, OpenRouter, LiteLLM, z.ai, MiniMax, Mistral, and AWS Bedrock.
 - Configurable cost-usage scans for Codex + Claude, plus reused chart UI for supported provider histories.
 - Provider status polling with incident badges in the menu and icon overlay.
 - Merge Icons mode to combine providers into one status item + switcher, with an optional Overview tab for up to three providers.
 - Refresh cadence presets (manual, 1m, 2m, 5m, 15m).
-- Bundled CLI (`codexbar`) for scripts and CI (including `codexbar cost --provider codex|claude` for local cost usage); Linux CLI builds available.
-- WidgetKit widget mirrors the menu card snapshot.
+- Bundled CLI (`codexbar`) for scripts and CI (including `codexbar cost --provider codex`, `claude`, or `both` for local cost usage); macOS and Linux CLI builds available.
+- WidgetKit widgets for supported providers.
+- Localized Mac app and website with a shared 21-language catalog, automatic website detection, persistent pickers, and RTL support.
+- Optional session quota notifications and weekly-reset confetti.
 - Privacy-first: on-device parsing by default; browser cookies are opt-in and reused (no passwords stored).
 
 ## Privacy note
-Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it reads a small set of known locations (browser cookies/local storage, local JSONL logs) when the related features are enabled. See the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
+Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it reads a small set of known locations (browser cookies/local storage, provider config files, local JSONL logs) when the related features are enabled. Provider tokens and token-account settings live in the CodexBar config file with restrictive file permissions. See the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
 
 ## macOS permissions (why they’re needed)
 - **Full Disk Access (optional)**: only required to read Safari cookies/local storage for web-based providers (Codex web, Claude web, Cursor, Droid/Factory). If you don’t grant it, use Chrome/Firefox cookies or CLI-only sources instead.
@@ -201,6 +209,15 @@ open CodexBar.app
 Dev loop:
 ```bash
 ./Scripts/compile_and_run.sh
+./Scripts/compile_and_run.sh --test  # also run the sharded test suite before packaging/relaunching
+make check                           # SwiftFormat + SwiftLint
+make docs-list                       # list docs with frontmatter summaries
+```
+
+CLI install:
+```bash
+# after installing CodexBar.app in /Applications
+./bin/install-codexbar-cli.sh
 ```
 
 ## Related

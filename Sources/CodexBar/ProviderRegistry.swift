@@ -130,25 +130,11 @@ struct ProviderRegistry {
             provider: provider,
             settings: settings,
             override: tokenOverride)
-        var env = ProviderConfigEnvironment.applyProviderConfigOverrides(
+        var env = ProviderEnvironmentResolver.resolve(
             base: base,
             provider: provider,
-            config: settings.providerConfig(for: provider))
-        // If token account is selected, use its token instead of config's apiKey
-        if let account {
-            TokenAccountSupportCatalog.scrubEnvironmentForSelectedAccount(
-                &env,
-                provider: provider,
-                token: account.token)
-            if let override = TokenAccountSupportCatalog.envOverride(
-                for: provider,
-                token: account.token)
-            {
-                for (key, value) in override {
-                    env[key] = value
-                }
-            }
-        }
+            config: settings.providerConfig(for: provider),
+            selectedAccount: account)
         // Codex account routing scopes remote account fetches such as identity, plan,
         // quotas, and dashboard data. Token-cost/session history is intentionally handled
         // separately because it is provider-level local telemetry from this Mac's Codex sessions,

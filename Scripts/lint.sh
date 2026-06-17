@@ -191,6 +191,16 @@ check_sparkle_signing_paths() {
   "${ROOT_DIR}/Scripts/test_sparkle_signing_paths.sh"
 }
 
+check_swift_test_sharding() {
+  "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
+}
+
+check_site_locales() {
+  node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
+  node "${ROOT_DIR}/Scripts/check-site-locales.mjs"
+  node --check "${ROOT_DIR}/docs/site.js"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -198,6 +208,8 @@ case "$cmd" in
     check_package_product_paths
     check_release_dsym_paths
     check_sparkle_signing_paths
+    check_swift_test_sharding
+    check_site_locales
     ensure_tools
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict

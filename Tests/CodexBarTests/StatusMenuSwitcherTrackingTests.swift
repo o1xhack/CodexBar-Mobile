@@ -58,11 +58,14 @@ struct StatusMenuSwitcherTrackingTests {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: .system)
+            statusBar: .system,
+            menuRefreshEnabled: false)
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
+        controller.menuRefreshEnabledOverrideForTesting = true
+        controller.openMenus[ObjectIdentifier(menu)] = menu
         let switcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
         let mouseDown = try #require(switcher._test_mouseDownEvent(buttonTag: 2))
         let mouseUp = try #require(switcher._test_mouseUpEvent(buttonTag: 2))
@@ -129,11 +132,14 @@ struct StatusMenuSwitcherTrackingTests {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: .system)
+            statusBar: .system,
+            menuRefreshEnabled: false)
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
+        controller.menuRefreshEnabledOverrideForTesting = true
+        controller.openMenus[ObjectIdentifier(menu)] = menu
         let switcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
         let mouseDown = try #require(switcher._test_mouseDownEvent(buttonTag: 2))
         let mouseUpElsewhere = try #require(switcher._test_mouseUpEvent(buttonTag: 1))

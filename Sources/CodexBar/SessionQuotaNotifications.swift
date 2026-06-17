@@ -135,6 +135,15 @@ extension UsageStore {
         snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
     {
         guard provider != .mimo else { return nil }
+        if provider == .antigravity {
+            guard let window = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60) else {
+                return nil
+            }
+            let source: SessionQuotaWindowSource = Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
+                ? .antigravityQuotaSummary
+                : .antigravityLegacy
+            return (window, source)
+        }
         if let primary = snapshot.primary, Self.isSessionWindow(primary) {
             return (primary, .primary)
         }
@@ -147,6 +156,38 @@ extension UsageStore {
     private static func isSessionWindow(_ window: RateWindow) -> Bool {
         guard let minutes = window.windowMinutes else { return true }
         return minutes <= 6 * 60
+    }
+
+    private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
+
+    static func hasAntigravityQuotaSummaryWindows(snapshot: UsageSnapshot) -> Bool {
+        snapshot.extraRateWindows?.contains {
+            $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+        } == true
+    }
+
+    static func antigravityWindow(
+        snapshot: UsageSnapshot,
+        windowMinutes: Int) -> RateWindow?
+    {
+        let windows: [RateWindow] = if Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot) {
+            snapshot.extraRateWindows?
+                .filter {
+                    $0.usageKnown
+                        && $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+                        && $0.window.windowMinutes == windowMinutes
+                }
+                .map(\.window) ?? []
+        } else {
+            [snapshot.primary, snapshot.secondary, snapshot.tertiary]
+                .compactMap(\.self)
+                .filter {
+                    // Legacy Antigravity family lanes historically drive session notifications.
+                    $0.windowMinutes == windowMinutes
+                        || (windowMinutes == 5 * 60 && $0.windowMinutes == nil)
+                }
+        }
+        return windows.max { $0.usedPercent < $1.usedPercent }
     }
 }
 

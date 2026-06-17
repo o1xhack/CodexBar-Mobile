@@ -227,6 +227,8 @@ enum MockProviderInjector {
         "azureopenai", "alibabatokenplan", "t3chat",
         // iOS 1.12.0 catch-up (upstream v0.34.0 new provider).
         "devin",
+        // iOS 1.13.0 catch-up (upstream v0.36.0+v0.36.1 new providers).
+        "litellm", "poe", "chutes", "zed",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -826,7 +828,7 @@ enum MockProviderInjector {
         }
     }
 
-    /// Profile table for the 35 simple mocks. Each profile yields one
+    /// Profile table for the simple mocks. Each profile yields one
     /// `ProviderUsageSnapshot`. iOS 1.9.0: each cost-bearing profile now
     /// synthesizes a ~55-day daily history (`makeSimpleProviderMock`) so it
     /// populates the CWL ledger, and a few headline providers (cursor /
@@ -1305,6 +1307,63 @@ enum MockProviderInjector {
                 resetsInSeconds: 5 * 86400,
                 resetDescription: "Weekly · 22% used"),
             thirtyDayCostUSD: 12.00, sessionCostUSD: 0.35),
+        // iOS 1.13.0 — upstream v0.36.0+v0.36.1 new providers. These
+        // all use the generic shared snapshot path: primary/secondary
+        // windows and optional cost summary. That is enough to exercise
+        // iOS provider grouping, colors, quota subscriptions, and cost
+        // dashboard inclusion without adding a new typed wire schema.
+        .init(
+            providerID: "litellm", providerName: "LiteLLM",
+            accountLocal: "proxy", loginMethod: "Virtual key",
+            primaryUsage: 63, primaryLabel: "Team budget",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 10 * 86400,
+            primaryResetDescription: "Monthly · 63% used",
+            secondary: .init(
+                label: "Personal", usedPercent: 34,
+                windowMinutes: 43200,
+                resetsInSeconds: 10 * 86400,
+                resetDescription: "Personal · 34% used"),
+            thirtyDayCostUSD: 14.20, sessionCostUSD: 0.62),
+        .init(
+            providerID: "poe", providerName: "Poe",
+            accountLocal: "points", loginMethod: "API key",
+            primaryUsage: 28, primaryLabel: "Daily points",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 11 * 3600,
+            primaryResetDescription: "Daily · 28% used",
+            secondary: .init(
+                label: "Monthly points", usedPercent: 44,
+                windowMinutes: 43200,
+                resetsInSeconds: 12 * 86400,
+                resetDescription: "Monthly · 44% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "chutes", providerName: "Chutes",
+            accountLocal: "api", loginMethod: "API key",
+            primaryUsage: 52, primaryLabel: "Subscription",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 16 * 86400,
+            primaryResetDescription: "Monthly · 52% used",
+            secondary: .init(
+                label: "PAYG", usedPercent: 18,
+                windowMinutes: 43200,
+                resetsInSeconds: 16 * 86400,
+                resetDescription: "PAYG · 18% used"),
+            thirtyDayCostUSD: 6.40, sessionCostUSD: 0.21),
+        .init(
+            providerID: "zed", providerName: "Zed",
+            accountLocal: "pro", loginMethod: "Editor session",
+            primaryUsage: 36, primaryLabel: "Monthly edits",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 13 * 86400,
+            primaryResetDescription: "Monthly · 36% used",
+            secondary: .init(
+                label: "Plan", usedPercent: 58,
+                windowMinutes: 43200,
+                resetsInSeconds: 13 * 86400,
+                resetDescription: "Zed Pro · 58% used"),
+            thirtyDayCostUSD: 9.60, sessionCostUSD: 0.33),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal

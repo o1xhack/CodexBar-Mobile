@@ -10,6 +10,14 @@ import signal
 import subprocess
 import sys
 from collections.abc import Iterable
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class TestSelection:
+    name: str
+    filter_pattern: str
+    suite_name: str | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,6 +26,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--limit-groups", type=int)
     parser.add_argument("--list-only", action="store_true")
+    parser.add_argument("--swift-command", default="swift")
+    parser.add_argument("--swift-command-arg", action="append", default=[])
     return parser.parse_args()
 
 
@@ -37,51 +47,79 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
         return 124
 
 
-def swift_test_list() -> list[str]:
-    result = subprocess.run(["swift", "test", "list"], check=True, capture_output=True, text=True)
-    suites: set[str] = set()
+def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
+    result = subprocess.run([*swift_command, "test", "list"], check=True, capture_output=True, text=True)
+    selections: set[TestSelection] = set()
+    unknown: list[str] = []
     for line in result.stdout.splitlines():
-        if "/" not in line:
+        top_level = re.fullmatch(r"(?P<module>[^.]+)\.(?:`(?P<display>.+)`|(?P<function>[^()/]+))\(\)", line)
+        if top_level is not None:
+            module = top_level.group("module")
+            test_name = top_level.group("display") or top_level.group("function")
+            selections.add(
+                TestSelection(
+                    name=line,
+                    # SwiftPM matches top-level Swift Testing functions by their display name,
+                    # not the backtick-wrapped identifier printed by `swift test list`.
+                    filter_pattern=rf"{re.escape(module)}\..*{re.escape(test_name)}",
+                )
+            )
             continue
-        suite = line.split("/", 1)[0]
-        if "." not in suite:
-            continue
-        suites.add(suite)
-    return sorted(suites)
+
+        if "/" in line:
+            suite = line.split("/", 1)[0]
+            if "." in suite:
+                selections.add(
+                    TestSelection(
+                        name=suite,
+                        filter_pattern=rf"^{re.escape(suite)}/",
+                        suite_name=suite,
+                    )
+                )
+                continue
+
+        unknown.append(line)
+
+    if unknown:
+        rendered = "\n".join(f"- {line}" for line in unknown)
+        raise RuntimeError(f"Unrecognized `swift test list` output:\n{rendered}")
+    return sorted(selections, key=lambda selection: selection.name)
 
 
-def chunks(items: list[str], size: int) -> Iterable[list[str]]:
+def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection]]:
     for index in range(0, len(items), size):
         yield items[index : index + size]
 
 
-def prioritized_suites(suites: list[str]) -> list[str]:
+def prioritized_suites(suites: list[TestSelection]) -> list[TestSelection]:
     priority = ["CodexBarTests.CLIEntryTests"]
-    ordered = [suite for suite in priority if suite in suites]
-    ordered.extend(suite for suite in suites if suite not in priority)
+    ordered = [suite for name in priority for suite in suites if suite.suite_name == name]
+    ordered.extend(suite for suite in suites if suite.suite_name not in priority)
     return ordered
 
 
-def filtered_suites_for_environment(suites: list[str]) -> list[str]:
+def filtered_suites_for_environment(suites: list[TestSelection]) -> list[TestSelection]:
     if os.environ.get("GITHUB_ACTIONS") != "true" or sys.platform != "darwin":
         return suites
 
     # SwiftPM hangs before suite output for this executable-target suite on the Intel macOS runner.
     # Linux CI still runs it in the full Swift test lane, and local macOS runs it directly.
     skipped = {"CodexBarTests.CLIEntryTests"}
-    filtered = [suite for suite in suites if suite not in skipped]
+    filtered = [suite for suite in suites if suite.suite_name not in skipped]
     if len(filtered) != len(suites):
         print(f"Skipping macOS CI-only suites: {', '.join(sorted(skipped))}", flush=True)
     return filtered
 
 
-def filter_for(suites: list[str]) -> str:
-    escaped = [re.escape(suite) for suite in suites]
-    return rf"^({'|'.join(escaped)})/"
+def filter_for(suites: list[TestSelection]) -> str:
+    return rf"({'|'.join(suite.filter_pattern for suite in suites)})"
 
 
-def run_group(suites: list[str], timeout: int) -> int:
-    return run_command(["swift", "test", "--no-parallel", "--filter", filter_for(suites)], timeout=timeout)
+def run_group(suites: list[TestSelection], timeout: int, swift_command: list[str]) -> int:
+    return run_command(
+        [*swift_command, "test", "--no-parallel", "--filter", filter_for(suites)],
+        timeout=timeout,
+    )
 
 
 def main() -> int:
@@ -90,11 +128,12 @@ def main() -> int:
         print("--group-size must be positive", file=sys.stderr)
         return 2
 
-    suites = prioritized_suites(filtered_suites_for_environment(swift_test_list()))
-    print(f"Discovered {len(suites)} test suites", flush=True)
+    swift_command = [args.swift_command, *args.swift_command_arg]
+    suites = prioritized_suites(filtered_suites_for_environment(swift_test_list(swift_command)))
+    print(f"Discovered {len(suites)} test selections", flush=True)
     if args.list_only:
         for suite in suites:
-            print(suite)
+            print(suite.name)
         return 0
 
     suite_groups = list(chunks(suites, args.group_size))
@@ -104,20 +143,27 @@ def main() -> int:
     for group_index, group in enumerate(suite_groups, start=1):
         print(
             f"::group::Swift test shard {group_index}/{len(suite_groups)} "
-            f"({len(group)} suites)",
+            f"({len(group)} selections)",
             flush=True,
         )
-        result = run_group(group, args.timeout)
+        result = run_group(group, args.timeout, swift_command)
         print("::endgroup::", flush=True)
         if result == 0:
             continue
-        if result != 124 or len(group) == 1:
+        if len(group) == 1:
             return result
+
+        if result != 124:
+            print(f"Shard {group_index} failed with exit code {result}; retrying shard once", flush=True)
+            retry_result = run_group(group, args.timeout, swift_command)
+            if retry_result == 0:
+                continue
+            return retry_result
 
         print(f"Shard {group_index} timed out; retrying suites one at a time", flush=True)
         for suite in group:
-            print(f"::group::Swift test retry {suite}", flush=True)
-            retry_result = run_group([suite], args.timeout)
+            print(f"::group::Swift test retry {suite.name}", flush=True)
+            retry_result = run_group([suite], args.timeout, swift_command)
             print("::endgroup::", flush=True)
             if retry_result != 0:
                 return retry_result

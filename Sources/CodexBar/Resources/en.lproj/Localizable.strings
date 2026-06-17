@@ -661,8 +661,8 @@
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
 "mobile_section_mock_data" = "Debug · Mock Provider Data";
 "mobile_toggle_mock_title" = "Inject mock provider data";
-"mobile_toggle_mock_subtitle" = "Pushes 60 synthetic providers across 50 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 52 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy and 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
-"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (35 simple mocks omitted for brevity):";
+"mobile_toggle_mock_subtitle" = "Pushes 65 synthetic providers across 55 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 57 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy, 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 4 v0.36 single-account providers for litellm/poe/chutes/zed, and 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
+"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (57 additional mocks omitted for brevity):";
 "mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
@@ -1105,3 +1105,11 @@
 "Renews: %@" = "Renews: %@";
 "Plan expires: %@" = "Plan expires: %@";
 "∞ Unlimited" = "∞ Unlimited";
+
+/* Upstream v0.36 locale catch-up fallbacks */
+"language_indonesian" = "Bahasa Indonesia";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

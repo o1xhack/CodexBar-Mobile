@@ -107,46 +107,39 @@ public enum SubprocessRunner {
         }
     }
 
-    // MARK: - Helpers to move blocking calls off the cooperative thread pool
-
-    /// Reads pipe data on a GCD thread so it does not block the Swift cooperative pool.
-    private static func readDataOffPool(_ fileHandle: FileHandle) async -> Data {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global().async {
-                var output = Data()
-                while true {
-                    do {
-                        guard let data = try fileHandle.read(upToCount: 64 * 1024), data.isEmpty == false else {
-                            break
-                        }
-                        output.append(data)
-                    } catch {
-                        break
-                    }
-                }
-                continuation.resume(returning: output)
-            }
-        }
-    }
-
     /// Terminates a process and its process group, escalating from SIGTERM to SIGKILL.
     /// Returns `true` if the process was actually killed, `false` if it had already exited.
     @discardableResult
-    private static func terminateProcess(_ process: Process, processGroup: pid_t?) -> Bool {
+    package static func terminateProcess(_ process: Process, processGroup: pid_t?) -> Bool {
         guard process.isRunning else { return false }
-        process.terminate()
-        if let pgid = processGroup {
-            kill(-pgid, SIGTERM)
-        }
+        let descendants = TTYProcessTreeTerminator.descendantPIDs(of: process.processIdentifier)
+        let descendantIdentities = descendants.compactMap(TTYProcessTreeTerminator.processIdentity(for:))
+        TTYProcessTreeTerminator.terminateProcessTree(
+            rootPID: process.processIdentifier,
+            processGroup: processGroup,
+            signal: SIGTERM,
+            knownDescendants: descendants)
         let killDeadline = Date().addingTimeInterval(0.4)
         while process.isRunning, Date() < killDeadline {
             usleep(50000)
         }
         if process.isRunning {
-            if let pgid = processGroup {
-                kill(-pgid, SIGKILL)
+            let currentDescendants = descendantIdentities
+                .filter(TTYProcessTreeTerminator.isCurrent(_:))
+                .map(\.pid)
+            TTYProcessTreeTerminator.terminateProcessTree(
+                rootPID: process.processIdentifier,
+                processGroup: processGroup,
+                signal: SIGKILL,
+                knownDescendants: currentDescendants)
+            let reapDeadline = Date().addingTimeInterval(0.4)
+            while process.isRunning, Date() < reapDeadline {
+                usleep(50000)
             }
-            kill(process.processIdentifier, SIGKILL)
+        } else {
+            for identity in descendantIdentities where TTYProcessTreeTerminator.isCurrent(identity) {
+                kill(identity.pid, SIGKILL)
+            }
         }
         return true
     }
@@ -183,6 +176,8 @@ public enum SubprocessRunner {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
         process.standardInput = standardInput
+        let stdoutCapture = ProcessPipeCapture(pipe: stdoutPipe)
+        let stderrCapture = ProcessPipeCapture(pipe: stderrPipe)
 
         let termination = ProcessTermination()
         process.terminationHandler = { process in
@@ -193,22 +188,17 @@ public enum SubprocessRunner {
             try process.run()
         } catch {
             process.terminationHandler = nil
-            stdoutPipe.fileHandleForReading.closeFile()
+            stdoutCapture.stop()
             stdoutPipe.fileHandleForWriting.closeFile()
-            stderrPipe.fileHandleForReading.closeFile()
+            stderrCapture.stop()
             stderrPipe.fileHandleForWriting.closeFile()
             throw SubprocessRunnerError.launchFailed(error.localizedDescription)
         }
+        stdoutCapture.start()
+        stderrCapture.start()
 
         let pid = process.processIdentifier
         let processGroup: pid_t? = setpgid(pid, pid) == 0 ? pid : nil
-
-        let stdoutTask = Task<Data, Never> {
-            await self.readDataOffPool(stdoutPipe.fileHandleForReading)
-        }
-        let stderrTask = Task<Data, Never> {
-            await self.readDataOffPool(stderrPipe.fileHandleForReading)
-        }
 
         let exitCodeTask = Task<Int32, Never> {
             await termination.wait()
@@ -249,15 +239,13 @@ public enum SubprocessRunner {
                         "binary": binaryName,
                         "duration_ms": "\(Int(duration * 1000))",
                     ])
-                stdoutTask.cancel()
-                stderrTask.cancel()
                 throw SubprocessRunnerError.timedOut(label)
             }
 
-            let stdoutData = await stdoutTask.value
-            let stderrData = await stderrTask.value
-            let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
-            let stderr = String(data: stderrData, encoding: .utf8) ?? ""
+            async let stdoutData = stdoutCapture.finish(timeout: .seconds(1))
+            async let stderrData = stderrCapture.finish(timeout: .seconds(1))
+            let stdout = await String(data: stdoutData, encoding: .utf8) ?? ""
+            let stderr = await String(data: stderrData, encoding: .utf8) ?? ""
 
             if exitCode != 0 {
                 let duration = Date().timeIntervalSince(start)
@@ -293,8 +281,8 @@ public enum SubprocessRunner {
             // Safety net: ensure the process is dead (may already be killed by timeout timer).
             self.terminateProcess(process, processGroup: processGroup)
             exitCodeTask.cancel()
-            stdoutTask.cancel()
-            stderrTask.cancel()
+            stdoutCapture.stop()
+            stderrCapture.stop()
             throw error
         }
     }

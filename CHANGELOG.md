@@ -1,5 +1,82 @@
 # Changelog
 
+## 0.36.1.1 (Mobile 1.13.0 · build 88.1) — 2026-06-16 — upstream v0.36.1 sync
+
+Syncs the Mac app to upstream CodexBar **v0.36.1** (spanning v0.36.0–v0.36.1)
+and pairs it with iOS **1.13.0**. This is one combined upstream-sync release
+for issue #28; it intentionally does not split LiteLLM, Poe, Chutes, Zed, and
+the Antigravity/provider reliability fixes into separate user-visible versions.
+
+### Added / Improved
+
+- **New upstream providers** — LiteLLM personal/team budget tracking, Poe point
+  balance and recent history, Chutes subscription/quota/pay-as-you-go tracking,
+  and Zed editor-session plan/quota/billing-cycle tracking.
+- **iOS provider readiness** — the mobile companion is prepared to recognize and
+  render the new provider data that arrives through the existing Mac → CloudKit
+  sync payload. Provider credentials and live API/Keychain access remain Mac-only.
+- **iOS 1.13.0 direct train** — the companion release folds in the unreleased
+  1.12.0 sync work as well, including MiniMax renewal/expiration metadata,
+  Devin quotas, Copilot budget windows, MiMo balance/token-plan updates, Kimi
+  Code API usage, and rolling-upgrade preservation of rich provider details.
+- **Antigravity accuracy** — quota summaries now prefer current local app/CLI
+  sources, group Gemini and Claude + GPT session/weekly windows, and preserve
+  structured reset timestamps for localized display.
+- **Menu bar reliability** — upstream fixes stale open-menu values, provider
+  switcher background, hosted submenu refresh timing, subprocess pipe hangs, Kiro
+  helper cleanup, Gemini package discovery, and bounded optional provider work.
+- **Configuration and localization** — Mac config resolution now honors absolute
+  `XDG_CONFIG_HOME` while preserving legacy paths, and upstream Mac resources
+  expand to the 21-language catalog. iOS remains on this fork's required
+  English, Simplified Chinese, Traditional Chinese, and Japanese localizations.
+- **Provider polish** — Ollama uses the official icon, Copilot exposes shared
+  reset dates for limited windows, OpenCode Go handles Zen balances without a
+  subscription window, and the website/provider gallery gains LiteLLM, Poe,
+  Chutes, Zed, Devin, and T3 Chat assets.
+
+### Compatibility
+
+- CloudKit stays in the Production environment. Schema deploy decisions and the
+  2 Mac x 2 iPhone old/new compatibility gate are tracked in
+  `CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md`.
+- New provider values are expected to stay inside the existing compressed
+  provider payload or existing quota-transition record path. Existing iOS builds
+  should ignore unrecognized optional payload fields.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.36.1**（覆盖 v0.36.0–v0.36.1），并配套 iOS
+**1.13.0**。本次把 issue #28 覆盖的上游内容合并为一个用户可见版本，不把
+LiteLLM、Poe、Chutes、Zed 和 Antigravity/provider 稳定性修复拆成多次发布。
+
+### 新增 / 改进
+
+- **新增上游 provider** —— LiteLLM 个人/团队 budget、Poe 积分余额和近期历史、Chutes
+  订阅/quota/pay-as-you-go 用量，以及 Zed 编辑器 session 的套餐、quota、账期和逾期发票状态。
+- **iOS provider 准备** —— mobile companion 会识别并渲染通过现有 Mac → CloudKit 同步
+  payload 传来的新 provider 数据；provider 凭证、API 请求和 Keychain/editor session 仍只在 Mac 端处理。
+- **iOS 1.13.0 直接发布线** —— companion release 同时合入未单独发布的 1.12.0 同步工作，
+  包括 MiniMax 续费/到期元数据、Devin 配额、Copilot budget 窗口、MiMo 余额与 token-plan 更新、
+  Kimi Code API 用量，以及滚动升级时保留丰富 provider 详情。
+- **Antigravity 准确性** —— quota summary 优先使用当前本地 app/CLI 来源，按 Gemini 与
+  Claude + GPT 的 session/weekly 窗口分组，并保留结构化 reset timestamp 用于本地化显示。
+- **菜单栏可靠性** —— 合入打开菜单时数值原地刷新、provider switcher 背景、submenu 刷新时序、
+  子进程 pipe hang、Kiro helper 清理、Gemini package discovery 和可选 provider enrichment 超时边界修复。
+- **配置与本地化** —— Mac config resolution 支持绝对 `XDG_CONFIG_HOME` 并保留 legacy 路径；
+  上游 Mac 资源扩展到 21 语言。iOS 仍按本 fork 规则保持 English、简体中文、繁体中文、日文四语言。
+- **Provider polish** —— Ollama 使用官方图标，Copilot 显示 limited window 的共享 reset date，
+  OpenCode Go 在无订阅窗口时仍显示 Zen balance，网站/provider gallery 加入 LiteLLM、Poe、Chutes、
+  Zed、Devin 和 T3 Chat 资产。
+
+### 兼容性
+
+- CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate
+  记录在 `CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md`。
+- 新 provider 值预期保留在现有压缩 provider payload 或既有 quota-transition record 路径中；
+  旧 iOS build 应安全忽略不认识的可选字段。
+
+---
+
 ## 0.35.0.1 (Mobile 1.12.0 · build 85.1) — 2026-06-14 — upstream v0.35.0 sync
 
 Syncs the Mac app to upstream CodexBar **v0.35.0** (spanning v0.32.5–v0.35.0) and ships the paired iOS **1.12.0** companion. This is one combined upstream-sync release; it intentionally folds the open upstream-sync issues for v0.32.5, v0.33.0, v0.34.0, and v0.35.0 into a single user-visible version.

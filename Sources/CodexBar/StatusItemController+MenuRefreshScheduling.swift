@@ -45,11 +45,12 @@ extension StatusItemController {
     {
         let signature = self.menuAdjunctReadinessSignature()
         let menuKey = ObjectIdentifier(menu)
-        let menuRenderedCurrentSignature = self.menuVersions[menuKey] == self.menuContentVersion &&
+        let menuRenderedCurrentSignature =
+            self.menuSession.renderedVersion(for: menuKey) == self.menuSession.contentVersion &&
             self.menuReadinessSignatures[menuKey] == signature
         guard signature != self.lastMenuAdjunctReadinessSignature else {
             guard menuWasFreshBeforeOpen, !menuRenderedCurrentSignature else {
-                self.lastMenuAdjunctReadinessBaselineVersion = self.menuContentVersion
+                self.lastMenuAdjunctReadinessBaselineVersion = self.menuSession.contentVersion
                 return
             }
             guard !self.isMenuDataRefreshInFlight else { return }
@@ -79,7 +80,7 @@ extension StatusItemController {
 
     private func recordMenuAdjunctReadinessBaseline(_ signature: String) {
         self.lastMenuAdjunctReadinessSignature = signature
-        self.lastMenuAdjunctReadinessBaselineVersion = self.menuContentVersion
+        self.lastMenuAdjunctReadinessBaselineVersion = self.menuSession.contentVersion
     }
 
     private func rememberRootOpenHandledMenuObservation(signature: String) {
@@ -241,9 +242,7 @@ extension StatusItemController {
     {
         let key = ObjectIdentifier(menu)
         self.openMenuRebuildsClosingHostedSubviewMenus.insert(key)
-        self.openMenuRebuildTokenCounter &+= 1
-        let rebuildToken = self.openMenuRebuildTokenCounter
-        self.openMenuRebuildTokens[key] = rebuildToken
+        let rebuildToken = self.openMenuRebuildRequests.replaceRequest(for: key)
         self.openMenuRebuildTasks.removeValue(forKey: key)?.cancel()
 
         ProviderSwitcherTrackingRunLoopScheduler.schedule { [weak self, weak menu] in
@@ -273,9 +272,7 @@ extension StatusItemController {
             self.openMenuRebuildsClosingHostedSubviewMenus.insert(key)
         }
         let shouldCloseHostedSubviewMenus = self.openMenuRebuildsClosingHostedSubviewMenus.contains(key)
-        self.openMenuRebuildTokenCounter &+= 1
-        let rebuildToken = self.openMenuRebuildTokenCounter
-        self.openMenuRebuildTokens[key] = rebuildToken
+        let rebuildToken = self.openMenuRebuildRequests.replaceRequest(for: key)
         self.openMenuRebuildTasks[key]?.cancel()
         self.openMenuRebuildTasks[key] = Task { @MainActor [weak self, weak menu] in
             guard let self, let menu else { return }
@@ -310,11 +307,10 @@ extension StatusItemController {
         rebuildToken: Int,
         request: ScheduledOpenMenuRebuild)
     {
-        guard self.openMenuRebuildTokens[key] == rebuildToken else { return }
+        guard self.openMenuRebuildRequests.isCurrent(rebuildToken, for: key) else { return }
         defer {
-            if self.openMenuRebuildTokens[key] == rebuildToken {
+            if self.openMenuRebuildRequests.finish(rebuildToken, for: key) {
                 self.openMenuRebuildTasks.removeValue(forKey: key)
-                self.openMenuRebuildTokens.removeValue(forKey: key)
                 self.openMenuRebuildsClosingHostedSubviewMenus.remove(key)
             }
         }

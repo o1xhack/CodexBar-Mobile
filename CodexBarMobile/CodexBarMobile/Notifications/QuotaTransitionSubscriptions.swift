@@ -49,7 +49,7 @@ import Foundation
 ///
 /// ### Scale
 ///
-/// `QuotaProviderList.providers.count × 3` subscriptions (120 today, iOS 1.7.0) created
+/// `QuotaProviderList.providers.count × 3` subscriptions (159 today, iOS 1.13.0) created
 /// in a single batched `modifySubscriptions(saving:deleting:)` call on first
 /// launch. Subsequent launches diff the server state against the expected
 /// config and only save the subs whose `alertBody` has drifted (e.g. locale

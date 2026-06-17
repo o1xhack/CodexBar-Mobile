@@ -37,7 +37,7 @@ iCloud CloudKit 有两个 environment：**Development** 跟 **Production**。for
 
 ```bash
 # 1. 找到上一次 published release 的 tag
-LAST_TAG=$(gh release list --repo o1xhack/CodexBar-Mobile --limit 5 --json tagName,isDraft | python3 -c 'import json,sys;[print(r["tagName"]) for r in json.load(sys.stdin) if not r["isDraft"]][0]')
+LAST_TAG=$(gh release list --repo o1xhack/CodexBar-Mobile --limit 10 --json tagName,isDraft | python3 -c 'import json,sys; tags=[r["tagName"] for r in json.load(sys.stdin) if not r["isDraft"]]; print(tags[0])')
 
 # 2. CK schema keyword grep 看 diff
 git diff $LAST_TAG..HEAD 2>&1 | grep -E "^\+.*(recordType|CKRecordZone\(|addIndex|querySchema|CKContainer|providerPayloadVersion|CKQuerySubscription|CKRecordZoneSubscription|encodingVersion)"

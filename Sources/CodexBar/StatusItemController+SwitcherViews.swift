@@ -41,7 +41,6 @@ final class ProviderSwitcherView: NSView {
     private var hoveredButtonTag: Int?
     private var pressedButtonTag: Int?
     private var selectedSegmentIndex: Int?
-    private let lightModeOverlayLayer = CALayer()
     private static let quotaIndicatorHeight: CGFloat = 2
     private static let quotaIndicatorBottomInset: CGFloat = 2
     private static let quotaIndicatorHorizontalInset: CGFloat = 8
@@ -107,9 +106,6 @@ final class ProviderSwitcherView: NSView {
         Self.clearButtonWidthCache()
         self.wantsLayer = true
         self.layer?.masksToBounds = false
-        self.lightModeOverlayLayer.masksToBounds = false
-        self.layer?.insertSublayer(self.lightModeOverlayLayer, at: 0)
-        self.updateLightModeStyling()
 
         func makeButton(index: Int, segment: Segment) -> NSButton {
             let button: NSButton
@@ -214,14 +210,8 @@ final class ProviderSwitcherView: NSView {
         self.updateButtonStyles()
     }
 
-    override func layout() {
-        super.layout()
-        self.lightModeOverlayLayer.frame = self.bounds
-    }
-
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        self.updateLightModeStyling()
         self.updateButtonStyles()
     }
 
@@ -715,15 +705,6 @@ final class ProviderSwitcherView: NSView {
 
     private func isLightMode() -> Bool {
         self.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua
-    }
-
-    private func updateLightModeStyling() {
-        guard self.isLightMode() else {
-            self.lightModeOverlayLayer.backgroundColor = nil
-            return
-        }
-        // The menu card background is very bright in light mode; add a subtle neutral wash to ground the switcher.
-        self.lightModeOverlayLayer.backgroundColor = NSColor.black.withAlphaComponent(0.035).cgColor
     }
 
     private func hoverPlateColor() -> CGColor {

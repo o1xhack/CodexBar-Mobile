@@ -382,6 +382,22 @@ extension UsageStore {
             appendWindow(snapshot.primary, name: .session)
             appendWindow(snapshot.secondary, name: .weekly)
             appendWindow(snapshot.tertiary, name: .opus)
+        case .antigravity:
+            let namedWeeklyWindows = snapshot.extraRateWindows?
+                .filter {
+                    $0.usageKnown
+                        && $0.id.hasPrefix("antigravity-quota-summary-")
+                        && $0.window.windowMinutes == Self.weeklyWindowMinutes
+                }
+                .map(\.window) ?? []
+            if let mostUsedWeeklyWindow = namedWeeklyWindows.max(by: { $0.usedPercent < $1.usedPercent }) {
+                appendWindow(mostUsedWeeklyWindow, name: .weekly)
+            } else {
+                for window in [snapshot.primary, snapshot.secondary, snapshot.tertiary] {
+                    guard let window, window.windowMinutes == Self.weeklyWindowMinutes else { continue }
+                    appendWindow(window, name: .weekly)
+                }
+            }
         default:
             for window in [snapshot.primary, snapshot.secondary, snapshot.tertiary] {
                 guard let window, window.windowMinutes == Self.weeklyWindowMinutes else { continue }

@@ -52,12 +52,14 @@ final class MainThreadHangWatchdog: @unchecked Sendable {
     private let sampleThreshold: TimeInterval
     private let sampleCooldown: TimeInterval
     private let sampleCaptureOverride: (@Sendable () -> String?)?
+    private let schedulePing: @Sendable (@escaping @Sendable () -> Void) -> Void
     private let lock = NSLock()
     private var isRunning = false
     private var lastSampleAt: Date?
     private var activeSampleProcesses: [ObjectIdentifier: Process] = [:]
     var onHangForTesting: ((TimeInterval, [String]) -> Void)?
     #if DEBUG
+    var onHangDetectionForTesting: (() -> Void)?
     private var onSampleAttemptForTesting: (() -> Void)?
     #endif
 
@@ -71,13 +73,17 @@ final class MainThreadHangWatchdog: @unchecked Sendable {
         hangThreshold: TimeInterval = 0.15,
         sampleThreshold: TimeInterval = 2.0,
         sampleCooldown: TimeInterval = 300,
-        sampleCaptureOverride: (@Sendable () -> String?)? = nil)
+        sampleCaptureOverride: (@Sendable () -> String?)? = nil,
+        schedulePing: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { response in
+            DispatchQueue.main.async(execute: response)
+        })
     {
         self.pingInterval = pingInterval
         self.hangThreshold = hangThreshold
         self.sampleThreshold = sampleThreshold
         self.sampleCooldown = sampleCooldown
         self.sampleCaptureOverride = sampleCaptureOverride
+        self.schedulePing = schedulePing
     }
 
     func start() {
@@ -126,9 +132,12 @@ final class MainThreadHangWatchdog: @unchecked Sendable {
         while self.shouldRun {
             let box = PingBox()
             let pingSentAt = DispatchTime.now()
-            DispatchQueue.main.async { box.markResponded() }
+            self.schedulePing { box.markResponded() }
             if !box.waitForResponse(timeout: self.hangThreshold) {
                 guard self.shouldRun else { return }
+                #if DEBUG
+                self.onHangDetectionForTesting?()
+                #endif
                 self.traceHang(box: box, pingSentAt: pingSentAt)
             }
             guard self.shouldRun else { return }

@@ -53,6 +53,7 @@ swift build
 
 # Mac test
 swift test
+make test
 
 # iOS build
 cd CodexBarMobile && xcodegen generate && xcodebuild -scheme CodexBarMobile build

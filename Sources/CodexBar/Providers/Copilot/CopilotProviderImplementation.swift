@@ -1,9 +1,7 @@
 import AppKit
 import CodexBarCore
-import CodexBarMacroSupport
 import SwiftUI
 
-@ProviderImplementationRegistration
 struct CopilotProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .copilot
     let supportsLoginFlow: Bool = true

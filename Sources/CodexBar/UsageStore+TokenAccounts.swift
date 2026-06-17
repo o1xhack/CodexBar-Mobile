@@ -994,27 +994,7 @@ extension UsageStore {
         let primary = self.codexBackfillingResetWindow(snapshot.primary, from: cached.primary)
         let secondary = self.codexBackfillingResetWindow(snapshot.secondary, from: cached.secondary)
         guard primary != snapshot.primary || secondary != snapshot.secondary else { return snapshot }
-        return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
-            tertiary: snapshot.tertiary,
-            extraRateWindows: snapshot.extraRateWindows,
-            kiroUsage: snapshot.kiroUsage,
-            ampUsage: snapshot.ampUsage,
-            providerCost: snapshot.providerCost,
-            zaiUsage: snapshot.zaiUsage,
-            minimaxUsage: snapshot.minimaxUsage,
-            deepseekUsage: snapshot.deepseekUsage,
-            openRouterUsage: snapshot.openRouterUsage,
-            openAIAPIUsage: snapshot.openAIAPIUsage,
-            claudeAdminAPIUsage: snapshot.claudeAdminAPIUsage,
-            mistralUsage: snapshot.mistralUsage,
-            deepgramUsage: snapshot.deepgramUsage,
-            cursorRequests: snapshot.cursorRequests,
-            subscriptionExpiresAt: snapshot.subscriptionExpiresAt,
-            subscriptionRenewsAt: snapshot.subscriptionRenewsAt,
-            updatedAt: snapshot.updatedAt,
-            identity: snapshot.identity)
+        return snapshot.with(primary: primary, secondary: secondary)
     }
 
     private nonisolated static func codexMergedResetBackfillSnapshot(

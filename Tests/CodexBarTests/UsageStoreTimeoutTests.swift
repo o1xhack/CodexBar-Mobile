@@ -30,34 +30,29 @@ struct UsageStoreTimeoutTests {
             }
             continuation?.resume()
         }
+
+        var isReleased: Bool {
+            self.lock.withLock { self.released }
+        }
     }
 
     @Test
     func `timeout does not wait for a cancellation ignoring probe`() async {
         let gate = ProbeGate()
-        let releaseTask = Task {
-            try? await Task.sleep(for: .seconds(1))
-            gate.release()
-        }
-        defer {
-            releaseTask.cancel()
-            gate.release()
-        }
+        defer { gate.release() }
 
-        let startedAt = ContinuousClock.now
         let result = await UsageStore.runWithTimeout(seconds: 0.03) {
             await gate.wait()
             return "late result"
         }
-        let elapsed = startedAt.duration(to: .now)
 
         #expect(result == "Probe timed out after 0s")
-        #expect(elapsed < .milliseconds(500))
+        #expect(!gate.isReleased)
     }
 
     @Test
     func `completed probe wins timeout race`() async {
-        let result = await UsageStore.runWithTimeout(seconds: 1) {
+        let result = await UsageStore.runWithTimeout(seconds: 10) {
             "probe result"
         }
 

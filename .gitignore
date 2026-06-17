@@ -39,6 +39,7 @@ Provisioning/
 .swiftpm-cache/
 .claude/
 .tmp-clang/
+__pycache__/
 
 # Debug/analysis docs
 docs/*-analysis.md

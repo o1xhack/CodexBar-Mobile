@@ -21,7 +21,6 @@ extension StatusItemController {
         self.providerSelectionUIRefreshTask?.cancel()
         self.providerSelectionUIRefreshTask = Task { @MainActor [weak self] in
             await Task.yield()
-            try? await Task.sleep(for: .milliseconds(16))
             guard !Task.isCancelled, let self else { return }
             self.refreshProviderSelectionRendering()
             self.providerSelectionUIRefreshTask = nil

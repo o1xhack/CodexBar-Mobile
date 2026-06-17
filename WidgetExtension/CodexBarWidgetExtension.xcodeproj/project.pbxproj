@@ -115,10 +115,9 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = A17A8A4315AD7DBD4D417FCA /* Build configuration list for PBXProject "CodexBarWidgetExtension" */;
+			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -131,7 +130,6 @@
 				B0BE8F0E2917CB6B2EDF1826 /* XCLocalSwiftPackageReference ".." */,
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = B7E03090CEF29F6B74205FAE /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (

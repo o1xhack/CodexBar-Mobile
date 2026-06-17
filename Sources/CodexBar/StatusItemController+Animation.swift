@@ -258,23 +258,6 @@ extension StatusItemController {
         }
         var primary = resolved?.primary
         var weekly = resolved?.secondary
-        if showUsed,
-           primaryProvider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining <= 0
-        {
-            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
-            weekly = 0
-        }
-        if showUsed,
-           primaryProvider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining > 0,
-           weekly == 0
-        {
-            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
-            weekly = Self.loadingPercentEpsilon
-        }
         var credits = self.menuBarCreditsRemainingForIcon(provider: primaryProvider, snapshot: snapshot)
         var stale = self.store.isStale(provider: primaryProvider)
         var morphProgress: Double?
@@ -485,23 +468,6 @@ extension StatusItemController {
         }
         var primary = resolved?.primary
         var weekly = resolved?.secondary
-        if showUsed,
-           provider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining <= 0
-        {
-            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
-            weekly = 0
-        }
-        if showUsed,
-           provider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining > 0,
-           weekly == 0
-        {
-            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
-            weekly = Self.loadingPercentEpsilon
-        }
         var credits = self.menuBarCreditsRemainingForIcon(provider: provider, snapshot: snapshot)
         var stale = self.store.isStale(provider: provider)
         var morphProgress: Double?
@@ -700,6 +666,11 @@ extension StatusItemController {
         {
             return UsageFormatter.usdString(balance)
         }
+        if provider == .opencodego,
+           let balance = Self.openCodeGoZenBalanceDisplayText(snapshot: snapshot)
+        {
+            return balance
+        }
         if provider == .deepseek,
            let balance = Self.deepSeekBalanceDisplayText(snapshot: snapshot)
         {
@@ -714,6 +685,11 @@ extension StatusItemController {
         }
         if provider == .moonshot,
            let balance = Self.moonshotBalanceDisplayText(snapshot: snapshot)
+        {
+            return balance
+        }
+        if provider == .poe,
+           let balance = Self.poeBalanceDisplayText(snapshot: snapshot)
         {
             return balance
         }
@@ -817,6 +793,13 @@ extension StatusItemController {
         return detail.components(separatedBy: " (Paid:").first
     }
 
+    nonisolated static func poeBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
+        self.displayValue(
+            from: snapshot?.loginMethod(for: .poe),
+            prefix: "Balance:",
+            removingSuffix: "")
+    }
+
     nonisolated static func moonshotBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
         self.displayValue(
             from: snapshot?.loginMethod(for: .moonshot),
@@ -848,6 +831,17 @@ extension StatusItemController {
         guard let cost = snapshot?.providerCost,
               cost.limit > 0,
               cost.used >= 0
+        else {
+            return nil
+        }
+        return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+    }
+
+    nonisolated static func openCodeGoZenBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
+        guard snapshot?.primary == nil,
+              snapshot?.secondary == nil,
+              let cost = snapshot?.providerCost,
+              cost.period == "Zen balance"
         else {
             return nil
         }

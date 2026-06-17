@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Foundation
 import SwiftUI
@@ -49,6 +50,24 @@ struct ProvidersPaneCoverageTests {
         #expect(
             ProvidersPane.filteredProviders(providers, query: "deepseek", displayName: { _ in "API" })
                 == [.deepseek])
+    }
+
+    @Test
+    func `selected provider sidebar palette uses contrasting selected text colors`() {
+        let palette = ProviderSidebarRowPalette(isSelected: true)
+
+        #expect(palette.primary.isEqual(NSColor.alternateSelectedControlTextColor))
+        #expect(palette.secondary.alphaComponent == 0.82)
+        #expect(palette.tertiary.alphaComponent == 0.65)
+    }
+
+    @Test
+    func `unselected provider sidebar palette uses standard label colors`() {
+        let palette = ProviderSidebarRowPalette(isSelected: false)
+
+        #expect(palette.primary.isEqual(NSColor.labelColor))
+        #expect(palette.secondary.isEqual(NSColor.secondaryLabelColor))
+        #expect(palette.tertiary.isEqual(NSColor.tertiaryLabelColor))
     }
 
     @Test

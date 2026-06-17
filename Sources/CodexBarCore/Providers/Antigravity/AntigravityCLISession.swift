@@ -28,13 +28,22 @@ protocol AntigravityCLIProcessLaunching: Sendable {
 }
 
 enum AntigravityCLIAuthenticationPrompt {
-    static let evidence = Data("You are currently not signed in".utf8)
+    static let evidence = Data("Select login method:".utf8)
+    private static let promptPattern = #"select\s+login\s+method\s*:?"#
 
     static func contains(_ output: Data) -> Bool {
-        [
-            self.evidence,
-            Data("Select login method:".utf8),
-        ].contains { output.range(of: $0) != nil }
+        // `agy` briefly prints "You are currently not signed in" before it
+        // auto-refreshes an existing login. The actual blocking state is the
+        // interactive login-method prompt. The exact prompt is a CLI-owned TUI
+        // string, so keep matching tolerant to casing and whitespace changes.
+        if output.range(of: self.evidence) != nil {
+            return true
+        }
+        let asciiBytes = output.map { $0 < 0x80 ? $0 : 0x20 }
+        let text = String(bytes: asciiBytes, encoding: .utf8) ?? ""
+        return text.range(
+            of: self.promptPattern,
+            options: [.regularExpression, .caseInsensitive]) != nil
     }
 }
 
@@ -93,7 +102,7 @@ protocol AntigravityCLISessionLaunchLocking: Sendable {
 /// Manages a bounded background ``agy`` process whose embedded localhost server
 /// provides the same ``GetUserStatus`` endpoint as the desktop Antigravity app's
 /// ``language_server``. The CLI is kept alive in a PTY so its daemon stays bound
-/// to a local port — this lets CodexBar read Claude + Gemini quotas even when
+/// to a local port - this lets CodexBar read Claude + Gemini quotas even when
 /// the desktop Antigravity app is closed.
 ///
 /// The session intentionally does not scrape TUI output. It only launches and
@@ -820,7 +829,28 @@ struct AntigravityPTYProcessLauncher: AntigravityCLIProcessLaunching {
         return signals
     }
 
+    static func spawnWithTextBusyRetry(
+        maxAttempts: Int = 3,
+        retryDelay: TimeInterval = 0.01,
+        spawn: () -> Int32) -> Int32
+    {
+        var result = spawn()
+        guard maxAttempts > 1 else { return result }
+
+        for _ in 1..<maxAttempts where result == ETXTBSY {
+            if retryDelay > 0 {
+                Thread.sleep(forTimeInterval: retryDelay)
+            }
+            result = spawn()
+        }
+        return result
+    }
+
     func launch(binary: String) throws -> any AntigravityCLIProcessHandle {
+        try self.launch(binary: binary, arguments: [])
+    }
+
+    func launch(binary: String, arguments: [String]) throws -> any AntigravityCLIProcessHandle {
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
         var win = winsize(ws_row: 50, ws_col: 160, ws_xpixel: 0, ws_ypixel: 0)
@@ -883,7 +913,8 @@ struct AntigravityPTYProcessLauncher: AntigravityCLIProcessLaunching {
         env["PWD"] = NSHomeDirectory()
         env["TERM"] = "xterm-256color"
 
-        let cArgs: [UnsafeMutablePointer<CChar>?] = [strdup(binary), nil]
+        var cArgs = ([binary] + arguments).map { strdup($0) as UnsafeMutablePointer<CChar>? }
+        cArgs.append(nil)
         defer {
             for arg in cArgs {
                 if let arg {
@@ -905,8 +936,10 @@ struct AntigravityPTYProcessLauncher: AntigravityCLIProcessLaunching {
         }
 
         var pid: pid_t = 0
-        let spawnResult = binary.withCString { execPath in
-            posix_spawn(&pid, execPath, &fileActions, &attr, cArgs, cEnv)
+        let spawnResult = Self.spawnWithTextBusyRetry {
+            binary.withCString { execPath in
+                posix_spawn(&pid, execPath, &fileActions, &attr, cArgs, cEnv)
+            }
         }
         guard spawnResult == 0 else {
             try? primaryHandle.close()

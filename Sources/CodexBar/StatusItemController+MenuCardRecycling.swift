@@ -22,7 +22,7 @@ extension StatusItemController {
         if let displacedSelection {
             self.mergedSwitcherContentCaches[menuKey]?.removeValue(forKey: displacedSelection)
         }
-        guard Self.menuCardRenderingEnabled else { return }
+        guard self.menuCardRenderingEnabledForController else { return }
         guard fromIndex >= 0, fromIndex < menu.items.count else { return }
         for item in menu.items[fromIndex...] {
             guard let id = item.representedObject as? String else { continue }

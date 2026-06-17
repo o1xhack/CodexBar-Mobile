@@ -65,7 +65,7 @@ extension StatusItemController {
                     selection: context.switcherSelection,
                     contentStartIndex: contentStartIndex,
                     menuWidth: context.menuWidth,
-                    contentVersion: self.menuContentVersion)
+                    contentVersion: self.menuSession.contentVersion)
                 return
             }
 
@@ -91,7 +91,7 @@ extension StatusItemController {
                 selection: context.switcherSelection,
                 contentStartIndex: contentStartIndex,
                 menuWidth: context.menuWidth,
-                contentVersion: self.menuContentVersion)
+                contentVersion: self.menuSession.contentVersion)
         }
     }
 

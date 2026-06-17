@@ -113,6 +113,10 @@ public enum ProviderTokenResolver {
         self.llmProxyResolution(environment: environment)?.token
     }
 
+    public static func liteLLMToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.liteLLMResolution(environment: environment)?.token
+    }
+
     public static func perplexitySessionToken(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
@@ -123,6 +127,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
         self.deepseekResolution(environment: environment)?.token
+    }
+
+    public static func poeToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.poeResolution(environment: environment)?.token
     }
 
     public static func crofToken(
@@ -169,6 +179,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(DeepSeekSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func poeResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(PoeSettingsReader.apiKey(environment: environment))
     }
 
     public static func crofResolution(
@@ -340,6 +356,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(LLMProxySettingsReader.apiKey(environment: environment))
+    }
+
+    public static func liteLLMResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(LiteLLMSettingsReader.apiKey(environment: environment))
     }
 
     public enum DeepgramCredentialKind: Sendable {

@@ -6,23 +6,8 @@ public enum ProviderConfigEnvironment {
         provider: UsageProvider,
         config: ProviderConfig?) -> [String: String]
     {
-        if provider == .openai {
-            return self.applyOpenAIOverrides(base: base, config: config)
-        }
-        if provider == .bedrock {
-            return self.applyBedrockOverrides(base: base, config: config)
-        }
-        if provider == .deepgram {
-            return self.applyDeepgramOverrides(base: base, config: config)
-        }
-        if provider == .llmproxy {
-            return self.applyLLMProxyOverrides(base: base, config: config)
-        }
-        if provider == .azureopenai {
-            return self.applyAzureOpenAIOverrides(base: base, config: config)
-        }
-        if provider == .kimi {
-            return self.applyKimiOverrides(base: base, config: config)
+        if let env = self.applyDedicatedProviderOverrides(base: base, provider: provider, config: config) {
+            return env
         }
         guard let apiKey = config?.sanitizedAPIKey, !apiKey.isEmpty else { return base }
         var env = base
@@ -77,6 +62,44 @@ public enum ProviderConfigEnvironment {
         }
     }
 
+    private static func baseURLEnvironmentKey(for provider: UsageProvider) -> String? {
+        switch provider {
+        case .llmproxy:
+            LLMProxySettingsReader.baseURLEnvironmentKey
+        case .litellm:
+            LiteLLMSettingsReader.baseURLEnvironmentKey
+        default:
+            nil
+        }
+    }
+
+    private static func supportsAPIKeyAndBaseURLOverride(_ provider: UsageProvider) -> Bool {
+        self.baseURLEnvironmentKey(for: provider) != nil
+    }
+
+    private static func applyDedicatedProviderOverrides(
+        base: [String: String],
+        provider: UsageProvider,
+        config: ProviderConfig?) -> [String: String]?
+    {
+        switch provider {
+        case .openai:
+            self.applyOpenAIOverrides(base: base, config: config)
+        case .bedrock:
+            self.applyBedrockOverrides(base: base, config: config)
+        case .deepgram:
+            self.applyDeepgramOverrides(base: base, config: config)
+        case .llmproxy, .litellm:
+            self.applyAPIKeyAndBaseURLOverrides(base: base, provider: provider, config: config)
+        case .azureopenai:
+            self.applyAzureOpenAIOverrides(base: base, config: config)
+        case .kimi:
+            self.applyKimiOverrides(base: base, config: config)
+        default:
+            nil
+        }
+    }
+
     private static func directAPIKeyEnvironmentKey(for provider: UsageProvider) -> String? {
         switch provider {
         case .amp:
@@ -115,6 +138,21 @@ public enum ProviderConfigEnvironment {
             GroqSettingsReader.apiKeyEnvironmentKey
         case .llmproxy:
             LLMProxySettingsReader.apiKeyEnvironmentKey
+        case .chutes, .poe, .litellm:
+            self.additionalAPIKeyEnvironmentKey(for: provider)
+        default:
+            nil
+        }
+    }
+
+    private static func additionalAPIKeyEnvironmentKey(for provider: UsageProvider) -> String? {
+        switch provider {
+        case .chutes:
+            ChutesSettingsReader.apiKeyEnvironmentKey
+        case .poe:
+            PoeSettingsReader.apiKeyEnvironmentKey
+        case .litellm:
+            LiteLLMSettingsReader.apiKeyEnvironmentKey
         default:
             nil
         }
@@ -211,16 +249,21 @@ public enum ProviderConfigEnvironment {
         return env
     }
 
-    private static func applyLLMProxyOverrides(
+    private static func applyAPIKeyAndBaseURLOverrides(
         base: [String: String],
+        provider: UsageProvider,
         config: ProviderConfig?) -> [String: String]
     {
         var env = base
-        if let apiKey = config?.sanitizedAPIKey {
-            env[LLMProxySettingsReader.apiKeyEnvironmentKey] = apiKey
+        if let apiKey = config?.sanitizedAPIKey,
+           let key = self.directAPIKeyEnvironmentKey(for: provider)
+        {
+            env[key] = apiKey
         }
-        if let baseURL = config?.sanitizedEnterpriseHost {
-            env[LLMProxySettingsReader.baseURLEnvironmentKey] = baseURL
+        if let baseURL = config?.sanitizedEnterpriseHost,
+           let key = self.baseURLEnvironmentKey(for: provider)
+        {
+            env[key] = baseURL
         }
         return env
     }

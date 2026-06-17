@@ -110,6 +110,13 @@ public enum QuotaProviderList {
         // APPENDED at the tail so existing per-provider CK subscription IDs
         // stay stable across upgrades. 48 → 49 providers × 3 states = 147 zones.
         Provider(id: "devin", displayName: "Devin"),
+        // iOS 1.13.0 catch-up — upstream v0.36.0 + v0.36.1 new providers.
+        // APPENDED at the tail so existing per-provider CK subscription IDs
+        // stay stable across upgrades. 49 → 53 providers × 3 states = 159 zones.
+        Provider(id: "litellm", displayName: "LiteLLM"),
+        Provider(id: "poe", displayName: "Poe"),
+        Provider(id: "chutes", displayName: "Chutes"),
+        Provider(id: "zed", displayName: "Zed"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

@@ -378,6 +378,48 @@ struct ProviderColorPaletteTests {
         let byName = UIColor(ProviderColorPalette.color(for: "Devin"))
         #expect(byID.isApproximately(byName))
     }
+
+    // MARK: - iOS 1.13.0 · v0.36 provider catch-up
+
+    @Test("LiteLLM resolves to proxy blue")
+    func litellmIsProxyBlue() {
+        let expected = UIColor(red: 0.10, green: 0.38, blue: 0.72, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "litellm")).isApproximately(expected))
+    }
+
+    @Test("Poe resolves to saturated violet")
+    func poeIsViolet() {
+        let expected = UIColor(red: 0.43, green: 0.28, blue: 0.86, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "poe")).isApproximately(expected))
+    }
+
+    @Test("Chutes resolves to green-teal")
+    func chutesIsGreenTeal() {
+        let expected = UIColor(red: 0.02, green: 0.62, blue: 0.45, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "chutes")).isApproximately(expected))
+    }
+
+    @Test("Zed resolves to graphite")
+    func zedIsGraphite() {
+        let expected = UIColor(red: 0.20, green: 0.23, blue: 0.28, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "zed")).isApproximately(expected))
+    }
+
+    @Test("LiteLLM normalization and LLM Proxy do not collide")
+    func litellmDoesNotCollideWithLLMProxy() {
+        let byID = UIColor(ProviderColorPalette.color(for: "litellm"))
+        let byName = UIColor(ProviderColorPalette.color(for: "LiteLLM"))
+        let proxy = UIColor(ProviderColorPalette.color(for: "llmproxy"))
+        #expect(byID.isApproximately(byName))
+        #expect(!byID.isApproximately(proxy), "LiteLLM and LLM Proxy must stay visually distinct")
+    }
+
+    @Test("Zed and z.ai do not collide")
+    func zedDoesNotCollideWithZai() {
+        let zed = UIColor(ProviderColorPalette.color(for: "zed"))
+        let zai = UIColor(ProviderColorPalette.color(for: "zai"))
+        #expect(!zed.isApproximately(zai), "Zed and z.ai must stay visually distinct")
+    }
 }
 
 // MARK: - Test helpers

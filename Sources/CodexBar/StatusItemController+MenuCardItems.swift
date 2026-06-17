@@ -29,7 +29,7 @@ extension StatusItemController {
         submenuIndicatorTopPadding: CGFloat = 8,
         onClick: (() -> Void)? = nil) -> NSMenuItem
     {
-        if !Self.menuCardRenderingEnabled {
+        if !self.menuCardRenderingEnabledForController {
             let item = NSMenuItem()
             item.isEnabled = true
             item.representedObject = id

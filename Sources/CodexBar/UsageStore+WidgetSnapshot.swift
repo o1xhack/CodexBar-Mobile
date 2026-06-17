@@ -119,6 +119,21 @@ extension UsageStore {
                     percentLeft: window.remainingPercent)
             }
         }
+        if provider == .antigravity,
+           let rows = Self.antigravityQuotaSummaryWidgetRows(snapshot: snapshot),
+           !rows.isEmpty
+        {
+            return rows
+        }
+        if provider == .antigravity,
+           snapshot.primary == nil,
+           snapshot.secondary == nil,
+           let rows = Self.antigravityLegacyExtraWidgetRows(snapshot: snapshot),
+           !rows.isEmpty
+        {
+            return rows
+        }
+
         let primaryTitle: String = {
             if provider == .grok,
                let dyn = GrokProviderDescriptor.primaryLabel(window: snapshot.primary)
@@ -145,5 +160,38 @@ extension UsageStore {
                 percentLeft: snapshot.tertiary?.remainingPercent))
         }
         return rows.filter { $0.percentLeft != nil }
+    }
+
+    private nonisolated static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
+    private nonisolated static let antigravityCompactFallbackWindowIDPrefix = "antigravity-compact-fallback-"
+
+    private nonisolated static func antigravityQuotaSummaryWidgetRows(
+        snapshot: UsageSnapshot) -> [WidgetSnapshot.WidgetUsageRowSnapshot]?
+    {
+        guard let windows = snapshot.extraRateWindows?.filter({
+            $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+        }), !windows.isEmpty else {
+            return nil
+        }
+        return windows.map { namedWindow in
+            WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.usageKnown ? namedWindow.window.remainingPercent : nil)
+        }
+    }
+
+    private nonisolated static func antigravityLegacyExtraWidgetRows(
+        snapshot: UsageSnapshot) -> [WidgetSnapshot.WidgetUsageRowSnapshot]?
+    {
+        let windows = snapshot.extraRateWindows?
+            .filter { $0.id.hasPrefix(Self.antigravityCompactFallbackWindowIDPrefix) && $0.usageKnown }
+        guard let windows, !windows.isEmpty else { return nil }
+        return windows.map { namedWindow in
+            WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.window.remainingPercent)
+        }
     }
 }

@@ -5,7 +5,7 @@ import Testing
 #if os(Linux)
 struct AntigravityCLIStrategyLinuxTests {
     @Test
-    func `cli HTTPS is unavailable without Linux localhost trust`() async throws {
+    func `cli local strategy is available with HTTP fallback`() async throws {
         let binaryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-antigravity-\(UUID().uuidString)")
         try Data("#!/bin/sh\n".utf8).write(to: binaryURL)
@@ -28,7 +28,45 @@ struct AntigravityCLIStrategyLinuxTests {
             browserDetection: BrowserDetection(cacheTTL: 0))
         let isAvailable = await AntigravityCLIHTTPSFetchStrategy().isAvailable(context)
 
-        #expect(!isAvailable)
+        #expect(isAvailable)
+    }
+
+    @Test
+    func `cli local endpoints include Linux HTTP fallback`() {
+        #expect(
+            AntigravityStatusProbe.cliEndpoints(ports: [55624]) == [
+                AntigravityStatusProbe.AntigravityConnectionEndpoint(
+                    scheme: "https",
+                    port: 55624,
+                    csrfToken: "",
+                    source: .cliHTTPS),
+                AntigravityStatusProbe.AntigravityConnectionEndpoint(
+                    scheme: "http",
+                    port: 55624,
+                    csrfToken: "",
+                    source: .cliHTTPS),
+            ])
+    }
+
+    @Test
+    func `language server endpoints include Linux HTTP fallback`() {
+        #expect(
+            AntigravityStatusProbe.connectionCandidates(
+                listeningPorts: [64440],
+                languageServerCSRFToken: "language-token",
+                extensionServerPort: nil,
+                extensionServerCSRFToken: nil) == [
+                AntigravityStatusProbe.AntigravityConnectionEndpoint(
+                    scheme: "https",
+                    port: 64440,
+                    csrfToken: "language-token",
+                    source: .languageServer),
+                AntigravityStatusProbe.AntigravityConnectionEndpoint(
+                    scheme: "http",
+                    port: 64440,
+                    csrfToken: "language-token",
+                    source: .languageServer),
+            ])
     }
 
     private struct StubClaudeFetcher: ClaudeUsageFetching {

@@ -191,7 +191,11 @@ public struct DeepSeekUsageFetcher: Sendable {
 
         let balanceData: Data
         do {
-            balanceData = try await fetchBalanceData(apiKey)
+            balanceData = try await withTaskCancellationHandler {
+                try await fetchBalanceData(apiKey)
+            } onCancel: {
+                summaryTask?.cancel()
+            }
         } catch {
             summaryTask?.cancel()
             throw error
@@ -244,35 +248,20 @@ public struct DeepSeekUsageFetcher: Sendable {
         from task: Task<DeepSeekUsageSummary, Error>,
         joinGrace: Duration) async throws -> DeepSeekUsageSummary?
     {
-        try await withTaskCancellationHandler {
-            do {
-                return try await withThrowingTaskGroup(of: DeepSeekUsageSummary?.self) { group in
-                    group.addTask {
-                        try await task.value
-                    }
-                    group.addTask {
-                        if joinGrace > .zero {
-                            try await Task.sleep(for: joinGrace)
-                        }
-                        return nil
-                    }
-
-                    let result = try await group.next().flatMap(\.self)
-                    if result == nil {
-                        task.cancel()
-                    }
-                    group.cancelAll()
-                    return result
-                }
-            } catch {
-                task.cancel()
-                if Task.isCancelled {
-                    throw error
-                }
-                return nil
-            }
-        } onCancel: {
+        let race = BoundedTaskJoin(sourceTask: task)
+        switch await race.value(joinGrace: joinGrace) {
+        case let .value(summary):
+            try Task.checkCancellation()
+            return summary
+        case .timedOut:
+            try Task.checkCancellation()
+            return nil
+        case let .failure(error):
             task.cancel()
+            if Task.isCancelled {
+                throw error
+            }
+            return nil
         }
     }
 

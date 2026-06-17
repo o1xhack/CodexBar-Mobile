@@ -39,7 +39,7 @@ extension StatusItemController {
     {
         let tooltipLines = Self.costMenuTooltipLines(tokenUsage: model.tokenUsage)
         let visibleDetailLines = Self.costMenuVisibleDetailLines(tokenUsage: model.tokenUsage)
-        guard Self.menuCardRenderingEnabled else {
+        guard self.menuCardRenderingEnabledForController else {
             return Self.makeNativeCostMenuCardItem(
                 visibleDetailLines: visibleDetailLines,
                 tooltipLines: tooltipLines,

@@ -2,6 +2,12 @@ import CodexBarCore
 import Foundation
 
 extension UsageMenuCardView.Model {
+    static func isRequiredOpenCodeZenBalance(_ snapshot: UsageSnapshot?) -> Bool {
+        snapshot?.primary == nil &&
+            snapshot?.secondary == nil &&
+            snapshot?.providerCost?.period == "Zen balance"
+    }
+
     static func tokenUsageSnapshot(input: Input) -> CostUsageTokenSnapshot? {
         if usesProviderCostHistoryAsPrimaryDashboard(input.provider), input.snapshot != nil {
             return primaryCostHistorySnapshot(input: input)
@@ -195,7 +201,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .openai || provider == .claude, cost.limit <= 0 {
+        if provider == .openai || provider == .claude || provider == .litellm, cost.limit <= 0 {
             let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")
             return ProviderCostSection(

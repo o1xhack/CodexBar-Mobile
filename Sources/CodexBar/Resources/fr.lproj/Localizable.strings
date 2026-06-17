@@ -1076,3 +1076,11 @@
 "Renews: %@" = "Renouvellement : %@";
 "Plan expires: %@" = "Forfait expire : %@";
 "∞ Unlimited" = "∞ Illimité";
+
+/* Upstream v0.36 locale catch-up fallbacks */
+"language_indonesian" = "Bahasa Indonesia";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

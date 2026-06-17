@@ -1,10 +1,8 @@
 import AppKit
 import CodexBarCore
-import CodexBarMacroSupport
 import Foundation
 import SwiftUI
 
-@ProviderImplementationRegistration
 struct MiniMaxProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .minimax
 

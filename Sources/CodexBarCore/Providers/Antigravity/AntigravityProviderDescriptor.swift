@@ -1,19 +1,18 @@
-import CodexBarMacroSupport
 import Foundation
 
-@ProviderDescriptorRegistration
-@ProviderDescriptorDefinition
 public enum AntigravityProviderDescriptor {
+    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .antigravity,
             metadata: ProviderMetadata(
                 id: .antigravity,
                 displayName: "Antigravity",
-                sessionLabel: "Claude",
-                weeklyLabel: "Gemini Pro",
-                opusLabel: "Gemini Flash",
-                supportsOpus: true,
+                sessionLabel: "Gemini",
+                weeklyLabel: "Claude + GPT",
+                opusLabel: nil,
+                supportsOpus: false,
                 supportsCredits: false,
                 creditsHint: "",
                 toggleTitle: "Show Antigravity usage (experimental)",
@@ -41,42 +40,92 @@ public enum AntigravityProviderDescriptor {
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
-        let local = AntigravityStatusFetchStrategy()
+        let app = AntigravityStatusFetchStrategy(source: .app)
         let cli = AntigravityCLIHTTPSFetchStrategy()
+        let ide = AntigravityStatusFetchStrategy(source: .ide)
         let oauth = AntigravityOAuthFetchStrategy()
         switch context.sourceMode {
         case .cli:
-            return [local, cli]
+            return [app, cli, ide]
         case .oauth:
             return [oauth]
         case .auto:
-            return [local, cli, oauth]
+            if context.selectedTokenAccountID != nil ||
+                context.env[AntigravityOAuthCredentialsStore.environmentCredentialsKey] != nil ||
+                self.hasSharedOAuthCredentials(context: context)
+            {
+                return [app, cli, ide, oauth]
+            }
+            return [app, cli, ide]
         case .web, .api:
             return []
         }
     }
+
+    private static func hasSharedOAuthCredentials(context: ProviderFetchContext) -> Bool {
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        let fileURL = AntigravityOAuthCredentialsStore.defaultURL(home: homeURL)
+        return FileManager.default.fileExists(atPath: fileURL.path)
+    }
 }
 
 struct AntigravityStatusFetchStrategy: ProviderFetchStrategy {
-    let id: String = "antigravity.local"
+    enum Source {
+        case app
+        case ide
+
+        var id: String {
+            switch self {
+            case .app: "antigravity.app-local"
+            case .ide: "antigravity.ide-local"
+            }
+        }
+
+        var processScope: AntigravityStatusProbe.ProcessScope {
+            switch self {
+            case .app: .appOnly
+            case .ide: .ideOnly
+            }
+        }
+
+        var sourceLabel: String {
+            switch self {
+            case .app: "app"
+            case .ide: "ide"
+            }
+        }
+    }
+
+    let source: Source
+    var id: String {
+        self.source.id
+    }
+
     let kind: ProviderFetchKind = .localProbe
+
+    init(source: Source = .app) {
+        self.source = source
+    }
+
     func isAvailable(_: ProviderFetchContext) async -> Bool {
         true
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        // IDE-only: `agy` is owned by AntigravityCLIHTTPSFetchStrategy, which
-        // waits for real API readiness. Probing a half-warmed `agy` here would
-        // burn the timeout on a process that is not yet answering, so the
-        // local probe only handles the running-desktop case and otherwise
-        // fails over to the CLI strategy.
-        let probe = AntigravityStatusProbe(processScope: .ideOnly)
-        let snap = try await probe.fetch()
+        let probe = AntigravityStatusProbe(processScope: self.source.processScope)
+        let selectedAccountEmail: String? = if context.sourceMode == .auto, context.selectedTokenAccountID != nil {
+            AntigravitySelectedAccountGuard.selectedAccountEmail(context: context)
+        } else {
+            nil
+        }
+        let snap = try await probe.fetch(matchingAccountEmail: selectedAccountEmail)
         let usage = try snap.toUsageSnapshot()
         try AntigravitySelectedAccountGuard.validate(usage, context: context)
         return self.makeResult(
             usage: usage,
-            sourceLabel: "local")
+            sourceLabel: self.source.sourceLabel)
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
@@ -84,11 +133,11 @@ struct AntigravityStatusFetchStrategy: ProviderFetchStrategy {
     }
 }
 
-/// When the desktop Antigravity app is closed (no ``language_server`` running),
-/// this strategy spawns or reuses ``agy`` and talks to the HTTPS localhost
-/// server embedded in that CLI process. ``agy`` is an interactive REPL, not a
-/// query command, so CodexBar never scrapes TUI output here; it only keeps the
-/// process alive long enough for the server to answer ``GetUserStatus``.
+/// When the Antigravity 2.0 app is closed or unavailable, this strategy spawns
+/// or reuses ``agy`` and talks to the localhost server embedded in that CLI
+/// process. ``agy`` is an interactive REPL, not a query command, so CodexBar
+/// never scrapes TUI output here; it only keeps the process alive long enough
+/// for the server to answer quota endpoints.
 struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     static let sourceLabel = "cli"
     let id: String = "antigravity.cli-https"
@@ -100,17 +149,28 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         let listeningPorts: @Sendable (Int, TimeInterval) async throws -> [Int]
         let drainOutput: @Sendable () async -> Data
         let fetchSnapshot: @Sendable ([Int]) async throws -> AntigravityStatusSnapshot
+        let now: @Sendable () -> Date
+
+        init(
+            pollIntervalNanoseconds: UInt64,
+            listeningPorts: @escaping @Sendable (Int, TimeInterval) async throws -> [Int],
+            drainOutput: @escaping @Sendable () async -> Data,
+            fetchSnapshot: @escaping @Sendable ([Int]) async throws -> AntigravityStatusSnapshot,
+            now: @escaping @Sendable () -> Date = Date.init)
+        {
+            self.pollIntervalNanoseconds = pollIntervalNanoseconds
+            self.listeningPorts = listeningPorts
+            self.drainOutput = drainOutput
+            self.fetchSnapshot = fetchSnapshot
+            self.now = now
+        }
     }
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        guard Self.supportsLocalhostServerTrust else { return false }
-        return BinaryLocator.resolveAntigravityBinary(env: context.env) != nil
+        BinaryLocator.resolveAntigravityBinary(env: context.env) != nil
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard Self.supportsLocalhostServerTrust else {
-            throw AntigravityStatusProbeError.notRunning
-        }
         guard let binary = BinaryLocator.resolveAntigravityBinary(env: context.env) else {
             throw AntigravityStatusProbeError.notRunning
         }
@@ -120,14 +180,6 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
             resetAfterFetch: Self.shouldResetSessionAfterFetch(context))
         try AntigravitySelectedAccountGuard.validate(result.usage, context: context)
         return result
-    }
-
-    private static var supportsLocalhostServerTrust: Bool {
-        #if os(Linux)
-        false
-        #else
-        true
-        #endif
     }
 
     private func fetchUsingWarmSession(
@@ -188,9 +240,9 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         dependencies: SnapshotWaitDependencies) async throws -> AntigravityStatusSnapshot
     {
         var lastFetchError: Error?
-        while Date() < deadline {
+        while dependencies.now() < deadline {
             try await Self.checkAuthenticationPrompt(dependencies)
-            let remaining = deadline.timeIntervalSinceNow
+            let remaining = deadline.timeIntervalSince(dependencies.now())
             let portProbeTimeout = min(2.0, max(0.2, remaining))
             let ports: [Int]
             do {
@@ -223,9 +275,13 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                 }
             }
 
-            let remainingNanoseconds = UInt64(max(0, deadline.timeIntervalSinceNow) * 1_000_000_000)
+            let remainingNanoseconds = UInt64(
+                max(0, deadline.timeIntervalSince(dependencies.now())) * 1_000_000_000)
             guard remainingNanoseconds > 0 else { break }
-            try await Task.sleep(nanoseconds: min(dependencies.pollIntervalNanoseconds, remainingNanoseconds))
+            let sleepNanoseconds = min(dependencies.pollIntervalNanoseconds, remainingNanoseconds)
+            if sleepNanoseconds > 0 {
+                try await Task.sleep(nanoseconds: sleepNanoseconds)
+            }
         }
 
         try await Self.checkAuthenticationPrompt(dependencies)
@@ -259,7 +315,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        context.sourceMode == .auto
+        context.sourceMode == .auto || context.sourceMode == .cli
     }
 }
 

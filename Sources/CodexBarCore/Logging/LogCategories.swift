@@ -70,6 +70,7 @@ public enum LogCategories {
     /// for the same model are tracked silently in
     /// `UnknownModelDiagnostics` and surfaced in the Debug pane.
     public static let pricing = "pricing"
+    public static let poeUsage = "poe-usage"
     public static let providerDetection = "provider-detection"
     public static let providers = "providers"
     public static let quotaWarningNotifications = "quotaWarningNotifications"
@@ -87,6 +88,7 @@ public enum LogCategories {
     public static let veniceUsage = "venice-usage"
     public static let vertexAIFetcher = "vertexai-fetcher"
     public static let warpUsage = "warp-usage"
+    public static let zed = "zed"
     public static let webkitTeardown = "webkit-teardown"
     public static let zaiSettings = "zai-settings"
     public static let zaiTokenStore = "zai-token-store"

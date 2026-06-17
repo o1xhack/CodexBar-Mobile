@@ -1077,3 +1077,11 @@
 "Renews: %@" = "更新日: %@";
 "Plan expires: %@" = "プラン有効期限: %@";
 "∞ Unlimited" = "∞ 無制限";
+
+/* Upstream v0.36 locale catch-up fallbacks */
+"language_indonesian" = "Bahasa Indonesia";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

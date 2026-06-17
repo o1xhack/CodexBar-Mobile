@@ -1775,7 +1775,12 @@ final class SyncCoordinator {
              // (deployment validation), Alibaba Token Plan (Bailian quota),
              // and T3 Chat (web session) all surface pre-computed numbers
              // from their own APIs — never via the local pricing tables.
-             .azureopenai, .alibabatokenplan, .t3chat:
+             .azureopenai, .alibabatokenplan, .t3chat,
+             // Upstream v0.36.0–v0.36.1 new providers. LiteLLM, Poe,
+             // Chutes, and Zed surface provider-computed usage/quota
+             // values (or no USD cost), not local Codex/Claude model
+             // pricing table estimates.
+             .litellm, .poe, .chutes, .zed:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

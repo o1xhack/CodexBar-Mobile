@@ -161,26 +161,23 @@ extension StatusItemController {
             self.removeProviderSwitcherShortcutMonitor()
         }
 
-        self.cancelClosedMenuRebuild(menu)
         self.clearMergedSwitcherContentCache(for: menu)
         self.openMenus.removeValue(forKey: key)
-        self.menuRefreshTasks.removeValue(forKey: key)?.cancel()
-        self.openMenuRebuildTasks.removeValue(forKey: key)?.cancel()
-        self.openMenuRebuildTokens.removeValue(forKey: key)
-        self.openMenuRebuildsClosingHostedSubviewMenus.remove(key)
-        if let highlightedView = self.highlightedMenuItems.removeValue(forKey: key)?.view {
-            (highlightedView as? MenuCardHighlighting)?.setHighlighted(false)
+        if self.openMenus.isEmpty {
+            self.parentMenuRebuildPendingAfterHostedSubviewClose = false
         }
+        self.cancelMenuWork(key)
+        self.clearMenuHighlight(key)
 
         let isPersistentMenu = menu === self.mergedMenu ||
             menu === self.fallbackMenu ||
             self.providerMenus.values.contains { $0 === menu }
         if !isPersistentMenu {
-            self.clearTransientMenuTrackingState(key)
+            self.removeMenuTrackingState(key)
         } else if self.menuNeedsRefresh(menu) {
             self.handleClosedPersistentMenuNeedingRefresh(menu)
         }
-        self.parentMenuRebuildsDeferredDuringTracking.remove(key)
+        self.menuSession.clearParentRebuildDeferral(key)
         self.scheduleDeferredMenuInteractionRefreshIfNeeded()
         if wasMergedMenu {
             self.applyDeferredMergedIconRenderAfterTrackingIfNeeded()
@@ -443,7 +440,7 @@ extension StatusItemController {
                 selection: contentSelection,
                 contentStartIndex: self.providerSwitcherContentStartIndex(in: menu),
                 menuWidth: context.menuWidth,
-                contentVersion: self.menuContentVersion)
+                contentVersion: self.menuSession.contentVersion)
         }
     }
 
@@ -1140,11 +1137,11 @@ extension StatusItemController {
         // provider fetch failed and needs a retry; periodic freshness is handled by the refresh timer.
         // AppKit menu tracking is modal, so starting provider refreshes while it is active can make the menu
         // feel frozen and can block keyboard focus from returning.
-        let providersNeedingRetry = self.delayedRefreshRetryProviders(for: menu).filter {
+        let providersNeedingRetryAtOpen = self.delayedRefreshRetryProviders(for: menu).filter {
             self.store.isStale(provider: $0) || self.store.snapshot(for: $0) == nil
         }
-        if !providersNeedingRetry.isEmpty {
-            self.deferMenuInteractionRefreshIfNeeded(providers: providersNeedingRetry)
+        if !providersNeedingRetryAtOpen.isEmpty {
+            self.deferMenuInteractionRefreshIfNeeded(providers: providersNeedingRetryAtOpen)
         }
         let key = ObjectIdentifier(menu)
         self.menuRefreshTasks[key]?.cancel()
@@ -1167,7 +1164,9 @@ extension StatusItemController {
             guard !retryProviders.isEmpty else {
                 self.clearSatisfiedDeferredMenuInteractionRefreshes(
                     for: self.delayedRefreshRetryProviders(for: menu))
-                if self.menuNeedsRefresh(menu) {
+                // Ordinary store changes intentionally stay queued until the next open. Rebuilding here
+                // made first-open work such as the storage scan flash the visible menu after 1.2 seconds.
+                if !providersNeedingRetryAtOpen.isEmpty, self.menuNeedsRefresh(menu) {
                     self.scheduleOpenMenuRebuildIfStillVisible(
                         menu,
                         provider: self.menuProvider(for: menu),
@@ -1379,24 +1378,7 @@ extension StatusItemController {
                 secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
         }
         let primary = resolved?.primary
-        var weekly = resolved?.secondary
-        if showUsed,
-           provider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining <= 0
-        {
-            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
-            weekly = 0
-        }
-        if showUsed,
-           provider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining > 0,
-           weekly == 0
-        {
-            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
-            weekly = 0.0001
-        }
+        let weekly = resolved?.secondary
         let creditsProjection = self.store.codexConsumerProjectionIfNeeded(
             for: provider,
             surface: .menuBar,

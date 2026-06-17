@@ -15007,6 +15007,325 @@
           }
         }
       }
+    },
+    "CodexBar 0.36.1 sync: LiteLLM, Poe, Chutes, and Zed now flow through iPhone quota notifications and synced provider cards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.36.1 sync: LiteLLM, Poe, Chutes, and Zed now flow through iPhone quota notifications and synced provider cards."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.36.1 同期: LiteLLM、Poe、Chutes、Zed が iPhone のクォータ通知と同期済みプロバイダカードに反映されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.36.1 同步：LiteLLM、Poe、Chutes 和 Zed 现在会进入 iPhone 额度通知和同步的 provider 卡片。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.36.1 同步：LiteLLM、Poe、Chutes 和 Zed 現在會進入 iPhone 額度通知和同步的 provider 卡片。"
+          }
+        }
+      }
+    },
+    "New providers — LiteLLM, Poe, Chutes, and Zed are now included in iPhone quota notifications and provider lists.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New providers — LiteLLM, Poe, Chutes, and Zed are now included in iPhone quota notifications and provider lists."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいプロバイダ — LiteLLM、Poe、Chutes、Zed が iPhone のクォータ通知とプロバイダ一覧に含まれるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider —— LiteLLM、Poe、Chutes 和 Zed 现在会包含在 iPhone 额度通知和 provider 列表中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider —— LiteLLM、Poe、Chutes 和 Zed 現在會包含在 iPhone 額度通知和 provider 列表中。"
+          }
+        }
+      }
+    },
+    "Provider cards — the four new providers get distinct colors and mock data so the iPhone view can be tested without live accounts.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider cards — the four new providers get distinct colors and mock data so the iPhone view can be tested without live accounts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダカード — 4 つの新しいプロバイダには個別の色とモックデータが追加され、実アカウントなしで iPhone 表示をテストできます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 卡片 —— 这四个新 provider 有独立颜色和 mock 数据，因此不用真实账号也能测试 iPhone 视图。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 卡片 —— 這四個新 provider 有獨立顏色和 mock 資料，因此不用真實帳號也能測試 iPhone 視圖。"
+          }
+        }
+      }
+    },
+    "Mac sync — includes upstream 0.36.0 and 0.36.1 provider fixes, security hardening, localization updates, and menu reliability improvements.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac sync — includes upstream 0.36.0 and 0.36.1 provider fixes, security hardening, localization updates, and menu reliability improvements."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同期 — upstream 0.36.0 と 0.36.1 のプロバイダ修正、セキュリティ強化、ローカライズ更新、メニュー信頼性改善を含みます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含 upstream 0.36.0 和 0.36.1 的 provider 修复、安全加固、本地化更新和菜单可靠性改进。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步 —— 包含 upstream 0.36.0 和 0.36.1 的 provider 修復、安全加固、本地化更新和選單可靠性改進。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later). iPhone 1.13.0 stays compatible with older Mac builds; new provider details appear once Mac is updated.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later). iPhone 1.13.0 stays compatible with older Mac builds; new provider details appear once Mac is updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 版 CodexBar を 0.36.1.1（fork build 88.1 以降）に更新してください。iPhone 1.13.0 は古い Mac ビルドとも互換性があり、新しいプロバイダ詳細は Mac 更新後に表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.36.1.1（fork build 88.1 或更高）。iPhone 1.13.0 仍兼容旧版 Mac；新的 provider 详情会在 Mac 更新后出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.36.1.1（fork build 88.1 或更高）。iPhone 1.13.0 仍相容舊版 Mac；新的 provider 詳情會在 Mac 更新後出現。"
+          }
+        }
+      }
+    },
+    "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.13 は大きめの Mac 同期アップデートです。対応プロバイダが増え、クォータや更新日の詳細が充実し、アップグレード中の Mac から iPhone へのデータもより安定します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.13 是一次更大的 Mac 同步更新：更多 provider 覆盖、更丰富的额度和续费详情，以及升级过程里更稳定的 Mac 到 iPhone 数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.13 是一次更大的 Mac 同步更新：更多 provider 覆蓋、更豐富的額度和續費詳情，以及升級過程裡更穩定的 Mac 到 iPhone 資料。"
+          }
+        }
+      }
+    },
+    "Provider coverage — Devin, LiteLLM, Poe, Chutes, and Zed can now appear on iPhone when your Mac syncs their usage, with quota notifications prepared for the new providers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider coverage — Devin, LiteLLM, Poe, Chutes, and Zed can now appear on iPhone when your Mac syncs their usage, with quota notifications prepared for the new providers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダ対応 — Mac が使用状況を同期すると、Devin、LiteLLM、Poe、Chutes、Zed が iPhone に表示されるようになり、新しいプロバイダのクォータ通知も準備されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 覆盖 —— 当 Mac 同步用量时，Devin、LiteLLM、Poe、Chutes 和 Zed 现在可以出现在 iPhone 上，并且已为新 provider 准备额度通知。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 覆蓋 —— 當 Mac 同步用量時，Devin、LiteLLM、Poe、Chutes 和 Zed 現在可以出現在 iPhone 上，並且已為新 provider 準備額度通知。"
+          }
+        }
+      }
+    },
+    "Richer cards — MiniMax renewal dates, Copilot budget windows, MiMo balance and token-plan updates, Kimi Code API usage, and Poe point history now travel through the shared sync data where iOS can show them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richer cards — MiniMax renewal dates, Copilot budget windows, MiMo balance and token-plan updates, Kimi Code API usage, and Poe point history now travel through the shared sync data where iOS can show them."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "より詳しいカード — MiniMax の更新日、Copilot の予算ウィンドウ、MiMo の残高とトークンプラン更新、Kimi Code API 使用量、Poe のポイント履歴が、iOS で表示できる共有同期データとして届きます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更丰富的卡片 —— MiniMax 续费日期、Copilot budget 窗口、MiMo 余额和 token-plan 更新、Kimi Code API 用量、Poe 积分历史，会通过共享同步数据传到 iOS 可显示的位置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更豐富的卡片 —— MiniMax 續費日期、Copilot budget 視窗、MiMo 餘額和 token-plan 更新、Kimi Code API 用量、Poe 積分歷史，會透過共享同步資料傳到 iOS 可顯示的位置。"
+          }
+        }
+      }
+    },
+    "Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still catching up, so cards should not flicker back to empty during a rolling upgrade.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still catching up, so cards should not flicker back to empty during a rolling upgrade."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "よりスムーズなアップグレード — 片方の Mac が更新済みで、もう一方がまだ旧版でも、iPhone は詳しい provider 情報を保ち、ローリングアップグレード中にカードが空に戻りにくくなります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "升级更平稳 —— 一台 Mac 已更新、另一台还在旧版时，iPhone 会保留丰富的 provider 详情，滚动升级过程中卡片不应再闪回空状态。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "升級更平穩 —— 一台 Mac 已更新、另一台還在舊版時，iPhone 會保留豐富的 provider 詳情，滾動升級過程中卡片不應再閃回空狀態。"
+          }
+        }
+      }
+    },
+    "Mac improvements included — this release carries the 0.35.0 through 0.36.1 provider accuracy, security, localization, and menu reliability fixes to the companion app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac improvements included — this release carries the 0.35.0 through 0.36.1 provider accuracy, security, localization, and menu reliability fixes to the companion app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の改善も反映 — 0.35.0 から 0.36.1 までの provider 精度、セキュリティ、ローカライズ、メニュー信頼性の修正がコンパニオンアプリに届きます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含 Mac 端改进 —— 本版本把 0.35.0 到 0.36.1 的 provider 准确性、安全、本地化和菜单可靠性修复带到 companion app。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含 Mac 端改進 —— 本版本把 0.35.0 到 0.36.1 的 provider 準確性、安全、本地化和選單可靠性修復帶到 companion app。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later) for the full 1.13 experience. iPhone 1.13.0 still opens older Mac data, but new provider details appear after Mac updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later) for the full 1.13 experience. iPhone 1.13.0 still opens older Mac data, but new provider details appear after Mac updates."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.13 のすべての内容を使うには、Mac 版 CodexBar を 0.36.1.1（fork build 88.1 以降）に更新してください。iPhone 1.13.0 は古い Mac データも開けますが、新しい provider 詳細は Mac 更新後に表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.36.1.1（fork build 88.1 或更高），即可获得完整 1.13 体验。iPhone 1.13.0 仍能打开旧版 Mac 数据，但新的 provider 详情会在 Mac 更新后出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.36.1.1（fork build 88.1 或更高），即可獲得完整 1.13 體驗。iPhone 1.13.0 仍能開啟舊版 Mac 資料，但新的 provider 詳情會在 Mac 更新後出現。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

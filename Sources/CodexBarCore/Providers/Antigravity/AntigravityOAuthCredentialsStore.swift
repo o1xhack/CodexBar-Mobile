@@ -408,6 +408,7 @@ public enum AntigravityOAuthConfig {
 
 public struct AntigravityOAuthCredentialsStore: @unchecked Sendable {
     public static let environmentCredentialsKey = "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON"
+    private static let fileLock = NSLock()
 
     public let fileURL: URL
     private let fileManager: FileManager
@@ -418,22 +419,45 @@ public struct AntigravityOAuthCredentialsStore: @unchecked Sendable {
     }
 
     public func load() throws -> AntigravityOAuthCredentials? {
+        try Self.fileLock.withLock {
+            try self.loadUnlocked()
+        }
+    }
+
+    private func loadUnlocked() throws -> AntigravityOAuthCredentials? {
         guard self.fileManager.fileExists(atPath: self.fileURL.path) else { return nil }
         let data = try Data(contentsOf: self.fileURL)
         return try JSONDecoder().decode(AntigravityOAuthCredentials.self, from: data)
     }
 
     public func save(_ credentials: AntigravityOAuthCredentials) throws {
-        let data = try JSONEncoder.antigravityCredentials.encode(credentials)
-        let directory = self.fileURL.deletingLastPathComponent()
-        if !self.fileManager.fileExists(atPath: directory.path) {
-            try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Self.fileLock.withLock {
+            let data = try JSONEncoder.antigravityCredentials.encode(credentials)
+            let directory = self.fileURL.deletingLastPathComponent()
+            if !self.fileManager.fileExists(atPath: directory.path) {
+                try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            }
+            try data.write(to: self.fileURL, options: [.atomic])
+            try self.applySecurePermissionsIfNeeded()
         }
-        try data.write(to: self.fileURL, options: [.atomic])
-        try self.applySecurePermissionsIfNeeded()
     }
 
     public func deleteIfPresent() throws {
+        try Self.fileLock.withLock {
+            try self.deleteIfPresentUnlocked()
+        }
+    }
+
+    public func deleteIfPresent(
+        matching predicate: (AntigravityOAuthCredentials) -> Bool) throws
+    {
+        try Self.fileLock.withLock {
+            guard let credentials = try self.loadUnlocked(), predicate(credentials) else { return }
+            try self.deleteIfPresentUnlocked()
+        }
+    }
+
+    private func deleteIfPresentUnlocked() throws {
         guard self.fileManager.fileExists(atPath: self.fileURL.path) else { return }
         try self.fileManager.removeItem(at: self.fileURL)
     }

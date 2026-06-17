@@ -54,9 +54,10 @@ struct MockProviderInjectorTests {
         // iOS 1.9.0 adds 3 v0.28+v0.29 provider simple mocks
         // (azureopenai/alibabatokenplan/t3chat). 57 → 60.
         // iOS 1.12.0 adds Devin. 60 → 61.
+        // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed. 61 → 65.
         #expect(
-            MockProviderInjector.allMocks().count == 61,
-            "iOS 1.12.0: 60 → 61 (+Devin simple mock).")
+            MockProviderInjector.allMocks().count == 65,
+            "iOS 1.13.0: 61 → 65 (+LiteLLM/Poe/Chutes/Zed simple mocks).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")
@@ -255,6 +256,7 @@ struct MockProviderInjectorTests {
         //   - azureopenai (v0.28.0, deployment-status usage, no USD)
         //   - alibabatokenplan (v0.29.0, token-plan credit quota, no USD)
         //   - t3chat (v0.28.0, web-session subscription %, no USD)
+        //   - poe (v0.36.1, points/subscription usage, no USD)
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
@@ -262,6 +264,7 @@ struct MockProviderInjectorTests {
             Set(costLessIDs).isSubset(of: [
                 "antigravity", "ollama", "elevenlabs",
                 "azureopenai", "alibabatokenplan", "t3chat",
+                "poe",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

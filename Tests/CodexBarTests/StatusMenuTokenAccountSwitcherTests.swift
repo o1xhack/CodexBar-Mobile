@@ -11,24 +11,9 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         StatusItemController.setMenuRefreshEnabledForTesting(false)
     }
 
-    private func makeStatusBarForTesting() -> NSStatusBar {
-        let env = ProcessInfo.processInfo.environment
-        if env["GITHUB_ACTIONS"] == "true" || env["CI"] == "true" {
-            return .system
-        }
-        return NSStatusBar()
-    }
-
     private func makeSettings() -> SettingsStore {
-        let suite = "StatusMenuTokenAccountSwitcherTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
+        let settings = testSettingsStore(
+            suiteName: "StatusMenuTokenAccountSwitcherTests",
             tokenAccountStore: InMemoryTokenAccountStore())
         settings.providerDetectionCompleted = true
         return settings
@@ -116,7 +101,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let refreshTask = Task { @MainActor in
@@ -167,7 +152,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu(for: .copilot)
@@ -204,7 +189,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu(for: .copilot)
@@ -288,7 +273,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu(for: .copilot)
@@ -333,7 +318,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu()
@@ -405,7 +390,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu(for: .claude)
@@ -459,7 +444,7 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
+            statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
         let menu = controller.makeMenu(for: .claude)

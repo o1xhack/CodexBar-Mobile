@@ -434,7 +434,7 @@ struct StatusMenuTests {
             }
             let menu = controller.makeMenu()
             controller.menuWillOpen(menu)
-            StatusItemController.setMenuRefreshEnabledForTesting(false)
+            controller.menuRefreshEnabledOverrideForTesting = false
             try? await Task.sleep(for: .milliseconds(180))
         }
 
@@ -554,8 +554,7 @@ struct StatusMenuTests {
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
         controller.openMenus[ObjectIdentifier(menu)] = menu
-        StatusItemController.setMenuRefreshEnabledForTesting(true)
-        defer { StatusItemController.resetMenuRefreshEnabledForTesting() }
+        controller.menuRefreshEnabledOverrideForTesting = true
 
         let initialSwitcher = menu.items.first?.view as? ProviderSwitcherView
         #expect(initialSwitcher != nil)
@@ -704,8 +703,7 @@ struct StatusMenuTests {
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
         controller.openMenus[ObjectIdentifier(menu)] = menu
-        StatusItemController.setMenuRefreshEnabledForTesting(true)
-        defer { StatusItemController.resetMenuRefreshEnabledForTesting() }
+        controller.menuRefreshEnabledOverrideForTesting = true
 
         let initialButtons = self.switcherButtons(in: menu)
         #expect(initialButtons.count == activeProviders.count)

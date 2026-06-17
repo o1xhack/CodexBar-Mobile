@@ -2438,22 +2438,22 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.12.0",
+            version: "1.13.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "CodexBar 0.35.0 sync: Devin, Copilot, MiMo, Kimi, MiniMax renewal details, and smoother Mac menu updates now flow through to iPhone."),
+            summary: String(localized: "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "MiniMax — plan renewal and expiration dates now sync from Mac and appear on the provider card."),
-                        String(localized: "Provider data — rich synced details are preserved when one Mac is updated and another is still on an older version."),
-                        String(localized: "New Mac data — Devin quotas, Copilot budget windows, MiMo balance and token-plan updates, and Kimi Code API usage are carried through the shared sync payload where iOS can display them."),
-                        String(localized: "Mac sync — includes upstream 0.33.0 to 0.35.0 provider accuracy, security, localization, and menu reliability fixes."),
+                        String(localized: "Provider coverage — Devin, LiteLLM, Poe, Chutes, and Zed can now appear on iPhone when your Mac syncs their usage, with quota notifications prepared for the new providers."),
+                        String(localized: "Richer cards — MiniMax renewal dates, Copilot budget windows, MiMo balance and token-plan updates, Kimi Code API usage, and Poe point history now travel through the shared sync data where iOS can show them."),
+                        String(localized: "Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still catching up, so cards should not flicker back to empty during a rolling upgrade."),
+                        String(localized: "Mac improvements included — this release carries the 0.35.0 through 0.36.1 provider accuracy, security, localization, and menu reliability fixes to the companion app."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.35.0.1 (fork build 85.1 or later). iPhone 1.12.0 stays compatible with older Mac builds; new details appear once Mac is updated."),
+                        String(localized: "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later) for the full 1.13 experience. iPhone 1.13.0 still opens older Mac data, but new provider details appear after Mac updates."),
                     ]),
             ]),
         ReleaseNotesVersion(

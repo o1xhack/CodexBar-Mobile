@@ -57,6 +57,18 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
+    func `cost history days editor builds with clamped settings binding`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-cost-history-days")
+
+        settings.costUsageHistoryDays = 999
+        #expect(settings.costUsageHistoryDays == 365)
+        #expect(CostHistoryDaysEditor.title(days: 365).contains("365"))
+        #expect(!CostHistoryDaysEditor.title(days: 365).contains("%d"))
+
+        _ = CostHistoryDaysEditor(settings: settings).body
+    }
+
+    @Test
     func `language preference updates global localization resolver`() {
         let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
         let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
@@ -78,46 +90,62 @@ struct PreferencesPaneSmokeTests {
         settings.appLanguage = "zh-Hans"
 
         #expect(UserDefaults.standard.string(forKey: "appLanguage") == "zh-Hans")
-        #expect(L("tab_general") == "通用")
-        #expect(L("quota_warning_notifications_title") == "配额预警通知")
-        #expect(L("show_provider_storage_usage_title") == "显示提供商存储用量")
+        CodexBarLocalizationOverride.$appLanguage.withValue("zh-Hans") {
+            #expect(L("tab_general") == "通用")
+            #expect(L("quota_warning_notifications_title") == "配额预警通知")
+            #expect(L("show_provider_storage_usage_title") == "显示提供商存储用量")
+        }
 
         settings.appLanguage = "ja"
 
         #expect(UserDefaults.standard.string(forKey: "appLanguage") == "ja")
-        #expect(L("language_title") == "言語")
-        #expect(L("start_at_login_title") == "ログイン時に起動")
-        #expect(L("quit_app") == "CodexBar を終了")
+        CodexBarLocalizationOverride.$appLanguage.withValue("ja") {
+            #expect(L("language_title") == "言語")
+            #expect(L("start_at_login_title") == "ログイン時に起動")
+            #expect(L("quit_app") == "CodexBar を終了")
+        }
+
+        settings.appLanguage = "id"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "id")
+        CodexBarLocalizationOverride.$appLanguage.withValue("id") {
+            #expect(L("language_title") == "Bahasa")
+            #expect(L("start_at_login_title") == "Mulai saat Login")
+            #expect(L("quit_app") == "Keluar CodexBar")
+        }
     }
 
     @Test
     func `german app language resolves localized labels`() {
-        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
-        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
-        defer {
-            if let previousLanguage {
-                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "appLanguage")
-            }
-            if let previousAppleLanguages {
-                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-            }
-        }
-
         let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-de")
         settings.appLanguage = "de"
 
         #expect(UserDefaults.standard.string(forKey: "appLanguage") == "de")
-        #expect(L("tab_general") == "Allgemein")
-        #expect(L("language_title") == "Sprache")
-        #expect(L("quit_app") == "CodexBar beenden")
-        #expect(L("display_mode_reset_time") == "Zurücksetzungszeit")
-        #expect(L("display_mode_reset_time_desc").contains("↻ 15:56"))
-        #expect(L("vertex_ai_login_instructions").contains("\n\n1. Öffnen Sie Terminal"))
-        #expect(!L("vertex_ai_login_instructions").contains("\\n"))
+        CodexBarLocalizationOverride.$appLanguage.withValue("de") {
+            #expect(L("tab_general") == "Allgemein")
+            #expect(L("language_title") == "Sprache")
+            #expect(L("quit_app") == "CodexBar beenden")
+            #expect(L("display_mode_reset_time") == "Zurücksetzungszeit")
+            #expect(L("display_mode_reset_time_desc").contains("↻ 15:56"))
+            #expect(L("vertex_ai_login_instructions").contains("\n\n1. Öffnen Sie Terminal"))
+            #expect(!L("vertex_ai_login_instructions").contains("\\n"))
+        }
+    }
+
+    @Test
+    func `italian language preference resolves italian strings`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-italian")
+        settings.appLanguage = "it"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "it")
+        CodexBarLocalizationOverride.$appLanguage.withValue("it") {
+            #expect(L("language_title") == "Lingua")
+            #expect(L("section_system") == "Sistema")
+            #expect(L("language_italian") == "Italiano")
+            #expect(L("tab_display") == "Aspetto")
+            #expect(L("tab_advanced") == "Avanzate")
+            #expect(L("quit_app") == "Esci da CodexBar")
+        }
     }
 
     private static func makeSettingsStore(suite: String) -> SettingsStore {

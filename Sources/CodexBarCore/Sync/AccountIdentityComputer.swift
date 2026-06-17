@@ -71,7 +71,11 @@ public enum AccountIdentityComputer {
              // Upstream v0.28.0–v0.29.0 new providers. iOS 1.9 surfaces
              // these via single-account cards. Promote to Tier-A only if a
              // user files a cross-Mac merging request for them.
-             .azureopenai, .alibabatokenplan, .t3chat:
+             .azureopenai, .alibabatokenplan, .t3chat,
+             // Upstream v0.36.0–v0.36.1 new providers. iOS 1.13 surfaces
+             // these via generic single-account cards and push subscriptions;
+             // promote only when cross-Mac merging has a stable account ID.
+             .zed, .litellm, .poe, .chutes:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

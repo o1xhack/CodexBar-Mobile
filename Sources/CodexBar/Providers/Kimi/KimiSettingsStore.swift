@@ -53,10 +53,11 @@ extension SettingsStore {
 
 extension SettingsStore {
     func kimiSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.KimiProviderSettings {
-        _ = tokenOverride
         self.ensureKimiAuthTokenLoaded()
-        return ProviderSettingsSnapshot.KimiProviderSettings(
-            cookieSource: self.kimiCookieSource,
-            manualCookieHeader: self.kimiManualCookieHeader)
+        return self.resolvedCookieSettings(
+            provider: .kimi,
+            configuredSource: self.kimiCookieSource,
+            configuredHeader: self.kimiManualCookieHeader,
+            tokenOverride: tokenOverride)
     }
 }

@@ -19,6 +19,7 @@ struct CodexLoginRunner {
     static func run(
         homePath: String? = nil,
         timeout: TimeInterval = 120,
+        outputDrainTimeout: TimeInterval = 3,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current) async -> Result
     {
@@ -46,6 +47,8 @@ struct CodexLoginRunner {
             let stderr = Pipe()
             process.standardOutput = stdout
             process.standardError = stderr
+            let stdoutCapture = ProcessPipeCapture(pipe: stdout)
+            let stderrCapture = ProcessPipeCapture(pipe: stderr)
 
             let termination = ProcessTermination()
             process.terminationHandler = { _ in
@@ -59,13 +62,18 @@ struct CodexLoginRunner {
             } catch {
                 return Result(outcome: .launchFailed(error.localizedDescription), output: "")
             }
+            stdoutCapture.start()
+            stderrCapture.start()
 
             let timedOut = await self.wait(timeout: timeout, termination: termination)
             if timedOut {
                 self.terminate(process, processGroup: processGroup)
             }
 
-            let output = await self.combinedOutput(stdout: stdout, stderr: stderr)
+            let output = await self.combinedOutput(
+                stdout: stdoutCapture,
+                stderr: stderrCapture,
+                timeout: outputDrainTimeout)
             if timedOut {
                 return Result(outcome: .timedOut, output: output)
             }
@@ -158,41 +166,25 @@ struct CodexLoginRunner {
         return setpgid(pid, pid) == 0 ? pid : nil
     }
 
-    private static func combinedOutput(stdout: Pipe, stderr: Pipe) async -> String {
-        async let out = self.readToEnd(stdout)
-        async let err = self.readToEnd(stderr)
-        let stdoutText = await out
-        let stderrText = await err
+    private static func combinedOutput(
+        stdout: ProcessPipeCapture,
+        stderr: ProcessPipeCapture,
+        timeout: TimeInterval) async -> String
+    {
+        let drainTimeout = Duration.seconds(max(0, timeout))
+        async let outData = stdout.finish(timeout: drainTimeout)
+        async let errData = stderr.finish(timeout: drainTimeout)
+        let out = await self.decode(outData)
+        let err = await self.decode(errData)
 
-        let merged: String = if !stdoutText.isEmpty, !stderrText.isEmpty {
-            [stdoutText, stderrText].joined(separator: "\n")
+        let merged: String = if !out.isEmpty, !err.isEmpty {
+            [out, err].joined(separator: "\n")
         } else {
-            stdoutText + stderrText
+            out + err
         }
         let trimmed = merged.trimmingCharacters(in: .whitespacesAndNewlines)
         let limited = trimmed.prefix(4000)
         return limited.isEmpty ? L("No output captured.") : String(limited)
-    }
-
-    private static func readToEnd(_ pipe: Pipe, timeout: TimeInterval = 3.0) async -> String {
-        await withTaskGroup(of: String?.self) { group -> String in
-            group.addTask {
-                if #available(macOS 13.0, *) {
-                    if let data = try? pipe.fileHandleForReading.readToEnd() { return self.decode(data) }
-                }
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                return Self.decode(data)
-            }
-            group.addTask {
-                let nanos = UInt64(max(0, timeout) * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: nanos)
-                return nil
-            }
-            let result = await group.next()
-            group.cancelAll()
-            if let result, let text = result { return text }
-            return ""
-        }
     }
 
     private static func decode(_ data: Data) -> String {

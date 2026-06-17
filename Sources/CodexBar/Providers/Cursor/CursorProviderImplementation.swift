@@ -1,9 +1,7 @@
 import CodexBarCore
-import CodexBarMacroSupport
 import Foundation
 import SwiftUI
 
-@ProviderImplementationRegistration
 struct CursorProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .cursor
     let supportsLoginFlow: Bool = true

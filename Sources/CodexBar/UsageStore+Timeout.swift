@@ -1,11 +1,15 @@
 import Foundation
 
 extension UsageStore {
+    private nonisolated static let probeTimeoutQueue = DispatchQueue(
+        label: "com.steipete.codexbar.probe-timeouts",
+        qos: .userInitiated)
+
     private final class ProbeTimeoutRace: @unchecked Sendable {
         private let lock = NSLock()
         private var continuation: CheckedContinuation<String, Never>?
         private var result: String?
-        private var tasks: [Task<Void, Never>] = []
+        private var cancellations: [() -> Void] = []
 
         func install(_ continuation: CheckedContinuation<String, Never>) {
             let result: String? = self.lock.withLock {
@@ -21,29 +25,41 @@ extension UsageStore {
         }
 
         func install(_ task: Task<Void, Never>) {
+            self.installCancellation {
+                task.cancel()
+            }
+        }
+
+        func install(_ workItem: DispatchWorkItem) {
+            self.installCancellation {
+                workItem.cancel()
+            }
+        }
+
+        private func installCancellation(_ cancellation: @escaping () -> Void) {
             let shouldCancel = self.lock.withLock {
                 guard self.result == nil else { return true }
-                self.tasks.append(task)
+                self.cancellations.append(cancellation)
                 return false
             }
             if shouldCancel {
-                task.cancel()
+                cancellation()
             }
         }
 
         func complete(with result: String) {
             let completion = self.lock.withLock {
                 guard self.result == nil else {
-                    return (nil as CheckedContinuation<String, Never>?, [] as [Task<Void, Never>])
+                    return (nil as CheckedContinuation<String, Never>?, [] as [() -> Void])
                 }
                 self.result = result
                 let continuation = self.continuation
                 self.continuation = nil
-                let tasks = self.tasks
-                self.tasks.removeAll()
-                return (continuation, tasks)
+                let cancellations = self.cancellations
+                self.cancellations.removeAll()
+                return (continuation, cancellations)
             }
-            completion.1.forEach { $0.cancel() }
+            completion.1.forEach { $0() }
             completion.0?.resume(returning: result)
         }
     }
@@ -63,11 +79,16 @@ extension UsageStore {
                     let result = await operation()
                     race.complete(with: result)
                 })
-                race.install(Task {
-                    try? await Task.sleep(for: .seconds(max(seconds, 0)))
-                    guard !Task.isCancelled else { return }
+
+                // A Swift task-based timer can be delayed when the cooperative pool is
+                // saturated by blocking probes. Dispatch keeps the timeout wall-clock bounded.
+                let timeoutWorkItem = DispatchWorkItem {
                     race.complete(with: timeoutMessage)
-                })
+                }
+                race.install(timeoutWorkItem)
+                Self.probeTimeoutQueue.asyncAfter(
+                    deadline: .now() + max(seconds, 0),
+                    execute: timeoutWorkItem)
             }
         } onCancel: {
             race.complete(with: timeoutMessage)

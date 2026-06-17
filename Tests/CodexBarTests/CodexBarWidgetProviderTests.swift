@@ -5,6 +5,160 @@ import Testing
 
 struct CodexBarWidgetProviderTests {
     @Test
+    func `small widget limits custom usage rows`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .antigravity,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "one", title: "One", percentLeft: 90),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "two", title: "Two", percentLeft: 80),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "three", title: "Three", percentLeft: 70),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "four", title: "Four", percentLeft: 60),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        #expect(WidgetUsageRow.rows(for: entry, limit: 2).map(\.id) == ["one", "two"])
+        #expect(WidgetUsageRow.rows(for: entry).count == 4)
+    }
+
+    @Test
+    func `small antigravity widget keeps one row per quota family`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .antigravity,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-gemini-session",
+                    title: "Gemini Session",
+                    percentLeft: 80),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-gemini-weekly",
+                    title: "Gemini Weekly",
+                    percentLeft: 20),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-third-party-session",
+                    title: "Claude + GPT Session",
+                    percentLeft: 5),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-third-party-weekly",
+                    title: "Claude + GPT Weekly",
+                    percentLeft: 60),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let rows = WidgetUsageRow.rows(for: entry, limit: 2)
+
+        #expect(rows.map(\.title) == ["Gemini Weekly", "Claude + GPT Session"])
+        #expect(rows.compactMap(\.percentLeft) == [20, 5])
+        #expect(WidgetUsageRow.smallWidgetRowLimit(for: entry) == 2)
+        #expect(WidgetUsageRow.mediumWidgetRowLimit(for: entry) == 3)
+        let mediumRows = WidgetUsageRow.rows(
+            for: entry,
+            limit: WidgetUsageRow.mediumWidgetRowLimit(for: entry))
+        #expect(mediumRows.map(\.title) == [
+            "Gemini Weekly",
+            "Claude + GPT Session",
+            "Claude + GPT Weekly",
+        ])
+    }
+
+    @Test
+    func `small widget preserves tertiary rows for other providers`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .cursor,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "one", title: "One", percentLeft: 90),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "two", title: "Two", percentLeft: 80),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "three", title: "Three", percentLeft: 70),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let limit = WidgetUsageRow.smallWidgetRowLimit(for: entry)
+
+        #expect(limit == nil)
+        #expect(WidgetUsageRow.rows(for: entry, limit: limit).map(\.id) == ["one", "two", "three"])
+    }
+
+    @Test
+    func `small antigravity widget prefers known quota rows`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .antigravity,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-gemini-session",
+                    title: "Gemini Session",
+                    percentLeft: nil),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-gemini-weekly",
+                    title: "Gemini Weekly",
+                    percentLeft: 100),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-third-party-session",
+                    title: "Claude + GPT Session",
+                    percentLeft: 80),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let rows = WidgetUsageRow.rows(for: entry, limit: 2)
+
+        #expect(rows.map(\.title) == ["Gemini Weekly", "Claude + GPT Session"])
+    }
+
+    @Test
+    func `small antigravity widget keeps nonstandard quota groups visible`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .antigravity,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-other-session",
+                    title: "Other Session",
+                    percentLeft: 70),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "antigravity-quota-summary-other-weekly",
+                    title: "Other Weekly",
+                    percentLeft: 40),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let rows = WidgetUsageRow.rows(for: entry, limit: 2)
+
+        #expect(rows.map(\.title) == ["Other Weekly", "Other Session"])
+    }
+
+    @Test
     func `provider choice supports alibaba`() {
         #expect(ProviderChoice(provider: .alibaba) == .alibaba)
         #expect(ProviderChoice.alibaba.provider == .alibaba)
@@ -20,6 +174,11 @@ struct CodexBarWidgetProviderTests {
     func `provider choice supports opencode go`() {
         #expect(ProviderChoice(provider: .opencodego) == .opencodego)
         #expect(ProviderChoice.opencodego.provider == .opencodego)
+    }
+
+    @Test
+    func `provider choice excludes unsupported Chutes widgets`() {
+        #expect(ProviderChoice(provider: .chutes) == nil)
     }
 
     @Test
@@ -130,7 +289,7 @@ struct CodexBarWidgetProviderTests {
     }
 
     @Test
-    func `legacy widget usage rows include tertiary slot when supported`() {
+    func `legacy widget usage rows use antigravity grouped slots`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let entry = WidgetSnapshot.ProviderEntry(
             provider: .antigravity,
@@ -145,9 +304,9 @@ struct CodexBarWidgetProviderTests {
 
         let rows = WidgetUsageRow.rows(for: entry)
 
-        #expect(rows.map(\.id) == ["primary", "secondary", "tertiary"])
-        #expect(rows.map(\.title) == ["Claude", "Gemini Pro", "Gemini Flash"])
-        #expect(rows.compactMap(\.percentLeft) == [90, 80, 70])
+        #expect(rows.map(\.id) == ["primary", "secondary"])
+        #expect(rows.map(\.title) == ["Gemini", "Claude + GPT"])
+        #expect(rows.compactMap(\.percentLeft) == [90, 80])
     }
 
     @Test

@@ -228,6 +228,80 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
+    func `antigravity session notification uses quota summary duration instead of family representative`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-antigravity-session")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 20, weeklyUsed: 100))
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 100, weeklyUsed: 100))
+
+        #expect(notifier.posts.map(\.provider) == [.antigravity])
+        #expect(notifier.posts.map(\.transition) == [.depleted])
+    }
+
+    @Test
+    func `antigravity preserves session notifications for durationless legacy family lanes`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-antigravity-legacy-session")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 20, claudeUsed: 20))
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 20, claudeUsed: 100))
+
+        #expect(notifier.posts.map(\.provider) == [.antigravity])
+        #expect(notifier.posts.map(\.transition) == [.depleted])
+    }
+
+    @Test
+    func `antigravity snapshot mode change resets session notification baseline`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-antigravity-mode-change")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 20, weeklyUsed: 20))
+        store.handleSessionQuotaTransition(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 100, claudeUsed: 100))
+
+        #expect(notifier.posts.isEmpty)
+    }
+
+    @Test
     func `quota warning disabled does not post`() {
         let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-disabled")
         settings.refreshFrequency = .manual
@@ -579,6 +653,92 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
+    func `antigravity quota warnings use named session and weekly durations`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-antigravity")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50]
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningWindowEnabled(.weekly, enabled: true)
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 40, weeklyUsed: 40))
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 60, weeklyUsed: 60))
+
+        #expect(notifier.quotaWarningPosts.map(\.provider) == [.antigravity, .antigravity])
+        #expect(notifier.quotaWarningPosts.map(\.event.window) == [.session, .weekly])
+        #expect(notifier.quotaWarningPosts.map(\.event.threshold) == [50, 50])
+    }
+
+    @Test
+    func `antigravity legacy quota warnings do not infer weekly from family slots`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-antigravity-legacy")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50]
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningWindowEnabled(.weekly, enabled: true)
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 40, claudeUsed: 40))
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 60, claudeUsed: 60))
+
+        #expect(notifier.quotaWarningPosts.map(\.event.window) == [.session])
+    }
+
+    @Test
+    func `antigravity quota warning mode change resets warning baseline`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-antigravity-mode")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50]
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningWindowEnabled(.weekly, enabled: true)
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityQuotaSummarySnapshot(sessionUsed: 20, weeklyUsed: 20))
+        store.handleQuotaWarningTransitions(
+            provider: .antigravity,
+            snapshot: self.antigravityLegacySnapshot(geminiUsed: 80, claudeUsed: 40))
+
+        #expect(notifier.quotaWarningPosts.isEmpty)
+        let key = UsageStore.QuotaWarningStateKey(provider: .antigravity, window: .session)
+        #expect(store.quotaWarningState[key]?.lastRemaining == 20)
+        #expect(store.quotaWarningState[key]?.source == .antigravityLegacy)
+    }
+
+    @Test
     func `disabling quota warning window clears fired state`() {
         let settings = self
             .makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-disabled-clears-state")
@@ -650,5 +810,54 @@ struct UsageStoreSessionQuotaTransitionTests {
                     resetsAt: now.addingTimeInterval(6 * 24 * 3600),
                     resetDescription: "Resets in 6 days"),
             ]).toUsageSnapshot()
+    }
+
+    private func antigravityQuotaSummarySnapshot(sessionUsed: Double, weeklyUsed: Double) -> UsageSnapshot {
+        UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: weeklyUsed,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: sessionUsed,
+                windowMinutes: 5 * 60,
+                resetsAt: nil,
+                resetDescription: nil),
+            tertiary: nil,
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "antigravity-quota-summary-gemini-5h",
+                    title: "Gemini Session",
+                    window: RateWindow(
+                        usedPercent: sessionUsed,
+                        windowMinutes: 5 * 60,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+                NamedRateWindow(
+                    id: "antigravity-quota-summary-gemini-weekly",
+                    title: "Gemini Weekly",
+                    window: RateWindow(
+                        usedPercent: weeklyUsed,
+                        windowMinutes: 7 * 24 * 60,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+            ],
+            updatedAt: Date())
+    }
+
+    private func antigravityLegacySnapshot(geminiUsed: Double, claudeUsed: Double) -> UsageSnapshot {
+        UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: geminiUsed,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: claudeUsed,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: nil),
+            updatedAt: Date())
     }
 }

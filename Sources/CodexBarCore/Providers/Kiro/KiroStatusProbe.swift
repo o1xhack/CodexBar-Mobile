@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 public struct KiroUsageSnapshot: Sendable {
     public let planName: String
@@ -219,32 +224,33 @@ public enum KiroStatusProbeError: LocalizedError, Sendable {
 }
 
 public struct KiroStatusProbe: Sendable {
-    public init() {}
+    private let cliBinaryResolver: @Sendable () -> String?
+
+    public init() {
+        self.cliBinaryResolver = { TTYCommandRunner.which("kiro-cli") }
+    }
+
+    init(cliBinaryResolver: @escaping @Sendable () -> String?) {
+        self.cliBinaryResolver = cliBinaryResolver
+    }
 
     private static let logger = CodexBarLog.logger(LogCategories.kiro)
 
     public static func detectVersion() -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["kiro-cli", "--version"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let output = String(data: data, encoding: .utf8) else { return nil }
-            // Output is like "kiro-cli 1.23.1"
-            let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.hasPrefix("kiro-cli ") {
-                return String(trimmed.dropFirst("kiro-cli ".count))
-            }
-            return trimmed.isEmpty ? nil : trimmed
-        } catch {
-            self.logger.debug("kiro-cli version detection failed: \(error.localizedDescription)")
+        guard let path = TTYCommandRunner.which("kiro-cli"),
+              let output = ProviderVersionDetector.run(
+                  path: path,
+                  args: ["--version"],
+                  mergeStandardError: true)
+        else {
+            self.logger.debug("kiro-cli version detection failed")
             return nil
         }
+        // Output is like "kiro-cli 1.23.1"
+        if output.hasPrefix("kiro-cli ") {
+            return String(output.dropFirst("kiro-cli ".count))
+        }
+        return output
     }
 
     public func fetch() async throws -> KiroUsageSnapshot {
@@ -263,7 +269,7 @@ public struct KiroStatusProbe: Sendable {
             contextUsage: contextUsage)
     }
 
-    private struct KiroCLIResult {
+    struct KiroCLIResult {
         let stdout: String
         let stderr: String
         let terminationStatus: Int32
@@ -390,149 +396,120 @@ public struct KiroStatusProbe: Sendable {
         return self.parseContextUsage(output: output)
     }
 
-    private func runCommand(
+    func runCommand(
         arguments: [String],
         timeout: TimeInterval,
         idleTimeout: TimeInterval = 5.0) async throws -> KiroCLIResult
     {
-        guard let binary = TTYCommandRunner.which("kiro-cli") else {
+        guard let binary = self.cliBinaryResolver() else {
             throw KiroStatusProbeError.cliNotFound
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = arguments
-
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-        process.standardInput = FileHandle.nullDevice
 
         var env = ProcessInfo.processInfo.environment
         env["TERM"] = "xterm-256color"
-        process.environment = env
 
-        // Thread-safe state for activity tracking
         final class ActivityState: @unchecked Sendable {
             private let lock = NSLock()
             private var _lastActivityAt = Date()
             private var _hasReceivedOutput = false
-            private var _stdoutData = Data()
-            private var _stderrData = Data()
 
             var lastActivityAt: Date {
-                self.lock.lock()
-                defer { lock.unlock() }
-                return self._lastActivityAt
+                self.lock.withLock { self._lastActivityAt }
             }
 
             var hasReceivedOutput: Bool {
-                self.lock.lock()
-                defer { lock.unlock() }
-                return self._hasReceivedOutput
+                self.lock.withLock { self._hasReceivedOutput }
             }
 
-            func appendStdout(_ data: Data) {
-                self.lock.lock()
-                defer { lock.unlock() }
-                self._stdoutData.append(data)
-                self._lastActivityAt = Date()
-                self._hasReceivedOutput = true
-            }
-
-            func appendStderr(_ data: Data) {
-                self.lock.lock()
-                defer { lock.unlock() }
-                self._stderrData.append(data)
-                self._lastActivityAt = Date()
-                self._hasReceivedOutput = true
-            }
-
-            func getOutput() -> (stdout: Data, stderr: Data) {
-                self.lock.lock()
-                defer { lock.unlock() }
-                return (self._stdoutData, self._stderrData)
+            func markActivity() {
+                self.lock.withLock {
+                    self._lastActivityAt = Date()
+                    self._hasReceivedOutput = true
+                }
             }
         }
 
         let state = ActivityState()
+        let stdoutCapture = ProcessPipeCapture(pipe: stdoutPipe, onData: { state.markActivity() })
+        let stderrCapture = ProcessPipeCapture(pipe: stderrPipe, onData: { state.markActivity() })
+        stdoutCapture.start()
+        stderrCapture.start()
 
-        // Set up readability handlers to track activity
-        stdoutPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                state.appendStdout(data)
+        let process: SpawnedProcessGroup
+        do {
+            process = try SpawnedProcessGroup.launch(
+                binary: binary,
+                arguments: arguments,
+                environment: env,
+                stdoutPipe: stdoutPipe,
+                stderrPipe: stderrPipe)
+        } catch {
+            stdoutCapture.stop()
+            stderrCapture.stop()
+            throw error
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        var didHitDeadline = false
+        var didTerminateForIdle = false
+
+        do {
+            while process.isRunning {
+                try Task.checkCancellation()
+                if Date() >= deadline {
+                    didHitDeadline = true
+                    break
+                }
+                if state.hasReceivedOutput,
+                   Date().timeIntervalSince(state.lastActivityAt) >= idleTimeout
+                {
+                    didTerminateForIdle = true
+                    break
+                }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+        } catch {
+            await process.terminate()
+            stdoutCapture.stop()
+            stderrCapture.stop()
+            throw error
+        }
+
+        if process.isRunning {
+            await process.terminate()
+            guard !process.isRunning else {
+                stdoutCapture.stop()
+                stderrCapture.stop()
+                throw KiroStatusProbeError.timeout
+            }
+            if didHitDeadline || !state.hasReceivedOutput {
+                stdoutCapture.stop()
+                stderrCapture.stop()
+                throw KiroStatusProbeError.timeout
             }
         }
-        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
-                state.appendStderr(data)
-            }
+        if process.hasResidualProcessGroup {
+            await process.terminateResidualProcesses()
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global().async {
-                do {
-                    try process.run()
-                } catch {
-                    stdoutPipe.fileHandleForReading.readabilityHandler = nil
-                    stderrPipe.fileHandleForReading.readabilityHandler = nil
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                let deadline = Date().addingTimeInterval(timeout)
-                var didHitDeadline = false
-                var didTerminateForIdle = false
-
-                while process.isRunning {
-                    if Date() >= deadline {
-                        didHitDeadline = true
-                        break
-                    }
-                    // Idle timeout: if we got output but then it went silent
-                    if state.hasReceivedOutput,
-                       Date().timeIntervalSince(state.lastActivityAt) >= idleTimeout
-                    {
-                        // Process went idle after producing output - likely done or stuck
-                        didTerminateForIdle = true
-                        break
-                    }
-                    Thread.sleep(forTimeInterval: 0.1)
-                }
-
-                // Clean up handlers
-                stdoutPipe.fileHandleForReading.readabilityHandler = nil
-                stderrPipe.fileHandleForReading.readabilityHandler = nil
-
-                if process.isRunning {
-                    process.terminate()
-                    process.waitUntilExit()
-                    if didHitDeadline || !state.hasReceivedOutput {
-                        continuation.resume(throwing: KiroStatusProbeError.timeout)
-                        return
-                    }
-                }
-
-                // Read any remaining data
-                let remainingStdout = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-                let remainingStderr = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-
-                var output = state.getOutput()
-                output.stdout.append(remainingStdout)
-                output.stderr.append(remainingStderr)
-
-                let stdoutOutput = String(data: output.stdout, encoding: .utf8) ?? ""
-                let stderrOutput = String(data: output.stderr, encoding: .utf8) ?? ""
-                continuation.resume(returning: KiroCLIResult(
-                    stdout: stdoutOutput,
-                    stderr: stderrOutput,
-                    terminationStatus: process.terminationStatus,
-                    terminatedForIdle: didTerminateForIdle))
-            }
+        async let stdoutData = stdoutCapture.finish(timeout: .seconds(1))
+        async let stderrData = stderrCapture.finish(timeout: .seconds(1))
+        let output = await (stdout: stdoutData, stderr: stderrData)
+        if !stdoutCapture.reachedEOF || !stderrCapture.reachedEOF {
+            await process.terminateResidualProcesses()
         }
+        await process.finish()
+        guard let terminationStatus = process.terminationStatus else {
+            throw KiroStatusProbeError.timeout
+        }
+        return KiroCLIResult(
+            stdout: String(data: output.stdout, encoding: .utf8) ?? "",
+            stderr: String(data: output.stderr, encoding: .utf8) ?? "",
+            terminationStatus: terminationStatus,
+            terminatedForIdle: didTerminateForIdle)
     }
 
     func parse(

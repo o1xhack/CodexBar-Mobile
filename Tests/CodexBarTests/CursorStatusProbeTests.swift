@@ -909,10 +909,34 @@ struct CursorStatusProbeTests {
     }
 }
 
-private func makeCursorStatusProbeSession() -> URLSession {
-    let config = URLSessionConfiguration.ephemeral
-    config.protocolClasses = [CursorStatusProbeStubURLProtocol.self]
-    return URLSession(configuration: config)
+private final class CursorStatusProbeTestSession {
+    let urlSession: URLSession
+    private let sessionID: String
+
+    init(handler: @escaping @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)) {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStatusProbeStubURLProtocol.self]
+        self.sessionID = CursorStatusProbeStubURLProtocol.configure(config, handler: handler)
+        self.urlSession = URLSession(configuration: config)
+    }
+
+    deinit {
+        self.urlSession.invalidateAndCancel()
+        CursorStatusProbeStubURLProtocol.removeSession(self.sessionID)
+    }
+
+    var requestCount: Int {
+        CursorStatusProbeStubURLProtocol.requests(for: self.sessionID).count
+    }
+
+    var requestPaths: [String] {
+        CursorStatusProbeStubURLProtocol.requests(for: self.sessionID).compactMap { $0.url?.path }
+    }
+
+    var requestCookies: [String] {
+        CursorStatusProbeStubURLProtocol.requests(for: self.sessionID)
+            .compactMap { $0.value(forHTTPHeaderField: "Cookie") }
+    }
 }
 
 private func makeCursorStatusProbeResponse(
@@ -954,12 +978,7 @@ extension CursorStatusProbeTests {
 
     @Test
     func `fetch ignores user info failure when usage summary succeeds`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
 
             switch requestURL.path {
@@ -993,21 +1012,16 @@ extension CursorStatusProbeTests {
         let snapshot = try await CursorStatusProbe(
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
-            urlSession: makeCursorStatusProbeSession()).fetchWithManualCookies("auth=test")
+            urlSession: testSession.urlSession).fetchWithManualCookies("auth=test")
 
         #expect(snapshot.planPercentUsed == 30.0)
         #expect(snapshot.accountEmail == nil)
-        #expect(CursorStatusProbeStubURLProtocol.requestCount == 2)
+        #expect(testSession.requestCount == 2)
     }
 
     @Test
     func `fetch fails cleanly when usage summary fails`() async {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
 
             switch requestURL.path {
@@ -1038,7 +1052,7 @@ extension CursorStatusProbeTests {
             _ = try await CursorStatusProbe(
                 baseURL: baseURL,
                 browserDetection: BrowserDetection(cacheTTL: 0),
-                urlSession: makeCursorStatusProbeSession()).fetchWithManualCookies("auth=test")
+                urlSession: testSession.urlSession).fetchWithManualCookies("auth=test")
             Issue.record("Expected usage summary failure to be surfaced")
         } catch let error as CursorStatusProbeError {
             guard case let .networkError(message) = error else {
@@ -1046,7 +1060,7 @@ extension CursorStatusProbeTests {
                 return
             }
             #expect(message == "HTTP 500")
-            #expect(CursorStatusProbeStubURLProtocol.requestPaths.contains("/api/usage-summary"))
+            #expect(testSession.requestPaths.contains("/api/usage-summary"))
         } catch {
             Issue.record("Expected CursorStatusProbeError, got: \(error)")
         }
@@ -1054,14 +1068,9 @@ extension CursorStatusProbeTests {
 
     @Test
     func `fetch uses Cursor app local auth when browser cookies are unavailable`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-
         let accessToken = try makeCursorAppAuthToken()
         let expectedCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
             #expect(request.value(forHTTPHeaderField: "Cookie") == expectedCookie)
@@ -1110,7 +1119,7 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken))).fetch(allowCachedSessions: false)
 
@@ -1122,7 +1131,7 @@ extension CursorStatusProbeTests {
         #expect(snapshot.membershipType == "pro")
         #expect(snapshot.accountEmail == "user@example.com")
         #expect(snapshot.accountName == "Test User")
-        #expect(CursorStatusProbeStubURLProtocol.requestPaths.sorted() == [
+        #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
             "/api/usage",
             "/api/usage-summary",
@@ -1131,11 +1140,7 @@ extension CursorStatusProbeTests {
 
     @Test
     func `fetch can disable Cursor app auth during browser login verification`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             Issue.record("Disabled app auth unexpectedly requested \(request.url?.path ?? "<unknown>")")
             throw URLError(.badURL)
         }
@@ -1146,7 +1151,7 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken)))
 
@@ -1155,7 +1160,7 @@ extension CursorStatusProbeTests {
                 allowCachedSessions: false,
                 allowAppAuthFallback: false)
         }
-        #expect(CursorStatusProbeStubURLProtocol.requestCount == 0)
+        #expect(testSession.requestCount == 0)
     }
 
     @Test
@@ -1163,10 +1168,8 @@ extension CursorStatusProbeTests {
         let store = CursorSessionStore.shared
         await store.clearCookies()
         defer {
-            CursorStatusProbeStubURLProtocol.reset()
             Task { await store.clearCookies() }
         }
-        CursorStatusProbeStubURLProtocol.reset()
 
         guard let cookie = HTTPCookie(properties: [
             .name: "WorkosCursorSessionToken",
@@ -1180,7 +1183,7 @@ extension CursorStatusProbeTests {
         }
         await store.setCookies([cookie])
 
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
             #expect(request.value(forHTTPHeaderField: "Cookie") == "WorkosCursorSessionToken=stored-session")
@@ -1219,13 +1222,13 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken))).fetch()
 
         #expect(snapshot.planPercentUsed == 30.0)
         #expect(snapshot.accountEmail == "stored@example.com")
-        #expect(CursorStatusProbeStubURLProtocol.requestPaths.sorted() == [
+        #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
             "/api/usage-summary",
         ])
@@ -1233,14 +1236,9 @@ extension CursorStatusProbeTests {
 
     @Test
     func `fetch with Cursor app auth preserves legacy request quotas`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-
         let accessToken = try makeCursorAppAuthToken()
         let expectedCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             #expect(request.value(forHTTPHeaderField: "Cookie") == expectedCookie)
 
@@ -1284,14 +1282,14 @@ extension CursorStatusProbeTests {
         let probe = CursorStatusProbe(
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
-            urlSession: makeCursorStatusProbeSession())
+            urlSession: testSession.urlSession)
 
         let snapshot = try await probe.fetchWithAppAuthSession(CursorAppAuthSession(accessToken: accessToken))
         #expect(snapshot.requestsUsed == 240)
         #expect(snapshot.requestsLimit == 500)
         #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 48)
         #expect(snapshot.accountEmail == nil)
-        #expect(CursorStatusProbeStubURLProtocol.requestPaths.sorted() == [
+        #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
             "/api/usage",
             "/api/usage-summary",
@@ -1309,11 +1307,7 @@ extension CursorStatusProbeTests {
 
     @Test
     func `expired Cursor app auth token is skipped before network access`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             Issue.record("Expired app auth unexpectedly requested \(request.url?.path ?? "<unknown>")")
             throw URLError(.badURL)
         }
@@ -1324,24 +1318,19 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken)))
 
         await #expect(throws: CursorStatusProbeError.self) {
             _ = try await probe.fetch(allowCachedSessions: false)
         }
-        #expect(CursorStatusProbeStubURLProtocol.requestCount == 0)
+        #expect(testSession.requestCount == 0)
     }
 
     @Test
     func `Cursor app auth transient failure is preserved`() async throws {
-        defer {
-            CursorStatusProbeStubURLProtocol.reset()
-        }
-        CursorStatusProbeStubURLProtocol.reset()
-
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             return makeCursorStatusProbeResponse(
                 url: requestURL,
@@ -1355,7 +1344,7 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken)))
 
@@ -1375,13 +1364,11 @@ extension CursorStatusProbeTests {
         CookieHeaderCache.store(provider: .cursor, cookieHeader: "cached=bad", sourceLabel: "test")
         defer {
             CookieHeaderCache.clear(provider: .cursor)
-            CursorStatusProbeStubURLProtocol.reset()
         }
-        CursorStatusProbeStubURLProtocol.reset()
 
         let accessToken = try makeCursorAppAuthToken()
         let appCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
-        CursorStatusProbeStubURLProtocol.setHandler { request in
+        let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             let cookie = request.value(forHTTPHeaderField: "Cookie")
             switch requestURL.path {
@@ -1403,15 +1390,15 @@ extension CursorStatusProbeTests {
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
-            urlSession: makeCursorStatusProbeSession(),
+            urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken)))
 
         await #expect(throws: CursorStatusProbeError.self) {
             _ = try await probe.fetch()
         }
-        #expect(CursorStatusProbeStubURLProtocol.requestCookies.contains("cached=bad"))
-        #expect(!CursorStatusProbeStubURLProtocol.requestCookies.contains(appCookie))
+        #expect(testSession.requestCookies.contains("cached=bad"))
+        #expect(!testSession.requestCookies.contains(appCookie))
     }
 }
 
@@ -1441,42 +1428,37 @@ private struct CursorAppAuthSessionProviderStub: CursorAppAuthSessionProviding {
 }
 
 final class CursorStatusProbeStubURLProtocol: URLProtocol {
-    private struct State {
+    private struct SessionState {
         var requests: [URLRequest] = []
-        var handler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+        let handler: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)
     }
 
+    private static let sessionHeader = "X-CodexBar-Cursor-Test-Session"
     private static let lock = NSLock()
-    private nonisolated(unsafe) static var state = State()
+    private nonisolated(unsafe) static var sessions: [String: SessionState] = [:]
 
-    static func setHandler(_ handler: @escaping @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)) {
+    static func configure(
+        _ configuration: URLSessionConfiguration,
+        handler: @escaping @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)) -> String
+    {
+        let sessionID = UUID().uuidString
         self.lock.lock()
-        self.state.handler = handler
+        self.sessions[sessionID] = SessionState(handler: handler)
+        self.lock.unlock()
+        configuration.httpAdditionalHeaders = [self.sessionHeader: sessionID]
+        return sessionID
+    }
+
+    static func removeSession(_ sessionID: String) {
+        self.lock.lock()
+        self.sessions.removeValue(forKey: sessionID)
         self.lock.unlock()
     }
 
-    static func reset() {
+    static func requests(for sessionID: String) -> [URLRequest] {
         self.lock.lock()
-        self.state = State()
-        self.lock.unlock()
-    }
-
-    static var requestCount: Int {
-        lock.lock()
         defer { Self.lock.unlock() }
-        return state.requests.count
-    }
-
-    static var requestPaths: [String] {
-        lock.lock()
-        defer { Self.lock.unlock() }
-        return state.requests.compactMap { $0.url?.path }
-    }
-
-    static var requestCookies: [String] {
-        lock.lock()
-        defer { Self.lock.unlock() }
-        return state.requests.compactMap { $0.value(forHTTPHeaderField: "Cookie") }
+        return self.sessions[sessionID]?.requests ?? []
     }
 
     override static func canInit(with request: URLRequest) -> Bool {
@@ -1489,9 +1471,15 @@ final class CursorStatusProbeStubURLProtocol: URLProtocol {
 
     override func startLoading() {
         let handler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+        let sessionID = self.request.value(forHTTPHeaderField: Self.sessionHeader)
         Self.lock.lock()
-        Self.state.requests.append(self.request)
-        handler = Self.state.handler
+        if let sessionID, var state = Self.sessions[sessionID] {
+            state.requests.append(self.request)
+            handler = state.handler
+            Self.sessions[sessionID] = state
+        } else {
+            handler = nil
+        }
         Self.lock.unlock()
 
         do {

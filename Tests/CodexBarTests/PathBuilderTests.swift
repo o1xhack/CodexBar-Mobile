@@ -45,21 +45,19 @@ struct PathBuilderTests {
     }
 
     @Test
-    func `login shell cache retries after timed out nil capture`() {
+    func `login shell cache retries after timed out nil capture`() async {
         let capture = LoginShellPathCaptureStub([
             nil,
             ["/login/bin", "/usr/bin"],
         ])
 
         let cache = LoginShellPathCache { _, _ in capture.next() }
-        let semaphore = DispatchSemaphore(value: 0)
-        var firstResult: [String]?
-        cache.captureOnce(shell: "/unused", timeout: 0.01) { result in
-            firstResult = result
-            semaphore.signal()
+        let firstResult: [String]? = await withCheckedContinuation { continuation in
+            cache.captureOnce(shell: "/unused", timeout: 0.01) { result in
+                continuation.resume(returning: result)
+            }
         }
 
-        #expect(semaphore.wait(timeout: .now() + 2.0) == .success)
         #expect(firstResult == nil)
         #expect(cache.current == nil)
 

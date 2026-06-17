@@ -63,6 +63,7 @@ struct ProviderConfigEnvironmentTests {
         #expect(ProviderTokenResolver.doubaoToken(environment: env) == "db-token")
     }
 
+    @Test
     func `applies API key override for moonshot`() {
         let config = ProviderConfig(id: .moonshot, apiKey: "moon-token")
         let env = ProviderConfigEnvironment.applyAPIKeyOverride(
@@ -134,6 +135,22 @@ struct ProviderConfigEnvironmentTests {
         #expect(env[LLMProxySettingsReader.apiKeyEnvironmentKey] == "proxy-token")
         #expect(env[LLMProxySettingsReader.baseURLEnvironmentKey] == "https://proxy.example.com")
         #expect(ProviderTokenResolver.llmProxyToken(environment: env) == "proxy-token")
+    }
+
+    @Test
+    func `applies LiteLLM config overrides`() {
+        let config = ProviderConfig(
+            id: .litellm,
+            apiKey: "litellm-token",
+            enterpriseHost: "https://litellm.example.com/v1")
+        let env = ProviderConfigEnvironment.applyProviderConfigOverrides(
+            base: [:],
+            provider: .litellm,
+            config: config)
+
+        #expect(env[LiteLLMSettingsReader.apiKeyEnvironmentKey] == "litellm-token")
+        #expect(env[LiteLLMSettingsReader.baseURLEnvironmentKey] == "https://litellm.example.com/v1")
+        #expect(ProviderTokenResolver.liteLLMToken(environment: env) == "litellm-token")
     }
 
     @Test
@@ -478,5 +495,22 @@ struct ProviderConfigEnvironmentTests {
             config: config)
 
         #expect(env[ZaiSettingsReader.apiTokenKey] == "existing")
+    }
+
+    @Test
+    func `applies API key override for poe`() {
+        let config = ProviderConfig(id: .poe, apiKey: "poe-token")
+        let env = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: [:],
+            provider: .poe,
+            config: config)
+
+        #expect(env[PoeSettingsReader.apiKeyEnvironmentKey] == "poe-token")
+        #expect(ProviderTokenResolver.poeToken(environment: env) == "poe-token")
+    }
+
+    @Test
+    func `poe supports API key override`() {
+        #expect(ProviderConfigEnvironment.supportsAPIKeyOverride(for: .poe) == true)
     }
 }

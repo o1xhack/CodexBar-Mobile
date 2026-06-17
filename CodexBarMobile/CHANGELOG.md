@@ -2,6 +2,43 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.13.0 (154)] — 2026-06-16 — v0.36.1 upstream sync
+
+### Added
+
+- **Combined 1.12 + 1.13 update train** — 1.12.0 did not ship separately, so
+  the in-app 1.13.0 release notes now fold together the v0.35.0 and v0.36.1
+  iPhone-facing sync work.
+- **New upstream providers in push and mock coverage** — Devin, LiteLLM, Poe,
+  Chutes, and Zed are covered by the iPhone-facing sync/push readiness work.
+  LiteLLM, Poe, Chutes, and Zed are appended to the shared quota provider list
+  so iOS subscribes to their depleted / restored / warning CloudKit zones. Mock
+  sync data covers the new v0.36 providers for end-to-end iPhone QA.
+- **Provider colors** — LiteLLM, Poe, Chutes, and Zed have first-class iOS tint
+  colors and collision tests for nearby provider families.
+- **Richer synced provider details** — MiniMax renewal/expiration dates, Copilot
+  budget windows, MiMo balance/token-plan updates, Kimi Code API usage, and Poe
+  point history are represented through existing generic synced fields where iOS
+  can display them.
+
+### Changed
+
+- **Mac sync pairing** — pairs with Mac **0.36.1.1 / build 88.1**, which folds
+  upstream v0.35.0 through v0.36.1 iPhone-facing companion work into one App
+  Store/TestFlight train. Existing generic synced rate-window and cost payloads
+  carry the new provider data; no new CloudKit schema field is required for iOS
+  1.13.0.
+- **Rolling-upgrade compatibility** — rich synced provider details are preserved
+  when one Mac is updated and another Mac is still on an older build.
+
+### Notes
+
+- Wire-format change is additive only: older iOS builds ignore unknown provider
+  data/zones until upgraded, and iOS 1.13.0 remains compatible with older Mac
+  builds.
+
+---
+
 ## [1.12.0 (153)] — 2026-06-14 — v0.35.0 upstream sync
 
 ### Added

@@ -71,8 +71,7 @@ struct StatusMenuLocalizationRefreshTests {
             controller.menuWillOpen(menu)
         }
         controller.openMenus[ObjectIdentifier(menu)] = menu
-        StatusItemController.setMenuRefreshEnabledForTesting(true)
-        defer { StatusItemController.resetMenuRefreshEnabledForTesting() }
+        controller.menuRefreshEnabledOverrideForTesting = true
 
         #expect(Self.switcherButtons(in: menu).first?.title == "Resumen")
         #expect(menu.items.first(where: { $0.representedObject as? String == "menuCardCost" })?.title == "Coste")

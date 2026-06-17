@@ -1,9 +1,7 @@
 import AppKit
 import CodexBarCore
-import CodexBarMacroSupport
 import Foundation
 
-@ProviderImplementationRegistration
 struct OpenAIAPIProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .openai
 

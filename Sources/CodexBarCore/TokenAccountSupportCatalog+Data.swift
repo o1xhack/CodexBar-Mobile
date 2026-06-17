@@ -143,6 +143,13 @@ extension TokenAccountSupportCatalog {
             injection: .environment(key: LLMProxySettingsReader.apiKeyEnvironmentKey),
             requiresManualCookieSource: false,
             cookieName: nil),
+        .litellm: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple LiteLLM API keys.",
+            placeholder: "Paste LiteLLM API key…",
+            injection: .environment(key: LiteLLMSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
         .stepfun: TokenAccountSupport(
             title: "Session tokens",
             subtitle: "Store multiple StepFun Oasis-Token values.",

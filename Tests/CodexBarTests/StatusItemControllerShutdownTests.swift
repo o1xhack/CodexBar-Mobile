@@ -41,6 +41,8 @@ struct StatusItemControllerShutdownTests {
         controller.menuWillOpen(menu)
         let key = ObjectIdentifier(menu)
         controller.menuRefreshTasks[key] = Task { try? await Task.sleep(for: .seconds(30)) }
+        controller.menuReadinessSignatures[key] = "readiness"
+        controller.menuIdentitySignatures[key] = "identity"
 
         #expect(controller.openMenus[key] === menu)
         #expect(controller.mergedMenu != nil)
@@ -52,6 +54,8 @@ struct StatusItemControllerShutdownTests {
         #expect(controller.hasPreparedForAppShutdown)
         #expect(controller.openMenus.isEmpty)
         #expect(controller.menuRefreshTasks.isEmpty)
+        #expect(controller.menuReadinessSignatures.isEmpty)
+        #expect(controller.menuIdentitySignatures.isEmpty)
         #expect(controller.providerSwitcherShortcutEventMonitor == nil)
         #expect(controller.statusItem.menu == nil)
         #expect(controller.statusItems.isEmpty)

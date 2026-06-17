@@ -207,6 +207,8 @@ public struct OpenAIDashboardCache: Codable, Equatable, Sendable {
 }
 
 public enum OpenAIDashboardCacheStore {
+    @TaskLocal static var cacheURLOverride: URL?
+
     public static func load() -> OpenAIDashboardCache? {
         guard let url = self.cacheURL else { return nil }
         guard let data = try? Data(contentsOf: url) else { return nil }
@@ -236,6 +238,9 @@ public enum OpenAIDashboardCacheStore {
     }
 
     private static var cacheURL: URL? {
+        if let cacheURLOverride {
+            return cacheURLOverride
+        }
         guard let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
         }

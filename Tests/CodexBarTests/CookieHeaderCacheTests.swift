@@ -78,6 +78,119 @@ struct CookieHeaderCacheTests {
     }
 
     @Test
+    func `claude cookie scopes isolate browser cache from managed accounts`() {
+        self.withIsolatedCookieCache {
+            let accountA = UUID()
+            let accountB = UUID()
+
+            CookieHeaderCache.store(
+                provider: .claude,
+                cookieHeader: "sessionKey=sk-ant-browser",
+                sourceLabel: "Safari")
+            CookieHeaderCache.store(
+                provider: .claude,
+                scope: .managedAccount(accountA),
+                cookieHeader: "sessionKey=sk-ant-account-a",
+                sourceLabel: "Chrome")
+            CookieHeaderCache.store(
+                provider: .claude,
+                scope: .managedAccount(accountB),
+                cookieHeader: "sessionKey=sk-ant-account-b",
+                sourceLabel: "Edge")
+
+            #expect(CookieHeaderCache.load(provider: .claude)?.cookieHeader == "sessionKey=sk-ant-browser")
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountA))?
+                .cookieHeader == "sessionKey=sk-ant-account-a")
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountB))?
+                .cookieHeader == "sessionKey=sk-ant-account-b")
+
+            CookieHeaderCache.clear(provider: .claude)
+            #expect(CookieHeaderCache.load(provider: .claude) == nil)
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountA))?
+                .cookieHeader == "sessionKey=sk-ant-account-a")
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountB))?
+                .cookieHeader == "sessionKey=sk-ant-account-b")
+
+            CookieHeaderCache.clear(provider: .claude, scope: .managedAccount(accountA))
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountA)) == nil)
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountB))?
+                .cookieHeader == "sessionKey=sk-ant-account-b")
+        }
+    }
+
+    @Test
+    func `claude unreadable managed store sentinel is isolated from account cookies`() {
+        self.withIsolatedCookieCache {
+            let accountID = UUID()
+
+            CookieHeaderCache.store(
+                provider: .claude,
+                cookieHeader: "sessionKey=sk-ant-global",
+                sourceLabel: "Safari")
+            CookieHeaderCache.store(
+                provider: .claude,
+                scope: .managedAccount(accountID),
+                cookieHeader: "sessionKey=sk-ant-account",
+                sourceLabel: "Chrome")
+            CookieHeaderCache.store(
+                provider: .claude,
+                scope: .managedStoreUnreadable,
+                cookieHeader: "sessionKey=sk-ant-unreadable-store",
+                sourceLabel: "Unreadable managed account store")
+
+            CookieHeaderCache.clear(provider: .claude, scope: .managedAccount(accountID))
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(accountID)) == nil)
+            #expect(CookieHeaderCache.load(provider: .claude)?.cookieHeader == "sessionKey=sk-ant-global")
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedStoreUnreadable)?
+                .cookieHeader == "sessionKey=sk-ant-unreadable-store")
+
+            CookieHeaderCache.clear(provider: .claude)
+            #expect(CookieHeaderCache.load(provider: .claude) == nil)
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedStoreUnreadable)?
+                .cookieHeader == "sessionKey=sk-ant-unreadable-store")
+
+            let cleared = CookieHeaderCache.clearAllScopesDetailed(provider: .claude)
+            #expect(cleared == CookieHeaderCache.ClearSummary(clearedCount: 1, failedCount: 0))
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedStoreUnreadable) == nil)
+        }
+    }
+
+    @Test
+    func `claude clear all scopes does not remove other provider cookie caches`() {
+        self.withIsolatedCookieCache {
+            let claudeAccount = UUID()
+            let codexAccount = UUID()
+
+            CookieHeaderCache.store(
+                provider: .claude,
+                cookieHeader: "sessionKey=sk-ant-claude-global",
+                sourceLabel: "Safari")
+            CookieHeaderCache.store(
+                provider: .claude,
+                scope: .managedAccount(claudeAccount),
+                cookieHeader: "sessionKey=sk-ant-claude-account",
+                sourceLabel: "Chrome")
+            CookieHeaderCache.store(provider: .codex, cookieHeader: "auth=codex-global", sourceLabel: "Chrome")
+            CookieHeaderCache.store(
+                provider: .codex,
+                scope: .managedAccount(codexAccount),
+                cookieHeader: "auth=codex-account",
+                sourceLabel: "Safari")
+            CookieHeaderCache.store(provider: .perplexity, cookieHeader: "pplx=web", sourceLabel: "Chrome")
+
+            let cleared = CookieHeaderCache.clearAllScopesDetailed(provider: .claude)
+
+            #expect(cleared == CookieHeaderCache.ClearSummary(clearedCount: 2, failedCount: 0))
+            #expect(CookieHeaderCache.load(provider: .claude) == nil)
+            #expect(CookieHeaderCache.load(provider: .claude, scope: .managedAccount(claudeAccount)) == nil)
+            #expect(CookieHeaderCache.load(provider: .codex)?.cookieHeader == "auth=codex-global")
+            #expect(CookieHeaderCache.load(provider: .codex, scope: .managedAccount(codexAccount))?
+                .cookieHeader == "auth=codex-account")
+            #expect(CookieHeaderCache.load(provider: .perplexity)?.cookieHeader == "pplx=web")
+        }
+    }
+
+    @Test
     func `migrates legacy file to keychain`() {
         KeychainCacheStore.setTestStoreForTesting(true)
         defer { KeychainCacheStore.setTestStoreForTesting(false) }
@@ -268,7 +381,7 @@ struct CookieHeaderCacheTests {
             to: CookieHeaderCache.legacyURLForTesting(provider: provider))
 
         #expect(CookieHeaderCache.loadForDisplay(provider: provider)?.cookieHeader == "auth=legacy-display")
-        for _ in 0..<100 {
+        for _ in 0..<500 {
             if !CookieHeaderCache.hasLegacyEntryForTesting(provider: provider),
                CookieHeaderCache.hasKeychainEntryForTesting(provider: provider)
             {
@@ -307,6 +420,30 @@ struct CookieHeaderCacheTests {
         #expect(!CookieHeaderCache.hasKeychainEntryForTesting(provider: provider))
     }
 
+    @Test
+    func `legacy URL override supports concurrent teardown reads`() {
+        let legacyBases = [
+            FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true),
+            FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true),
+        ]
+        defer { CookieHeaderCache.setLegacyBaseURLOverrideForTesting(nil) }
+
+        DispatchQueue.concurrentPerform(iterations: 5000) { index in
+            if index.isMultiple(of: 3) {
+                CookieHeaderCache.setLegacyBaseURLOverrideForTesting(legacyBases[index % legacyBases.count])
+            } else if index.isMultiple(of: 5) {
+                CookieHeaderCache.setLegacyBaseURLOverrideForTesting(nil)
+            } else {
+                _ = CookieHeaderCache.legacyURLForTesting(provider: .codex)
+            }
+        }
+
+        CookieHeaderCache.setLegacyBaseURLOverrideForTesting(legacyBases[0])
+        #expect(
+            CookieHeaderCache.legacyURLForTesting(provider: .codex)
+                == legacyBases[0].appendingPathComponent("codex-cookie.json"))
+    }
+
     #if os(macOS)
     @Test
     func `loadForDisplay throttles temporary keychain unavailability then retries`() async throws {
@@ -334,7 +471,7 @@ struct CookieHeaderCacheTests {
 
         try await Task.sleep(for: .milliseconds(60))
         var retried: CookieHeaderCache.Entry?
-        for _ in 0..<100 {
+        for _ in 0..<500 {
             retried = CookieHeaderCache.loadForDisplay(provider: provider)
             if retried != nil { break }
             try await Task.sleep(for: .milliseconds(10))
@@ -634,6 +771,20 @@ struct CookieHeaderCacheTests {
             #expect(cleared.clearedCount >= 3)
             #expect(cleared.failedCount == 0)
             #expect(KeychainCacheStore.keys(category: "cookie").isEmpty)
+        }
+    }
+
+    private func withIsolatedCookieCache<T>(_ operation: () -> T) -> T {
+        KeychainCacheStore.withServiceOverrideForTesting("cookie-isolation-\(UUID().uuidString)") {
+            let legacyBase = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            CookieHeaderCache.setLegacyBaseURLOverrideForTesting(legacyBase)
+            defer { CookieHeaderCache.setLegacyBaseURLOverrideForTesting(nil) }
+            KeychainCacheStore.setTestStoreForTesting(true)
+            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            CookieHeaderCache.resetDisplayCacheForTesting()
+            defer { CookieHeaderCache.resetDisplayCacheForTesting() }
+            return operation()
         }
     }
 }

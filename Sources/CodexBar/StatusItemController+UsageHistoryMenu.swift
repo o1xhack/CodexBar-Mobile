@@ -53,7 +53,7 @@ extension StatusItemController {
         let histories = self.store.planUtilizationHistory(for: provider)
         let snapshot = self.store.snapshot(for: provider)
 
-        if !Self.menuCardRenderingEnabled {
+        if !self.menuCardRenderingEnabledForController {
             let chartItem = NSMenuItem()
             chartItem.isEnabled = true
             chartItem.representedObject = Self.usageHistoryChartID
