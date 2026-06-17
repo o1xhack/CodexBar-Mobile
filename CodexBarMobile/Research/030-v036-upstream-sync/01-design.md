@@ -179,8 +179,10 @@ Minimum gates:
   use existing generic fields; Poe needed a Mac-side generic-row bridge, not a
   new wire/schema field.
 - Parser audit resolved: `CostUsageScanner.swift` changed upstream; the parser
-  source hash was regenerated and `CodexParserHash.generated.swift` now contains
-  `72dddb100a729cd3`.
-- Release audit resolved: `Scripts/release.sh` phase 1 signs/notarizes and then
-  pushes the tag plus creates a GitHub draft release. This crosses the Goal's
-  tag-publish/push boundary and requires explicit confirmation before running.
+  logic version was bumped to `6`, and `CodexParserHash.generated.swift` now
+  contains `fa49db79f97efca3`.
+- Release audit resolved: `Scripts/release.sh` phase 1 signs/notarizes, pushes
+  the tag, uploads ZIP/dSYM assets, and creates a GitHub Draft Release. This
+  was run only after explicit user confirmation; live release/appcast
+  finalization, TestFlight release, branch merge, and branch push remain outside
+  the current boundary.

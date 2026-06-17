@@ -61,18 +61,22 @@ Definitions for this release:
 - Old Mac: shipped baseline before this branch, `0.35.0.1` / Sparkle
   `85.1.1.12.0`.
 - New Mac: target branch build `0.36.1.1` / Sparkle `88.1.1.13.0`.
-- Old iPhone: shipped `1.12.0`.
+- Old iPhone: last App Store ready-for-sale build, `1.11.0`. iOS `1.12.0`
+  existed as the prior mobile train/build baseline but was not shipped as the
+  next user-visible App Store release.
 - New iPhone: target branch build `1.13.0 (154)`.
 
 The matrix applies because this release changes provider display data and may
 touch Shared payload/rendering paths for new provider identities and structured
 rate windows.
 
-Real 2 Mac x 2 iPhone hardware mixing was not executed because this branch has
-not produced or published draft/release artifacts, and the Goal forbids tag
-publish, push, live release, and TestFlight upload without explicit
-confirmation. The matrix below records substituted validation and residual risk
-for each combination.
+Real 2 Mac x 2 iPhone hardware mixing was not executed in this turn. After user
+confirmation, Mac draft artifacts and the iOS TestFlight upload were produced,
+but the full four-device old/new matrix still uses substituted validation
+because live release, appcast finalization, TestFlight external release, and
+multi-device physical mixing were not part of the confirmed boundary. The
+matrix below records substituted validation and residual risk for each
+combination.
 
 Shared substitute evidence:
 
@@ -86,10 +90,14 @@ Shared substitute evidence:
 - Mac full sharded suite passes, including sync and quota-warning push tests.
 - iOS simulator suite passes 487 tests, including provider list, colors,
   decoding, and UI tests.
+- iOS archive/upload completed for `1.13.0 (154)`, ASC build-status is `VALID`,
+  and archive entitlements for both app targets use CloudKit `Production`.
+- In-app release notes contain no separate `1.12.0` entry; the `1.13.0` entry
+  folds in the unreleased 1.12 work plus this round's 1.13 additions.
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Expected | Result | Evidence |
 |---:|---|---|---|---|---|---|---|
-| 01 | Old | Old | Old | Old | Existing shipped behavior unchanged | Carryforward pass | Previously shipped `0.35.0.1` / `1.12.0`; no branch artifact involved. |
+| 01 | Old | Old | Old | Old | Existing shipped behavior unchanged | Carryforward pass | Previously shipped Mac `0.35.0.1` with last App Store iOS `1.11.0`; no branch artifact involved. |
 | 02 | Old | Old | Old | New | New iPhone decodes old payloads | Substituted pass | iOS 487-test suite plus unchanged `UsageSnapshot` field audit. |
 | 03 | Old | Old | New | Old | Same as case 02 with phone order swapped | Substituted pass | Same decode path as case 02; no phone-order-specific code. |
 | 04 | Old | Old | New | New | Both new phones decode old Mac payloads | Substituted pass | Same decode path as case 02 for both phones. |
@@ -106,10 +114,11 @@ Shared substitute evidence:
 | 15 | New | New | New | Old | Same as case 14 with phone order swapped | Substituted pass | Same as case 14; phone order is not semantically used. |
 | 16 | New | New | New | New | Full new behavior on all devices | Substituted pass | Mac full suite, iOS simulator suite, lint/i18n, and CloudKit audit all pass. |
 
-Residual risk: old iOS 1.12.0 builds do not know the four newly appended provider
+Residual risk: old iOS 1.11.x builds do not know the newly appended provider
 quota zones, so push quota transitions for LiteLLM/Poe/Chutes/Zed are expected
 to be visible only after iPhone upgrade. This is an additive subscription-list
-gap, not a decode or schema break.
+gap, not a decode or schema break. iOS 1.12.0 was not treated as a shipped
+user-visible baseline for this matrix; its release notes are folded into 1.13.0.
 
 ## Test Evidence
 
@@ -137,8 +146,12 @@ Result: Passed.
 - site locales OK: 21 locales, 50 messages
 - SwiftFormat: 0 files require formatting
 - SwiftLint: 0 violations in 1182 files
-- iOS xcstrings: all locales translated, all 330 source keys present
-- parser hash: 72dddb100a729cd3
+- iOS xcstrings: all locales translated, all 325 source keys present
+- parser version: parser code changed and parserLogicVersion bumped
+- parser hash: fa49db79f97efca3
+
+swift test --filter 'CostUsage|CodexParserHash'
+Result: Passed, 210 tests in 20 suites.
 
 ./Scripts/test.sh
 Result: Passed. 43/43 shards passed.
@@ -177,6 +190,24 @@ Extra args: -skipPackagePluginValidation
 Result: SUCCEEDED, 487 passed, 0 failed
 Log: /Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/logs/test_sim_2026-06-16T22-10-19-300Z_pid96757_28241510.log
 Result bundle: /Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-06-16T22-10-19-301Z_pid96757_21e17960.xcresult
+
+rg 'version: "1.12.0"|version: "1.13.0"' CodexBarMobile/CodexBarMobile/ContentView.swift
+Result: only `version: "1.13.0"` remains in the in-app release notes catalog.
+
+./Scripts/upload_ios_testflight.sh
+Result: passed. Pre-flight lint passed, archive succeeded, export/upload
+succeeded, and Xcode reported `Upload succeeded` / `EXPORT SUCCEEDED`.
+Uploaded build: CodexBarMobile 1.13.0 (154).
+Archive: /tmp/CodexBarMobile-20260616-220825.xcarchive
+
+xcrun altool --build-status --delivery-id <build-upload-id> ...
+Result: BUILD-STATUS: VALID, IMPORT-STATUS: VALID,
+IS-ON-APP-STORE-CONNECT: true, VERSION: 154,
+UPLOADED-DATE: 2026-06-16 22:10:55 PDT.
+
+Archive entitlement check
+Result: main app and Push Extension both have
+com.apple.developer.icloud-container-environment = Production.
 ```
 
 ## Review
@@ -186,21 +217,22 @@ Self-review completed against the merge diff:
 - checked for unresolved conflict markers;
 - checked CloudKit schema diff;
 - checked version targets in `version.env` and `CodexBarMobile/project.yml`;
-- checked iOS release notes and four-language strings;
+- checked iOS release notes and four-language strings, including removal of the
+  separate in-app `1.12.0` entry and folding those notes into `1.13.0`;
 - fixed the blocking test regressions listed above.
 
 External/agent review completed. Findings:
 
-- draft-release creation is blocked pending explicit authorization because
+- GitHub draft-release creation required explicit authorization because
   `Scripts/release.sh` phase 1 pushes tag `v0.36.1.1-mobile.1.13.0` and uploads
-  draft-release assets;
+  draft-release assets. The user subsequently authorized this draft step, and
+  the draft was created;
 - CloudKit audit evidence command needed the corrected one-tag `LAST_TAG`
   expression above; no actual schema deploy requirement was found.
 
 ## Mac Release Evidence
 
-Local signing/notarization was completed without pushing a tag or creating a
-GitHub release:
+Local signing/notarization was completed:
 
 ```text
 ./Scripts/sign-and-notarize.sh
@@ -231,16 +263,28 @@ stapler validate <unzipped>/CodexBar.app
 Result: The validate action worked.
 ```
 
-GitHub draft release is not complete. `Scripts/release.sh` phase 1 was
-inspected. It performs the full sign/notarize/draft flow, but also:
+GitHub Draft Release is complete after user confirmation, but remains
+unpublished. `Scripts/release.sh` phase 1 was run without `--finalize`:
 
-- requires a clean worktree;
-- creates annotated tag `v0.36.1.1-mobile.1.13.0`;
-- pushes that tag to `origin`;
-- uploads ZIP and dSYM ZIP assets;
-- creates a GitHub draft release.
+```text
+./Scripts/release.sh
+Result: Passed. Phase 1 completed only; no --finalize.
+Tag: v0.36.1.1-mobile.1.13.0
+Draft release:
+https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-813eb73fe202a0b9c8ae
 
-Because this Goal explicitly forbids tag publish, push, live release, and
-TestFlight upload without confirmation, the GitHub draft-release step remains
-pending user confirmation. No live release, tag push, GitHub draft, appcast push,
-merge, or TestFlight upload has been performed.
+gh release view v0.36.1.1-mobile.1.13.0 --repo o1xhack/CodexBar-Mobile --json tagName,isDraft,url,name,assets,targetCommitish
+Result: isDraft=true, title `CodexBar 0.36.1.1 Mobile 1.13.0`,
+assets uploaded:
+- CodexBar-0.36.1.1-mobile.1.13.0.zip, 53,369,849 bytes,
+  sha256:f7419f109a9177751e074df9de1a805b1f1e5af779462c48b02cb587d8da8207
+- CodexBar-0.36.1.1-mobile.1.13.0.dSYM.zip, 33,222,987 bytes,
+  sha256:3f7b1adaf675fa99b60cacd421cea0dd442b4d36105dc56495e97538362fb688
+
+git ls-remote --tags origin refs/tags/v0.36.1.1-mobile.1.13.0*
+Result: tag exists on origin; peeled commit is
+4fc221c33023bbb06219238fd738a509db246ace.
+```
+
+No live release, Sparkle appcast finalize/push, TestFlight submission/release,
+branch merge, or branch push was performed.

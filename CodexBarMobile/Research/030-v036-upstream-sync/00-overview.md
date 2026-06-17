@@ -110,13 +110,21 @@ and 4,570 deletions. Main buckets:
 
 ## Release Boundaries
 
-This Goal authorizes one-version sync, Mac/iOS implementation, local packaging,
-notarization if credentials are available, CloudKit audit, and review. It does
-not authorize live release, TestFlight upload, tag publish, merge, or push.
+The original Goal authorized one-version sync, Mac/iOS implementation, local
+packaging, notarization if credentials are available, CloudKit audit, and
+review, but required confirmation before TestFlight upload, tag push, GitHub
+draft release, live release, merge, or branch push.
 
-If `Scripts/release.sh` or a GitHub draft release step would push a tag or upload
-assets to GitHub, pause for confirmation before that step. Local signed/notarized
-artifacts can still be produced and recorded as draft-release preparation.
+Follow-up user confirmation on 2026-06-16 authorized:
+
+- skipping the unshipped iOS 1.12 App Store release and uploading iOS 1.13.0
+  directly;
+- folding the unreleased iOS 1.12 notes into a productized iOS 1.13 in-app
+  release-notes entry;
+- creating a Mac GitHub Draft Release.
+
+Still not authorized: live GitHub release publication, Sparkle appcast
+finalization/push, TestFlight submission/release, branch merge, and branch push.
 
 ## Current Outcome
 
@@ -134,10 +142,25 @@ CloudKit audit, test gates, and local Mac notarized artifacts are complete on
 | `UPSTREAM_VERSION` | `v0.36.1` |
 | `UPSTREAM_SYNC_DATE` | `2026-06-16` |
 
-Release publication is not complete. Local assets
-`CodexBar-0.36.1.1-mobile.1.13.0.zip` and
-`CodexBar-0.36.1.1-mobile.1.13.0.dSYM.zip` are signed/notarized and verified.
-`Scripts/release.sh` phase 1 would next push tag
-`v0.36.1.1-mobile.1.13.0`, upload those assets, and create a GitHub draft
-release. The Goal explicitly withholds tag publish, push, live release, and
-TestFlight upload without confirmation, so the branch stops before that boundary.
+The user-facing iOS release train skips 1.12: App Store Connect still shows
+`1.11.0` as the last ready-for-sale iOS version, while the 1.13 in-app notes now
+include the unreleased 1.12 work plus the 1.13 provider/sync additions.
+
+Mac draft release is complete, but live publication is not:
+
+- Tag: `v0.36.1.1-mobile.1.13.0`
+- Draft release: `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-813eb73fe202a0b9c8ae`
+- Assets:
+  - `CodexBar-0.36.1.1-mobile.1.13.0.zip`
+  - `CodexBar-0.36.1.1-mobile.1.13.0.dSYM.zip`
+- `gh release view` confirms `isDraft=true`.
+
+iOS upload is complete:
+
+- Archive: `/tmp/CodexBarMobile-20260616-220825.xcarchive`
+- Xcode export/upload result: `Upload succeeded`, `EXPORT SUCCEEDED`
+- App Store Connect build status: `VALID`, build `154`, uploaded
+  2026-06-16 22:10:55 PDT.
+
+No live release, Sparkle appcast finalize/push, TestFlight submission/release,
+branch merge, or branch push was performed.

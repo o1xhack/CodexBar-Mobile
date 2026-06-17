@@ -44,6 +44,17 @@ Branch: `upstream-sync/v0.36.1-mobile.1.13.0`
 - Updated root `CHANGELOG.md`, iOS `CHANGELOG.md`, `MobileReleaseNotesCatalog`,
   `Localizable.xcstrings`, and `CodexBarMobile/project.yml`; regenerated the
   Xcode project with `xcodegen generate`.
+- After user confirmation that iOS 1.12 was not shipped, removed the separate
+  in-app `1.12.0` release-notes entry and folded its user-visible work into a
+  more productized `1.13.0` entry covering provider coverage, richer cards,
+  rolling-upgrade stability, and required Mac companion version.
+- Bumped `CostUsagePricing.parserLogicVersion` from `5` to `6` and regenerated
+  `CodexParserHash.generated.swift` to `fa49db79f97efca3` after the release
+  parser audit detected upstream scanner changes against `origin/mobile-dev`.
+- Created Mac GitHub Draft Release after user confirmation; the draft remains
+  unpublished.
+- Uploaded iOS `1.13.0 (154)` to App Store Connect/TestFlight; ASC reports the
+  build upload as `VALID`.
 
 ## Commands / Evidence
 
@@ -64,16 +75,34 @@ git merge --no-commit --no-ff v0.36.1
 Result: conflicts resolved on branch upstream-sync/v0.36.1-mobile.1.13.0.
 
 bash Scripts/regenerate-codex-parser-hash.sh
-Result: CodexParserHash.generated.swift = 72dddb100a729cd3.
+Result: CodexParserHash.generated.swift = fa49db79f97efca3.
 
 cd CodexBarMobile && xcodegen generate
 Result: CodexBarMobile.xcodeproj regenerated for iOS 1.13.0 build 154.
+
+git commit --amend --no-edit
+Result: release commit 4fc221c3 includes the iOS 1.13 direct-train notes,
+parserLogicVersion=6, and parser hash fa49db79f97efca3.
+
+./Scripts/release.sh
+Result: passed. Created annotated tag v0.36.1.1-mobile.1.13.0, pushed the tag to
+origin, uploaded ZIP/dSYM ZIP assets, and created GitHub Draft Release
+https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-813eb73fe202a0b9c8ae
+without finalizing/publishing appcast.
+
+./Scripts/upload_ios_testflight.sh
+Result: passed. Archived CodexBarMobile 1.13.0 (154), exported/uploaded through
+Xcode cloud signing, and App Store Connect accepted the upload.
+Archive: /tmp/CodexBarMobile-20260616-220825.xcarchive
+
+xcrun altool --build-status --delivery-id <build-upload-id> ...
+Result: BUILD-STATUS: VALID, IMPORT-STATUS: VALID,
+IS-ON-APP-STORE-CONNECT: true, VERSION: 154.
 ```
 
 ## Pending / Boundary
 
-- Local signed/notarized Mac artifacts are complete.
-- GitHub draft-release creation is pending explicit confirmation because
-  `Scripts/release.sh` phase 1 pushes tag `v0.36.1.1-mobile.1.13.0` and uploads
-  release assets to GitHub.
-- No live release, TestFlight upload, merge, or push has been performed.
+- Mac signed/notarized artifacts and GitHub Draft Release are complete.
+- iOS 1.13.0 (154) upload is complete and ASC reports the build as `VALID`.
+- No live GitHub release, Sparkle appcast finalize/push, TestFlight
+  submission/release, branch merge, or branch push has been performed.
