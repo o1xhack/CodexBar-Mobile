@@ -2,6 +2,29 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.13.0 (155)] — 2026-06-19 — quota warning diagnostics hotfix
+
+### Fixed
+
+- **Developer Tools push diagnostics** — `quota-*-warning-sub` CloudKit
+  subscriptions are now grouped separately instead of being reported as
+  `other`. This keeps the iPhone-side push setup summary accurate for the
+  1.13.0 three-state subscription matrix: depleted, restored, and warning.
+- **Quota warning notification extension** — updated the warning-body rewrite
+  path to use Swift's named associated-value pattern matching, clearing the
+  deprecation warning without changing notification behavior.
+- **Quota subscription setup diagnostics** — removed redundant `await`s around
+  synchronous MainActor diagnostic calls.
+
+### Notes
+
+- iOS-only hotfix; `MARKETING_VERSION` remains `1.13.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 154 → 155.
+- App Store and in-app 1.13.0 release notes remain unchanged because this
+  fixes diagnostic accuracy rather than adding a new user-facing feature.
+
+---
+
 ## [1.13.0 (154)] — 2026-06-16 — v0.36.1 upstream sync
 
 ### Added

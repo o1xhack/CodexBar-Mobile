@@ -48,4 +48,21 @@ struct QuotaTransitionSubscriptionsTests {
         #expect((info.titleLocalizationArgs ?? []).isEmpty)
         #expect((info.alertLocalizationArgs ?? []).isEmpty)
     }
+
+    @Test("diagnostic summary groups warning subscriptions separately")
+    func diagnosticSummaryGroupsWarningSubscriptions() {
+        let zoneID = CKRecordZone.ID(
+            zoneName: "Quota-codex-warningZone",
+            ownerName: CKCurrentUserDefaultName)
+        let sub = CKRecordZoneSubscription(
+            zoneID: zoneID,
+            subscriptionID: "quota-codex-warning-sub")
+        sub.notificationInfo = QuotaTransitionSubscriptions.makeNotificationInfo(
+            alertBody: "Codex usage warning")
+
+        let summary = PushSetupDiagnostic.formatSubscriptions([sub])
+
+        #expect(summary.contains("1 × quota-*-warning-sub"))
+        #expect(!summary.contains("other"))
+    }
 }

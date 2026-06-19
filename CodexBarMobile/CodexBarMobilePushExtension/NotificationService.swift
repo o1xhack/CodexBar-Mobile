@@ -149,20 +149,20 @@ final class NotificationService: UNNotificationServiceExtension {
             if parsed?.state == .warning {
                 let result = await Self.fetchLatestWarningInfoDiagnostic(in: zoneID)
                 switch result {
-                case let .success(info):
+                case let .success(providerName, window, threshold, accountEmail):
                     content.value.title = Self.formatTitle(
-                        providerName: info.providerName,
-                        accountEmail: info.accountEmail)
+                        providerName: providerName,
+                        accountEmail: accountEmail)
                     content.value.body = Self.formatWarningBody(
-                        providerName: info.providerName,
-                        window: info.window,
-                        threshold: info.threshold,
-                        accountEmail: info.accountEmail)
+                        providerName: providerName,
+                        window: window,
+                        threshold: threshold,
+                        accountEmail: accountEmail)
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
                         event: .ok,
                         zoneName: zoneID.zoneName,
-                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold) account=\(EmailRedaction.redact(info.accountEmail))")
+                        detail: "rewrote body: provider=\(providerName) window=\(window) threshold=\(threshold) account=\(EmailRedaction.redact(accountEmail))")
                 case let .empty(reason):
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,

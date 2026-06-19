@@ -140,7 +140,7 @@ final class QuotaTransitionSubscriptions {
     /// legacy subscriptions from older builds. Idempotent — safe to call on
     /// every launch and on every `CKAccountChangedNotification`.
     func setupIfNeeded() async {
-        let diag = await PushSetupDiagnostic.shared
+        let diag = PushSetupDiagnostic.shared
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
 
@@ -156,12 +156,12 @@ final class QuotaTransitionSubscriptions {
         let zones = configs.map { CKRecordZone(zoneName: $0.zoneName) }
         do {
             _ = try await database.modifyRecordZones(saving: zones, deleting: [])
-            await diag.recordZone("✓ \(zones.count) quota zones ensured")
+            diag.recordZone("✓ \(zones.count) quota zones ensured")
         } catch {
             let msg = "✗ quota zones batch create failed: \(error.localizedDescription)"
             print("[CodexBar Push v6] \(msg)")
-            await diag.recordZone(msg)
-            await diag.recordError(msg)
+            diag.recordZone(msg)
+            diag.recordError(msg)
             // Keep going — individual zone creates may succeed implicitly when
             // the subscription save references them.
         }
@@ -173,7 +173,7 @@ final class QuotaTransitionSubscriptions {
         } catch {
             let msg = "✗ allSubscriptions failed: \(error.localizedDescription)"
             print("[CodexBar Push v6] \(msg)")
-            await diag.recordError(msg)
+            diag.recordError(msg)
             await diag.refreshSubscriptionList()
             return
         }
@@ -215,8 +215,8 @@ final class QuotaTransitionSubscriptions {
             + "\(alreadyCorrect) already correct, "
             + "\(subsToSave.count) to save"
         print("[CodexBar Push v6] \(summaryPrefix)")
-        await diag.recordDepletedSub(summaryPrefix)
-        await diag.recordRestoredSub("")
+        diag.recordDepletedSub(summaryPrefix)
+        diag.recordRestoredSub("")
 
         // Step 3: batch save the drifted subs.
         if !subsToSave.isEmpty {
@@ -225,11 +225,11 @@ final class QuotaTransitionSubscriptions {
                     saving: subsToSave, deleting: [])
                 let msg = "✓ saved \(subsToSave.count) subs"
                 print("[CodexBar Push v6] \(msg)")
-                await diag.recordDepletedSub(summaryPrefix + " — " + msg)
+                diag.recordDepletedSub(summaryPrefix + " — " + msg)
             } catch {
                 let msg = "✗ sub batch save failed: \(error.localizedDescription)"
                 print("[CodexBar Push v6] \(msg)")
-                await diag.recordError(msg)
+                diag.recordError(msg)
             }
         }
 
