@@ -235,6 +235,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // iOS entitlements are guaranteed by the provisioning profile.
         available = true
         #endif
+        #if os(macOS)
         if available {
             let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
             self._container = c
@@ -243,6 +244,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             self._container = nil
             self._privateDatabase = nil
         }
+        #else
+        let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
+        self._container = c
+        self._privateDatabase = c.privateCloudDatabase
+        #endif
         self.cloudKitAvailable = available
     }
 
