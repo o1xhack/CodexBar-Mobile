@@ -1,0 +1,9 @@
+1.13.0 is one combined iPhone update: it includes the previously unreleased 1.12 sync work plus the latest Mac CodexBar 0.36.1 companion improvements.
+
+What's new
+• More providers on iPhone — Devin, LiteLLM, Poe, Chutes, and Zed can now appear when your Mac syncs their usage, with quota notifications prepared for the new providers.
+• Richer provider details — MiniMax renewal and expiration dates, Copilot budget windows, MiMo balances and token plans, Kimi Code API usage, and Poe point history now flow through where available.
+• Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still on an older build, reducing empty-card flicker during rolling upgrades.
+• Mac companion refinements — provider accuracy, security, localization, and menu reliability fixes from recent Mac CodexBar releases are reflected in the companion experience.
+
+For the full 1.13 experience, update Mac CodexBar to 0.36.1.1 (build 88.1) or later. Older Mac data still opens; new provider details appear after your Mac updates.

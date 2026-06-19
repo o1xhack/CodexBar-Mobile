@@ -1,0 +1,9 @@
+1.13.0 是一次合并版 iPhone 更新：包含此前未单独发布的 1.12 同步改进，以及最新 Mac CodexBar 0.36.1 配套能力。
+
+新内容
+• 更多 provider 出现在 iPhone 上 —— Devin、LiteLLM、Poe、Chutes、Zed 现在可随 Mac 同步到 iPhone，并已准备好对应的配额通知。
+• 更完整的 provider 细节 —— MiniMax 续订/到期时间、Copilot 预算窗口、MiMo 余额与 token 套餐、Kimi Code API 用量、Poe 点数历史，会在可用时同步并展示。
+• 升级过程更稳 —— 两台 Mac 分批升级时，iPhone 会保留已同步的丰富细节，减少卡片在新旧 Mac 交替刷新时短暂变空的情况。
+• Mac 配套改进同步到体验中 —— 近期 Mac CodexBar 的 provider 准确性、安全、菜单可靠性和本地化修复，会体现在 iPhone 伴侣应用里。
+
+要获得完整 1.13 体验，请将 Mac CodexBar 更新到 0.36.1.1（build 88.1）或更高版本。旧版 Mac 数据仍可打开；新的 provider 细节会在 Mac 更新后出现。
