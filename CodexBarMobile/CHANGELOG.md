@@ -2,6 +2,34 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (156)] — 2026-06-20 — sync device management
+
+### Added
+
+- **Sync Device Management** — Settings → About & Sync can now merge duplicate
+  Mac device identities created by a Mac reinstall, archive real retired Macs,
+  restore archived devices, and unmerge mistaken device identity merges.
+- **Non-destructive device lifecycle records** — iOS stores user decisions as
+  additive CloudKit lifecycle events instead of deleting or rewriting existing
+  provider/device history.
+
+### Fixed
+
+- **Duplicate Mac display semantics** — merged aliases are removed from active
+  stale-sync warnings while preserving raw diagnostic data.
+- **Retired device warnings** — archived devices remain inspectable but no
+  longer count as active Mac devices.
+- **Local-cost duplicate counting** — local CLI cost providers are not summed
+  inside a merged same-physical-Mac alias group.
+
+### Notes
+
+- iOS-only feature; no Mac release or `version.env` bump is required.
+- Adds a new `DeviceLifecycleEvent` CloudKit record type in
+  `DeviceProvidersZone`; Production schema deploy is required before release.
+
+---
+
 ## [1.13.0 (155)] — 2026-06-19 — quota warning diagnostics hotfix
 
 ### Fixed

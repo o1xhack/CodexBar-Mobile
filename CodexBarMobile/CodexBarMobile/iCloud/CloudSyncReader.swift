@@ -3,6 +3,44 @@ import CodexBarSync
 import Foundation
 import SwiftData
 
+struct SyncDeviceManagementItem: Identifiable {
+    enum State {
+        case active
+        case mergedAlias
+        case archived
+    }
+
+    let canonicalDeviceID: String
+    let sourceDeviceIDs: [String]
+    let snapshot: SyncedUsageSnapshot
+    let state: State
+
+    var id: String { self.canonicalDeviceID }
+    var aliasCount: Int { max(0, self.sourceDeviceIDs.count - 1) }
+    var isArchived: Bool {
+        if case .archived = self.state { return true }
+        return false
+    }
+    var isMergedAlias: Bool {
+        if case .mergedAlias = self.state { return true }
+        return false
+    }
+}
+
+struct DeviceLifecycleResolution {
+    let activeSnapshots: [SyncedUsageSnapshot]
+    let archivedSnapshots: [SyncedUsageSnapshot]
+    let items: [SyncDeviceManagementItem]
+
+    var activeItems: [SyncDeviceManagementItem] {
+        self.items.filter { !$0.isArchived }
+    }
+
+    var archivedItems: [SyncDeviceManagementItem] {
+        self.items.filter(\.isArchived)
+    }
+}
+
 /// iOS-side reader that fetches usage snapshots from CloudKit (all devices)
 /// and falls back to legacy KVS for older Mac app versions.
 final class CloudSyncReader: @unchecked Sendable {
@@ -47,12 +85,27 @@ final class CloudSyncReader: @unchecked Sendable {
         await syncManager.fetchProviderAccountLinkages()
     }
 
+    /// Fetch all `DeviceLifecycleEvent` records from CloudKit. Returns empty
+    /// when no lifecycle record has been written yet or Production schema is
+    /// not deployed.
+    func fetchDeviceLifecycleEvents() async -> [DeviceLifecycleEvent] {
+        await syncManager.fetchDeviceLifecycleEvents()
+    }
+
     /// Save a user-confirmed merge or unmerge to CloudKit.
     @discardableResult
     func saveProviderAccountLinkage(
         _ linkage: ProviderAccountLinkage
     ) async -> SyncPushResult {
         await syncManager.saveProviderAccountLinkage(linkage)
+    }
+
+    /// Save a user-confirmed device lifecycle event to CloudKit.
+    @discardableResult
+    func saveDeviceLifecycleEvent(
+        _ event: DeviceLifecycleEvent
+    ) async -> SyncPushResult {
+        await syncManager.saveDeviceLifecycleEvent(event)
     }
 
     /// Stable iPhone UUID for stamping LinkageRecord `confirmedFromDeviceID`.
@@ -173,7 +226,8 @@ final class CloudSyncReader: @unchecked Sendable {
     /// false merges are structurally impossible.
     static func mergeSnapshots(
         _ snapshots: [SyncedUsageSnapshot],
-        linkages: [ProviderAccountLinkage] = []
+        linkages: [ProviderAccountLinkage] = [],
+        sumLocalCostsAcrossDevices: Bool = true
     ) -> SyncedUsageSnapshot? {
         guard !snapshots.isEmpty else { return nil }
 
@@ -266,7 +320,9 @@ final class CloudSyncReader: @unchecked Sendable {
             if group.count == 1 {
                 mergedProviders.append(group[0])
             } else {
-                mergedProviders.append(mergeProviderEntries(group))
+                mergedProviders.append(mergeProviderEntries(
+                    group,
+                    sumLocalCosts: sumLocalCostsAcrossDevices))
             }
         }
 
@@ -415,7 +471,10 @@ final class CloudSyncReader: @unchecked Sendable {
     ///     account-level pool, but only Macs running the version that knows a
     ///     field will populate it. Take any non-nil from newest down so
     ///     cross-version pairs don't flicker.
-    private static func mergeProviderEntries(_ entries: [ProviderUsageSnapshot]) -> ProviderUsageSnapshot {
+    private static func mergeProviderEntries(
+        _ entries: [ProviderUsageSnapshot],
+        sumLocalCosts: Bool = true
+    ) -> ProviderUsageSnapshot {
         // Take the most recent entry as the base (for rate limits + status)
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
 
@@ -428,7 +487,7 @@ final class CloudSyncReader: @unchecked Sendable {
         // for cross-version / partial-install robustness.
         let isLocalCost = localCostProviders.contains(base.providerID)
         let mergedCost: SyncCostSummary?
-        if isLocalCost {
+        if isLocalCost, sumLocalCosts {
             mergedCost = mergeCostSummaries(entries.compactMap(\.costSummary))
         } else {
             mergedCost = Self.latestNonNil(entries, \.costSummary)
@@ -739,6 +798,183 @@ final class CloudSyncReader: @unchecked Sendable {
         }
         return indices
     }
+
+    // MARK: - Device lifecycle reducer (issue #29)
+
+    static func resolveDeviceSnapshots(
+        _ snapshots: [SyncedUsageSnapshot],
+        lifecycleEvents: [DeviceLifecycleEvent],
+        providerLinkages: [ProviderAccountLinkage] = []
+    ) -> DeviceLifecycleResolution {
+        guard !snapshots.isEmpty else {
+            return DeviceLifecycleResolution(
+                activeSnapshots: [],
+                archivedSnapshots: [],
+                items: [])
+        }
+
+        var uf = StringUnionFind()
+        for snapshot in snapshots {
+            uf.add(Self.deviceKey(for: snapshot))
+        }
+
+        let suppressedAliasKeys = Self.suppressedAliasKeys(from: lifecycleEvents)
+        for event in lifecycleEvents where event.kind == .alias {
+            guard !Self.isAliasEvent(event, suppressedBy: suppressedAliasKeys) else {
+                continue
+            }
+            let deviceIDs = Self.normalizedDeviceIDs(for: event)
+            guard deviceIDs.count >= 2 else { continue }
+            let primary = deviceIDs[0]
+            uf.add(primary)
+            for related in deviceIDs.dropFirst() {
+                uf.add(related)
+                uf.union(primary, related)
+            }
+        }
+
+        var grouped: [String: [SyncedUsageSnapshot]] = [:]
+        for snapshot in snapshots {
+            let key = Self.deviceKey(for: snapshot)
+            let root = uf.find(key)
+            grouped[root, default: []].append(snapshot)
+        }
+
+        let archiveState = Self.latestArchiveState(from: lifecycleEvents)
+        var items: [SyncDeviceManagementItem] = []
+        for (_, group) in grouped {
+            let sourceIDs = group
+                .map(Self.deviceKey(for:))
+                .sorted()
+            let newest = group.max(by: { $0.syncTimestamp < $1.syncTimestamp })!
+            let canonicalID = Self.deviceKey(for: newest)
+            let collapsed = Self.collapsePhysicalDeviceGroup(
+                group,
+                canonicalDeviceID: canonicalID,
+                providerLinkages: providerLinkages)
+            let archived = Self.isGroupArchived(
+                sourceDeviceIDs: sourceIDs,
+                canonicalDeviceID: canonicalID,
+                archiveState: archiveState)
+            let state: SyncDeviceManagementItem.State = archived
+                ? .archived
+                : (sourceIDs.count > 1 ? .mergedAlias : .active)
+            items.append(SyncDeviceManagementItem(
+                canonicalDeviceID: canonicalID,
+                sourceDeviceIDs: sourceIDs,
+                snapshot: collapsed,
+                state: state))
+        }
+
+        items.sort {
+            if $0.isArchived != $1.isArchived {
+                return !$0.isArchived
+            }
+            return $0.snapshot.syncTimestamp > $1.snapshot.syncTimestamp
+        }
+
+        let active = items.filter { !$0.isArchived }.map(\.snapshot)
+        let archived = items.filter(\.isArchived).map(\.snapshot)
+        return DeviceLifecycleResolution(
+            activeSnapshots: active,
+            archivedSnapshots: archived,
+            items: items)
+    }
+
+    static func deviceKey(for snapshot: SyncedUsageSnapshot) -> String {
+        snapshot.deviceID ?? SnapshotCache.syntheticDeviceID(from: snapshot)
+    }
+
+    private static func collapsePhysicalDeviceGroup(
+        _ snapshots: [SyncedUsageSnapshot],
+        canonicalDeviceID: String,
+        providerLinkages: [ProviderAccountLinkage]
+    ) -> SyncedUsageSnapshot {
+        guard snapshots.count > 1,
+              let merged = Self.mergeSnapshots(
+                  snapshots,
+                  linkages: providerLinkages,
+                  sumLocalCostsAcrossDevices: false)
+        else {
+            return snapshots[0]
+        }
+        let newest = snapshots.max(by: { $0.syncTimestamp < $1.syncTimestamp })!
+        return SyncedUsageSnapshot(
+            providers: merged.providers,
+            syncTimestamp: merged.syncTimestamp,
+            deviceName: newest.deviceName,
+            deviceID: canonicalDeviceID,
+            appVersion: merged.appVersion,
+            mobileVersion: merged.mobileVersion,
+            notificationPushEnabled: merged.notificationPushEnabled)
+    }
+
+    private static func suppressedAliasKeys(
+        from events: [DeviceLifecycleEvent]
+    ) -> Set<String> {
+        Set(events
+            .filter { $0.kind == .unalias }
+            .map(Self.aliasKey(for:)))
+    }
+
+    private static func isAliasEvent(
+        _ event: DeviceLifecycleEvent,
+        suppressedBy keys: Set<String>
+    ) -> Bool {
+        keys.contains(Self.aliasKey(for: event))
+    }
+
+    private static func normalizedDeviceIDs(
+        for event: DeviceLifecycleEvent
+    ) -> [String] {
+        ([event.primaryDeviceID] + event.relatedDeviceIDs)
+            .filter { !$0.isEmpty }
+    }
+
+    static func aliasKey(for event: DeviceLifecycleEvent) -> String {
+        Self.normalizedDeviceIDs(for: event)
+            .sorted()
+            .joined(separator: "|")
+    }
+
+    private static func latestArchiveState(
+        from events: [DeviceLifecycleEvent]
+    ) -> [String: Bool] {
+        var state: [String: Bool] = [:]
+        for event in events.sorted(by: {
+            if $0.confirmedAt == $1.confirmedAt {
+                return $0.recordID < $1.recordID
+            }
+            return $0.confirmedAt < $1.confirmedAt
+        }) {
+            switch event.kind {
+            case .archive:
+                state[event.primaryDeviceID] = true
+            case .unarchive:
+                state[event.primaryDeviceID] = false
+            case .alias, .unalias:
+                continue
+            }
+        }
+        return state
+    }
+
+    private static func isGroupArchived(
+        sourceDeviceIDs: [String],
+        canonicalDeviceID: String,
+        archiveState: [String: Bool]
+    ) -> Bool {
+        if let canonicalArchived = archiveState[canonicalDeviceID] {
+            return canonicalArchived
+        }
+        let explicitStates = sourceDeviceIDs.compactMap { archiveState[$0] }
+        guard explicitStates.count == sourceDeviceIDs.count,
+              !explicitStates.isEmpty
+        else {
+            return false
+        }
+        return explicitStates.allSatisfy { $0 }
+    }
 }
 
 /// Minimal union-find for merging provider snapshots in `mergeSnapshots`.
@@ -760,6 +996,35 @@ struct MergeUnionFind {
     }
 
     mutating func union(_ a: Int, _ b: Int) {
+        let ra = self.find(a)
+        let rb = self.find(b)
+        if ra != rb {
+            self.parent[ra] = rb
+        }
+    }
+}
+
+private struct StringUnionFind {
+    private var parent: [String: String] = [:]
+
+    mutating func add(_ x: String) {
+        if self.parent[x] == nil {
+            self.parent[x] = x
+        }
+    }
+
+    mutating func find(_ x: String) -> String {
+        self.add(x)
+        let current = self.parent[x] ?? x
+        if current != x {
+            let root = self.find(current)
+            self.parent[x] = root
+            return root
+        }
+        return x
+    }
+
+    mutating func union(_ a: String, _ b: String) {
         let ra = self.find(a)
         let rb = self.find(b)
         if ra != rb {

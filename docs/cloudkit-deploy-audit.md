@@ -70,6 +70,7 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 | v0.26.2-mobile.1.7.0 (Phase G) | ❌ 不需要 | 100% consumer-side。Mac 推**更多** existing record type 的 records；iOS render 层分组。`CloudConstants.swift` 零改动 |
 | v0.27.0-mobile.1.8.0 build 65.2 (superseded) | ❌ 不需要 | Shared envelope 加 10 个 `decodeIfPresent` optional 字段（5 v0.27 NEW provider + 5 existing-provider extension），全在 zlib payload blob 内部。 |
 | v0.27.0-mobile.1.8.0 build 65.3 | ✅ **需要** | 给 `QuotaTransition` CKRecord 加了第 6 个字段 `accountEmail`（String，未索引）。CloudKit Production schema 默认不接受未声明字段写入；deploy 步骤：(1) Mac 端切到 Development env 触发一次 quota warning，Dev schema 自动加上字段；(2) Dashboard → Schema → Deploy Schema Changes to Production → 勾选 `accountEmail`；(3) 切回 Production env 测一次 warning，确认写入成功。**先 deploy 再 ship**，否则用户更新到 65.3 后所有 QuotaTransition 写入会被 Prod 拒绝，导致 push notification 完全失效。 |
+| iOS 1.14.0 / issue #29 | ✅ **需要** | 新增 `DeviceLifecycleEvent` CKRecord type，写入 `DeviceProvidersZone`，字段为 `kind`、`primaryDeviceID`、`relatedDeviceIDs`、`confirmedAt`、`confirmedFromDeviceID`、可选 `note`。这是 iOS-only 功能，不需要 Mac release，但在 iOS 1.14.0 TestFlight 或 release 前必须先把 Development schema deploy 到 Production；未 deploy 时新 iOS 保存 merge/archive/restore/unmerge 会被 Production CloudKit 拒绝。 |
 
 ## 注意事项
 

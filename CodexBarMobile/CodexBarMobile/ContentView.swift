@@ -1711,6 +1711,10 @@ private struct SettingSummaryRow: View {
 
 private struct AboutSyncDetailView: View {
     let usageData: SyncedUsageData
+    @State private var mergeSource: SyncDeviceManagementItem?
+    @State private var archiveCandidate: SyncDeviceManagementItem?
+    @State private var restoreCandidate: SyncDeviceManagementItem?
+    @State private var unmergeCandidate: SyncDeviceManagementItem?
 
     private var appDisplayVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -1807,50 +1811,12 @@ private struct AboutSyncDetailView: View {
 
             // MARK: Devices
             Section {
-                if self.usageData.deviceSnapshots.isEmpty {
+                if self.usageData.deviceManagementItems.isEmpty {
                     Text("No devices synced yet")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(Array(self.usageData.deviceSnapshots.enumerated()), id: \.offset) { _, device in
-                        HStack {
-                            Image(systemName: "laptopcomputer")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(device.deviceName)
-                                    .font(.body)
-                                HStack(spacing: 8) {
-                                    Text(device.syncTimestamp.formatted(.relative(presentation: .named)))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text("·")
-                                        .foregroundStyle(.quaternary)
-                                    Text("\(device.providers.count) providers")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                // Per-device Mac version line. Appears only
-                                // when the device reported a version (pre-1.1
-                                // Macs left it nil — KVS fallback path). If
-                                // this device lags the highest-semver Mac in
-                                // the synced set, surface an orange "update
-                                // available" chip so the user can identify
-                                // which specific Mac to update.
-                                if let version = device.appVersion {
-                                    HStack(spacing: 6) {
-                                        Text("CodexBar \(version)")
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                        if self.isDeviceOutdated(device) {
-                                            Text("· Update available")
-                                                .font(.caption2)
-                                                .foregroundStyle(.orange)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.vertical, 2)
+                    ForEach(self.usageData.deviceManagementItems) { item in
+                        self.deviceRow(item)
                     }
                 }
             } header: {
@@ -1887,9 +1853,169 @@ private struct AboutSyncDetailView: View {
             }
         }
         .navigationTitle("About & Sync")
+        .confirmationDialog(
+            "Merge with Another Mac",
+            isPresented: Binding(
+                get: { self.mergeSource != nil },
+                set: { if !$0 { self.mergeSource = nil } }),
+            titleVisibility: .visible)
+        {
+            if let source = self.mergeSource {
+                ForEach(self.mergeTargets(for: source)) { target in
+                    Button("\(String(localized: "Merge with")) \(target.snapshot.deviceName)") {
+                        let sourceID = source.canonicalDeviceID
+                        let targetID = target.canonicalDeviceID
+                        self.mergeSource = nil
+                        Task { await self.usageData.mergeDevice(sourceDeviceID: sourceID, into: targetID) }
+                    }
+                }
+            }
+        } message: {
+            Text("Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.")
+        }
+        .confirmationDialog(
+            "Archive This Device?",
+            isPresented: Binding(
+                get: { self.archiveCandidate != nil },
+                set: { if !$0 { self.archiveCandidate = nil } }),
+            titleVisibility: .visible)
+        {
+            if let item = self.archiveCandidate {
+                Button("Archive Device", role: .destructive) {
+                    let deviceID = item.canonicalDeviceID
+                    self.archiveCandidate = nil
+                    Task { await self.usageData.archiveDevice(deviceID) }
+                }
+            }
+        } message: {
+            Text("Archive a real retired Mac. Its history stays available, but it no longer counts as active or triggers sync warnings.")
+        }
+        .confirmationDialog(
+            "Restore This Device?",
+            isPresented: Binding(
+                get: { self.restoreCandidate != nil },
+                set: { if !$0 { self.restoreCandidate = nil } }),
+            titleVisibility: .visible)
+        {
+            if let item = self.restoreCandidate {
+                Button("Restore Device") {
+                    let deviceID = item.canonicalDeviceID
+                    self.restoreCandidate = nil
+                    Task { await self.usageData.restoreDevice(deviceID) }
+                }
+            }
+        } message: {
+            Text("Restore this Mac to the active sync device list.")
+        }
+        .confirmationDialog(
+            "Unmerge This Device?",
+            isPresented: Binding(
+                get: { self.unmergeCandidate != nil },
+                set: { if !$0 { self.unmergeCandidate = nil } }),
+            titleVisibility: .visible)
+        {
+            if let item = self.unmergeCandidate {
+                Button("Unmerge", role: .destructive) {
+                    let sourceIDs = item.sourceDeviceIDs
+                    self.unmergeCandidate = nil
+                    Task { await self.usageData.unmergeDevice(sourceDeviceIDs: sourceIDs) }
+                }
+            }
+        } message: {
+            Text("Undo this merge and show the original device identities separately again.")
+        }
     }
 
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
+
+    private func deviceRow(_ item: SyncDeviceManagementItem) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: item.isArchived ? "archivebox" : "laptopcomputer")
+                .foregroundStyle(item.isArchived ? Color.secondary : Color.accentColor)
+                .frame(width: 24)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(item.snapshot.deviceName)
+                        .font(.body)
+                    if item.isMergedAlias {
+                        Text("Merged")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.blue)
+                    }
+                    if item.isArchived {
+                        Text("Archived")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Text(item.snapshot.syncTimestamp.formatted(.relative(presentation: .named)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("·")
+                        .foregroundStyle(.quaternary)
+                    Text("\(item.snapshot.providers.count) providers")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if item.aliasCount > 0 {
+                    Text("\(item.sourceDeviceIDs.count.formatted()) \(String(localized: "device identities combined"))")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if item.isArchived {
+                    Text("Kept for history; excluded from active sync warnings.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if let version = item.snapshot.appVersion {
+                    HStack(spacing: 6) {
+                        Text("CodexBar \(version)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        if self.isDeviceOutdated(item.snapshot), !item.isArchived {
+                            Text("· Update available")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+            }
+            Spacer()
+            Menu {
+                if item.isArchived {
+                    Button("Restore Device") {
+                        self.restoreCandidate = item
+                    }
+                } else {
+                    Button("Merge with Another Mac...") {
+                        self.mergeSource = item
+                    }
+                    .disabled(self.mergeTargets(for: item).isEmpty)
+                    Button("Archive This Device", role: .destructive) {
+                        self.archiveCandidate = item
+                    }
+                    if item.isMergedAlias {
+                        Button("Unmerge", role: .destructive) {
+                            self.unmergeCandidate = item
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.title3)
+            }
+            .accessibilityLabel(Text("Device actions"))
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func mergeTargets(for source: SyncDeviceManagementItem) -> [SyncDeviceManagementItem] {
+        self.usageData.deviceManagementItems.filter {
+            !$0.isArchived && $0.canonicalDeviceID != source.canonicalDeviceID
+        }
+    }
 
     private var syncStatusIcon: some View {
         Group {
@@ -1974,13 +2100,13 @@ private struct RawSyncDataView: View {
 
     var body: some View {
         List {
-            if self.usageData.deviceSnapshots.isEmpty {
+            if self.usageData.rawDeviceSnapshots.isEmpty {
                 Section {
                     Text("No device data available")
                         .foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(Array(self.usageData.deviceSnapshots.enumerated()), id: \.offset) { _, device in
+                ForEach(Array(self.usageData.rawDeviceSnapshots.enumerated()), id: \.offset) { _, device in
                     RawDeviceSection(device: device)
                 }
             }
@@ -2438,8 +2564,27 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.13.0",
+            version: "1.14.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history."),
+                        String(localized: "Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings."),
+                        String(localized: "Undo when needed — restore archived devices or unmerge device identities from Settings → About & Sync."),
+                        String(localized: "Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "No Mac update is required for this iPhone feature. Existing Mac sync data is preserved; a CloudKit schema update may be required before release."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.13.0",
+            status: "",
             summary: String(localized: "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade."),
             sections: [
                 .init(

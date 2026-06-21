@@ -1197,6 +1197,132 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             unmerge: unmerge)
     }
 
+    // MARK: - Device Lifecycle Events (issue #29)
+
+    /// Save a user-confirmed lifecycle event for a Mac sync device identity.
+    /// The record is additive: archive/unarchive and alias/unalias are replayed
+    /// by readers, while raw provider/device records remain untouched.
+    @discardableResult
+    public func saveDeviceLifecycleEvent(
+        _ event: DeviceLifecycleEvent
+    ) async -> SyncPushResult {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
+            return .failure("CloudKit not available")
+        }
+
+        do {
+            try await self.ensureProviderZoneExists()
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            return .failure("Failed to create provider zone: \(syncError.description)")
+        }
+
+        let ckRecordID = CKRecord.ID(
+            recordName: DeviceLifecycleEvent.recordName(for: event.recordID),
+            zoneID: self.providerZone.zoneID)
+        let record = CKRecord(
+            recordType: CloudSyncConstants.deviceLifecycleEventRecordType,
+            recordID: ckRecordID)
+        record["kind"] = event.kind.rawValue as CKRecordValue
+        record["primaryDeviceID"] = event.primaryDeviceID as CKRecordValue
+        record["relatedDeviceIDs"] = event.relatedDeviceIDs as CKRecordValue
+        record["confirmedAt"] = event.confirmedAt as CKRecordValue
+        record["confirmedFromDeviceID"] = event.confirmedFromDeviceID as CKRecordValue
+        if let note = event.note {
+            record["note"] = note as CKRecordValue
+        }
+
+        do {
+            _ = try await self._privateDatabase!.save(record)
+            self.logInfo("Device lifecycle event written", metadata: [
+                "kind": event.kind.rawValue,
+                "primaryDeviceID": event.primaryDeviceID,
+                "relatedCount": "\(event.relatedDeviceIDs.count)",
+            ])
+            return .success
+        } catch let ckError as CKError {
+            let syncError = CloudSyncError(from: ckError)
+            self.logError("Device lifecycle save failed: \(syncError.description)")
+            return .failure("Device lifecycle save failed: \(syncError.description)")
+        } catch {
+            self.logError("Device lifecycle save failed: \(error.localizedDescription)")
+            return .failure("Device lifecycle save failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Fetch all device lifecycle events from `DeviceProvidersZone`. Unknown
+    /// record type means no device lifecycle records exist or Production schema
+    /// is not deployed yet; callers treat that as an empty decision log.
+    public func fetchDeviceLifecycleEvents() async -> [DeviceLifecycleEvent] {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
+            return []
+        }
+
+        let query = CKQuery(
+            recordType: CloudSyncConstants.deviceLifecycleEventRecordType,
+            predicate: NSPredicate(value: true))
+
+        let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
+        do {
+            let (results, _) = try await self._privateDatabase!.records(
+                matching: query, inZoneWith: self.providerZone.zoneID)
+            matchResults = results
+        } catch let error as CKError where error.code == .zoneNotFound || error.code == .unknownItem {
+            return []
+        } catch {
+            self.logError("Device lifecycle fetch failed: \(error.localizedDescription)")
+            return []
+        }
+
+        var events: [DeviceLifecycleEvent] = []
+        events.reserveCapacity(matchResults.count)
+        for (recordID, result) in matchResults {
+            switch result {
+            case .success(let record):
+                if let event = Self.decodeDeviceLifecycleEvent(from: record) {
+                    events.append(event)
+                } else {
+                    self.logError(
+                        "Failed to decode device lifecycle record \(recordID.recordName)")
+                }
+            case .failure(let error):
+                self.logError(
+                    "Failed to fetch device lifecycle record \(recordID.recordName): " +
+                        error.localizedDescription)
+            }
+        }
+        return events
+    }
+
+    /// Decode a `DeviceLifecycleEvent` from an in-memory CKRecord. Exposed for
+    /// tests and mirrors `decodeLinkage`: the record UUID lives in recordName
+    /// so we never set CloudKit's reserved `recordID` field.
+    public static func decodeDeviceLifecycleEvent(from record: CKRecord) -> DeviceLifecycleEvent? {
+        let recordName = record.recordID.recordName
+        let prefix = "device-lifecycle-"
+        guard recordName.hasPrefix(prefix) else { return nil }
+        let recordID = String(recordName.dropFirst(prefix.count))
+        guard !recordID.isEmpty,
+              let kindRaw = record["kind"] as? String,
+              let kind = DeviceLifecycleEvent.Kind(rawValue: kindRaw),
+              let primaryDeviceID = record["primaryDeviceID"] as? String,
+              let confirmedAt = record["confirmedAt"] as? Date,
+              let confirmedFromDeviceID = record["confirmedFromDeviceID"] as? String
+        else {
+            return nil
+        }
+        let relatedDeviceIDs = record["relatedDeviceIDs"] as? [String] ?? []
+        let note = record["note"] as? String
+        return DeviceLifecycleEvent(
+            recordID: recordID,
+            kind: kind,
+            primaryDeviceID: primaryDeviceID,
+            relatedDeviceIDs: relatedDeviceIDs,
+            confirmedAt: confirmedAt,
+            confirmedFromDeviceID: confirmedFromDeviceID,
+            note: note)
+    }
+
     /// Returns a stable UUID for this device, persisted across launches in
     /// `UserDefaults`. On Mac it matches the SyncCoordinator's record-name
     /// `deviceID` (same UserDefaults key). On iOS it's a separate value, since

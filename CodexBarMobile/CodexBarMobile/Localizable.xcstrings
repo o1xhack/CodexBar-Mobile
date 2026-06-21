@@ -15326,6 +15326,731 @@
           }
         }
       }
+    },
+    "Archive a real retired Mac. Its history stays available, but it no longer counts as active or triggers sync warnings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive a real retired Mac. Its history stays available, but it no longer counts as active or triggers sync warnings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実際に退役した Mac をアーカイブします。履歴は残りますが、アクティブ台数や同期警告には含まれません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档一台真实退役的 Mac。历史数据仍会保留，但它不再计入活跃设备，也不会触发同步提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封存一台真實退役的 Mac。歷史資料仍會保留，但它不再計入作用中裝置，也不會觸發同步提醒。"
+          }
+        }
+      }
+    },
+    "Archive Device": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive Device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイスをアーカイブ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档设备"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封存裝置"
+          }
+        }
+      }
+    },
+    "Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退役した Mac をアーカイブ — 古いデバイス履歴を残しつつ、アクティブ台数と古い同期警告から外せます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档退役 Mac — 保留旧设备历史，同时将退役 Mac 从活跃设备数量和过期同步提醒中移除。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封存退役 Mac — 保留舊裝置歷史，同時將退役 Mac 從作用中裝置數量和過期同步提醒中移除。"
+          }
+        }
+      }
+    },
+    "Archive This Device": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive This Device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスをアーカイブ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "归档此设备"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封存此裝置"
+          }
+        }
+      }
+    },
+    "Archive This Device?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive This Device?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスをアーカイブしますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要归档此设备吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要封存此裝置嗎？"
+          }
+        }
+      }
+    },
+    "Archived": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archived"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アーカイブ済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已归档"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已封存"
+          }
+        }
+      }
+    },
+    "Device actions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device actions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイス操作"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备操作"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置操作"
+          }
+        }
+      }
+    },
+    "device identities combined": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "device identities combined"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "件のデバイス ID を結合済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "个设备身份已合并"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "個裝置身分已合併"
+          }
+        }
+      }
+    },
+    "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.14 では、重複または退役した Mac デバイス向けに、非破壊の結合、アーカイブ、復元、結合解除ができる同期デバイス管理を追加しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.14 新增同步设备管理，可对重复或退役的 Mac 设备进行非破坏性的合并、归档、恢复和取消合并。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.14 新增同步裝置管理，可對重複或退役的 Mac 裝置進行非破壞性的合併、封存、還原和取消合併。"
+          }
+        }
+      }
+    },
+    "Kept for history; excluded from active sync warnings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kept for history; excluded from active sync warnings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "履歴として保持され、アクティブな同期警告からは除外されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留为历史记录；不再触发活跃同步提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留為歷史記錄；不再觸發作用中同步提醒。"
+          }
+        }
+      }
+    },
+    "Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重複した Mac を結合 — Mac の再インストールで 2 つ目の同期デバイスができた場合、履歴を削除せず古い ID と新しい ID をまとめられます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合并重复 Mac — 如果重装 Mac 产生了第二个同步设备，可在不删除历史的情况下合并新旧身份。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合併重複 Mac — 如果重裝 Mac 產生了第二個同步裝置，可在不刪除歷史的情況下合併新舊身分。"
+          }
+        }
+      }
+    },
+    "Merge with": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結合先:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合并到"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合併到"
+          }
+        }
+      }
+    },
+    "Merge with Another Mac": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with Another Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の Mac と結合"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与另一台 Mac 合并"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "與另一台 Mac 合併"
+          }
+        }
+      }
+    },
+    "Merge with Another Mac...": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with Another Mac..."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の Mac と結合..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与另一台 Mac 合并..."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "與另一台 Mac 合併..."
+          }
+        }
+      }
+    },
+    "Merged": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merged"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結合済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已合并"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已合併"
+          }
+        }
+      }
+    },
+    "No Mac update is required for this iPhone feature. Existing Mac sync data is preserved; a CloudKit schema update may be required before release.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Mac update is required for this iPhone feature. Existing Mac sync data is preserved; a CloudKit schema update may be required before release."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この iPhone 機能に Mac の更新は不要です。既存の Mac 同期データは保持されます。リリース前に CloudKit スキーマ更新が必要になる場合があります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 iPhone 功能不需要更新 Mac。现有 Mac 同步数据会保留；发布前可能需要更新 CloudKit schema。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 iPhone 功能不需要更新 Mac。現有 Mac 同步資料會保留；發布前可能需要更新 CloudKit schema。"
+          }
+        }
+      }
+    },
+    "Restore Device": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイスを復元"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复设备"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還原裝置"
+          }
+        }
+      }
+    },
+    "Restore This Device?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore This Device?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスを復元しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要恢复此设备吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要還原此裝置嗎？"
+          }
+        }
+      }
+    },
+    "Restore this Mac to the active sync device list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore this Mac to the active sync device list."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この Mac をアクティブな同期デバイス一覧に戻します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将这台 Mac 恢复到活跃同步设备列表。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將這台 Mac 還原到作用中同步裝置列表。"
+          }
+        }
+      }
+    },
+    "Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "より安全なローカルコスト集計 — 同じ物理 Mac の結合済み ID は、ローカル CLI 履歴を 2 台分として数えません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更安全的本地费用统计 — 同一台物理 Mac 的合并身份不会再把本地 CLI 历史按两台电脑重复计算。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更安全的本機費用統計 — 同一台實體 Mac 的合併身分不會再把本機 CLI 歷史按兩台電腦重複計算。"
+          }
+        }
+      }
+    },
+    "Undo this merge and show the original device identities separately again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo this merge and show the original device identities separately again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この結合を取り消し、元のデバイス ID を再び別々に表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤销此次合并，并重新分别显示原始设备身份。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撤銷此次合併，並重新分別顯示原始裝置身分。"
+          }
+        }
+      }
+    },
+    "Undo when needed — restore archived devices or unmerge device identities from Settings → About & Sync.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo when needed — restore archived devices or unmerge device identities from Settings → About & Sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必要なときに元に戻せます — Settings → About & Sync からアーカイブ済みデバイスの復元や結合解除ができます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要时可撤销 — 可在 Settings → About & Sync 中恢复已归档设备或取消设备身份合并。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要時可撤銷 — 可在 Settings → About & Sync 中還原已封存裝置或取消裝置身分合併。"
+          }
+        }
+      }
+    },
+    "Unmerge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmerge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結合を解除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消合并"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消合併"
+          }
+        }
+      }
+    },
+    "Unmerge This Device?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmerge This Device?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスの結合を解除しますか？"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要取消合并此设备吗？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要取消合併此裝置嗎？"
+          }
+        }
+      }
+    },
+    "Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再インストール後の同じ物理 Mac が 2 件表示されている場合だけ使用してください。履歴は保持され、結合は取り消せます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅当两个条目是重装后的同一台物理 Mac 时使用。历史会保留，合并也可以撤销。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅當兩個項目是重裝後的同一台實體 Mac 時使用。歷史會保留，合併也可以撤銷。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
