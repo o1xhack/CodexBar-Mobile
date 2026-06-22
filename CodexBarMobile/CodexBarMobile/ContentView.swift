@@ -1807,21 +1807,47 @@ private struct AboutSyncDetailView: View {
             }
 
             // MARK: Devices
-            Section {
-                if self.usageData.deviceManagementItems.isEmpty {
+            if self.usageData.deviceManagementItems.isEmpty {
+                Section {
                     Text("No devices synced yet")
                         .foregroundStyle(.secondary)
-                } else {
-                    ForEach(self.usageData.deviceManagementItems) { item in
-                        self.deviceRow(item)
+                } header: {
+                    HStack {
+                        Text("Devices")
+                        Spacer()
+                        Text("0")
+                            .foregroundStyle(.secondary)
                     }
                 }
-            } header: {
-                HStack {
-                    Text("Devices")
-                    Spacer()
-                    Text("\(self.usageData.deviceCount)")
-                        .foregroundStyle(.secondary)
+            } else {
+                if !self.activeDeviceItems.isEmpty {
+                    Section {
+                        ForEach(self.activeDeviceItems) { item in
+                            self.deviceRow(item)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Devices")
+                            Spacer()
+                            Text("\(self.activeDeviceItems.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if !self.archivedDeviceItems.isEmpty {
+                    Section {
+                        ForEach(self.archivedDeviceItems) { item in
+                            self.deviceRow(item)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Archived Devices")
+                            Spacer()
+                            Text("\(self.archivedDeviceItems.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 
@@ -1877,6 +1903,14 @@ private struct AboutSyncDetailView: View {
     }
 
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
+
+    private var activeDeviceItems: [SyncDeviceManagementItem] {
+        self.usageData.deviceManagementItems.filter { !$0.isArchived }
+    }
+
+    private var archivedDeviceItems: [SyncDeviceManagementItem] {
+        self.usageData.deviceManagementItems.filter(\.isArchived)
+    }
 
     private func deviceRow(_ item: SyncDeviceManagementItem) -> some View {
         HStack(alignment: .top, spacing: 12) {
@@ -1962,8 +1996,8 @@ private struct AboutSyncDetailView: View {
     }
 
     private func mergeTargets(for source: SyncDeviceManagementItem) -> [SyncDeviceManagementItem] {
-        self.usageData.deviceManagementItems.filter {
-            !$0.isArchived && $0.canonicalDeviceID != source.canonicalDeviceID
+        self.activeDeviceItems.filter {
+            $0.canonicalDeviceID != source.canonicalDeviceID
         }
     }
 
@@ -1989,7 +2023,6 @@ private struct AboutSyncDetailView: View {
         }
         .font(.title2)
     }
-
     private var syncStatusTitle: String {
         switch self.usageData.syncStatus {
         case .synced: String(localized: "Synced")
@@ -2113,7 +2146,7 @@ private struct DeviceMergeSheet: View {
     }
 }
 
-private enum DeviceLifecycleConfirmationKind {
+private enum DeviceLifecycleConfirmationKind: Equatable {
     case archive
     case restore
     case unmerge
@@ -2159,6 +2192,15 @@ private enum DeviceLifecycleConfirmationKind {
             nil
         }
     }
+
+    var buttonTint: Color {
+        switch self {
+        case .archive, .unmerge:
+            .red
+        case .restore:
+            .accentColor
+        }
+    }
 }
 
 private struct DeviceLifecycleConfirmationSheet: View {
@@ -2169,14 +2211,15 @@ private struct DeviceLifecycleConfirmationSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    DeviceActionDeviceSummary(item: self.item)
-                } footer: {
-                    Text(self.kind.message)
-                }
+            VStack(alignment: .leading, spacing: 18) {
+                DeviceActionDeviceSummary(item: self.item)
 
-                Section {
+                Text(self.kind.message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: 10) {
                     Button(role: self.kind.buttonRole) {
                         let item = self.item
                         let kind = self.kind
@@ -2186,19 +2229,31 @@ private struct DeviceLifecycleConfirmationSheet: View {
                         }
                     } label: {
                         Text(self.kind.buttonTitle)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(self.kind.buttonTint)
 
                     Button("Cancel", role: .cancel) {
                         self.dismiss()
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .font(.headline)
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
                 }
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
             .navigationTitle(String(localized: self.kind.title))
             .navigationBarTitleDisplayMode(.inline)
         }
-        .presentationDetents([.fraction(0.36), .medium])
+        .presentationDetents([.height(300), .medium])
         .presentationDragIndicator(.visible)
     }
 

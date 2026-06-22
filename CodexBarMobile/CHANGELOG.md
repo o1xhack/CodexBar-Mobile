@@ -2,6 +2,23 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (158)] — 2026-06-21 — sync device management QA polish
+
+### Fixed
+
+- **Archived device grouping** — Settings → About & Sync now separates active
+  Macs from archived Macs so retired devices are clearly outside the active
+  sync list.
+- **Archive confirmation layout** — Archive, Restore, and Unmerge confirmation
+  sheets now use full-width bottom controls without partial list separators.
+
+### Notes
+
+- iOS-only TestFlight fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 157 → 158.
+
+---
+
 ## [1.14.0 (157)] — 2026-06-21 — sync device management UI fix
 
 ### Fixed
