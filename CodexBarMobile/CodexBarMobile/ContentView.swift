@@ -1711,10 +1711,7 @@ private struct SettingSummaryRow: View {
 
 private struct AboutSyncDetailView: View {
     let usageData: SyncedUsageData
-    @State private var mergeSource: SyncDeviceManagementItem?
-    @State private var archiveCandidate: SyncDeviceManagementItem?
-    @State private var restoreCandidate: SyncDeviceManagementItem?
-    @State private var unmergeCandidate: SyncDeviceManagementItem?
+    @State private var deviceActionSheet: DeviceActionSheet?
 
     private var appDisplayVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -1853,76 +1850,29 @@ private struct AboutSyncDetailView: View {
             }
         }
         .navigationTitle("About & Sync")
-        .confirmationDialog(
-            "Merge with Another Mac",
-            isPresented: Binding(
-                get: { self.mergeSource != nil },
-                set: { if !$0 { self.mergeSource = nil } }),
-            titleVisibility: .visible)
-        {
-            if let source = self.mergeSource {
-                ForEach(self.mergeTargets(for: source)) { target in
-                    Button("\(String(localized: "Merge with")) \(target.snapshot.deviceName)") {
-                        let sourceID = source.canonicalDeviceID
-                        let targetID = target.canonicalDeviceID
-                        self.mergeSource = nil
-                        Task { await self.usageData.mergeDevice(sourceDeviceID: sourceID, into: targetID) }
-                    }
-                }
+        .sheet(item: self.$deviceActionSheet) { sheet in
+            switch sheet {
+            case .merge(let source):
+                DeviceMergeSheet(
+                    source: source,
+                    targets: self.mergeTargets(for: source),
+                    usageData: self.usageData)
+            case .archive(let item):
+                DeviceLifecycleConfirmationSheet(
+                    kind: .archive,
+                    item: item,
+                    usageData: self.usageData)
+            case .restore(let item):
+                DeviceLifecycleConfirmationSheet(
+                    kind: .restore,
+                    item: item,
+                    usageData: self.usageData)
+            case .unmerge(let item):
+                DeviceLifecycleConfirmationSheet(
+                    kind: .unmerge,
+                    item: item,
+                    usageData: self.usageData)
             }
-        } message: {
-            Text("Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.")
-        }
-        .confirmationDialog(
-            "Archive This Device?",
-            isPresented: Binding(
-                get: { self.archiveCandidate != nil },
-                set: { if !$0 { self.archiveCandidate = nil } }),
-            titleVisibility: .visible)
-        {
-            if let item = self.archiveCandidate {
-                Button("Archive Device", role: .destructive) {
-                    let deviceID = item.canonicalDeviceID
-                    self.archiveCandidate = nil
-                    Task { await self.usageData.archiveDevice(deviceID) }
-                }
-            }
-        } message: {
-            Text("Archive a real retired Mac. Its history stays available, but it no longer counts as active or triggers sync warnings.")
-        }
-        .confirmationDialog(
-            "Restore This Device?",
-            isPresented: Binding(
-                get: { self.restoreCandidate != nil },
-                set: { if !$0 { self.restoreCandidate = nil } }),
-            titleVisibility: .visible)
-        {
-            if let item = self.restoreCandidate {
-                Button("Restore Device") {
-                    let deviceID = item.canonicalDeviceID
-                    self.restoreCandidate = nil
-                    Task { await self.usageData.restoreDevice(deviceID) }
-                }
-            }
-        } message: {
-            Text("Restore this Mac to the active sync device list.")
-        }
-        .confirmationDialog(
-            "Unmerge This Device?",
-            isPresented: Binding(
-                get: { self.unmergeCandidate != nil },
-                set: { if !$0 { self.unmergeCandidate = nil } }),
-            titleVisibility: .visible)
-        {
-            if let item = self.unmergeCandidate {
-                Button("Unmerge", role: .destructive) {
-                    let sourceIDs = item.sourceDeviceIDs
-                    self.unmergeCandidate = nil
-                    Task { await self.usageData.unmergeDevice(sourceDeviceIDs: sourceIDs) }
-                }
-            }
-        } message: {
-            Text("Undo this merge and show the original device identities separately again.")
         }
     }
 
@@ -1986,19 +1936,19 @@ private struct AboutSyncDetailView: View {
             Menu {
                 if item.isArchived {
                     Button("Restore Device") {
-                        self.restoreCandidate = item
+                        self.deviceActionSheet = .restore(item)
                     }
                 } else {
                     Button("Merge with Another Mac...") {
-                        self.mergeSource = item
+                        self.deviceActionSheet = .merge(item)
                     }
                     .disabled(self.mergeTargets(for: item).isEmpty)
                     Button("Archive This Device", role: .destructive) {
-                        self.archiveCandidate = item
+                        self.deviceActionSheet = .archive(item)
                     }
                     if item.isMergedAlias {
                         Button("Unmerge", role: .destructive) {
-                            self.unmergeCandidate = item
+                            self.deviceActionSheet = .unmerge(item)
                         }
                     }
                 }
@@ -2090,6 +2040,216 @@ private struct AboutSyncDetailView: View {
         case .incompatibleData: return String(localized: "Please update CodexBar on Mac")
         case .error: return nil
         }
+    }
+}
+
+private enum DeviceActionSheet: Identifiable {
+    case merge(SyncDeviceManagementItem)
+    case archive(SyncDeviceManagementItem)
+    case restore(SyncDeviceManagementItem)
+    case unmerge(SyncDeviceManagementItem)
+
+    var id: String {
+        switch self {
+        case .merge(let item):
+            "merge-\(item.id)"
+        case .archive(let item):
+            "archive-\(item.id)"
+        case .restore(let item):
+            "restore-\(item.id)"
+        case .unmerge(let item):
+            "unmerge-\(item.id)"
+        }
+    }
+}
+
+private struct DeviceMergeSheet: View {
+    let source: SyncDeviceManagementItem
+    let targets: [SyncDeviceManagementItem]
+    let usageData: SyncedUsageData
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    DeviceActionDeviceSummary(item: self.source)
+                }
+
+                Section {
+                    ForEach(self.targets) { target in
+                        Button {
+                            let sourceID = self.source.canonicalDeviceID
+                            let targetID = target.canonicalDeviceID
+                            self.dismiss()
+                            Task {
+                                await self.usageData.mergeDevice(sourceDeviceID: sourceID, into: targetID)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                DeviceActionDeviceSummary(item: target)
+                                Spacer()
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.title3)
+                            }
+                        }
+                    }
+                } footer: {
+                    Text("Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.")
+                }
+            }
+            .navigationTitle("Merge with Another Mac")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+private enum DeviceLifecycleConfirmationKind {
+    case archive
+    case restore
+    case unmerge
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .archive:
+            "Archive This Device?"
+        case .restore:
+            "Restore This Device?"
+        case .unmerge:
+            "Unmerge This Device?"
+        }
+    }
+
+    var message: LocalizedStringResource {
+        switch self {
+        case .archive:
+            "Archive a real retired Mac. Its history stays available, but it no longer counts as active or triggers sync warnings."
+        case .restore:
+            "Restore this Mac to the active sync device list."
+        case .unmerge:
+            "Undo this merge and show the original device identities separately again."
+        }
+    }
+
+    var buttonTitle: LocalizedStringResource {
+        switch self {
+        case .archive:
+            "Archive Device"
+        case .restore:
+            "Restore Device"
+        case .unmerge:
+            "Unmerge"
+        }
+    }
+
+    var buttonRole: ButtonRole? {
+        switch self {
+        case .archive, .unmerge:
+            .destructive
+        case .restore:
+            nil
+        }
+    }
+}
+
+private struct DeviceLifecycleConfirmationSheet: View {
+    let kind: DeviceLifecycleConfirmationKind
+    let item: SyncDeviceManagementItem
+    let usageData: SyncedUsageData
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    DeviceActionDeviceSummary(item: self.item)
+                } footer: {
+                    Text(self.kind.message)
+                }
+
+                Section {
+                    Button(role: self.kind.buttonRole) {
+                        let item = self.item
+                        let kind = self.kind
+                        self.dismiss()
+                        Task {
+                            await self.perform(kind, item: item)
+                        }
+                    } label: {
+                        Text(self.kind.buttonTitle)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+
+                    Button("Cancel", role: .cancel) {
+                        self.dismiss()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            .navigationTitle(String(localized: self.kind.title))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.fraction(0.36), .medium])
+        .presentationDragIndicator(.visible)
+    }
+
+    @MainActor
+    private func perform(
+        _ kind: DeviceLifecycleConfirmationKind,
+        item: SyncDeviceManagementItem
+    ) async {
+        switch kind {
+        case .archive:
+            await self.usageData.archiveDevice(item.canonicalDeviceID)
+        case .restore:
+            await self.usageData.restoreDevice(item.canonicalDeviceID)
+        case .unmerge:
+            await self.usageData.unmergeDevice(sourceDeviceIDs: item.sourceDeviceIDs)
+        }
+    }
+}
+
+private struct DeviceActionDeviceSummary: View {
+    let item: SyncDeviceManagementItem
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: self.item.isArchived ? "archivebox" : "laptopcomputer")
+                .foregroundStyle(self.item.isArchived ? Color.secondary : Color.accentColor)
+                .frame(width: 24)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(self.item.snapshot.deviceName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                HStack(spacing: 8) {
+                    Text(self.item.snapshot.syncTimestamp.formatted(.relative(presentation: .named)))
+                    Text("·")
+                        .foregroundStyle(.quaternary)
+                    Text("\(self.item.snapshot.providers.count) providers")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if let version = self.item.snapshot.appVersion {
+                    Text("CodexBar \(version)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 

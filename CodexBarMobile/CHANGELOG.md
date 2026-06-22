@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (157)] — 2026-06-21 — sync device management UI fix
+
+### Fixed
+
+- **Device management action sheets** — Settings → About & Sync now presents
+  Merge, Archive, Restore, and Unmerge flows as bottom sheets instead of a
+  top-anchored confirmation popover.
+
+### Notes
+
+- iOS-only TestFlight fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 156 → 157.
+
+---
+
 ## [1.14.0 (156)] — 2026-06-20 — sync device management
 
 ### Added
