@@ -427,10 +427,12 @@ struct ProviderDetailView: View {
     // MARK: - Daily Chart
 
     private func dailyChartSection(_ daily: [SyncDailyPoint], currencyCode: String?) -> some View {
+        let sortedDaily = Self.sortedDailyPoints(daily)
+        let xAxisDayKeys = Self.dailyAxisDayKeys(for: sortedDaily)
         // Precompute axis values once per section build. `daily` is stable across
         // `selectedDate` hover changes, so pulling this out of the `.chartYAxis`
         // closure eliminates redundant axis recomputation on every chart re-render.
-        let yAxisValues = MobileChartAxisFormatter.axisValues(for: daily.map(\.costUSD))
+        let yAxisValues = MobileChartAxisFormatter.axisValues(for: sortedDaily.map(\.costUSD))
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
@@ -443,7 +445,7 @@ struct ProviderDetailView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("provider-daily-spend-title")
 
-            Chart(daily, id: \.dayKey) { point in
+            Chart(sortedDaily, id: \.dayKey) { point in
                 switch self.chartStyle {
                 case .bars:
                     BarMark(
@@ -480,12 +482,17 @@ struct ProviderDetailView: View {
             }
             .chartXSelection(value: self.$selectedDate)
             .chartScrollableAxes(.horizontal)
-            .chartXVisibleDomain(length: min(daily.count, Self.chartVisibleDays))
-            .chartScrollPosition(initialX: Self.chartScrollInitialDayKey(daily: daily))
+            .chartXVisibleDomain(length: min(sortedDaily.count, Self.chartVisibleDays))
+            .chartScrollPosition(initialX: Self.chartScrollInitialDayKey(daily: sortedDaily))
             .chartXAxis {
-                AxisMarks(values: .stride(by: 7)) { _ in
+                AxisMarks(values: xAxisDayKeys) { value in
                     AxisGridLine()
-                    AxisValueLabel()
+                    AxisValueLabel(anchor: .top) {
+                        if let dayKey = value.as(String.self) {
+                            Text(Self.dailyAxisLabel(for: dayKey))
+                                .font(.caption2)
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -511,7 +518,7 @@ struct ProviderDetailView: View {
             .padding(16)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            if let selectedDate, let point = daily.first(where: { $0.dayKey == selectedDate }) {
+            if let selectedDate, let point = sortedDaily.first(where: { $0.dayKey == selectedDate }) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(point.dayKey)
@@ -541,9 +548,38 @@ struct ProviderDetailView: View {
 
     // MARK: - Chart Constants
 
-    private static let chartVisibleDays = 30
+    static let chartVisibleDays = 30
 
-    private static func chartScrollInitialDayKey(daily: [SyncDailyPoint]) -> String {
+    static func sortedDailyPoints(_ daily: [SyncDailyPoint]) -> [SyncDailyPoint] {
+        daily.sorted { $0.dayKey < $1.dayKey }
+    }
+
+    static func dailyAxisDayKeys(for daily: [SyncDailyPoint]) -> [String] {
+        Self.sortedDailyPoints(daily).enumerated().compactMap { index, point in
+            index.isMultiple(of: 7) ? point.dayKey : nil
+        }
+    }
+
+    static func dailyAxisLabel(for dayKey: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.calendar = Calendar(identifier: .gregorian)
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        inputFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+
+        guard let date = inputFormatter.date(from: dayKey) else {
+            return dayKey
+        }
+
+        let outputFormatter = DateFormatter()
+        outputFormatter.calendar = Calendar(identifier: .gregorian)
+        outputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        outputFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        outputFormatter.dateFormat = "M/d"
+        return outputFormatter.string(from: date)
+    }
+
+    static func chartScrollInitialDayKey(daily: [SyncDailyPoint]) -> String {
         let startIndex = max(0, daily.count - chartVisibleDays)
         return daily[startIndex].dayKey
     }

@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (159)] — 2026-06-22 — provider detail chart QA fix
+
+### Fixed
+
+- **Provider detail Daily Spend chart** — Provider detail pages now show compact
+  weekly x-axis labels instead of cramming every daily label into the chart.
+
+### Notes
+
+- iOS-only PR QA fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 158 → 159.
+
+---
+
 ## [1.14.0 (158)] — 2026-06-21 — sync device management QA polish
 
 ### Fixed
