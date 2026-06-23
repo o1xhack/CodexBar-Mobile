@@ -16,12 +16,7 @@ concurrency:
 jobs:
   lint-build-test:
     runs-on: macos-15-intel
-    # Bumped 35 → 70 alongside the v0.24/v0.25/v0.25.1 fold-in: the suite
-    # grew enough that the prior 25-minute `swift test` timeout regularly
-    # tripped on macos-15-intel runners (CI run 25704803274). Mirroring
-    # upstream's ci_swift_test_by_suite.py approach with per-suite timeouts
-    # so a hung individual test fails its shard instead of the whole job.
-    timeout-minutes: 70
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         # Full history so `lint.sh audit_parser_version` can compute the
@@ -57,16 +52,46 @@ jobs:
       - name: Lint
         run: ./Scripts/lint.sh lint
 
+  swift-test-macos:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard-index: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard-count: [8]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode 26.1.1 (if present) or fallback to default
+        run: |
+          set -euo pipefail
+          for candidate in /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app /Applications/Xcode.app; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "${candidate}/Contents/Developer"
+              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          /usr/bin/xcodebuild -version
+
+      - name: Swift toolchain version
+        run: |
+          set -euo pipefail
+          swift --version
+          swift package --version
+
       - name: Swift Test
-        # Run suite groups through ci_swift_test_by_suite.py. Keeping the
-        # groups coarse keeps PR CI bounded on macos-15-intel, while the script
-        # still retries a timed-out group one suite at a time to identify a
-        # hung suite.
-        timeout-minutes: 60
+        # Run suite groups through ci_swift_test_by_suite.py in parallel
+        # matrix shards. If one coarse group times out, the script still
+        # retries that group one suite at a time to identify a hung suite.
+        timeout-minutes: 25
         run: |
           export CODEXBAR_TEST_GROUP_SIZE=64
           export CODEXBAR_TEST_SUITE_TIMEOUT=300
-          ./Scripts/test.sh
+          ./Scripts/test.sh \
+            --shard-index "${{ matrix.shard-index }}" \
+            --shard-count "${{ matrix.shard-count }}"
 
   build-linux-cli:
     timeout-minutes: 20

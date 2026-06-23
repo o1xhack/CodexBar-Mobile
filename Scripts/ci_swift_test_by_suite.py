@@ -25,6 +25,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--group-size", type=int, default=12)
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--limit-groups", type=int)
+    parser.add_argument("--shard-index", type=int, default=1)
+    parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--list-only", action="store_true")
     parser.add_argument("--swift-command", default="swift")
     parser.add_argument("--swift-command-arg", action="append", default=[])
@@ -91,6 +93,18 @@ def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection
         yield items[index : index + size]
 
 
+def shard_groups(
+    suite_groups: list[list[TestSelection]],
+    shard_index: int,
+    shard_count: int,
+) -> list[tuple[int, list[TestSelection]]]:
+    return [
+        (group_index, group)
+        for group_index, group in enumerate(suite_groups, start=1)
+        if (group_index - 1) % shard_count == shard_index - 1
+    ]
+
+
 def prioritized_suites(suites: list[TestSelection]) -> list[TestSelection]:
     priority = ["CodexBarTests.CLIEntryTests"]
     ordered = [suite for name in priority for suite in suites if suite.suite_name == name]
@@ -127,23 +141,39 @@ def main() -> int:
     if args.group_size < 1:
         print("--group-size must be positive", file=sys.stderr)
         return 2
+    if args.shard_count < 1:
+        print("--shard-count must be positive", file=sys.stderr)
+        return 2
+    if args.shard_index < 1 or args.shard_index > args.shard_count:
+        print("--shard-index must be between 1 and --shard-count", file=sys.stderr)
+        return 2
 
     swift_command = [args.swift_command, *args.swift_command_arg]
     suites = prioritized_suites(filtered_suites_for_environment(swift_test_list(swift_command)))
     print(f"Discovered {len(suites)} test selections", flush=True)
-    if args.list_only:
-        for suite in suites:
-            print(suite.name)
-        return 0
 
     suite_groups = list(chunks(suites, args.group_size))
     if args.limit_groups is not None:
         suite_groups = suite_groups[: args.limit_groups]
+    total_groups = len(suite_groups)
+    selected_groups = shard_groups(suite_groups, args.shard_index, args.shard_count)
+    print(
+        f"Selected shard {args.shard_index}/{args.shard_count}: "
+        f"{len(selected_groups)} of {total_groups} groups",
+        flush=True,
+    )
 
-    for group_index, group in enumerate(suite_groups, start=1):
+    if args.list_only:
+        for _, group in selected_groups:
+            for suite in group:
+                print(suite.name)
+        return 0
+
+    for group_index, group in selected_groups:
         print(
-            f"::group::Swift test shard {group_index}/{len(suite_groups)} "
-            f"({len(group)} selections)",
+            f"::group::Swift test group {group_index}/{total_groups} "
+            f"(matrix shard {args.shard_index}/{args.shard_count}, "
+            f"{len(group)} selections)",
             flush=True,
         )
         result = run_group(group, args.timeout, swift_command)

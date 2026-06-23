@@ -44,6 +44,43 @@ grep -Fq "CodexBarTests\\..*top\\ level\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
 [[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 3 ]]
 
+python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
+  --group-size 1 \
+  --shard-index 1 \
+  --shard-count 2 \
+  --list-only \
+  --swift-command /bin/bash \
+  --swift-command-arg=-c \
+  --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+  --swift-command-arg=fake-swift \
+  >"${TEMP_DIR}/shard-1.list"
+python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
+  --group-size 1 \
+  --shard-index 2 \
+  --shard-count 2 \
+  --list-only \
+  --swift-command /bin/bash \
+  --swift-command-arg=-c \
+  --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+  --swift-command-arg=fake-swift \
+  >"${TEMP_DIR}/shard-2.list"
+grep -Fq "Selected shard 1/2: 2 of 4 groups" "${TEMP_DIR}/shard-1.list"
+grep -Fq "Selected shard 2/2: 2 of 4 groups" "${TEMP_DIR}/shard-2.list"
+[[ "$(grep -c '^CodexBarTests\\.' "${TEMP_DIR}/shard-1.list")" -eq 2 ]]
+[[ "$(grep -c '^CodexBarTests\\.' "${TEMP_DIR}/shard-2.list")" -eq 2 ]]
+if python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
+    --shard-index 3 \
+    --shard-count 2 \
+    --swift-command /bin/bash \
+    --swift-command-arg=-c \
+    --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+    --swift-command-arg=fake-swift \
+    >"${TEMP_DIR}/invalid-shard.log" 2>&1; then
+  echo "ERROR: Invalid shard args were accepted." >&2
+  exit 1
+fi
+grep -Fq -- "--shard-index must be between 1 and --shard-count" "${TEMP_DIR}/invalid-shard.log"
+
 if FAKE_SWIFT_GROUP_ALWAYS_FAIL=1 \
   python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
     --group-size 4 \
