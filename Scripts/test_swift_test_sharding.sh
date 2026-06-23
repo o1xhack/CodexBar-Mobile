@@ -66,8 +66,8 @@ python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
   >"${TEMP_DIR}/shard-2.list"
 grep -Fq "Selected shard 1/2: 2 of 4 groups" "${TEMP_DIR}/shard-1.list"
 grep -Fq "Selected shard 2/2: 2 of 4 groups" "${TEMP_DIR}/shard-2.list"
-[[ "$(grep -c '^CodexBarTests\\.' "${TEMP_DIR}/shard-1.list")" -eq 2 ]]
-[[ "$(grep -c '^CodexBarTests\\.' "${TEMP_DIR}/shard-2.list")" -eq 2 ]]
+[[ "$(grep -Fc 'CodexBarTests.' "${TEMP_DIR}/shard-1.list")" -eq 2 ]]
+[[ "$(grep -Fc 'CodexBarTests.' "${TEMP_DIR}/shard-2.list")" -eq 2 ]]
 if python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
     --shard-index 3 \
     --shard-count 2 \
