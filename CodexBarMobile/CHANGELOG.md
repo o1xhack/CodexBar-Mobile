@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (161)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Device lifecycle replay now respects event
+  chronology for merge/unmerge actions, so a user can unmerge duplicate Mac
+  identities and later manually merge the same devices again.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 160 → 161.
+
+---
+
 ## [1.14.0 (160)] — 2026-06-22 — sync device management review fixes
 
 ### Fixed

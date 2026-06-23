@@ -818,19 +818,10 @@ final class CloudSyncReader: @unchecked Sendable {
             uf.add(Self.deviceKey(for: snapshot))
         }
 
-        let suppressedAliasSets = Self.suppressedAliasDeviceSets(from: lifecycleEvents)
-        for event in lifecycleEvents where event.kind == .alias {
-            guard !Self.isAliasEvent(event, suppressedBy: suppressedAliasSets) else {
-                continue
-            }
-            let deviceIDs = Self.normalizedDeviceIDs(for: event)
-            guard deviceIDs.count >= 2 else { continue }
-            let primary = deviceIDs[0]
-            uf.add(primary)
-            for related in deviceIDs.dropFirst() {
-                uf.add(related)
-                uf.union(primary, related)
-            }
+        for edge in Self.activeAliasEdges(from: lifecycleEvents) {
+            uf.add(edge.first)
+            uf.add(edge.second)
+            uf.union(edge.first, edge.second)
         }
 
         var grouped: [String: [SyncedUsageSnapshot]] = [:]
@@ -909,22 +900,44 @@ final class CloudSyncReader: @unchecked Sendable {
             notificationPushEnabled: merged.notificationPushEnabled)
     }
 
-    private static func suppressedAliasDeviceSets(
-        from events: [DeviceLifecycleEvent]
-    ) -> [Set<String>] {
-        events
-            .filter { $0.kind == .unalias }
-            .map { Set(Self.normalizedDeviceIDs(for: $0)) }
-            .filter { $0.count >= 2 }
+    private struct AliasEdge: Hashable {
+        let first: String
+        let second: String
+        let deviceIDs: Set<String>
+
+        init?(_ lhs: String, _ rhs: String) {
+            guard !lhs.isEmpty, !rhs.isEmpty, lhs != rhs else { return nil }
+            let sorted = [lhs, rhs].sorted()
+            self.first = sorted[0]
+            self.second = sorted[1]
+            self.deviceIDs = Set(sorted)
+        }
     }
 
-    private static func isAliasEvent(
-        _ event: DeviceLifecycleEvent,
-        suppressedBy sets: [Set<String>]
-    ) -> Bool {
-        let deviceIDs = Set(Self.normalizedDeviceIDs(for: event))
-        guard deviceIDs.count >= 2 else { return false }
-        return sets.contains { deviceIDs.isSubset(of: $0) }
+    private static func activeAliasEdges(
+        from events: [DeviceLifecycleEvent]
+    ) -> Set<AliasEdge> {
+        var edges = Set<AliasEdge>()
+        for event in events.sorted(by: Self.lifecycleEventSort) {
+            let deviceIDs = Self.normalizedDeviceIDs(for: event)
+            guard deviceIDs.count >= 2 else { continue }
+
+            switch event.kind {
+            case .alias:
+                let primary = deviceIDs[0]
+                for related in deviceIDs.dropFirst() {
+                    if let edge = AliasEdge(primary, related) {
+                        edges.insert(edge)
+                    }
+                }
+            case .unalias:
+                let unaliasSet = Set(deviceIDs)
+                edges = edges.filter { !$0.deviceIDs.isSubset(of: unaliasSet) }
+            case .archive, .unarchive:
+                continue
+            }
+        }
+        return edges
     }
 
     private static func normalizedDeviceIDs(
@@ -938,12 +951,7 @@ final class CloudSyncReader: @unchecked Sendable {
         from events: [DeviceLifecycleEvent]
     ) -> [String: Bool] {
         var state: [String: Bool] = [:]
-        for event in events.sorted(by: {
-            if $0.confirmedAt == $1.confirmedAt {
-                return $0.recordID < $1.recordID
-            }
-            return $0.confirmedAt < $1.confirmedAt
-        }) {
+        for event in events.sorted(by: Self.lifecycleEventSort) {
             switch event.kind {
             case .archive:
                 state[event.primaryDeviceID] = true
@@ -954,6 +962,16 @@ final class CloudSyncReader: @unchecked Sendable {
             }
         }
         return state
+    }
+
+    private static func lifecycleEventSort(
+        _ lhs: DeviceLifecycleEvent,
+        _ rhs: DeviceLifecycleEvent
+    ) -> Bool {
+        if lhs.confirmedAt == rhs.confirmedAt {
+            return lhs.recordID < rhs.recordID
+        }
+        return lhs.confirmedAt < rhs.confirmedAt
     }
 
     private static func isGroupArchived(

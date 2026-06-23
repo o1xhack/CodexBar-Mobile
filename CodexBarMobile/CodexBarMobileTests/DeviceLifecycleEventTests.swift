@@ -102,19 +102,25 @@ struct DeviceLifecycleEventTests {
         let macB = Self.makeMac(deviceID: "b", deviceName: "Pixel's Mac", cost: 2, timestamp: 200)
         let macC = Self.makeMac(deviceID: "c", deviceName: "Pixel's Mac", cost: 3, timestamp: 300)
         let aliasAB = DeviceLifecycleEvent(
+            recordID: "alias-ab",
             kind: .alias,
             primaryDeviceID: "b",
             relatedDeviceIDs: ["a"],
+            confirmedAt: Date(timeIntervalSince1970: 100),
             confirmedFromDeviceID: "iphone-a")
         let aliasBC = DeviceLifecycleEvent(
+            recordID: "alias-bc",
             kind: .alias,
             primaryDeviceID: "c",
             relatedDeviceIDs: ["b"],
+            confirmedAt: Date(timeIntervalSince1970: 200),
             confirmedFromDeviceID: "iphone-a")
         let unaliasABC = DeviceLifecycleEvent(
+            recordID: "unalias-abc",
             kind: .unalias,
             primaryDeviceID: "a",
             relatedDeviceIDs: ["b", "c"],
+            confirmedAt: Date(timeIntervalSince1970: 300),
             confirmedFromDeviceID: "iphone-a")
 
         let resolved = CloudSyncReader.resolveDeviceSnapshots(
@@ -124,6 +130,42 @@ struct DeviceLifecycleEventTests {
         #expect(resolved.activeSnapshots.count == 3)
         #expect(resolved.items.allSatisfy { !$0.isMergedAlias })
         #expect(resolved.activeSnapshots.compactMap(\.deviceID).sorted() == ["a", "b", "c"])
+    }
+
+    @Test("Later alias can re-merge devices after unalias")
+    func laterAliasCanRemergeAfterUnalias() {
+        let oldMac = Self.makeMac(deviceID: "old", deviceName: "Pixel's Mac", cost: 1, timestamp: 100)
+        let newMac = Self.makeMac(deviceID: "new", deviceName: "Pixel's Mac", cost: 2, timestamp: 200)
+        let alias = DeviceLifecycleEvent(
+            recordID: "alias-old-new-1",
+            kind: .alias,
+            primaryDeviceID: "new",
+            relatedDeviceIDs: ["old"],
+            confirmedAt: Date(timeIntervalSince1970: 100),
+            confirmedFromDeviceID: "iphone-a")
+        let unalias = DeviceLifecycleEvent(
+            recordID: "unalias-old-new",
+            kind: .unalias,
+            primaryDeviceID: "old",
+            relatedDeviceIDs: ["new"],
+            confirmedAt: Date(timeIntervalSince1970: 200),
+            confirmedFromDeviceID: "iphone-a")
+        let laterAlias = DeviceLifecycleEvent(
+            recordID: "alias-old-new-2",
+            kind: .alias,
+            primaryDeviceID: "new",
+            relatedDeviceIDs: ["old"],
+            confirmedAt: Date(timeIntervalSince1970: 300),
+            confirmedFromDeviceID: "iphone-a")
+
+        let resolved = CloudSyncReader.resolveDeviceSnapshots(
+            [oldMac, newMac],
+            lifecycleEvents: [alias, unalias, laterAlias])
+
+        #expect(resolved.activeSnapshots.count == 1)
+        #expect(resolved.archivedSnapshots.isEmpty)
+        #expect(resolved.items.first?.isMergedAlias == true)
+        #expect(resolved.activeSnapshots.first?.deviceID == "new")
     }
 
     @Test("Archive excludes a retired Mac from active devices")
