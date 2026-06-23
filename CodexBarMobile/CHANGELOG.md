@@ -2,6 +2,143 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (163)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — CloudKit refresh now pages through all provider
+  linkage and device lifecycle event records, so large event logs do not drop
+  later merge/archive/restore decisions after app launch.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 162 → 163.
+
+---
+
+## [1.14.0 (162)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Restoring a merged Mac device now queues
+  unarchive events for every alias identity locally before waiting for
+  CloudKit saves, so the row leaves Archived immediately even on a slow
+  network.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 161 → 162.
+
+---
+
+## [1.14.0 (161)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Device lifecycle replay now respects event
+  chronology for merge/unmerge actions, so a user can unmerge duplicate Mac
+  identities and later manually merge the same devices again.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 160 → 161.
+
+---
+
+## [1.14.0 (160)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Unmerge now fully separates multi-step merged
+  Mac identity groups instead of leaving older pairwise alias edges active.
+- **Sync Device Management** — Archiving or restoring a merged Mac device now
+  applies to every alias identity in that physical device group, so a later
+  sync from another alias cannot make an archived device active again.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 159 → 160.
+
+---
+
+## [1.14.0 (159)] — 2026-06-22 — provider detail chart QA fix
+
+### Fixed
+
+- **Provider detail Daily Spend chart** — Provider detail pages now show compact
+  weekly x-axis labels instead of cramming every daily label into the chart.
+
+### Notes
+
+- iOS-only PR QA fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 158 → 159.
+
+---
+
+## [1.14.0 (158)] — 2026-06-21 — sync device management QA polish
+
+### Fixed
+
+- **Archived device grouping** — Settings → About & Sync now separates active
+  Macs from archived Macs so retired devices are clearly outside the active
+  sync list.
+- **Archive confirmation layout** — Archive, Restore, and Unmerge confirmation
+  sheets now use full-width bottom controls without partial list separators.
+
+### Notes
+
+- iOS-only TestFlight fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 157 → 158.
+
+---
+
+## [1.14.0 (157)] — 2026-06-21 — sync device management UI fix
+
+### Fixed
+
+- **Device management action sheets** — Settings → About & Sync now presents
+  Merge, Archive, Restore, and Unmerge flows as bottom sheets instead of a
+  top-anchored confirmation popover.
+
+### Notes
+
+- iOS-only TestFlight fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 156 → 157.
+
+---
+
+## [1.14.0 (156)] — 2026-06-20 — sync device management
+
+### Added
+
+- **Sync Device Management** — Settings → About & Sync can now merge duplicate
+  Mac device identities created by a Mac reinstall, archive real retired Macs,
+  restore archived devices, and unmerge mistaken device identity merges.
+- **Non-destructive device lifecycle records** — iOS stores user decisions as
+  additive CloudKit lifecycle events instead of deleting or rewriting existing
+  provider/device history.
+
+### Fixed
+
+- **Duplicate Mac display semantics** — merged aliases are removed from active
+  stale-sync warnings while preserving raw diagnostic data.
+- **Retired device warnings** — archived devices remain inspectable but no
+  longer count as active Mac devices.
+- **Local-cost duplicate counting** — local CLI cost providers are not summed
+  inside a merged same-physical-Mac alias group.
+
+### Notes
+
+- iOS-only feature; no Mac release or `version.env` bump is required.
+- Adds a new `DeviceLifecycleEvent` CloudKit record type in
+  `DeviceProvidersZone`; Production schema deploy is required before release.
+
+---
+
 ## [1.13.0 (155)] — 2026-06-19 — quota warning diagnostics hotfix
 
 ### Fixed

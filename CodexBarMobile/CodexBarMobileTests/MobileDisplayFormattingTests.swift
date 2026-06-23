@@ -3,6 +3,7 @@ import Testing
 @testable import CodexBarMobile
 
 @Suite("Mobile Display Formatting")
+@MainActor
 struct MobileDisplayFormattingTests {
     @Test("Used mode shows used percent and fill")
     func usedModeValues() {
@@ -33,5 +34,45 @@ struct MobileDisplayFormattingTests {
     func axisFormatterSmallValues() {
         #expect(MobileChartAxisFormatter.axisValues(for: [0.18, 1.42, 2.48]) == [0, 1, 2, 3])
         #expect(MobileChartAxisFormatter.axisLabel(for: 3) == "3")
+    }
+
+    @Test("Provider daily spend axis shows weekly labels instead of every day")
+    func providerDailySpendAxisUsesWeeklyLabels() {
+        let points = (1...30).map {
+            SyncDailyPoint(
+                dayKey: String(format: "2026-06-%02d", $0),
+                costUSD: Double($0),
+                totalTokens: $0 * 1_000)
+        }
+
+        #expect(ProviderDetailView.dailyAxisDayKeys(for: points) == [
+            "2026-06-01",
+            "2026-06-08",
+            "2026-06-15",
+            "2026-06-22",
+            "2026-06-29",
+        ])
+    }
+
+    @Test("Provider daily spend axis sorts unsorted points before choosing ticks")
+    func providerDailySpendAxisSortsBeforeChoosingTicks() {
+        let points = [
+            SyncDailyPoint(dayKey: "2026-06-15", costUSD: 15, totalTokens: 15_000),
+            SyncDailyPoint(dayKey: "2026-06-01", costUSD: 1, totalTokens: 1_000),
+            SyncDailyPoint(dayKey: "2026-06-08", costUSD: 8, totalTokens: 8_000),
+        ]
+
+        #expect(ProviderDetailView.sortedDailyPoints(points).map(\.dayKey) == [
+            "2026-06-01",
+            "2026-06-08",
+            "2026-06-15",
+        ])
+        #expect(ProviderDetailView.dailyAxisDayKeys(for: points) == ["2026-06-01"])
+    }
+
+    @Test("Provider daily spend axis label uses compact month slash day text")
+    func providerDailySpendAxisLabelUsesCompactText() {
+        #expect(ProviderDetailView.dailyAxisLabel(for: "2026-06-15") == "6/15")
+        #expect(ProviderDetailView.dailyAxisLabel(for: "not-a-date") == "not-a-date")
     }
 }

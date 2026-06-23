@@ -41,6 +41,14 @@ final class SyncedUsageData {
     /// Per-device snapshots before merging (for debug/display).
     var deviceSnapshots: [SyncedUsageSnapshot] = []
 
+    /// Raw per-device snapshots before device lifecycle alias/archive replay.
+    /// Developer diagnostics use this so archived devices and old aliases
+    /// remain inspectable even when the main UI hides them from active state.
+    var rawDeviceSnapshots: [SyncedUsageSnapshot] = []
+
+    /// Device rows derived from raw snapshots + lifecycle events.
+    var deviceManagementItems: [SyncDeviceManagementItem] = []
+
     /// Current sync status with detailed error information.
     var syncStatus: SyncStatus = .noData
 
@@ -76,6 +84,10 @@ final class SyncedUsageData {
     /// also write to CloudKit so other iPhones see the same union state.
     private(set) var providerLinkages: [ProviderAccountLinkage] = []
 
+    /// User-confirmed device lifecycle events from CloudKit (issue #29).
+    /// Mutations go through merge/archive/restore/unmerge actions below.
+    private(set) var deviceLifecycleEvents: [DeviceLifecycleEvent] = []
+
     /// Serialization handle for refresh paths. `fetchFromCloudKit` and
     /// `refreshIncremental` both go through `coalesceRefresh`, which awaits
     /// any already-in-flight refresh before starting a new one. Without
@@ -108,6 +120,7 @@ final class SyncedUsageData {
         // truth; the cache is invalidated + repopulated on every
         // `performFullFetch`.
         self.providerLinkages = Self.loadCachedLinkages()
+        self.deviceLifecycleEvents = Self.loadCachedDeviceLifecycleEvents()
 
         // P3: hydrate from SwiftData so the Cost tab shows something
         // immediately on cold start. We seed into legacyByDevice bucket —
@@ -132,6 +145,7 @@ final class SyncedUsageData {
     /// CloudKit on every full fetch; the local copy exists only to bridge
     /// the cold-start gap before that first CloudKit round-trip returns.
     nonisolated private static let linkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
+    nonisolated private static let deviceLifecycleCacheDefaultsKey = "com.codexbar.deviceLifecycleCache.v1"
 
     nonisolated static func loadCachedLinkages() -> [ProviderAccountLinkage] {
         guard let data = UserDefaults.standard.data(forKey: Self.linkageCacheDefaultsKey) else {
@@ -146,6 +160,31 @@ final class SyncedUsageData {
         if let data = try? encoder.encode(linkages) {
             UserDefaults.standard.set(data, forKey: Self.linkageCacheDefaultsKey)
         }
+    }
+
+    nonisolated static func loadCachedDeviceLifecycleEvents() -> [DeviceLifecycleEvent] {
+        guard let data = UserDefaults.standard.data(forKey: Self.deviceLifecycleCacheDefaultsKey) else {
+            return []
+        }
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        return (try? decoder.decode([DeviceLifecycleEvent].self, from: data)) ?? []
+    }
+
+    nonisolated static func saveCachedDeviceLifecycleEvents(_ events: [DeviceLifecycleEvent]) {
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        if let data = try? encoder.encode(events) {
+            UserDefaults.standard.set(data, forKey: Self.deviceLifecycleCacheDefaultsKey)
+        }
+    }
+
+    nonisolated private static func mergeCloudWithLocalPending<T>(
+        cloud: [T],
+        local: [T],
+        recordID: (T) -> String
+    ) -> (records: [T], localOnly: [T]) {
+        let cloudRecordIDs = Set(cloud.map(recordID))
+        let localOnly = local.filter { !cloudRecordIDs.contains(recordID($0)) }
+        return (cloud + localOnly, localOnly)
     }
 
     /// Reads SwiftData's per-device rows + the standard merge. Returns nil
@@ -261,6 +300,7 @@ final class SyncedUsageData {
         async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
         async let legacyResult = reader.fetchLegacyDeviceSnapshots()
         async let linkagesResult = reader.fetchProviderAccountLinkages()
+        async let lifecycleResult = reader.fetchDeviceLifecycleEvents()
 
         let per = await perProviderResult
         let legacy = await legacyResult
@@ -272,10 +312,20 @@ final class SyncedUsageData {
         // has indexed their fresh write. Survives until the next refresh
         // when CK returns the user's own record (then dedupe by recordID).
         let cloudLinkages = await linkagesResult
-        let cloudRecordIDs = Set(cloudLinkages.map(\.recordID))
-        let localOnly = self.providerLinkages.filter { !cloudRecordIDs.contains($0.recordID) }
-        self.providerLinkages = cloudLinkages + localOnly
+        let mergedLinkages = Self.mergeCloudWithLocalPending(
+            cloud: cloudLinkages,
+            local: self.providerLinkages,
+            recordID: \.recordID)
+        self.providerLinkages = mergedLinkages.records
         Self.saveCachedLinkages(self.providerLinkages)
+
+        let cloudLifecycleEvents = await lifecycleResult
+        let mergedLifecycleEvents = Self.mergeCloudWithLocalPending(
+            cloud: cloudLifecycleEvents,
+            local: self.deviceLifecycleEvents,
+            recordID: \.recordID)
+        self.deviceLifecycleEvents = mergedLifecycleEvents.records
+        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
 
         // Retry CloudKit save for any locally-cached linkage that never
         // made it to the cloud. Common cause: a prior build crashed
@@ -304,9 +354,14 @@ final class SyncedUsageData {
         // 3. `pending` captured by value (struct) — safe across the
         //    refresh's actor hop. `[weak self]` defensive; SyncedUsageData
         //    is app-lifetime so the weak unwrap is effectively non-nil.
-        for pending in localOnly {
+        for pending in mergedLinkages.localOnly {
             Task { [weak self] in
                 _ = await self?.reader.saveProviderAccountLinkage(pending)
+            }
+        }
+        for pending in mergedLifecycleEvents.localOnly {
+            Task { [weak self] in
+                _ = await self?.reader.saveDeviceLifecycleEvent(pending)
             }
         }
 
@@ -354,10 +409,16 @@ final class SyncedUsageData {
         self.usingKVSFallback = false
 
         // Derive + publish.
-        let deviceSnapshots = self.cache.buildDeviceSnapshots()
-        self.deviceSnapshots = deviceSnapshots
+        let rawDeviceSnapshots = self.cache.buildDeviceSnapshots()
+        self.rawDeviceSnapshots = rawDeviceSnapshots
+        let resolution = CloudSyncReader.resolveDeviceSnapshots(
+            rawDeviceSnapshots,
+            lifecycleEvents: self.deviceLifecycleEvents,
+            providerLinkages: self.providerLinkages)
+        self.deviceSnapshots = resolution.activeSnapshots
+        self.deviceManagementItems = resolution.items
 
-        if deviceSnapshots.isEmpty {
+        if rawDeviceSnapshots.isEmpty {
             // Totally empty cloud result. Last-resort KVS fallback.
             if let kvsSnapshot = reader.latestKVSSnapshot() {
                 self.cache.seedFromColdStart([kvsSnapshot])
@@ -375,7 +436,7 @@ final class SyncedUsageData {
         }
 
         if let merged = CloudSyncReader.mergeSnapshots(
-            deviceSnapshots, linkages: self.providerLinkages)
+            resolution.activeSnapshots, linkages: self.providerLinkages)
         {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
@@ -386,9 +447,13 @@ final class SyncedUsageData {
             // overwrites with authoritative zone attribution.
             let context = ModelContainerFactory.sharedMainContext()
             CloudSyncReader.persistToSwiftData(
-                deviceSnapshots: deviceSnapshots,
+                deviceSnapshots: rawDeviceSnapshots,
                 merged: merged,
                 context: context)
+        } else if resolution.activeSnapshots.isEmpty {
+            self.snapshot = nil
+            let latestRawSync = rawDeviceSnapshots.map(\.syncTimestamp).max() ?? Date()
+            self.syncStatus = .synced(ago: Date().timeIntervalSince(latestRawSync))
         } else {
             self.syncStatus = .incompatibleData
         }
@@ -435,6 +500,75 @@ final class SyncedUsageData {
         Self.saveCachedLinkages(self.providerLinkages)
         self.republishFromCache()
         _ = await self.reader.saveProviderAccountLinkage(inverse)
+    }
+
+    // MARK: - Device lifecycle management (issue #29)
+
+    func mergeDevice(
+        sourceDeviceID: String,
+        into targetDeviceID: String
+    ) async {
+        guard sourceDeviceID != targetDeviceID else { return }
+        let event = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: targetDeviceID,
+            relatedDeviceIDs: [sourceDeviceID],
+            confirmedFromDeviceID: self.reader.currentDeviceID())
+        self.deviceLifecycleEvents.append(event)
+        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
+        self.republishFromCache()
+        _ = await self.reader.saveDeviceLifecycleEvent(event)
+    }
+
+    func unmergeDevice(sourceDeviceIDs: [String]) async {
+        let ids = Array(Set(sourceDeviceIDs)).sorted()
+        guard ids.count >= 2 else { return }
+        let event = DeviceLifecycleEvent(
+            kind: .unalias,
+            primaryDeviceID: ids[0],
+            relatedDeviceIDs: Array(ids.dropFirst()),
+            confirmedFromDeviceID: self.reader.currentDeviceID())
+        self.deviceLifecycleEvents.append(event)
+        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
+        self.republishFromCache()
+        _ = await self.reader.saveDeviceLifecycleEvent(event)
+    }
+
+    func archiveDevice(_ deviceID: String) async {
+        await self.archiveDevices([deviceID])
+    }
+
+    func archiveDevices(_ deviceIDs: [String]) async {
+        await self.applyDeviceLifecycleEvents(.archive, deviceIDs: deviceIDs)
+    }
+
+    func restoreDevice(_ deviceID: String) async {
+        await self.restoreDevices([deviceID])
+    }
+
+    func restoreDevices(_ deviceIDs: [String]) async {
+        await self.applyDeviceLifecycleEvents(.unarchive, deviceIDs: deviceIDs)
+    }
+
+    private func applyDeviceLifecycleEvents(
+        _ kind: DeviceLifecycleEvent.Kind,
+        deviceIDs: [String]
+    ) async {
+        let ids = Array(Set(deviceIDs.filter { !$0.isEmpty })).sorted()
+        guard !ids.isEmpty else { return }
+        let confirmedFromDeviceID = self.reader.currentDeviceID()
+        let events = ids.map {
+            DeviceLifecycleEvent(
+                kind: kind,
+                primaryDeviceID: $0,
+                confirmedFromDeviceID: confirmedFromDeviceID)
+        }
+        self.deviceLifecycleEvents.append(contentsOf: events)
+        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
+        self.republishFromCache()
+        for event in events {
+            _ = await self.reader.saveDeviceLifecycleEvent(event)
+        }
     }
 
     // MARK: - Incremental fetch (silent push → cache update)
@@ -493,6 +627,31 @@ final class SyncedUsageData {
                 deletedRecordNames: delta.deletedRecordNames)
         }
 
+        async let linkagesResult = self.reader.fetchProviderAccountLinkages()
+        async let lifecycleResult = self.reader.fetchDeviceLifecycleEvents()
+        let mergedLinkages = Self.mergeCloudWithLocalPending(
+            cloud: await linkagesResult,
+            local: self.providerLinkages,
+            recordID: \.recordID)
+        self.providerLinkages = mergedLinkages.records
+        Self.saveCachedLinkages(self.providerLinkages)
+        let mergedLifecycleEvents = Self.mergeCloudWithLocalPending(
+            cloud: await lifecycleResult,
+            local: self.deviceLifecycleEvents,
+            recordID: \.recordID)
+        self.deviceLifecycleEvents = mergedLifecycleEvents.records
+        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
+        for pending in mergedLinkages.localOnly {
+            Task { [weak self] in
+                _ = await self?.reader.saveProviderAccountLinkage(pending)
+            }
+        }
+        for pending in mergedLifecycleEvents.localOnly {
+            Task { [weak self] in
+                _ = await self?.reader.saveDeviceLifecycleEvent(pending)
+            }
+        }
+
         // 4. Persist the new token.
         if let newToken = delta.newToken {
             do {
@@ -514,11 +673,18 @@ final class SyncedUsageData {
     /// Derive the published state from the current cache. Called after every
     /// mutation (full fetch, incremental delta, cold-start seed).
     private func republishFromCache() {
-        let deviceSnapshots = self.cache.buildDeviceSnapshots()
-        self.deviceSnapshots = deviceSnapshots
+        let rawDeviceSnapshots = self.cache.buildDeviceSnapshots()
+        self.rawDeviceSnapshots = rawDeviceSnapshots
+        let resolution = CloudSyncReader.resolveDeviceSnapshots(
+            rawDeviceSnapshots,
+            lifecycleEvents: self.deviceLifecycleEvents,
+            providerLinkages: self.providerLinkages)
+        self.deviceSnapshots = resolution.activeSnapshots
+        self.deviceManagementItems = resolution.items
 
-        if deviceSnapshots.isEmpty {
+        if rawDeviceSnapshots.isEmpty {
             self.snapshot = nil
+            self.deviceManagementItems = []
             if case .syncing = self.syncStatus {
                 // don't clobber an in-flight syncing state
             } else {
@@ -527,10 +693,14 @@ final class SyncedUsageData {
             return
         }
         if let merged = CloudSyncReader.mergeSnapshots(
-            deviceSnapshots, linkages: self.providerLinkages)
+            resolution.activeSnapshots, linkages: self.providerLinkages)
         {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+        } else if resolution.activeSnapshots.isEmpty {
+            self.snapshot = nil
+            let latestRawSync = rawDeviceSnapshots.map(\.syncTimestamp).max() ?? Date()
+            self.syncStatus = .synced(ago: Date().timeIntervalSince(latestRawSync))
         } else {
             self.syncStatus = .incompatibleData
         }

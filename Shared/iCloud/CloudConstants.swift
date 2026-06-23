@@ -76,6 +76,14 @@ public enum CloudSyncConstants {
     /// migration path; treat it as permanent.
     public static let providerAccountLinkageRecordType = "ProviderAccountLinkage"
 
+    /// Record type for user-confirmed lifecycle events for Mac sync devices.
+    ///
+    /// **WIRE CONTRACT.** Record name format `"device-lifecycle-{recordUUID}"`.
+    /// Records live in `DeviceProvidersZone` so iOS can share the existing zone
+    /// subscription and change-token surface. Renaming this record type or its
+    /// field names orphans every merge/archive decision a user has made.
+    public static let deviceLifecycleEventRecordType = "DeviceLifecycleEvent"
+
     // MARK: - JSON codec factories
     //
     // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go

@@ -75,6 +75,13 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
 
+    func testProviderDetailDailySpendRendersWithLongDailyHistory() throws {
+        let view = ProviderDetailView(provider: PreviewData.cursorProvider)
+        let image = self.renderToImage(view)
+        XCTAssertNotNil(image)
+        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+    }
+
     func testAntigravityAccountSwitcherRenders() throws {
         let view = AntigravityAccountSwitcher(
             accounts: PreviewData.antigravityMultiAccountProvider.antigravityAccounts!,
