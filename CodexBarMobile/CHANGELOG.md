@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (163)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — CloudKit refresh now pages through all provider
+  linkage and device lifecycle event records, so large event logs do not drop
+  later merge/archive/restore decisions after app launch.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 162 → 163.
+
+---
+
 ## [1.14.0 (162)] — 2026-06-22 — sync device management review fixes
 
 ### Fixed

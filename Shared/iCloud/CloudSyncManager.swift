@@ -1126,11 +1126,19 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             recordType: CloudSyncConstants.providerAccountLinkageRecordType,
             predicate: NSPredicate(value: true))
 
-        let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
+        var matchResults: [(CKRecord.ID, Result<CKRecord, Error>)] = []
         do {
-            let (results, _) = try await self._privateDatabase!.records(
+            let (results, queryCursor) = try await self._privateDatabase!.records(
                 matching: query, inZoneWith: self.providerZone.zoneID)
-            matchResults = results
+            matchResults.append(contentsOf: results)
+
+            var cursor = queryCursor
+            while let currentCursor = cursor {
+                let (nextResults, nextCursor) = try await self._privateDatabase!.records(
+                    continuingMatchFrom: currentCursor)
+                matchResults.append(contentsOf: nextResults)
+                cursor = nextCursor
+            }
         } catch let error as CKError where error.code == .zoneNotFound || error.code == .unknownItem {
             return []
         } catch {
@@ -1262,11 +1270,19 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             recordType: CloudSyncConstants.deviceLifecycleEventRecordType,
             predicate: NSPredicate(value: true))
 
-        let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
+        var matchResults: [(CKRecord.ID, Result<CKRecord, Error>)] = []
         do {
-            let (results, _) = try await self._privateDatabase!.records(
+            let (results, queryCursor) = try await self._privateDatabase!.records(
                 matching: query, inZoneWith: self.providerZone.zoneID)
-            matchResults = results
+            matchResults.append(contentsOf: results)
+
+            var cursor = queryCursor
+            while let currentCursor = cursor {
+                let (nextResults, nextCursor) = try await self._privateDatabase!.records(
+                    continuingMatchFrom: currentCursor)
+                matchResults.append(contentsOf: nextResults)
+                cursor = nextCursor
+            }
         } catch let error as CKError where error.code == .zoneNotFound || error.code == .unknownItem {
             return []
         } catch {
