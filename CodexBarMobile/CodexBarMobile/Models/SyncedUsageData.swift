@@ -535,25 +535,40 @@ final class SyncedUsageData {
     }
 
     func archiveDevice(_ deviceID: String) async {
-        let event = DeviceLifecycleEvent(
-            kind: .archive,
-            primaryDeviceID: deviceID,
-            confirmedFromDeviceID: self.reader.currentDeviceID())
-        self.deviceLifecycleEvents.append(event)
-        Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
-        self.republishFromCache()
-        _ = await self.reader.saveDeviceLifecycleEvent(event)
+        await self.archiveDevices([deviceID])
+    }
+
+    func archiveDevices(_ deviceIDs: [String]) async {
+        await self.applyDeviceLifecycleEvents(.archive, deviceIDs: deviceIDs)
     }
 
     func restoreDevice(_ deviceID: String) async {
-        let event = DeviceLifecycleEvent(
-            kind: .unarchive,
-            primaryDeviceID: deviceID,
-            confirmedFromDeviceID: self.reader.currentDeviceID())
-        self.deviceLifecycleEvents.append(event)
+        await self.restoreDevices([deviceID])
+    }
+
+    func restoreDevices(_ deviceIDs: [String]) async {
+        await self.applyDeviceLifecycleEvents(.unarchive, deviceIDs: deviceIDs)
+    }
+
+    private func applyDeviceLifecycleEvents(
+        _ kind: DeviceLifecycleEvent.Kind,
+        deviceIDs: [String]
+    ) async {
+        let ids = Array(Set(deviceIDs.filter { !$0.isEmpty })).sorted()
+        guard !ids.isEmpty else { return }
+        let confirmedFromDeviceID = self.reader.currentDeviceID()
+        let events = ids.map {
+            DeviceLifecycleEvent(
+                kind: kind,
+                primaryDeviceID: $0,
+                confirmedFromDeviceID: confirmedFromDeviceID)
+        }
+        self.deviceLifecycleEvents.append(contentsOf: events)
         Self.saveCachedDeviceLifecycleEvents(self.deviceLifecycleEvents)
         self.republishFromCache()
-        _ = await self.reader.saveDeviceLifecycleEvent(event)
+        for event in events {
+            _ = await self.reader.saveDeviceLifecycleEvent(event)
+        }
     }
 
     // MARK: - Incremental fetch (silent push → cache update)

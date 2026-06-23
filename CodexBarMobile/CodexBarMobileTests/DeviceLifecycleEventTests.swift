@@ -233,6 +233,51 @@ struct DeviceLifecycleEventTests {
         #expect(resolved.archivedSnapshots.isEmpty)
     }
 
+    @Test("Unarchive of every alias restores a merged device group")
+    func unarchiveEveryAliasRestoresMergedGroup() {
+        let oldMac = Self.makeMac(deviceID: "old", deviceName: "Pixel's Mac", cost: 1, timestamp: 100)
+        let newMac = Self.makeMac(deviceID: "new", deviceName: "Pixel's Mac", cost: 2, timestamp: 200)
+        let alias = DeviceLifecycleEvent(
+            recordID: "alias-old-new",
+            kind: .alias,
+            primaryDeviceID: "new",
+            relatedDeviceIDs: ["old"],
+            confirmedAt: Date(timeIntervalSince1970: 100),
+            confirmedFromDeviceID: "iphone-a")
+        let archiveOld = DeviceLifecycleEvent(
+            recordID: "archive-old",
+            kind: .archive,
+            primaryDeviceID: "old",
+            confirmedAt: Date(timeIntervalSince1970: 200),
+            confirmedFromDeviceID: "iphone-a")
+        let archiveNew = DeviceLifecycleEvent(
+            recordID: "archive-new",
+            kind: .archive,
+            primaryDeviceID: "new",
+            confirmedAt: Date(timeIntervalSince1970: 201),
+            confirmedFromDeviceID: "iphone-a")
+        let unarchiveOld = DeviceLifecycleEvent(
+            recordID: "unarchive-old",
+            kind: .unarchive,
+            primaryDeviceID: "old",
+            confirmedAt: Date(timeIntervalSince1970: 300),
+            confirmedFromDeviceID: "iphone-a")
+        let unarchiveNew = DeviceLifecycleEvent(
+            recordID: "unarchive-new",
+            kind: .unarchive,
+            primaryDeviceID: "new",
+            confirmedAt: Date(timeIntervalSince1970: 301),
+            confirmedFromDeviceID: "iphone-a")
+
+        let resolved = CloudSyncReader.resolveDeviceSnapshots(
+            [oldMac, newMac],
+            lifecycleEvents: [alias, archiveOld, archiveNew, unarchiveOld, unarchiveNew])
+
+        #expect(resolved.activeSnapshots.count == 1)
+        #expect(resolved.archivedSnapshots.isEmpty)
+        #expect(resolved.items.first?.isMergedAlias == true)
+    }
+
     @Test("Same-name real Macs do not auto-merge")
     func sameNameMacsDoNotAutoMerge() {
         let macA = Self.makeMac(deviceID: "a", deviceName: "MacBook Pro", cost: 1, timestamp: 100)

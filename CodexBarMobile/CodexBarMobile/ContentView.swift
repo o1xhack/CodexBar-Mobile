@@ -2264,13 +2264,9 @@ private struct DeviceLifecycleConfirmationSheet: View {
     ) async {
         switch kind {
         case .archive:
-            for deviceID in item.sourceDeviceIDs {
-                await self.usageData.archiveDevice(deviceID)
-            }
+            await self.usageData.archiveDevices(item.sourceDeviceIDs)
         case .restore:
-            for deviceID in item.sourceDeviceIDs {
-                await self.usageData.restoreDevice(deviceID)
-            }
+            await self.usageData.restoreDevices(item.sourceDeviceIDs)
         case .unmerge:
             await self.usageData.unmergeDevice(sourceDeviceIDs: item.sourceDeviceIDs)
         }

@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (162)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Restoring a merged Mac device now queues
+  unarchive events for every alias identity locally before waiting for
+  CloudKit saves, so the row leaves Archived immediately even on a slow
+  network.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 161 → 162.
+
+---
+
 ## [1.14.0 (161)] — 2026-06-22 — sync device management review fixes
 
 ### Fixed
