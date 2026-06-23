@@ -1,0 +1,10 @@
+1.14.0 adds Sync Device Management for duplicate or retired Mac devices.
+
+What's new
+• Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history.
+• Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings.
+• Undo when needed — restore archived devices or unmerge device identities from Settings > About & Sync.
+• Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers.
+• Cleaner charts — Provider detail Daily Spend charts now use compact weekly labels instead of overcrowded daily labels.
+
+No Mac update is required for this iPhone feature. Existing Mac sync data is preserved.
