@@ -54,7 +54,7 @@ jobs:
 
   swift-test-macos:
     runs-on: macos-15-intel
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -83,12 +83,13 @@ jobs:
 
       - name: Swift Test
         # Run suite groups through ci_swift_test_by_suite.py in parallel
-        # matrix shards. If one coarse group times out, the script still
-        # retries that group one suite at a time to identify a hung suite.
-        timeout-minutes: 25
+        # matrix shards. Small groups keep timeout isolation inside this
+        # step's budget because a timed-out group is retried one suite at a
+        # time to identify the hung suite.
+        timeout-minutes: 35
         run: |
-          export CODEXBAR_TEST_GROUP_SIZE=64
-          export CODEXBAR_TEST_SUITE_TIMEOUT=300
+          export CODEXBAR_TEST_GROUP_SIZE=8
+          export CODEXBAR_TEST_SUITE_TIMEOUT=120
           ./Scripts/test.sh \
             --shard-index "${{ matrix.shard-index }}" \
             --shard-count "${{ matrix.shard-count }}"
