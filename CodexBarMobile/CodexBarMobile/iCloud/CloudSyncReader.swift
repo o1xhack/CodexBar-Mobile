@@ -540,7 +540,9 @@ final class CloudSyncReader: @unchecked Sendable {
             openRouterStats: Self.latestNonNil(entries, \.openRouterStats),
             azureOpenAIInfo: Self.latestNonNil(entries, \.azureOpenAIInfo),
             alibabaTokenPlan: Self.latestNonNil(entries, \.alibabaTokenPlan),
-            deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage))
+            deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage),
+            codexResetCredits: Self.latestNonNil(entries, \.codexResetCredits),
+            usageDataConfidence: Self.latestNonNil(entries, \.usageDataConfidence))
     }
 
     /// Sums cost data from multiple devices.

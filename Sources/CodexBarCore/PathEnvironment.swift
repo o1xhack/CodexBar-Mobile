@@ -1,8 +1,10 @@
 import Foundation
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 
 public enum PathPurpose: Hashable, Sendable {
@@ -660,7 +662,7 @@ public enum ShellCommandLocator {
         // Build file actions: redirect stdin from /dev/null, dup pipe write ends to
         // fds 1 and 2, and close every pipe fd in the child.  The init pattern
         // differs between platforms because the typedef is an opaque pointer on
-        // Darwin and a struct on Glibc.
+        // Darwin and a struct on Linux C modules.
         #if canImport(Darwin)
         var fileActions: posix_spawn_file_actions_t?
         #else

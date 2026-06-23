@@ -189,6 +189,18 @@ struct ProviderDetailView: View {
                 {
                     CodexWorkspaceBadge(context: codexWorkspace, tintColor: self.providerColor)
                 }
+                if self.provider.providerID == "codex",
+                   let resetCredits = self.provider.codexResetCredits,
+                   resetCredits.availableCount > 0
+                {
+                    CodexResetCreditsCard(resetCredits: resetCredits, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "codex",
+                   let confidence = self.provider.usageDataConfidence,
+                   UsageDataConfidenceNotice.shouldRender(confidence)
+                {
+                    UsageDataConfidenceNotice(rawValue: confidence, tintColor: self.providerColor)
+                }
 
                 // Claude peak-hours indicator (Anthropic peak window
                 // 8am-2pm America/New_York, weekdays). Pure time-of-day

@@ -3,8 +3,18 @@ import Foundation
 
 extension SettingsStore {
     func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
-        if Self.isBalanceOnlyProvider(provider) {
+        if Self.isBalanceOnlyProvider(provider), provider != .mistral {
             return .automatic
+        }
+        if provider == .mistral {
+            let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
+            let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
+            switch preference {
+            case .automatic, .monthlyPlan:
+                return preference
+            case .primary, .secondary, .primaryAndSecondary, .tertiary, .extraUsage, .average:
+                return .automatic
+            }
         }
         if provider == .openrouter {
             let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
@@ -12,7 +22,7 @@ extension SettingsStore {
             switch preference {
             case .automatic, .primary:
                 return preference
-            case .secondary, .average, .tertiary, .extraUsage:
+            case .secondary, .primaryAndSecondary, .average, .tertiary, .extraUsage, .monthlyPlan:
                 return .automatic
             }
         }
@@ -21,27 +31,46 @@ extension SettingsStore {
         if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
             return .automatic
         }
+        if preference == .primaryAndSecondary, !self.menuBarMetricSupportsPrimaryAndSecondary(for: provider) {
+            return .automatic
+        }
         if preference == .tertiary, !self.menuBarMetricSupportsTertiary(for: provider) {
             return .automatic
         }
         if preference == .extraUsage, !self.menuBarMetricSupportsExtraUsage(for: provider) {
+            return .automatic
+        }
+        if preference == .monthlyPlan {
             return .automatic
         }
         return preference
     }
 
     func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
-        if Self.isBalanceOnlyProvider(provider) {
+        if Self.isBalanceOnlyProvider(provider), provider != .mistral {
             self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
+            return
+        }
+        if provider == .mistral {
+            switch preference {
+            case .automatic, .monthlyPlan:
+                self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
+            case .primary, .secondary, .primaryAndSecondary, .tertiary, .extraUsage, .average:
+                self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
+            }
             return
         }
         if provider == .openrouter {
             switch preference {
             case .automatic, .primary:
                 self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
-            case .secondary, .average, .tertiary, .extraUsage:
+            case .secondary, .primaryAndSecondary, .average, .tertiary, .extraUsage, .monthlyPlan:
                 self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
             }
+            return
+        }
+        if preference == .primaryAndSecondary, !self.menuBarMetricSupportsPrimaryAndSecondary(for: provider) {
+            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
             return
         }
         if preference == .tertiary, !self.menuBarMetricSupportsTertiary(for: provider) {
@@ -49,6 +78,10 @@ extension SettingsStore {
             return
         }
         if preference == .extraUsage, !self.menuBarMetricSupportsExtraUsage(for: provider) {
+            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
+            return
+        }
+        if preference == .monthlyPlan {
             self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.automatic.rawValue
             return
         }
@@ -57,6 +90,10 @@ extension SettingsStore {
 
     func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
         provider == .gemini
+    }
+
+    func menuBarMetricSupportsPrimaryAndSecondary(for provider: UsageProvider) -> Bool {
+        provider == .codex
     }
 
     func menuBarMetricSupportsTertiary(for provider: UsageProvider) -> Bool {

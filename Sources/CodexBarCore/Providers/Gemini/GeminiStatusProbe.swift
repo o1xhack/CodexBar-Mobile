@@ -4,8 +4,10 @@ import FoundationNetworking
 #endif
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 
 public struct GeminiModelQuota: Sendable {
@@ -1140,11 +1142,9 @@ extension GeminiStatusProbe {
 
         let data = stdoutCapture.finishSynchronously(timeout: 1)
         stderrCapture.stop()
-        guard process.terminationStatus == 0,
-              let output = String(data: data, encoding: .utf8)?
-                  .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !output.isEmpty
-        else {
+        let output = ProcessPipeCapture.decodeUTF8(data)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard process.terminationStatus == 0, !output.isEmpty else {
             return nil
         }
 

@@ -1,7 +1,9 @@
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 import Foundation
 
@@ -244,8 +246,8 @@ public enum SubprocessRunner {
 
             async let stdoutData = stdoutCapture.finish(timeout: .seconds(1))
             async let stderrData = stderrCapture.finish(timeout: .seconds(1))
-            let stdout = await String(data: stdoutData, encoding: .utf8) ?? ""
-            let stderr = await String(data: stderrData, encoding: .utf8) ?? ""
+            let stdout = await ProcessPipeCapture.decodeUTF8(stdoutData)
+            let stderr = await ProcessPipeCapture.decodeUTF8(stderrData)
 
             if exitCode != 0 {
                 let duration = Date().timeIntervalSince(start)

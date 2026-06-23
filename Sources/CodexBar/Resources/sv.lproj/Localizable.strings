@@ -494,6 +494,8 @@
 "show_most_used_provider_subtitle" = "Menyraden visar automatiskt leverantören som ligger närmast sin gräns.";
 "menu_bar_shows_percent_title" = "Menyraden visar procent";
 "menu_bar_shows_percent_subtitle" = "Ersätt figurstaplar med leverantörsikoner och ett procenttal.";
+"hide_critters_title" = "Dölj figurer";
+"hide_critters_subtitle" = "Visa enkla mätarstaplar utan ansikte och dekorationer.";
 "display_mode_title" = "Visningsläge";
 "display_mode_subtitle" = "Välj vad som ska visas i menyraden (takt visar användning mot förväntat).";
 "section_menu_content" = "Menyinnehåll";
@@ -622,6 +624,8 @@
 "metric_pref_tertiary" = "Tertiär";
 "metric_pref_extra_usage" = "Extra användning";
 "metric_pref_average" = "Genomsnitt";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "Procent";
@@ -703,6 +707,7 @@
 "Resets %@" = "Återställs %@";
 "Resets in %@" = "Återställs om %@";
 "Resets now" = "Återställs nu";
+"reset_tomorrow_format" = "imorgon %@";
 "Lasts until reset" = "Räcker till återställning";
 "Updated %@" = "Uppdaterad %@";
 "Updated %@h ago" = "Uppdaterad för %@ h sedan";
@@ -912,6 +917,7 @@
 "Changelog" = "Ändringslogg";
 "Deployment" = "Distribution";
 "Quota usage" = "Kvotanvändning";
+"Your spend" = "Din utgift";
 "No system account" = "Inget systemkonto";
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "Sparas i ~/.codexbar/config.json. Kräver en Anthropic Admin API-nyckel.";
 "AWS region. Can also be set with AWS_REGION." = "AWS-region. Kan även anges med AWS_REGION.";
@@ -928,6 +934,9 @@
 "Windsurf session JSON bundle" = "Windsurf-sessionspaket i JSON";
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar kommer att be macOS Nyckelring om din Cursor-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Drag to reorder" = "Dra för att ändra ordning";
+"Sort providers alphabetically" = "Sortera leverantörer alfabetiskt";
+"Sort providers alphabetically (enabled first)" = "Sortera leverantörer alfabetiskt (aktiverade först)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Alfabetiskt sorterade (aktiverade först) — klicka för att använda din anpassade ordning";
 "cache-hit input" = "cacheträff-indata";
 "Automatically imports browser cookies." = "Importerar webbläsarcookies automatiskt.";
 "Open Volcengine Ark Console" = "Öppna Volcengine Ark-konsol";
@@ -1083,3 +1092,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "Krediter för gränsåterställning";
+"1 manual reset available" = "1 manuell återställning tillgänglig";
+"%d manual resets available" = "%d manuella återställningar tillgängliga";
+"Next expires %@" = "Nästa upphör %@";
+"Other (%d items)" = "Övrigt (%d objekt)";
+"Expand" = "Expandera";
+"Collapse" = "Fäll ihop";
+"byte_unit_byte" = "byte";
+"byte_unit_bytes" = "byte";
+"byte_unit_kilobyte" = "kilobyte";
+"byte_unit_kilobytes" = "kilobyte";
+"byte_unit_megabyte" = "megabyte";
+"byte_unit_megabytes" = "megabyte";
+"byte_unit_gigabyte" = "gigabyte";
+"byte_unit_gigabytes" = "gigabyte";

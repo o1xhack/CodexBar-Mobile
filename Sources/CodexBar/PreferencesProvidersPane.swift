@@ -20,7 +20,12 @@ struct ProvidersPane: View {
     @State private var selectedProvider: UsageProvider?
 
     private var providers: [UsageProvider] {
-        self.settings.orderedProviders()
+        guard self.settings.providersSortedAlphabetically else {
+            return self.settings.orderedProviders()
+        }
+        return CodexBarConfig.alphabeticalProviderOrder(enablement: { provider in
+            self.settings.isProviderEnabled(provider: provider, metadata: self.store.metadata(for: provider))
+        })
     }
 
     private var filteredProviders: [UsageProvider] {
@@ -57,11 +62,14 @@ struct ProvidersPane: View {
                 orderedProviders: self.providers,
                 store: self.store,
                 isEnabled: { provider in self.binding(for: provider) },
-                subtitle: { provider in self.providerSubtitle(provider) },
+                subtitle: { provider in self.providerSidebarSubtitle(provider) },
                 searchText: self.$providerSearchText,
                 selection: self.$selectedProvider,
+                sortAlphabetically: Binding(
+                    get: { self.settings.providersSortedAlphabetically },
+                    set: { self.settings.providersSortedAlphabetically = $0 }),
                 moveProviders: { fromOffsets, toOffset in
-                    self.settings.moveProvider(fromOffsets: fromOffsets, toOffset: toOffset)
+                    self.moveProviders(fromOffsets: fromOffsets, toOffset: toOffset)
                 })
 
             if let provider = self.selectedVisibleProvider {
@@ -177,6 +185,11 @@ struct ProvidersPane: View {
         }
     }
 
+    func moveProviders(fromOffsets: IndexSet, toOffset: Int) {
+        guard !self.settings.providersSortedAlphabetically else { return }
+        self.settings.moveProvider(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
     private func ensureSelection() {
         let filteredProviders = self.filteredProviders
         guard !filteredProviders.isEmpty else {
@@ -231,6 +244,27 @@ struct ProvidersPane: View {
             .presentation(context: presentationContext)
             ?? ProviderPresentation(detailLine: ProviderPresentation.standardDetailLine)
         let detailLine = presentation.detailLine(presentationContext)
+
+        return "\(detailLine)\n\(usageText)"
+    }
+
+    func providerSidebarSubtitle(_ provider: UsageProvider) -> String {
+        let meta = self.store.metadata(for: provider)
+        let usageText: String = if let snapshot = self.store.snapshot(for: provider) {
+            snapshot.updatedAt.relativeDescription()
+        } else if self.store.isStale(provider: provider) {
+            L("last_fetch_failed")
+        } else {
+            L("usage_not_fetched_yet")
+        }
+
+        let detailLine: String = if let sourceLabel = self.store.lastSourceLabels[provider], !sourceLabel.isEmpty {
+            sourceLabel
+        } else if let version = self.store.version(for: provider), !version.isEmpty {
+            "\(meta.cliName) \(version)"
+        } else {
+            meta.cliName
+        }
 
         return "\(detailLine)\n\(usageText)"
     }
@@ -522,6 +556,15 @@ struct ProvidersPane: View {
                     id: MenuBarMetricPreference.primary.rawValue,
                     title: L("primary_api_key_limit")),
             ]
+        } else if provider == .mistral {
+            options = [
+                ProviderSettingsPickerOption(
+                    id: MenuBarMetricPreference.automatic.rawValue,
+                    title: L("metric_mistral_payg")),
+                ProviderSettingsPickerOption(
+                    id: MenuBarMetricPreference.monthlyPlan.rawValue,
+                    title: L("metric_mistral_monthly_plan")),
+            ]
         } else if SettingsStore.isBalanceOnlyProvider(provider) {
             options = [
                 ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("Automatic")),
@@ -552,6 +595,7 @@ struct ProvidersPane: View {
             let metadata = self.store.metadata(for: provider)
             let snapshot = self.store.snapshot(for: provider)
             let supportsAverage = self.settings.menuBarMetricSupportsAverage(for: provider)
+            let supportsPrimaryAndSecondary = self.settings.menuBarMetricSupportsPrimaryAndSecondary(for: provider)
             let supportsTertiary = self.settings.menuBarMetricSupportsTertiary(for: provider, snapshot: snapshot)
             let supportsExtraUsage = self.settings.menuBarMetricSupportsExtraUsage(for: provider, snapshot: snapshot)
             var metricOptions: [ProviderSettingsPickerOption] = [
@@ -563,6 +607,11 @@ struct ProvidersPane: View {
                     id: MenuBarMetricPreference.secondary.rawValue,
                     title: String(format: L("metric_secondary"), metadata.weeklyLabel)),
             ]
+            if supportsPrimaryAndSecondary {
+                metricOptions.append(ProviderSettingsPickerOption(
+                    id: MenuBarMetricPreference.primaryAndSecondary.rawValue,
+                    title: "\(L(metadata.sessionLabel)) + \(L(metadata.weeklyLabel))"))
+            }
             if supportsTertiary {
                 let tertiaryTitle = metadata.opusLabel ?? MenuBarMetricPreference.tertiary.label
                 metricOptions.append(ProviderSettingsPickerOption(

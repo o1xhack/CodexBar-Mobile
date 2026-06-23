@@ -318,7 +318,7 @@ final class CLIEntryTests: XCTestCase {
         try Data("{}".utf8).write(to: invalidMiMoCache)
 
         XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .kilo))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
@@ -326,9 +326,70 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
+            provider: .opencodego,
+            settings: ProviderSettingsSnapshot.make(
+                opencodego: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "auth=manual",
+                    workspaceID: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .opencodego,
+            settings: ProviderSettingsSnapshot.make(
+                opencodego: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "auth=manual",
+                    workspaceID: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .opencodego,
+            settings: ProviderSettingsSnapshot.make(
+                opencodego: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil,
+                    workspaceID: nil))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .opencodego,
+            settings: ProviderSettingsSnapshot.make(
+                opencodego: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil,
+                    workspaceID: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "session=manual"))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "session=manual"))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .opencode,
+            settings: ProviderSettingsSnapshot.make(
+                opencode: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "auth=manual",
+                    workspaceID: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
             provider: .ollama,
             environment: ["OLLAMA_API_KEY": "ollama-test"]))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .codex,
             environment: ["OLLAMA_API_KEY": "ollama-test"]))

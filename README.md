@@ -1,39 +1,26 @@
-# CodexBar iOS
+# CodexBar 🎚️ — May your tokens never run out.
 
-[🇨🇳 简体中文](README.zh.md)
+> Every AI coding limit, in your menu bar.
 
-> **iPhone companion app for CodexBar.** Pulls every provider's usage from your Mac over iCloud, renders it as full-quality cards on your phone, and pushes a notification the moment any provider's quota hits zero.
->
-> **This repository is the iOS app fork.** The Mac app lives in this same repo (forked from upstream) — **please download Mac builds from [our Releases page](https://github.com/o1xhack/CodexBar-Mobile/releases)**, not from the upstream repo. The iOS app you install from the App Store is wire-locked to the Mac builds we ship here, and a mismatched upstream build will produce subtle data drift on your iPhone.
+[![Latest release](https://img.shields.io/github/v/release/steipete/CodexBar?style=flat-square&color=0a0a0c)](https://github.com/steipete/CodexBar/releases/latest)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-0a0a0c?style=flat-square)](https://github.com/steipete/CodexBar/releases/latest)
+[![Homebrew](https://img.shields.io/badge/brew-steipete%2Ftap%2Fcodexbar-orange?style=flat-square)](https://github.com/steipete/homebrew-tap)
+[![AUR](https://img.shields.io/aur/version/codexbar-cli?style=flat-square&color=1793d1)](https://aur.archlinux.org/packages/codexbar-cli)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
+[![Site](https://img.shields.io/badge/site-codexbar.app-16d3b4?style=flat-square)](https://codexbar.app)
 
-<p>
-  <a href="https://apps.apple.com/app/id6760216772"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" height="56"></a>
-  <a href="https://github.com/o1xhack/CodexBar-Mobile/releases"><img src="https://codexbarios.o1xhack.com/assets/badges/download-for-mac.svg" alt="Download Mac App" height="56"></a>
-</p>
+<a href="https://codexbar.app"><img src="docs/social.png" alt="CodexBar — every AI coding limit in your menu bar. 53 providers." width="100%" /></a>
 
-🌐 [codexbarios.o1xhack.com](https://codexbarios.o1xhack.com) · 💻 [Mac app — GitHub Releases](https://github.com/o1xhack/CodexBar-Mobile/releases) · 🐦 [@o1xhack](https://x.com/o1xhack)
+Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and shows when each window resets. Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, GroqCloud, ElevenLabs, Deepgram, z.ai, MiniMax, Kiro, Zed, Vertex AI, Augment, OpenRouter, LiteLLM, LLM Proxy, Codebuff, Command Code, AWS Bedrock, and many newer coding providers. One status item per provider, or Merge Icons mode with a provider switcher. No Dock icon, minimal UI, dynamic bar icons.
 
-## Highlights · 1.5.0
+<img src="codexbar.png" alt="CodexBar menu popover with provider tiles, usage bars, and reset countdowns" width="520" />
 
-<p align="center">
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="Overview" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost overview" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png" alt="Daily Spend" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png" alt="Model Mix" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="Share cards" width="180"></a>
-</p>
+## Why
 
-- **Full sync** — all 30+ providers (Codex, Claude, Cursor, Gemini, Grok, GroqCloud, ElevenLabs, Deepgram, LLM Proxy, Vertex AI, Mistral, Abacus AI, Perplexity, Synthetic, …) refreshed from your Mac via iCloud silent push within ~500 ms. One screen, no manual reload.
-- **Cost dashboard** — Daily Spend with 30-day chart, per-provider share, per-model breakdown, and renewal-cycle progress. Estimated rates kick in for newly-released models so a fresh `gpt-5.x` never silently drops the day to $0.
-- **Share cards** — one-tap share images for any usage or cost view, clean dark-mode design with a QR back to the website. Ready for X, WeChat, Slack, or anywhere else you brag about token spend.
-
----
-
-# CodexBar 🎚️ - May your tokens never run out.
-
-Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Grok, GroqCloud, ElevenLabs, Deepgram, Antigravity, Droid (Factory), Copilot, z.ai, MiniMax, Kiro, Vertex AI, Augment, Amp, JetBrains AI, OpenRouter, LLM Proxy, Perplexity, and Abacus AI limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode with a provider switcher and optional Overview tab); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
-
-<img src="codexbar.png" alt="CodexBar menu screenshot" width="520" />
+- **Plan around resets.** Per-provider session, weekly, and monthly windows with countdowns to the next reset — stop guessing whether to start that long task.
+- **Credits, spend, and cost scans.** Credit balances, Admin API spend dashboards, provider billing summaries, and local cost scans where the source exposes enough detail.
+- **Live status.** Provider status polling surfaces incident badges in the menu and an indicator overlay on the bar icon.
+- **Privacy-first.** Reuses existing provider sessions — OAuth, device flow, API keys, browser cookies, local files — so no passwords are stored.
 
 ## Install
 
@@ -48,16 +35,24 @@ Download: <https://github.com/steipete/CodexBar/releases>
 brew install --cask codexbar
 ```
 
-### Linux (CLI only)
+### CLI Tarballs (macOS/Linux)
+Homebrew formula (Linux today):
 ```bash
 brew install steipete/tap/codexbar
 ```
-Or download `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` from GitHub Releases.
+Arch Linux AUR package:
+```bash
+yay -S codexbar-cli
+```
+Or download release tarballs from GitHub Releases:
+- macOS: `CodexBarCLI-v<tag>-macos-arm64.tar.gz`, `CodexBarCLI-v<tag>-macos-x86_64.tar.gz`
+- Linux (glibc): `CodexBarCLI-v<tag>-linux-aarch64.tar.gz`, `CodexBarCLI-v<tag>-linux-x86_64.tar.gz`
+- Linux (static musl): `CodexBarCLI-v<tag>-linux-musl-aarch64.tar.gz`, `CodexBarCLI-v<tag>-linux-musl-x86_64.tar.gz`
 Linux support via Omarchy: community Waybar module and TUI, driven by the `codexbar` executable.
 
 ### First run
 - Open Settings → Providers and enable what you use.
-- Install/sign in to the provider sources you rely on (e.g. `codex`, `claude`, `gemini`, browser cookies, or OAuth; Antigravity requires the Antigravity app running).
+- Install/sign in to the provider sources you rely on: CLIs, browser sessions, OAuth/device flow, API keys, local app files, or provider apps depending on the provider.
 - Optional: Settings → Providers → Codex → OpenAI cookies (Automatic or Manual) to add dashboard extras.
 
 ### Set API keys from the CLI
@@ -87,7 +82,7 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
 - [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
 - [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
-- [OpenCode Go](docs/opencode.md) — Browser cookies for Go usage windows.
+- [OpenCode Go](docs/opencode.md) — Browser or local SQLite data for Go usage windows.
 - [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
 - [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
 - [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
@@ -95,7 +90,7 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Droid](docs/factory.md) — Browser cookies + WorkOS token flows for Factory usage + billing.
 - [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
 - [Devin](docs/devin.md) — Chrome localStorage session or manual Bearer token for daily and weekly quotas.
-- [z.ai](docs/zai.md) — API token (Keychain) for quota + MCP windows.
+- [z.ai](docs/zai.md) — API token for quota + MCP windows.
 - [Manus](docs/manus.md) — Browser `session_id` auth for credit balance, monthly credits, and daily refresh tracking.
 - [MiniMax](docs/minimax.md) — API token, cookie header, or browser cookies for coding-plan usage.
 - [T3 Chat](docs/providers.md#t3-chat) — Browser cookies capture for Base and Overage usage buckets.
@@ -104,8 +99,9 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Kilo](docs/kilo.md) — API token with CLI-auth fallback for Kilo Pass usage.
 - [Kiro](docs/kiro.md) — CLI-based usage; monthly credits + bonus credits.
 - [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
-- [Augment](docs/augment.md) — Browser cookie-based authentication with automatic session keepalive; credits tracking and usage monitoring.
+- [Augment](docs/augment.md) — Augment CLI or browser cookies for credits tracking and usage monitoring.
 - [Amp](docs/amp.md) — Browser cookie-based authentication with Amp Free usage tracking.
+- [Ollama](docs/ollama.md) — API key access plus browser cookies for Ollama Cloud usage windows.
 - [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
 - [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
 - [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
@@ -122,9 +118,9 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
 - [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
 - [Crof](docs/crof.md) — API key for dollar credit balance and request quota tracking.
-- [Command Code](docs/command-code.md) — Browser cookies for monthly USD credits from Command Code billing.
+- [Command Code](docs/command-code.md) — Browser or manual cookies for monthly USD credits from Command Code billing.
 - [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
-- [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer usage and monthly budget tracking.
+- [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer spend, monthly budgets, and optional CloudWatch Claude activity.
 - [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
 - [GroqCloud](docs/groqcloud.md) — API key for Enterprise Prometheus request/token/cache-hit metrics.
 - [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
@@ -135,23 +131,22 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
-The menu bar icon is a tiny two-bar meter:
-- Top bar: 5‑hour/session window. If weekly is missing/exhausted and credits are available, it becomes a thicker credits bar.
-- Bottom bar: weekly window (hairline).
-- Errors/stale data dim the icon; status overlays indicate incidents.
+The menu bar icon is a tiny usage meter. Bar meaning is provider-specific, and errors/stale data can dim the icon or
+show an incident indicator.
 
 ## Features
 - Multi-provider menu bar with per-provider toggles (Settings → Providers).
-- Session + weekly meters with reset countdowns.
+- Provider-specific usage meters with reset countdowns.
 - Optional Codex web dashboard enrichments (code review remaining, usage breakdown, credits history).
 - Inline spend and usage charts for API-backed providers such as OpenAI, Claude Admin API, OpenRouter, LiteLLM, z.ai, MiniMax, Mistral, and AWS Bedrock.
 - Configurable cost-usage scans for Codex + Claude, plus reused chart UI for supported provider histories.
 - Provider status polling with incident badges in the menu and icon overlay.
-- Merge Icons mode to combine providers into one status item + switcher, with an optional Overview tab for up to three providers.
+- Merge Icons mode to combine providers into one status item + switcher.
+- Display controls for provider icons, labels, bars, reset-time style, and highest-usage auto-selection.
 - Refresh cadence presets (manual, 1m, 2m, 5m, 15m).
 - Bundled CLI (`codexbar`) for scripts and CI (including `codexbar cost --provider codex`, `claude`, or `both` for local cost usage); macOS and Linux CLI builds available.
 - WidgetKit widgets for supported providers.
-- Localized Mac app and website with a shared 21-language catalog, automatic website detection, persistent pickers, and RTL support.
+- Localized app and website with a shared 21-language catalog, automatic website detection, persistent pickers, and RTL support.
 - Optional session quota notifications and weekly-reset confetti.
 - Privacy-first: on-device parsing by default; browser cookies are opt-in and reused (no passwords stored).
 
@@ -159,13 +154,13 @@ The menu bar icon is a tiny two-bar meter:
 Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it reads a small set of known locations (browser cookies/local storage, provider config files, local JSONL logs) when the related features are enabled. Provider tokens and token-account settings live in the CodexBar config file with restrictive file permissions. See the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
 
 ## macOS permissions (why they’re needed)
-- **Full Disk Access (optional)**: only required to read Safari cookies/local storage for web-based providers (Codex web, Claude web, Cursor, Droid/Factory). If you don’t grant it, use Chrome/Firefox cookies or CLI-only sources instead.
+- **Full Disk Access (optional)**: only required to read Safari cookies/local storage for web-based providers. If you don’t grant it, use another supported browser, manual cookies/API keys, OAuth, or CLI/local sources where that provider supports them.
 - **Keychain access (prompted by macOS)**:
-  - Chrome cookie import needs the “Chrome Safe Storage” key to decrypt cookies.
-  - Claude OAuth credentials (written by the Claude CLI) are read from Keychain when present.
-  - z.ai API token is stored in Keychain from Preferences → Providers; Copilot stores its API token in Keychain during device flow.
+  - Chromium cookie import needs the browser “Safe Storage” key to decrypt cookies.
+  - Claude OAuth bootstrap may read the Claude CLI Keychain item when CodexBar has no usable cached credentials.
+  - CodexBar may use Keychain for browser cookie decryption, cached cookie headers, and OAuth/device-flow credentials where those sources require it.
   - **How do I prevent those keychain alerts?**
-    - Open **Keychain Access.app** → login keychain → search the item (e.g., “Claude Code-credentials”).
+    - Open **Keychain Access.app** → login keychain → search the prompted item (for Claude OAuth, usually “Claude Code-credentials”).
     - Open the item → **Access Control** → add `CodexBar.app` under “Always allow access by these applications”.
     - Prefer adding just CodexBar (avoid “Allow all applications” unless you want it wide open).
     - Relaunch CodexBar after saving.
@@ -174,8 +169,10 @@ Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it re
     - Find the browser’s “Safe Storage” key (e.g., “Chrome Safe Storage”, “Brave Safe Storage”, “Firefox”, “Microsoft Edge Safe Storage”).
     - Open the item → **Access Control** → add `CodexBar.app` under “Always allow access by these applications”.
     - This removes the prompt when CodexBar decrypts cookies for that browser.
-- **Files & Folders prompts (folder/volume access)**: CodexBar launches provider CLIs (codex/claude/gemini/antigravity). If those CLIs read a project directory or external drive, macOS may ask CodexBar for that folder/volume (e.g., Desktop or an external volume). This is driven by the CLI’s working directory, not background disk scanning.
-- **What we do not request**: no Screen Recording, Accessibility, or Automation permissions; no passwords are stored (browser cookies are reused when you opt in).
+  - **Last resort — stop all Keychain reads entirely**: if "Always Allow" doesn't stick (e.g., macOS resets the ACL after a Chromium update or a `partition_id` reset), open **CodexBar → Settings → Advanced → Keychain access** and enable **Disable Keychain access**. CodexBar will no longer touch the Keychain. Browser-cookie-based providers will be skipped, but Claude/Codex OAuth via the CLI still works (it reads `~/.codex` / `~/.claude` config files, not the Keychain).
+  - **Prompt after uninstall?** Deleting the app prevents a new launch from that bundle, but an already-running CodexBar process can keep requesting Keychain access until it quits. Check for that process, a Login Item, another installed copy, or a prompt that names a different requesting binary/path. See [Keychain prompt troubleshooting](docs/keychain-prompts.md) for safe checks and what to include in a support report without sharing secrets.
+- **Files & Folders prompts (folder/volume access)**: CodexBar launches provider CLIs and local probes for some providers. If those helpers read a project directory or external drive, macOS may ask CodexBar for that folder/volume (e.g., Desktop or an external volume). This is driven by the helper’s working directory, not background disk scanning.
+- **What we do not request in the background**: no Screen Recording or Accessibility permissions; user-triggered helper actions may ask macOS for Automation permission to open Terminal. No passwords are stored (browser cookies are reused when you opt in).
 
 ## Docs
 - Providers overview: [docs/providers.md](docs/providers.md)
@@ -184,23 +181,28 @@ Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it re
 - UI & icon notes: [docs/ui.md](docs/ui.md)
 - CLI reference: [docs/cli.md](docs/cli.md)
 - Configuration: [docs/configuration.md](docs/configuration.md)
+- Keychain prompts: [docs/keychain-prompts.md](docs/keychain-prompts.md)
 - CLI configuration: [docs/cli-configuration.md](docs/cli-configuration.md)
 - Widgets: [docs/widgets.md](docs/widgets.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Refresh loop: [docs/refresh-loop.md](docs/refresh-loop.md)
 - Status polling: [docs/status.md](docs/status.md)
 - Sparkle updates: [docs/sparkle.md](docs/sparkle.md)
+- Packaging: [docs/packaging.md](docs/packaging.md)
+- Development: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Release checklist: [docs/RELEASING.md](docs/RELEASING.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## Getting started (dev)
 - Clone the repo and open it in Xcode or run the scripts directly.
 - Launch once, then toggle providers in Settings → Providers.
-- Install/sign in to provider sources you rely on (CLIs, browser cookies, or OAuth).
+- Install/sign in to provider sources you rely on (CLIs, browser cookies, OAuth/device flow, API keys, or local app/config files).
 - Optional: set OpenAI cookies (Automatic or Manual) for Codex dashboard extras.
 
 ## Build from source
+Requires macOS 14+ and Swift 6.2+.
+
 ```bash
-swift build -c release          # or debug for development
 ./Scripts/package_app.sh        # builds CodexBar.app in-place
 CODEXBAR_SIGNING=adhoc ./Scripts/package_app.sh  # ad-hoc signing (no Apple Developer account)
 open CodexBar.app
@@ -232,7 +234,7 @@ CLI install:
 - [codexbar-waybar](https://github.com/Marouan-chak/codexbar-waybar) — Waybar custom module + GTK4 popover for Hyprland / Sway / other Wayland compositors, built on top of the bundled Linux CLI.
 - [Codexbar GNOME](https://extensions.gnome.org/extension/9841/codexbar/) — GNOME Shell extension that brings CodexBar usage into the desktop panel.
 - [noctalia-codex-usage](https://github.com/rayoplateado/noctalia-codex-usage) — Noctalia/Quickshell plugin that shows Codex 5-hour and weekly usage limits, built on top of the bundled Linux CLI.
-
+- [KodexBar](https://github.com/tylxr59/KodexBar) — KDE Plasma widget that shows CodexBar usage in the Plasma panel, built on top of the bundled Linux CLI.
 
 ## Status bar & terminal integration
 - [showy-quota](https://github.com/enieuwy/showy-quota) — always-on AI plan quota strips for SketchyBar, tmux, and Zellij (standalone WASM plugin), built on `codexbar serve` / the bundled CLI.

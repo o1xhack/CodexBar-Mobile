@@ -1,7 +1,9 @@
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 import Foundation
 
@@ -884,8 +886,14 @@ struct AntigravityPTYProcessLauncher: AntigravityCLIProcessLaunching {
         _ = homeDirectory.withCString { path in
             posix_spawn_file_actions_addchdir_np(&fileActions, path)
         }
-        #if !canImport(Darwin)
-        posix_spawn_file_actions_addclosefrom_np(&fileActions, 3)
+        #if canImport(Glibc) || canImport(Musl)
+        do {
+            try PosixSpawnFileActionsCloseFrom.addCloseFrom(&fileActions, startingAt: 3)
+        } catch {
+            try? primaryHandle.close()
+            try? secondaryHandle.close()
+            throw AntigravityCLISession.SessionError.launchFailed(error.localizedDescription)
+        }
         #endif
 
         #if canImport(Darwin)

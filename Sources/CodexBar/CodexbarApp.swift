@@ -360,6 +360,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let updaterController: UpdaterProviding = makeUpdaterController()
     private let confettiOverlayController = ScreenConfettiOverlayController()
     private let confettiLogger = CodexBarLog.logger(LogCategories.confetti)
+    private lazy var memoryPressureMonitor = MemoryPressureMonitor(trimAppCaches: { [weak self] in
+        self?.trimRebuildableCachesForMemoryPressure() ?? MemoryPressureCacheTrimSummary()
+    })
+
     private var statusController: StatusItemControlling?
     private var store: UsageStore?
     private var settings: SettingsStore?
@@ -368,6 +372,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?
     private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
     private var hasInstalledWeeklyLimitResetObserver = false
+    #if DEBUG
+    private var debugMemoryPressureObserver: NSObjectProtocol?
+    #endif
     var terminateActiveProcessesForAppShutdown: () -> Void = {
         TTYCommandRunner.terminateActiveProcessesForAppShutdown()
     }
@@ -387,6 +394,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppNotifications.shared.requestAuthorizationOnStartup()
+        self.memoryPressureMonitor.start()
+        #if DEBUG
+        self.installDebugMemoryPressureObserverIfNeeded()
+        #endif
         self.ensureStatusController()
         KeyboardShortcuts.onKeyUp(for: .openMenu) { [weak self] in
             // KeyboardShortcuts dispatches both normal and menu-tracking hotkeys on the main event loop.
@@ -405,6 +416,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        self.memoryPressureMonitor.stop()
+        #if DEBUG
+        self.removeDebugMemoryPressureObserver()
+        #endif
         self.statusController?.prepareForAppShutdown()
         self.confettiOverlayController.dismiss()
         self.dismissAppKitWindowsForShutdown()
@@ -507,6 +522,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fallbackManagedCodexAccountCoordinator,
             fallbackCodexAccountPromotionCoordinator)
     }
+
+    private func trimRebuildableCachesForMemoryPressure() -> MemoryPressureCacheTrimSummary {
+        var summary = MemoryPressureCacheTrimSummary()
+        let statusSummary = self.statusController?.trimRebuildableCachesForMemoryPressure()
+            ?? MemoryPressureCacheTrimSummary()
+        let storeSummary = self.store?.trimRebuildableCachesForMemoryPressure()
+            ?? MemoryPressureCacheTrimSummary()
+        summary.merge(statusSummary)
+        summary.merge(storeSummary)
+        return summary
+    }
+
+    #if DEBUG
+    private func installDebugMemoryPressureObserverIfNeeded() {
+        guard self.debugMemoryPressureObserver == nil else { return }
+        self.debugMemoryPressureObserver = DistributedNotificationCenter.default().addObserver(
+            forName: .codexbarDebugSimulateMemoryPressure,
+            object: nil,
+            queue: .main)
+        { [weak self] notification in
+            let rawLevel = notification.userInfo?["level"] as? String
+            let shouldSeedCaches = notification.userInfo?["seedCaches"] as? String == "1"
+            MainActor.assumeIsolated {
+                self?.handleDebugMemoryPressureNotification(
+                    rawLevel: rawLevel,
+                    shouldSeedCaches: shouldSeedCaches)
+            }
+        }
+    }
+
+    private func removeDebugMemoryPressureObserver() {
+        guard let observer = self.debugMemoryPressureObserver else { return }
+        DistributedNotificationCenter.default().removeObserver(observer)
+        self.debugMemoryPressureObserver = nil
+    }
+
+    private func handleDebugMemoryPressureNotification(rawLevel: String?, shouldSeedCaches: Bool) {
+        let isCritical = rawLevel?.caseInsensitiveCompare("critical") == .orderedSame
+        if shouldSeedCaches {
+            OpenAIDashboardFetcher.seedCachedWebViewsForMemoryPressureProof()
+            self.statusController?.seedRebuildableCachesForMemoryPressureProof()
+            self.store?.seedRebuildableCachesForMemoryPressureProof()
+        }
+        CodexBarLog.logger(LogCategories.memoryPressure).info(
+            "Debug memory pressure notification received",
+            metadata: [
+                "level": isCritical ? "critical" : "warning",
+                "seedCaches": shouldSeedCaches ? "1" : "0",
+            ])
+        self.memoryPressureMonitor.handleMemoryPressureForTesting(isWarning: !isCritical, isCritical: isCritical)
+    }
+    #endif
 
     deinit {
         NotificationCenter.default.removeObserver(self)

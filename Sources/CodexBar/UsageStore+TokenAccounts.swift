@@ -399,6 +399,11 @@ extension UsageStore {
                 return true
             case .liveSystem:
                 return priorEmail != nil && priorEmail == accountEmail
+            case .profileHome:
+                if !allowProviderAccountAuthFingerprintMismatch {
+                    guard self.codexVisibleAccountAuthFingerprintMatches(prior, account: account) else { return false }
+                }
+                return priorEmail != nil && priorEmail == accountEmail
             }
         }
 
@@ -899,6 +904,8 @@ extension UsageStore {
                 return true
             case .liveSystem:
                 return prior.id == account.id
+            case .profileHome:
+                return true
             }
         }
 

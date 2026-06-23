@@ -1,7 +1,9 @@
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 import Foundation
 
@@ -112,8 +114,10 @@ extension CodexBarCLI {
     static func platformExit(_ code: Int32) -> Never {
         #if canImport(Darwin)
         Darwin.exit(code)
-        #else
+        #elseif canImport(Glibc)
         Glibc.exit(code)
+        #elseif canImport(Musl)
+        Musl.exit(code)
         #endif
     }
 }

@@ -162,6 +162,8 @@ struct TokenAccountCLIContext {
                     cookieSource: cookieSettings.cookieSource,
                     manualCookieHeader: cookieSettings.manualCookieHeader,
                     workspaceID: config?.workspaceID))
+        case .commandcode:
+            return self.makeSnapshot(commandcode: self.makeProviderCookieSettings(cookieSettings))
         case .alibaba:
             return self.makeSnapshot(
                 alibaba: ProviderSettingsSnapshot.AlibabaCodingPlanProviderSettings(
@@ -232,6 +234,7 @@ struct TokenAccountCLIContext {
         kimi: ProviderSettingsSnapshot.KimiProviderSettings? = nil,
         augment: ProviderSettingsSnapshot.AugmentProviderSettings? = nil,
         amp: ProviderSettingsSnapshot.AmpProviderSettings? = nil,
+        commandcode: ProviderSettingsSnapshot.CommandCodeProviderSettings? = nil,
         ollama: ProviderSettingsSnapshot.OllamaProviderSettings? = nil,
         jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings? = nil,
         perplexity: ProviderSettingsSnapshot.PerplexityProviderSettings? = nil,
@@ -257,6 +260,7 @@ struct TokenAccountCLIContext {
             augment: augment,
             moonshot: moonshot,
             amp: amp,
+            commandcode: commandcode,
             ollama: ollama,
             jetbrains: jetbrains,
             perplexity: perplexity,
@@ -296,9 +300,9 @@ struct TokenAccountCLIContext {
             config: providerConfig,
             selectedAccount: account)
         if provider == .codex,
-           let managedAccount = self.managedCodexAccount(for: codexActiveSourceOverride)
+           let codexHomePath = self.codexHomePath(for: codexActiveSourceOverride)
         {
-            env = CodexHomeScope.scopedEnvironment(base: env, codexHome: managedAccount.managedHomePath)
+            env = CodexHomeScope.scopedEnvironment(base: env, codexHome: codexHomePath)
         }
         return env
     }
@@ -460,12 +464,13 @@ struct TokenAccountCLIContext {
             storeLoader: storeLoader,
             activeSource: activeSource ?? self.providerConfig(for: .codex)?.codexActiveSource ?? .liveSystem,
             baseEnvironment: self.baseEnvironment,
+            profileHomePaths: self.providerConfig(for: .codex)?.codexProfileHomePaths ?? [],
             managedEnvironmentBuilder: { environment, account in
                 CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
             })
     }
 
-    private func managedCodexAccount(for activeSourceOverride: CodexActiveSource?) -> ManagedCodexAccount? {
+    private func codexHomePath(for activeSourceOverride: CodexActiveSource?) -> String? {
         let activeSource: CodexActiveSource = if let activeSourceOverride {
             activeSourceOverride
         } else {
@@ -473,13 +478,23 @@ struct TokenAccountCLIContext {
                 .resolvedSource
         }
 
-        guard case let .managedAccount(id) = activeSource else { return nil }
-        let accounts: ManagedCodexAccountSet? = if let managedCodexAccountStoreURL {
-            try? FileManagedCodexAccountStore(fileURL: managedCodexAccountStoreURL).loadAccounts()
-        } else {
-            try? FileManagedCodexAccountStore().loadAccounts()
+        switch activeSource {
+        case .liveSystem:
+            return nil
+        case let .managedAccount(id):
+            let accounts: ManagedCodexAccountSet? = if let managedCodexAccountStoreURL {
+                try? FileManagedCodexAccountStore(fileURL: managedCodexAccountStoreURL).loadAccounts()
+            } else {
+                try? FileManagedCodexAccountStore().loadAccounts()
+            }
+            return accounts?.account(id: id)?.managedHomePath
+        case let .profileHome(path):
+            guard let normalizedPath = CodexHomeScope.normalizedHomePath(path) else { return nil }
+            let configuredPaths = self.providerConfig(for: .codex)?.codexProfileHomePaths ?? []
+            return configuredPaths.contains {
+                CodexHomeScope.normalizedHomePath($0) == normalizedPath
+            } ? normalizedPath : nil
         }
-        return accounts?.account(id: id)
     }
 
     private func manualCookieHeader(

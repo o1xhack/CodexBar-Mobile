@@ -1,6 +1,10 @@
-#if canImport(Glibc)
+#if canImport(Glibc) || canImport(Musl)
 import Foundation
+#if canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 import Testing
 @testable import CodexBarCore
 
@@ -36,7 +40,8 @@ struct AntigravityProcessLauncherLinuxTests {
           echo closed >> \(outputURL.path)
         fi
         """
-        // Direct writes close the executable before spawn; atomic replacement can race with exec on overlay filesystems.
+        // Direct writes close the executable before spawn; atomic replacement can race with exec on overlay
+        // filesystems.
         try Data(script.utf8).write(to: scriptURL)
         #expect(chmod(scriptURL.path, 0o700) == 0)
 

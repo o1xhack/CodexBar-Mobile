@@ -506,6 +506,39 @@ final class SyncCoordinator {
         return SyncMultiAccountList(accounts: entries, activeIndex: activeIndex)
     }
 
+    private static func mapCodexResetCredits(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCodexResetCredits?
+    {
+        guard provider == .codex,
+              let resetCredits = snapshot?.codexResetCredits
+        else { return nil }
+
+        return SyncCodexResetCredits(
+            availableCount: resetCredits.availableCount,
+            nextExpiresAt: resetCredits.nextExpiringAvailableCredit?.expiresAt,
+            credits: resetCredits.credits.map { credit in
+                SyncCodexResetCredit(
+                    id: credit.id,
+                    resetType: credit.resetType,
+                    status: credit.status.rawValue,
+                    grantedAt: credit.grantedAt,
+                    expiresAt: credit.expiresAt,
+                    redeemStartedAt: credit.redeemStartedAt,
+                    redeemedAt: credit.redeemedAt,
+                    title: credit.title,
+                    detail: credit.description)
+            },
+            updatedAt: resetCredits.updatedAt)
+    }
+
+    private static func mapUsageDataConfidence(snapshot: UsageSnapshot?) -> String? {
+        guard let confidence = snapshot?.dataConfidence, confidence != .unknown else {
+            return nil
+        }
+        return confidence.rawValue
+    }
+
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -651,6 +684,7 @@ final class SyncCoordinator {
             workspaceID: openCodeGoWorkspaceID)
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
+        let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -692,7 +726,9 @@ final class SyncCoordinator {
             openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
-            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot))
+            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
+            codexResetCredits: codexResetCredits,
+            usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot))
     }
 
     // MARK: - v0.26 envelope mappers (private)

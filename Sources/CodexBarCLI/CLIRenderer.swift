@@ -43,6 +43,12 @@ enum CLIRenderer {
             useColor: context.useColor,
             lines: &lines)
         self.appendCreditsLine(provider: provider, credits: credits, useColor: context.useColor, lines: &lines)
+        self.appendCodexResetCreditsLine(
+            provider: provider,
+            snapshot: snapshot,
+            now: now,
+            useColor: context.useColor,
+            lines: &lines)
         self.appendIdentityAndNotes(
             provider: provider,
             snapshot: snapshot,
@@ -217,6 +223,29 @@ enum CLIRenderer {
             "Credits",
             value: UsageFormatter.creditsString(from: credits.remaining),
             useColor: useColor))
+    }
+
+    private static func appendCodexResetCreditsLine(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        now: Date,
+        useColor: Bool,
+        lines: inout [String])
+    {
+        guard provider == .codex, let resetCredits = snapshot.codexResetCredits else { return }
+        let value = if resetCredits.availableCount == 1 {
+            "1 available"
+        } else {
+            "\(resetCredits.availableCount) available"
+        }
+        lines.append(self.labelValueLine("Limit Reset Credits", value: value, useColor: useColor))
+        guard resetCredits.availableCount > 0,
+              let expiresAt = resetCredits.nextExpiringAvailableCredit?.expiresAt
+        else {
+            return
+        }
+        let expiry = UsageFormatter.resetCountdownDescription(from: expiresAt, now: now)
+        lines.append(self.subtleLine("Next reset credit expires \(expiry)", useColor: useColor))
     }
 
     private static func appendLimitsUnavailableLine(

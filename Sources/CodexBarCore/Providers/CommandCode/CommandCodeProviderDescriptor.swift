@@ -48,6 +48,9 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         guard context.settings?.commandcode?.cookieSource != .off else { return false }
+        if Self.manualCookieHeader(from: context) != nil {
+            return true
+        }
         #if os(macOS)
         return true
         #else
@@ -56,13 +59,13 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        #if os(macOS)
         let cookieHeader: String
         let sourceLabel: String
         if let manual = Self.manualCookieHeader(from: context) {
             cookieHeader = manual
             sourceLabel = "manual"
         } else {
+            #if os(macOS)
             let session: CommandCodeCookieImporter.SessionInfo
             do {
                 session = try CommandCodeCookieImporter.importSession()
@@ -74,14 +77,14 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
             }
             cookieHeader = session.cookieHeader
             sourceLabel = session.sourceLabel
+            #else
+            throw CommandCodeUsageError.missingCredentials
+            #endif
         }
         let snapshot = try await CommandCodeUsageFetcher.fetchUsage(cookieHeader: cookieHeader)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(),
             sourceLabel: sourceLabel)
-        #else
-        throw CommandCodeUsageError.missingCredentials
-        #endif
     }
 
     private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {

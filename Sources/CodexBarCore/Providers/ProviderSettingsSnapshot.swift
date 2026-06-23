@@ -30,6 +30,7 @@ public struct ProviderSettingsSnapshot: Sendable {
         amp: AmpProviderSettings? = nil,
         t3chat: T3ChatProviderSettings? = nil,
         devin: DevinProviderSettings? = nil,
+        commandcode: CommandCodeProviderSettings? = nil,
         ollama: OllamaProviderSettings? = nil,
         jetbrains: JetBrainsProviderSettings? = nil,
         windsurf: WindsurfProviderSettings? = nil,
@@ -61,6 +62,7 @@ public struct ProviderSettingsSnapshot: Sendable {
             amp: amp,
             t3chat: t3chat,
             devin: devin,
+            commandcode: commandcode,
             ollama: ollama,
             jetbrains: jetbrains,
             windsurf: windsurf,
@@ -77,6 +79,8 @@ public struct ProviderSettingsSnapshot: Sendable {
         public let manualCookieHeader: String?
         public let managedAccountStoreUnreadable: Bool
         public let managedAccountTargetUnavailable: Bool
+        public let profileAccountTargetUnavailable: Bool
+        public let openAIWebCacheScope: CookieHeaderCache.Scope?
         public let dashboardAuthorityKnownOwners: [CodexDashboardKnownOwnerCandidate]
 
         public init(
@@ -85,6 +89,8 @@ public struct ProviderSettingsSnapshot: Sendable {
             manualCookieHeader: String?,
             managedAccountStoreUnreadable: Bool = false,
             managedAccountTargetUnavailable: Bool = false,
+            profileAccountTargetUnavailable: Bool = false,
+            openAIWebCacheScope: CookieHeaderCache.Scope? = nil,
             dashboardAuthorityKnownOwners: [CodexDashboardKnownOwnerCandidate] = [])
         {
             self.usageDataSource = usageDataSource
@@ -92,6 +98,8 @@ public struct ProviderSettingsSnapshot: Sendable {
             self.manualCookieHeader = manualCookieHeader
             self.managedAccountStoreUnreadable = managedAccountStoreUnreadable
             self.managedAccountTargetUnavailable = managedAccountTargetUnavailable
+            self.profileAccountTargetUnavailable = profileAccountTargetUnavailable
+            self.openAIWebCacheScope = openAIWebCacheScope
             self.dashboardAuthorityKnownOwners = dashboardAuthorityKnownOwners
         }
     }

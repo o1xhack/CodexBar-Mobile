@@ -103,6 +103,40 @@ struct StatusMenuTests {
     }
 
     @Test
+    func `zai dashboard action follows selected region`() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        settings.zaiAPIRegion = .global
+        #expect(controller.dashboardURL(for: .zai) == ZaiAPIRegion.global.dashboardURL)
+        #expect(
+            controller.dashboardURL(for: .zai)?.absoluteString ==
+                "https://z.ai/manage-apikey/coding-plan/personal/my-plan")
+        #expect(
+            controller.dashboardURL(
+                for: .zai,
+                environment: [ZaiSettingsReader.apiHostKey: "open.bigmodel.cn"]) ==
+                ZaiAPIRegion.bigmodelCN.dashboardURL)
+
+        settings.zaiAPIRegion = .bigmodelCN
+        #expect(controller.dashboardURL(for: .zai) == ZaiAPIRegion.bigmodelCN.dashboardURL)
+        #expect(controller.dashboardURL(for: .zai)?.absoluteString == "https://bigmodel.cn/coding-plan/personal/usage")
+    }
+
+    @Test
     func `opencode go dashboard action follows configured workspace`() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
@@ -721,7 +755,7 @@ struct StatusMenuTests {
     }
 
     @Test
-    func `overview tab omits contextual provider actions`() {
+    func `overview tab omits contextual provider actions`() throws {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -760,10 +794,9 @@ struct StatusMenuTests {
         #expect(titles.contains("About CodexBar"))
         #expect(titles.contains("Quit"))
 
-        let refreshItem = menu.items.first { $0.title == "Refresh" }
-        #expect(refreshItem != nil)
-        #expect(refreshItem?.keyEquivalent == "r")
-        #expect(refreshItem?.keyEquivalentModifierMask == [.command])
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        #expect(refreshItem.keyEquivalent.isEmpty)
 
         let settingsItem = menu.items.first { $0.title == "Settings..." }
         #expect(settingsItem != nil)

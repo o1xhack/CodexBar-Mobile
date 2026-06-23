@@ -17,6 +17,8 @@ enum MenuBarMetricWindowResolver {
     {
         guard let snapshot else { return nil }
         switch preference {
+        case .monthlyPlan:
+            return snapshot.extraRateWindows?.first { $0.id == "mistral-monthly-plan" }?.window
         case .extraUsage:
             return Self.extraUsageWindow(snapshot: snapshot)
         case .tertiary:
@@ -34,6 +36,11 @@ enum MenuBarMetricWindowResolver {
                 provider: provider,
                 snapshot: snapshot,
                 lanes: Self.secondaryOrder(for: provider))
+        case .primaryAndSecondary:
+            return Self.mostConstrainedWindow(
+                primary: snapshot.primary,
+                secondary: snapshot.secondary,
+                tertiary: nil)
         case .average:
             return Self.averageWindow(provider: provider, snapshot: snapshot, supportsAverage: supportsAverage)
         case .automatic:
@@ -123,7 +130,13 @@ enum MenuBarMetricWindowResolver {
         {
             return primary.usedPercent >= secondary.usedPercent ? primary : secondary
         }
-        if provider == .cursor || provider == .minimax {
+        if provider == .cursor {
+            return Self.mostConstrainedCursorWindow(
+                total: snapshot.primary,
+                auto: snapshot.secondary,
+                api: snapshot.tertiary)
+        }
+        if provider == .minimax {
             return Self.mostConstrainedWindow(
                 primary: snapshot.primary,
                 secondary: snapshot.secondary,
@@ -146,6 +159,11 @@ enum MenuBarMetricWindowResolver {
             .filter { $0.usageKnown && $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix) }
             .map(\.window) ?? []
         guard !windows.isEmpty else { return nil }
+
+        let usableWindows = windows.filter { $0.usedPercent < 100 }
+        if let maxUsable = usableWindows.max(by: { $0.usedPercent < $1.usedPercent }) {
+            return maxUsable
+        }
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
     }
 
@@ -156,6 +174,11 @@ enum MenuBarMetricWindowResolver {
             }
             .map(\.window) ?? []
         guard !windows.isEmpty else { return nil }
+
+        let usableWindows = windows.filter { $0.usedPercent < 100 }
+        if let maxUsable = usableWindows.max(by: { $0.usedPercent < $1.usedPercent }) {
+            return maxUsable
+        }
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
     }
 
@@ -199,6 +222,26 @@ enum MenuBarMetricWindowResolver {
         let windows = [primary, secondary, tertiary].compactMap(\.self)
         guard !windows.isEmpty else { return nil }
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
+    }
+
+    private static func mostConstrainedCursorWindow(
+        total: RateWindow?,
+        auto: RateWindow?,
+        api: RateWindow?)
+        -> RateWindow?
+    {
+        if let total, total.usedPercent >= 100 {
+            return total
+        }
+
+        let subquotaWindows = [auto, api].compactMap(\.self)
+        let usableSubquotaWindows = subquotaWindows.filter { $0.usedPercent < 100 }
+        if !subquotaWindows.isEmpty, usableSubquotaWindows.isEmpty {
+            return subquotaWindows.max(by: { $0.usedPercent < $1.usedPercent })
+        }
+
+        return ([total].compactMap(\.self) + usableSubquotaWindows)
+            .max(by: { $0.usedPercent < $1.usedPercent })
     }
 
     private static func shouldUseClaudeSpendLimit(

@@ -19,6 +19,8 @@ public struct ProviderDiagnosticBatchExport: Codable, Sendable {
 public struct ProviderDiagnosticExport: Codable, Sendable {
     public let schemaVersion: String
     public let timestamp: Date
+    public let platform: String
+    public let appVersion: String?
     public let provider: String
     public let displayName: String
     public let source: String
@@ -30,9 +32,28 @@ public struct ProviderDiagnosticExport: Codable, Sendable {
     public let settings: ProviderDiagnosticSettingsSummary
     public let details: ProviderDiagnosticDetails?
 
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case timestamp
+        case platform
+        case appVersion
+        case provider
+        case displayName
+        case source
+        case sourceMode
+        case auth
+        case usage
+        case fetchAttempts
+        case error
+        case settings
+        case details
+    }
+
     public init(
         schemaVersion: String = "1.0",
         timestamp: Date,
+        platform: String = ProviderDiagnosticPlatform.current,
+        appVersion: String? = nil,
         provider: String,
         displayName: String,
         source: String,
@@ -46,6 +67,8 @@ public struct ProviderDiagnosticExport: Codable, Sendable {
     {
         self.schemaVersion = schemaVersion
         self.timestamp = timestamp
+        self.platform = platform
+        self.appVersion = appVersion
         self.provider = provider
         self.displayName = displayName
         self.source = source
@@ -56,6 +79,38 @@ public struct ProviderDiagnosticExport: Codable, Sendable {
         self.error = error
         self.settings = settings
         self.details = details
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            schemaVersion: container.decode(String.self, forKey: .schemaVersion),
+            timestamp: container.decode(Date.self, forKey: .timestamp),
+            platform: container.decodeIfPresent(String.self, forKey: .platform)
+                ?? ProviderDiagnosticPlatform.current,
+            appVersion: container.decodeIfPresent(String.self, forKey: .appVersion),
+            provider: container.decode(String.self, forKey: .provider),
+            displayName: container.decode(String.self, forKey: .displayName),
+            source: container.decode(String.self, forKey: .source),
+            sourceMode: container.decode(String.self, forKey: .sourceMode),
+            auth: container.decode(ProviderDiagnosticAuthSummary.self, forKey: .auth),
+            usage: container.decodeIfPresent(ProviderDiagnosticUsageSummary.self, forKey: .usage),
+            fetchAttempts: container.decode([ProviderDiagnosticFetchAttempt].self, forKey: .fetchAttempts),
+            error: container.decodeIfPresent(ProviderDiagnosticError.self, forKey: .error),
+            settings: container.decode(ProviderDiagnosticSettingsSummary.self, forKey: .settings),
+            details: container.decodeIfPresent(ProviderDiagnosticDetails.self, forKey: .details))
+    }
+}
+
+public enum ProviderDiagnosticPlatform {
+    public static var current: String {
+        #if os(macOS)
+        "macOS"
+        #elseif os(Linux)
+        "Linux"
+        #else
+        "unknown"
+        #endif
     }
 }
 
@@ -85,10 +140,20 @@ public struct ProviderDiagnosticAuthSummary: Codable, Sendable {
 
 public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
     public let updatedAt: Date
+    public let dataConfidence: String
     public let windows: [ProviderDiagnosticRateWindow]
     public let extraWindowCount: Int
     public let providerCostPresent: Bool
     public let providerSpecificData: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case updatedAt
+        case dataConfidence
+        case windows
+        case extraWindowCount
+        case providerCostPresent
+        case providerSpecificData
+    }
 
     public init(from snapshot: UsageSnapshot) {
         var windows: [ProviderDiagnosticRateWindow] = []
@@ -122,10 +187,22 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         if snapshot.cursorRequests != nil { providerSpecificData.append("cursorRequests") }
 
         self.updatedAt = snapshot.updatedAt
+        self.dataConfidence = snapshot.dataConfidence.rawValue
         self.windows = windows
         self.extraWindowCount = snapshot.extraRateWindows?.count ?? 0
         self.providerCostPresent = snapshot.providerCost != nil
         self.providerSpecificData = providerSpecificData.sorted()
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        self.dataConfidence = try container.decodeIfPresent(String.self, forKey: .dataConfidence)
+            ?? UsageDataConfidence.unknown.rawValue
+        self.windows = try container.decode([ProviderDiagnosticRateWindow].self, forKey: .windows)
+        self.extraWindowCount = try container.decode(Int.self, forKey: .extraWindowCount)
+        self.providerCostPresent = try container.decode(Bool.self, forKey: .providerCostPresent)
+        self.providerSpecificData = try container.decode([String].self, forKey: .providerSpecificData)
     }
 }
 
@@ -369,16 +446,49 @@ public struct MiniMaxDiagnosticDetails: Codable, Sendable {
 public struct MiniMaxDiagnosticServiceUsage: Codable, Sendable {
     public let displayName: String
     public let percent: Double
+    public let usage: Int
+    public let limit: Int
+    public let remaining: Int?
+    public let isUnlimited: Bool
     public let windowType: String
     public let resetsAt: Date?
     public let hasResetDescription: Bool
 
+    private enum CodingKeys: String, CodingKey {
+        case displayName
+        case percent
+        case usage
+        case limit
+        case remaining
+        case isUnlimited
+        case windowType
+        case resetsAt
+        case hasResetDescription
+    }
+
     public init(from service: MiniMaxServiceUsage) {
         self.displayName = service.displayName
         self.percent = service.percent
+        self.usage = service.usage
+        self.limit = service.limit
+        self.remaining = service.isUnlimited ? nil : max(0, service.limit - service.usage)
+        self.isUnlimited = service.isUnlimited
         self.windowType = service.windowType
         self.resetsAt = service.resetsAt
         self.hasResetDescription = !service.resetDescription.isEmpty
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.displayName = try container.decode(String.self, forKey: .displayName)
+        self.percent = try container.decode(Double.self, forKey: .percent)
+        self.usage = try container.decodeIfPresent(Int.self, forKey: .usage) ?? 0
+        self.limit = try container.decodeIfPresent(Int.self, forKey: .limit) ?? 0
+        self.remaining = try container.decodeIfPresent(Int.self, forKey: .remaining)
+        self.isUnlimited = try container.decodeIfPresent(Bool.self, forKey: .isUnlimited) ?? false
+        self.windowType = try container.decode(String.self, forKey: .windowType)
+        self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
+        self.hasResetDescription = try container.decode(Bool.self, forKey: .hasResetDescription)
     }
 }
 
@@ -390,6 +500,7 @@ public enum ProviderDiagnosticExportBuilder {
         public let sourceMode: ProviderSourceMode
         public let settings: ProviderSettingsSnapshot?
         public let auth: ProviderDiagnosticAuthSummary
+        public let appVersion: String?
 
         public init(
             provider: UsageProvider,
@@ -397,7 +508,8 @@ public enum ProviderDiagnosticExportBuilder {
             outcome: ProviderFetchOutcome,
             sourceMode: ProviderSourceMode,
             settings: ProviderSettingsSnapshot?,
-            auth: ProviderDiagnosticAuthSummary)
+            auth: ProviderDiagnosticAuthSummary,
+            appVersion: String? = nil)
         {
             self.provider = provider
             self.descriptor = descriptor
@@ -405,6 +517,7 @@ public enum ProviderDiagnosticExportBuilder {
             self.sourceMode = sourceMode
             self.settings = settings
             self.auth = auth
+            self.appVersion = appVersion
         }
     }
 
@@ -419,6 +532,7 @@ public enum ProviderDiagnosticExportBuilder {
 
         return ProviderDiagnosticExport(
             timestamp: Date(),
+            appVersion: input.appVersion,
             provider: input.provider.rawValue,
             displayName: input.descriptor.metadata.displayName,
             source: input.outcome.sourceLabel,

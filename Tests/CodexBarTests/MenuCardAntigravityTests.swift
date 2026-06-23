@@ -5,6 +5,47 @@ import Testing
 
 struct MenuCardAntigravityTests {
     @Test
+    func `antigravity identity only snapshot shows limits unavailable`() throws {
+        let now = Date(timeIntervalSince1970: 1_742_771_200)
+        let metadata = try #require(ProviderDefaults.metadata[.antigravity])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .antigravity,
+                accountEmail: "user@example.com",
+                accountOrganization: nil,
+                loginMethod: "Paid"))
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .antigravity,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.isEmpty)
+        #expect(model.placeholder == "Limits not available")
+        #expect(model.subtitleStyle == .info)
+        #expect(model.email == "user@example.com")
+        #expect(model.planText == "Paid")
+    }
+
+    @Test
     func `antigravity metrics omit missing groups`() throws {
         let now = Date()
         let identity = ProviderIdentitySnapshot(
@@ -45,7 +86,7 @@ struct MenuCardAntigravityTests {
             now: now))
 
         #expect(model.metrics.count == 1)
-        #expect(model.metrics.map(\.title) == ["Gemini"])
+        #expect(model.metrics.map(\.title) == ["Gemini Models"])
         #expect(model.metrics[0].percent == 95)
         #expect(model.metrics[0].percentLabel == "95% left")
     }
@@ -100,7 +141,7 @@ struct MenuCardAntigravityTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.metrics.map(\.title) == ["Gemini", "Claude + GPT"])
+        #expect(model.metrics.map(\.title) == ["Gemini Models", "Claude and GPT"])
         #expect(!model.metrics.contains { $0.title == "Gemini 3.1 Pro (Low)" })
     }
 
@@ -162,8 +203,8 @@ struct MenuCardAntigravityTests {
             now: now))
 
         #expect(model.metrics.map(\.title) == [
-            "Gemini",
-            "Claude + GPT",
+            "Gemini Models",
+            "Claude and GPT",
         ])
         #expect(model.metrics.map(\.percentLabel) == [
             "50% left",
@@ -219,7 +260,7 @@ struct MenuCardAntigravityTests {
 
         // Distinct extra windows remain visible even with optional extras disabled.
         #expect(model.metrics.contains { $0.title == "Experimental Tool" })
-        #expect(model.metrics.contains { $0.title == "Gemini" })
+        #expect(model.metrics.contains { $0.title == "Gemini Models" })
     }
 
     @Test
@@ -240,7 +281,7 @@ struct MenuCardAntigravityTests {
             extraRateWindows: [
                 NamedRateWindow(
                     id: "antigravity-quota-summary-gemini-5h",
-                    title: "Gemini Session",
+                    title: "Gemini Models Five Hour Limit",
                     window: RateWindow(
                         usedPercent: 9,
                         windowMinutes: 300,
@@ -249,7 +290,7 @@ struct MenuCardAntigravityTests {
                             + "4 hours.")),
                 NamedRateWindow(
                     id: "antigravity-quota-summary-gemini-weekly",
-                    title: "Gemini Weekly",
+                    title: "Gemini Models Weekly Limit",
                     window: RateWindow(
                         usedPercent: 18,
                         windowMinutes: 10080,
@@ -257,7 +298,7 @@ struct MenuCardAntigravityTests {
                         resetDescription: "You have used some of your weekly limit, it will fully refresh in 5 days.")),
                 NamedRateWindow(
                     id: "antigravity-quota-summary-3p-5h",
-                    title: "Claude + GPT Session",
+                    title: "Claude and GPT models Five Hour Limit",
                     window: RateWindow(
                         usedPercent: 27,
                         windowMinutes: 300,
@@ -266,7 +307,7 @@ struct MenuCardAntigravityTests {
                             + "3 hours.")),
                 NamedRateWindow(
                     id: "antigravity-quota-summary-3p-weekly",
-                    title: "Claude + GPT Weekly",
+                    title: "Claude and GPT models Weekly Limit",
                     window: RateWindow(
                         usedPercent: 36,
                         windowMinutes: 10080,
@@ -308,10 +349,10 @@ struct MenuCardAntigravityTests {
             "antigravity-quota-summary-3p-weekly",
         ])
         #expect(model.metrics.map(\.title) == [
-            "Gemini Session",
-            "Gemini Weekly",
-            "Claude + GPT Session",
-            "Claude + GPT Weekly",
+            "Gemini Models Five Hour Limit",
+            "Gemini Models Weekly Limit",
+            "Claude and GPT models Five Hour Limit",
+            "Claude and GPT models Weekly Limit",
         ])
         #expect(model.metrics.map(\.percentLabel) == [
             "91% left",
@@ -363,7 +404,7 @@ struct MenuCardAntigravityTests {
             now: now))
 
         #expect(model.metrics.count == 1)
-        #expect(model.metrics[0].title == "Gemini")
+        #expect(model.metrics[0].title == "Gemini Models")
         #expect(model.metrics[0].percent == 5)
         #expect(model.metrics[0].percentLabel == "5% used")
     }

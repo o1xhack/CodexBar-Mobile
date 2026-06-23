@@ -9,6 +9,29 @@ extension UsageStore {
         let shouldConsumeClaudeKeychainFingerprint: Bool
     }
 
+    static func commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
+        current: UsageSnapshot,
+        previous: UsageSnapshot?) -> UsageSnapshot
+    {
+        let previousProvesPaidDepletion = previous?.commandCodeHasSubscriptionPlan == true ||
+            (previous?.commandCodeSubscriptionEnrichmentUnavailable == true &&
+                previous?.commandCodeMonthlyGrantDepleted == true &&
+                previous?.primary?.usedPercent == 100)
+        guard current.commandCodeSubscriptionEnrichmentUnavailable,
+              current.commandCodeMonthlyGrantDepleted,
+              previousProvesPaidDepletion,
+              let previousPrimary = previous?.primary
+        else {
+            return current
+        }
+        let depleted = RateWindow(
+            usedPercent: 100,
+            windowMinutes: previousPrimary.windowMinutes,
+            resetsAt: previousPrimary.resetsAt,
+            resetDescription: previousPrimary.resetDescription)
+        return current.with(primary: depleted, secondary: current.secondary)
+    }
+
     func refreshForSettingsChange() async {
         await self.runRefresh(
             startupConnectivityRetryAttempt: nil,
@@ -218,7 +241,10 @@ extension UsageStore {
                 let resetBackfillSource = provider == .codex
                     ? self.codexLastKnownResetSnapshot(matching: context.codexExpectedGuard)
                     : self.lastKnownResetSnapshots[provider]
-                let backfilled = scoped.backfillingResetTimes(from: resetBackfillSource)
+                let stabilized = Self.commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
+                    current: scoped,
+                    previous: self.snapshots[provider])
+                let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
                 self.lastKnownResetSnapshots[provider] = backfilled
@@ -420,7 +446,10 @@ extension UsageStore {
             let hadPriorData = self.snapshots[provider] != nil
             let preservesPriorData = Self.shouldPreservePriorSnapshot(
                 after: error,
-                hadPriorData: hadPriorData)
+                hadPriorData: hadPriorData) ||
+                (provider == .claude &&
+                    hadPriorData &&
+                    Self.isClaudeCLIRateLimitFailure(error))
             let shouldSurface =
                 self.failureGates[provider]?
                     .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
@@ -436,7 +465,7 @@ extension UsageStore {
             }
             if provider == .claude,
                preservesPriorData,
-               Self.isClaudeUsageProbeTimeout(error)
+               Self.isClaudeUsageProbeTimeout(error) || Self.isClaudeCLIRateLimitFailure(error)
             {
                 self.errors[provider] = nil
                 return
@@ -532,6 +561,10 @@ extension UsageStore {
     private static func isClaudeUsageProbeTimeout(_ error: Error) -> Bool {
         if case ClaudeStatusProbeError.timedOut = error { return true }
         return error.localizedDescription == ClaudeStatusProbeError.timedOut.localizedDescription
+    }
+
+    private static func isClaudeCLIRateLimitFailure(_ error: Error) -> Bool {
+        ClaudeUsageFetcher.isCLIRateLimitError(error)
     }
 
     private static func isClaudeWebSessionRefreshFailure(_ error: Error) -> Bool {

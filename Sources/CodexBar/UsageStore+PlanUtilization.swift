@@ -16,7 +16,16 @@ extension UsageStore {
         case .codex, .claude:
             true
         default:
-            false
+            if self.planUtilizationHistory[provider]?.isEmpty == false {
+                true
+            } else if self.settings.historicalTrackingEnabled, let snapshot = self.snapshots[provider] {
+                !self.planUtilizationSeriesSamples(
+                    provider: provider,
+                    snapshot: snapshot,
+                    capturedAt: snapshot.updatedAt).isEmpty
+            } else {
+                false
+            }
         }
     }
 
@@ -129,7 +138,7 @@ extension UsageStore {
                 samples: samples)
         }
 
-        guard self.supportsPlanUtilizationHistory(for: provider) else { return }
+        guard self.shouldRecordPlanUtilizationHistory(for: provider) else { return }
         guard !self.shouldDeferClaudePlanUtilizationHistory(provider: provider) else { return }
 
         var snapshotToPersist: [UsageProvider: PlanUtilizationHistoryBuckets]?
@@ -160,6 +169,15 @@ extension UsageStore {
 
         guard let snapshotToPersist else { return }
         await self.planUtilizationPersistenceCoordinator.enqueue(snapshotToPersist)
+    }
+
+    private func shouldRecordPlanUtilizationHistory(for provider: UsageProvider) -> Bool {
+        switch provider {
+        case .codex, .claude:
+            true
+        default:
+            self.settings.historicalTrackingEnabled
+        }
     }
 
     private nonisolated static func updatedPlanUtilizationHistories(
@@ -399,9 +417,15 @@ extension UsageStore {
                 }
             }
         default:
-            for window in [snapshot.primary, snapshot.secondary, snapshot.tertiary] {
-                guard let window, window.windowMinutes == Self.weeklyWindowMinutes else { continue }
-                appendWindow(window, name: .weekly)
+            let standardWeeklyWindow = [snapshot.primary, snapshot.secondary, snapshot.tertiary]
+                .compactMap(\.self)
+                .first { $0.windowMinutes == Self.weeklyWindowMinutes }
+            let extraWeeklyWindow = snapshot.extraRateWindows?
+                .lazy
+                .first { $0.usageKnown && $0.window.windowMinutes == Self.weeklyWindowMinutes }?
+                .window
+            if let weeklyWindow = standardWeeklyWindow ?? extraWeeklyWindow {
+                appendWindow(weeklyWindow, name: .weekly)
             }
         }
 

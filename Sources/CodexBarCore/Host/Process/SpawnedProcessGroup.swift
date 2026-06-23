@@ -1,7 +1,9 @@
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 import Foundation
 
@@ -250,8 +252,14 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
         for descriptor in Self.pipeDescriptorsToClose([stdoutRead, stdoutWrite, stderrRead, stderrWrite]) {
             fileActionResults.append(posix_spawn_file_actions_addclose(&fileActions, descriptor))
         }
-        #if !canImport(Darwin)
-        fileActionResults.append(posix_spawn_file_actions_addclosefrom_np(&fileActions, STDERR_FILENO + 1))
+        #if canImport(Glibc) || canImport(Musl)
+        do {
+            try PosixSpawnFileActionsCloseFrom.addCloseFrom(
+                &fileActions,
+                startingAt: STDERR_FILENO + 1)
+        } catch {
+            throw LaunchError.setupFailed(error.localizedDescription)
+        }
         #endif
         guard fileActionResults.allSatisfy({ $0 == 0 }) else {
             throw LaunchError.setupFailed("posix_spawn file actions")

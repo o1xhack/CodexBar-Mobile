@@ -16080,6 +16080,470 @@
           }
         }
       }
+    },
+    "Limit Reset Credits": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limit Reset Credits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "限制重置额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "限制重置額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "制限リセットクレジット"
+          }
+        }
+      }
+    },
+    "1 manual reset available": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 manual reset available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用 1 次手动重置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用 1 次手動重置"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動リセット 1 回利用可能"
+          }
+        }
+      }
+    },
+    "%d manual resets available": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d manual resets available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用 %d 次手动重置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用 %d 次手動重置"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動リセット %d 回利用可能"
+          }
+        }
+      }
+    },
+    "Next expires %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next expires %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近一次将在 %@ 过期"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近一次將在 %@ 過期"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の有効期限は %@"
+          }
+        }
+      }
+    },
+    "Estimated usage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估算用量"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估算用量"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定使用量"
+          }
+        }
+      }
+    },
+    "Percentage-only usage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Percentage-only usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅百分比用量"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅百分比用量"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "割合のみの使用量"
+          }
+        }
+      }
+    },
+    "Usage confidence": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage confidence"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量可信度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量可信度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用量の信頼度"
+          }
+        }
+      }
+    },
+    "Mac could not read exact usage, so this view may use an estimate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac could not read exact usage, so this view may use an estimate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 无法读取精确用量，因此这里可能显示估算值。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 無法讀取精確用量，因此這裡可能顯示估算值。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac が正確な使用量を読み取れなかったため、この表示は推定値の可能性があります。"
+          }
+        }
+      }
+    },
+    "Mac only received percentage data for this provider.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac only received percentage data for this provider."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 只收到了此提供商的百分比数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 只收到了此提供商的百分比資料。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプロバイダでは、Mac は割合データのみを受信しました。"
+          }
+        }
+      }
+    },
+    "Mac reported limited confidence for this provider's usage data.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac reported limited confidence for this provider's usage data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 报告此提供商的用量数据可信度有限。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 回報此提供商的用量資料可信度有限。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプロバイダの使用量データについて、Mac は信頼度が限定的だと報告しました。"
+          }
+        }
+      }
+    },
+    "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.15 带来 CodexBar 0.37 同步：Codex 重置额度、更清晰的估算用量提示、更安全的提供商端点、改进的诊断，以及最新 Mac 提供商修复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.15 帶來 CodexBar 0.37 同步：Codex 重置額度、更清晰的估算用量提示、更安全的提供商端點、改進的診斷，以及最新 Mac 提供商修復。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.15 は CodexBar 0.37 同期に対応し、Codex リセットクレジット、より明確な推定使用量表示、より安全なプロバイダエンドポイント、改善された診断、最新の Mac 側プロバイダ修正を追加します。"
+          }
+        }
+      }
+    },
+    "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex 重置额度 — 当 Mac 0.37.2.1 同步可用手动重置时，iPhone 会在 Codex 详情页显示数量和最近过期时间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex 重置額度 — 當 Mac 0.37.2.1 同步可用手動重置時，iPhone 會在 Codex 詳情頁顯示數量和最近過期時間。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex リセットクレジット — Mac 0.37.2.1 が利用可能な手動リセットを同期すると、iPhone の Codex 詳細ページに数と次の有効期限が表示されます。"
+          }
+        }
+      }
+    },
+    "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量可信度 — 如果 Mac 只有估算或仅百分比用量，iPhone 现在会明确提示，而不是把数据当作精确值展示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量可信度 — 如果 Mac 只有估算或僅百分比用量，iPhone 現在會明確提示，而不是把資料當作精確值展示。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用量の信頼度 — Mac が推定値または割合のみの使用量しか持たない場合、iPhone はそれを正確な値として扱わず明示します。"
+          }
+        }
+      }
+    },
+    "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含提供商更新 — Cursor 个人按需用量、Mistral Vibe 月度限制、Bedrock CloudWatch 活动、MiniMax 模型名称和 CommandCode 配额转换都会受益于最新 Mac 同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含提供商更新 — Cursor 個人隨選用量、Mistral Vibe 月度限制、Bedrock CloudWatch 活動、MiniMax 模型名稱和 CommandCode 配額轉換都會受益於最新 Mac 同步。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダ更新を反映 — Cursor 個人オンデマンド使用量、Mistral Vibe 月間制限、Bedrock CloudWatch アクティビティ、MiniMax モデル名、CommandCode クォータ遷移が最新の Mac 同期で改善されます。"
+          }
+        }
+      }
+    },
+    "Diagnostics and security — Mac 0.37 adds stronger provider endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics and security — Mac 0.37 adds stronger provider endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断与安全 — Mac 0.37 加入更强的提供商端点校验、更安全的 Codex OAuth 凭证权限、改进的 CLI 诊断，以及更可靠的 Claude/Codex 网页读取。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診斷與安全 — Mac 0.37 加入更強的提供商端點驗證、更安全的 Codex OAuth 憑證權限、改進的 CLI 診斷，以及更可靠的 Claude/Codex 網頁讀取。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診断とセキュリティ — Mac 0.37 ではプロバイダエンドポイント検証、Codex OAuth 認証情報の権限、CLI 診断、Claude/Codex Web 読み取りの信頼性が改善されています。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.37.2.1 (fork build 92.1 or later) for the full 1.15 experience. iPhone 1.15.0 still opens older Mac data; new Codex reset-credit and confidence details appear after Mac updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.37.2.1 (fork build 92.1 or later) for the full 1.15 experience. iPhone 1.15.0 still opens older Mac data; new Codex reset-credit and confidence details appear after Mac updates."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac CodexBar 更新到 0.37.2.1（fork build 92.1 或更高）即可获得完整 1.15 体验。iPhone 1.15.0 仍可打开旧 Mac 数据；新的 Codex 重置额度和可信度详情会在 Mac 更新后出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac CodexBar 更新到 0.37.2.1（fork build 92.1 或更高）即可獲得完整 1.15 體驗。iPhone 1.15.0 仍可開啟舊 Mac 資料；新的 Codex 重置額度和可信度詳情會在 Mac 更新後出現。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完全な 1.15 体験には Mac CodexBar を 0.37.2.1（fork build 92.1 以降）へ更新してください。iPhone 1.15.0 は古い Mac データも開けますが、新しい Codex リセットクレジットと信頼度の詳細は Mac 更新後に表示されます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

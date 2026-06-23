@@ -2,6 +2,32 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.15.0 (164)] — 2026-06-23 — v0.37.2 upstream sync
+
+### Added
+
+- **Codex reset credits** — The Codex detail page now shows synced manual
+  rate-limit reset credits from Mac 0.37.2.1, including available count and the
+  next expiration time.
+- **Usage confidence** — Codex detail pages now call out estimated or
+  percentage-only Mac readings instead of presenting them as exact data.
+
+### Changed
+
+- **Mac upstream sync readiness** — iOS 1.15 consumes the new v0.37 optional
+  shared payload fields while remaining compatible with older Mac builds that
+  omit them.
+- **Release notes** — In-app release notes now target 1.15.0 because 1.14.0 is
+  already the review line.
+
+### Notes
+
+- Required Mac for full 1.15 feature coverage: CodexBar 0.37.2.1 / fork build
+  92.1 or later.
+- iOS `CURRENT_PROJECT_VERSION`: 163 → 164.
+
+---
+
 ## [1.14.0 (163)] — 2026-06-22 — sync device management review fixes
 
 ### Fixed

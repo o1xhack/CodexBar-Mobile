@@ -497,6 +497,8 @@
 "show_most_used_provider_subtitle" = "Menu bar auto-shows the provider closest to its rate limit.";
 "menu_bar_shows_percent_title" = "Menu bar shows percent";
 "menu_bar_shows_percent_subtitle" = "Replace critter bars with provider branding icons and a percentage.";
+"hide_critters_title" = "Hide critters";
+"hide_critters_subtitle" = "Show plain meter bars without the face and decorations.";
 "display_mode_title" = "Display mode";
 "display_mode_subtitle" = "Choose what to show in the menu bar (Pace shows usage vs. expected).";
 "section_menu_content" = "Menu content";
@@ -625,6 +627,8 @@
 "metric_pref_tertiary" = "Tertiary";
 "metric_pref_extra_usage" = "Extra usage";
 "metric_pref_average" = "Average";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "Percent";
@@ -729,6 +733,7 @@
 "Resets %@" = "Resets %@";
 "Resets in %@" = "Resets in %@";
 "Resets now" = "Resets now";
+"reset_tomorrow_format" = "tomorrow, %@";
 "Lasts until reset" = "Lasts until reset";
 "Updated %@" = "Updated %@";
 "Updated %@h ago" = "Updated %@h ago";
@@ -827,6 +832,7 @@
 "API spend" = "API spend";
 "Extra usage" = "Extra usage";
 "Quota usage" = "Quota usage";
+"Your spend" = "Your spend";
 "%.0f%% used" = "%.0f%% used";
 "Usage history (today)" = "Usage history (today)";
 "Usage history (%d days)" = "Usage history (%d days)";
@@ -896,6 +902,9 @@
 "Clearing removes local temporary provider data." = "Clearing removes local temporary provider data.";
 "Total: %@" = "Total: %@";
 "%d more items" = "%d more items";
+"Other (%d items)" = "Other (%d items)";
+"Expand" = "Expand";
+"Collapse" = "Collapse";
 "Cleanup ideas" = "Cleanup ideas";
 "%d unreadable item(s) skipped" = "%d unreadable item(s) skipped";
 
@@ -991,6 +1000,9 @@
 "Day" = "Day";
 "Deployment" = "Deployment";
 "Drag to reorder" = "Drag to reorder";
+"Sort providers alphabetically" = "Sort providers alphabetically";
+"Sort providers alphabetically (enabled first)" = "Sort providers alphabetically (enabled first)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Sorted alphabetically (enabled first) — click to use your custom order";
 "Endpoint" = "Endpoint";
 "Enterprise host" = "Enterprise host";
 "Extra usage balance: %@" = "Extra usage balance: %@";
@@ -1113,3 +1125,15 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "Limit Reset Credits";
+"1 manual reset available" = "1 manual reset available";
+"%d manual resets available" = "%d manual resets available";
+"Next expires %@" = "Next expires %@";
+"byte_unit_byte" = "byte";
+"byte_unit_bytes" = "bytes";
+"byte_unit_kilobyte" = "kilobyte";
+"byte_unit_kilobytes" = "kilobytes";
+"byte_unit_megabyte" = "megabyte";
+"byte_unit_megabytes" = "megabytes";
+"byte_unit_gigabyte" = "gigabyte";
+"byte_unit_gigabytes" = "gigabytes";

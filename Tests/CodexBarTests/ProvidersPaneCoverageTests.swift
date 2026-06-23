@@ -53,6 +53,22 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
+    func `provider reordering is inert while alphabetical sorting is enabled`() {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-sorted-reorder")
+        let store = Self.makeUsageStore(settings: settings)
+        let pane = ProvidersPane(settings: settings, store: store)
+        let original = settings.orderedProviders()
+
+        settings.providersSortedAlphabetically = true
+        pane._test_moveProviders(fromOffsets: IndexSet(integer: 0), toOffset: original.count)
+        #expect(settings.orderedProviders() == original)
+
+        settings.providersSortedAlphabetically = false
+        pane._test_moveProviders(fromOffsets: IndexSet(integer: 0), toOffset: original.count)
+        #expect(settings.orderedProviders().last == original.first)
+    }
+
+    @Test
     func `selected provider sidebar palette uses contrasting selected text colors`() {
         let palette = ProviderSidebarRowPalette(isSelected: true)
 
@@ -149,7 +165,7 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
-    func `mistral menu bar metric picker shows spend only copy`() {
+    func `mistral menu bar metric picker shows payg and monthly plan options`() {
         Self.withEnglishLocalization {
             let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-mistral-picker")
             let store = Self.makeUsageStore(settings: settings)
@@ -158,7 +174,10 @@ struct ProvidersPaneCoverageTests {
             let picker = pane._test_menuBarMetricPicker(for: .mistral)
             #expect(picker?.options.map(\.id) == [
                 MenuBarMetricPreference.automatic.rawValue,
+                MenuBarMetricPreference.monthlyPlan.rawValue,
             ])
+            #expect(picker?.options.first?.title == "Pay-as-you-go")
+            #expect(picker?.options.last?.title == "Monthly Plan")
             #expect(picker?.subtitle == "Shows current-month Mistral API spend in the menu bar.")
         }
     }

@@ -1,8 +1,10 @@
 import Foundation
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 
 private let requestReadTimeoutMilliseconds: Int32 = 5000
@@ -218,8 +220,10 @@ final class CLILocalHTTPServer: @unchecked Sendable {
 
         #if canImport(Darwin)
         let streamType = SOCK_STREAM
-        #else
+        #elseif canImport(Glibc)
         let streamType = Int32(SOCK_STREAM.rawValue)
+        #elseif canImport(Musl)
+        let streamType = Int32(SOCK_STREAM)
         #endif
 
         let serverFD = socket(AF_INET, streamType, 0)
@@ -411,15 +415,19 @@ private func sendNoSignalFlags() -> Int32 {
 private func ignoreSIGPIPE() {
     #if canImport(Darwin)
     _ = Darwin.signal(SIGPIPE, SIG_IGN)
-    #else
+    #elseif canImport(Glibc)
     _ = Glibc.signal(SIGPIPE, SIG_IGN)
+    #elseif canImport(Musl)
+    _ = Musl.signal(SIGPIPE, SIG_IGN)
     #endif
 }
 
 private func closeSocket(_ fd: Int32) {
     #if canImport(Darwin)
     Darwin.close(fd)
-    #else
+    #elseif canImport(Glibc)
     Glibc.close(fd)
+    #elseif canImport(Musl)
+    Musl.close(fd)
     #endif
 }
