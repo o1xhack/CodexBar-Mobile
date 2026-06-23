@@ -58,15 +58,13 @@ jobs:
         run: ./Scripts/lint.sh lint
 
       - name: Swift Test
-        # Per-suite shards via ci_swift_test_by_suite.py — a single hung test
-        # fails its shard (120s wall-clock per suite) rather than the whole
-        # 25-minute Swift Test step. Adopted from upstream main after the
-        # post-0.25.1 commits (4dcabe1e, 086b3986, b0c18a1c) demonstrated
-        # the parallel/skip-list approach was insufficient for the grown
-        # suite size on macos-15-intel.
+        # Run suite groups through ci_swift_test_by_suite.py. Keeping the
+        # default group size avoids hundreds of separate `swift test` launches
+        # on macos-15-intel, while the script still retries a timed-out group
+        # one suite at a time to identify a hung suite.
         timeout-minutes: 60
         run: |
-          CODEXBAR_TEST_GROUP_SIZE=1 CODEXBAR_TEST_SUITE_TIMEOUT=120 ./Scripts/test.sh
+          ./Scripts/test.sh
 
   build-linux-cli:
     timeout-minutes: 20
