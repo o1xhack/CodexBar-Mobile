@@ -59,11 +59,13 @@ jobs:
 
       - name: Swift Test
         # Run suite groups through ci_swift_test_by_suite.py. Keeping the
-        # default group size avoids hundreds of separate `swift test` launches
-        # on macos-15-intel, while the script still retries a timed-out group
-        # one suite at a time to identify a hung suite.
+        # groups coarse keeps PR CI bounded on macos-15-intel, while the script
+        # still retries a timed-out group one suite at a time to identify a
+        # hung suite.
         timeout-minutes: 60
         run: |
+          export CODEXBAR_TEST_GROUP_SIZE=64
+          export CODEXBAR_TEST_SUITE_TIMEOUT=300
           ./Scripts/test.sh
 
   build-linux-cli:
