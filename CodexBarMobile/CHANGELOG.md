@@ -2,6 +2,23 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.14.0 (160)] — 2026-06-22 — sync device management review fixes
+
+### Fixed
+
+- **Sync Device Management** — Unmerge now fully separates multi-step merged
+  Mac identity groups instead of leaving older pairwise alias edges active.
+- **Sync Device Management** — Archiving or restoring a merged Mac device now
+  applies to every alias identity in that physical device group, so a later
+  sync from another alias cannot make an archived device active again.
+
+### Notes
+
+- iOS-only PR review fix; `MARKETING_VERSION` remains `1.14.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 159 → 160.
+
+---
+
 ## [1.14.0 (159)] — 2026-06-22 — provider detail chart QA fix
 
 ### Fixed

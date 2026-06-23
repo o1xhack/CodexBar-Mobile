@@ -818,9 +818,9 @@ final class CloudSyncReader: @unchecked Sendable {
             uf.add(Self.deviceKey(for: snapshot))
         }
 
-        let suppressedAliasKeys = Self.suppressedAliasKeys(from: lifecycleEvents)
+        let suppressedAliasSets = Self.suppressedAliasDeviceSets(from: lifecycleEvents)
         for event in lifecycleEvents where event.kind == .alias {
-            guard !Self.isAliasEvent(event, suppressedBy: suppressedAliasKeys) else {
+            guard !Self.isAliasEvent(event, suppressedBy: suppressedAliasSets) else {
                 continue
             }
             let deviceIDs = Self.normalizedDeviceIDs(for: event)
@@ -909,19 +909,22 @@ final class CloudSyncReader: @unchecked Sendable {
             notificationPushEnabled: merged.notificationPushEnabled)
     }
 
-    private static func suppressedAliasKeys(
+    private static func suppressedAliasDeviceSets(
         from events: [DeviceLifecycleEvent]
-    ) -> Set<String> {
-        Set(events
+    ) -> [Set<String>] {
+        events
             .filter { $0.kind == .unalias }
-            .map(Self.aliasKey(for:)))
+            .map { Set(Self.normalizedDeviceIDs(for: $0)) }
+            .filter { $0.count >= 2 }
     }
 
     private static func isAliasEvent(
         _ event: DeviceLifecycleEvent,
-        suppressedBy keys: Set<String>
+        suppressedBy sets: [Set<String>]
     ) -> Bool {
-        keys.contains(Self.aliasKey(for: event))
+        let deviceIDs = Set(Self.normalizedDeviceIDs(for: event))
+        guard deviceIDs.count >= 2 else { return false }
+        return sets.contains { deviceIDs.isSubset(of: $0) }
     }
 
     private static func normalizedDeviceIDs(
@@ -929,12 +932,6 @@ final class CloudSyncReader: @unchecked Sendable {
     ) -> [String] {
         ([event.primaryDeviceID] + event.relatedDeviceIDs)
             .filter { !$0.isEmpty }
-    }
-
-    static func aliasKey(for event: DeviceLifecycleEvent) -> String {
-        Self.normalizedDeviceIDs(for: event)
-            .sorted()
-            .joined(separator: "|")
     }
 
     private static func latestArchiveState(
@@ -964,6 +961,11 @@ final class CloudSyncReader: @unchecked Sendable {
         canonicalDeviceID: String,
         archiveState: [String: Bool]
     ) -> Bool {
+        if sourceDeviceIDs.count > 1,
+           sourceDeviceIDs.contains(where: { archiveState[$0] == true })
+        {
+            return true
+        }
         if let canonicalArchived = archiveState[canonicalDeviceID] {
             return canonicalArchived
         }

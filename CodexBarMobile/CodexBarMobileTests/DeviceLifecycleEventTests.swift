@@ -96,6 +96,36 @@ struct DeviceLifecycleEventTests {
         #expect(resolved.items.allSatisfy { !$0.isMergedAlias })
     }
 
+    @Test("Unalias of a merged group suppresses constituent alias edges")
+    func unaliasSuppressesConstituentAliasEdges() {
+        let macA = Self.makeMac(deviceID: "a", deviceName: "Pixel's Mac", cost: 1, timestamp: 100)
+        let macB = Self.makeMac(deviceID: "b", deviceName: "Pixel's Mac", cost: 2, timestamp: 200)
+        let macC = Self.makeMac(deviceID: "c", deviceName: "Pixel's Mac", cost: 3, timestamp: 300)
+        let aliasAB = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: "b",
+            relatedDeviceIDs: ["a"],
+            confirmedFromDeviceID: "iphone-a")
+        let aliasBC = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: "c",
+            relatedDeviceIDs: ["b"],
+            confirmedFromDeviceID: "iphone-a")
+        let unaliasABC = DeviceLifecycleEvent(
+            kind: .unalias,
+            primaryDeviceID: "a",
+            relatedDeviceIDs: ["b", "c"],
+            confirmedFromDeviceID: "iphone-a")
+
+        let resolved = CloudSyncReader.resolveDeviceSnapshots(
+            [macA, macB, macC],
+            lifecycleEvents: [aliasAB, aliasBC, unaliasABC])
+
+        #expect(resolved.activeSnapshots.count == 3)
+        #expect(resolved.items.allSatisfy { !$0.isMergedAlias })
+        #expect(resolved.activeSnapshots.compactMap(\.deviceID).sorted() == ["a", "b", "c"])
+    }
+
     @Test("Archive excludes a retired Mac from active devices")
     func archiveExcludesRetiredDevice() {
         let oldMac = Self.makeMac(deviceID: "old", deviceName: "Old Mac", cost: 1, timestamp: 100)
@@ -112,6 +142,31 @@ struct DeviceLifecycleEventTests {
         #expect(resolved.activeSnapshots.compactMap(\.deviceID).sorted() == ["new"])
         #expect(resolved.archivedSnapshots.compactMap(\.deviceID) == ["old"])
         #expect(resolved.items.first(where: { $0.canonicalDeviceID == "old" })?.isArchived == true)
+    }
+
+    @Test("Archived merged alias stays archived when canonical device changes")
+    func archivedMergedAliasSurvivesCanonicalShift() {
+        let oldCanonical = Self.makeMac(deviceID: "old", deviceName: "Pixel's Mac", cost: 1, timestamp: 100)
+        let newerAlias = Self.makeMac(deviceID: "new", deviceName: "Pixel's Mac", cost: 2, timestamp: 300)
+        let alias = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: "old",
+            relatedDeviceIDs: ["new"],
+            confirmedFromDeviceID: "iphone-a")
+        let archiveOldCanonical = DeviceLifecycleEvent(
+            kind: .archive,
+            primaryDeviceID: "old",
+            confirmedFromDeviceID: "iphone-a")
+
+        let resolved = CloudSyncReader.resolveDeviceSnapshots(
+            [oldCanonical, newerAlias],
+            lifecycleEvents: [alias, archiveOldCanonical])
+
+        let item = resolved.items.first
+        #expect(resolved.activeSnapshots.isEmpty)
+        #expect(resolved.archivedSnapshots.count == 1)
+        #expect(item?.canonicalDeviceID == "new")
+        #expect(item?.isArchived == true)
     }
 
     @Test("Unarchive restores an archived Mac")
