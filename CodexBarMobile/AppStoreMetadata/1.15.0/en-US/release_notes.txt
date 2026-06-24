@@ -1,0 +1,9 @@
+1.15.0 pairs the iPhone app with Mac CodexBar 0.37.2.1.
+
+What's new
+• Codex reset credits — when your Mac syncs available manual reset credits, iPhone shows the count and next expiration on the Codex detail page.
+• Clearer usage confidence — estimated or percentage-only Mac data is now labeled instead of shown as exact.
+• Provider updates from Mac — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions are ready to display where available.
+• Diagnostics and security — Mac 0.37 adds stronger endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads.
+
+For the full 1.15 experience, update Mac CodexBar to 0.37.2.1 (fork build 92.1) or later. Older Mac data still opens; new details appear after Mac updates.

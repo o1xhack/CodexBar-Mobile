@@ -1,0 +1,9 @@
+1.15.0 配套 Mac CodexBar 0.37.2.1。
+
+新內容
+• Codex 重置額度 —— 當 Mac 同步可用的手動重置額度時，iPhone 會在 Codex 詳情頁顯示數量和下一次到期時間。
+• 用量可信度更清楚 —— 如果 Mac 只有估算值或百分比用量，iPhone 會明確標示，不再把它當作精確資料展示。
+• Mac provider 更新同步就緒 —— Cursor 個人按需用量、Mistral Vibe 月度額度、Bedrock CloudWatch 活動、MiniMax 模型名稱和 CommandCode 配額變化會在可用時展示。
+• 診斷與安全改進 —— Mac 0.37 增強 endpoint 驗證、Codex OAuth 憑證權限、CLI 診斷，以及 Claude/Codex web 讀取穩定性。
+
+要獲得完整 1.15 體驗，請將 Mac CodexBar 更新到 0.37.2.1（fork build 92.1）或更高版本。舊版 Mac 資料仍可開啟；新細節會在 Mac 更新後出現。

@@ -1,0 +1,9 @@
+1.15.0 は、iPhone アプリを Mac CodexBar 0.37.2.1 に対応させるアップデートです。
+
+新機能
+• Codex リセットクレジット — Mac が利用可能な手動リセットクレジットを同期すると、iPhone の Codex 詳細ページに残数と次の有効期限が表示されます。
+• 使用量の信頼度を明確に — Mac 側のデータが推定値またはパーセントのみの場合、正確な数値として扱わず、その状態を明示します。
+• Mac の provider 更新に対応 — Cursor personal のオンデマンド使用量、Mistral Vibe の月間上限、Bedrock CloudWatch アクティビティ、MiniMax のモデル名、CommandCode のクォータ遷移を、利用可能な場合に表示できるようになりました。
+• 診断とセキュリティ — Mac 0.37 では endpoint 検証、Codex OAuth 認証情報の権限、CLI 診断、Claude/Codex web 読み取りの信頼性が向上しています。
+
+1.15 のすべての改善を利用するには、Mac CodexBar を 0.37.2.1（fork build 92.1）以降に更新してください。古い Mac データも引き続き開けます。新しい詳細情報は Mac の更新後に表示されます。
