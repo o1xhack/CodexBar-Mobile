@@ -150,6 +150,8 @@ extension UsageStore {
                     .email)
         case .managedAccount:
             Self.normalizeCodexAccountScopedKey(self.currentManagedCodexRuntimeEmail())
+        case let .profileHome(path):
+            Self.normalizeCodexAccountScopedKey(self.currentProfileCodexRuntimeEmail(path: path))
         }
         return CodexAccountScopedRefreshGuard(
             source: source,
@@ -217,6 +219,8 @@ extension UsageStore {
             guard let currentAccountKey = currentGuard.accountKey else { return true }
             return resultAccountKey == currentAccountKey
         case .managedAccount:
+            return false
+        case .profileHome:
             return false
         }
     }
@@ -339,6 +343,8 @@ extension UsageStore {
                 self.settings.codexAccountReconciliationSnapshot.liveSystemAccount?.email)
         case .managedAccount:
             CodexIdentityResolver.normalizeEmail(self.currentManagedCodexRuntimeEmail())
+        case let .profileHome(path):
+            CodexIdentityResolver.normalizeEmail(self.currentProfileCodexRuntimeEmail(path: path))
         }
     }
 
@@ -461,6 +467,12 @@ extension UsageStore {
         case let .managedAccount(id):
             guard let account = snapshot.storedAccounts.first(where: { $0.id == id }) else { return nil }
             return CodexAuthFingerprint.fingerprint(homePath: account.managedHomePath)
+        case let .profileHome(path):
+            guard let profileAccount = snapshot.profileHomeAccount(path: path) else {
+                guard let normalizedPath = CodexHomeScope.normalizedHomePath(path) else { return nil }
+                return CodexAuthFingerprint.fingerprint(homePath: normalizedPath)
+            }
+            return CodexAuthFingerprint.normalize(profileAccount.authFingerprint)
         }
     }
 
@@ -507,6 +519,8 @@ extension UsageStore {
                 return nil
             }
             return self.currentManagedCodexRuntimeEmail()
+        case let .profileHome(path):
+            return self.currentProfileCodexRuntimeEmail(path: path)
         }
     }
 
@@ -544,6 +558,12 @@ extension UsageStore {
                 return .unresolved
             }
             return self.settings.codexAccountReconciliationSnapshot.runtimeIdentity(for: activeStoredAccount)
+        case let .profileHome(path):
+            guard let profileAccount = self.settings.codexAccountReconciliationSnapshot.profileHomeAccount(path: path)
+            else {
+                return .unresolved
+            }
+            return self.settings.codexAccountReconciliationSnapshot.runtimeIdentity(for: profileAccount)
         }
     }
 
@@ -562,6 +582,12 @@ extension UsageStore {
                 return .unresolved
             }
             return self.settings.codexAccountReconciliationSnapshot.runtimeIdentity(for: activeStoredAccount)
+        case let .profileHome(path):
+            guard let profileAccount = self.settings.codexAccountReconciliationSnapshot.profileHomeAccount(path: path)
+            else {
+                return .unresolved
+            }
+            return self.settings.codexAccountReconciliationSnapshot.runtimeIdentity(for: profileAccount)
         }
     }
 
@@ -576,14 +602,25 @@ extension UsageStore {
             self.settings.codexAccountReconciliationSnapshot.runtimeEmail(for: activeStoredAccount))
     }
 
+    func currentProfileCodexRuntimeEmail(path: String) -> String? {
+        guard let profileAccount = self.settings.codexAccountReconciliationSnapshot.profileHomeAccount(path: path)
+        else {
+            return nil
+        }
+        return Self.normalizeCodexAccountScopedEmail(profileAccount.email)
+    }
+
     private func clearCodexOpenAIWebStateForAccountTransition(targetEmail: String?) {
         self.invalidateOpenAIDashboardRefreshTask()
         if self.settings.codexCookieSource.isEnabled,
            let normalizedTarget = Self.normalizeCodexAccountScopedEmail(targetEmail)
         {
-            let previous = self.lastOpenAIDashboardTargetEmail
+            let scope = self.codexCookieCacheScopeForOpenAIWeb()
+            let isolationKey = Self.openAIWebTargetIsolationKey(email: normalizedTarget, scope: scope)
+            let previousIsolationKey = self.lastOpenAIDashboardTargetIsolationKey
             self.lastOpenAIDashboardTargetEmail = normalizedTarget
-            if let previous, !previous.isEmpty, previous != normalizedTarget {
+            self.lastOpenAIDashboardTargetIsolationKey = isolationKey
+            if let previousIsolationKey, previousIsolationKey != isolationKey {
                 self.openAIWebAccountDidChange = true
                 self.openAIDashboardCookieImportStatus = "Codex account changed; importing browser cookies…"
             } else {
@@ -592,6 +629,7 @@ extension UsageStore {
             self.openAIDashboardRequiresLogin = true
         } else {
             self.lastOpenAIDashboardTargetEmail = Self.normalizeCodexAccountScopedEmail(targetEmail)
+            self.lastOpenAIDashboardTargetIsolationKey = nil
             self.openAIWebAccountDidChange = false
             self.openAIDashboardRequiresLogin = false
             self.openAIDashboardCookieImportStatus = nil

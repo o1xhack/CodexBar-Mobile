@@ -418,6 +418,56 @@ struct MiniMaxTokenPlanChangeTests {
     }
 
     @Test
+    func `global api token fetch preserves structured credential failure across legacy error`() async throws {
+        let now = Date(timeIntervalSince1970: 1_780_282_340)
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer sk-cp-test")
+
+            switch (url.host, url.path) {
+            case ("api.minimax.io", "/v1/token_plan/remains"):
+                return Self.httpResponse(
+                    url: url,
+                    body: #"{"base_resp":{"status_code":1001,"status_msg":"invalid api key"}}"#,
+                    contentType: "application/json")
+            case ("api.minimax.io", "/v1/api/openplatform/coding_plan/remains"):
+                return Self.httpResponse(
+                    url: url,
+                    body: #"{"error":"legacy endpoint unavailable"}"#,
+                    statusCode: 404,
+                    contentType: "application/json")
+            case ("api.minimaxi.com", "/v1/token_plan/remains"):
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.percentBasedRemainsJSON,
+                    contentType: "application/json")
+            default:
+                Issue.record("Unexpected MiniMax API request: \(url.absoluteString)")
+                return Self.httpResponse(url: url, body: "{}", statusCode: 500, contentType: "application/json")
+            }
+        }
+
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+            apiToken: "sk-cp-test",
+            region: .global,
+            now: now,
+            session: transport)
+        let requests = await transport.requests()
+
+        #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 4)
+        #expect(requests.map { $0.url?.host } == [
+            "api.minimax.io",
+            "api.minimax.io",
+            "api.minimaxi.com",
+        ])
+        #expect(requests.map { $0.url?.path } == [
+            "/v1/token_plan/remains",
+            "/v1/api/openplatform/coding_plan/remains",
+            "/v1/token_plan/remains",
+        ])
+    }
+
+    @Test
     func `api token fetch falls back to legacy coding plan endpoint after official parse failure`() async throws {
         let now = Date(timeIntervalSince1970: 1_780_282_340)
         let transport = ProviderHTTPTransportStub { request in

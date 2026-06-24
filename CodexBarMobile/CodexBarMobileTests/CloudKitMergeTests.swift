@@ -113,6 +113,58 @@ struct CloudKitMergeTests {
         #expect(provider.subscriptionExpiresAt == nil)
     }
 
+    @Test("Same provider old/new Mac merge preserves v0.37 Codex reset credits and confidence")
+    func sameProviderPreservesV037CodexFields() throws {
+        let expiry = Date(timeIntervalSince1970: 1_801_000_000)
+        let oldMacLatestProvider = makeProvider(
+            id: "codex", name: "Codex", email: "user@a.com",
+            lastUpdated: newerDate, usedPercent: 70.0)
+        let newMacOlderProvider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: SyncRateWindow(
+                usedPercent: 40.0,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "user@a.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: olderDate,
+            codexResetCredits: SyncCodexResetCredits(
+                availableCount: 2,
+                nextExpiresAt: expiry,
+                credits: [
+                    SyncCodexResetCredit(
+                        id: "credit-1",
+                        resetType: "manual",
+                        status: "available",
+                        grantedAt: olderDate,
+                        expiresAt: expiry,
+                        redeemStartedAt: nil,
+                        redeemedAt: nil),
+                ],
+                updatedAt: olderDate),
+            usageDataConfidence: "estimated")
+
+        let oldMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old",
+            providers: [oldMacLatestProvider])
+        let newMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new",
+            providers: [newMacOlderProvider])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+        let provider = try #require(merged.providers.first)
+        #expect(provider.primary?.usedPercent == 70.0)
+        #expect(provider.codexResetCredits?.availableCount == 2)
+        #expect(provider.codexResetCredits?.nextExpiresAt == expiry)
+        #expect(provider.codexResetCredits?.credits.first?.id == "credit-1")
+        #expect(provider.usageDataConfidence == "estimated")
+    }
+
     // MARK: - Same provider, different accounts → keep both
 
     @Test("Same provider + different accounts are preserved as separate entries")

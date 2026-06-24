@@ -7,6 +7,36 @@ import Testing
 @Suite(.serialized)
 struct StatusMenuHostedSubmenuRefreshTests {
     @Test
+    func `storage native row preserves its plain menu title`() throws {
+        let settings = Self.makeSettings()
+        settings.providerStorageFootprintsEnabled = true
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        Self.seedStorageFootprint(in: store)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: .system)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let menu = NSMenu()
+        #expect(controller.addStorageMenuCardSection(
+            to: menu,
+            provider: .claude,
+            width: StatusItemController.menuCardBaseWidth))
+        let item = try #require(menu.items.first)
+        #expect(item.title.hasPrefix(L("Storage")))
+        #expect(item.title == item.attributedTitle?.string)
+        #expect(item.view == nil)
+        #expect(item.isEnabled)
+        #expect(item.submenu != nil)
+    }
+
+    @Test
     func `open parent menu defers data rebuild until parent tracking ends`() async throws {
         let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
         StatusItemController.menuCardRenderingEnabled = true
@@ -43,11 +73,10 @@ struct StatusMenuHostedSubmenuRefreshTests {
         controller.menuVersions[parentKey] = controller.menuContentVersion
 
         let costItem = try #require(menu.items.first { ($0.representedObject as? String) == "menuCardCost" })
-        #expect(costItem.view is any MenuCardMeasuring)
+        #expect(costItem.view == nil)
+        #expect(costItem.title == StatusItemController.costMenuTitle)
+        #expect(costItem.isEnabled)
         let submenu = try #require(costItem.submenu)
-        let submenuAction = try #require(costItem.action)
-        #expect(NSStringFromSelector(submenuAction) == "menuCardNoOp:")
-        #expect(costItem.target === controller)
         #expect(submenu.items.first?.representedObject as? String == StatusItemController.costHistoryChartID)
         #expect(submenu.minimumWidth >= StatusItemController.menuCardBaseWidth)
         #expect(submenu.items.first?.view == nil)

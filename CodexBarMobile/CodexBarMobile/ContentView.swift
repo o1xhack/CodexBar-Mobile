@@ -2779,8 +2779,27 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.14.0",
+            version: "1.15.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page."),
+                        String(localized: "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact."),
+                        String(localized: "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync."),
+                        String(localized: "Diagnostics and security — Mac 0.37 adds stronger provider endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.37.2.1 (fork build 92.1 or later) for the full 1.15 experience. iPhone 1.15.0 still opens older Mac data; new Codex reset-credit and confidence details appear after Mac updates."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.14.0",
+            status: "",
             summary: String(localized: "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls."),
             sections: [
                 .init(

@@ -48,7 +48,7 @@ public enum CommandCodeUsageFetcher {
         now: Date,
         subscriptionGrace: Duration) async throws -> CommandCodeUsageSnapshot
     {
-        let (credits, subscription) = try await self.fetchPayloads(
+        let (credits, subscription, subscriptionEnrichmentUnavailable) = try await self.fetchPayloads(
             cookieHeader: cookieHeader,
             transport: transport,
             subscriptionGrace: subscriptionGrace)
@@ -72,13 +72,14 @@ public enum CommandCodeUsageFetcher {
             plan: plan,
             billingPeriodEnd: subscription?.currentPeriodEnd,
             subscriptionStatus: subscription?.status,
+            subscriptionEnrichmentUnavailable: subscriptionEnrichmentUnavailable,
             updatedAt: now)
     }
 
     private static func fetchPayloads(
         cookieHeader: String,
         transport: any ProviderHTTPTransport,
-        subscriptionGrace: Duration) async throws -> (CreditsPayload, SubscriptionPayload?)
+        subscriptionGrace: Duration) async throws -> (CreditsPayload, SubscriptionPayload?, Bool)
     {
         let subscriptionTask = Task<SubscriptionPayload?, Error> {
             try await self.fetchSubscription(cookieHeader: cookieHeader, transport: transport)
@@ -105,16 +106,16 @@ public enum CommandCodeUsageFetcher {
         switch await race.value(joinGrace: subscriptionGrace) {
         case let .value(subscription):
             try Task.checkCancellation()
-            return (credits, subscription)
+            return (credits, subscription, false)
         case .timedOut:
             try Task.checkCancellation()
             Self.log.warning("Command Code subscription enrichment timed out")
-            return (credits, nil)
+            return (credits, nil, true)
         case let .failure(error):
             subscriptionTask.cancel()
             try Task.checkCancellation()
             Self.log.warning("Command Code subscription enrichment failed: \(error.localizedDescription)")
-            return (credits, nil)
+            return (credits, nil, true)
         }
     }
 
@@ -209,12 +210,21 @@ public enum CommandCodeUsageFetcher {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw CommandCodeUsageError.parseFailed("Subscriptions: invalid JSON")
         }
-        // {"success":true,"data":{...}} when subscribed; data may be missing or null on free tier.
-        guard root["success"] as? Bool ?? false else {
+        // Only an explicit successful null response identifies the free tier. Failure envelopes are transient.
+        guard let success = root["success"] as? Bool else {
+            throw CommandCodeUsageError.parseFailed("Subscriptions: missing success flag")
+        }
+        guard success else {
+            throw CommandCodeUsageError.parseFailed("Subscriptions: unsuccessful response")
+        }
+        guard let dataValue = root["data"] else {
+            throw CommandCodeUsageError.parseFailed("Subscriptions: missing data")
+        }
+        if dataValue is NSNull {
             return nil
         }
-        guard let data = root["data"] as? [String: Any] else {
-            return nil
+        guard let data = dataValue as? [String: Any] else {
+            throw CommandCodeUsageError.parseFailed("Subscriptions: invalid data")
         }
         guard let planID = data["planId"] as? String, !planID.isEmpty else {
             throw CommandCodeUsageError.parseFailed("Subscriptions: missing planId")

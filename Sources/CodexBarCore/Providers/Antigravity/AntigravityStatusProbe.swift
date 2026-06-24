@@ -51,8 +51,8 @@ private enum AntigravityUsagePool: Hashable {
 
     var title: String {
         switch self {
-        case .gemini: "Gemini"
-        case .claudeGPT: "Claude + GPT"
+        case .gemini: "Gemini Models"
+        case .claudeGPT: "Claude and GPT models"
         }
     }
 
@@ -207,8 +207,12 @@ public struct AntigravityStatusSnapshot: Sendable {
             throw AntigravityStatusProbeError.parseFailed("No quota buckets available")
         }
 
-        let primary = Self.quotaSummaryRepresentative(title: "Gemini", in: namedWindows)
-        let secondary = Self.quotaSummaryRepresentative(title: "Claude + GPT", in: namedWindows)
+        let primary = Self.quotaSummaryRepresentative(
+            matching: { $0.lowercased().contains("gemini") },
+            in: namedWindows)
+        let secondary = Self.quotaSummaryRepresentative(
+            matching: { $0.lowercased().contains("claude") || $0.lowercased().contains("gpt") },
+            in: namedWindows)
 
         let identity = ProviderIdentitySnapshot(
             providerID: .antigravity,
@@ -225,11 +229,11 @@ public struct AntigravityStatusSnapshot: Sendable {
     }
 
     private static func quotaSummaryRepresentative(
-        title: String,
+        matching predicate: (String) -> Bool,
         in windows: [NamedRateWindow]) -> RateWindow?
     {
         windows
-            .filter { $0.usageKnown && $0.title.hasPrefix("\(title) ") }
+            .filter { $0.usageKnown && predicate($0.title) }
             .max { lhs, rhs in
                 if lhs.window.usedPercent != rhs.window.usedPercent {
                     return lhs.window.usedPercent < rhs.window.usedPercent
@@ -295,29 +299,11 @@ public struct AntigravityStatusSnapshot: Sendable {
 
     private static func displayTitle(forQuotaGroup group: AntigravityQuotaSummaryGroup) -> String {
         let title = group.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lower = title.lowercased()
-        if lower.contains("gemini") {
-            return "Gemini"
-        }
-        if lower.contains("claude") || lower.contains("gpt") {
-            return "Claude + GPT"
-        }
-        let stripped = title.replacingOccurrences(
-            of: #"(?i)\s+models?$"#,
-            with: "",
-            options: .regularExpression)
-        return stripped.isEmpty ? title : stripped
+        return title.isEmpty ? "Quota" : title
     }
 
     private static func displayTitle(forQuotaBucket bucket: AntigravityQuotaSummaryBucket) -> String {
-        switch self.quotaBucketKind(for: bucket) {
-        case .session:
-            "Session"
-        case .weekly:
-            "Weekly"
-        case .other:
-            bucket.displayName
-        }
+        bucket.displayName
     }
 
     private static func windowMinutes(forQuotaBucket bucket: AntigravityQuotaSummaryBucket) -> Int? {
@@ -368,6 +354,49 @@ public struct AntigravityStatusSnapshot: Sendable {
             return .weekly
         }
         return .other
+    }
+
+    static func quotaDisplayLabel(_ quota: AntigravityModelQuota) -> String {
+        let trimmed = quota.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty || trimmed == quota.modelId else { return quota.label }
+        return Self.humanizedModelID(quota.modelId)
+    }
+
+    static func humanizedModelID(_ modelId: String) -> String {
+        let parts = modelId.split(separator: "-").map(String.init)
+        var words: [String] = []
+        var index = 0
+
+        while index < parts.count {
+            let part = parts[index]
+            if Self.isSingleDigit(part), index + 1 < parts.count, Self.isSingleDigit(parts[index + 1]) {
+                var versionParts = [part]
+                index += 1
+                while index < parts.count, Self.isSingleDigit(parts[index]) {
+                    versionParts.append(parts[index])
+                    index += 1
+                }
+                words.append(versionParts.joined(separator: "."))
+                continue
+            }
+
+            if part.allSatisfy({ $0.isNumber || $0 == "." }) {
+                words.append(part)
+            } else if Self.modelLabelAcronyms.contains(part.lowercased()) {
+                words.append(part.uppercased())
+            } else {
+                words.append(part.prefix(1).uppercased() + part.dropFirst())
+            }
+            index += 1
+        }
+
+        return words.joined(separator: " ")
+    }
+
+    private static let modelLabelAcronyms: Set<String> = ["ai", "api", "gpt", "oss"]
+
+    private static func isSingleDigit(_ value: String) -> Bool {
+        value.count == 1 && value.allSatisfy(\.isNumber)
     }
 
     private static func rateWindow(for quota: AntigravityModelQuota) -> RateWindow {
@@ -572,7 +601,7 @@ public struct AntigravityStatusSnapshot: Sendable {
                     id: m.quota.modelId == compactFallbackModelID
                         ? Self.compactFallbackWindowID(modelID: m.quota.modelId)
                         : m.quota.modelId,
-                    title: m.quota.label,
+                    title: Self.quotaDisplayLabel(m.quota),
                     window: Self.rateWindow(for: m.quota),
                     usageKnown: m.quota.remainingFraction != nil)
             }

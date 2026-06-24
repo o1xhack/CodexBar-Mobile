@@ -1,7 +1,9 @@
 #if canImport(Darwin)
 import Darwin
-#else
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #endif
 import Foundation
 
@@ -89,7 +91,7 @@ public enum ProviderVersionDetector {
 
         let data = outputCapture.finishSynchronously(timeout: 0.25)
         guard proc.terminationStatus == 0,
-              let text = String(data: data, encoding: .utf8)?
+              let text = ProcessPipeCapture.decodeUTF8(data)
                   .split(whereSeparator: \.isNewline).first
         else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

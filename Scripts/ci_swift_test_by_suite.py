@@ -25,8 +25,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--group-size", type=int, default=12)
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--limit-groups", type=int)
-    parser.add_argument("--shard-index", type=int, default=1)
-    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--shard-index", type=int)
+    parser.add_argument("--shard-count", type=int)
     parser.add_argument("--list-only", action="store_true")
     parser.add_argument("--swift-command", default="swift")
     parser.add_argument("--swift-command-arg", action="append", default=[])
@@ -50,7 +50,16 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
 
 
 def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
-    result = subprocess.run([*swift_command, "test", "list"], check=True, capture_output=True, text=True)
+    command = [*swift_command, "test", "list"]
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as error:
+        print(f"+ {swift_command[0]} test list", flush=True)
+        if error.stdout:
+            print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
+        if error.stderr:
+            print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
+        raise
     selections: set[TestSelection] = set()
     unknown: list[str] = []
     for line in result.stdout.splitlines():
@@ -93,16 +102,16 @@ def chunks(items: list[TestSelection], size: int) -> Iterable[list[TestSelection
         yield items[index : index + size]
 
 
-def shard_groups(
-    suite_groups: list[list[TestSelection]],
-    shard_index: int,
-    shard_count: int,
-) -> list[tuple[int, list[TestSelection]]]:
-    return [
-        (group_index, group)
-        for group_index, group in enumerate(suite_groups, start=1)
-        if (group_index - 1) % shard_count == shard_index - 1
-    ]
+def shard_groups(groups: list[list[TestSelection]], shard_index: int | None, shard_count: int | None) -> list[list[TestSelection]]:
+    if shard_index is None and shard_count is None:
+        return groups
+    if shard_index is None or shard_count is None:
+        raise ValueError("--shard-index and --shard-count must be passed together")
+    if shard_count < 1:
+        raise ValueError("--shard-count must be positive")
+    if shard_index < 0 or shard_index >= shard_count:
+        raise ValueError("--shard-index must be in the range [0, --shard-count)")
+    return [group for index, group in enumerate(groups) if index % shard_count == shard_index]
 
 
 def prioritized_suites(suites: list[TestSelection]) -> list[TestSelection]:
@@ -141,39 +150,36 @@ def main() -> int:
     if args.group_size < 1:
         print("--group-size must be positive", file=sys.stderr)
         return 2
-    if args.shard_count < 1:
-        print("--shard-count must be positive", file=sys.stderr)
-        return 2
-    if args.shard_index < 1 or args.shard_index > args.shard_count:
-        print("--shard-index must be between 1 and --shard-count", file=sys.stderr)
-        return 2
 
     swift_command = [args.swift_command, *args.swift_command_arg]
     suites = prioritized_suites(filtered_suites_for_environment(swift_test_list(swift_command)))
-    print(f"Discovered {len(suites)} test selections", flush=True)
-
     suite_groups = list(chunks(suites, args.group_size))
+    try:
+        suite_groups = shard_groups(suite_groups, args.shard_index, args.shard_count)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
     if args.limit_groups is not None:
         suite_groups = suite_groups[: args.limit_groups]
-    total_groups = len(suite_groups)
-    selected_groups = shard_groups(suite_groups, args.shard_index, args.shard_count)
-    print(
-        f"Selected shard {args.shard_index}/{args.shard_count}: "
-        f"{len(selected_groups)} of {total_groups} groups",
-        flush=True,
-    )
 
+    shard_suffix = ""
+    if args.shard_index is not None and args.shard_count is not None:
+        shard_suffix = f" in shard {args.shard_index + 1}/{args.shard_count}"
+    print(f"Discovered {len(suites)} test selections; running {len(suite_groups)} groups{shard_suffix}", flush=True)
     if args.list_only:
-        for _, group in selected_groups:
+        for group in suite_groups:
             for suite in group:
                 print(suite.name)
         return 0
 
-    for group_index, group in selected_groups:
+    if not suite_groups:
+        print("No test groups selected.", flush=True)
+        return 0
+
+    for group_index, group in enumerate(suite_groups, start=1):
         print(
-            f"::group::Swift test group {group_index}/{total_groups} "
-            f"(matrix shard {args.shard_index}/{args.shard_count}, "
-            f"{len(group)} selections)",
+            f"::group::Swift test shard {group_index}/{len(suite_groups)} "
+            f"({len(group)} selections)",
             flush=True,
         )
         result = run_group(group, args.timeout, swift_command)

@@ -5,6 +5,7 @@ import Foundation
 extension UsageStore {
     func handleQuotaWarningTransitions(provider: UsageProvider, snapshot: UsageSnapshot) {
         guard self.settings.quotaWarningNotificationsEnabled else { return }
+        if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
 
         let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
         let source: SessionQuotaWindowSource? = if provider == .antigravity {

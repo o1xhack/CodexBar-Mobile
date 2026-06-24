@@ -254,6 +254,8 @@ struct LocalizationLanguageCatalogTests {
         #expect(italian["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
         #expect(italian["ory_session_…=…; csrftoken=…"] == "ory_session_…=…; csrftoken=…")
         #expect(italian["quota_warning_notifications_subtitle"]?.contains("scende sotto") == true)
+        #expect(italian["metric_mistral_payg"] == "A consumo")
+        #expect(italian["metric_mistral_monthly_plan"] == "Piano mensile")
 
         let intentionallyUnchanged: Set = [
             "Account",
@@ -272,6 +274,10 @@ struct LocalizationLanguageCatalogTests {
             "Password",
             "Provider",
             "Token",
+            "byte_unit_byte",
+            "byte_unit_gigabyte",
+            "byte_unit_kilobyte",
+            "byte_unit_megabyte",
             "language_arabic",
             "language_italian",
             "language_persian",

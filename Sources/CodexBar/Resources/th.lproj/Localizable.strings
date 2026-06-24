@@ -498,6 +498,8 @@
 "show_most_used_provider_subtitle" = "แถบเมนูจะแสดงผู้ให้บริการที่ใกล้เคียงกับขีดจํากัดอัตรามากที่สุดโดยอัตโนมัติ";
 "menu_bar_shows_percent_title" = "แถบเมนูแสดงเปอร์เซ็นต์";
 "menu_bar_shows_percent_subtitle" = "แทนที่แถบสัตว์ด้วยไอคอนการสร้างแบรนด์ของผู้ให้บริการและเปอร์เซ็นต์";
+"hide_critters_title" = "ซ่อนตัวการ์ตูน";
+"hide_critters_subtitle" = "แสดงแถบวัดแบบเรียบโดยไม่มีหน้าและการตกแต่ง";
 "display_mode_title" = "โหมดการแสดงผล";
 "display_mode_subtitle" = "เลือกสิ่งที่จะแสดงในแถบเมนู (อัตราก้าวแสดงการใช้งานเทียบกับที่คาดไว้)";
 "section_menu_content" = "เนื้อหาเมนู";
@@ -626,6 +628,8 @@
 "metric_pref_tertiary" = "ระดับอุดมศึกษา";
 "metric_pref_extra_usage" = "การใช้งานเพิ่มเติม";
 "metric_pref_average" = "ค่าเฉลี่ย";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "เปอร์เซ็นต์";
@@ -707,6 +711,7 @@
 "Resets %@" = "รีเซ็ต %@";
 "Resets in %@" = "รีเซ็ตใน %@";
 "Resets now" = "รีเซ็ตเดี๋ยวนี้";
+"reset_tomorrow_format" = "พรุ่งนี้ %@";
 "Lasts until reset" = "คงอยู่จนกว่าจะรีเซ็ต";
 "Updated %@" = "อัพเดท %@";
 "Updated %@h ago" = "อัพเดท %@h ที่ผ่านมา";
@@ -805,6 +810,7 @@
 "API spend" = "API ใช้จ่าย";
 "Extra usage" = "การใช้งานเพิ่มเติม";
 "Quota usage" = "การใช้โควต้า";
+"Your spend" = "การใช้จ่ายของคุณ";
 "%.0f%% used" = "%.0f%% ใช้แล้ว";
 "Usage history (today)" = "ประวัติการใช้งาน (วันนี้)";
 "Usage history (%d days)" = "ประวัติการใช้งาน (%d วัน)";
@@ -874,6 +880,9 @@
 "Clearing removes local temporary provider data." = "การหักล้างจะลบข้อมูลผู้ให้บริการชั่วคราวในเครื่อง";
 "Total: %@" = "ทั้งหมด: %@";
 "%d more items" = "%d รายการเพิ่มเติม";
+"Other (%d items)" = "อื่น ๆ (%d รายการ)";
+"Expand" = "ขยาย";
+"Collapse" = "ยุบ";
 "Cleanup ideas" = "ไอเดียการล้างข้อมูล";
 "%d unreadable item(s) skipped" = "ข้ามรายการที่อ่านไม่ได้ %d รายการ";
 
@@ -969,6 +978,9 @@
 "Day" = "วัน";
 "Deployment" = "การปรับใช้";
 "Drag to reorder" = "ลากเพื่อจัดลําดับใหม่";
+"Sort providers alphabetically" = "เรียงผู้ให้บริการตามตัวอักษร";
+"Sort providers alphabetically (enabled first)" = "เรียงผู้ให้บริการตามตัวอักษร (ที่เปิดใช้ก่อน)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "เรียงตามตัวอักษรแล้ว (ที่เปิดใช้ก่อน) — คลิกเพื่อใช้ลำดับที่กำหนดเอง";
 "Endpoint" = "ปลายทาง";
 "Enterprise host" = "โฮสต์องค์กร";
 "Extra usage balance: %@" = "ยอดการใช้งานเพิ่มเติม: %@";
@@ -1084,31 +1096,41 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
-
-/* Upstream v0.36 locale catch-up fallbacks */
-"Plan expires: %@" = "Plan expires: %@";
-"Renews: %@" = "Renews: %@";
-"mobile_button_sync_now" = "Sync Now";
-"mobile_dev_depleted" = "Depleted";
-"mobile_dev_restored" = "Restored";
-"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
-"mobile_dev_verify_push" = "Verify Push Setup";
-"mobile_dev_warning" = "Warning";
-"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
-"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (57 additional mocks omitted for brevity):";
-"mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_section_icloud_sync" = "iCloud Sync";
-"mobile_section_mock_data" = "Debug · Mock Provider Data";
-"mobile_section_push" = "iOS Push Notifications";
-"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
-"mobile_sync_status_last_sync_format" = "Last sync: %@";
-"mobile_sync_status_no_sync" = "No sync yet";
-"mobile_sync_status_syncing" = "Syncing…";
-"mobile_toggle_mock_subtitle" = "Pushes 65 synthetic providers across 55 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 57 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy, 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 4 v0.36 single-account providers for litellm/poe/chutes/zed, and 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
-"mobile_toggle_mock_title" = "Inject mock provider data";
-"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
-"mobile_toggle_push_title" = "Push notifications to iOS";
-"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
-"mobile_toggle_sync_title" = "Sync usage to iCloud";
-"tab_mobile" = "Mobile";
-"∞ Unlimited" = "∞ Unlimited";
+"Limit Reset Credits" = "เครดิตรีเซ็ตขีดจำกัด";
+"1 manual reset available" = "มีการรีเซ็ตด้วยตนเอง 1 ครั้ง";
+"%d manual resets available" = "มีการรีเซ็ตด้วยตนเอง %d ครั้ง";
+"Next expires %@" = "รายการถัดไปหมดอายุ %@";
+"byte_unit_byte" = "ไบต์";
+"byte_unit_bytes" = "ไบต์";
+"byte_unit_kilobyte" = "กิโลไบต์";
+"byte_unit_kilobytes" = "กิโลไบต์";
+"byte_unit_megabyte" = "เมกะไบต์";
+"byte_unit_megabytes" = "เมกะไบต์";
+"byte_unit_gigabyte" = "กิกะไบต์";
+"byte_unit_gigabytes" = "กิกะไบต์";
+"Plan expires: %@" = "แผนหมดอายุ: %@";
+"Renews: %@" = "ต่ออายุ: %@";
+"mobile_button_sync_now" = "ซิงค์ตอนนี้";
+"mobile_dev_depleted" = "หมดแล้ว";
+"mobile_dev_restored" = "กู้คืนแล้ว";
+"mobile_dev_test_intro" = "เขียนระเบียน QuotaTransition จริงไปยัง CloudKit ซึ่งจะส่งการแจ้งเตือนแบบ push แบบเดียวกับที่แอป iOS จะได้รับในโปรดักชัน อยู่ภายใต้สวิตช์ด้านบน (ต้องเปิดไว้)";
+"mobile_dev_verify_push" = "ตรวจสอบการตั้งค่า Push";
+"mobile_dev_warning" = "คำเตือน";
+"mobile_mock_cost_note" = "ข้อมูลจำลองจะเพิ่มประมาณ $85 ในแดชบอร์ดค่าใช้จ่าย 30 วันขณะเปิดใช้งาน ปิดเพื่อกลับไปใช้ตัวเลขจริง";
+"mobile_mock_reference_header" = "อ้างอิง — mock 8 รายการที่ทดสอบมากที่สุด (ละ mock เพิ่มเติม 57 รายการเพื่อความกระชับ):";
+"mobile_section_dev_test" = "DEV — ทดสอบ Push iOS";
+"mobile_section_icloud_sync" = "ซิงค์ iCloud";
+"mobile_section_mock_data" = "ดีบัก · ข้อมูลผู้ให้บริการจำลอง";
+"mobile_section_push" = "การแจ้งเตือน Push ของ iOS";
+"mobile_sync_status_last_attempt_format" = "ความพยายามล่าสุด: %@";
+"mobile_sync_status_last_sync_format" = "ซิงค์ล่าสุด: %@";
+"mobile_sync_status_no_sync" = "ยังไม่มีการซิงค์";
+"mobile_sync_status_syncing" = "กำลังซิงค์…";
+"mobile_toggle_mock_subtitle" = "เพิ่มตัวอย่างจำลองแบบคงที่ให้ผู้ให้บริการที่ซิงค์ทุกตัว เพื่อให้ iOS แสดงกริดเต็มสำหรับทดสอบเลย์เอาต์ รวมการใช้งาน OpenAI/Codex, Claude, Cursor, Gemini, Grok, LLM Proxy, Bedrock, MiniMax และอื่นๆ";
+"mobile_toggle_mock_title" = "ฉีดข้อมูลผู้ให้บริการจำลอง";
+"mobile_toggle_push_subtitle" = "เมื่อโควตาเซสชันหมดหรือกลับมาใช้งานได้ ให้ส่งการแจ้งเตือนแบบ push ที่มองเห็นได้ไปยังแอป iOS ผ่าน iCloud สิ่งนี้แยกจากการแจ้งเตือนในเครื่องของ Mac — คุณสามารถปิดเสียง Mac แต่ยังรับการแจ้งเตือนบน iPhone ได้";
+"mobile_toggle_push_title" = "การแจ้งเตือน Push ไปยัง iOS";
+"mobile_toggle_sync_subtitle" = "ส่งข้อมูลการใช้งานไปยัง iCloud เพื่อให้แอป iOS แสดงได้";
+"mobile_toggle_sync_title" = "ซิงค์การใช้งานกับ iCloud";
+"tab_mobile" = "มือถือ";
+"∞ Unlimited" = "∞ ไม่จำกัด";

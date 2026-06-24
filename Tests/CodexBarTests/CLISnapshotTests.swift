@@ -92,6 +92,45 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func `renders Codex limit reset credits`() {
+        let expiresAt = Date().addingTimeInterval(7200)
+        let resetCredits = CodexRateLimitResetCreditsSnapshot(
+            credits: [
+                CodexRateLimitResetCredit(
+                    id: "credit-1",
+                    resetType: "codex_rate_limits",
+                    status: .available,
+                    grantedAt: Date(timeIntervalSince1970: 0),
+                    expiresAt: expiresAt,
+                    redeemStartedAt: nil,
+                    redeemedAt: nil,
+                    title: nil,
+                    description: nil),
+            ],
+            availableCount: 1,
+            updatedAt: Date(timeIntervalSince1970: 0))
+        let snapshot = UsageSnapshot(
+            primary: .init(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            codexResetCredits: resetCredits,
+            updatedAt: Date(timeIntervalSince1970: 0))
+
+        let output = CLIRenderer.renderText(
+            provider: .codex,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Codex (oauth)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(output.contains("Limit Reset Credits: 1 available"))
+        #expect(output.contains("Next reset credit expires"))
+    }
+
+    @Test
     func `renders Codex prolite plan with multiplier display name`() {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

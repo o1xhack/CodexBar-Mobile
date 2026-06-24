@@ -10,6 +10,10 @@ protocol StatusItemControlling: AnyObject {
     func openMenuFromShortcut()
     func runLoginFlowFromSettings(provider: UsageProvider) async
     func celebrationOriginPoint(for provider: UsageProvider?) -> CGPoint?
+    func trimRebuildableCachesForMemoryPressure() -> MemoryPressureCacheTrimSummary
+    #if DEBUG
+    func seedRebuildableCachesForMemoryPressureProof()
+    #endif
     func prepareForAppShutdown()
 }
 
@@ -17,6 +21,14 @@ extension StatusItemControlling {
     func celebrationOriginPoint(for provider: UsageProvider?) -> CGPoint? {
         nil
     }
+
+    func trimRebuildableCachesForMemoryPressure() -> MemoryPressureCacheTrimSummary {
+        MemoryPressureCacheTrimSummary()
+    }
+
+    #if DEBUG
+    func seedRebuildableCachesForMemoryPressureProof() {}
+    #endif
 
     func prepareForAppShutdown() {}
 }
@@ -114,9 +126,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var menuSession = MenuSessionCoordinator<ObjectIdentifier>()
     var menuReadinessSignatures: [ObjectIdentifier: String] = [:]
     let hostedSubviewRenderSignatures = NSMapTable<NSMenu, NSString>.weakToStrongObjects()
-    /// Live persistent Refresh rows, tracked weakly so they can be given in-place in-flight
-    /// feedback (spinner) while the menu stays open, without rebuilding the menu.
-    let persistentRefreshRows = NSHashTable<PersistentMenuActionItemView>.weakObjects()
+    /// Persistent Refresh rows are weakly tracked so their enabled state can change during menu tracking.
+    let persistentRefreshItems = NSHashTable<NSMenuItem>.weakObjects()
     var menuCardHeightCache: [MenuCardHeightCacheKey: CGFloat] = [:]
     var measuredStandardMenuWidthCache: [String: CGFloat] = [:]
     var lastMenuAdjunctReadinessSignature = ""
@@ -128,6 +139,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var openMenus: [ObjectIdentifier: NSMenu] = [:]
     var menuRefreshTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var manualRefreshTask: Task<Void, Never>?
+    var manualRefreshProvider: UsageProvider?
     var closedMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var closedMenuRebuildRequests = MenuRebuildRequestRegistry<ObjectIdentifier>()
     var openMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
@@ -355,7 +367,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
             return RateWindow(
                 usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-        case .automatic, .primary:
+        case .primaryAndSecondary:
+            return [first, second].compactMap(\.self).max(by: { $0.usedPercent < $1.usedPercent })
+        case .automatic, .primary, .monthlyPlan:
             return first
         }
     }
@@ -498,9 +512,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     func handleObservedStoreMenuChange() {
         self.observeStoreChanges()
-        // In-place spinner sync for the persistent Refresh rows. Safe during menu tracking:
-        // it mutates existing row views only and never rebuilds the menu.
-        self.updatePersistentRefreshRowsInProgress()
+        self.updatePersistentRefreshItemsEnabled()
         let rootOpenHandledReadiness = self.consumeRootOpenHandledMenuObservationIfNeeded()
         // `refreshOpenMenus` is only consulted when a menu is currently open.
         // Computing the readiness signature serializes every enabled provider's
@@ -525,8 +537,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 self.observeStoreIconChanges()
                 let signature = self.storeIconObservationSignature()
                 guard signature != self.lastObservedStoreIconWorkSignature else { return }
-                self.lastObservedStoreIconWorkSignature = signature
-                self.updateIcons()
+                // Reuse the signature we just computed for the change check; `updateIcons` would
+                // otherwise recompute the identical value on the same main-actor turn.
+                self.updateIcons(precomputedStoreIconSignature: signature)
             }
         }
     }
@@ -664,13 +677,19 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         }
     }
 
-    func updateIcons() {
+    /// Updates the menu bar icons.
+    ///
+    /// The store-icon observer already computes `storeIconObservationSignature()` to decide whether any
+    /// icon work is needed, so it passes that value in via `precomputedStoreIconSignature` to avoid
+    /// recomputing the identical signature on the same main-actor turn. Other callers omit it and let the
+    /// signature refresh here, keeping `lastObservedStoreIconWorkSignature` current as the change gate.
+    func updateIcons(precomputedStoreIconSignature: String? = nil) {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
         MainThreadActivityBreadcrumb.push("updateIcons")
         self.scheduleMenuBarCountdownRefreshIfNeeded()
-        self.lastObservedStoreIconWorkSignature = self.storeIconObservationSignature()
+        self.lastObservedStoreIconWorkSignature = precomputedStoreIconSignature ?? self.storeIconObservationSignature()
         self.beginIconPerfUpdatePass()
         defer {
             self.endIconPerfUpdatePass()

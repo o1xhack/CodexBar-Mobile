@@ -487,6 +487,8 @@
 "show_most_used_provider_subtitle" = "메뉴 막대에 사용 한도에 가장 가까운 공급자를 자동으로 표시합니다.";
 "menu_bar_shows_percent_title" = "메뉴 막대에 백분율 표시";
 "menu_bar_shows_percent_subtitle" = "크리터 막대를 공급자 브랜드 아이콘과 백분율로 대체합니다.";
+"hide_critters_title" = "크리터 숨기기";
+"hide_critters_subtitle" = "얼굴과 장식 없이 단순한 미터 막대를 표시합니다.";
 "display_mode_title" = "표시 모드";
 "display_mode_subtitle" = "메뉴 막대에 표시할 내용을 선택하세요(사용 속도는 사용량 대 예상치를 표시).";
 "section_menu_content" = "메뉴 내용";
@@ -607,6 +609,8 @@
 "metric_pref_tertiary" = "3차";
 "metric_pref_extra_usage" = "추가 사용량";
 "metric_pref_average" = "평균";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 "display_mode_percent" = "백분율";
 "display_mode_pace" = "사용 속도";
 "display_mode_both" = "둘 다";
@@ -678,6 +682,7 @@
 "Resets %@" = "%@에 재설정";
 "Resets in %@" = "%@ 후 재설정";
 "Resets now" = "지금 재설정";
+"reset_tomorrow_format" = "내일 %@";
 "Lasts until reset" = "재설정까지 유지";
 "Updated %@" = "%@에 업데이트됨";
 "Updated %@h ago" = "%@시간 전 업데이트됨";
@@ -773,6 +778,7 @@
 "API spend" = "API 지출";
 "Extra usage" = "추가 사용량";
 "Quota usage" = "할당량 사용량";
+"Your spend" = "개인 지출";
 "%.0f%% used" = "%.0f%% 사용됨";
 "Usage history (today)" = "사용 기록(오늘)";
 "Usage history (%d days)" = "사용 기록(%d일)";
@@ -934,6 +940,9 @@
 "Day" = "일간";
 "Deployment" = "배포";
 "Drag to reorder" = "드래그하여 순서 변경";
+"Sort providers alphabetically" = "공급자를 알파벳순으로 정렬";
+"Sort providers alphabetically (enabled first)" = "공급자를 알파벳순으로 정렬(활성화 항목 우선)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "알파벳순으로 정렬됨(활성화 항목 우선) — 사용자 지정 순서를 사용하려면 클릭";
 "Endpoint" = "엔드포인트";
 "Enterprise host" = "엔터프라이즈 호스트";
 "Extra usage balance: %@" = "추가 사용량 잔액: %@";
@@ -1055,3 +1064,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "한도 재설정 크레딧";
+"1 manual reset available" = "수동 재설정 1회 사용 가능";
+"%d manual resets available" = "수동 재설정 %d회 사용 가능";
+"Next expires %@" = "다음 만료: %@";
+"Other (%d items)" = "기타(%d개 항목)";
+"Expand" = "펼치기";
+"Collapse" = "접기";
+"byte_unit_byte" = "바이트";
+"byte_unit_bytes" = "바이트";
+"byte_unit_kilobyte" = "킬로바이트";
+"byte_unit_kilobytes" = "킬로바이트";
+"byte_unit_megabyte" = "메가바이트";
+"byte_unit_megabytes" = "메가바이트";
+"byte_unit_gigabyte" = "기가바이트";
+"byte_unit_gigabytes" = "기가바이트";

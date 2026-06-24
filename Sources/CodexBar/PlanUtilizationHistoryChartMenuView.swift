@@ -246,18 +246,23 @@ struct PlanUtilizationHistoryChartMenuView: View {
         guard let snapshot else { return nil }
 
         var names: Set<PlanUtilizationSeriesName> = []
-        if snapshot.primary != nil {
-            names.insert(.session)
-        }
-        if snapshot.secondary != nil {
+        switch provider {
+        case .codex:
+            if snapshot.primary != nil { names.insert(.session) }
+            if snapshot.secondary != nil { names.insert(.weekly) }
+        case .claude:
+            if snapshot.primary != nil { names.insert(.session) }
+            if snapshot.secondary != nil { names.insert(.weekly) }
+            if snapshot.tertiary != nil,
+               ProviderDescriptorRegistry.metadata[provider]?.supportsOpus == true
+            {
+                names.insert(.opus)
+            }
+        default:
+            let windows = [snapshot.primary, snapshot.secondary, snapshot.tertiary].compactMap(\.self)
+                + (snapshot.extraRateWindows?.filter(\.usageKnown).map(\.window) ?? [])
+            guard windows.contains(where: { $0.windowMinutes == 7 * 24 * 60 }) else { return nil }
             names.insert(.weekly)
-        }
-
-        if provider == .claude,
-           snapshot.tertiary != nil,
-           ProviderDescriptorRegistry.metadata[provider]?.supportsOpus == true
-        {
-            names.insert(.opus)
         }
 
         return names
@@ -793,6 +798,18 @@ struct PlanUtilizationHistoryChartMenuView: View {
             } else {
                 best = (point.id, distance)
             }
+        }
+
+        // Stay on the last selected bar when cursor is in the gap between bars; only switch
+        // selection when the cursor is over the bar's own visual body.
+        if let best, let bestPoint = model.pointsByID[best.id],
+           let barX = proxy.position(forX: Double(bestPoint.index))
+        {
+            guard ChartBarHoverSelection.accepts(
+                distanceFromBarCenter: abs(location.x - (plotFrame.origin.x + barX)),
+                barHalfWidth: Layout.barWidth / 2,
+                selectableCount: model.points.count)
+            else { return }
         }
 
         if self.selectedPointID != best?.id {

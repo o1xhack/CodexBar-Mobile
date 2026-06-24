@@ -493,6 +493,8 @@
 "show_most_used_provider_subtitle" = "A barra de menus mostra automaticamente o provedor mais próximo do limite de taxa.";
 "menu_bar_shows_percent_title" = "Barra de menus mostra porcentagem";
 "menu_bar_shows_percent_subtitle" = "Substitui barras de bichinhos por ícones da marca do provedor e uma porcentagem.";
+"hide_critters_title" = "Ocultar bichinhos";
+"hide_critters_subtitle" = "Mostrar barras de medição simples sem o rosto e as decorações.";
 "display_mode_title" = "Modo de exibição";
 "display_mode_subtitle" = "Escolha o que mostrar na barra de menus (Ritmo mostra uso vs. esperado).";
 "section_menu_content" = "Conteúdo do menu";
@@ -621,6 +623,8 @@
 "metric_pref_tertiary" = "Terciário";
 "metric_pref_extra_usage" = "Uso extra";
 "metric_pref_average" = "Média";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "Porcentagem";
@@ -702,6 +706,7 @@
 "Resets %@" = "Renova %@";
 "Resets in %@" = "Renova em %@";
 "Resets now" = "Renova agora";
+"reset_tomorrow_format" = "amanhã, %@";
 "Lasts until reset" = "Dura até a renovação";
 "Updated %@" = "Atualizado %@";
 "Updated %@h ago" = "Atualizado há %@h";
@@ -800,6 +805,7 @@
 "API spend" = "Gasto de API";
 "Extra usage" = "Uso extra";
 "Quota usage" = "Uso da cota";
+"Your spend" = "Seu gasto";
 "%.0f%% used" = "%.0f%% usado";
 "Usage history (today)" = "Histórico de uso (hoje)";
 "Usage history (%d days)" = "Histórico de uso (%d dias)";
@@ -964,6 +970,9 @@
 "Day" = "Dia";
 "Deployment" = "Deployment";
 "Drag to reorder" = "Arraste para reordenar";
+"Sort providers alphabetically" = "Ordenar provedores alfabeticamente";
+"Sort providers alphabetically (enabled first)" = "Ordenar provedores alfabeticamente (ativados primeiro)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Ordenados alfabeticamente (ativados primeiro) — clique para usar sua ordem personalizada";
 "Endpoint" = "Endpoint";
 "Enterprise host" = "Host Enterprise";
 "Extra usage balance: %@" = "Saldo de uso extra: %@";
@@ -1085,3 +1094,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "Créditos de redefinição de limite";
+"1 manual reset available" = "1 redefinição manual disponível";
+"%d manual resets available" = "%d redefinições manuais disponíveis";
+"Next expires %@" = "Próximo expira %@";
+"Other (%d items)" = "Outros (%d itens)";
+"Expand" = "Expandir";
+"Collapse" = "Recolher";
+"byte_unit_byte" = "byte";
+"byte_unit_bytes" = "bytes";
+"byte_unit_kilobyte" = "quilobyte";
+"byte_unit_kilobytes" = "quilobytes";
+"byte_unit_megabyte" = "megabyte";
+"byte_unit_megabytes" = "megabytes";
+"byte_unit_gigabyte" = "gigabyte";
+"byte_unit_gigabytes" = "gigabytes";

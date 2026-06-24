@@ -500,6 +500,8 @@
 "show_most_used_provider_subtitle" = "La barra menu mostra automaticamente il provider più vicino al limite.";
 "menu_bar_shows_percent_title" = "Mostra percentuale nella barra menu";
 "menu_bar_shows_percent_subtitle" = "Sostituisce le barre con icone provider e percentuale.";
+"hide_critters_title" = "Nascondi creature";
+"hide_critters_subtitle" = "Mostra barre semplici senza volto e decorazioni.";
 "display_mode_title" = "Modalità visualizzazione";
 "display_mode_subtitle" = "Scegli cosa mostrare nella barra menu (Andamento confronta utilizzo e atteso).";
 "section_menu_content" = "Contenuto menu";
@@ -628,6 +630,8 @@
 "metric_pref_tertiary" = "Terziario";
 "metric_pref_extra_usage" = "Uso extra";
 "metric_pref_average" = "Media";
+"metric_mistral_payg" = "A consumo";
+"metric_mistral_monthly_plan" = "Piano mensile";
 
 /* Display modes */
 "display_mode_percent" = "Percentuale";
@@ -709,6 +713,7 @@
 "Resets %@" = "Si resetta %@";
 "Resets in %@" = "Si reimposta tra %@";
 "Resets now" = "Si resetta ora";
+"reset_tomorrow_format" = "domani, %@";
 "Lasts until reset" = "Valido fino al reset";
 "Updated %@" = "Aggiornato %@";
 "Updated %@h ago" = "Aggiornato %@ h fa";
@@ -807,6 +812,7 @@
 "API spend" = "Spesa API";
 "Extra usage" = "Utilizzo extra";
 "Quota usage" = "Utilizzo quota";
+"Your spend" = "La tua spesa";
 "%.0f%% used" = "%.0f%% usato";
 "Usage history (today)" = "Cronologia utilizzo (oggi)";
 "Usage history (%d days)" = "Cronologia utilizzo (%d giorni)";
@@ -876,6 +882,9 @@
 "Clearing removes local temporary provider data." = "La cancellazione rimuove i dati temporanei locali dei provider.";
 "Total: %@" = "Totale: %@";
 "%d more items" = "%d elementi in più";
+"Other (%d items)" = "Altro (%d elementi)";
+"Expand" = "Espandi";
+"Collapse" = "Comprimi";
 "Cleanup ideas" = "Idee di pulizia";
 "%d unreadable item(s) skipped" = "Saltati %d elemento/i illeggibili";
 
@@ -971,6 +980,9 @@
 "Day" = "Giorno";
 "Deployment" = "Deployment";
 "Drag to reorder" = "Trascina per riordinare";
+"Sort providers alphabetically" = "Ordina i provider alfabeticamente";
+"Sort providers alphabetically (enabled first)" = "Ordina i provider alfabeticamente (prima quelli attivi)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Ordinati alfabeticamente (prima quelli attivi) — fai clic per usare l’ordine personalizzato";
 "Endpoint" = "Endpoint";
 "Enterprise host" = "Host Enterprise";
 "Extra usage balance: %@" = "Saldo uso extra: %@";
@@ -1083,31 +1095,41 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
-
-/* Fork mobile sync locale fallback */
+"Limit Reset Credits" = "Crediti di reimpostazione limite";
+"1 manual reset available" = "1 reimpostazione manuale disponibile";
+"%d manual resets available" = "%d reimpostazioni manuali disponibili";
+"Next expires %@" = "La prossima scade %@";
+"byte_unit_byte" = "byte";
+"byte_unit_bytes" = "byte";
+"byte_unit_kilobyte" = "kilobyte";
+"byte_unit_kilobytes" = "kilobyte";
+"byte_unit_megabyte" = "megabyte";
+"byte_unit_megabytes" = "megabyte";
+"byte_unit_gigabyte" = "gigabyte";
+"byte_unit_gigabytes" = "gigabyte";
 "Plan expires: %@" = "Il piano scade: %@";
 "Renews: %@" = "Si rinnova: %@";
 "mobile_button_sync_now" = "Sincronizza ora";
 "mobile_dev_depleted" = "Esaurita";
 "mobile_dev_restored" = "Ripristinata";
-"mobile_dev_test_intro" = "Scrive un vero record `QuotaTransition` su CloudKit, attivando lo stesso avviso push che l'app iOS riceverebbe in produzione. Dipende dall'interruttore sopra (deve essere ATTIVO).";
+"mobile_dev_test_intro" = "Scrive un vero record QuotaTransition in CloudKit, attivando la stessa notifica push che l'app iOS riceverà in produzione. È controllato dall'interruttore sopra (deve essere attivo).";
 "mobile_dev_verify_push" = "Verifica configurazione push";
 "mobile_dev_warning" = "Avviso";
-"mobile_mock_cost_note" = "I mock aggiungono circa 85 $ alla dashboard dei costi a 30 giorni mentre sono attivi. Disattivali per ripristinare i numeri reali.";
-"mobile_mock_reference_header" = "Riferimento — 8 mock più testati (57 mock aggiuntivi omessi per brevità):";
+"mobile_mock_cost_note" = "I dati simulati aggiungono circa 85 $ alla dashboard dei costi a 30 giorni mentre sono attivi. Disattivali per ripristinare i valori reali.";
+"mobile_mock_reference_header" = "Riferimento — 8 mock più testati (altri 57 mock omessi per brevità):";
 "mobile_section_dev_test" = "DEV — Test push iOS";
 "mobile_section_icloud_sync" = "Sincronizzazione iCloud";
-"mobile_section_mock_data" = "Debug · Dati provider mock";
+"mobile_section_mock_data" = "Debug · Dati provider simulati";
 "mobile_section_push" = "Notifiche push iOS";
 "mobile_sync_status_last_attempt_format" = "Ultimo tentativo: %@";
 "mobile_sync_status_last_sync_format" = "Ultima sincronizzazione: %@";
 "mobile_sync_status_no_sync" = "Nessuna sincronizzazione ancora";
 "mobile_sync_status_syncing" = "Sincronizzazione…";
-"mobile_toggle_mock_subtitle" = "Invia 65 provider sintetici su 55 ID (6 mock ricchi per i percorsi multi-account codex/claude/perplexity, 57 mock semplici inclusi 7 secondi tab multi-account per openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 provider v0.27.0 per grok/groq/elevenlabs/deepgram/llmproxy, 3 provider v0.28/v0.29 per azureopenai/alibabatokenplan/t3chat, 4 provider v0.36 per litellm/poe/chutes/zed e 2 mock con ID sconosciuto per il rendering fallback) a ogni sincronizzazione. Tutte le email mock usano il TLD `.test`, così iPhone (1.5.2+) le mostra con un badge MOCK. Disattivalo e CloudKit le elimina automaticamente entro circa 1 ciclo. Predefinito: disattivo.";
-"mobile_toggle_mock_title" = "Inietta dati provider mock";
-"mobile_toggle_push_subtitle" = "Quando una quota di sessione si esaurisce o viene ripristinata, invia un avviso push visibile all'app iOS companion tramite iCloud. È indipendente dalle notifiche locali del Mac: puoi tenere il Mac silenzioso e ricevere comunque avvisi su iPhone.";
+"mobile_toggle_mock_subtitle" = "Aggiunge campioni simulati stabili per ogni provider sincronizzato, così iOS può mostrare una griglia completa per testare il layout. Include utilizzo OpenAI/Codex, Claude, Cursor, Gemini, Grok, LLM Proxy, Bedrock, MiniMax e altri.";
+"mobile_toggle_mock_title" = "Inietta dati provider simulati";
+"mobile_toggle_push_subtitle" = "Quando la quota della sessione si esaurisce o viene ripristinata, invia una notifica push visibile all'app iOS companion tramite iCloud. È indipendente dalle notifiche locali del Mac: puoi tenere il Mac silenzioso e ricevere comunque avvisi su iPhone.";
 "mobile_toggle_push_title" = "Notifiche push verso iOS";
 "mobile_toggle_sync_subtitle" = "Invia i dati di utilizzo a iCloud così l'app iOS companion può mostrarli.";
-"mobile_toggle_sync_title" = "Sincronizza utilizzo su iCloud";
-"tab_mobile" = "Mobile iOS";
+"mobile_toggle_sync_title" = "Sincronizza utilizzo con iCloud";
+"tab_mobile" = "Dispositivi mobili";
 "∞ Unlimited" = "∞ Illimitato";

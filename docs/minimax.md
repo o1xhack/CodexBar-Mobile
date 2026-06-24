@@ -75,6 +75,8 @@ codexbar diagnose --provider minimax --format json --pretty
 
 ### Output
 - Structural diagnostic JSON with provider, source/source mode, auth summary, usage summary, fetch attempts, and error categories.
+- Per-service quota percentages, used values, limits, remaining values, reset metadata, and unlimited state. These are
+  the same non-secret values shown in the menu and help diagnose boosted quota denominators.
 - All sensitive fields (API tokens, cookies, emails, auth headers) are redacted via `LogRedactor`.
 - Errors are mapped to safe categories (`network`, `auth`, `api`, `parse`) with user-friendly descriptions.
 - No raw API responses, raw error messages, tokens, cookies, emails, account IDs, org IDs, or billing history.

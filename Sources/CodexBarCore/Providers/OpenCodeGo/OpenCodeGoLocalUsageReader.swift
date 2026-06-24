@@ -1,8 +1,12 @@
 import Foundation
 
-#if os(macOS)
+#if canImport(SQLite3)
 import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
+#endif
 
+#if canImport(SQLite3) || canImport(CSQLite3)
 public enum OpenCodeGoLocalUsageError: LocalizedError, Sendable, Equatable {
     case notDetected
     case historyUnavailable(String)

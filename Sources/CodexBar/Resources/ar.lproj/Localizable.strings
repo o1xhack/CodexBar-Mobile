@@ -498,6 +498,8 @@
 "show_most_used_provider_subtitle" = "شريط القوائم يعرض تلقائيا مزود الخدمة الأقرب إلى حد السعر.";
 "menu_bar_shows_percent_title" = "شريط القائمة يعرض النسبة المئوية";
 "menu_bar_shows_percent_subtitle" = "استبدل ألواح الحيوانات بأيقونات علامة مزودة ونسبة مئوية.";
+"hide_critters_title" = "إخفاء الكائنات الصغيرة";
+"hide_critters_subtitle" = "عرض أشرطة القياس البسيطة بدون الوجه والزخارف.";
 "display_mode_title" = "وضع العرض";
 "display_mode_subtitle" = "اختر ما تريد عرضه في شريط القائمة (Pace يظهر الاستخدام مقابل المتوقع).";
 "section_menu_content" = "محتوى القائمة";
@@ -626,6 +628,8 @@
 "metric_pref_tertiary" = "الدرجة الثالثة";
 "metric_pref_extra_usage" = "الاستخدام الإضافي";
 "metric_pref_average" = "المتوسط";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "النسبة المئوية";
@@ -707,6 +711,7 @@
 "Resets %@" = "إعادة التعيين %@";
 "Resets in %@" = "إعادة التعيين في %@";
 "Resets now" = "إعادة التعيين الآن";
+"reset_tomorrow_format" = "غدًا، %@";
 "Lasts until reset" = "يستمر حتى إعادة التعيين";
 "Updated %@" = "تحديث %@";
 "Updated %@h ago" = "تم التحديث %@h قبل";
@@ -805,6 +810,7 @@
 "API spend" = "API تنفق";
 "Extra usage" = "الاستخدام الإضافي";
 "Quota usage" = "استخدام الحصص";
+"Your spend" = "إنفاقك";
 "%.0f%% used" = "%.0f%% مستخدمة";
 "Usage history (today)" = "تاريخ الاستخدام (اليوم)";
 "Usage history (%d days)" = "تاريخ الاستخدام (%d أيام)";
@@ -874,6 +880,9 @@
 "Clearing removes local temporary provider data." = "المسح يزيل بيانات مقدم الخدمة المؤقت المحلي.";
 "Total: %@" = "المجموع: %@";
 "%d more items" = "%d المزيد من العناصر";
+"Other (%d items)" = "أخرى (%d عناصر)";
+"Expand" = "توسيع";
+"Collapse" = "طيّ";
 "Cleanup ideas" = "أفكار التنظيف";
 "%d unreadable item(s) skipped" = "%d العناصر غير القابلة للقراءة تم تخطيها";
 
@@ -969,6 +978,9 @@
 "Day" = "اليوم";
 "Deployment" = "النشر";
 "Drag to reorder" = "سحب لإعادة ترتيب";
+"Sort providers alphabetically" = "فرز المزوّدين أبجديًا";
+"Sort providers alphabetically (enabled first)" = "فرز المزوّدين أبجديًا (المفعّلون أولاً)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "مرتّبة أبجديًا (المفعّلون أولاً) — انقر لاستخدام ترتيبك المخصّص";
 "Endpoint" = "نقطة النهاية";
 "Enterprise host" = "مضيف مؤسسي";
 "Extra usage balance: %@" = "توازن الاستخدام الإضافي: %@";
@@ -1084,31 +1096,41 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
-
-/* Upstream v0.36 locale catch-up fallbacks */
-"Plan expires: %@" = "Plan expires: %@";
-"Renews: %@" = "Renews: %@";
-"mobile_button_sync_now" = "Sync Now";
-"mobile_dev_depleted" = "Depleted";
-"mobile_dev_restored" = "Restored";
-"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
-"mobile_dev_verify_push" = "Verify Push Setup";
-"mobile_dev_warning" = "Warning";
-"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
-"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (57 additional mocks omitted for brevity):";
-"mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_section_icloud_sync" = "iCloud Sync";
-"mobile_section_mock_data" = "Debug · Mock Provider Data";
-"mobile_section_push" = "iOS Push Notifications";
-"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
-"mobile_sync_status_last_sync_format" = "Last sync: %@";
-"mobile_sync_status_no_sync" = "No sync yet";
-"mobile_sync_status_syncing" = "Syncing…";
-"mobile_toggle_mock_subtitle" = "Pushes 65 synthetic providers across 55 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 57 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy, 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 4 v0.36 single-account providers for litellm/poe/chutes/zed, and 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
-"mobile_toggle_mock_title" = "Inject mock provider data";
-"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
-"mobile_toggle_push_title" = "Push notifications to iOS";
-"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
-"mobile_toggle_sync_title" = "Sync usage to iCloud";
-"tab_mobile" = "Mobile";
-"∞ Unlimited" = "∞ Unlimited";
+"Limit Reset Credits" = "أرصدة إعادة تعيين الحد";
+"1 manual reset available" = "تتوفر إعادة تعيين يدوية واحدة";
+"%d manual resets available" = "تتوفر %d عمليات إعادة تعيين يدوية";
+"Next expires %@" = "تنتهي صلاحية التالية %@";
+"byte_unit_byte" = "بايت";
+"byte_unit_bytes" = "بايتات";
+"byte_unit_kilobyte" = "كيلوبايت";
+"byte_unit_kilobytes" = "كيلوبايتات";
+"byte_unit_megabyte" = "ميغابايت";
+"byte_unit_megabytes" = "ميغابايتات";
+"byte_unit_gigabyte" = "غيغابايت";
+"byte_unit_gigabytes" = "غيغابايتات";
+"Plan expires: %@" = "تنتهي الخطة: %@";
+"Renews: %@" = "يتجدد: %@";
+"mobile_button_sync_now" = "مزامنة الآن";
+"mobile_dev_depleted" = "نفدت";
+"mobile_dev_restored" = "تمت الاستعادة";
+"mobile_dev_test_intro" = "يكتب سجل QuotaTransition حقيقيا إلى CloudKit، مما يطلق نفس تنبيه الدفع الذي سيتلقاه تطبيق iOS في الإنتاج. يخضع للمفتاح أعلاه (يجب أن يكون مفعلا).";
+"mobile_dev_verify_push" = "تحقق من إعداد الدفع";
+"mobile_dev_warning" = "تحذير";
+"mobile_mock_cost_note" = "تضيف البيانات الوهمية حوالي 85 دولارا إلى لوحة تكلفة 30 يوما أثناء تفعيلها. أوقفها لاستعادة الأرقام الحقيقية.";
+"mobile_mock_reference_header" = "مرجع — أكثر 8 بيانات وهمية اختبارا (تم حذف 57 بيانات وهمية إضافية للاختصار):";
+"mobile_section_dev_test" = "DEV — اختبار دفع iOS";
+"mobile_section_icloud_sync" = "مزامنة iCloud";
+"mobile_section_mock_data" = "تصحيح · بيانات مزود وهمية";
+"mobile_section_push" = "إشعارات دفع iOS";
+"mobile_sync_status_last_attempt_format" = "آخر محاولة: %@";
+"mobile_sync_status_last_sync_format" = "آخر مزامنة: %@";
+"mobile_sync_status_no_sync" = "لا توجد مزامنة بعد";
+"mobile_sync_status_syncing" = "جار المزامنة…";
+"mobile_toggle_mock_subtitle" = "أضف عينات وهمية مستقرة لكل مزود متزامن حتى يعرض iOS شبكة كاملة لاختبار التخطيط. تشمل القيم استخدام OpenAI/Codex وClaude وCursor وGemini وGrok وLLM Proxy وBedrock وMiniMax وغيرها.";
+"mobile_toggle_mock_title" = "حقن بيانات مزود وهمية";
+"mobile_toggle_push_subtitle" = "عند نفاد حصة الجلسة أو استعادتها، أرسل تنبيه دفع مرئيا إلى تطبيق iOS المرافق عبر iCloud. هذا مستقل عن إشعارات Mac المحلية — يمكنك إبقاء Mac صامتا مع الاستمرار في تلقي التنبيهات على iPhone.";
+"mobile_toggle_push_title" = "إشعارات الدفع إلى iOS";
+"mobile_toggle_sync_subtitle" = "يدفع بيانات الاستخدام إلى iCloud حتى يتمكن تطبيق iOS المرافق من عرضها.";
+"mobile_toggle_sync_title" = "مزامنة الاستخدام إلى iCloud";
+"tab_mobile" = "الجوال";
+"∞ Unlimited" = "∞ غير محدود";

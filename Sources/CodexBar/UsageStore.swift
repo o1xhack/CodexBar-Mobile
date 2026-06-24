@@ -174,6 +174,7 @@ final class UsageStore {
     @ObservationIgnored var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
     @ObservationIgnored var lastOpenAIDashboardAttachmentAuthorized: Bool = false
     @ObservationIgnored var lastOpenAIDashboardTargetEmail: String?
+    @ObservationIgnored var lastOpenAIDashboardTargetIsolationKey: String?
     @ObservationIgnored var lastOpenAIDashboardAttemptAt: Date?
     @ObservationIgnored var lastOpenAIDashboardCookieImportAttemptAt: Date?
     @ObservationIgnored var lastOpenAIDashboardCookieImportEmail: String?
@@ -235,6 +236,7 @@ final class UsageStore {
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
+    @ObservationIgnored private var tokenRefreshSequenceProvider: UsageProvider?
     @ObservationIgnored var memoryPressureReliefTask: Task<Void, Never>?
     @ObservationIgnored var startupConnectivityRetryTask: Task<Void, Never>?
     @ObservationIgnored var startupConnectivityRetryNeeded = false
@@ -595,7 +597,7 @@ final class UsageStore {
                                 (ProviderInteractionContext.current == .background))
                     }
                     if availableRefreshProviders.contains(provider) {
-                        group.addTask { await self.refreshStatus(provider) }
+                        group.addTask { await self.refreshProviderStatus(provider) }
                     }
                 }
                 if forceTokenUsage {
@@ -726,19 +728,31 @@ final class UsageStore {
     }
 
     private func refreshTokenUsageSequenceNow(force: Bool) async {
-        if force, let existing = self.tokenRefreshSequenceTask {
-            existing.cancel()
-            await existing.value
-            self.tokenRefreshSequenceTask = nil
-        }
-
+        await self.drainScheduledTokenRefreshIfNeeded(force: force, scopedTo: nil)
         await self.refreshTokenUsageSequence(force: force)
     }
 
+    func refreshTokenUsageNow(for provider: UsageProvider, force: Bool) async {
+        await self.drainScheduledTokenRefreshIfNeeded(force: force, scopedTo: provider)
+        await self.refreshTokenUsage(provider, force: force)
+        self.scheduleMemoryPressureRelief()
+    }
+
+    private func drainScheduledTokenRefreshIfNeeded(force: Bool, scopedTo provider: UsageProvider?) async {
+        guard force, let existing = self.tokenRefreshSequenceTask else { return }
+        if let provider, self.tokenRefreshSequenceProvider != provider { return }
+        existing.cancel()
+        await existing.value
+        self.tokenRefreshSequenceTask = nil
+    }
+
     private func refreshTokenUsageSequence(force: Bool) async {
+        defer { self.tokenRefreshSequenceProvider = nil }
         for provider in self.enabledProvidersForBackgroundWork() {
             if Task.isCancelled { break }
+            self.tokenRefreshSequenceProvider = provider
             await self.refreshTokenUsage(provider, force: force)
+            self.tokenRefreshSequenceProvider = nil
         }
         self.scheduleMemoryPressureRelief()
     }
@@ -793,7 +807,16 @@ final class UsageStore {
 
         // Session quota notifications are tied to the primary session window. Copilot free plans can
         // expose only chat quota, so allow Copilot to fall back to secondary for transition tracking.
+        // Command Code synthesizes a depleted primary while subscription enrichment is unavailable.
+        // Preserve the prior notification state for that placeholder, but accept positive credit data.
+        if provider == .commandcode,
+           snapshot.commandCodeSubscriptionEnrichmentUnavailable,
+           SessionQuotaNotificationLogic.isDepleted(snapshot.primary?.remainingPercent)
+        {
+            return
+        }
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
+            if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
             self.lastKnownSessionRemaining.removeValue(forKey: provider)
             self.lastKnownSessionWindowSource.removeValue(forKey: provider)
             return
@@ -882,7 +905,7 @@ final class UsageStore {
         return account
     }
 
-    private func refreshStatus(_ provider: UsageProvider) async {
+    func refreshProviderStatus(_ provider: UsageProvider) async {
         guard self.settings.statusChecksEnabled else { return }
         guard let meta = self.providerMetadata[provider] else { return }
 
@@ -1465,11 +1488,6 @@ extension UsageStore {
             return
         }
 
-        if let override = self._test_tokenUsageRefreshOverride {
-            await override(provider, force)
-            return
-        }
-
         if Self.tokenCostRequiresProviderSnapshot(provider) {
             if let snapshot = self.tokenSnapshot(fromProviderSnapshot: self.snapshots[provider], provider: provider) {
                 self.tokenSnapshots[provider] = snapshot
@@ -1520,6 +1538,15 @@ extension UsageStore {
         self.tokenRefreshInFlight.insert(provider)
         defer { self.tokenRefreshInFlight.remove(provider) }
 
+        if let override = self._test_tokenUsageRefreshOverride {
+            await override(provider, force)
+            if Task.isCancelled {
+                self.lastTokenFetchAt.removeValue(forKey: provider)
+                self.lastTokenFetchScope.removeValue(forKey: provider)
+            }
+            return
+        }
+
         let startedAt = Date()
         let providerText = provider.rawValue
         self.tokenCostLogger
@@ -1559,6 +1586,7 @@ extension UsageStore {
                 guard let snapshot = try await group.next() else { throw CancellationError() }
                 return snapshot
             }
+            try Task.checkCancellation()
 
             guard !snapshot.daily.isEmpty else {
                 self.tokenSnapshots.removeValue(forKey: provider)
@@ -1583,7 +1611,11 @@ extension UsageStore {
             self.tokenFailureGates[provider]?.recordSuccess()
             self.persistWidgetSnapshot(reason: "token-usage")
         } catch {
-            if error is CancellationError { return }
+            if error is CancellationError {
+                self.lastTokenFetchAt.removeValue(forKey: provider)
+                self.lastTokenFetchScope.removeValue(forKey: provider)
+                return
+            }
             let duration = Date().timeIntervalSince(startedAt)
             let msg = error.localizedDescription
             let durationText = String(format: "%.2f", duration)

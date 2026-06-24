@@ -225,6 +225,14 @@ extension SettingsStore {
         }
     }
 
+    var menuBarHidesCritters: Bool {
+        get { self.defaultsState.menuBarHidesCritters }
+        set {
+            self.defaultsState.menuBarHidesCritters = newValue
+            self.userDefaults.set(newValue, forKey: "menuBarHidesCritters")
+        }
+    }
+
     private var menuBarDisplayModeRaw: String? {
         get { self.defaultsState.menuBarDisplayModeRaw }
         set {
@@ -674,6 +682,17 @@ extension SettingsStore {
         set {
             self.defaultsState.providerDetectionCompleted = newValue
             self.userDefaults.set(newValue, forKey: "providerDetectionCompleted")
+        }
+    }
+
+    /// Whether the Providers settings pane displays providers sorted alphabetically (enabled on
+    /// top). Defaults to `false`. Purely a display preference — it never rewrites the stored manual
+    /// order, so turning it on sorts the display without losing the user's hand-arranged sequence.
+    var providersSortedAlphabetically: Bool {
+        get { self.defaultsState.providersSortedAlphabetically }
+        set {
+            self.defaultsState.providersSortedAlphabetically = newValue
+            self.userDefaults.set(newValue, forKey: "providersSortedAlphabetically")
         }
     }
 

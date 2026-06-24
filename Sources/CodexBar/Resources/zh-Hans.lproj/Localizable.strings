@@ -486,6 +486,8 @@
 "show_most_used_provider_subtitle" = "菜单栏会自动显示最接近速率限制的提供商。";
 "menu_bar_shows_percent_title" = "菜单栏显示百分比";
 "menu_bar_shows_percent_subtitle" = "将小动物进度条替换为提供商品牌图标和百分比。";
+"hide_critters_title" = "隐藏小动物";
+"hide_critters_subtitle" = "显示不带表情和装饰的简洁进度条。";
 "display_mode_title" = "显示模式";
 "display_mode_subtitle" = "选择菜单栏中显示的内容（进度会显示实际用量与预期的对比）。";
 "section_menu_content" = "菜单内容";
@@ -603,6 +605,8 @@
 "metric_pref_tertiary" = "第三";
 "metric_pref_extra_usage" = "额外用量";
 "metric_pref_average" = "平均";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 "display_mode_percent" = "百分比";
 "display_mode_pace" = "进度";
 "display_mode_both" = "两者";
@@ -706,6 +710,7 @@
 "Resets %@" = "重置于 %@";
 "Resets in %@" = "%@后重置";
 "Resets now" = "立即重置";
+"reset_tomorrow_format" = "明天 %@";
 "Lasts until reset" = "持续到重置";
 "Updated %@" = "更新于 %@";
 "Updated %@h ago" = "%@ 小时前更新";
@@ -808,6 +813,7 @@
 "API spend" = "API 支出";
 "Extra usage" = "额外用量";
 "Quota usage" = "配额用量";
+"Your spend" = "您的支出";
 "%.0f%% used" = "已使用 %.0f%%";
 "Usage history (today)" = "用量记录（今天）";
 "Usage history (%d days)" = "用量记录（%d 天）";
@@ -965,6 +971,9 @@
 "Day" = "日期";
 "Deployment" = "部署";
 "Drag to reorder" = "拖动以重新排序";
+"Sort providers alphabetically" = "按字母顺序排列提供商";
+"Sort providers alphabetically (enabled first)" = "按字母顺序排列提供商（已启用的优先）";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "已按字母顺序排列（已启用的优先）— 点击使用自定义顺序";
 "Endpoint" = "端点";
 "Enterprise host" = "Enterprise 主机";
 "Extra usage balance: %@" = "额外使用量余额：%@";
@@ -1088,3 +1097,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "限额重置额度";
+"1 manual reset available" = "1 次手动重置可用";
+"%d manual resets available" = "%d 次手动重置可用";
+"Next expires %@" = "下一个将于 %@ 到期";
+"Other (%d items)" = "其他（%d 项）";
+"Expand" = "展开";
+"Collapse" = "收起";
+"byte_unit_byte" = "字节";
+"byte_unit_bytes" = "字节";
+"byte_unit_kilobyte" = "千字节";
+"byte_unit_kilobytes" = "千字节";
+"byte_unit_megabyte" = "兆字节";
+"byte_unit_megabytes" = "兆字节";
+"byte_unit_gigabyte" = "吉字节";
+"byte_unit_gigabytes" = "吉字节";

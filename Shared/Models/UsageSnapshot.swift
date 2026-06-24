@@ -487,6 +487,18 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// the dedicated DeepSeekUsageCard; nil → falls back to generic rendering.
     public let deepSeekUsage: SyncDeepSeekUsage?
 
+    // MARK: - iOS 1.15.0 / Mac 0.37.2.1 — v0.37 sync (033)
+    // Additive optionals (decodeIfPresent); no wire-schema bump.
+
+    /// Codex manual rate-limit reset credits (upstream v0.37.0). Populated only
+    /// on the `codex` provider snapshot when Mac has fetched reset-credit state.
+    public let codexResetCredits: SyncCodexResetCredits?
+
+    /// Raw upstream `UsageDataConfidence` value (e.g. "exact", "estimated",
+    /// "percentOnly"). `nil` means legacy/unknown; future values are preserved as
+    /// strings so iOS does not reject newer Mac payloads.
+    public let usageDataConfidence: String?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -531,7 +543,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         openRouterStats: SyncOpenRouterStats? = nil,
         azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
         alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
-        deepSeekUsage: SyncDeepSeekUsage? = nil)
+        deepSeekUsage: SyncDeepSeekUsage? = nil,
+        codexResetCredits: SyncCodexResetCredits? = nil,
+        usageDataConfidence: String? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -571,6 +585,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = azureOpenAIInfo
         self.alibabaTokenPlan = alibabaTokenPlan
         self.deepSeekUsage = deepSeekUsage
+        self.codexResetCredits = codexResetCredits
+        self.usageDataConfidence = usageDataConfidence
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -616,7 +632,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             openRouterStats: self.openRouterStats,
             azureOpenAIInfo: self.azureOpenAIInfo,
             alibabaTokenPlan: self.alibabaTokenPlan,
-            deepSeekUsage: self.deepSeekUsage)
+            deepSeekUsage: self.deepSeekUsage,
+            codexResetCredits: self.codexResetCredits,
+            usageDataConfidence: self.usageDataConfidence)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -666,6 +684,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = try container.decodeIfPresent(SyncAzureOpenAIInfo.self, forKey: .azureOpenAIInfo)
         self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
         self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
+        // iOS 1.15.0 / Mac 0.37.2.1 — v0.37 envelope extensions.
+        self.codexResetCredits = try container.decodeIfPresent(SyncCodexResetCredits.self, forKey: .codexResetCredits)
+        self.usageDataConfidence = try container.decodeIfPresent(String.self, forKey: .usageDataConfidence)
     }
 }
 

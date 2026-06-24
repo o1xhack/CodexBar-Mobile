@@ -5,21 +5,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="${ROOT_DIR}/.build/lint-tools/bin"
 
-ensure_tools() {
-  # Always delegate to the installer so pinned versions are enforced.
-  # The installer is idempotent and exits early when the expected versions are already present.
-  "${ROOT_DIR}/Scripts/install_lint_tools.sh"
+ensure_swiftformat() {
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh" swiftformat
 }
 
-# Audit every `*.xcstrings` file under the iOS app for entries left in
-# `state: "new"`. Xcode auto-creates such entries with the English source
-# as a fallback `value` whenever a developer adds a new `String(localized:)`
-# call, and the build / TestFlight upload still succeeds — so non-English
-# locales silently ship the English text. Build 55 (1.1.0 release notes
-# English-only on Chinese / Japanese iPhones) and Build 92 (same regression
-# for the 1.3.0 catalog) both shipped this way before user-reported.
-# Failing lint here forces every new string to carry real translations
-# for all 4 locales (en / zh-Hans / zh-Hant / ja) before it can be merged.
+ensure_swiftlint() {
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh" swiftlint
+}
+
+# Audit every iOS `*.xcstrings` file for untranslated entries and for source
+# keys missing from the catalog. Xcode can otherwise leave non-English users
+# with English fallback text even when SwiftPM checks pass.
 audit_xcstrings() {
   command -v jq >/dev/null 2>&1 || { echo "jq is required for i18n audit; install via brew install jq" >&2; return 2; }
   command -v python3 >/dev/null 2>&1 || { echo "python3 is required for i18n audit; install via xcode-select --install" >&2; return 2; }
@@ -51,15 +47,6 @@ audit_xcstrings() {
     fi
   done < <(find "$ROOT_DIR" -name '*.xcstrings' -not -path '*/.build/*' -not -path '*/DerivedData/*' -print0)
 
-  # Cross-check: every String(localized:) in Swift source must have a
-  # matching entry in the iOS Localizable.xcstrings. Xcode only auto-extracts
-  # new keys on a full Xcode build — swift test / lint never trigger that
-  # extraction. Build 130 of iOS 1.7.0 shipped 21 untranslated keys (the
-  # entire 1.7.0 in-app release-notes catalog + CloudKit sync status text)
-  # to zh-Hans / ja / zh-Hant users as English fallback. The original
-  # state="new" audit above passed because the catalog had no orphan
-  # entries — but couldn't see that 21 source keys had no catalog entry
-  # at all. This second pass closes that gap.
   local ios_xcstrings="$ROOT_DIR/CodexBarMobile/CodexBarMobile/Localizable.xcstrings"
   if [[ -f "$ios_xcstrings" ]]; then
     if ! python3 "$ROOT_DIR/Scripts/audit_localized_keys.py" "$ios_xcstrings" \
@@ -71,20 +58,8 @@ audit_xcstrings() {
   return "$rc"
 }
 
-# Guard: any change to the Codex / Claude cost-usage parser must come
-# with a `parserLogicVersion` bump in CostUsagePricing.swift, so the
-# pricingFingerprint rolls and every user's on-disk cache (which carries
-# token attributions baked-in by the previous parser) gets invalidated
-# on next launch.
-#
-# Why this exists: the 0.23.3 hotfix had to ship because a pre-existing
-# parser bug (32 KB prefixBytes truncating Codex CLI 0.125 turn_context
-# events) silently misattributed ~93% of token usage to gpt-5. The cache
-# wouldn't have rolled itself even after the parser fix without the
-# manual parserLogicVersion bump. Easy to forget; this lint catches it.
-#
-# Escape hatch: set ALLOW_PARSER_CHANGE=1 for cosmetic / comment-only
-# edits where invalidating user caches would be wasteful.
+# Guard: any semantic Codex / Claude cost-usage parser change must bump
+# parserLogicVersion so persisted attribution caches are invalidated.
 audit_parser_version() {
   if [[ "${ALLOW_PARSER_CHANGE:-0}" == "1" ]]; then
     echo "parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
@@ -92,12 +67,6 @@ audit_parser_version() {
   fi
 
   local base="${PARSER_LINT_BASE:-origin/mobile-dev}"
-
-  # If the base ref isn't in the local repo (typical in shallow CI
-  # checkouts), try to fetch it. We MUST NOT silently skip — a missing
-  # base would otherwise let parser changes ship without a fingerprint
-  # bump, defeating the cache-invalidation contract this audit exists
-  # to enforce. Caught in 0.23.3 code review as P1-1.
   if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
     if [[ "$base" == */* ]]; then
       local remote="${base%%/*}"
@@ -112,17 +81,11 @@ audit_parser_version() {
       return 0
     fi
     echo "ERROR: parser-version audit can't find base ref '$base'." >&2
-    echo "       In CI, ensure your checkout fetches origin/mobile-dev" >&2
-    echo "       (e.g., actions/checkout@v4 with fetch-depth: 0)." >&2
+    echo "       In CI, ensure your checkout fetches origin/mobile-dev (for example fetch-depth: 0)." >&2
     echo "       Locally, run: git fetch origin mobile-dev" >&2
-    echo "       To intentionally skip (e.g., on a fresh fork clone with" >&2
-    echo "       no network), set ALLOW_MISSING_BASE=1." >&2
     return 1
   fi
 
-  # Parser-semantics-bearing files. Editing any of these without bumping
-  # parserLogicVersion risks shipping a fix whose results never reach
-  # users (their caches stay frozen with the old parser's attribution).
   local guarded_files=(
     "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift"
     "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
@@ -143,10 +106,6 @@ audit_parser_version() {
     return 0
   fi
 
-  # Parser code changed. Look for a +/- on the parserLogicVersion line
-  # in CostUsagePricing.swift. Pricing-table key edits don't count —
-  # those roll the fingerprint via sorted keys already; we want a
-  # genuine parserLogicVersion bump.
   if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$pricing_file" \
        | grep -E '^[+-][[:space:]]*static[[:space:]]+let[[:space:]]+parserLogicVersion' >/dev/null; then
     echo "parser-version audit: parser code changed AND parserLogicVersion bumped — OK"
@@ -156,31 +115,20 @@ audit_parser_version() {
   echo "ERROR: parser code changed since $base but parserLogicVersion was not bumped." >&2
   echo "       Files changed:" >&2
   printf '         - %s\n' "${changed_parser[@]}" >&2
-  echo "" >&2
-  echo "       Bump 'static let parserLogicVersion = N' in:" >&2
-  echo "         $pricing_file" >&2
-  echo "       so the pricingFingerprint rolls and every user's on-disk" >&2
-  echo "       cache (with old-parser attributions baked in) is invalidated" >&2
-  echo "       and re-scanned with the fixed parser on next launch." >&2
-  echo "" >&2
-  echo "       For comment-only / non-semantic edits set ALLOW_PARSER_CHANGE=1." >&2
+  echo "       Bump 'static let parserLogicVersion = N' in $pricing_file." >&2
   return 1
 }
 
-# Guard: the committed Sources/CodexBarCore/Generated/CodexParserHash.generated.swift
-# must match a fresh hash of the Codex cost-usage parser source. That hash feeds the
-# cache `producerKey` invalidation axis that the v0.29.0 upstream merge combined into
-# CostUsageCache.swift (alongside the fork's pricingFingerprint axis). A stale hash
-# silently freezes producerKey so a later parser-source change would not roll it.
-# This complements audit_parser_version (which guards the parserLogicVersion
-# fingerprint axis). Regenerate via:
-#   bash Scripts/regenerate-codex-parser-hash.sh
 check_codex_parser_hash() {
   "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
 }
 
 check_package_product_paths() {
   "${ROOT_DIR}/Scripts/test_package_product_paths.sh"
+}
+
+check_package_strip() {
+  "${ROOT_DIR}/Scripts/test_package_strip.sh"
 }
 
 check_release_dsym_paths() {
@@ -195,30 +143,74 @@ check_swift_test_sharding() {
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
 
-check_site_locales() {
+check_ci_path_gate() {
+  "${ROOT_DIR}/Scripts/test_ci_path_gate.sh"
+}
+
+check_app_locales() {
+  node "${ROOT_DIR}/Scripts/check-app-locales.mjs" --test
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
+}
+
+check_site_locales() {
   node "${ROOT_DIR}/Scripts/check-site-locales.mjs"
   node --check "${ROOT_DIR}/docs/site.js"
+}
+
+check_documentation_links() {
+  node "${ROOT_DIR}/Scripts/check-documentation-links.mjs"
+}
+
+check_llms_index() {
+  node "${ROOT_DIR}/Scripts/generate-llms.mjs" --check
+}
+
+run_portable_checks() {
+  check_codex_parser_hash
+  check_package_product_paths
+  check_package_strip
+  check_release_dsym_paths
+  check_sparkle_signing_paths
+  check_swift_test_sharding
+  check_ci_path_gate
+  check_documentation_links
+  check_llms_index
+  check_site_locales
+}
+
+run_swiftformat_lint() {
+  ensure_swiftformat
+  "${BIN_DIR}/swiftformat" Sources Tests --lint
+}
+
+run_swiftlint() {
+  ensure_swiftlint
+  "${BIN_DIR}/swiftlint" --strict
 }
 
 cmd="${1:-lint}"
 
 case "$cmd" in
   lint)
-    check_package_product_paths
-    check_release_dsym_paths
-    check_sparkle_signing_paths
-    check_swift_test_sharding
-    check_site_locales
-    ensure_tools
-    "${BIN_DIR}/swiftformat" Sources Tests --lint
-    "${BIN_DIR}/swiftlint" --strict
+    check_app_locales
+    run_portable_checks
+    run_swiftformat_lint
+    run_swiftlint
     audit_xcstrings
     audit_parser_version
-    check_codex_parser_hash
+    ;;
+  lint-linux)
+    run_portable_checks
+    run_swiftlint
+    audit_parser_version
+    ;;
+  lint-macos)
+    check_app_locales
+    run_swiftformat_lint
+    audit_xcstrings
     ;;
   format)
-    ensure_tools
+    ensure_swiftformat
     "${BIN_DIR}/swiftformat" Sources Tests
     ;;
   audit-i18n)
@@ -231,7 +223,7 @@ case "$cmd" in
     check_codex_parser_hash
     ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|lint-linux|lint-macos|format|audit-i18n|audit-parser-version|audit-parser-hash]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac

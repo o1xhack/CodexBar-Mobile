@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.37.2.1 (Mobile 1.15.0 · build 92.1) — 2026-06-23 — upstream v0.37.2 sync
+
+Syncs the Mac app to upstream CodexBar **v0.37.2** (spanning v0.37.0–v0.37.2)
+and pairs it with the next iOS train, **1.15.0**. This is one combined
+upstream-sync release for issues #30, #32, and #33; it intentionally does not
+split the v0.37 provider, widget, security, diagnostics, and menu reliability
+work into separate user-visible versions.
+
+### Added / Improved
+
+- **New Mac widgets** — Codex and Claude burn-down widgets now include
+  single-window and combined session/weekly views for faster quota planning.
+- **Provider data improvements** — Bedrock can show rolling 14-day CloudWatch
+  activity, Mistral adds Vibe monthly-plan usage, Cursor separates personal
+  on-demand spend from shared team pool, Codex can expose configured profile
+  homes as switchable accounts, and Codex OAuth accounts can show manual reset
+  credits with expiry.
+- **Diagnostics and CLI visibility** — provider diagnostics can be exported as
+  redacted reports with platform/app-version context, and the CLI server reports
+  its startup build version from `/health`.
+- **Security hardening** — Codex OAuth credentials are refreshed with private
+  file permissions, and unsafe endpoint overrides are rejected before attaching
+  credentials for Deepgram, z.ai, Xiaomi MiMo, and Azure OpenAI.
+- **Menu and performance fixes** — refresh stays in-place while the menu remains
+  open, provider cards align with the Overview layout, memory-pressure callbacks
+  avoid actor-isolation crashes, idle WebViews and rebuildable caches are trimmed
+  safely, and release packages are smaller.
+- **iOS 1.15 readiness** — the companion app will use this release train for any
+  new mobile-side rendering or compatibility support required by the v0.37 Mac
+  data. The already-reviewing iOS 1.14 release remains separate.
+
+### Compatibility
+
+- CloudKit stays in the Production environment. Schema deploy decisions and the
+  2 Mac x 2 iPhone old/new compatibility gate are tracked in
+  `CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md`.
+- Provider-display values are expected to stay inside the existing compressed
+  provider payload or existing quota-transition record path unless the v0.37
+  payload audit records an explicit optional-field addition.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.37.2**（覆盖 v0.37.0–v0.37.2），并配套下一条
+iOS 发布线 **1.15.0**。本次把 issue #30、#32、#33 覆盖的上游内容合并为一个用户可见版本，
+不把 v0.37 的 provider、widget、安全、诊断和菜单可靠性改动拆成多次发布。
+
+### 新增 / 改进
+
+- **新的 Mac widget** —— Codex 与 Claude burn-down widget 支持单窗口和 session/weekly
+  组合视图，方便判断 quota 消耗节奏。
+- **Provider 数据增强** —— Bedrock 可显示 14 天 CloudWatch 活动，Mistral 增加 Vibe
+  月度套餐用量，Cursor 区分个人按需消费和团队共享池，Codex 可把显式配置的 profile home
+  作为账号切换，并显示 OAuth 手动重置额度及到期时间。
+- **诊断与 CLI 可见性** —— provider 诊断可导出带平台/app 版本上下文的脱敏报告；
+  CLI server 的 `/health` 会报告启动时的 build version。
+- **安全加固** —— Codex OAuth 凭据刷新后使用私有文件权限；Deepgram、z.ai、Xiaomi MiMo
+  与 Azure OpenAI 的不安全 endpoint override 会在附加凭据前被拒绝。
+- **菜单与性能修复** —— 刷新时菜单保持打开并原地显示进度，provider card 对齐 Overview
+  布局，memory-pressure callback 避免 actor-isolation crash，空闲 WebView 和可重建缓存会安全释放，
+  release 包体积也更小。
+- **iOS 1.15 准备** —— companion app 会用 1.15 发布线承接 v0.37 Mac 数据所需的新渲染或兼容支持；
+  已在 review 的 iOS 1.14 保持独立。
+
+### 兼容性
+
+- CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate
+  记录在 `CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md`。
+- Provider 展示值预期继续保留在现有压缩 provider payload 或既有 quota-transition record 路径中；
+  如 v0.37 payload 审计需要新增可选字段，会在 Research 中单独记录。
+
+---
+
 ## 0.36.1.1 (Mobile 1.13.0 · build 88.1) — 2026-06-16 — upstream v0.36.1 sync
 
 Syncs the Mac app to upstream CodexBar **v0.36.1** (spanning v0.36.0–v0.36.1)

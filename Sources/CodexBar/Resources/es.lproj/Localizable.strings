@@ -259,6 +259,7 @@
 "Replay selected animation" = "Reproducir la animación seleccionada";
 "Requires authentication via GitHub Device Flow." = "Requiere autenticación mediante el flujo de dispositivo de GitHub.";
 "Resets: \\(reset)" = "Se reinicia: \\(reset)";
+"reset_tomorrow_format" = "mañana, %@";
 "Rolling five-hour limit" = "Límite móvil de cinco horas";
 "Search hourly" = "Búsquedas por hora";
 "Secondary (\\(label))" = "Secundario (\\(label))";
@@ -484,6 +485,8 @@
 "show_most_used_provider_subtitle" = "La barra de menús muestra automáticamente el proveedor más cercano a su límite.";
 "menu_bar_shows_percent_title" = "La barra de menús muestra el porcentaje";
 "menu_bar_shows_percent_subtitle" = "Sustituir las barras de bichitos por iconos de marca del proveedor y un porcentaje.";
+"hide_critters_title" = "Ocultar bichitos";
+"hide_critters_subtitle" = "Mostrar barras de medición simples sin la cara ni las decoraciones.";
 "display_mode_title" = "Modo de visualización";
 "display_mode_subtitle" = "Elige qué mostrar en la barra de menús (Ritmo muestra el uso frente al previsto).";
 "section_menu_content" = "Contenido del menú";
@@ -612,6 +615,8 @@
 "metric_pref_tertiary" = "Terciario";
 "metric_pref_extra_usage" = "Uso adicional";
 "metric_pref_average" = "Promedio";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "Porcentaje";
@@ -683,6 +688,7 @@
 "API spend" = "Gasto de API";
 "Extra usage" = "Uso adicional";
 "Quota usage" = "Uso de cuota";
+"Your spend" = "Tu gasto";
 "%.0f%% used" = "%.0f%% usado";
 "Usage history (today)" = "Historial de uso (hoy)";
 "Usage history (%d days)" = "Historial de uso (%d días)";
@@ -823,6 +829,9 @@
 "Day" = "Día";
 "Deployment" = "Despliegue";
 "Drag to reorder" = "Arrastra para reordenar";
+"Sort providers alphabetically" = "Ordenar proveedores alfabéticamente";
+"Sort providers alphabetically (enabled first)" = "Ordenar proveedores alfabéticamente (activados primero)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Ordenados alfabéticamente (activados primero) — haz clic para usar tu orden personalizado";
 "Endpoint" = "Endpoint";
 "Enterprise host" = "Host Enterprise";
 "Extra usage balance: %@" = "Saldo de uso extra: %@";
@@ -944,3 +953,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "Créditos para restablecer límites";
+"1 manual reset available" = "1 restablecimiento manual disponible";
+"%d manual resets available" = "%d restablecimientos manuales disponibles";
+"Next expires %@" = "El siguiente caduca %@";
+"Other (%d items)" = "Otros (%d elementos)";
+"Expand" = "Expandir";
+"Collapse" = "Contraer";
+"byte_unit_byte" = "byte";
+"byte_unit_bytes" = "bytes";
+"byte_unit_kilobyte" = "kilobyte";
+"byte_unit_kilobytes" = "kilobytes";
+"byte_unit_megabyte" = "megabyte";
+"byte_unit_megabytes" = "megabytes";
+"byte_unit_gigabyte" = "gigabyte";
+"byte_unit_gigabytes" = "gigabytes";

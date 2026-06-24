@@ -1,10 +1,6 @@
 name: CI
 
 on:
-  # CI runs on PRs (the merge gate) and on pushes to the long-lived branches
-  # only — NOT on every feature-branch commit. A feature branch gets its CI
-  # through the PR it opens (pull_request: opened/synchronize), so intermediate
-  # work-in-progress commits no longer each spawn a (often red) CI run.
   push:
     branches: [mobile-dev, main]
   pull_request:
@@ -13,53 +9,70 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SWIFT_VERSION: 6.2.1
+
 jobs:
-  lint-build-test:
-    runs-on: macos-15-intel
-    timeout-minutes: 25
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      macos-tests: ${{ steps.macos-tests.outputs.macos-tests }}
     steps:
       - uses: actions/checkout@v6
-        # Full history so `lint.sh audit_parser_version` can compute the
-        # `origin/mobile-dev...HEAD` merge-base. A shallow (depth-1) checkout
-        # makes the parser-version audit false-fail on any PR that touches the
-        # cost-usage parser (it can't see the parserLogicVersion bump in the
-        # diff). See Scripts/lint.sh: "In CI, ensure your checkout fetches
-        # origin/mobile-dev (e.g. fetch-depth: 0)."
         with:
           fetch-depth: 0
 
-      - name: Select Xcode 26.1.1 (if present) or fallback to default
+      - name: Detect macOS test impact
+        id: macos-tests
+        shell: bash
         run: |
           set -euo pipefail
-          for candidate in /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app /Applications/Xcode.app; do
-            if [[ -d "$candidate" ]]; then
-              sudo xcode-select -s "${candidate}/Contents/Developer"
-              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
-              break
-            fi
-          done
-          /usr/bin/xcodebuild -version
 
-      - name: Swift toolchain version
-        run: |
-          set -euo pipefail
-          swift --version
-          swift package --version
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          changed_paths="${RUNNER_TEMP}/changed-paths.txt"
+          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+            git ls-files | awk '{ print "A\t" $0 }' > "$changed_paths"
+          elif ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            echo "Base commit ${base_sha} is unavailable; running macOS tests conservatively."
+            git ls-files | awk '{ print "A\t" $0 }' > "$changed_paths"
+          else
+            git diff --name-status "$base_sha" "$GITHUB_SHA" > "$changed_paths"
+          fi
+
+          printf 'Changed paths:\n'
+          sed 's/^/- /' "$changed_paths"
+          ./Scripts/ci_macos_test_gate.sh "$changed_paths"
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install lint tools
-        run: ./Scripts/install_lint_tools.sh
+        run: ./Scripts/install_lint_tools.sh swiftlint
 
       - name: Lint
-        run: ./Scripts/lint.sh lint
+        run: ./Scripts/lint.sh lint-linux
 
   swift-test-macos:
+    needs: changes
+    if: ${{ needs.changes.outputs.macos-tests == 'true' }}
     runs-on: macos-15-intel
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        shard-index: [1, 2, 3, 4, 5, 6, 7, 8]
-        shard-count: [8]
+        shard-index: [0, 1, 2, 3]
+        shard-count: [4]
     steps:
       - uses: actions/checkout@v6
 
@@ -81,18 +94,37 @@ jobs:
           swift --version
           swift package --version
 
+      - name: Check app locales and Swift formatting
+        if: ${{ matrix.shard-index == 0 }}
+        run: ./Scripts/lint.sh lint-macos
+
       - name: Swift Test
-        # Run suite groups through ci_swift_test_by_suite.py in parallel
-        # matrix shards. Small groups keep timeout isolation inside this
-        # step's budget because a timed-out group is retried one suite at a
-        # time to identify the hung suite.
         timeout-minutes: 35
         run: |
-          export CODEXBAR_TEST_GROUP_SIZE=8
-          export CODEXBAR_TEST_SUITE_TIMEOUT=120
-          ./Scripts/test.sh \
-            --shard-index "${{ matrix.shard-index }}" \
-            --shard-count "${{ matrix.shard-count }}"
+          CODEXBAR_TEST_GROUP_SIZE=1 \
+            CODEXBAR_TEST_SUITE_TIMEOUT=120 \
+            CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
+            CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
+            ./Scripts/test.sh
+
+  lint-build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - changes
+      - lint
+      - swift-test-macos
+    if: ${{ always() && !cancelled() }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify lint and macOS test jobs
+        run: |
+          ./Scripts/ci_verify_test_jobs.sh \
+            "${{ needs.lint.result }}" \
+            "${{ needs.changes.result }}" \
+            "${{ needs.changes.outputs.macos-tests }}" \
+            "${{ needs.swift-test-macos.result }}"
 
   build-linux-cli:
     timeout-minutes: 20
@@ -114,14 +146,27 @@ jobs:
           uname -a
           uname -m
 
-      - name: Install Swift 6.2.1 via swiftly
+      - name: Restore Swift toolchain cache
+        id: swift-toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/swiftly
+          key: swift-${{ runner.os }}-${{ runner.arch }}-${{ env.SWIFT_VERSION }}-v2
+
+      - name: Install Swift ${{ env.SWIFT_VERSION }} via swiftly
         shell: bash
         run: |
           set -euo pipefail
 
-          if ! command -v gpg >/dev/null 2>&1; then
+          missing_packages=()
+          for package in ca-certificates gpg libcurl4-openssl-dev; do
+            if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"; then
+              missing_packages+=("$package")
+            fi
+          done
+          if [[ "${#missing_packages[@]}" -gt 0 ]]; then
             sudo apt-get update
-            sudo apt-get install -y ca-certificates gpg
+            sudo apt-get install -y "${missing_packages[@]}"
           fi
 
           SWIFTLY_ARCH="$(uname -m)"
@@ -130,6 +175,7 @@ jobs:
           POST_INSTALL_SCRIPT="$(mktemp)"
 
           mkdir -p "$SWIFTLY_BIN_DIR"
+          echo "Swift toolchain cache hit: ${{ steps.swift-toolchain-cache.outputs.cache-hit }}"
           curl -fsSL "https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_ARCH}.tar.gz" -o /tmp/swiftly.tar.gz
           tar -xzf /tmp/swiftly.tar.gz -C /tmp
           /tmp/swiftly init --assume-yes --skip-install
@@ -139,7 +185,7 @@ jobs:
           echo "SWIFTLY_HOME_DIR=$SWIFTLY_HOME_DIR" >> "$GITHUB_ENV"
           echo "SWIFTLY_BIN_DIR=$SWIFTLY_BIN_DIR" >> "$GITHUB_ENV"
 
-          swiftly install 6.2.1 --use --assume-yes --post-install-file "$POST_INSTALL_SCRIPT"
+          swiftly install "$SWIFT_VERSION" --use --assume-yes --post-install-file "$POST_INSTALL_SCRIPT"
           if [[ -s "$POST_INSTALL_SCRIPT" ]]; then
             sudo apt-get update
             sudo bash "$POST_INSTALL_SCRIPT"

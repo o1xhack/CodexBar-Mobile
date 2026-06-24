@@ -495,6 +495,8 @@
 "show_most_used_provider_subtitle" = "Рядок меню автоматично показує постачальника, який найближче до ліміту.";
 "menu_bar_shows_percent_title" = "Рядок меню показує відсотки";
 "menu_bar_shows_percent_subtitle" = "Замініть смужки тварин на значки бренду постачальника та відсоток.";
+"hide_critters_title" = "Сховати тварин";
+"hide_critters_subtitle" = "Показувати прості смужки вимірювання без обличчя та оздоблення.";
 "display_mode_title" = "Режим відображення";
 "display_mode_subtitle" = "Виберіть, що відображати на панелі меню (Pace показує використання порівняно з очікуваним).";
 "section_menu_content" = "Зміст меню";
@@ -623,6 +625,8 @@
 "metric_pref_tertiary" = "Третинний";
 "metric_pref_extra_usage" = "Додаткове використання";
 "metric_pref_average" = "Середній";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "Відсоток";
@@ -704,6 +708,7 @@
 "Resets %@" = "Скидання %@";
 "Resets in %@" = "Скидання через %@";
 "Resets now" = "Скидає зараз";
+"reset_tomorrow_format" = "завтра, %@";
 "Lasts until reset" = "Триває до скидання";
 "Updated %@" = "Оновлено %@";
 "Updated %@h ago" = "Оновлено %@ год тому";
@@ -802,6 +807,7 @@
 "API spend" = "Витрати API";
 "Extra usage" = "Додаткове використання";
 "Quota usage" = "Використання квоти";
+"Your spend" = "Ваші витрати";
 "%.0f%% used" = "Використано %.0f%%.";
 "Usage history (today)" = "Історія використання (сьогодні)";
 "Usage history (%d days)" = "Історія використання (%d днів)";
@@ -966,6 +972,9 @@
 "Day" = "День";
 "Deployment" = "Розгортання";
 "Drag to reorder" = "Перетягніть, щоб змінити порядок";
+"Sort providers alphabetically" = "Сортувати постачальників за алфавітом";
+"Sort providers alphabetically (enabled first)" = "Сортувати постачальників за алфавітом (увімкнені спочатку)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "Відсортовано за алфавітом (увімкнені спочатку) — натисніть, щоб використати власний порядок";
 "Endpoint" = "Кінцева точка";
 "Enterprise host" = "Корпоративний хост";
 "Extra usage balance: %@" = "Баланс додаткового використання: %@";
@@ -1084,3 +1093,18 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"Limit Reset Credits" = "Кредити скидання ліміту";
+"1 manual reset available" = "Доступне 1 ручне скидання";
+"%d manual resets available" = "Доступно ручних скидань: %d";
+"Next expires %@" = "Наступне спливає %@";
+"Other (%d items)" = "Інше (%d елементів)";
+"Expand" = "Розгорнути";
+"Collapse" = "Згорнути";
+"byte_unit_byte" = "байт";
+"byte_unit_bytes" = "байти";
+"byte_unit_kilobyte" = "кілобайт";
+"byte_unit_kilobytes" = "кілобайти";
+"byte_unit_megabyte" = "мегабайт";
+"byte_unit_megabytes" = "мегабайти";
+"byte_unit_gigabyte" = "гігабайт";
+"byte_unit_gigabytes" = "гігабайти";

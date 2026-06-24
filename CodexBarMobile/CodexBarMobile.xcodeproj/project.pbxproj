@@ -47,6 +47,7 @@
 		4012D7EC2F2083F196B70B84 /* MoonshotBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */; };
 		44179B7669F19C60FFA54FCD /* CostShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C72A51985FA627302CDAC57 /* CostShareService.swift */; };
 		47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14429075896F45B38264DC77 /* CloudSyncManager.swift */; };
+		48A7DACDCA4F25935E003084 /* V037Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CF055050A36BB624EF0AA0 /* V037Snapshots.swift */; };
 		49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */; };
 		496A54796174489473CE7F52 /* DeviceProviderZoneSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */; };
 		49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */; };
@@ -102,6 +103,7 @@
 		A8ECDA27E9F213AFA6A13FAB /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3A52976034BA3F0CA44327 /* CodexBarMobileApp.swift */; };
 		A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */; };
+		A9BDE220C1106C420FCBECAF /* CodexResetCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9DEF83A84D41E10E1D6B2B /* CodexResetCreditsCard.swift */; };
 		ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947901EA2B0C4A99FF204533 /* CostFormatting.swift */; };
 		AF756D8CEBEC328EF8827EA6 /* ClaudeExtraUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */; };
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
@@ -235,6 +237,7 @@
 		157142B7B8F8ADF6A79DCD07 /* V026ViewSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026ViewSmokeTests.swift; sourceTree = "<group>"; };
 		158C8DC0415A1D743CD3D63A /* CyberShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CyberShareCardView.swift; sourceTree = "<group>"; };
 		18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncErrorTests.swift; sourceTree = "<group>"; };
+		19CF055050A36BB624EF0AA0 /* V037Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V037Snapshots.swift; sourceTree = "<group>"; };
 		1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockProviderDetectorTests.swift; sourceTree = "<group>"; };
 		1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderList.swift; sourceTree = "<group>"; };
@@ -247,6 +250,7 @@
 		273C987230CB40BB514BC840 /* PayloadCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadCompression.swift; sourceTree = "<group>"; };
 		29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheTests.swift; sourceTree = "<group>"; };
 		2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIDashboardSection.swift; sourceTree = "<group>"; };
+		2A9DEF83A84D41E10E1D6B2B /* CodexResetCreditsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexResetCreditsCard.swift; sourceTree = "<group>"; };
 		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CKRecordReservedKeyAuditTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
@@ -597,6 +601,7 @@
 				A9F340DA45364A878F1BB616 /* V027Snapshots.swift */,
 				BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */,
 				E29AF435AB2A4FE691117704 /* V030Snapshots.swift */,
+				19CF055050A36BB624EF0AA0 /* V037Snapshots.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -640,6 +645,7 @@
 				77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */,
 				AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */,
 				36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */,
+				2A9DEF83A84D41E10E1D6B2B /* CodexResetCreditsCard.swift */,
 				FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */,
 				74B0A596604D1C8CA137C073 /* CostMetricCard.swift */,
 				AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */,
@@ -913,6 +919,7 @@
 				134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */,
 				1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */,
 				A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */,
+				A9BDE220C1106C420FCBECAF /* CodexResetCreditsCard.swift in Sources */,
 				33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */,
 				A644FDE234CC676EC59CC891 /* ContentView.swift in Sources */,
 				ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */,
@@ -1004,6 +1011,7 @@
 				BB98D3ECAFF6D381B6D775FE /* V027Snapshots.swift in Sources */,
 				00BDE086E0C208CE385602B8 /* V029Snapshots.swift in Sources */,
 				724CDFD257C13ABA5020E7C9 /* V030Snapshots.swift in Sources */,
+				48A7DACDCA4F25935E003084 /* V037Snapshots.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1047,7 +1055,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1058,7 +1066,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.sync;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1226,7 +1234,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1234,7 +1242,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile.pushextension;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1248,14 +1256,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1286,14 +1294,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1322,7 +1330,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1333,7 +1341,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.sync;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1346,7 +1354,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 163;
+				CURRENT_PROJECT_VERSION = 164;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1354,7 +1362,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.14.0;
+				MARKETING_VERSION = 1.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile.pushextension;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

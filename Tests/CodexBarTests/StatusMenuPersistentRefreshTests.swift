@@ -6,12 +6,14 @@ import Testing
 
 private final class RefreshShortcutRecorder: StatusItemMenuPersistentActionDelegate {
     var refreshCount = 0
+    var refreshMenuIDs: [ObjectIdentifier] = []
     var settingsCount = 0
     var quitCount = 0
     var navigationDirections: [StatusItemMenuProviderNavigationDirection] = []
 
-    func performPersistentRefreshAction() {
+    func performPersistentRefreshAction(in menuID: ObjectIdentifier) {
         self.refreshCount += 1
+        self.refreshMenuIDs.append(menuID)
     }
 
     func performPersistentSettingsAction() {
@@ -101,6 +103,13 @@ struct StatusMenuPersistentRefreshTests {
             statusBar: .system)
     }
 
+    private func enableOnly(_ providers: Set<UsageProvider>, settings: SettingsStore) {
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: providers.contains(provider))
+        }
+    }
+
     private static func makeTokenSnapshot() -> CostUsageTokenSnapshot {
         CostUsageTokenSnapshot(
             sessionTokens: 123,
@@ -112,7 +121,11 @@ struct StatusMenuPersistentRefreshTests {
     }
 
     @Test
-    func `refresh menu item is view backed so mouse activation keeps the menu open`() throws {
+    func `refresh row is custom and appears above settings`() throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -123,15 +136,23 @@ struct StatusMenuPersistentRefreshTests {
         controller.menuWillOpen(menu)
 
         let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        let settingsItem = try #require(menu.items.first { $0.title == "Settings..." })
+        let refreshIndex = try #require(menu.items.firstIndex(where: { $0 === refreshItem }))
+        let settingsIndex = try #require(menu.items.firstIndex(where: { $0 === settingsItem }))
+
         #expect(refreshItem.action == nil)
         #expect(refreshItem.target == nil)
         #expect(refreshItem.view != nil)
-        #expect(refreshItem.keyEquivalent == "r")
-        #expect(refreshItem.keyEquivalentModifierMask == [.command])
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        #expect(refreshIndex < settingsIndex)
     }
 
     @Test
-    func `meta menu actions use the same stable row implementation`() throws {
+    func `refresh row is custom while remaining persistent action items stay native`() throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -140,99 +161,28 @@ struct StatusMenuPersistentRefreshTests {
         let menu = controller.makeMenu(for: .codex)
         controller.menuWillOpen(menu)
 
-        for title in ["Update ready, restart now?", "Refresh", "Settings...", "About CodexBar", "Quit"] {
+        let updateItem = try #require(menu.items.first { $0.title == "Update ready, restart now?" })
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(MenuDescriptor.MenuAction.installUpdate.systemImageName == "arrow.down.circle")
+        #expect(updateItem.image != nil)
+        #expect(refreshItem.view != nil)
+        #expect(refreshItem.action == nil)
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+
+        for title in ["Update ready, restart now?", "Settings...", "About CodexBar", "Quit"] {
             let item = try #require(menu.items.first { $0.title == title })
-            #expect(item.view is PersistentMenuActionItemView)
-            #expect(item.view?.frame.height == PersistentMenuActionItemView.rowHeight)
-            if title == "Refresh" {
-                #expect(item.action == nil)
-                #expect(item.target == nil)
-            } else {
-                #expect(item.action != nil)
-                #expect(item.target === controller)
-            }
+            #expect(item.view == nil, "'\(title)' should be a native NSMenuItem with no custom view")
+            #expect(item.action != nil)
+            #expect(item.target === controller)
         }
     }
 
     @Test
-    func `refresh menu item view keeps fixed metrics while highlighted`() {
-        let views = [
-            PersistentMenuActionItemView(
-                title: "Refresh",
-                systemImageName: "arrow.clockwise",
-                shortcutText: "⌘R",
-                width: 320,
-                onClick: {}),
-            PersistentMenuActionItemView(
-                title: "Settings...",
-                systemImageName: "gearshape",
-                shortcutText: "⌘,",
-                width: 320,
-                onClick: {}),
-            PersistentMenuActionItemView(
-                title: "About CodexBar",
-                systemImageName: "info.circle",
-                shortcutText: nil,
-                width: 320,
-                onClick: {}),
-            PersistentMenuActionItemView(
-                title: "Quit",
-                systemImageName: nil,
-                shortcutText: nil,
-                width: 320,
-                onClick: {}),
-        ]
+    func `persistent refresh row reflects scoped global and manual refresh state`() throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
 
-        for view in views {
-            self.assertStableMetrics(view)
-        }
-    }
-
-    private func assertStableMetrics(_ view: PersistentMenuActionItemView) {
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.intrinsicContentSize.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.fittingSize.height == PersistentMenuActionItemView.rowHeight)
-
-        view.setFrameSize(NSSize(width: 360, height: 44))
-        #expect(view.frame.width == 360)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-
-        view.setHighlighted(true)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.intrinsicContentSize.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.fittingSize.height == PersistentMenuActionItemView.rowHeight)
-
-        view.setHighlighted(false)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.intrinsicContentSize.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.fittingSize.height == PersistentMenuActionItemView.rowHeight)
-    }
-
-    @Test
-    func `refresh row in-progress spinner keeps fixed metrics`() {
-        let view = PersistentMenuActionItemView(
-            title: "Refresh",
-            systemImageName: "arrow.clockwise",
-            shortcutText: "⌘R",
-            width: 320,
-            onClick: {})
-
-        view.setInProgress(true)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.intrinsicContentSize.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.fittingSize.height == PersistentMenuActionItemView.rowHeight)
-
-        view.setHighlighted(true)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-
-        view.setInProgress(false)
-        #expect(view.frame.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.intrinsicContentSize.height == PersistentMenuActionItemView.rowHeight)
-        #expect(view.fittingSize.height == PersistentMenuActionItemView.rowHeight)
-    }
-
-    @Test
-    func `persistent refresh rows reflect store refresh state in place`() {
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -241,24 +191,42 @@ struct StatusMenuPersistentRefreshTests {
         let menu = controller.makeMenu(for: .codex)
         controller.menuWillOpen(menu)
 
-        let refreshItem = menu.items.first { $0.title == "Refresh" }
-        let row = refreshItem?.view as? PersistentMenuActionItemView
-        #expect(row != nil)
-        #expect(controller.persistentRefreshRows.allObjects.contains { $0 === row })
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(refreshItem.view != nil)
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        #expect(controller.persistentRefreshItems.allObjects.contains { $0 === refreshItem })
+        #expect(refreshItem.isEnabled)
 
+        controller.store.refreshingProviders.insert(.claude)
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(refreshItem.isEnabled)
+
+        controller.store.refreshingProviders.insert(.codex)
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(!refreshItem.isEnabled)
+
+        controller.store.refreshingProviders.removeAll()
+        controller.store.isRefreshing = true
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(!refreshItem.isEnabled)
+
+        controller.store.isRefreshing = false
+        controller.manualRefreshProvider = .claude
         controller.manualRefreshTask = Task {}
-        controller.updatePersistentRefreshRowsInProgress()
-        #expect(row?.isInProgressForTesting == true)
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(!refreshItem.isEnabled)
 
         controller.manualRefreshTask = nil
-        controller.store.isRefreshing = false
-        controller.updatePersistentRefreshRowsInProgress()
-        #expect(row?.isInProgressForTesting == false)
+        controller.manualRefreshProvider = nil
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(refreshItem.isEnabled)
 
-        // And a live refresh flag is mirrored onto the row.
-        controller.store.isRefreshing = true
-        controller.updatePersistentRefreshRowsInProgress()
-        #expect(row?.isInProgressForTesting == true)
+        refreshItem.representedObject = "notRefresh"
+        controller.manualRefreshTask = Task {}
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(refreshItem.isEnabled)
+        #expect(!controller.persistentRefreshItems.allObjects.contains { $0 === refreshItem })
+        controller.manualRefreshTask = nil
     }
 
     @Test
@@ -299,6 +267,26 @@ struct StatusMenuPersistentRefreshTests {
 
         monitor.isManualRefreshInFlight = true
         #expect(monitor.subtitle(for: .codex, fallback: fallback).style == .loading)
+    }
+
+    @Test
+    func `scoped refresh monitor leaves unrelated providers unchanged`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let monitor = controller.menuCardRefreshMonitor
+        let codexModel = try #require(controller.menuCardModel(for: .codex))
+        let fallback = MenuCardLiveSubtitle(text: "Claude idle", style: .info)
+        let expectedClaude = monitor.subtitle(for: .claude, fallback: fallback)
+
+        monitor.beginManualRefresh(frozenModels: [.codex: codexModel], provider: .codex)
+        defer { monitor.endManualRefresh() }
+
+        #expect(monitor.isManualRefreshInFlight(for: .codex))
+        #expect(!monitor.isManualRefreshInFlight(for: .claude))
+        #expect(monitor.subtitle(for: .codex, fallback: fallback).style == .loading)
+        let actualClaude = monitor.subtitle(for: .claude, fallback: fallback)
+        #expect(actualClaude.text == expectedClaude.text)
+        #expect(actualClaude.style == expectedClaude.style)
     }
 
     @Test
@@ -343,6 +331,189 @@ struct StatusMenuPersistentRefreshTests {
 
         #expect(refreshed.metrics.map(\.percent) == expected.metrics.map(\.percent))
         #expect(refreshed.metrics.map(\.percent) != fallback.metrics.map(\.percent))
+    }
+
+    @Test
+    func `manual refresh keeps frozen quota even if menu rebuilds before completion`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let now = Date()
+        for provider in [UsageProvider.claude, .codex] {
+            controller.store.snapshots[provider] = UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 21,
+                    windowMinutes: 300,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now)
+            let frozen = try #require(controller.menuCardModel(for: provider))
+            controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [provider: frozen])
+
+            controller.store.snapshots[provider] = UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 18,
+                    windowMinutes: 300,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now.addingTimeInterval(1))
+            let rebuiltFallback = try #require(controller.menuCardModel(for: provider))
+            let inFlight = controller.menuCardRefreshMonitor.model(for: provider, fallback: rebuiltFallback)
+
+            #expect(frozen.metrics.first?.percentLabel == "79% left")
+            #expect(rebuiltFallback.metrics.first?.percentLabel == "82% left")
+            #expect(inFlight.metrics.first?.percentLabel == "79% left")
+
+            controller.menuCardRefreshMonitor.endManualRefresh()
+            let completed = controller.menuCardRefreshMonitor.model(for: provider, fallback: frozen)
+            #expect(completed.metrics.first?.percentLabel == "82% left")
+        }
+    }
+
+    @Test
+    func `manual refresh uses fallback when frozen quota layout is incompatible`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let now = Date()
+        controller.store.snapshots[.claude] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 21,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now)
+        let frozen = try #require(controller.menuCardModel(for: .claude))
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [.claude: frozen])
+
+        controller.store.snapshots[.claude] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 18,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 12,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60),
+                resetDescription: nil),
+            updatedAt: now.addingTimeInterval(1))
+        let rebuiltFallback = try #require(controller.menuCardModel(for: .claude))
+        let inFlight = controller.menuCardRefreshMonitor.model(for: .claude, fallback: rebuiltFallback)
+
+        #expect(frozen.metrics.count == 1)
+        #expect(rebuiltFallback.metrics.count == 2)
+        #expect(inFlight.metrics.count == 2)
+        #expect(inFlight.metrics.map(\.id) == rebuiltFallback.metrics.map(\.id))
+    }
+
+    @Test
+    func `manual refresh preserves frozen quota when supplemental metric remains`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(
+            settings: settings,
+            account: AccountInfo(email: "test@example.com", plan: "pro"))
+        let now = Date()
+        controller.store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "test@example.com",
+            codeReviewRemainingPercent: 88,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [],
+            creditsPurchaseURL: nil,
+            updatedAt: now)
+        controller.store.openAIDashboardAttachmentAuthorized = true
+        controller.store.openAIDashboardRequiresLogin = false
+        controller.store.snapshots[.codex] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 21,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 12,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60),
+                resetDescription: nil),
+            updatedAt: now)
+        let frozen = try #require(controller.menuCardModel(for: .codex))
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [.codex: frozen])
+
+        controller.store.snapshots[.codex] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: now.addingTimeInterval(1))
+        let fallback = try #require(controller.menuCardModel(for: .codex))
+        let inFlight = controller.menuCardRefreshMonitor.model(for: .codex, fallback: fallback)
+
+        #expect(frozen.metrics.count == 3)
+        #expect(fallback.metrics.map(\.id) == ["code-review"])
+        #expect(inFlight.metrics.map(\.id) == frozen.metrics.map(\.id))
+        #expect(inFlight.metrics.first?.percentLabel == "79% left")
+    }
+
+    @Test
+    func `manual refresh uses fallback when empty quota gains credit content`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(
+            settings: settings,
+            account: AccountInfo(email: "test@example.com", plan: "pro"))
+        let now = Date()
+        controller.store.snapshots[.codex] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 21,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now)
+        let frozen = try #require(controller.menuCardModel(for: .codex))
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [.codex: frozen])
+
+        controller.store.snapshots[.codex] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: now.addingTimeInterval(1))
+        controller.store.credits = CreditsSnapshot(
+            remaining: 42,
+            events: [],
+            updatedAt: now.addingTimeInterval(1))
+        let fallback = try #require(controller.menuCardModel(for: .codex))
+        let inFlight = controller.menuCardRefreshMonitor.model(for: .codex, fallback: fallback)
+
+        #expect(frozen.metrics.count == 1)
+        #expect(fallback.metrics.isEmpty)
+        #expect(fallback.creditsText != nil)
+        #expect(inFlight.metrics.isEmpty)
+        #expect(inFlight.creditsText == fallback.creditsText)
+    }
+
+    @Test
+    func `manual refresh uses fallback when empty quota gains a placeholder`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let now = Date()
+        controller.store.snapshots[.claude] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 21,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now)
+        let frozen = try #require(controller.menuCardModel(for: .claude))
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [.claude: frozen])
+
+        controller.store.snapshots.removeValue(forKey: .claude)
+        let fallback = try #require(controller.menuCardModel(for: .claude))
+        let inFlight = controller.menuCardRefreshMonitor.model(for: .claude, fallback: fallback)
+
+        #expect(frozen.metrics.count == 1)
+        #expect(fallback.metrics.isEmpty)
+        #expect(fallback.placeholder != nil)
+        #expect(inFlight.metrics.isEmpty)
+        #expect(inFlight.placeholder == fallback.placeholder)
     }
 
     @Test
@@ -541,10 +712,6 @@ struct StatusMenuPersistentRefreshTests {
         settings.mergeIcons = false
 
         let controller = self.makeController(settings: settings)
-        let menu = controller.makeMenu(for: .codex)
-        controller.menuWillOpen(menu)
-        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
-        let row = try #require(refreshItem.view as? PersistentMenuActionItemView)
 
         let gate = ManualRefreshGate()
         var requestCount = 0
@@ -560,19 +727,168 @@ struct StatusMenuPersistentRefreshTests {
         await Task.yield()
 
         #expect(requestCount == 1)
-        #expect(row.isInProgressForTesting)
         #expect(controller.menuCardRefreshMonitor.isManualRefreshInFlight)
 
         gate.resume()
         await task.value
 
         #expect(controller.manualRefreshTask == nil)
-        #expect(!row.isInProgressForTesting)
         #expect(!controller.menuCardRefreshMonitor.isManualRefreshInFlight)
     }
 
     @Test
-    func `failed manual refresh returns row to idle and surfaces error`() async throws {
+    func `provider menu persistent refresh row and command R refresh only that provider`() async throws {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        self.enableOnly([.claude, .codex], settings: settings)
+
+        let controller = self.makeController(settings: settings)
+        let menu = try #require(controller.makeMenu(for: .claude) as? StatusItemMenu)
+        let codexMenu = try #require(controller.makeMenu(for: .codex) as? StatusItemMenu)
+        controller.menuWillOpen(menu)
+        controller.menuWillOpen(codexMenu)
+        defer {
+            controller.menuDidClose(codexMenu)
+            controller.menuDidClose(menu)
+        }
+
+        let mouseGate = ManualRefreshGate()
+        var requestCount = 0
+        controller._test_manualRefreshOperation = {
+            requestCount += 1
+            await mouseGate.wait()
+        }
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
+        for _ in 0..<20 where controller.manualRefreshTask == nil {
+            await Task.yield()
+        }
+        let mouseTask = try #require(controller.manualRefreshTask)
+        #expect(controller.manualRefreshProvider == .claude)
+        #expect(controller.isRefreshActionInFlight(for: codexMenu))
+        #expect(controller.isRefreshActionInFlight(for: NSMenu()))
+        let codexRefreshItem = try #require(codexMenu.items.first { $0.title == "Refresh" })
+        #expect(controller.isPersistentRefreshItem(codexRefreshItem))
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(codexMenu))
+        await Task.yield()
+        #expect(requestCount == 1)
+        mouseGate.resume()
+        await mouseTask.value
+
+        let keyboardGate = ManualRefreshGate()
+        controller._test_manualRefreshOperation = { await keyboardGate.wait() }
+        #expect(try menu.performKeyEquivalent(with: self.keyEvent("r", keyCode: 15)))
+        for _ in 0..<20 where controller.manualRefreshTask == nil {
+            await Task.yield()
+        }
+        let keyboardTask = try #require(controller.manualRefreshTask)
+        #expect(controller.manualRefreshProvider == .claude)
+        keyboardGate.resume()
+        await keyboardTask.value
+    }
+
+    @Test
+    func `provider menu does not replace matching scoped refresh`() async throws {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        self.enableOnly([.claude, .codex], settings: settings)
+
+        let controller = self.makeController(settings: settings)
+        let menu = try #require(controller.makeMenu(for: .claude) as? StatusItemMenu)
+        controller.menuWillOpen(menu)
+        defer { controller.menuDidClose(menu) }
+
+        controller.store.refreshingProviders.insert(.claude)
+        var requestCount = 0
+        controller._test_manualRefreshOperation = { requestCount += 1 }
+
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
+        #expect(try menu.performKeyEquivalent(with: self.keyEvent("r", keyCode: 15)))
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+
+        #expect(requestCount == 0)
+        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshProvider == nil)
+    }
+
+    @Test
+    func `merged overview refreshes globally while selected provider stays scoped`() async throws {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        self.enableOnly([.claude, .codex], settings: settings)
+        settings.mergedMenuLastSelectedWasOverview = true
+
+        let controller = self.makeController(settings: settings)
+        let menu = try #require(controller.makeMenu() as? StatusItemMenu)
+        controller.mergedMenu = menu
+        controller.menuWillOpen(menu)
+        defer { controller.menuDidClose(menu) }
+
+        let overviewGate = ManualRefreshGate()
+        controller._test_manualRefreshOperation = { await overviewGate.wait() }
+        let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
+        #expect(controller.isPersistentRefreshItem(refreshItem))
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
+        for _ in 0..<20 where controller.manualRefreshTask == nil {
+            await Task.yield()
+        }
+        let overviewTask = try #require(controller.manualRefreshTask)
+        #expect(controller.manualRefreshProvider == nil)
+        overviewGate.resume()
+        await overviewTask.value
+
+        settings.mergedMenuLastSelectedWasOverview = false
+        controller.selectedMenuProvider = .claude
+        let providerGate = ManualRefreshGate()
+        controller._test_manualRefreshOperation = { await providerGate.wait() }
+        #expect(try menu.performKeyEquivalent(with: self.keyEvent("r", keyCode: 15)))
+        for _ in 0..<20 where controller.manualRefreshTask == nil {
+            await Task.yield()
+        }
+        let providerTask = try #require(controller.manualRefreshTask)
+        #expect(controller.manualRefreshProvider == .claude)
+        providerGate.resume()
+        await providerTask.value
+    }
+
+    @Test
+    func `provider scoped refresh updates status and widget snapshot`() async {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = true
+        self.enableOnly([.synthetic], settings: settings)
+
+        let controller = self.makeController(settings: settings)
+        controller.store._test_providerRefreshOverride = { _ in }
+        controller.store._test_providerStatusFetchOverride = { provider in
+            #expect(provider == .synthetic)
+            return ProviderStatus(indicator: .none, description: "Operational", updatedAt: Date())
+        }
+        var savedSnapshots = 0
+        controller.store._test_widgetSnapshotSaveOverride = { _ in
+            savedSnapshots += 1
+        }
+
+        await controller.performStoreRefresh(
+            for: .synthetic,
+            refreshOpenMenusWhenComplete: false,
+            interaction: .userInitiated)
+        _ = await controller.store.widgetSnapshotPersistTask?.result
+
+        #expect(controller.store.statuses[.synthetic]?.description == "Operational")
+        #expect(savedSnapshots == 1)
+    }
+
+    @Test
+    func `failed manual refresh returns native item to enabled and surfaces error`() async throws {
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -581,7 +897,6 @@ struct StatusMenuPersistentRefreshTests {
         let menu = controller.makeMenu(for: .codex)
         controller.menuWillOpen(menu)
         let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
-        let row = try #require(refreshItem.view as? PersistentMenuActionItemView)
         let gate = ManualRefreshGate()
 
         controller._test_manualRefreshOperation = {
@@ -591,13 +906,13 @@ struct StatusMenuPersistentRefreshTests {
 
         controller.refreshNow()
         let task = try #require(controller.manualRefreshTask)
-        #expect(row.isInProgressForTesting)
+        #expect(!refreshItem.isEnabled)
 
         gate.resume()
         await task.value
 
         #expect(controller.manualRefreshTask == nil)
-        #expect(!row.isInProgressForTesting)
+        #expect(refreshItem.isEnabled)
         let fallback = MenuCardLiveSubtitle(text: "Fallback", style: .info)
         #expect(controller.menuCardRefreshMonitor.subtitle(for: .codex, fallback: fallback).style == .error)
     }
@@ -613,6 +928,7 @@ struct StatusMenuPersistentRefreshTests {
         #expect(try menu.performKeyEquivalent(with: self.keyEvent("q", keyCode: 12)) == true)
 
         #expect(recorder.refreshCount == 1)
+        #expect(recorder.refreshMenuIDs == [ObjectIdentifier(menu)])
         #expect(recorder.settingsCount == 1)
         #expect(recorder.quitCount == 1)
     }

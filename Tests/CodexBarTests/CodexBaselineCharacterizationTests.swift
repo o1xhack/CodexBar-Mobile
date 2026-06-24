@@ -292,7 +292,7 @@ struct CodexBaselineCharacterizationTests {
     }
 
     @Test
-    func `CLI auto records unavailable web and OAuth before successful CLI`() async throws {
+    func `CLI auto records unavailable OAuth before successful CLI`() async throws {
         let stubCLI = self.makeStubCodexCLI()
         let codexHome = try self.makeEmptyCodexHome()
         defer { try? FileManager.default.removeItem(at: codexHome) }

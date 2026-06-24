@@ -11,6 +11,11 @@ set -euo pipefail
 
 printf '%s\n' "$*" >> "${FAKE_SWIFT_LOG}"
 if [[ "$*" == "test list" ]]; then
+  if [[ "${FAKE_SWIFT_LIST_FAIL:-0}" == "1" ]]; then
+    printf 'test-list stdout marker\n'
+    printf 'test-list stderr marker\n' >&2
+    exit 42
+  fi
   printf '%s\n' \
     "CodexBarTests.Alpha/test_one()" \
     "CodexBarTests.Alpha/test_two(argument:)" \
@@ -46,6 +51,19 @@ grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
 
 python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
   --group-size 1 \
+  --timeout 10 \
+  --shard-index 0 \
+  --shard-count 2 \
+  --list-only \
+  --swift-command /bin/bash \
+  --swift-command-arg=-c \
+  --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+  --swift-command-arg=fake-swift \
+  >"${TEMP_DIR}/shard-0.log"
+
+python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
+  --group-size 1 \
+  --timeout 10 \
   --shard-index 1 \
   --shard-count 2 \
   --list-only \
@@ -53,33 +71,22 @@ python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
   --swift-command-arg=-c \
   --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
   --swift-command-arg=fake-swift \
-  >"${TEMP_DIR}/shard-1.list"
+  >"${TEMP_DIR}/shard-1.log"
+
+cat "${TEMP_DIR}/shard-0.log" "${TEMP_DIR}/shard-1.log" \
+  | grep -v '^Discovered ' \
+  | sort >"${TEMP_DIR}/shards-combined.log"
 python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
   --group-size 1 \
-  --shard-index 2 \
-  --shard-count 2 \
+  --timeout 10 \
   --list-only \
   --swift-command /bin/bash \
   --swift-command-arg=-c \
   --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
   --swift-command-arg=fake-swift \
-  >"${TEMP_DIR}/shard-2.list"
-grep -Fq "Selected shard 1/2: 2 of 4 groups" "${TEMP_DIR}/shard-1.list"
-grep -Fq "Selected shard 2/2: 2 of 4 groups" "${TEMP_DIR}/shard-2.list"
-[[ "$(grep -Fc 'CodexBarTests.' "${TEMP_DIR}/shard-1.list")" -eq 2 ]]
-[[ "$(grep -Fc 'CodexBarTests.' "${TEMP_DIR}/shard-2.list")" -eq 2 ]]
-if python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
-    --shard-index 3 \
-    --shard-count 2 \
-    --swift-command /bin/bash \
-    --swift-command-arg=-c \
-    --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
-    --swift-command-arg=fake-swift \
-    >"${TEMP_DIR}/invalid-shard.log" 2>&1; then
-  echo "ERROR: Invalid shard args were accepted." >&2
-  exit 1
-fi
-grep -Fq -- "--shard-index must be between 1 and --shard-count" "${TEMP_DIR}/invalid-shard.log"
+  | grep -v '^Discovered ' \
+  | sort >"${TEMP_DIR}/shards-expected.log"
+diff -u "${TEMP_DIR}/shards-expected.log" "${TEMP_DIR}/shards-combined.log"
 
 if FAKE_SWIFT_GROUP_ALWAYS_FAIL=1 \
   python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
@@ -93,5 +100,21 @@ if FAKE_SWIFT_GROUP_ALWAYS_FAIL=1 \
   echo "ERROR: Repeated shard failure was masked." >&2
   exit 1
 fi
+
+if FAKE_SWIFT_LIST_FAIL=1 \
+  python3 "${ROOT_DIR}/Scripts/ci_swift_test_by_suite.py" \
+    --group-size 1 \
+    --timeout 10 \
+    --list-only \
+    --swift-command /bin/bash \
+    --swift-command-arg=-c \
+    --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+    --swift-command-arg=fake-swift \
+    >"${TEMP_DIR}/list-failure.log" 2>&1; then
+  echo "ERROR: Failed test discovery was masked." >&2
+  exit 1
+fi
+grep -Fq "test-list stdout marker" "${TEMP_DIR}/list-failure.log"
+grep -Fq "test-list stderr marker" "${TEMP_DIR}/list-failure.log"
 
 echo "Swift test sharding tests passed."

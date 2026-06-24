@@ -18,6 +18,16 @@ extension SettingsStore {
             .path
     }
 
+    private static func normalizedCodexProfileHomePaths(_ paths: [String]?) -> [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for path in (paths ?? []).compactMap({ CodexHomeScope.normalizedHomePath($0) }) {
+            guard seen.insert(path).inserted else { continue }
+            result.append(path)
+        }
+        return result
+    }
+
     private func loadManagedCodexAccounts() throws -> ManagedCodexAccountSet {
         #if DEBUG
         if CodexManagedRemoteHomeTestingOverride.isUnreadable(for: self) {
@@ -80,6 +90,23 @@ extension SettingsStore {
             return nil
         }
         return path
+    }
+
+    var codexProfileHomePaths: [String] {
+        Self.normalizedCodexProfileHomePaths(
+            self.configSnapshot.providerConfig(for: .codex)?.codexProfileHomePaths)
+    }
+
+    func profileCodexHomePath(forActiveSource source: CodexActiveSource) -> String? {
+        guard case let .profileHome(path) = source else {
+            return nil
+        }
+        guard let normalizedPath = CodexHomeScope.normalizedHomePath(path),
+              self.codexProfileHomePaths.contains(normalizedPath)
+        else {
+            return nil
+        }
+        return normalizedPath
     }
 
     func managedCodexRemoteHomePath(forActiveSource source: CodexActiveSource) -> String? {
@@ -376,6 +403,7 @@ extension SettingsStore {
             return DefaultCodexAccountReconciler(
                 activeSource: activeSource,
                 baseEnvironment: baseEnvironment,
+                profileHomePaths: self.codexProfileHomePaths,
                 managedEnvironmentBuilder: { environment, account in
                     CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
                 })
@@ -406,6 +434,7 @@ extension SettingsStore {
                 usesInjectedEnvironment: reconciliationEnvironmentOverride != nil),
             activeSource: activeSource,
             baseEnvironment: baseEnvironment,
+            profileHomePaths: self.codexProfileHomePaths,
             managedEnvironmentBuilder: { environment, account in
                 CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
             })
@@ -413,6 +442,7 @@ extension SettingsStore {
         return DefaultCodexAccountReconciler(
             activeSource: activeSource,
             baseEnvironment: baseEnvironment,
+            profileHomePaths: self.codexProfileHomePaths,
             managedEnvironmentBuilder: { environment, account in
                 CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
             })

@@ -105,6 +105,37 @@ struct MiniMaxAPITokenFetchTests {
     }
 
     @Test
+    func `explicit china region preserves structured invalid credentials across legacy fallback`() async throws {
+        defer {
+            MiniMaxAPITokenStubURLProtocol.handler = nil
+            MiniMaxAPITokenStubURLProtocol.requests = []
+        }
+        MiniMaxAPITokenStubURLProtocol.requests = []
+
+        MiniMaxAPITokenStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/v1/token_plan/remains" {
+                return Self.makeResponse(
+                    url: url,
+                    body: #"{"base_resp":{"status_code":1004,"status_msg":"invalid api key"}}"#)
+            }
+            return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+        }
+
+        await #expect(throws: MiniMaxUsageError.invalidCredentials) {
+            _ = try await MiniMaxUsageFetcher.fetchUsage(
+                apiToken: "sk-cp-test",
+                region: .chinaMainland,
+                session: Self.makeSession())
+        }
+
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.map { $0.url?.path } == [
+            "/v1/token_plan/remains",
+            "/v1/api/openplatform/coding_plan/remains",
+        ])
+    }
+
+    @Test
     func `does not retry when region is china mainland`() async throws {
         defer {
             MiniMaxAPITokenStubURLProtocol.handler = nil
