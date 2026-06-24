@@ -57,7 +57,7 @@ public enum CodexProviderDescriptor {
             case .api:
                 return []
             case .auto:
-                return [oauth, cli]
+                return [web, oauth, cli]
             }
         case .app:
             switch context.sourceMode {
