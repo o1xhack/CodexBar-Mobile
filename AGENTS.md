@@ -1,10 +1,19 @@
 # CodexBar Mobile — Agent Workflow
 
-This is the complete development workflow for any AI agent working on CodexBar Mobile (iOS).
+This file is the repo-level routing and quality gate for AI agents working on
+CodexBar Mobile (iOS). Detailed operational workflows live in skills.
 
 > **Scope:** We only work on the iOS app (`CodexBarMobile/`). Mac-side code is maintained upstream.
 >
 > **Current upstream alignment:** see `version.env` at repo root — `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` are the authoritative fields. Do NOT consult `plan.md` for this — it's a human-curated planning doc and lags reality.
+
+## Required Skills
+
+- Use `$codexbar-git-workflow` for branch creation, commit cadence, Git/GitHub
+  push, PR, review loop, branch cleanup, and Todoist handoff.
+- Use `$release-codexbar` for Mac signing/notarization/appcast/GitHub release
+  work.
+- Use `$qa-test` for live provider QA, menu proof, and release smoke tests.
 
 ---
 
@@ -29,7 +38,7 @@ Every feature or fix follows these 7 steps in order:
 │ 5. Documentation  │ Update CHANGELOG, in-app release notes,         │ Traceable record    │
 │                   │ research doc status → done                      │                     │
 ├───────────────────┼─────────────────────────────────────────────────┼─────────────────────┤
-│ 6. Commit         │ Bump build number, verify docs, jj commit       │ jj change           │
+│ 6. Commit         │ Branch/commit/GitHub handoff via skill         │ git commit / PR     │
 ├───────────────────┼─────────────────────────────────────────────────┼─────────────────────┤
 │ 7. Push & Release │ Push to remote, archive, upload to TestFlight   │ User-installable    │
 └───────────────────┴─────────────────────────────────────────────────┴─────────────────────┘
@@ -44,10 +53,10 @@ Every feature or fix follows these 7 steps in order:
 | `mobile-dev` | Main working branch |
 | `main` | Upstream-alignment branch; do not modify directly |
 
-Use `jj` bookmarks for normal branch pointer management. If the user or an
-active Goal requires a feature/release branch, create it before implementation
-and keep the full task on that branch until merge/release instructions say
-otherwise.
+Use Git/GitHub for branch and commit operations. Create a task branch before
+implementation unless the request is read-only. Do not require Goal prompts to
+spell out branch names; choose the right branch shape from
+`$codexbar-git-workflow`.
 
 ### Definition of Done for release / upstream-sync work
 
@@ -72,8 +81,9 @@ release or upstream-sync completion check.
 |-------------|------------|--------|
 | 调研 / research | Architect | Run Steps 1-2 and write/update `Research/` |
 | 开发 / implement | Developer | Run Steps 3-4 with focused implementation + tests |
-| 提交 | Release Engineer | Run Step 6a-6c |
-| 提交推送 | Release Engineer | Run Step 6a-6d, then Todoist sync |
+| 开分支 / branch | Developer | Use `$codexbar-git-workflow` |
+| 提交 | Release Engineer | Use `$codexbar-git-workflow` commit flow |
+| 提交推送 / PR | Release Engineer | Use `$codexbar-git-workflow` push/PR/Todoist flow |
 | 上传 / Archive | Release Engineer | Run Step 7 archive/upload flow |
 | 安装到手机 | Release Engineer | Generate project if needed and install to a real device |
 
@@ -142,73 +152,21 @@ After code is complete:
 | `CodexBarMobile/CHANGELOG.md` | Developers, App Review | Technical, concise |
 | `MobileReleaseNotesCatalog` in `ContentView.swift` | End users (in-app) | Plain language, no jargon, localized |
 
-## Step 6 — Commit
+## Step 6 — Branch, Commit & GitHub Handoff
 
-When the user says **"提交"** (commit) or **"提交推送"** (commit and push):
+When work needs a branch, commit, push, PR, review loop, branch cleanup, or
+Todoist status update, load and follow `$codexbar-git-workflow`.
 
-### 6a. Bump build number
-
-- Open `CodexBarMobile/project.yml`
-- Increment all `CURRENT_PROJECT_VERSION` values by 1 (e.g. `"12"` → `"13"`)
-- Do NOT change `MARKETING_VERSION` unless explicitly asked
-
-### 6b. Verify documentation
-
-- Ensure `CHANGELOG.md` has entries for the current build number
-- Ensure in-app release notes version string matches build number
-
-### 6c. Commit with jj
-
-```bash
-jj describe -m "commit message here"
-```
-
-### 6d. Push (only if user said "提交推送")
-
-```bash
-jj bookmark set mobile-dev -r @
-jj git push --bookmark mobile-dev
-```
-
-### 6e. Todoist sync after pushed commits
-
-CodexBar Mobile uses Todoist (`Dev` project, Board view) for task status. When a
-commit/change is pushed as part of the task, immediately update the matching
-Todoist task before treating the code work as handed off.
-
-Board columns:
-
-| Column | Meaning |
-|--------|---------|
-| `Backlog` | planned but not started |
-| `In Progress` | actively being worked |
-| `Code Complete` | code complete, awaiting human validation |
-| `QA` | manual validation / real-device / TestFlight testing |
-| `Release` | validated and ready to release or released |
-
-Rules:
-
-- Search for an existing task by the `CodexBar-Mobile` label plus relevant
-  keywords. If none exists, create one with content, description, labels, and
-  priority.
-- Required label: `CodexBar-Mobile`. Add `Bug` for bug/crash/fix work, and
-  `商业化` for paid/member-facing work.
-- Move active work to `In Progress`.
-- After each pushed commit/change, add a comment with `[YYYY-MM-DD]`, a concise
-  progress summary, and
-  `https://github.com/o1xhack/CodexBar-Mobile/commit/<sha>`.
-- When code is complete, move the task to `Code Complete`; do not mark it done.
-- After human QA/TestFlight/user validation, move it to `Release`. Only mark the
-  task complete after user confirmation.
-- If blocked, comment with the blocker and add `[Blocked]` to the task title.
-- Todoist comments should point to `CHANGELOG.md` or the commit for details
-  instead of duplicating full release notes.
+For large Goals, the agent may make staged Git commits when the Goal or user
+authorizes implementation work. Do not push, merge, tag, publish a live release,
+or upload unless the user explicitly asks or the active Goal explicitly includes
+that handoff.
 
 ### Version number format
 
 **iOS (project.yml)** — these are CFBundle fields:
 - `MARKETING_VERSION` = user-facing version, e.g. `1.7.0` (feature releases only)
-- `CURRENT_PROJECT_VERSION` = build number, e.g. `129` (increments on every commit)
+- `CURRENT_PROJECT_VERSION` = build number, e.g. `129`
 - Displayed as: **1.7.0 (129)**
 
 **Mac (version.env)** — fork-specific scheme with subdecimal patches.
@@ -269,18 +227,11 @@ Quick summary:
 
 ## Coding Rules
 
-### Version Control — jj (Jujutsu)
+### Version Control — Git/GitHub
 
-We use **jj** colocated with git. Do NOT use raw git commands for commits.
-
-```bash
-jj status                          # working copy changes
-jj log --limit 10                  # recent history
-jj describe -m "message"           # set change description
-jj new                             # start a new change
-jj bookmark set mobile-dev -r @    # point bookmark to current change
-jj git push --bookmark mobile-dev  # push to origin
-```
+Use Git/GitHub for branch, commit, push, PR, review, and branch cleanup work.
+Do not use `jj` unless the user explicitly re-enables it. Operational details
+belong in `$codexbar-git-workflow`, not in individual Goal prompts.
 
 ### Operational guardrails
 
@@ -323,8 +274,9 @@ Languages: English (`en`), Simplified Chinese (`zh-Hans`), Traditional Chinese (
 |-----------|--------|
 | 调研 | Steps 1–2 (research, save to Research/) |
 | 开发 / implement | Steps 3–4 (implementation + tests) |
-| 提交 | Step 6a–6c (bump build, changelog, jj commit) |
-| 提交推送 | Step 6a–6d (bump build, changelog, jj commit, push) |
+| 开分支 / branch | Use `$codexbar-git-workflow` |
+| 提交 | Use `$codexbar-git-workflow` commit flow |
+| 提交推送 / PR | Use `$codexbar-git-workflow` push/PR/Todoist flow |
 | 上传 / Archive | Step 7 (xcodegen, archive, upload to TestFlight) |
 | 安装到手机 | Generate project if needed, then install to a real device |
 
@@ -333,7 +285,8 @@ Languages: English (`en`), Simplified Chinese (`zh-Hans`), Traditional Chinese (
 | Path | Purpose |
 |------|---------|
 | `CLAUDE.md` | Project overview + pointers |
-| `AGENTS.md` | This file — full workflow |
+| `AGENTS.md` | This file — repo routing and quality gates |
+| `.agents/skills/codexbar-git-workflow/SKILL.md` | Git/GitHub branch, commit, push, PR, and handoff workflow |
 | `CodexBarMobile/Research/` | Feature research docs |
 | `CodexBarMobile/project.yml` | Build number + version |
 | `CodexBarMobile/CHANGELOG.md` | Technical changelog |

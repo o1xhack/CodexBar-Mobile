@@ -1,0 +1,6 @@
+interface:
+  display_name: "CodexBar Git Workflow"
+  short_description: "Branch, commit, PR, and handoff flow."
+  default_prompt: "Use $codexbar-git-workflow to create the right branch, make staged commits, push or open a PR, and handle CodexBar GitHub handoff."
+policy:
+  allow_implicit_invocation: true
