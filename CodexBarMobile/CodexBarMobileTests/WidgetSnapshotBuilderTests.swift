@@ -1,0 +1,171 @@
+import CodexBarSync
+import Foundation
+import Testing
+
+@testable import CodexBarMobile
+
+@Suite("Widget snapshot builder")
+struct WidgetSnapshotBuilderTests {
+    @Test("builds overview metrics from real sync snapshots")
+    func buildsOverviewMetrics() {
+        let now = Self.date("2026-06-28T12:00:00Z")
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                Self.provider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "dev@example.com",
+                    usage: 81,
+                    todayCost: 7.25,
+                    tokens: 45_000,
+                    updated: now.addingTimeInterval(-120)),
+                Self.provider(
+                    id: "claude",
+                    name: "Claude",
+                    email: "dev@example.com",
+                    usage: 33,
+                    todayCost: 4.10,
+                    tokens: 12_000,
+                    updated: now.addingTimeInterval(-240)),
+            ],
+            syncTimestamp: now.addingTimeInterval(-180),
+            deviceName: "MacBook Pro",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.state == .loaded)
+        #expect(widget.deviceCount == 1)
+        #expect(widget.providerCount == 2)
+        #expect(widget.maxUsagePercent == 81)
+        #expect(widget.todayCostUSD == 11.35)
+        #expect(widget.todayTokens == 57_000)
+        #expect(widget.topProviders.first?.providerName == "Codex")
+        #expect(widget.isStale == false)
+    }
+
+    @Test("deduplicates provider accounts by latest update")
+    func deduplicatesProviderAccounts() {
+        let now = Self.date("2026-06-28T12:00:00Z")
+        let older = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "dev@example.com",
+            usage: 20,
+            todayCost: 1,
+            tokens: 100,
+            updated: now.addingTimeInterval(-600))
+        let newer = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "dev@example.com",
+            usage: 88,
+            todayCost: 2,
+            tokens: 200,
+            updated: now.addingTimeInterval(-60))
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [
+                SyncedUsageSnapshot(
+                    providers: [older],
+                    syncTimestamp: now.addingTimeInterval(-500),
+                    deviceName: "MacBook Pro",
+                    deviceID: "device-a"),
+                SyncedUsageSnapshot(
+                    providers: [newer],
+                    syncTimestamp: now.addingTimeInterval(-50),
+                    deviceName: "Mac Studio",
+                    deviceID: "device-b"),
+            ],
+            now: now)
+
+        #expect(widget.providerCount == 1)
+        #expect(widget.maxUsagePercent == 88)
+        #expect(widget.todayCostUSD == 2)
+    }
+
+    @Test("surfaces no-data, stale, and error states")
+    func stateCoverage() {
+        let now = Self.date("2026-06-28T12:00:00Z")
+        #expect(CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [], now: now).state == .noData)
+
+        let stale = SyncedUsageSnapshot(
+            providers: [
+                Self.provider(
+                    id: "openrouter",
+                    name: "OpenRouter",
+                    email: nil,
+                    usage: 91,
+                    todayCost: nil,
+                    tokens: nil,
+                    updated: now.addingTimeInterval(-8 * 60 * 60),
+                    isError: true),
+            ],
+            syncTimestamp: now.addingTimeInterval(-8 * 60 * 60),
+            deviceName: "MacBook Pro",
+            deviceID: "device-a")
+        let staleWidget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [stale], now: now)
+        #expect(staleWidget.isStale)
+        #expect(staleWidget.errorCount == 1)
+
+        let errorWidget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: .error(.notAuthenticated),
+            now: now)
+        #expect(errorWidget.state == .error)
+        #expect(errorWidget.message == "iCloud account not signed in")
+    }
+
+    private static func provider(
+        id: String,
+        name: String,
+        email: String?,
+        usage: Double,
+        todayCost: Double?,
+        tokens: Int?,
+        updated: Date,
+        isError: Bool = false
+    ) -> ProviderUsageSnapshot {
+        let dayKey = SyncCostSummary.iso8601DayKeyForTest(updated)
+        let costSummary = todayCost.map { cost in
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: tokens,
+                last30DaysCostUSD: cost * 10,
+                last30DaysTokens: tokens.map { $0 * 10 },
+                daily: [
+                    SyncDailyPoint(dayKey: dayKey, costUSD: cost, totalTokens: tokens ?? 0),
+                ])
+        }
+        return ProviderUsageSnapshot(
+            providerID: id,
+            providerName: name,
+            primary: SyncRateWindow(
+                label: "Session",
+                usedPercent: usage,
+                windowMinutes: 180,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: email,
+            loginMethod: "Pro",
+            statusMessage: isError ? "Rate limit approaching" : nil,
+            isError: isError,
+            lastUpdated: updated,
+            costSummary: costSummary)
+    }
+
+    private static func date(_ value: String) -> Date {
+        ISO8601DateFormatter().date(from: value)!
+    }
+}
+
+private extension SyncCostSummary {
+    static func iso8601DayKeyForTest(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}

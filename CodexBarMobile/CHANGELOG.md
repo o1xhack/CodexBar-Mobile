@@ -2,6 +2,30 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.15.0 (165)] — 2026-06-28 — WidgetKit suite
+
+### Added
+
+- **Home Screen widgets** — New WidgetKit extension with configurable Overview,
+  Provider Focus, Today Cost, and Sync Health modes across small, medium, and
+  large families.
+- **Widget sync reader** — Widgets read real CodexBar CloudKit sync data through
+  the shared `CodexBarSync` layer and fall back to legacy KVS when CloudKit has
+  no readable snapshot.
+
+### Changed
+
+- **Widget-ready summaries** — Added a pure widget summary builder with
+  explicit no-data, syncing, stale-data, error, and privacy-sensitive display
+  states.
+
+### Notes
+
+- No CloudKit schema changes and no App Group entitlement changes in this pass.
+- iOS `CURRENT_PROJECT_VERSION`: 164 → 165.
+
+---
+
 ## [1.15.0 (164)] — 2026-06-23 — v0.37.2 upstream sync
 
 ### Added
