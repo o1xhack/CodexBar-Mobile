@@ -2,6 +2,7 @@ import SwiftUI
 import WidgetKit
 
 struct CodexBarWidgetView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.widgetFamily) private var family
 
     let entry: CodexBarWidgetEntry
@@ -22,14 +23,12 @@ struct CodexBarWidgetView: View {
             }
         }
         .containerBackground(for: .widget) {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.06, green: 0.08, blue: 0.10),
-                    Color(red: 0.12, green: 0.15, blue: 0.18),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing)
+            palette.background
         }
+    }
+
+    private var palette: CodexBarWidgetPalette {
+        CodexBarWidgetPalette(colorScheme: colorScheme)
     }
 
     @ViewBuilder
@@ -117,7 +116,7 @@ struct CodexBarWidgetView: View {
             Spacer()
             Image(systemName: "icloud.and.arrow.down")
                 .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(palette.brand)
             Text(String(localized: "Reading iCloud sync data"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -132,7 +131,7 @@ struct CodexBarWidgetView: View {
             Spacer()
             Image(systemName: "macbook.and.iphone")
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(palette.brand)
             Text(String(localized: "Open CodexBar on your iPhone after your Mac syncs usage."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -163,7 +162,7 @@ struct CodexBarWidgetView: View {
         HStack(spacing: 8) {
             Image(systemName: "bolt.horizontal.circle.fill")
                 .font(.system(size: compact ? 14 : 16, weight: .semibold))
-                .foregroundStyle(.cyan)
+                .foregroundStyle(palette.brand)
             Text(title)
                 .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
                 .lineLimit(1)
@@ -219,7 +218,11 @@ struct CodexBarWidgetView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .background(palette.tileBackground, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(palette.tileBorder, lineWidth: 1)
+        }
     }
 
     private func providerHero(_ provider: CodexBarWidgetProviderSummary?) -> some View {
@@ -429,45 +432,113 @@ struct CodexBarWidgetView: View {
     }
 
     private func usageColor(_ value: Double?) -> Color {
-        guard let value else { return .cyan }
-        if value >= 90 { return .red }
-        if value >= 70 { return .orange }
-        if value >= 45 { return .yellow }
-        return .cyan
+        guard let value else { return palette.brand }
+        if value >= 90 { return palette.critical }
+        if value >= 70 { return palette.warning }
+        if value >= 45 { return palette.attention }
+        return palette.brand
     }
 }
 
-#Preview(as: .systemSmall) {
-    CodexBarStatusWidget()
-} timeline: {
-    CodexBarWidgetEntry(
-        date: .now,
-        configuration: CodexBarWidgetConfigurationIntent(mode: .overview),
-        snapshot: .placeholder())
-    CodexBarWidgetEntry(
-        date: .now,
-        configuration: CodexBarWidgetConfigurationIntent(mode: .todayCost),
-        snapshot: .placeholder())
+private struct CodexBarWidgetPalette {
+    let colorScheme: ColorScheme
+
+    var background: LinearGradient {
+        LinearGradient(
+            colors: backgroundColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing)
+    }
+
+    var brand: Color {
+        colorScheme == .dark
+            ? Color(red: 0.38, green: 0.86, blue: 0.96)
+            : Color(red: 0.02, green: 0.37, blue: 0.72)
+    }
+
+    var tileBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.08)
+            : Color.white.opacity(0.72)
+    }
+
+    var tileBorder: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.08)
+            : Color.black.opacity(0.07)
+    }
+
+    var critical: Color {
+        colorScheme == .dark
+            ? Color(red: 1.00, green: 0.36, blue: 0.34)
+            : Color(red: 0.82, green: 0.13, blue: 0.12)
+    }
+
+    var warning: Color {
+        colorScheme == .dark
+            ? Color.orange
+            : Color(red: 0.74, green: 0.35, blue: 0.00)
+    }
+
+    var attention: Color {
+        colorScheme == .dark
+            ? Color.yellow
+            : Color(red: 0.67, green: 0.45, blue: 0.00)
+    }
+
+    private var backgroundColors: [Color] {
+        if colorScheme == .dark {
+            return [
+                Color(red: 0.06, green: 0.08, blue: 0.10),
+                Color(red: 0.12, green: 0.15, blue: 0.18),
+            ]
+        }
+        return [
+            Color(red: 0.98, green: 0.99, blue: 1.00),
+            Color(red: 0.90, green: 0.95, blue: 0.99),
+        ]
+    }
 }
 
-#Preview(as: .systemMedium) {
-    CodexBarStatusWidget()
-} timeline: {
-    CodexBarWidgetEntry(
-        date: .now,
-        configuration: CodexBarWidgetConfigurationIntent(mode: .providerFocus),
-        snapshot: .placeholder())
+struct CodexBarWidgetViewPreviews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            CodexBarWidgetView(entry: .preview(mode: .overview))
+                .previewDisplayName("Small Light")
+                .previewContext(WidgetPreviewContext(family: .systemSmall))
+                .environment(\.colorScheme, .light)
+            CodexBarWidgetView(entry: .preview(mode: .syncHealth))
+                .previewDisplayName("Small Dark")
+                .previewContext(WidgetPreviewContext(family: .systemSmall))
+                .environment(\.colorScheme, .dark)
+            CodexBarWidgetView(entry: .preview(mode: .providerFocus))
+                .previewDisplayName("Medium Light")
+                .previewContext(WidgetPreviewContext(family: .systemMedium))
+                .environment(\.colorScheme, .light)
+            CodexBarWidgetView(entry: .preview(mode: .todayCost))
+                .previewDisplayName("Medium Dark")
+                .previewContext(WidgetPreviewContext(family: .systemMedium))
+                .environment(\.colorScheme, .dark)
+            CodexBarWidgetView(entry: .preview(mode: .overview))
+                .previewDisplayName("Large Light")
+                .previewContext(WidgetPreviewContext(family: .systemLarge))
+                .environment(\.colorScheme, .light)
+            CodexBarWidgetView(entry: .preview(mode: .syncHealth, snapshot: .error("iCloud account not signed in")))
+                .previewDisplayName("Large Dark")
+                .previewContext(WidgetPreviewContext(family: .systemLarge))
+                .environment(\.colorScheme, .dark)
+        }
+    }
 }
 
-#Preview(as: .systemLarge) {
-    CodexBarStatusWidget()
-} timeline: {
-    CodexBarWidgetEntry(
-        date: .now,
-        configuration: CodexBarWidgetConfigurationIntent(mode: .overview),
-        snapshot: .placeholder())
-    CodexBarWidgetEntry(
-        date: .now,
-        configuration: CodexBarWidgetConfigurationIntent(mode: .syncHealth),
-        snapshot: .error("iCloud account not signed in"))
+private extension CodexBarWidgetEntry {
+    static func preview(
+        mode: CodexBarWidgetMode,
+        snapshot: CodexBarWidgetSnapshot = .placeholder()
+    ) -> CodexBarWidgetEntry {
+        CodexBarWidgetEntry(
+            date: .now,
+            configuration: CodexBarWidgetConfigurationIntent(mode: mode),
+            snapshot: snapshot)
+    }
 }

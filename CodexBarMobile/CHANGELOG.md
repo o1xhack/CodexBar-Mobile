@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (167)] — 2026-06-29 — Widget appearance follow-up
+
+### Fixed
+
+- **Widget appearance** — Home Screen widgets now follow the system Light or
+  Dark Mode appearance instead of always rendering the dark widget background.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 166 → 167.
+
+---
+
 ## [1.16.0 (166)] — 2026-06-28 — WidgetKit suite
 
 ### Added

@@ -131,6 +131,19 @@ Release upload on 2026-06-28:
 - Archive path: `/tmp/CodexBarMobile-20260628-225334.xcarchive`.
 - App Store Connect build check — `1.16.0 (166)` uploaded at `2026-06-28T22:56:25-07:00`, build id `b7589850-3726-4a20-9d0b-cdbd2f981bf0`, `processingState=VALID`.
 
+Follow-up QA on 2026-06-29:
+
+- User QA found the first uploaded widget build rendered a dark widget background even when iOS was in Light Mode; this means the initial WidgetKit suite did not meet the full light/dark appearance bar.
+- Fixed `CodexBarWidgetView` to use a `colorScheme`-driven palette for widget background, tile background, tile border, brand color, and usage severity colors.
+- Added explicit light and dark `PreviewProvider` variants for small, medium, and large widget families.
+- Prepared corrective TestFlight build `1.16.0 (167)`.
+- `build_sim` via XcodeBuildMCP, `CodexBarMobile`, iPhone 17 simulator — passed with 0 warnings.
+- `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` — passed 3 tests, 0 failures.
+- `bash Scripts/lint.sh lint` — passed, including i18n source-vs-catalog audit.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release archive succeeded, App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260629-140710.xcarchive`.
+- App Store Connect build check — `1.16.0 (167)` uploaded at `2026-06-29T14:10:26-07:00`, build id `93d4c8b4-e5f5-41df-8ce5-12fffec26bf2`, `processingState=VALID`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

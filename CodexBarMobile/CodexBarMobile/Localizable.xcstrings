@@ -17328,31 +17328,31 @@
         }
       }
     },
-    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance.": {
+    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with appearance that follows Light or Dark Mode.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance."
+            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with appearance that follows Light or Dark Mode."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态。"
+            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态，并跟随浅色或深色模式显示。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態。"
+            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態，並跟隨淺色或深色模式顯示。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。"
+            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。表示はライトモードまたはダークモードに追従します。"
           }
         }
       }
