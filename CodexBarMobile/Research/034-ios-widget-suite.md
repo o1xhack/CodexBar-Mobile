@@ -122,6 +122,15 @@ Completed on 2026-06-28:
 - Localization audit — every localized catalog entry has translated `en`, `zh-Hans`, `zh-Hant`, and `ja` values; no `"state": "new"` entries were found.
 - App Group audit — no App Group entitlement was added; release remains within the stated approval boundary.
 
+Release upload on 2026-06-28:
+
+- Version advanced for TestFlight: iOS `MARKETING_VERSION` `1.16.0`, `CURRENT_PROJECT_VERSION` `166`, root `MOBILE_VERSION` `1.16.0`.
+- `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint, parser audits, documentation link checks, and `Localizable.xcstrings` source-vs-catalog audit.
+- XcodeBuildMCP focused test `-only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` — passed 3 tests, 0 failures.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release archive succeeded, App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260628-225334.xcarchive`.
+- App Store Connect build check — `1.16.0 (166)` uploaded at `2026-06-28T22:56:25-07:00`, build id `b7589850-3726-4a20-9d0b-cdbd2f981bf0`, `processingState=VALID`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

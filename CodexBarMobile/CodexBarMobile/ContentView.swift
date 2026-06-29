@@ -2779,14 +2779,29 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.15.0",
+            version: "1.16.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "iPhone 1.15 brings Home Screen widgets plus the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
+            summary: String(localized: "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance."),
+                    ]),
+                .init(
+                    title: String(localized: "Under the hood"),
+                    items: [
+                        String(localized: "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.15.0",
+            status: "",
+            summary: String(localized: "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
                         String(localized: "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page."),
                         String(localized: "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact."),
                         String(localized: "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync."),

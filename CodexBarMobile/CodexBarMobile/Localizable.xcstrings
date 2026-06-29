@@ -17299,6 +17299,35 @@
         }
       }
     },
+    "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.16 增加 CodexBar 桌面小组件，用于查看用量、成本和同步健康状态。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.16 增加 CodexBar 主畫面小工具，用於查看用量、成本和同步健康狀態。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.16 では、CodexBar の使用量、コスト、同期状態を確認できるホーム画面ウィジェットを追加しました。"
+          }
+        }
+      }
+    },
     "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance.": {
       "extractionState": "manual",
       "localizations": {
@@ -17324,6 +17353,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。"
+          }
+        }
+      }
+    },
+    "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件会读取 CloudKit 中同步的 CodexBar 数据，并在需要时回退到旧版 iCloud 快照，不需要 App Group 设置。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具會讀取 CloudKit 中同步的 CodexBar 資料，並在需要時回退到舊版 iCloud 快照，不需要 App Group 設定。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットは CloudKit に同期された CodexBar データを読み取り、必要に応じて古い iCloud スナップショットへフォールバックします。App Group の設定は不要です。"
           }
         }
       }

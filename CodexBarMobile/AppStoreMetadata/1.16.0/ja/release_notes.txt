@@ -1,0 +1,8 @@
+1.16.0 では CodexBar のホーム画面ウィジェットを追加しました。
+
+新機能
+* ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。
+* 設定可能な表示 — 各ウィジェットで Overview、Provider Focus、Today Cost、Sync Health を選べます。
+* 実際の同期データ — ウィジェットは CodexBar の CloudKit 同期データを読み取り、必要に応じて古い iCloud スナップショットへフォールバックします。
+
+この更新では App Group の設定も CloudKit schema の変更も不要です。

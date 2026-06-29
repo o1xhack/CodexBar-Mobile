@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.15.0 (165)] — 2026-06-28 — WidgetKit suite
+## [1.16.0 (166)] — 2026-06-28 — WidgetKit suite
 
 ### Added
 
@@ -22,7 +22,8 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 ### Notes
 
 - No CloudKit schema changes and no App Group entitlement changes in this pass.
-- iOS `CURRENT_PROJECT_VERSION`: 164 → 165.
+- iOS `MARKETING_VERSION`: 1.15.0 → 1.16.0.
+- iOS `CURRENT_PROJECT_VERSION`: 165 → 166.
 
 ---
 

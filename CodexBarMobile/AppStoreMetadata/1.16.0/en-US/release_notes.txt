@@ -1,0 +1,8 @@
+1.16.0 adds CodexBar Home Screen widgets.
+
+What's new
+* Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today's cost, and sync health at a glance.
+* Configurable views — choose Overview, Provider Focus, Today Cost, or Sync Health for each widget.
+* Real synced data — widgets read CodexBar CloudKit sync data and fall back to older iCloud snapshots when needed.
+
+No App Group setup or CloudKit schema change is required for this update.
