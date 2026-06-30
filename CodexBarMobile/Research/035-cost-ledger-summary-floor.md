@@ -51,6 +51,9 @@ Release target:
 - Upload completed on 2026-06-29:
   - Archive: `/tmp/CodexBarMobile-20260629-211537.xcarchive`
   - App Store Connect build check: `1.16.0 (168)` uploaded at `2026-06-29T21:19:19-07:00`, build id `01a13bf5-8a83-4c0f-a3b7-6a2e996817ff`, `processingState=VALID`.
+- Release-notes re-upload completed on 2026-06-29:
+  - Archive: `/tmp/CodexBarMobile-20260629-221212.xcarchive`
+  - App Store Connect build check: `1.16.0 (169)` uploaded at `2026-06-29T22:15:05-07:00`, build id `ba744863-1aa5-4f29-aa3d-844de0b430df`, `processingState=VALID`.
 
 ## iOS Sync Compatibility Gate
 

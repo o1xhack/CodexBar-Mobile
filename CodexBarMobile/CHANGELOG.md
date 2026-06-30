@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (169)] — 2026-06-29 — Cost fix release notes re-upload
+
+### Notes
+
+- Repackaged and re-uploaded the same 1.16.0 Cost sync fix after confirming
+  the in-app and App Store release notes include the Cost totals correction.
+- iOS `CURRENT_PROJECT_VERSION`: 168 → 169.
+
+---
+
 ## [1.16.0 (168)] — 2026-06-29 — Cost sync aggregation follow-up
 
 ### Fixed
