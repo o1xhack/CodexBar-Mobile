@@ -566,6 +566,34 @@
         }
       }
     },
+    "Spend contribution across the selected cost window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spend contribution across the selected cost window."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したコスト期間における同期済みプロバイダ全体の費用比率です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选成本窗口内已同步 provider 的费用占比。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所選成本視窗內已同步 provider 的費用占比。"
+          }
+        }
+      }
+    },
     "30d": {
       "localizations": {
         "en": {
@@ -17382,6 +17410,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "ウィジェットは CloudKit に同期された CodexBar データを読み取り、必要に応じて古い iCloud スナップショットへフォールバックします。App Group の設定は不要です。"
+          }
+        }
+      }
+    },
+    "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本总额现在会校验已同步的 provider 汇总，因此 daily 历史不完整时，Cost 页不会再低估花费。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本總額現在會校驗已同步的 provider 彙總，因此 daily 歷史不完整時，Cost 頁不會再低估花費。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コスト合計は同期済みプロバイダのサマリーと照合するようになり、日別履歴が不完全な場合でも Cost ページが支出を過小表示しません。"
           }
         }
       }

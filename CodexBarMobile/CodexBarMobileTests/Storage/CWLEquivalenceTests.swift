@@ -180,6 +180,121 @@ struct CWLEquivalenceTests {
         #expect(CostDashboardInsights(snapshot: snapshot).cwlWindowDays == nil)
     }
 
+    @Test("CWL provider totals use snapshot summary as a floor for longer windows")
+    func testLedgerProviderTotalsUseSnapshotSummaryFloor() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let now = Date()
+        let claude = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 1.49,
+                sessionTokens: 1_490,
+                last30DaysCostUSD: 2_638.98,
+                last30DaysTokens: 2_638_980,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: self.dayKey(daysAgo: 2),
+                        costUSD: 42.34,
+                        totalTokens: 42_340),
+                ],
+                historyDays: 30))
+        let openai = ProviderUsageSnapshot(
+            providerID: "openai",
+            providerName: "OpenAI",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "admin@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 12.34,
+                last30DaysTokens: 12_340,
+                daily: [],
+                historyDays: 30))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [claude, openai],
+            syncTimestamp: now,
+            deviceName: "Test Mac",
+            deviceID: "test-device")
+
+        try CostLedgerService.upsertFromSnapshot(claude, deviceID: "test-device", in: context)
+        try CostLedgerService.upsertFromSnapshot(openai, deviceID: "test-device", in: context)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(windowDays: 90, in: context)
+        let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: snapshot)
+        let row = try #require(insights.providerRows.first { $0.provider.providerID == "claude" })
+        let summaryOnlyRow = try #require(insights.providerRows.first { $0.provider.providerID == "openai" })
+
+        #expect(abs(row.thirtyDayCost - 2_638.98) < Self.tolerance)
+        #expect(row.thirtyDayTokens == 2_638_980)
+        #expect(abs(row.todayCost - 1.49) < Self.tolerance)
+        #expect(abs(summaryOnlyRow.thirtyDayCost - 12.34) < Self.tolerance)
+        #expect(summaryOnlyRow.thirtyDayTokens == 12_340)
+        #expect(abs(insights.total30DayCost - 2_651.32) < Self.tolerance)
+    }
+
+    @Test("CWL shorter windows do not inflate from a longer snapshot summary")
+    func testLedgerShorterWindowDoesNotUseLongerSnapshotSummary() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let now = Date()
+        let codex = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 100,
+                last30DaysTokens: 10_000,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: self.dayKey(daysAgo: 0),
+                        costUSD: 7,
+                        totalTokens: 700),
+                ],
+                historyDays: 30))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [codex],
+            syncTimestamp: now,
+            deviceName: "Test Mac",
+            deviceID: "test-device")
+
+        try CostLedgerService.upsertFromSnapshot(codex, deviceID: "test-device", in: context)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(windowDays: 7, in: context)
+        let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: snapshot)
+        let row = try #require(insights.providerRows.first)
+
+        #expect(abs(row.thirtyDayCost - 7) < Self.tolerance)
+        #expect(row.thirtyDayTokens == 700)
+    }
+
     @Test("Equivalence holds with multi-account providers (two Codex accounts)")
     func testEquivalenceMultiAccount() throws {
         let url = self.makeTempStoreURL()

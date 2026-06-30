@@ -5,5 +5,6 @@ What's new
 * Light and Dark Mode — widgets follow your system appearance instead of always using the dark widget background.
 * Configurable views — choose Overview, Provider Focus, Today Cost, or Sync Health for each widget.
 * Real synced data — widgets read CodexBar CloudKit sync data and fall back to older iCloud snapshots when needed.
+* Cost totals — the Cost page now cross-checks synced provider summaries so incomplete daily history does not undercount spend.
 
 No App Group setup or CloudKit schema change is required for this update.

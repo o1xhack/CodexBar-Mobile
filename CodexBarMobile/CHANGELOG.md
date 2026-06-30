@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (168)] — 2026-06-29 — Cost sync aggregation follow-up
+
+### Fixed
+
+- **Cost dashboard totals** — When Cost Window Ledger is enabled, provider
+  totals now use the synced provider summary as an authoritative floor for
+  equal-or-longer windows, so incomplete daily ledger rows no longer make the
+  Cost page show less spend than Raw Sync Data.
+- **Local-cost multi-device merge** — Claude, Codex, and VertexAI now sum each
+  device's synced summary totals before falling back to daily rows, preserving
+  correct totals when a Mac has a complete summary but partial daily history.
+- **Provider Share copy** — Non-30-day CWL windows now describe the selected
+  cost window instead of saying "30-day".
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 167 → 168.
+
+---
+
 ## [1.16.0 (167)] — 2026-06-29 — Widget appearance follow-up
 
 ### Fixed

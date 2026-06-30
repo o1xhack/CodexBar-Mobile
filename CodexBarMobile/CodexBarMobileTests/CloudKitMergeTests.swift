@@ -652,6 +652,57 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let claude = try #require(merged.providers.first)
         #expect(claude.costSummary?.sessionCostUSD == 20) // SUMMED, not 10
+        #expect(claude.costSummary?.last30DaysCostUSD == 200) // SUMMED from summaries, not dropped
+    }
+
+    @Test("local-cost merge sums summary totals when daily history is incomplete")
+    func localCostSummaryTotalsPreservedWhenDailyIncomplete() throws {
+        let costA = SyncCostSummary(
+            sessionCostUSD: 1.49,
+            sessionTokens: 1_490,
+            last30DaysCostUSD: 2_638.98,
+            last30DaysTokens: 2_638_980,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-06-28", costUSD: 42.34, totalTokens: 42_340),
+            ],
+            historyDays: 30)
+        let costB = SyncCostSummary(
+            sessionCostUSD: 23.34,
+            sessionTokens: 23_340,
+            last30DaysCostUSD: 2_368.16,
+            last30DaysTokens: 2_368_160,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-06-29", costUSD: 23.34, totalTokens: 23_340),
+            ],
+            historyDays: 30)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: olderDate,
+                costSummary: costA),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: newerDate,
+                costSummary: costB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let claude = try #require(merged.providers.first)
+        let cost = try #require(claude.costSummary)
+
+        #expect(abs((cost.sessionCostUSD ?? 0) - 24.83) < 0.001)
+        #expect(abs((cost.last30DaysCostUSD ?? 0) - 5_007.14) < 0.001)
+        #expect(cost.last30DaysTokens == 5_007_140)
+        #expect(cost.daily.reduce(0) { $0 + $1.costUSD } == 65.68)
+        #expect(cost.historyDays == 30)
     }
 
     @Test("loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan")

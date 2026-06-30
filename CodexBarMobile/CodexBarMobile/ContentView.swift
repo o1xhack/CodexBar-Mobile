@@ -462,7 +462,7 @@ private struct CostDashboardView: View {
                 if !self.insights.providerRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",
-                        subtitle: "30-day spend contribution across synced providers.",
+                        subtitle: self.providerShareSubtitle,
                         rows: self.insights.providerRows.map {
                             // `identityOverride: $0.id` carries the
                             // `providerID|accountEmail` composite key so
@@ -850,6 +850,13 @@ private struct CostDashboardView: View {
         }
     }
 
+    private var providerShareSubtitle: LocalizedStringResource {
+        guard let days = self.insights.historyDays, days != 30 else {
+            return "30-day spend contribution across synced providers."
+        }
+        return "Spend contribution across the selected cost window."
+    }
+
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
         let today = row.todayCost > 0
             ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
@@ -1120,6 +1127,7 @@ struct CostDashboardInsights {
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
 
         var providerRows: [ProviderRow] = []
+        var representedProviderKeys = Set<String>()
         for rollup in aggregation.providerRollups.values {
             // Match on the actual (providerID, accountEmail) tuple — avoids the
             // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
@@ -1128,13 +1136,42 @@ struct CostDashboardInsights {
                 $0.providerID == rollup.providerID
                     && $0.accountEmail == rollup.accountEmail
             }) else { continue }
+            let totals = Self.ledgerDisplayTotals(
+                rollup: rollup,
+                provider: provider,
+                windowDays: aggregation.windowDays)
             let todayCost = rollup.dailyPoints
-                .first(where: { $0.dayKey == todayKey })?.costUSD ?? 0
+                .first(where: { $0.dayKey == todayKey })?.costUSD
+                ?? provider.costSummary?.todayTotals().costUSD
+                ?? 0
             providerRows.append(ProviderRow(
                 provider: provider,
-                thirtyDayCost: rollup.totalCostUSD,
+                thirtyDayCost: totals.costUSD,
                 todayCost: todayCost,
-                thirtyDayTokens: rollup.totalTokens))
+                thirtyDayTokens: totals.tokens))
+            representedProviderKeys.insert(provider.cardIdentityKey)
+        }
+
+        for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
+            guard let costSummary = provider.costSummary else { continue }
+            let emptyRollup = CostLedgerProviderRollup(
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
+                totalCostUSD: 0,
+                totalTokens: 0,
+                dailyPoints: [],
+                modelBreakdowns: [])
+            let totals = Self.ledgerDisplayTotals(
+                rollup: emptyRollup,
+                provider: provider,
+                windowDays: aggregation.windowDays)
+            let todayCost = costSummary.todayTotals().costUSD ?? 0
+            guard totals.costUSD > 0 || todayCost > 0 else { continue }
+            providerRows.append(ProviderRow(
+                provider: provider,
+                thirtyDayCost: totals.costUSD,
+                todayCost: todayCost,
+                thirtyDayTokens: totals.tokens))
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -1179,6 +1216,34 @@ struct CostDashboardInsights {
                 return lhsRatio > rhsRatio
             },
             cwlWindowDays: aggregation.windowDays)
+    }
+
+    private static func ledgerDisplayTotals(
+        rollup: CostLedgerProviderRollup,
+        provider: ProviderUsageSnapshot,
+        windowDays: Int) -> (costUSD: Double, tokens: Int)
+    {
+        guard let summary = provider.costSummary else {
+            return (rollup.totalCostUSD, rollup.totalTokens)
+        }
+
+        var costUSD = rollup.totalCostUSD
+        var tokens = rollup.totalTokens
+        let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
+
+        if summaryWindowDays == windowDays {
+            costUSD = summary.last30DaysCostUSD ?? costUSD
+            tokens = summary.last30DaysTokens ?? tokens
+        } else if summaryWindowDays < windowDays {
+            if let summaryCost = summary.last30DaysCostUSD {
+                costUSD = max(costUSD, summaryCost)
+            }
+            if let summaryTokens = summary.last30DaysTokens {
+                tokens = max(tokens, summaryTokens)
+            }
+        }
+
+        return (costUSD, tokens)
     }
 
     private static func breakdownRows(
@@ -2792,6 +2857,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "Under the hood"),
                     items: [
                         String(localized: "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."),
+                        String(localized: "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete."),
                     ]),
             ]),
         ReleaseNotesVersion(

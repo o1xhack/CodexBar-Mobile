@@ -582,20 +582,37 @@ final class CloudSyncReader: @unchecked Sendable {
                 modelBreakdowns: entry.modelBreakdowns)
         }
 
-        // Recalculate totals from merged daily data
-        let totalCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
-        let totalTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
+        let fallbackDailyCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
+        let fallbackDailyTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
+
+        // Prefer each device's summary total over daily[]. Some Mac providers
+        // can report a full cost-window summary while daily history is partial
+        // or temporarily missing; recomputing from daily would undercount the
+        // merged provider by thousands of dollars in real data.
+        let windowCosts = summaries.compactMap { summary -> Double? in
+            if let cost = summary.last30DaysCostUSD { return cost }
+            return summary.daily.isEmpty ? nil : summary.daily.reduce(0) { $0 + $1.costUSD }
+        }
+        let windowTokens = summaries.compactMap { summary -> Int? in
+            if let tokens = summary.last30DaysTokens { return tokens }
+            return summary.daily.isEmpty ? nil : summary.daily.reduce(0) { $0 + $1.totalTokens }
+        }
+        let totalCost = windowCosts.isEmpty ? fallbackDailyCost : windowCosts.reduce(0, +)
+        let totalTokens = windowTokens.isEmpty ? fallbackDailyTokens : windowTokens.reduce(0, +)
 
         // Sum session costs across devices (each device has its own session)
         let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
         let sessionTokens = summaries.compactMap(\.sessionTokens).reduce(0, +)
+        let historyDays = summaries.compactMap(\.historyDays).max()
 
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
             sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
-            last30DaysCostUSD: mergedDaily.isEmpty ? nil : totalCost,
-            last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
-            daily: mergedDaily)
+            last30DaysCostUSD: windowCosts.isEmpty && mergedDaily.isEmpty ? nil : totalCost,
+            last30DaysTokens: windowTokens.isEmpty && mergedDaily.isEmpty ? nil : totalTokens,
+            daily: mergedDaily,
+            isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
+            historyDays: historyDays)
     }
 
     // MARK: - Utilization History Merge + Hourly Dedup
