@@ -46,14 +46,14 @@ struct CodexBarWidgetView: View {
     }
 
     private var smallLoadedView: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            header(title: titleForMode, compact: true)
+        VStack(alignment: .leading, spacing: 8) {
+            modeLabel(title: smallTitleForMode, systemImage: systemImageForMode, compact: true)
             Spacer(minLength: 0)
             switch entry.configuration.mode {
             case .overview:
                 heroMetric(
                     value: percentText(entry.snapshot.maxUsagePercent),
-                    label: String(localized: "Max Usage"),
+                    label: String(localized: "Usage"),
                     systemImage: "gauge.with.dots.needle.67percent",
                     progress: entry.snapshot.maxUsagePercent)
             case .providerFocus:
@@ -74,19 +74,19 @@ struct CodexBarWidgetView: View {
             Spacer(minLength: 0)
             footerLine
         }
-        .padding(14)
+        .padding(15)
     }
 
     private var mediumLoadedView: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            header(title: titleForMode, compact: false)
+        VStack(alignment: .leading, spacing: 10) {
+            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
             switch entry.configuration.mode {
             case .overview:
-                heroPair
-                providerRows(limit: 2)
+                metricStrip
+                providerRows(limit: 1)
             case .providerFocus:
                 providerHero(entry.snapshot.topProviders.first)
-                providerRows(limit: 2)
+                providerRows(limit: 1)
             case .todayCost:
                 heroMetric(
                     value: costText(entry.snapshot.todayCostUSD),
@@ -104,22 +104,21 @@ struct CodexBarWidgetView: View {
     }
 
     private var largeLoadedView: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            header(title: String(localized: "Dashboard"), compact: false)
+        VStack(alignment: .leading, spacing: 10) {
+            modeLabel(title: String(localized: "Dashboard"), systemImage: "chart.bar.xaxis", compact: false)
             metricStrip
             divider
-            providerRows(limit: 4)
+            providerRows(limit: 3)
             divider
             syncHealthRows
             Spacer(minLength: 0)
-            footerLine
         }
-        .padding(16)
+        .padding(15)
     }
 
     private var loadingView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header(title: String(localized: "Syncing"), compact: false)
+            modeLabel(title: String(localized: "Syncing"), systemImage: "icloud.and.arrow.down", compact: false)
             Spacer()
             Image(systemName: "icloud.and.arrow.down")
                 .font(.system(size: 30, weight: .semibold))
@@ -135,7 +134,7 @@ struct CodexBarWidgetView: View {
 
     private var emptyView: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header(title: String(localized: "No Data"), compact: false)
+            modeLabel(title: String(localized: "No Data"), systemImage: "macbook.and.iphone", compact: false)
             Spacer()
             Image(systemName: "macbook.and.iphone")
                 .font(.system(size: 28, weight: .semibold))
@@ -151,7 +150,7 @@ struct CodexBarWidgetView: View {
 
     private var errorView: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header(title: String(localized: "Sync Error"), compact: false)
+            modeLabel(title: String(localized: "Sync Error"), systemImage: "exclamationmark.icloud", compact: false)
             Spacer()
             Image(systemName: "exclamationmark.icloud")
                 .font(.system(size: 28, weight: .semibold))
@@ -166,20 +165,14 @@ struct CodexBarWidgetView: View {
         .padding(16)
     }
 
-    private func header(title: String, compact: Bool) -> some View {
-        HStack(spacing: 7) {
-            Text("CodexBar")
+    private func modeLabel(title: String, systemImage: String, compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
                 .font(compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
-                .foregroundStyle(palette.primary)
-                .lineLimit(1)
-            Rectangle()
-                .fill(palette.separator)
-                .frame(width: 1, height: compact ? 10 : 12)
             Text(title)
-                .font(compact ? .caption2 : .caption)
-                .foregroundStyle(palette.secondary)
+                .font(compact ? .caption.weight(.medium) : .caption.weight(.semibold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.65)
             Spacer(minLength: 0)
             if entry.snapshot.errorCount > 0 {
                 Image(systemName: "exclamationmark.triangle")
@@ -187,43 +180,24 @@ struct CodexBarWidgetView: View {
                     .foregroundStyle(palette.secondary)
             }
         }
-    }
-
-    private var heroPair: some View {
-        HStack(alignment: .top, spacing: 12) {
-            heroMetric(
-                value: costText(entry.snapshot.todayCostUSD),
-                label: String(localized: "Today"),
-                systemImage: "dollarsign.circle",
-                progress: nil)
-            verticalDivider(height: 48)
-            compactMetric(
-                label: String(localized: "Max Usage"),
-                value: percentText(entry.snapshot.maxUsagePercent),
-                systemImage: "gauge.with.dots.needle.67percent")
-            verticalDivider(height: 48)
-            compactMetric(
-                label: String(localized: "Sync"),
-                value: syncValue,
-                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud")
-        }
+        .foregroundStyle(palette.secondary)
     }
 
     private var metricStrip: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             compactMetric(
                 label: String(localized: "Today"),
                 value: costText(entry.snapshot.todayCostUSD),
                 systemImage: "dollarsign.circle")
-            verticalDivider(height: 42)
+            verticalDivider(height: 36)
             compactMetric(
                 label: String(localized: "30 Days"),
                 value: costText(entry.snapshot.thirtyDayCostUSD),
                 systemImage: "calendar")
-            verticalDivider(height: 42)
+            verticalDivider(height: 36)
             compactMetric(
-                label: String(localized: "Max Usage"),
-                value: percentText(entry.snapshot.maxUsagePercent),
+                label: String(localized: "Usage"),
+                value: percentValueText(entry.snapshot.maxUsagePercent),
                 systemImage: "gauge.with.dots.needle.67percent")
         }
     }
@@ -236,6 +210,7 @@ struct CodexBarWidgetView: View {
                 Text(label)
                     .font(.caption2)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
             .foregroundStyle(palette.secondary)
 
@@ -270,7 +245,7 @@ struct CodexBarWidgetView: View {
                     .privacySensitive()
                     .widgetAccentable()
                 progressLine(provider.usagePercent, height: family == .systemSmall ? 4 : 3)
-                Text(provider.displaySubtitle ?? String(localized: "Usage"))
+                Text(providerSubtitle(provider))
                     .font(.caption2)
                     .foregroundStyle(palette.secondary)
                     .lineLimit(1)
@@ -319,7 +294,7 @@ struct CodexBarWidgetView: View {
 
     private func providerRows(limit: Int) -> some View {
         VStack(spacing: 8) {
-            ForEach(Array(entry.snapshot.topProviders.prefix(limit).enumerated()), id: \.element.id) { index, provider in
+            ForEach(Array(displayProviders.prefix(limit).enumerated()), id: \.element.id) { index, provider in
                 if index > 0 {
                     divider
                 }
@@ -343,13 +318,13 @@ struct CodexBarWidgetView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.primary)
                         .lineLimit(1)
-                    Text(provider.displaySubtitle ?? relativeText(since: provider.lastUpdated))
+                    Text(providerSubtitle(provider))
                         .font(.caption2)
                         .foregroundStyle(palette.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 6)
-                Text(percentText(provider.usagePercent))
+                Text(percentValueText(provider.usagePercent))
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(palette.primary)
                     .lineLimit(1)
@@ -422,10 +397,12 @@ struct CodexBarWidgetView: View {
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(palette.progressTrack)
-                Capsule()
-                    .fill(palette.primary)
-                    .frame(width: max(height, proxy.size.width * fraction))
-                    .widgetAccentable()
+                if percent != nil, fraction > 0 {
+                    Capsule()
+                        .fill(palette.primary)
+                        .frame(width: proxy.size.width * fraction)
+                        .widgetAccentable()
+                }
             }
         }
         .frame(height: height)
@@ -457,6 +434,20 @@ struct CodexBarWidgetView: View {
         entry.snapshot.isStale ? String(localized: "Stale") : String(localized: "Healthy")
     }
 
+    private var displayProviders: [CodexBarWidgetProviderSummary] {
+        let providers = entry.snapshot.topProviders
+        return providers.filter { !$0.isError } + providers.filter(\.isError)
+    }
+
+    private var smallTitleForMode: String {
+        switch entry.configuration.mode {
+        case .overview: String(localized: "Overview")
+        case .providerFocus: String(localized: "Provider Focus")
+        case .todayCost: String(localized: "Today Cost")
+        case .syncHealth: String(localized: "Sync Health")
+        }
+    }
+
     private var titleForMode: String {
         switch entry.configuration.mode {
         case .overview: String(localized: "Overview")
@@ -464,6 +455,22 @@ struct CodexBarWidgetView: View {
         case .todayCost: String(localized: "Today Cost")
         case .syncHealth: String(localized: "Sync Health")
         }
+    }
+
+    private var systemImageForMode: String {
+        switch entry.configuration.mode {
+        case .overview: "gauge.with.dots.needle.67percent"
+        case .providerFocus: "person.crop.circle"
+        case .todayCost: "dollarsign.circle"
+        case .syncHealth: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud"
+        }
+    }
+
+    private func providerSubtitle(_ provider: CodexBarWidgetProviderSummary) -> String {
+        if provider.isError {
+            return String(localized: "Sync Error")
+        }
+        return provider.displaySubtitle ?? relativeText(since: provider.lastUpdated)
     }
 
     private var relativeSyncText: String {
@@ -527,6 +534,11 @@ struct CodexBarWidgetView: View {
     private func percentText(_ value: Double?) -> String {
         guard let value else { return String(localized: "No usage") }
         return String(format: String(localized: "%.0f%% used"), min(100, max(0, value)))
+    }
+
+    private func percentValueText(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return String(format: "%.0f%%", min(100, max(0, value)))
     }
 
     private func compact(_ value: Double) -> String {

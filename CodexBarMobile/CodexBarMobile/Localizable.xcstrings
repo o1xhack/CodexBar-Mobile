@@ -5932,6 +5932,34 @@
         }
       }
     },
+    "Errors": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "エラー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "错误"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "錯誤"
+          }
+        }
+      }
+    },
     "Providers": {
       "localizations": {
         "en": {
@@ -5943,19 +5971,19 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Providers"
+            "value": "プロバイダ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Providers"
+            "value": "提供商"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Providers"
+            "value": "提供商"
           }
         }
       }
@@ -17356,31 +17384,31 @@
         }
       }
     },
-    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with a cleaner single-color design that follows Light, Dark, and tinted Home Screen appearances.": {
+    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with tighter layouts that avoid clipped text and follow Light, Dark, and tinted Home Screen appearances.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with a cleaner single-color design that follows Light, Dark, and tinted Home Screen appearances."
+            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with tighter layouts that avoid clipped text and follow Light, Dark, and tinted Home Screen appearances."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态；现在采用更干净的单色设计，并跟随浅色、深色和主屏幕着色外观。"
+            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态；现在采用更紧凑的布局，避免文字截断，并跟随浅色、深色和主屏幕着色外观。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態；現在採用更乾淨的單色設計，並跟隨淺色、深色和主畫面著色外觀。"
+            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態；現在採用更緊湊的佈局，避免文字截斷，並跟隨淺色、深色和主畫面著色外觀。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。よりクリーンな単色デザインになり、ライト、ダーク、ホーム画面のTinted表示に追従します。"
+            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。より引き締まったレイアウトで文字切れを避け、ライト、ダーク、ホーム画面のTinted表示に追従します。"
           }
         }
       }

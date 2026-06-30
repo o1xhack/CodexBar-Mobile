@@ -37,6 +37,17 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
         in _: Context
     ) async -> Timeline<CodexBarWidgetEntry> {
         let now = Date()
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["CODEXBAR_WIDGET_DISABLE_SIMULATOR_MOCK"] != "1" {
+            let entry = CodexBarWidgetEntry(
+                date: now,
+                configuration: configuration,
+                snapshot: .simulatorMock(now: now))
+            return Timeline(
+                entries: [entry],
+                policy: .after(now.addingTimeInterval(15 * 60)))
+        }
+        #endif
         let result = await CloudSyncManager.shared.fetchAllDeviceSnapshots()
         let fallback = CloudSyncManager.shared.fetchKVSSnapshot()
         let snapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(

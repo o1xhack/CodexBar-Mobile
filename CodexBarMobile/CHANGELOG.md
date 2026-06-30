@@ -2,6 +2,26 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (171)] — 2026-06-30 — Widget Home Screen QA follow-up
+
+### Fixed
+
+- **Home Screen widget layouts** — Tightened small, medium, and large widget
+  layouts after real SpringBoard add-widget testing, avoiding clipped titles,
+  long error text overflow, and cramped provider rows.
+- **Widget simulator QA data** — Widget timelines now use deterministic mock
+  sync data on iOS Simulator so Home Screen widget additions can be tested
+  without relying on live CloudKit state.
+- **Widget localization** — Localized dashboard section labels such as
+  Providers and Errors in the widget extension bundle.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 170 → 171.
+
+---
+
 ## [1.16.0 (170)] — 2026-06-30 — Widget visual design follow-up
 
 ### Changed

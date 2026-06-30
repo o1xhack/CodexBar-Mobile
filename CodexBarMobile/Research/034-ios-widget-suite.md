@@ -176,6 +176,53 @@ Visual design follow-up on 2026-06-30:
   `2026-06-30T11:33:12-07:00`, build id
   `f8efa2b1-d068-488e-a1eb-aa65882ccd7a`, `processingState=VALID`.
 
+Home Screen QA follow-up on 2026-06-30:
+
+- User QA found the previous TestFlight build was not actually validated
+  through SpringBoard widget addition. Small and medium widgets could still
+  show clipped headers, long provider error strings, and cramped rows even
+  though build/test checks passed.
+- Added a simulator-only widget timeline fixture so the widget extension shows
+  deterministic loaded mock data when installed on iOS Simulator. Device and
+  TestFlight builds still use CloudKit/KVS runtime data.
+- Reworked small, medium, and large widget layouts to remove the duplicated
+  brand header, shorten provider error subtitles to `Sync Error`, move errored
+  providers after healthy providers, and avoid drawing stray progress bullets
+  when usage is unavailable.
+- Localized widget dashboard section labels that were still rendering in
+  English under Simplified Chinese (`Providers`, `Errors`).
+- Actual SpringBoard QA evidence, iPhone 17 simulator, Simplified Chinese
+  locale:
+  - Small widget added from the app/widget long-press menu:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_e753354b-5d7c-40bd-9df6-cd600354b941.jpg`.
+  - Medium widget added from the same SpringBoard menu:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_9386ba7c-1c13-4227-99a6-aa41cd3fab5a.jpg`.
+  - Large widget added from the same SpringBoard menu:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_a275976d-da14-420c-a2db-2af63b75a361.jpg`.
+  - System `编辑小组件` panel for the large widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_9782e15c-9698-4260-a7e1-cc82d3ac1282.jpg`.
+- Result: small, medium, and large Home Screen widgets render in the simulator
+  with light appearance, localized edit/configuration labels, no long raw error
+  text, and no visible row clipping in the tested default overview mode.
+- Prepared corrective TestFlight build `1.16.0 (171)`.
+- `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+  parser audits, documentation link checks, and `Localizable.xcstrings`
+  source-vs-catalog audit.
+- `build_sim` via XcodeBuildMCP, `CodexBarMobile`, iPhone 17 simulator —
+  passed with 0 warnings.
+- `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+  passed 3 tests, 0 failures. A first run with `CODE_SIGNING_ALLOWED=NO`
+  failed before test bootstrap because the test host lacked iCloud/KVS
+  entitlements; rerunning without that compile-only override passed.
+- `build_run_sim` with `UI_TEST_PREVIEW_DATA UI_TEST_SKIP_ONBOARDING` — final
+  build 171 installed and launched on the iPhone 17 simulator.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+  archive succeeded, App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260630-161504.xcarchive`.
+- App Store Connect build check — `1.16.0 (171)` uploaded at
+  `2026-06-30T16:18:33-07:00`, build id
+  `8a216604-2d47-495c-b09b-6e5b799482cb`, `processingState=VALID`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

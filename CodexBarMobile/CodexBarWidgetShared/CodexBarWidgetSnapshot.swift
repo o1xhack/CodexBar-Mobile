@@ -102,6 +102,26 @@ struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {
             isStale: false)
     }
 
+    #if targetEnvironment(simulator)
+    static func simulatorMock(now: Date = .now) -> CodexBarWidgetSnapshot {
+        let sample = Self.placeholder(now: now)
+        return CodexBarWidgetSnapshot(
+            state: .loaded,
+            generatedAt: sample.generatedAt,
+            latestSyncAt: sample.latestSyncAt,
+            deviceCount: sample.deviceCount,
+            providerCount: sample.providerCount,
+            errorCount: sample.errorCount,
+            todayCostUSD: sample.todayCostUSD,
+            thirtyDayCostUSD: sample.thirtyDayCostUSD,
+            todayTokens: sample.todayTokens,
+            maxUsagePercent: sample.maxUsagePercent,
+            topProviders: sample.topProviders,
+            message: sample.message,
+            isStale: sample.isStale)
+    }
+    #endif
+
     static func syncing(now: Date = .now) -> CodexBarWidgetSnapshot {
         CodexBarWidgetSnapshot(
             state: .syncing,
