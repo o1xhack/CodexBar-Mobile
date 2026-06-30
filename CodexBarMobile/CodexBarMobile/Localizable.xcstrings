@@ -17356,31 +17356,31 @@
         }
       }
     },
-    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with appearance that follows Light or Dark Mode.": {
+    "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with a cleaner single-color design that follows Light, Dark, and tinted Home Screen appearances.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with appearance that follows Light or Dark Mode."
+            "value": "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with a cleaner single-color design that follows Light, Dark, and tinted Home Screen appearances."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态，并跟随浅色或深色模式显示。"
+            "value": "桌面小组件 — 添加小号、中号或大号 CodexBar 小组件，一眼查看提供商用量、今日成本和同步健康状态；现在采用更干净的单色设计，并跟随浅色、深色和主屏幕着色外观。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態，並跟隨淺色或深色模式顯示。"
+            "value": "主畫面小工具 — 加入小型、中型或大型 CodexBar 小工具，一眼查看提供商用量、今日成本和同步健康狀態；現在採用更乾淨的單色設計，並跟隨淺色、深色和主畫面著色外觀。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。表示はライトモードまたはダークモードに追従します。"
+            "value": "ホーム画面ウィジェット — 小・中・大サイズの CodexBar ウィジェットで、プロバイダ使用量、今日のコスト、同期状態をすばやく確認できます。よりクリーンな単色デザインになり、ライト、ダーク、ホーム画面のTinted表示に追従します。"
           }
         }
       }

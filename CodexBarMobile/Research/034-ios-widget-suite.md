@@ -144,6 +144,38 @@ Follow-up QA on 2026-06-29:
 - Archive path: `/tmp/CodexBarMobile-20260629-140710.xcarchive`.
 - App Store Connect build check — `1.16.0 (167)` uploaded at `2026-06-29T14:10:26-07:00`, build id `93d4c8b4-e5f5-41df-8ce5-12fffec26bf2`, `processingState=VALID`.
 
+Visual design follow-up on 2026-06-30:
+
+- User QA found the widget suite still felt unlike a native iOS widget because
+  the implementation used a dark dashboard look, gradients, and several
+  simultaneous data colors.
+- Reviewed Apple Weather-style system widgets, Flighty-style high-contrast
+  travel widgets, and Fin-style tinted/dark appearance expectations. The shared
+  design constraint is glanceability: one dominant metric, restrained typography,
+  system appearance adaptation, and no multi-color dashboard palette.
+- Reworked `CodexBarWidgetView` to use neutral Light/Dark backgrounds, a
+  single-color foreground system, thin separators, monochrome provider markers,
+  and progress lines instead of colorful metric tiles.
+- Marked key values and progress fills with `.widgetAccentable()` so tinted
+  Home Screen rendering stays single-color and system-driven.
+- Prepared corrective TestFlight build `1.16.0 (170)`.
+- `build_sim` via XcodeBuildMCP, `CodexBarMobile`, iPhone 17 simulator — passed
+  with 0 warnings.
+- `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+  passed 3 tests, 0 failures.
+- `build_run_sim` with `UI_TEST_PREVIEW_DATA UI_TEST_SKIP_ONBOARDING` — app
+  installed and launched on the iPhone 17 simulator; a light-mode simulator
+  screenshot was captured for runtime smoke.
+- `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint, parser
+  audits, documentation link checks, and `Localizable.xcstrings`
+  source-vs-catalog audit.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release archive
+  succeeded, App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260630-113022.xcarchive`.
+- App Store Connect build check — `1.16.0 (170)` uploaded at
+  `2026-06-30T11:33:12-07:00`, build id
+  `f8efa2b1-d068-488e-a1eb-aa65882ccd7a`, `processingState=VALID`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

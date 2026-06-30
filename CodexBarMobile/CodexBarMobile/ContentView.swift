@@ -2851,7 +2851,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with appearance that follows Light or Dark Mode."),
+                        String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, or large sizes to see provider usage, today’s cost, and sync health at a glance, with a cleaner single-color design that follows Light, Dark, and tinted Home Screen appearances."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),

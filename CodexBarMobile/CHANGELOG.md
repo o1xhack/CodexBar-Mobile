@@ -2,6 +2,24 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (170)] — 2026-06-30 — Widget visual design follow-up
+
+### Changed
+
+- **Home Screen widget design** — Reworked the widget surface to a quieter
+  single-color visual system with native Light, Dark, and tinted Home Screen
+  appearance support.
+- **Widget layouts** — Replaced colorful metric tiles and provider dots with
+  stronger typographic hierarchy, thin dividers, and monochrome progress lines
+  across small, medium, and large widget families.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 169 → 170.
+
+---
+
 ## [1.16.0 (169)] — 2026-06-29 — Cost fix release notes re-upload
 
 ### Notes
