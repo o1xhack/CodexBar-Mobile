@@ -22,6 +22,7 @@ struct CodexBarWidgetView: View {
                 loadedView
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
             palette.background
         }
@@ -40,80 +41,175 @@ struct CodexBarWidgetView: View {
             mediumLoadedView
         case .systemLarge:
             largeLoadedView
+        case .systemExtraLarge:
+            extraLargeLoadedView
         default:
             mediumLoadedView
         }
     }
 
     private var smallLoadedView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: spacing.header) {
             modeLabel(title: smallTitleForMode, systemImage: systemImageForMode, compact: true)
-            Spacer(minLength: 0)
-            switch entry.configuration.mode {
-            case .overview:
-                heroMetric(
-                    value: percentText(entry.snapshot.maxUsagePercent),
-                    label: String(localized: "Usage"),
-                    systemImage: "gauge.with.dots.needle.67percent",
-                    progress: entry.snapshot.maxUsagePercent)
-            case .providerFocus:
-                providerHero(entry.snapshot.topProviders.first)
-            case .todayCost:
-                heroMetric(
-                    value: costText(entry.snapshot.todayCostUSD),
-                    label: String(localized: "Today"),
-                    systemImage: "dollarsign.circle",
-                    progress: nil)
-            case .syncHealth:
-                heroMetric(
-                    value: syncValue,
-                    label: relativeSyncText,
-                    systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
-                    progress: nil)
-            }
-            Spacer(minLength: 0)
+            smallModeContent
+                .frame(maxHeight: .infinity, alignment: .center)
             footerLine
         }
-        .padding(15)
+        .padding(spacing.padding)
+    }
+
+    @ViewBuilder
+    private var smallModeContent: some View {
+        switch entry.configuration.mode {
+        case .overview:
+            heroMetric(
+                value: percentText(entry.snapshot.maxUsagePercent),
+                label: String(localized: "Usage"),
+                systemImage: "gauge.with.dots.needle.67percent",
+                progress: entry.snapshot.maxUsagePercent)
+        case .providerFocus:
+            providerHero(focusedProvider)
+        case .todayCost:
+            heroMetric(
+                value: costText(entry.snapshot.todayCostUSD),
+                label: String(localized: "Today"),
+                systemImage: "dollarsign.circle",
+                progress: nil)
+        case .syncHealth:
+            heroMetric(
+                value: syncValue,
+                label: relativeSyncText,
+                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                progress: nil)
+        }
     }
 
     private var mediumLoadedView: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: spacing.section) {
+            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
+            mediumModeContent
+            Spacer(minLength: 0)
+            footerLine
+        }
+        .padding(spacing.padding)
+    }
+
+    @ViewBuilder
+    private var mediumModeContent: some View {
+        switch entry.configuration.mode {
+        case .overview:
+            metricStrip
+            providerRows(providers: displayProviders, limit: 1, metric: .usage)
+        case .providerFocus:
+            providerHero(focusedProvider)
+        case .todayCost:
+            metricStrip
+            providerRows(providers: costProviders, limit: 1, metric: .todayCost)
+        case .syncHealth:
+            heroMetric(
+                value: syncValue,
+                label: relativeSyncText,
+                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                progress: nil)
+            syncHealthRows(limit: 1)
+        }
+    }
+
+    private var largeLoadedView: some View {
+        VStack(alignment: .leading, spacing: spacing.section) {
+            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
+            largeModeContent
+            Spacer(minLength: 0)
+            footerLine
+        }
+        .padding(spacing.padding)
+    }
+
+    @ViewBuilder
+    private var largeModeContent: some View {
+        switch entry.configuration.mode {
+        case .overview:
+            metricStrip
+            divider
+            providerRows(providers: displayProviders, limit: 3, metric: .usage)
+            divider
+            syncSummaryStrip
+        case .providerFocus:
+            providerHero(focusedProvider)
+            divider
+            providerRows(providers: secondaryFocusProviders, limit: 3, metric: .usage)
+            divider
+            syncSummaryStrip
+        case .todayCost:
+            metricStrip
+            divider
+            providerRows(providers: costProviders, limit: 3, metric: .todayCost)
+            divider
+            labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
+        case .syncHealth:
+            heroMetric(
+                value: syncValue,
+                label: relativeSyncText,
+                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                progress: nil)
+            divider
+            syncHealthRows(limit: entry.snapshot.errorCount > 0 ? 4 : 3)
+        }
+    }
+
+    private var extraLargeLoadedView: some View {
+        VStack(alignment: .leading, spacing: spacing.section) {
             modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
             switch entry.configuration.mode {
             case .overview:
-                metricStrip
-                providerRows(limit: 1)
+                HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
+                    VStack(alignment: .leading, spacing: spacing.section) {
+                        metricStrip
+                        divider
+                        syncHealthRows(limit: 4)
+                    }
+                    verticalDivider(height: 170)
+                    providerRows(providers: displayProviders, limit: 4, metric: .usage)
+                }
             case .providerFocus:
-                providerHero(entry.snapshot.topProviders.first)
-                providerRows(limit: 1)
+                HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
+                    VStack(alignment: .leading, spacing: spacing.section) {
+                        providerHero(focusedProvider)
+                        divider
+                        syncSummaryStrip
+                    }
+                    verticalDivider(height: 170)
+                    providerRows(providers: secondaryFocusProviders, limit: 4, metric: .usage)
+                }
             case .todayCost:
-                heroMetric(
-                    value: costText(entry.snapshot.todayCostUSD),
-                    label: String(localized: "Today"),
-                    systemImage: "dollarsign.circle",
-                    progress: nil)
-                costBreakdownRows
+                HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
+                    VStack(alignment: .leading, spacing: spacing.section) {
+                        metricStrip
+                        divider
+                        labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
+                    }
+                    verticalDivider(height: 170)
+                    providerRows(providers: costProviders, limit: 4, metric: .todayCost)
+                }
             case .syncHealth:
-                syncHealthRows
+                HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
+                    VStack(alignment: .leading, spacing: spacing.section) {
+                        heroMetric(
+                            value: syncValue,
+                            label: relativeSyncText,
+                            systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                            progress: nil)
+                        divider
+                        syncHealthRows(limit: 4)
+                    }
+                    verticalDivider(height: 170)
+                    providerRows(providers: displayProviders, limit: 4, metric: .usage)
+                }
             }
             Spacer(minLength: 0)
             footerLine
         }
-        .padding(14)
-    }
-
-    private var largeLoadedView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            modeLabel(title: String(localized: "Dashboard"), systemImage: "chart.bar.xaxis", compact: false)
-            metricStrip
-            divider
-            providerRows(limit: 3)
-            divider
-            syncHealthRows
-            Spacer(minLength: 0)
-        }
-        .padding(15)
+        .padding(spacing.padding)
     }
 
     private var loadingView: some View {
@@ -184,17 +280,17 @@ struct CodexBarWidgetView: View {
     }
 
     private var metricStrip: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: spacing.metricColumn) {
             compactMetric(
                 label: String(localized: "Today"),
                 value: costText(entry.snapshot.todayCostUSD),
                 systemImage: "dollarsign.circle")
-            verticalDivider(height: 36)
+            verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "30 Days"),
                 value: costText(entry.snapshot.thirtyDayCostUSD),
                 systemImage: "calendar")
-            verticalDivider(height: 36)
+            verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "Usage"),
                 value: percentValueText(entry.snapshot.maxUsagePercent),
@@ -203,7 +299,7 @@ struct CodexBarWidgetView: View {
     }
 
     private func compactMetric(label: String, value: String, systemImage: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: spacing.compactMetric) {
             HStack(spacing: 5) {
                 Image(systemName: systemImage)
                     .font(.caption2.weight(.semibold))
@@ -215,7 +311,7 @@ struct CodexBarWidgetView: View {
             .foregroundStyle(palette.secondary)
 
             Text(value)
-                .font(.caption.weight(.semibold).monospacedDigit())
+                .font(compactMetricValueFont)
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
@@ -226,25 +322,25 @@ struct CodexBarWidgetView: View {
     }
 
     private func providerHero(_ provider: CodexBarWidgetProviderSummary?) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: spacing.hero) {
             if let provider {
                 HStack(spacing: 7) {
                     providerMark(provider)
                     Text(provider.providerName)
-                        .font(.caption.weight(.semibold))
+                        .font(rowTitleFont)
                         .foregroundStyle(palette.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                 }
                 Text(percentText(provider.usagePercent))
-                    .font(.system(size: family == .systemSmall ? 30 : 27, weight: .bold, design: .rounded))
+                    .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(palette.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.62)
                     .privacySensitive()
                     .widgetAccentable()
-                progressLine(provider.usagePercent, height: family == .systemSmall ? 4 : 3)
+                progressLine(provider.usagePercent, height: progressHeight)
                 Text(providerSubtitle(provider))
                     .font(.caption2)
                     .foregroundStyle(palette.secondary)
@@ -265,7 +361,7 @@ struct CodexBarWidgetView: View {
         systemImage: String,
         progress: Double?
     ) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: spacing.hero) {
             HStack(spacing: 6) {
                 Image(systemName: systemImage)
                     .font(.caption.weight(.semibold))
@@ -277,7 +373,7 @@ struct CodexBarWidgetView: View {
             .foregroundStyle(palette.secondary)
 
             Text(value)
-                .font(.system(size: family == .systemSmall ? 29 : 26, weight: .bold, design: .rounded))
+                .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)
@@ -286,21 +382,25 @@ struct CodexBarWidgetView: View {
                 .widgetAccentable()
 
             if let progress {
-                progressLine(progress, height: 4)
+                progressLine(progress, height: progressHeight)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func providerRows(limit: Int) -> some View {
-        VStack(spacing: 8) {
-            ForEach(Array(displayProviders.prefix(limit).enumerated()), id: \.element.id) { index, provider in
+    private func providerRows(
+        providers: [CodexBarWidgetProviderSummary],
+        limit: Int,
+        metric: ProviderRowMetric
+    ) -> some View {
+        VStack(spacing: spacing.row) {
+            ForEach(Array(providers.prefix(limit).enumerated()), id: \.element.id) { index, provider in
                 if index > 0 {
                     divider
                 }
-                providerRow(provider)
+                providerRow(provider, metric: metric)
             }
-            if entry.snapshot.topProviders.isEmpty {
+            if providers.isEmpty {
                 Text(String(localized: "No provider data"))
                     .font(.caption)
                     .foregroundStyle(palette.secondary)
@@ -309,54 +409,78 @@ struct CodexBarWidgetView: View {
         }
     }
 
-    private func providerRow(_ provider: CodexBarWidgetProviderSummary) -> some View {
+    private func providerRow(
+        _ provider: CodexBarWidgetProviderSummary,
+        metric: ProviderRowMetric
+    ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 providerMark(provider)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(provider.providerName)
-                        .font(.caption.weight(.semibold))
+                        .font(rowTitleFont)
                         .foregroundStyle(palette.primary)
                         .lineLimit(1)
                     Text(providerSubtitle(provider))
-                        .font(.caption2)
+                        .font(rowSubtitleFont)
                         .foregroundStyle(palette.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 6)
-                Text(percentValueText(provider.usagePercent))
-                    .font(.caption.weight(.semibold).monospacedDigit())
+                Text(rowMetricText(provider, metric: metric))
+                    .font(rowValueFont)
                     .foregroundStyle(palette.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.70)
                     .privacySensitive()
                     .widgetAccentable()
             }
-            progressLine(provider.usagePercent, height: 3)
-        }
-    }
-
-    private var costBreakdownRows: some View {
-        VStack(spacing: 8) {
-            labeledValue(String(localized: "Today"), costText(entry.snapshot.todayCostUSD))
-            divider
-            labeledValue(String(localized: "30 Days"), costText(entry.snapshot.thirtyDayCostUSD))
-            divider
-            labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
-        }
-    }
-
-    private var syncHealthRows: some View {
-        VStack(spacing: 8) {
-            labeledValue(String(localized: "Last Sync"), relativeSyncText)
-            divider
-            labeledValue(String(localized: "Providers"), String(format: String(localized: "%d providers"), entry.snapshot.providerCount))
-            divider
-            labeledValue(String(localized: "Devices"), String(format: String(localized: "%d devices"), entry.snapshot.deviceCount))
-            if entry.snapshot.errorCount > 0 {
-                divider
-                labeledValue(String(localized: "Errors"), String(format: String(localized: "%d errors"), entry.snapshot.errorCount))
+            if metric == .usage {
+                progressLine(provider.usagePercent, height: rowProgressHeight)
             }
+        }
+    }
+
+    private func syncHealthRows(limit: Int) -> some View {
+        let rows = syncHealthItems
+        return VStack(spacing: spacing.row) {
+            ForEach(Array(rows.prefix(limit).enumerated()), id: \.offset) { index, item in
+                if index > 0 {
+                    divider
+                }
+                labeledValue(item.label, item.value)
+            }
+        }
+    }
+
+    private var syncHealthItems: [(label: String, value: String)] {
+        var rows: [(String, String)] = [
+            (String(localized: "Last Sync"), relativeSyncText),
+        ]
+        rows.append((String(localized: "Providers"), String(format: String(localized: "%d providers"), entry.snapshot.providerCount)))
+        rows.append((String(localized: "Devices"), String(format: String(localized: "%d devices"), entry.snapshot.deviceCount)))
+        if entry.snapshot.errorCount > 0 {
+            rows.append((String(localized: "Errors"), String(format: String(localized: "%d errors"), entry.snapshot.errorCount)))
+        }
+        return rows
+    }
+
+    private var syncSummaryStrip: some View {
+        HStack(alignment: .top, spacing: spacing.metricColumn) {
+            compactMetric(
+                label: String(localized: "Last Sync"),
+                value: relativeSyncText,
+                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud")
+            verticalDivider(height: spacing.metricDividerHeight)
+            compactMetric(
+                label: String(localized: "Providers"),
+                value: String(format: String(localized: "%d providers"), entry.snapshot.providerCount),
+                systemImage: "person.2")
+            verticalDivider(height: spacing.metricDividerHeight)
+            compactMetric(
+                label: String(localized: "Devices"),
+                value: String(format: String(localized: "%d devices"), entry.snapshot.deviceCount),
+                systemImage: "macbook.and.iphone")
         }
     }
 
@@ -368,7 +492,7 @@ struct CodexBarWidgetView: View {
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(value)
-                .font(.caption.weight(.semibold).monospacedDigit())
+                .font(rowValueFont)
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
@@ -387,7 +511,7 @@ struct CodexBarWidgetView: View {
                     .padding(2)
             }
         }
-        .frame(width: 9, height: 9)
+        .frame(width: providerMarkSize, height: providerMarkSize)
         .accessibilityHidden(true)
     }
 
@@ -425,9 +549,84 @@ struct CodexBarWidgetView: View {
 
     private var footerLine: some View {
         Text(relativeSyncText)
-            .font(.caption2)
+            .font(footerFont)
             .foregroundStyle(palette.secondary)
             .lineLimit(1)
+    }
+
+    private var spacing: CodexBarWidgetSpacing {
+        CodexBarWidgetSpacing(family: family)
+    }
+
+    private var heroFontSize: CGFloat {
+        switch family {
+        case .systemSmall: 34
+        case .systemMedium: 28
+        case .systemLarge: 31
+        case .systemExtraLarge: 34
+        default: 28
+        }
+    }
+
+    private var progressHeight: CGFloat {
+        switch family {
+        case .systemSmall: 5
+        case .systemExtraLarge: 5
+        default: 4
+        }
+    }
+
+    private var rowProgressHeight: CGFloat {
+        family == .systemExtraLarge ? 4 : 3
+    }
+
+    private var providerMarkSize: CGFloat {
+        family == .systemExtraLarge ? 10 : 9
+    }
+
+    private var compactMetricValueFont: Font {
+        switch family {
+        case .systemExtraLarge:
+            .callout.weight(.semibold).monospacedDigit()
+        default:
+            .caption.weight(.semibold).monospacedDigit()
+        }
+    }
+
+    private var rowTitleFont: Font {
+        switch family {
+        case .systemExtraLarge:
+            .callout.weight(.semibold)
+        default:
+            .caption.weight(.semibold)
+        }
+    }
+
+    private var rowSubtitleFont: Font {
+        switch family {
+        case .systemExtraLarge:
+            .caption
+        default:
+            .caption2
+        }
+    }
+
+    private var rowValueFont: Font {
+        switch family {
+        case .systemExtraLarge:
+            .callout.weight(.semibold).monospacedDigit()
+        default:
+            .caption.weight(.semibold).monospacedDigit()
+        }
+    }
+
+    private var footerFont: Font {
+        switch family {
+        case .systemExtraLarge:
+            .caption
+        default:
+            .caption2
+        }
     }
 
     private var syncValue: String {
@@ -437,6 +636,25 @@ struct CodexBarWidgetView: View {
     private var displayProviders: [CodexBarWidgetProviderSummary] {
         let providers = entry.snapshot.topProviders
         return providers.filter { !$0.isError } + providers.filter(\.isError)
+    }
+
+    private var focusedProvider: CodexBarWidgetProviderSummary? {
+        displayProviders.first
+    }
+
+    private var secondaryFocusProviders: [CodexBarWidgetProviderSummary] {
+        Array(displayProviders.dropFirst())
+    }
+
+    private var costProviders: [CodexBarWidgetProviderSummary] {
+        displayProviders.sorted { lhs, rhs in
+            let lhsCost = lhs.todayCostUSD ?? lhs.thirtyDayCostUSD ?? 0
+            let rhsCost = rhs.todayCostUSD ?? rhs.thirtyDayCostUSD ?? 0
+            if lhsCost == rhsCost {
+                return (lhs.usagePercent ?? 0) > (rhs.usagePercent ?? 0)
+            }
+            return lhsCost > rhsCost
+        }
     }
 
     private var smallTitleForMode: String {
@@ -471,6 +689,20 @@ struct CodexBarWidgetView: View {
             return String(localized: "Sync Error")
         }
         return provider.displaySubtitle ?? relativeText(since: provider.lastUpdated)
+    }
+
+    private func rowMetricText(
+        _ provider: CodexBarWidgetProviderSummary,
+        metric: ProviderRowMetric
+    ) -> String {
+        switch metric {
+        case .usage:
+            return percentValueText(provider.usagePercent)
+        case .todayCost:
+            return costText(provider.todayCostUSD)
+        case .thirtyDayCost:
+            return costText(provider.thirtyDayCostUSD)
+        }
     }
 
     private var relativeSyncText: String {
@@ -546,6 +778,69 @@ struct CodexBarWidgetView: View {
     }
 }
 
+private enum ProviderRowMetric: Equatable {
+    case usage
+    case todayCost
+    case thirtyDayCost
+}
+
+private struct CodexBarWidgetSpacing {
+    let padding: CGFloat
+    let header: CGFloat
+    let section: CGFloat
+    let row: CGFloat
+    let hero: CGFloat
+    let compactMetric: CGFloat
+    let metricColumn: CGFloat
+    let metricDividerHeight: CGFloat
+    let extraLargeColumn: CGFloat
+
+    init(family: WidgetFamily) {
+        switch family {
+        case .systemSmall:
+            padding = 12
+            header = 6
+            section = 8
+            row = 6
+            hero = 6
+            compactMetric = 4
+            metricColumn = 8
+            metricDividerHeight = 34
+            extraLargeColumn = 10
+        case .systemLarge:
+            padding = 17
+            header = 8
+            section = 12
+            row = 7
+            hero = 7
+            compactMetric = 5
+            metricColumn = 12
+            metricDividerHeight = 39
+            extraLargeColumn = 16
+        case .systemExtraLarge:
+            padding = 22
+            header = 10
+            section = 14
+            row = 10
+            hero = 9
+            compactMetric = 6
+            metricColumn = 16
+            metricDividerHeight = 46
+            extraLargeColumn = 22
+        default:
+            padding = 14
+            header = 7
+            section = 10
+            row = 7
+            hero = 7
+            compactMetric = 5
+            metricColumn = 10
+            metricDividerHeight = 36
+            extraLargeColumn = 12
+        }
+    }
+}
+
 private struct CodexBarWidgetPalette {
     let colorScheme: ColorScheme
 
@@ -607,6 +902,10 @@ struct CodexBarWidgetViewPreviews: PreviewProvider {
                 .previewDisplayName("Large Dark")
                 .previewContext(WidgetPreviewContext(family: .systemLarge))
                 .environment(\.colorScheme, .dark)
+            CodexBarWidgetView(entry: .preview(mode: .overview))
+                .previewDisplayName("Extra Large Light")
+                .previewContext(WidgetPreviewContext(family: .systemExtraLarge))
+                .environment(\.colorScheme, .light)
         }
     }
 }

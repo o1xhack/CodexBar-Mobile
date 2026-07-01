@@ -21,6 +21,7 @@ struct CodexBarStatusWidget: Widget {
         }
         .configurationDisplayName("CodexBar Widget")
         .description("View synced provider usage, cost, and sync health.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
     }
 }

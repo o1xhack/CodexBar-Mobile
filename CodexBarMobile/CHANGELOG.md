@@ -2,6 +2,25 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (172)] — 2026-06-30 — Widget cross-device QA follow-up
+
+### Fixed
+
+- **Widget configuration modes** — Fixed configurable Home Screen widgets so
+  SpringBoard-edited modes such as Provider Focus, Today Cost, and Sync Health
+  render the selected view instead of falling back to Overview.
+- **Widget family layouts** — Tuned small, medium, large, and iPad
+  extra-large layouts after real SpringBoard testing on narrow iPhone,
+  Pro Max, and iPad simulators, avoiding clipped content across Light and Dark
+  appearance.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 171 → 172.
+
+---
+
 ## [1.16.0 (171)] — 2026-06-30 — Widget Home Screen QA follow-up
 
 ### Fixed

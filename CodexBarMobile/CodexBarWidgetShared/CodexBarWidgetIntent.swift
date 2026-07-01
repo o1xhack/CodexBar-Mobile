@@ -17,18 +17,21 @@ enum CodexBarWidgetMode: String, AppEnum {
     ]
 }
 
-struct CodexBarWidgetConfigurationIntent: WidgetConfigurationIntent {
+struct CodexBarWidgetConfigurationIntent: AppIntent, WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "CodexBar Widget"
     static let description = IntentDescription("Choose which CodexBar sync summary this widget shows.")
+    static let openAppWhenRun = false
 
     @Parameter(title: "Widget Type", default: .overview)
     var mode: CodexBarWidgetMode
 
-    init() {
-        self.mode = .overview
-    }
+    init() {}
 
     init(mode: CodexBarWidgetMode) {
         self.mode = mode
+    }
+
+    func perform() async throws -> some IntentResult {
+        .result()
     }
 }

@@ -2,7 +2,7 @@
 
 Status: `done`
 Date: 2026-06-28
-Scope: CodexBar Mobile iOS widgets for small, medium, and large Home Screen families.
+Scope: CodexBar Mobile iOS widgets for small, medium, large, and iPad extra-large Home Screen families.
 
 ## Goal
 
@@ -70,11 +70,12 @@ One configurable widget kind, `CodexBarStatusWidget`, uses `WidgetConfigurationI
 - `Today Cost` — today's spend, 30-day spend, and token activity.
 - `Sync Health` — last sync, stale flag, device count, provider count, and error count.
 
-All four modes support `.systemSmall`, `.systemMedium`, and `.systemLarge`. Layout is not a stretched single view:
+All four modes support `.systemSmall`, `.systemMedium`, `.systemLarge`, and iPad `.systemExtraLarge`. Layout is not a stretched single view:
 
 - Small: one hero metric or one top provider.
 - Medium: metric strip plus provider/cost/sync rows.
 - Large: dashboard combining metric strip, provider rows, and sync health rows.
+- Extra Large: two-column iPad layout combining primary metrics with provider rows.
 
 ### State handling
 
@@ -222,6 +223,65 @@ Home Screen QA follow-up on 2026-06-30:
 - App Store Connect build check — `1.16.0 (171)` uploaded at
   `2026-06-30T16:18:33-07:00`, build id
   `8a216604-2d47-495c-b09b-6e5b799482cb`, `processingState=VALID`.
+
+Cross-device widget QA follow-up on 2026-06-30:
+
+- User QA found the previous widget visual pass was still incomplete: it
+  validated the default Overview path but not every configurable mode, did not
+  cover iPad extra-large widgets, and did not prove the layout adapted across
+  narrow iPhone, Pro Max, and iPad Home Screen sizes.
+- Moved `CodexBarWidgetConfigurationIntent` into `CodexBarWidgetShared/` and
+  built it into both the app target and widget extension. This fixes SpringBoard
+  configuration metadata so edited widgets can produce the correct App Intent
+  action at runtime.
+- Removed the explicit `.overview` reset from the App Intent default
+  initializer. Before this fix, the SpringBoard edit panel could save
+  `Provider Focus`, `Today Cost`, or `Sync Health`, but the timeline view still
+  fell back to Overview.
+- Added `.systemExtraLarge` support and an iPad-specific two-column layout.
+- Tuned medium Provider Focus and Sync Health layouts so 2x4 widgets do not
+  clip content after editing the widget mode.
+- Actual SpringBoard QA evidence:
+  - iPhone 17e small widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_3a8766ac-233a-45a2-b28d-225979c47b60.jpg`.
+  - iPhone 17 Pro Max medium Overview:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_f03686d3-491e-4a95-92ec-4c239c3bd198.jpg`.
+  - iPhone 17 Pro Max medium Provider Focus after editing the widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_99c822a3-50a4-451d-85c7-09bfff74a7cb.jpg`.
+  - iPhone 17 Pro Max medium Today Cost after editing the widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_7beb4206-ac1b-4e04-837d-51b2dd88b801.jpg`.
+  - iPhone 17 Pro Max medium Sync Health after editing the widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_5a765baa-2644-499f-97af-f4f4b828b0cd.jpg`.
+  - iPhone 17 Pro Max large Overview:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_bdda66f1-00ed-492a-8480-ffe805d971c9.jpg`.
+  - iPhone 17 Pro Max large Overview in Dark appearance:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_553690e3-b21e-477a-abe4-d5f782c85bf7.jpg`.
+  - iPad Pro 11-inch extra-large two-column widget:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_d242f87d-14ce-4d87-a90e-3fbf1a8b417e.jpg`.
+- Prepared corrective TestFlight build `1.16.0 (172)`.
+- `xcodegen generate` — regenerated `CodexBarMobile.xcodeproj` from
+  `project.yml`.
+- `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+  parser audits, documentation link checks, and `Localizable.xcstrings`
+  source-vs-catalog audit.
+- `build_sim` via XcodeBuildMCP, `CodexBarMobile`, iPhone 17 Pro Max simulator
+  — passed with 0 warnings.
+- `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+  passed 3 tests, 0 failures. Test compilation still emits existing Swift 6
+  actor/#require warnings in unrelated test files.
+- `build_run_sim` with `UI_TEST_PREVIEW_DATA UI_TEST_SKIP_ONBOARDING` — final
+  build installed and launched on the iPhone 17 Pro Max simulator with 0
+  warnings.
+- Bundle inspection — `Metadata.appintents` exists in both
+  `CodexBarMobile.app` and `CodexBarMobileWidgets.appex`, app version is
+  `1.16.0 (172)`, and the widget extension point remains
+  `com.apple.widgetkit-extension`.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+  archive succeeded, App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260630-181013.xcarchive`.
+- App Store Connect build check — `1.16.0 (172)` uploaded at
+  `2026-06-30T18:13:25-07:00`, build id
+  `83c53dbb-edb3-43b8-8657-f324f47a7845`, `processingState=VALID`.
 
 ## Residual Risks
 
