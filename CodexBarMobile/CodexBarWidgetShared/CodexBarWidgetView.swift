@@ -35,7 +35,10 @@ struct CodexBarWidgetView: View {
     }
 
     private var palette: CodexBarWidgetPalette {
-        CodexBarWidgetPalette(colorScheme: colorScheme)
+        CodexBarWidgetPalette(
+            colorScheme: colorScheme,
+            colorStyle: entry.configuration.colorStyle,
+            mode: entry.configuration.mode)
     }
 
     @ViewBuilder
@@ -305,35 +308,44 @@ struct CodexBarWidgetView: View {
             compactMetric(
                 label: String(localized: "Today"),
                 value: costText(entry.snapshot.todayCostUSD),
-                systemImage: "dollarsign.circle")
+                systemImage: "dollarsign.circle",
+                accent: palette.metricAccent(.todayCost))
             verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "30 Days"),
                 value: costText(entry.snapshot.thirtyDayCostUSD),
-                systemImage: "calendar")
+                systemImage: "calendar",
+                accent: palette.metricAccent(.thirtyDayCost))
             verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "Usage"),
                 value: percentValueText(entry.snapshot.maxUsagePercent),
-                systemImage: "gauge.with.dots.needle.67percent")
+                systemImage: "gauge.with.dots.needle.67percent",
+                accent: palette.metricAccent(.usage))
         }
     }
 
-    private func compactMetric(label: String, value: String, systemImage: String) -> some View {
+    private func compactMetric(
+        label: String,
+        value: String,
+        systemImage: String,
+        accent: Color
+    ) -> some View {
         VStack(alignment: .leading, spacing: spacing.compactMetric) {
             HStack(spacing: 5) {
                 Image(systemName: systemImage)
                     .font(.caption2.weight(.semibold))
+                    .foregroundStyle(palette.isColorful ? accent : palette.secondary)
                 Text(label)
                     .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+                    .foregroundStyle(palette.secondary)
             }
-            .foregroundStyle(palette.secondary)
 
             Text(value)
                 .font(compactMetricValueFont)
-                .foregroundStyle(palette.primary)
+                .foregroundStyle(palette.isColorful ? accent : palette.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.68)
                 .privacySensitive()
@@ -345,8 +357,9 @@ struct CodexBarWidgetView: View {
     private func providerHero(_ provider: CodexBarWidgetProviderSummary?) -> some View {
         VStack(alignment: .leading, spacing: spacing.hero) {
             if let provider {
+                let accent = palette.providerAccent(index: 0, isError: provider.isError)
                 HStack(spacing: 7) {
-                    providerMark(provider)
+                    providerMark(provider, accent: accent)
                     Text(provider.providerName)
                         .font(rowTitleFont)
                         .foregroundStyle(palette.secondary)
@@ -356,12 +369,12 @@ struct CodexBarWidgetView: View {
                 Text(percentText(provider.usagePercent))
                     .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(palette.primary)
+                    .foregroundStyle(palette.isColorful ? accent : palette.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.62)
                     .privacySensitive()
                     .widgetAccentable()
-                progressLine(provider.usagePercent, height: progressHeight)
+                progressLine(provider.usagePercent, height: progressHeight, fill: accent)
                 Text(providerSubtitle(provider))
                     .font(.caption2)
                     .foregroundStyle(palette.secondary)
@@ -386,24 +399,25 @@ struct CodexBarWidgetView: View {
             HStack(spacing: 6) {
                 Image(systemName: systemImage)
                     .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.isColorful ? palette.value : palette.secondary)
                 Text(label)
                     .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.70)
+                    .foregroundStyle(palette.secondary)
             }
-            .foregroundStyle(palette.secondary)
 
             Text(value)
                 .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(palette.primary)
+                .foregroundStyle(palette.value)
                 .lineLimit(1)
                 .minimumScaleFactor(0.58)
                 .privacySensitive()
                 .widgetAccentable()
 
             if let progress {
-                progressLine(progress, height: progressHeight)
+                progressLine(progress, height: progressHeight, fill: palette.progressFill)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -421,7 +435,7 @@ struct CodexBarWidgetView: View {
                 if index > 0 {
                     divider
                 }
-                providerRow(provider, metric: metric)
+                providerRow(provider, metric: metric, index: index)
                     .frame(minHeight: rowMinHeight ?? 0, alignment: .center)
             }
             if providers.isEmpty {
@@ -438,7 +452,7 @@ struct CodexBarWidgetView: View {
             Text(costText(entry.snapshot.todayCostUSD))
                 .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(palette.primary)
+                .foregroundStyle(palette.value)
                 .lineLimit(1)
                 .minimumScaleFactor(0.58)
                 .privacySensitive()
@@ -456,11 +470,13 @@ struct CodexBarWidgetView: View {
 
     private func providerRow(
         _ provider: CodexBarWidgetProviderSummary,
-        metric: ProviderRowMetric
+        metric: ProviderRowMetric,
+        index: Int
     ) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        let accent = palette.providerAccent(index: index, isError: provider.isError)
+        return VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                providerMark(provider)
+                providerMark(provider, accent: accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(provider.providerName)
                         .font(rowTitleFont)
@@ -474,14 +490,14 @@ struct CodexBarWidgetView: View {
                 Spacer(minLength: 6)
                 Text(rowMetricText(provider, metric: metric))
                     .font(rowValueFont)
-                    .foregroundStyle(palette.primary)
+                    .foregroundStyle(rowMetricColor(metric: metric, providerAccent: accent))
                     .lineLimit(1)
                     .minimumScaleFactor(0.70)
                     .privacySensitive()
                     .widgetAccentable()
             }
             if metric == .usage {
-                progressLine(provider.usagePercent, height: rowProgressHeight)
+                progressLine(provider.usagePercent, height: rowProgressHeight, fill: accent)
             }
         }
     }
@@ -516,17 +532,20 @@ struct CodexBarWidgetView: View {
             compactMetric(
                 label: String(localized: "Last Sync"),
                 value: relativeSyncText,
-                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud")
+                systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                accent: palette.metricAccent(entry.snapshot.isStale ? .warning : .syncHealth))
             verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "Providers"),
                 value: String(format: String(localized: "%d providers"), entry.snapshot.providerCount),
-                systemImage: "person.2")
+                systemImage: "person.2",
+                accent: palette.metricAccent(.providers))
             verticalDivider(height: spacing.metricDividerHeight)
             compactMetric(
                 label: String(localized: "Devices"),
                 value: String(format: String(localized: "%d devices"), entry.snapshot.deviceCount),
-                systemImage: "macbook.and.iphone")
+                systemImage: "macbook.and.iphone",
+                accent: palette.metricAccent(.devices))
         }
     }
 
@@ -539,7 +558,7 @@ struct CodexBarWidgetView: View {
             Spacer(minLength: 8)
             Text(value)
                 .font(rowValueFont)
-                .foregroundStyle(palette.primary)
+                .foregroundStyle(palette.value)
                 .lineLimit(1)
                 .minimumScaleFactor(0.70)
                 .privacySensitive()
@@ -547,13 +566,17 @@ struct CodexBarWidgetView: View {
         }
     }
 
-    private func providerMark(_ provider: CodexBarWidgetProviderSummary) -> some View {
+    private func providerMark(_ provider: CodexBarWidgetProviderSummary, accent: Color) -> some View {
         ZStack {
             Circle()
-                .strokeBorder(provider.isError ? palette.primary : palette.secondary, lineWidth: 1.4)
+                .strokeBorder(provider.isError ? palette.error : accent, lineWidth: 1.4)
             if provider.isError {
                 Circle()
-                    .fill(palette.primary.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                    .fill(palette.error.opacity(colorScheme == .dark ? 0.26 : 0.14))
+                    .padding(2)
+            } else if palette.isColorful {
+                Circle()
+                    .fill(accent.opacity(colorScheme == .dark ? 0.34 : 0.18))
                     .padding(2)
             }
         }
@@ -561,7 +584,7 @@ struct CodexBarWidgetView: View {
         .accessibilityHidden(true)
     }
 
-    private func progressLine(_ percent: Double?, height: CGFloat) -> some View {
+    private func progressLine(_ percent: Double?, height: CGFloat, fill: Color) -> some View {
         GeometryReader { proxy in
             let fraction = min(1, max(0, (percent ?? 0) / 100))
             ZStack(alignment: .leading) {
@@ -569,7 +592,7 @@ struct CodexBarWidgetView: View {
                     .fill(palette.progressTrack)
                 if percent != nil, fraction > 0 {
                     Capsule()
-                        .fill(palette.primary)
+                        .fill(fill)
                         .frame(width: proxy.size.width * fraction)
                         .widgetAccentable()
                 }
@@ -750,6 +773,20 @@ struct CodexBarWidgetView: View {
         }
     }
 
+    private func rowMetricColor(metric: ProviderRowMetric, providerAccent: Color) -> Color {
+        guard palette.isColorful else {
+            return palette.primary
+        }
+        switch metric {
+        case .usage:
+            return providerAccent
+        case .todayCost:
+            return palette.metricAccent(.todayCost)
+        case .thirtyDayCost:
+            return palette.metricAccent(.thirtyDayCost)
+        }
+    }
+
     private var relativeSyncText: String {
         guard let latestSyncAt = entry.snapshot.latestSyncAt else {
             return String(localized: "No recent sync")
@@ -829,6 +866,16 @@ private enum ProviderRowMetric: Equatable {
     case thirtyDayCost
 }
 
+private enum CodexBarWidgetMetricAccent {
+    case todayCost
+    case thirtyDayCost
+    case usage
+    case syncHealth
+    case warning
+    case providers
+    case devices
+}
+
 private struct CodexBarWidgetSpacing {
     let padding: CGFloat
     let header: CGFloat
@@ -893,9 +940,20 @@ private struct CodexBarWidgetSpacing {
 
 private struct CodexBarWidgetPalette {
     let colorScheme: ColorScheme
+    let colorStyle: CodexBarWidgetColorStyle
+    let mode: CodexBarWidgetMode
+
+    var isColorful: Bool {
+        colorStyle == .colorful
+    }
 
     var background: Color {
-        colorScheme == .dark
+        if isColorful {
+            return colorScheme == .dark
+                ? Color(red: 0.022, green: 0.024, blue: 0.030)
+                : Color(red: 0.982, green: 0.980, blue: 0.965)
+        }
+        return colorScheme == .dark
             ? Color(red: 0.02, green: 0.02, blue: 0.02)
             : Color(red: 0.97, green: 0.97, blue: 0.96)
     }
@@ -904,6 +962,10 @@ private struct CodexBarWidgetPalette {
         colorScheme == .dark
             ? Color.white.opacity(0.96)
             : Color.black.opacity(0.88)
+    }
+
+    var value: Color {
+        isColorful ? modeAccent : primary
     }
 
     var secondary: Color {
@@ -923,6 +985,97 @@ private struct CodexBarWidgetPalette {
             ? Color.white.opacity(0.18)
             : Color.black.opacity(0.12)
     }
+
+    var progressFill: Color {
+        isColorful ? modeAccent : primary
+    }
+
+    var error: Color {
+        colorScheme == .dark
+            ? Color(red: 1.0, green: 0.43, blue: 0.40)
+            : Color(red: 0.74, green: 0.10, blue: 0.12)
+    }
+
+    func metricAccent(_ metric: CodexBarWidgetMetricAccent) -> Color {
+        guard isColorful else {
+            return primary
+        }
+        switch metric {
+        case .todayCost:
+            return color(
+                light: Color(red: 0.86, green: 0.38, blue: 0.10),
+                dark: Color(red: 1.00, green: 0.62, blue: 0.28))
+        case .thirtyDayCost:
+            return color(
+                light: Color(red: 0.20, green: 0.38, blue: 0.88),
+                dark: Color(red: 0.48, green: 0.66, blue: 1.00))
+        case .usage:
+            return color(
+                light: Color(red: 0.54, green: 0.26, blue: 0.88),
+                dark: Color(red: 0.80, green: 0.55, blue: 1.00))
+        case .syncHealth:
+            return color(
+                light: Color(red: 0.00, green: 0.54, blue: 0.40),
+                dark: Color(red: 0.32, green: 0.84, blue: 0.66))
+        case .warning:
+            return color(
+                light: Color(red: 0.80, green: 0.46, blue: 0.00),
+                dark: Color(red: 1.00, green: 0.70, blue: 0.28))
+        case .providers:
+            return color(
+                light: Color(red: 0.64, green: 0.25, blue: 0.72),
+                dark: Color(red: 0.91, green: 0.55, blue: 0.96))
+        case .devices:
+            return color(
+                light: Color(red: 0.00, green: 0.47, blue: 0.78),
+                dark: Color(red: 0.38, green: 0.78, blue: 1.00))
+        }
+    }
+
+    func providerAccent(index: Int, isError: Bool) -> Color {
+        if isError {
+            return error
+        }
+        guard isColorful else {
+            return secondary
+        }
+        let accents = providerAccents
+        return accents[index % accents.count]
+    }
+
+    private var modeAccent: Color {
+        switch mode {
+        case .overview:
+            return metricAccent(.usage)
+        case .providerFocus:
+            return metricAccent(.providers)
+        case .todayCost:
+            return metricAccent(.todayCost)
+        case .syncHealth:
+            return metricAccent(.syncHealth)
+        }
+    }
+
+    private var providerAccents: [Color] {
+        [
+            color(
+                light: Color(red: 0.22, green: 0.40, blue: 0.92),
+                dark: Color(red: 0.48, green: 0.68, blue: 1.00)),
+            color(
+                light: Color(red: 0.00, green: 0.55, blue: 0.42),
+                dark: Color(red: 0.34, green: 0.84, blue: 0.68)),
+            color(
+                light: Color(red: 0.72, green: 0.28, blue: 0.80),
+                dark: Color(red: 0.92, green: 0.58, blue: 1.00)),
+            color(
+                light: Color(red: 0.84, green: 0.42, blue: 0.10),
+                dark: Color(red: 1.00, green: 0.66, blue: 0.30)),
+        ]
+    }
+
+    private func color(light: Color, dark: Color) -> Color {
+        colorScheme == .dark ? dark : light
+    }
 }
 
 struct CodexBarWidgetViewPreviews: PreviewProvider {
@@ -940,20 +1093,23 @@ struct CodexBarWidgetViewPreviews: PreviewProvider {
                 .previewDisplayName("Medium Light")
                 .previewContext(WidgetPreviewContext(family: .systemMedium))
                 .environment(\.colorScheme, .light)
-            CodexBarWidgetView(entry: .preview(mode: .todayCost))
-                .previewDisplayName("Medium Dark")
+            CodexBarWidgetView(entry: .preview(mode: .todayCost, colorStyle: .colorful))
+                .previewDisplayName("Medium Colorful Dark")
                 .previewContext(WidgetPreviewContext(family: .systemMedium))
                 .environment(\.colorScheme, .dark)
             CodexBarWidgetView(entry: .preview(mode: .overview))
                 .previewDisplayName("Large Light")
                 .previewContext(WidgetPreviewContext(family: .systemLarge))
                 .environment(\.colorScheme, .light)
-            CodexBarWidgetView(entry: .preview(mode: .syncHealth, snapshot: .error("iCloud account not signed in")))
-                .previewDisplayName("Large Dark")
+            CodexBarWidgetView(entry: .preview(
+                mode: .syncHealth,
+                colorStyle: .colorful,
+                snapshot: .error("iCloud account not signed in")))
+                .previewDisplayName("Large Colorful Dark")
                 .previewContext(WidgetPreviewContext(family: .systemLarge))
                 .environment(\.colorScheme, .dark)
-            CodexBarWidgetView(entry: .preview(mode: .overview))
-                .previewDisplayName("Extra Large Light")
+            CodexBarWidgetView(entry: .preview(mode: .overview, colorStyle: .colorful))
+                .previewDisplayName("Extra Large Colorful Light")
                 .previewContext(WidgetPreviewContext(family: .systemExtraLarge))
                 .environment(\.colorScheme, .light)
         }
@@ -963,11 +1119,14 @@ struct CodexBarWidgetViewPreviews: PreviewProvider {
 private extension CodexBarWidgetEntry {
     static func preview(
         mode: CodexBarWidgetMode,
+        colorStyle: CodexBarWidgetColorStyle = .mono,
         snapshot: CodexBarWidgetSnapshot = .placeholder()
     ) -> CodexBarWidgetEntry {
         CodexBarWidgetEntry(
             date: .now,
-            configuration: CodexBarWidgetConfigurationIntent(mode: mode),
+            configuration: CodexBarWidgetConfigurationIntent(
+                mode: mode,
+                colorStyle: colorStyle),
             snapshot: snapshot)
     }
 }

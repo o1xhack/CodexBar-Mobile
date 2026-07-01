@@ -2,6 +2,25 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (176)] — 2026-07-01 — Widget color style follow-up
+
+### Added
+
+- **Widget color style** — Added a per-widget `Color Style` configuration with
+  `Mono` as the default and a new restrained `Colorful` style for users who
+  want more visual accent without returning to the old dashboard look.
+- **Widget settings preview** — Added a matching color style segmented control
+  in Settings → Widget Setting so every framed preview can be checked in Mono
+  or Colorful using the same shared widget layout as the real Home Screen
+  widget.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 175 → 176.
+
+---
+
 ## [1.16.0 (175)] — 2026-07-01 — Widget preview framing follow-up
 
 ### Changed

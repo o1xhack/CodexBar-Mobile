@@ -4947,6 +4947,90 @@
         }
       }
     },
+    "Color Style": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color Style"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラースタイル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "颜色风格"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顏色風格"
+          }
+        }
+      }
+    },
+    "Mono": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mono"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モノクロ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "纯色"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "純色"
+          }
+        }
+      }
+    },
+    "Colorful": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colorful"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラフル"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多彩"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多彩"
+          }
+        }
+      }
+    },
     "No token data": {
       "localizations": {
         "en": {
@@ -17662,6 +17746,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "ウィジェットプレビュー — 設定の「ウィジェット設定」で、各モードをホーム画面ウィジェットと同じ枠付きプレビューとして個別に確認できます。小・中・大、iPadの特大サイズに対応し、実際のウィジェットと同じネイティブなレイアウトと余白を使います。"
+          }
+        }
+      }
+    },
+    "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件外观 — 每个桌面小组件都可以选择“纯色”或“多彩”，并可在“小组件设置”中先预览两种风格，再添加或编辑小组件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具外觀 — 每個主畫面小工具都可以選擇「純色」或「多彩」，並可在「小工具設定」中先預覽兩種風格，再加入或編輯小工具。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットの外観 — ホーム画面ウィジェットごとに「モノクロ」または「カラフル」を選び、追加・編集する前に「ウィジェット設定」で両方のスタイルを確認できます。"
           }
         }
       }

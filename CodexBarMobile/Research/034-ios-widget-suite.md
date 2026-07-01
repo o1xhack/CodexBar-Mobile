@@ -429,6 +429,50 @@ In-app preview framing follow-up on 2026-07-01:
   `2026-07-01T15:11:09-07:00`, build id
   `ee7c2ff7-b379-4821-b1aa-0b7ec074e5a4`, `processingState=VALID`.
 
+Widget color style follow-up on 2026-07-01:
+
+- Added a second `WidgetConfigurationIntent` parameter,
+  `CodexBarWidgetColorStyle`, so each placed Home Screen widget can keep the
+  default `Mono` appearance or opt into a new `Colorful` appearance through
+  the system widget edit sheet.
+- Kept `Mono` as the default to preserve existing widgets and the native
+  Light/Dark/tinted behavior from the prior visual-design pass.
+- Designed `Colorful` as a restrained accent layer rather than a return to the
+  old multi-color dashboard: neutral widget backgrounds and primary text stay
+  system-like, while key metrics, provider markers, and progress fills receive
+  mode-appropriate accent colors.
+- Added a matching `Color Style` segmented control to
+  `Settings -> Widget Setting`; the in-app framed previews pass the same
+  configuration into `CodexBarWidgetView` as the WidgetKit extension.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `176`.
+- Validation:
+  - `python3 -m json.tool CodexBarMobile/CodexBarMobile/Localizable.xcstrings`
+    — passed.
+  - `bash Scripts/lint.sh audit-i18n` — passed; all 357 source keys are present
+    and all supported locales are translated.
+  - `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+    parser audits, documentation link checks, and
+    `Localizable.xcstrings` source-vs-catalog audit.
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 3 tests, 0 failures. The run still reports existing Swift 6
+    actor/#require warnings in unrelated test files.
+  - `build_run_sim` via XcodeBuildMCP on iPhone 17 Pro Max — passed with
+    0 warnings.
+  - `build_run_sim` via XcodeBuildMCP on iPad Pro 11-inch — passed with
+    0 warnings.
+- App preview QA evidence:
+  - iPhone 17 Pro Max medium Mono gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_afeb2442-fcd2-474d-a7bb-0d22b07cc5a7.jpg`.
+  - iPhone 17 Pro Max medium Colorful gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_92153353-55f2-4679-865d-91d41f7b6706.jpg`.
+  - iPhone 17 Pro Max large Colorful gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_733084fa-9147-459c-a161-3d13f9def384.jpg`.
+  - iPhone 17 Pro Max large Colorful gallery in Dark appearance:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_2b0bd75c-aba6-46f5-a1ae-a4344307c684.jpg`.
+  - iPad Pro 11-inch iPad extra-large Colorful gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_bea97f96-906b-4918-acf5-b355dae419f6.jpg`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

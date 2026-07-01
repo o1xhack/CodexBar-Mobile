@@ -2863,6 +2863,7 @@ private enum MobileReleaseNotesCatalog {
                     items: [
                         String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
                         String(localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
+                        String(localized: "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
@@ -3625,6 +3626,7 @@ private struct WidgetSettingsView: View {
     let usageData: SyncedUsageData
 
     @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
+    @State private var selectedColorStyle = CodexBarWidgetColorStyle.mono
 
     private let modes: [CodexBarWidgetMode] = [
         .overview,
@@ -3643,16 +3645,25 @@ private struct WidgetSettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
+                Picker(String(localized: "Color Style"), selection: self.$selectedColorStyle) {
+                    ForEach(CodexBarWidgetColorStyle.allCases, id: \.rawValue) { colorStyle in
+                        Text(colorStyle.previewTitle).tag(colorStyle)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 VStack(spacing: self.selectedFamily.gallerySpacing) {
                     ForEach(self.modes, id: \.rawValue) { mode in
                         WidgetPreviewFrame(
                             family: self.selectedFamily,
                             mode: mode,
+                            colorStyle: self.selectedColorStyle,
                             snapshot: self.previewSnapshot)
                     }
                 }
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
-                .accessibilityIdentifier("widget-preview-gallery-\(self.selectedFamily.rawValue)")
+                .animation(.snappy(duration: 0.22), value: self.selectedColorStyle)
+                .accessibilityIdentifier("widget-preview-gallery-\(self.selectedFamily.rawValue)-\(self.selectedColorStyle.rawValue)")
             } header: {
                 Text("Preview")
             }
@@ -3682,6 +3693,7 @@ private struct WidgetSettingsView: View {
 private struct WidgetPreviewFrame: View {
     let family: CodexBarWidgetPreviewFamily
     let mode: CodexBarWidgetMode
+    let colorStyle: CodexBarWidgetColorStyle
     let snapshot: CodexBarWidgetSnapshot
 
     var body: some View {
@@ -3698,7 +3710,9 @@ private struct WidgetPreviewFrame: View {
                     CodexBarWidgetView(
                         entry: CodexBarWidgetEntry(
                             date: .now,
-                            configuration: CodexBarWidgetConfigurationIntent(mode: self.mode),
+                            configuration: CodexBarWidgetConfigurationIntent(
+                                mode: self.mode,
+                                colorStyle: self.colorStyle),
                             snapshot: self.snapshot),
                         previewFamily: self.family.widgetFamily)
                         .frame(width: size.width, height: size.height)
@@ -3708,7 +3722,7 @@ private struct WidgetPreviewFrame: View {
                                 .stroke(.separator.opacity(0.42), lineWidth: 1)
                         }
                         .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
-                        .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)")
+                        .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)-\(self.colorStyle.rawValue)")
                 }
                 .frame(width: size.width, alignment: .leading)
                 Spacer(minLength: 0)
@@ -3798,6 +3812,15 @@ private extension CodexBarWidgetMode {
         case .providerFocus: "Provider Focus"
         case .todayCost: "Today Cost"
         case .syncHealth: "Sync Health"
+        }
+    }
+}
+
+private extension CodexBarWidgetColorStyle {
+    var previewTitle: LocalizedStringResource {
+        switch self {
+        case .mono: "Mono"
+        case .colorful: "Colorful"
         }
     }
 }
