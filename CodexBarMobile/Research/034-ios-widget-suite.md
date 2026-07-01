@@ -349,6 +349,37 @@ Content hierarchy and in-app preview follow-up on 2026-07-01:
     final build:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_2ba9a2f6-a7a6-4ffa-aed4-cf479c12661e.jpg`.
 
+Spacing follow-up on 2026-07-01:
+
+- User QA found the large Home Screen widget still left too much blank space
+  below the provider/summary content, and medium Today Cost pushed `Updated`
+  too far away when only one or two provider rows were visible.
+- Removed the unbounded loaded-state `Spacer` from medium and iPad extra-large
+  widget bodies, so the footer uses fixed section spacing instead of stretching
+  to the bottom of sparse widgets.
+- Gave large widgets fixed provider row slots for the three visible rows. This
+  keeps the intended three-slot cap while making the rows occupy the central
+  area consistently instead of leaving a large empty lower band.
+- Capped large Today Cost provider rows at three to match the large-widget slot
+  model; iPad extra-large keeps the wider four-row side column.
+- Tightened small widget padding from `12` to `10` points to reduce the
+  perceived outer-frame waste.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `174`.
+- Validation:
+  - `build_run_sim` via XcodeBuildMCP on iPhone 17 Pro Max — passed with
+    0 warnings.
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 3 tests, 0 failures.
+  - `build_run_sim` via XcodeBuildMCP on iPad Pro 11-inch — passed with
+    0 warnings.
+- App preview QA evidence:
+  - iPhone 17 Pro Max medium Overview after removing the footer spacer:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_ad703b06-ddb4-4ed2-9419-d751c77a6ef0.jpg`.
+- SpringBoard QA evidence:
+  - iPhone 17 Pro Max large Overview after fixed three-row slots:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_4b66e29f-3efe-4a6c-a19c-be0330a97394.jpg`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

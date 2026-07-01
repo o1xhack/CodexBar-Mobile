@@ -2,6 +2,26 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (174)] — 2026-07-01 — Widget spacing follow-up
+
+### Fixed
+
+- **Large Home Screen widgets** — Gave the large provider list fixed three-row
+  slots so the Overview and Today Cost layouts no longer leave a large empty
+  area below the summary on sparse data.
+- **Medium Home Screen widgets** — Removed the unbounded footer spacer so the
+  Updated timestamp follows the widget content at a fixed gap instead of being
+  pushed to the bottom when only one or two rows are shown.
+- **Small Home Screen widgets** — Tightened the inner padding slightly so small
+  widgets spend less space on the outer margin.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 173 → 174.
+
+---
+
 ## [1.16.0 (173)] — 2026-07-01 — Widget content and preview follow-up
 
 ### Changed

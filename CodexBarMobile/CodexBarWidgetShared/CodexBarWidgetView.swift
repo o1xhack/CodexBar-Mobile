@@ -92,7 +92,6 @@ struct CodexBarWidgetView: View {
     private var mediumLoadedView: some View {
         VStack(alignment: .leading, spacing: spacing.section) {
             mediumModeContent
-            Spacer(minLength: 0)
             loadedFooterLine
         }
         .padding(spacing.padding)
@@ -138,13 +137,21 @@ struct CodexBarWidgetView: View {
         case .overview:
             metricStrip
             divider
-            providerRows(providers: displayProviders, limit: 3, metric: .usage)
+            providerRows(
+                providers: displayProviders,
+                limit: 3,
+                metric: .usage,
+                rowMinHeight: spacing.largeProviderRowMinHeight)
             divider
             syncSummaryStrip
         case .providerFocus:
             providerHero(focusedProvider)
             divider
-            providerRows(providers: secondaryFocusProviders, limit: 3, metric: .usage)
+            providerRows(
+                providers: secondaryFocusProviders,
+                limit: 3,
+                metric: .usage,
+                rowMinHeight: spacing.largeProviderRowMinHeight)
             divider
             syncSummaryStrip
         case .todayCost:
@@ -152,8 +159,9 @@ struct CodexBarWidgetView: View {
             divider
             providerRows(
                 providers: todayCostProviders,
-                limit: 4,
+                limit: 3,
                 metric: .todayCost,
+                rowMinHeight: spacing.largeProviderRowMinHeight,
                 emptyMessage: String(localized: "No spend today"))
             divider
             labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
@@ -220,7 +228,6 @@ struct CodexBarWidgetView: View {
                     providerRows(providers: displayProviders, limit: 4, metric: .usage)
                 }
             }
-            Spacer(minLength: 0)
             loadedFooterLine
         }
         .padding(spacing.padding)
@@ -406,6 +413,7 @@ struct CodexBarWidgetView: View {
         providers: [CodexBarWidgetProviderSummary],
         limit: Int,
         metric: ProviderRowMetric,
+        rowMinHeight: CGFloat? = nil,
         emptyMessage: String = String(localized: "No provider data")
     ) -> some View {
         VStack(spacing: spacing.row) {
@@ -414,6 +422,7 @@ struct CodexBarWidgetView: View {
                     divider
                 }
                 providerRow(provider, metric: metric)
+                    .frame(minHeight: rowMinHeight ?? 0, alignment: .center)
             }
             if providers.isEmpty {
                 Text(emptyMessage)
@@ -830,11 +839,12 @@ private struct CodexBarWidgetSpacing {
     let metricColumn: CGFloat
     let metricDividerHeight: CGFloat
     let extraLargeColumn: CGFloat
+    let largeProviderRowMinHeight: CGFloat?
 
     init(family: WidgetFamily) {
         switch family {
         case .systemSmall:
-            padding = 12
+            padding = 10
             header = 6
             section = 8
             row = 6
@@ -843,6 +853,7 @@ private struct CodexBarWidgetSpacing {
             metricColumn = 8
             metricDividerHeight = 34
             extraLargeColumn = 10
+            largeProviderRowMinHeight = nil
         case .systemLarge:
             padding = 17
             header = 8
@@ -853,6 +864,7 @@ private struct CodexBarWidgetSpacing {
             metricColumn = 12
             metricDividerHeight = 39
             extraLargeColumn = 16
+            largeProviderRowMinHeight = 52
         case .systemExtraLarge:
             padding = 22
             header = 10
@@ -863,6 +875,7 @@ private struct CodexBarWidgetSpacing {
             metricColumn = 16
             metricDividerHeight = 46
             extraLargeColumn = 22
+            largeProviderRowMinHeight = nil
         default:
             padding = 14
             header = 7
@@ -873,6 +886,7 @@ private struct CodexBarWidgetSpacing {
             metricColumn = 10
             metricDividerHeight = 36
             extraLargeColumn = 12
+            largeProviderRowMinHeight = nil
         }
     }
 }
