@@ -472,6 +472,12 @@ Widget color style follow-up on 2026-07-01:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_2b0bd75c-aba6-46f5-a1ae-a4344307c684.jpg`.
   - iPad Pro 11-inch iPad extra-large Colorful gallery:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_bea97f96-906b-4918-acf5-b355dae419f6.jpg`.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+  archive succeeded, and App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260701-162102.xcarchive`.
+- App Store Connect build check — `1.16.0 (176)` uploaded at
+  `2026-07-01T16:24:22-07:00`, build id
+  `d7c12b94-0e91-475a-9f90-6ae0cd92999b`, `processingState=VALID`.
 
 ## Residual Risks
 
