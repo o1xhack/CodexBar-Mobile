@@ -422,6 +422,12 @@ In-app preview framing follow-up on 2026-07-01:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_68b23412-f407-4512-8071-85e26a193af6.jpg`.
   - iPhone 17 Pro Max small gallery:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_0dc2a883-01f7-4a5c-9701-c5f7a0bd40c9.jpg`.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+  archive succeeded, and App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260701-150821.xcarchive`.
+- App Store Connect build check — `1.16.0 (175)` uploaded at
+  `2026-07-01T15:11:09-07:00`, build id
+  `ee7c2ff7-b379-4821-b1aa-0b7ec074e5a4`, `processingState=VALID`.
 
 ## Residual Risks
 
