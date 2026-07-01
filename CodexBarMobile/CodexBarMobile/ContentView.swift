@@ -2862,7 +2862,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
-                        String(localized: "Widget previews — open Widget Setting in Settings to swipe through all four widget modes across small, medium, large, and iPad extra-large sizes, using the same native widget layout as the Home Screen."),
+                        String(localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
@@ -3625,7 +3625,6 @@ private struct WidgetSettingsView: View {
     let usageData: SyncedUsageData
 
     @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
-    @State private var selectedModeRawValue = CodexBarWidgetMode.overview.rawValue
 
     private let modes: [CodexBarWidgetMode] = [
         .overview,
@@ -3644,19 +3643,16 @@ private struct WidgetSettingsView: View {
                 }
                 .pickerStyle(.segmented)
 
-                TabView(selection: self.$selectedModeRawValue) {
+                VStack(spacing: self.selectedFamily.gallerySpacing) {
                     ForEach(self.modes, id: \.rawValue) { mode in
-                        WidgetPreviewPage(
+                        WidgetPreviewFrame(
                             family: self.selectedFamily,
                             mode: mode,
                             snapshot: self.previewSnapshot)
-                            .tag(mode.rawValue)
                     }
                 }
-                .frame(height: self.selectedFamily.pageHeight)
-                .tabViewStyle(.page(indexDisplayMode: .automatic))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
+                .accessibilityIdentifier("widget-preview-gallery-\(self.selectedFamily.rawValue)")
             } header: {
                 Text("Preview")
             }
@@ -3683,22 +3679,22 @@ private struct WidgetSettingsView: View {
     }
 }
 
-private struct WidgetPreviewPage: View {
+private struct WidgetPreviewFrame: View {
     let family: CodexBarWidgetPreviewFamily
     let mode: CodexBarWidgetMode
     let snapshot: CodexBarWidgetSnapshot
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text(self.mode.previewTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+        GeometryReader { proxy in
+            let size = self.family.previewSize(maxWidth: proxy.size.width)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(self.mode.previewTitle)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
 
-            GeometryReader { proxy in
-                let size = self.family.previewSize(maxWidth: proxy.size.width)
-                HStack {
-                    Spacer(minLength: 0)
                     CodexBarWidgetView(
                         entry: CodexBarWidgetEntry(
                             date: .now,
@@ -3707,14 +3703,19 @@ private struct WidgetPreviewPage: View {
                         previewFamily: self.family.widgetFamily)
                         .frame(width: size.width, height: size.height)
                         .clipShape(RoundedRectangle(cornerRadius: self.family.cornerRadius, style: .continuous))
-                        .shadow(color: .black.opacity(0.10), radius: 10, y: 4)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: self.family.cornerRadius, style: .continuous)
+                                .stroke(.separator.opacity(0.42), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
                         .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)")
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(width: size.width, alignment: .leading)
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .padding(.top, 6)
+        .frame(height: self.family.frameHeight)
     }
 }
 
@@ -3744,12 +3745,21 @@ private enum CodexBarWidgetPreviewFamily: String, CaseIterable, Identifiable {
         }
     }
 
-    var pageHeight: CGFloat {
+    var gallerySpacing: CGFloat {
         switch self {
-        case .small: 230
-        case .medium: 220
-        case .large: 405
-        case .extraLarge: 300
+        case .small: 16
+        case .medium: 18
+        case .large: 20
+        case .extraLarge: 18
+        }
+    }
+
+    var frameHeight: CGFloat {
+        switch self {
+        case .small: 196
+        case .medium: 190
+        case .large: 382
+        case .extraLarge: 306
         }
     }
 

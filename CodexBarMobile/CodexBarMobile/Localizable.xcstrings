@@ -17637,31 +17637,31 @@
         }
       }
     },
-    "Widget previews — open Widget Setting in Settings to swipe through all four widget modes across small, medium, large, and iPad extra-large sizes, using the same native widget layout as the Home Screen.": {
+    "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Widget previews — open Widget Setting in Settings to swipe through all four widget modes across small, medium, large, and iPad extra-large sizes, using the same native widget layout as the Home Screen."
+            "value": "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "小组件预览 — 在设置中打开“小组件设置”，即可横滑查看四种小组件模式，并覆盖小号、中号、大号和 iPad 超大号尺寸；预览使用与桌面小组件相同的原生布局。"
+            "value": "小组件预览 — 在设置中打开“小组件设置”，即可把每种小组件模式作为独立桌面小组件框逐个检查，并覆盖小号、中号、大号和 iPad 超大号尺寸；预览使用与真实小组件相同的原生布局和间距。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "小工具預覽 — 在設定中開啟「小工具設定」，即可橫滑查看四種小工具模式，並涵蓋小型、中型、大型和 iPad 超大型尺寸；預覽使用與主畫面小工具相同的原生佈局。"
+            "value": "小工具預覽 — 在設定中開啟「小工具設定」，即可把每種小工具模式作為獨立主畫面小工具框逐一檢查，並涵蓋小型、中型、大型和 iPad 超大型尺寸；預覽使用與真實小工具相同的原生佈局和間距。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ウィジェットプレビュー — 設定の「ウィジェット設定」から、4つのモードを小・中・大、iPadの特大サイズでスワイプして確認できます。ホーム画面と同じネイティブなウィジェットレイアウトを使います。"
+            "value": "ウィジェットプレビュー — 設定の「ウィジェット設定」で、各モードをホーム画面ウィジェットと同じ枠付きプレビューとして個別に確認できます。小・中・大、iPadの特大サイズに対応し、実際のウィジェットと同じネイティブなレイアウトと余白を使います。"
           }
         }
       }

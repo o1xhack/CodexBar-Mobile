@@ -2,6 +2,25 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (175)] — 2026-07-01 — Widget preview framing follow-up
+
+### Changed
+
+- **Widget settings preview** — Replaced the swipeable preview pager with a
+  vertical gallery of individual framed Home Screen widget previews for every
+  mode below the size selector.
+- **Preview spacing fidelity** — The in-app preview now renders the same shared
+  widget view at the selected widget family size, without preview-only vertical
+  spacers that could make the preview spacing differ from the real Home Screen
+  widget.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 174 → 175.
+
+---
+
 ## [1.16.0 (174)] — 2026-07-01 — Widget spacing follow-up
 
 ### Fixed

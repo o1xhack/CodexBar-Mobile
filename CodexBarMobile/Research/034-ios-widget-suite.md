@@ -380,6 +380,49 @@ Spacing follow-up on 2026-07-01:
   - iPhone 17 Pro Max large Overview after fixed three-row slots:
     `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_4b66e29f-3efe-4a6c-a19c-be0330a97394.jpg`.
 
+In-app preview framing follow-up on 2026-07-01:
+
+- User clarified that `Settings -> Widget Setting` should be an inspection
+  surface for actual widget frames. The size selector should be followed by
+  one framed preview per widget mode so the user can inspect the outside frame,
+  inner spacing, and sparse-data layout, rather than swiping through a data
+  browser.
+- Replaced the preview `PageTabView` with a vertical gallery of `Overview`,
+  `Today Cost`, `Provider Focus`, and `Sync Health` framed previews under the
+  selected size.
+- Kept the preview content path on the same shared `CodexBarWidgetView` used by
+  the WidgetKit extension and passed the selected `WidgetFamily` explicitly.
+  The preview shell only adds the mode label, visible frame stroke, and shadow;
+  it no longer adds vertical spacers that can stretch or center the widget
+  differently from the real Home Screen widget.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `175`.
+- Validation:
+  - `build_run_sim` via XcodeBuildMCP on iPad Pro 11-inch — passed with
+    0 warnings.
+  - `build_run_sim` via XcodeBuildMCP on iPhone 17 Pro Max — passed with
+    0 warnings.
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 3 tests, 0 failures. The run still reports existing Swift 6
+    actor/#require warnings in unrelated test files.
+  - `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+    parser audits, documentation link checks, and `Localizable.xcstrings`
+    source-vs-catalog audit.
+  - `python3 -m json.tool CodexBarMobile/CodexBarMobile/Localizable.xcstrings`
+    and `git diff --check` — passed.
+- App preview QA evidence:
+  - iPad Pro 11-inch medium gallery with one framed preview per widget mode:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_532d3b3a-1bb0-4223-97c4-802c8593ae0b.jpg`.
+  - iPad Pro 11-inch iPad extra-large gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_a5456d22-d89f-4ea2-8ab4-4fd90f888c66.jpg`.
+  - iPhone 17 Pro Max medium gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_c1462e11-49cb-42a5-b9ea-2cd9f0e630ca.jpg`.
+  - iPhone 17 Pro Max large gallery after scrolling to inspect sparse
+    Today Cost and Provider Focus frames:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_68b23412-f407-4512-8071-85e26a193af6.jpg`.
+  - iPhone 17 Pro Max small gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_0dc2a883-01f7-4a5c-9701-c5f7a0bd40c9.jpg`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.
