@@ -307,7 +307,11 @@ Content hierarchy and in-app preview follow-up on 2026-07-01:
   iPhone shows small/medium/large; iPad also shows iPad extra-large.
 - Prepared iOS build metadata for the next TestFlight upload:
   `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `173`.
-  This follow-up did not upload to App Store Connect.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release archive
+  succeeded, and App Store Connect export/upload succeeded.
+- App Store Connect build check — `1.16.0 (173)` uploaded at
+  `2026-07-01T13:54:52-07:00`, build id
+  `5b34d477-ca61-4d88-9672-6b49c5382d0e`, `processingState=VALID`.
 - Validation:
   - `xcodegen generate` — regenerated `CodexBarMobile.xcodeproj` from
     `project.yml`.
@@ -349,4 +353,3 @@ Content hierarchy and in-app preview follow-up on 2026-07-01:
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.
 - Direct widget reads do not apply the app's local pending linkage/device lifecycle cache before CloudKit returns it. The app remains source of truth for the richest resolved view.
-- New extension archive/upload may require Developer Portal capability/provisioning work.
