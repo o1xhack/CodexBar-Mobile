@@ -283,6 +283,68 @@ Cross-device widget QA follow-up on 2026-06-30:
   `2026-06-30T18:13:25-07:00`, build id
   `83c53dbb-edb3-43b8-8657-f324f47a7845`, `processingState=VALID`.
 
+Content hierarchy and in-app preview follow-up on 2026-07-01:
+
+- User QA found the widget pass was still too header-heavy and that medium
+  Today Cost mixed 30-day usage context into a widget that should answer
+  today's spend at a glance. The app also lacked a first-party place to preview
+  every widget size/mode before adding widgets to the Home Screen.
+- Moved `CodexBarWidgetView` and `CodexBarWidgetEntry` into
+  `CodexBarWidgetShared/` so the app Settings preview and the WidgetKit
+  extension render the same SwiftUI view rather than separate approximations.
+- Removed redundant loaded-state mode headers from small, medium, large, and
+  iPad extra-large widget layouts. Loading, empty, and error states still keep
+  explicit labels because those states need explanatory context.
+- Changed Today Cost widgets to use today's spend, today's tokens, and only
+  providers with positive `todayCostUSD`; they no longer fall back to 30-day
+  cost/provider rows in the Today Cost mode.
+- Hid the loaded footer when the widget body already contains sync timing:
+  Sync Health across all families, plus large/iPad extra-large Overview and
+  Provider Focus where `syncSummaryStrip` or `syncHealthRows` already includes
+  Last Sync.
+- Added `Settings → Widget Setting → Preview`, with a segmented size control
+  and swipeable Overview, Today Cost, Provider Focus, and Sync Health pages.
+  iPhone shows small/medium/large; iPad also shows iPad extra-large.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `173`.
+  This follow-up did not upload to App Store Connect.
+- Validation:
+  - `xcodegen generate` — regenerated `CodexBarMobile.xcodeproj` from
+    `project.yml`.
+  - `build_sim` via XcodeBuildMCP, iPhone 17 Pro Max simulator — passed with
+    0 warnings.
+  - `build_run_sim` with
+    `UI_TEST_PREVIEW_DATA UI_TEST_SKIP_ONBOARDING UI_TEST_RESET_DEFAULTS` —
+    passed with 0 warnings on iPhone 17 Pro Max, iPad Pro 11-inch, and the
+    Pro Max simulator that retained a SpringBoard widget.
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 3 tests, 0 failures.
+  - `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+    parser audits, documentation link checks, and
+    `Localizable.xcstrings` source-vs-catalog audit.
+  - `python3 -m json.tool CodexBarMobile/CodexBarMobile/Localizable.xcstrings`
+    — passed.
+  - `git diff --check` — passed.
+- App preview QA evidence:
+  - iPhone 17 Pro Max medium Overview:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_c675d1a6-0788-4b54-9b60-72c591e4c486.jpg`.
+  - iPhone 17 Pro Max medium Today Cost:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_972ca9cc-7aaa-4e6e-99f6-3c1186183d1a.jpg`.
+  - iPhone 17 Pro Max medium Provider Focus:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_6ebb54a8-7773-4040-94dc-f32133934e30.jpg`.
+  - iPhone 17 Pro Max medium Sync Health after footer dedupe:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_c5aba08f-baa7-47f2-8cc6-517033cbb12d.jpg`.
+  - iPhone 17 Pro Max small Sync Health:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_7cc6cd9e-aa4c-4e81-b495-4fd7f8506ef5.jpg`.
+  - iPhone 17 Pro Max large Sync Health:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_babc2ded-ca74-4a52-9722-c56ac897f18a.jpg`.
+  - iPad Pro 11-inch iPad extra-large Overview after footer dedupe:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_25af89c3-7c20-44b0-b752-628b45999a7b.jpg`.
+- SpringBoard QA evidence:
+  - iPhone 17 Pro Max existing Home Screen large widget after installing the
+    final build:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_2ba9a2f6-a7a6-4ffa-aed4-cf479c12661e.jpg`.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

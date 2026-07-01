@@ -3,9 +3,15 @@ import WidgetKit
 
 struct CodexBarWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetFamily) private var environmentFamily
 
     let entry: CodexBarWidgetEntry
+    let previewFamily: WidgetFamily?
+
+    init(entry: CodexBarWidgetEntry, previewFamily: WidgetFamily? = nil) {
+        self.entry = entry
+        self.previewFamily = previewFamily
+    }
 
     var body: some View {
         Group {
@@ -50,10 +56,9 @@ struct CodexBarWidgetView: View {
 
     private var smallLoadedView: some View {
         VStack(alignment: .leading, spacing: spacing.header) {
-            modeLabel(title: smallTitleForMode, systemImage: systemImageForMode, compact: true)
             smallModeContent
                 .frame(maxHeight: .infinity, alignment: .center)
-            footerLine
+            loadedFooterLine
         }
         .padding(spacing.padding)
     }
@@ -86,10 +91,9 @@ struct CodexBarWidgetView: View {
 
     private var mediumLoadedView: some View {
         VStack(alignment: .leading, spacing: spacing.section) {
-            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
             mediumModeContent
             Spacer(minLength: 0)
-            footerLine
+            loadedFooterLine
         }
         .padding(spacing.padding)
     }
@@ -103,24 +107,27 @@ struct CodexBarWidgetView: View {
         case .providerFocus:
             providerHero(focusedProvider)
         case .todayCost:
-            metricStrip
-            providerRows(providers: costProviders, limit: 1, metric: .todayCost)
+            todayCostHero
+            providerRows(
+                providers: todayCostProviders,
+                limit: 2,
+                metric: .todayCost,
+                emptyMessage: String(localized: "No spend today"))
         case .syncHealth:
             heroMetric(
                 value: syncValue,
                 label: relativeSyncText,
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
-            syncHealthRows(limit: 1)
+            syncHealthRows(limit: 2, includeLastSync: false)
         }
     }
 
     private var largeLoadedView: some View {
         VStack(alignment: .leading, spacing: spacing.section) {
-            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
             largeModeContent
             Spacer(minLength: 0)
-            footerLine
+            loadedFooterLine
         }
         .padding(spacing.padding)
     }
@@ -141,9 +148,13 @@ struct CodexBarWidgetView: View {
             divider
             syncSummaryStrip
         case .todayCost:
-            metricStrip
+            todayCostHero
             divider
-            providerRows(providers: costProviders, limit: 3, metric: .todayCost)
+            providerRows(
+                providers: todayCostProviders,
+                limit: 4,
+                metric: .todayCost,
+                emptyMessage: String(localized: "No spend today"))
             divider
             labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
         case .syncHealth:
@@ -153,13 +164,12 @@ struct CodexBarWidgetView: View {
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
             divider
-            syncHealthRows(limit: entry.snapshot.errorCount > 0 ? 4 : 3)
+            syncHealthRows(limit: entry.snapshot.errorCount > 0 ? 3 : 2, includeLastSync: false)
         }
     }
 
     private var extraLargeLoadedView: some View {
         VStack(alignment: .leading, spacing: spacing.section) {
-            modeLabel(title: titleForMode, systemImage: systemImageForMode, compact: false)
             switch entry.configuration.mode {
             case .overview:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
@@ -184,12 +194,16 @@ struct CodexBarWidgetView: View {
             case .todayCost:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
                     VStack(alignment: .leading, spacing: spacing.section) {
-                        metricStrip
+                        todayCostHero
                         divider
                         labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
                     }
                     verticalDivider(height: 170)
-                    providerRows(providers: costProviders, limit: 4, metric: .todayCost)
+                    providerRows(
+                        providers: todayCostProviders,
+                        limit: 4,
+                        metric: .todayCost,
+                        emptyMessage: String(localized: "No spend today"))
                 }
             case .syncHealth:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
@@ -200,14 +214,14 @@ struct CodexBarWidgetView: View {
                             systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                             progress: nil)
                         divider
-                        syncHealthRows(limit: 4)
+                        syncHealthRows(limit: 3, includeLastSync: false)
                     }
                     verticalDivider(height: 170)
                     providerRows(providers: displayProviders, limit: 4, metric: .usage)
                 }
             }
             Spacer(minLength: 0)
-            footerLine
+            loadedFooterLine
         }
         .padding(spacing.padding)
     }
@@ -391,7 +405,8 @@ struct CodexBarWidgetView: View {
     private func providerRows(
         providers: [CodexBarWidgetProviderSummary],
         limit: Int,
-        metric: ProviderRowMetric
+        metric: ProviderRowMetric,
+        emptyMessage: String = String(localized: "No provider data")
     ) -> some View {
         VStack(spacing: spacing.row) {
             ForEach(Array(providers.prefix(limit).enumerated()), id: \.element.id) { index, provider in
@@ -401,12 +416,33 @@ struct CodexBarWidgetView: View {
                 providerRow(provider, metric: metric)
             }
             if providers.isEmpty {
-                Text(String(localized: "No provider data"))
+                Text(emptyMessage)
                     .font(.caption)
                     .foregroundStyle(palette.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var todayCostHero: some View {
+        VStack(alignment: .leading, spacing: spacing.hero) {
+            Text(costText(entry.snapshot.todayCostUSD))
+                .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(palette.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.58)
+                .privacySensitive()
+                .widgetAccentable()
+
+            Text(tokensText(entry.snapshot.todayTokens))
+                .font(.caption2)
+                .foregroundStyle(palette.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .privacySensitive()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func providerRow(
@@ -441,8 +477,8 @@ struct CodexBarWidgetView: View {
         }
     }
 
-    private func syncHealthRows(limit: Int) -> some View {
-        let rows = syncHealthItems
+    private func syncHealthRows(limit: Int, includeLastSync: Bool = true) -> some View {
+        let rows = syncHealthItems(includeLastSync: includeLastSync)
         return VStack(spacing: spacing.row) {
             ForEach(Array(rows.prefix(limit).enumerated()), id: \.offset) { index, item in
                 if index > 0 {
@@ -453,10 +489,11 @@ struct CodexBarWidgetView: View {
         }
     }
 
-    private var syncHealthItems: [(label: String, value: String)] {
-        var rows: [(String, String)] = [
-            (String(localized: "Last Sync"), relativeSyncText),
-        ]
+    private func syncHealthItems(includeLastSync: Bool) -> [(label: String, value: String)] {
+        var rows: [(String, String)] = []
+        if includeLastSync {
+            rows.append((String(localized: "Last Sync"), relativeSyncText))
+        }
         rows.append((String(localized: "Providers"), String(format: String(localized: "%d providers"), entry.snapshot.providerCount)))
         rows.append((String(localized: "Devices"), String(format: String(localized: "%d devices"), entry.snapshot.deviceCount)))
         if entry.snapshot.errorCount > 0 {
@@ -554,8 +591,32 @@ struct CodexBarWidgetView: View {
             .lineLimit(1)
     }
 
+    @ViewBuilder
+    private var loadedFooterLine: some View {
+        if shouldShowLoadedFooterLine {
+            footerLine
+        }
+    }
+
+    private var shouldShowLoadedFooterLine: Bool {
+        switch (entry.configuration.mode, family) {
+        case (.syncHealth, _),
+             (.overview, .systemLarge),
+             (.overview, .systemExtraLarge),
+             (.providerFocus, .systemLarge),
+             (.providerFocus, .systemExtraLarge):
+            false
+        default:
+            true
+        }
+    }
+
     private var spacing: CodexBarWidgetSpacing {
         CodexBarWidgetSpacing(family: family)
+    }
+
+    private var family: WidgetFamily {
+        previewFamily ?? environmentFamily
     }
 
     private var heroFontSize: CGFloat {
@@ -646,41 +707,16 @@ struct CodexBarWidgetView: View {
         Array(displayProviders.dropFirst())
     }
 
-    private var costProviders: [CodexBarWidgetProviderSummary] {
-        displayProviders.sorted { lhs, rhs in
-            let lhsCost = lhs.todayCostUSD ?? lhs.thirtyDayCostUSD ?? 0
-            let rhsCost = rhs.todayCostUSD ?? rhs.thirtyDayCostUSD ?? 0
+    private var todayCostProviders: [CodexBarWidgetProviderSummary] {
+        displayProviders
+            .filter { ($0.todayCostUSD ?? 0) > 0 }
+            .sorted { lhs, rhs in
+            let lhsCost = lhs.todayCostUSD ?? 0
+            let rhsCost = rhs.todayCostUSD ?? 0
             if lhsCost == rhsCost {
                 return (lhs.usagePercent ?? 0) > (rhs.usagePercent ?? 0)
             }
             return lhsCost > rhsCost
-        }
-    }
-
-    private var smallTitleForMode: String {
-        switch entry.configuration.mode {
-        case .overview: String(localized: "Overview")
-        case .providerFocus: String(localized: "Provider Focus")
-        case .todayCost: String(localized: "Today Cost")
-        case .syncHealth: String(localized: "Sync Health")
-        }
-    }
-
-    private var titleForMode: String {
-        switch entry.configuration.mode {
-        case .overview: String(localized: "Overview")
-        case .providerFocus: String(localized: "Provider Focus")
-        case .todayCost: String(localized: "Today Cost")
-        case .syncHealth: String(localized: "Sync Health")
-        }
-    }
-
-    private var systemImageForMode: String {
-        switch entry.configuration.mode {
-        case .overview: "gauge.with.dots.needle.67percent"
-        case .providerFocus: "person.crop.circle"
-        case .todayCost: "dollarsign.circle"
-        case .syncHealth: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud"
         }
     }
 

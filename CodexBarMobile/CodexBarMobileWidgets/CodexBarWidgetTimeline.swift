@@ -1,12 +1,5 @@
 import CodexBarSync
-import Foundation
 import WidgetKit
-
-struct CodexBarWidgetEntry: TimelineEntry {
-    let date: Date
-    let configuration: CodexBarWidgetConfigurationIntent
-    let snapshot: CodexBarWidgetSnapshot
-}
 
 struct CodexBarWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in _: Context) -> CodexBarWidgetEntry {

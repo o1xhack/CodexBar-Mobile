@@ -2,6 +2,28 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (173)] — 2026-07-01 — Widget content and preview follow-up
+
+### Changed
+
+- **Widget content hierarchy** — Removed redundant loaded-state mode headers
+  from Overview, Today Cost, Provider Focus, and Sync Health widgets so the
+  widget surface starts with the useful metric content.
+- **Today Cost widgets** — Medium, large, and iPad extra-large Today Cost
+  widgets now focus on today's spend, today's tokens, and providers with spend
+  today instead of mixing in 30-day usage summaries.
+- **Widget settings preview** — Added an in-app Settings preview for Home
+  Screen widgets, covering small, medium, large, and iPad extra-large sizes
+  with swipeable Overview, Today Cost, Provider Focus, and Sync Health modes.
+
+### Notes
+
+- iOS-only follow-up prepared for the next TestFlight upload;
+  `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 172 → 173.
+
+---
+
 ## [1.16.0 (172)] — 2026-06-30 — Widget cross-device QA follow-up
 
 ### Fixed

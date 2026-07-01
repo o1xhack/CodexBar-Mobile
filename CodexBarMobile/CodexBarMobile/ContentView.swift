@@ -3,6 +3,7 @@ import CodexBarSync
 import SwiftData
 import SwiftUI
 import UIKit
+import WidgetKit
 
 enum CostChartStyle: String, CaseIterable, Identifiable {
     case bars
@@ -1639,6 +1640,15 @@ private struct SettingsTab: View {
                             symbolName: "dollarsign.circle.fill",
                             summary: String(localized: "Configure the Cost page"))
                     }
+
+                    NavigationLink {
+                        WidgetSettingsView(usageData: self.usageData)
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Widget Setting",
+                            symbolName: "square.grid.2x2",
+                            summary: String(localized: "Preview Home Screen widgets"))
+                    }
                 }
 
                 Section("Developer") {
@@ -2852,6 +2862,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
+                        String(localized: "Widget previews — open Widget Setting in Settings to swipe through all four widget modes across small, medium, large, and iPad extra-large sizes, using the same native widget layout as the Home Screen."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
@@ -3607,6 +3618,177 @@ private struct CostSettingsView: View {
         Binding(
             get: { CostChartStyle(rawValue: self.dashboardCostChartStyleRawValue) ?? .line },
             set: { self.dashboardCostChartStyleRawValue = $0.rawValue })
+    }
+}
+
+private struct WidgetSettingsView: View {
+    let usageData: SyncedUsageData
+
+    @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
+    @State private var selectedModeRawValue = CodexBarWidgetMode.overview.rawValue
+
+    private let modes: [CodexBarWidgetMode] = [
+        .overview,
+        .todayCost,
+        .providerFocus,
+        .syncHealth,
+    ]
+
+    var body: some View {
+        List {
+            Section {
+                Picker(String(localized: "Widget Size"), selection: self.$selectedFamily) {
+                    ForEach(self.availableFamilies) { family in
+                        Text(family.title).tag(family)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                TabView(selection: self.$selectedModeRawValue) {
+                    ForEach(self.modes, id: \.rawValue) { mode in
+                        WidgetPreviewPage(
+                            family: self.selectedFamily,
+                            mode: mode,
+                            snapshot: self.previewSnapshot)
+                            .tag(mode.rawValue)
+                    }
+                }
+                .frame(height: self.selectedFamily.pageHeight)
+                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+                .animation(.snappy(duration: 0.22), value: self.selectedFamily)
+            } header: {
+                Text("Preview")
+            }
+        }
+        .navigationTitle("Widget Setting")
+        .listStyle(.insetGrouped)
+    }
+
+    private var availableFamilies: [CodexBarWidgetPreviewFamily] {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return [.small, .medium, .large, .extraLarge]
+        }
+        return [.small, .medium, .large]
+    }
+
+    private var previewSnapshot: CodexBarWidgetSnapshot {
+        guard let snapshot = self.usageData.snapshot else {
+            return .placeholder()
+        }
+        let widgetSnapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [snapshot],
+            now: .now)
+        return widgetSnapshot.state == .loaded ? widgetSnapshot : .placeholder()
+    }
+}
+
+private struct WidgetPreviewPage: View {
+    let family: CodexBarWidgetPreviewFamily
+    let mode: CodexBarWidgetMode
+    let snapshot: CodexBarWidgetSnapshot
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(self.mode.previewTitle)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            GeometryReader { proxy in
+                let size = self.family.previewSize(maxWidth: proxy.size.width)
+                HStack {
+                    Spacer(minLength: 0)
+                    CodexBarWidgetView(
+                        entry: CodexBarWidgetEntry(
+                            date: .now,
+                            configuration: CodexBarWidgetConfigurationIntent(mode: self.mode),
+                            snapshot: self.snapshot),
+                        previewFamily: self.family.widgetFamily)
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: self.family.cornerRadius, style: .continuous))
+                        .shadow(color: .black.opacity(0.10), radius: 10, y: 4)
+                        .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)")
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .padding(.top, 6)
+    }
+}
+
+private enum CodexBarWidgetPreviewFamily: String, CaseIterable, Identifiable {
+    case small
+    case medium
+    case large
+    case extraLarge
+
+    var id: String { self.rawValue }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .small: "Small"
+        case .medium: "Medium"
+        case .large: "Large"
+        case .extraLarge: "iPad XL"
+        }
+    }
+
+    var widgetFamily: WidgetFamily {
+        switch self {
+        case .small: .systemSmall
+        case .medium: .systemMedium
+        case .large: .systemLarge
+        case .extraLarge: .systemExtraLarge
+        }
+    }
+
+    var pageHeight: CGFloat {
+        switch self {
+        case .small: 230
+        case .medium: 220
+        case .large: 405
+        case .extraLarge: 300
+        }
+    }
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .small: 24
+        case .medium: 26
+        case .large: 28
+        case .extraLarge: 30
+        }
+    }
+
+    func previewSize(maxWidth: CGFloat) -> CGSize {
+        let available = max(140, maxWidth - 8)
+        switch self {
+        case .small:
+            let side = min(162, available)
+            return CGSize(width: side, height: side)
+        case .medium:
+            let width = min(338, available)
+            return CGSize(width: width, height: width / 2.08)
+        case .large:
+            let width = min(338, available)
+            return CGSize(width: width, height: width * 1.04)
+        case .extraLarge:
+            let width = min(560, available)
+            return CGSize(width: width, height: width / 2.05)
+        }
+    }
+}
+
+private extension CodexBarWidgetMode {
+    var previewTitle: LocalizedStringResource {
+        switch self {
+        case .overview: "Overview"
+        case .providerFocus: "Provider Focus"
+        case .todayCost: "Today Cost"
+        case .syncHealth: "Sync Health"
+        }
     }
 }
 
