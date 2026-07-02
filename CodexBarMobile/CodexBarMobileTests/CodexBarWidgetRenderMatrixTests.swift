@@ -121,10 +121,17 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
                 mode: mode,
                 colorStyle: colorStyle),
             snapshot: snapshot)
-        let view = CodexBarWidgetView(entry: entry, previewFamily: family)
-            .environment(\.colorScheme, colorScheme)
-            .environment(\.widgetRenderingMode, renderingMode)
-            .frame(width: size.width, height: size.height)
+        let view = ZStack {
+            // `containerBackground(for: .widget)` is supplied by WidgetKit at
+            // runtime. In an off-screen ImageRenderer test it can be
+            // transparent, so provide a host-like opaque fallback background
+            // and let the widget content render on top.
+            (colorScheme == .dark ? Color.black : Color.white)
+            CodexBarWidgetView(entry: entry, previewFamily: family)
+                .environment(\.colorScheme, colorScheme)
+                .environment(\.widgetRenderingMode, renderingMode)
+        }
+        .frame(width: size.width, height: size.height)
 
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2.0

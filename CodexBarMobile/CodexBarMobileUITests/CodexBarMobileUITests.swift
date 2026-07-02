@@ -52,7 +52,47 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
-    func testSpringBoardWidgetConfigurationPanelOpens() throws {
+    func testSpringBoardWidgetCanSelectOverview() throws {
+        try self.runSpringBoardWidgetModeSelection(
+            name: "Overview",
+            pickerLabels: ["Overview", "概览", "概覽", "概要"],
+            pickerRowY: 0.44
+        )
+    }
+
+    @MainActor
+    func testSpringBoardWidgetCanSelectProviderFocus() throws {
+        try self.runSpringBoardWidgetModeSelection(
+            name: "Provider Focus",
+            pickerLabels: ["Provider Focus", "提供商焦点", "供應商焦點", "プロバイダーフォーカス"],
+            pickerRowY: 0.50
+        )
+    }
+
+    @MainActor
+    func testSpringBoardWidgetCanSelectTodayCost() throws {
+        try self.runSpringBoardWidgetModeSelection(
+            name: "Today Cost",
+            pickerLabels: ["Today Cost", "今日成本", "今日成本", "今日のコスト"],
+            pickerRowY: 0.56
+        )
+    }
+
+    @MainActor
+    func testSpringBoardWidgetCanSelectSyncHealth() throws {
+        try self.runSpringBoardWidgetModeSelection(
+            name: "Sync Health",
+            pickerLabels: ["Sync Health", "同步健康", "同步健康", "同期の健全性"],
+            pickerRowY: 0.64
+        )
+    }
+
+    @MainActor
+    private func runSpringBoardWidgetModeSelection(
+        name: String,
+        pickerLabels: [String],
+        pickerRowY: CGFloat
+    ) throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["UI_TEST_SPRINGBOARD_WIDGET"] == "1"
             || environment["TEST_RUNNER_UI_TEST_SPRINGBOARD_WIDGET"] == "1" else {
@@ -86,9 +126,9 @@ final class CodexBarMobileUITests: XCTestCase {
 
         self.selectSpringBoardWidgetMode(
             on: springboard,
-            name: "Today Cost",
-            pickerRowY: 0.56
-        )
+            name: name,
+            pickerLabels: pickerLabels,
+            pickerRowY: pickerRowY)
     }
 
     @MainActor
@@ -153,9 +193,16 @@ final class CodexBarMobileUITests: XCTestCase {
     private func selectSpringBoardWidgetMode(
         on springboard: XCUIApplication,
         name: String,
+        pickerLabels: [String],
         pickerRowY: CGFloat
     ) {
-        springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.46, dy: pickerRowY)).tap()
+        let configurationExtension = XCUIApplication(
+            bundleIdentifier: "com.apple.WorkflowUI.WidgetConfigurationExtension"
+        )
+        if !tapFirstExistingPickerLabel(in: configurationExtension, labels: pickerLabels),
+           !tapFirstExistingPickerLabel(in: springboard, labels: pickerLabels) {
+            springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.46, dy: pickerRowY)).tap()
+        }
         Thread.sleep(forTimeInterval: 1.0)
 
         let selectionAttachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -170,5 +217,29 @@ final class CodexBarMobileUITests: XCTestCase {
         widgetAttachment.name = "SpringBoard \(name) Widget"
         widgetAttachment.lifetime = .keepAlways
         add(widgetAttachment)
+    }
+
+    @MainActor
+    private func tapFirstExistingPickerLabel(in app: XCUIApplication, labels: [String]) -> Bool {
+        for label in labels {
+            let button = app.buttons[label]
+            if button.waitForExistence(timeout: 0.2), button.isHittable {
+                button.tap()
+                return true
+            }
+
+            let staticText = app.staticTexts[label]
+            if staticText.waitForExistence(timeout: 0.2), staticText.isHittable {
+                staticText.tap()
+                return true
+            }
+
+            let otherElement = app.otherElements[label]
+            if otherElement.waitForExistence(timeout: 0.2), otherElement.isHittable {
+                otherElement.tap()
+                return true
+            }
+        }
+        return false
     }
 }

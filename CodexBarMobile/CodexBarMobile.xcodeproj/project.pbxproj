@@ -96,6 +96,7 @@
 		82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */; };
 		86AF1C1CE9402E616E87F26C /* SwiftDataBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */; };
 		870DB32558A225B7979C5752 /* DeviceLifecycleEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69F7C48865EEA356A9C86CC /* DeviceLifecycleEvent.swift */; };
+		8A91B1F478834F5321289410 /* CodexBarWidgetRenderMatrixTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870084949E272491E62DA97A /* CodexBarWidgetRenderMatrixTests.swift */; };
 		8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */; };
 		8AE4ED5CB4621D5D8DAE93BB /* SnapshotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */; };
 		8CE323CC2D5E584C35DC3196 /* MockProviderDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */; };
@@ -332,6 +333,7 @@
 		81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CodexBarMobilePushExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileDisplayPreferences.swift; sourceTree = "<group>"; };
 		8515047932479670A9749119 /* CostShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareSheet.swift; sourceTree = "<group>"; };
+		870084949E272491E62DA97A /* CodexBarWidgetRenderMatrixTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarWidgetRenderMatrixTests.swift; sourceTree = "<group>"; };
 		87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationAggregateView.swift; sourceTree = "<group>"; };
 		8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroqMetricsCard.swift; sourceTree = "<group>"; };
 		8D15EF2654204A9652A1F59F /* SubscriptionUtilizationCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUtilizationCompatTests.swift; sourceTree = "<group>"; };
@@ -469,6 +471,7 @@
 				2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */,
 				247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */,
 				BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */,
+				870084949E272491E62DA97A /* CodexBarWidgetRenderMatrixTests.swift */,
 				3786C6898A111474E86E69D7 /* CostFormattingTests.swift */,
 				A4CAFB868825B9A3F09FE0AA /* DeviceLifecycleEventTests.swift */,
 				F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */,
@@ -982,6 +985,7 @@
 				9C00DB027AB6C29845327154 /* CWLWriterTests.swift in Sources */,
 				2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */,
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,
+				8A91B1F478834F5321289410 /* CodexBarWidgetRenderMatrixTests.swift in Sources */,
 				BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */,
 				FD2364635784A71AE994402E /* DeviceLifecycleEventTests.swift in Sources */,
 				37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */,
