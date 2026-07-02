@@ -20,7 +20,7 @@
 - [ ] 全量 `swift test` 绿。**已知 flake**：`SyncCoordinatorTests` 的「L1 retry test flake」在全套件并行下偶发（Todoist 有立项 P3），独立 / filter 运行能过 → **不算回归**，别为它阻塞
 - [ ] 多账号 / 多设备枚举：`swift test --filter 'AccountIdentity|MultiAccount|DualZoneReader'` 全过（用户最在意这块）
 - [ ] 如果本轮改动触及 iOS widgets、Cost dashboard、provider display data、CloudKit/KVS fallback 或多设备费用聚合：必须跑 `CodexBarMobileTests/WidgetSnapshotBuilderTests`，确认 widget Today totals、tokens、top provider rows 与 Cost dashboard 同一批 synced snapshots 一致；不能靠 TestFlight 截图兜底
-- [ ] 如果本轮改动触及 widget 布局、配置 intent、mode/color style 或 WidgetKit rendering：必须跑 `CodexBarMobileTests/CodexBarWidgetRenderMatrixTests`，覆盖 mode × family × color style × Light/Dark 的渲染分支；还必须跑真实 SpringBoard widget gate（至少打开系统编辑面板、确认可配置选项、实际切换一个 mode 并截图）；Settings preview 不能代替真实 Home Screen widget
+- [ ] 如果本轮改动触及 widget 布局、配置 intent、mode/color style 或 WidgetKit rendering：必须跑 `CodexBarMobileTests/CodexBarWidgetRenderMatrixTests`，覆盖 mode × family × color style × Light/Dark 的渲染分支，并断言渲染图像存在明暗对比、Colorful 分支有可见色彩；还必须跑真实 SpringBoard widget gate（至少打开系统编辑面板、确认可配置选项、实际切换一个 mode 并截图）；Settings preview 不能代替真实 Home Screen widget
 - [ ] 如果本轮改动触及 Mac→CloudKit→iOS sync、Shared payload、CloudKit schema、provider 显示数据、缓存或跨版本渲染：按 `docs/ios-sync-compatibility-testing.md` 执行 2 Mac × 2 iPhone old/new 兼容矩阵，并把本轮证据写入 `CodexBarMobile/Research/NNN-*/03-testing.md`
 
 ## 2. 上游 merge 特有
