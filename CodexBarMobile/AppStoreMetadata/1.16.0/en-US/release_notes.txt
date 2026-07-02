@@ -4,6 +4,7 @@ What's new
 * Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today's cost, and sync health at a glance.
 * Light, Dark, and tinted Home Screen appearances — widgets follow your system appearance instead of using a fixed dark or colorful dashboard style.
 * Widget color style — choose Mono for the native single-color look, or Colorful for a restrained accent palette that keeps the same clean layout.
+* Today Cost polish — small widgets now include token usage, medium widgets use a cleaner spend-vs-token layout, and provider rows avoid account-plan labels.
 * Configurable views — choose Overview, Provider Focus, Today Cost, or Sync Health for each widget; edited Home Screen widgets now keep and render the selected view.
 * Real synced data — widgets read CodexBar CloudKit sync data and fall back to older iCloud snapshots when needed.
 * Cost totals — the Cost page now cross-checks synced provider summaries so incomplete daily history does not undercount spend.

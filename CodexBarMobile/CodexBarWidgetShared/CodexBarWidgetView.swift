@@ -78,11 +78,7 @@ struct CodexBarWidgetView: View {
         case .providerFocus:
             providerHero(focusedProvider)
         case .todayCost:
-            heroMetric(
-                value: costText(entry.snapshot.todayCostUSD),
-                label: String(localized: "Today"),
-                systemImage: "dollarsign.circle",
-                progress: nil)
+            todayCostHero
         case .syncHealth:
             heroMetric(
                 value: syncValue,
@@ -448,7 +444,55 @@ struct CodexBarWidgetView: View {
     }
 
     private var todayCostHero: some View {
+        Group {
+            switch family {
+            case .systemMedium:
+                todayCostSplitHero
+            case .systemSmall:
+                todayCostStackedHero(showLabel: true, showTokens: true)
+            default:
+                todayCostStackedHero(showLabel: false, showTokens: false)
+            }
+        }
+    }
+
+    private var todayCostSplitHero: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                todayCostLabel(String(localized: "Today"), systemImage: "dollarsign.circle")
+                Text(costText(entry.snapshot.todayCostUSD))
+                    .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(palette.value)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.58)
+                    .privacySensitive()
+                    .widgetAccentable()
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 3) {
+                todayCostLabel(String(localized: "Tokens"), systemImage: "number")
+                Text(tokensText(entry.snapshot.todayTokens))
+                    .font(todayCostTokenFont)
+                    .monospacedDigit()
+                    .foregroundStyle(palette.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+                    .privacySensitive()
+                    .widgetAccentable()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func todayCostStackedHero(showLabel: Bool, showTokens: Bool) -> some View {
         VStack(alignment: .leading, spacing: spacing.hero) {
+            if showLabel {
+                todayCostLabel(String(localized: "Today"), systemImage: "dollarsign.circle")
+            }
+
             Text(costText(entry.snapshot.todayCostUSD))
                 .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
@@ -458,14 +502,29 @@ struct CodexBarWidgetView: View {
                 .privacySensitive()
                 .widgetAccentable()
 
-            Text(tokensText(entry.snapshot.todayTokens))
-                .font(.caption2)
-                .foregroundStyle(palette.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .privacySensitive()
+            if showTokens {
+                Text(tokensText(entry.snapshot.todayTokens))
+                    .font(.caption2)
+                    .foregroundStyle(palette.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .privacySensitive()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func todayCostLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.isColorful ? palette.value : palette.secondary)
+            Text(title)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(palette.secondary)
+        }
     }
 
     private func providerRow(
@@ -621,6 +680,7 @@ struct CodexBarWidgetView: View {
             .font(footerFont)
             .foregroundStyle(palette.secondary)
             .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: footerAlignment)
     }
 
     @ViewBuilder
@@ -722,6 +782,25 @@ struct CodexBarWidgetView: View {
         }
     }
 
+    private var footerAlignment: Alignment {
+        if entry.configuration.mode == .todayCost,
+           family == .systemSmall || family == .systemMedium {
+            return .center
+        }
+        return .leading
+    }
+
+    private var todayCostTokenFont: Font {
+        switch family {
+        case .systemMedium:
+            .system(size: 17, weight: .semibold, design: .rounded)
+        case .systemExtraLarge:
+            .title3.weight(.semibold).monospacedDigit()
+        default:
+            .caption.weight(.semibold).monospacedDigit()
+        }
+    }
+
     private var syncValue: String {
         entry.snapshot.isStale ? String(localized: "Stale") : String(localized: "Healthy")
     }
@@ -756,7 +835,7 @@ struct CodexBarWidgetView: View {
         if provider.isError {
             return String(localized: "Sync Error")
         }
-        return provider.displaySubtitle ?? relativeText(since: provider.lastUpdated)
+        return String(localized: "Provider")
     }
 
     private func rowMetricText(
@@ -790,6 +869,10 @@ struct CodexBarWidgetView: View {
     private var relativeSyncText: String {
         guard let latestSyncAt = entry.snapshot.latestSyncAt else {
             return String(localized: "No recent sync")
+        }
+        let interval = max(0, entry.date.timeIntervalSince(latestSyncAt))
+        if interval < 60 {
+            return String(localized: "Updated just now")
         }
         let relative = relativeText(since: latestSyncAt)
         return String(format: String(localized: "Updated %@ ago"), relative)

@@ -488,6 +488,68 @@ Widget color style follow-up on 2026-07-01:
   `d7c12b94-0e91-475a-9f90-6ae0cd92999b` (`1.16.0 (176)`) to the
   `1.16.0` App Store version; relationship readback matched.
 
+Today Cost widget polish follow-up on 2026-07-02:
+
+- User QA found that Today Cost widgets still had avoidable detail issues:
+  small and medium updated timestamps felt left-biased, small Today Cost did
+  not show token usage, medium Today Cost could communicate spend vs tokens
+  more symmetrically, and provider rows still surfaced account-plan labels
+  such as Pro/Business instead of useful widget context.
+- Reworked Today Cost hero content:
+  - small widgets now show the Today label, today's spend, and today's token
+    usage in one compact stack;
+  - medium widgets now use a left/right hero with spend on the left and tokens
+    on the right;
+  - large and iPad extra-large Today Cost widgets keep the existing lower
+    token summary to avoid duplicating sparse data.
+- Centered the loaded footer only for small/medium Today Cost widgets so
+  "Updated ..." balances inside those sparse layouts without changing other
+  widget modes.
+- Changed non-error provider row subtitles in widgets to the neutral localized
+  `Provider` label instead of exposing provider display subtitles/account-plan
+  labels.
+- Fixed fresh-sync wording to show `Updated just now`, and tightened Chinese
+  and Japanese relative-time templates so previews render `3分钟前更新` /
+  `3分前に更新` rather than text with an awkward internal space.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `177`.
+- Validation:
+  - `python3 -m json.tool CodexBarMobile/CodexBarMobile/Localizable.xcstrings`
+    and `git diff --check` — passed.
+  - `bash Scripts/lint.sh audit-i18n` — passed; all 358 source keys are
+    present and all supported locales are translated.
+  - `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+    parser audits, documentation link checks, and
+    `Localizable.xcstrings` source-vs-catalog audit.
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 3 tests, 0 failures.
+  - `build_run_sim` via XcodeBuildMCP on iPhone 17 Pro Max — passed with
+    0 warnings.
+  - `build_run_sim` via XcodeBuildMCP on iPad Pro 11-inch — passed with
+    0 warnings.
+- App preview QA evidence:
+  - iPhone 17 Pro Max medium Today Cost gallery after spend/token split:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_aee287ed-50fa-4465-85fc-fe4205986896.jpg`.
+  - iPhone 17 Pro Max small Today Cost gallery after token display and centered
+    footer:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_dd5d9674-3cad-47f5-8db8-1f2afce3ebcf.jpg`.
+  - iPad Pro 11-inch medium Today Cost gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_51413640-f30a-4c25-9f80-e09108527ae6.jpg`.
+  - iPad Pro 11-inch small Today Cost gallery:
+    `/var/folders/b0/y4gmssvd7wx0775zy1l3w1tr0000gn/T/screenshot_optimized_631839b7-d4a1-4586-875d-bf6d66a30fd4.jpg`.
+- `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+  archive succeeded, and App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260701-222345.xcarchive`.
+- App Store Connect build check — `1.16.0 (177)` uploaded at
+  `2026-07-01T22:26:38-07:00`, build id
+  `0e08315d-8b45-48cc-898e-18a1c55689c3`, `processingState=VALID`.
+- App Store metadata upload — patched `whatsNew` from
+  `CodexBarMobile/AppStoreMetadata/1.16.0/{en-US,ja,zh-Hans,zh-Hant}/release_notes.txt`
+  and read back all four locales successfully.
+- App Store build binding — bound build
+  `0e08315d-8b45-48cc-898e-18a1c55689c3` (`1.16.0 (177)`) to the
+  `1.16.0` App Store version; relationship readback matched.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

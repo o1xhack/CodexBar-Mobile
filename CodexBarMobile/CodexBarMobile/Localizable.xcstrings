@@ -6212,6 +6212,34 @@
         }
       }
     },
+    "Provider": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        }
+      }
+    },
     "Provider color palette consolidated — every tab and card uses the same color for a given provider, so the Subscription Utilization chart, the provider list, the share card, and the detail page all agree.": {
       "localizations": {
         "en": {
@@ -17472,19 +17500,47 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 前更新"
+            "value": "%@前更新"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 前更新"
+            "value": "%@前更新"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 前に更新"
+            "value": "%@前に更新"
+          }
+        }
+      }
+    },
+    "Updated just now": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated just now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "たった今更新"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刚刚更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剛剛更新"
           }
         }
       }
@@ -17775,6 +17831,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "ウィジェットの外観 — ホーム画面ウィジェットごとに「モノクロ」または「カラフル」を選び、追加・編集する前に「ウィジェット設定」で両方のスタイルを確認できます。"
+          }
+        }
+      }
+    },
+    "Widget polish — Today Cost widgets now show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget polish — Today Cost widgets now show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットの調整 — Today Cost ウィジェットではトークン使用量がより分かりやすく表示され、更新時刻は中央揃えになり、プロバイダー行はアカウントプラン名ではなく有用な Provider ラベルに集中します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件细节优化 — Today Cost 小组件现在更清楚地显示 token 用量，并把更新时间居中；Provider 行也改为展示有用的 Provider 标签，不再显示账号套餐文案。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具細節最佳化 — Today Cost 小工具現在更清楚地顯示 token 用量，並把更新時間置中；Provider 行也改為展示有用的 Provider 標籤，不再顯示帳號方案文案。"
           }
         }
       }

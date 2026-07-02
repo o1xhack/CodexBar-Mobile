@@ -2,6 +2,31 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (177)] — 2026-07-02 — Today Cost widget polish
+
+### Changed
+
+- **Today Cost widgets** — Small widgets now show today's token usage below the
+  amount, and small/medium widgets center the updated timestamp for better
+  balance.
+- **Medium Today Cost layout** — Reworked the medium widget hero into a
+  left/right summary with spend on the left and tokens on the right.
+- **Provider row subtitles** — Widget provider rows now use a neutral
+  "Provider" subtitle instead of surfacing account plan/login labels such as
+  Pro/Team/Max.
+
+### Fixed
+
+- **Widget timestamp wording** — Fresh syncs now show "Updated just now"
+  instead of "Updated just now ago".
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 176 → 177.
+
+---
+
 ## [1.16.0 (176)] — 2026-07-01 — Widget color style follow-up
 
 ### Added
