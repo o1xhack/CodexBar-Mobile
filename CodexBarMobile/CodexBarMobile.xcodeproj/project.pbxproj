@@ -20,6 +20,7 @@
 		09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */; };
 		0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
+		0D28EE2951A26C6192D17673 /* DeviceSnapshotResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61A19B110DF384F7EE02BD5 /* DeviceSnapshotResolver.swift */; };
 		0D7C4FE104FBA31F17F8A591 /* AntigravityAccountSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */; };
 		134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646750577DC086F6AB6026FD /* ClaudePeakHours.swift */; };
 		1559D6AFC9BC858DBEF9BA1C /* CodexBarWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D797A59C0C527242716F6546 /* CodexBarWidgetView.swift */; };
@@ -35,6 +36,7 @@
 		297CB7B072F71D5540B234A4 /* MobileChartAxisFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */; };
 		2AEFC493C23E3D588FC48589 /* CodexBarWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBC184E006E219F42F8B58F /* CodexBarWidgetSnapshot.swift */; };
 		2B9A62B0ADAF89ADBD8826DA /* MultiAccountForEachIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */; };
+		2BB9F05F0803DC295D55C93C /* DeviceSnapshotResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61A19B110DF384F7EE02BD5 /* DeviceSnapshotResolver.swift */; };
 		2DBF25B9E86E819649C2BE29 /* GroqMetricsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */; };
 		2E8C1EB06CD3DA4A1895AB87 /* CWLSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
@@ -396,6 +398,7 @@
 		E29AF435AB2A4FE691117704 /* V030Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V030Snapshots.swift; sourceTree = "<group>"; };
 		E51BEDB997C80D4064449061 /* SnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCache.swift; sourceTree = "<group>"; };
 		E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarMobileUITests.swift; sourceTree = "<group>"; };
+		E61A19B110DF384F7EE02BD5 /* DeviceSnapshotResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSnapshotResolver.swift; sourceTree = "<group>"; };
 		E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokBillingCard.swift; sourceTree = "<group>"; };
 		F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualZoneReaderTests.swift; sourceTree = "<group>"; };
 		F1706346D05559DDD5AA66F0 /* CodexBarMobileTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CodexBarMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -525,6 +528,7 @@
 				E024B1E38E5CEBF63EDB05E3 /* CodexBarWidgetIntent.swift */,
 				9DBC184E006E219F42F8B58F /* CodexBarWidgetSnapshot.swift */,
 				D797A59C0C527242716F6546 /* CodexBarWidgetView.swift */,
+				E61A19B110DF384F7EE02BD5 /* DeviceSnapshotResolver.swift */,
 				B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */,
 			);
 			path = CodexBarWidgetShared;
@@ -1052,6 +1056,7 @@
 				9360E35B526CE57E9C5ED2D0 /* DeepSeekUsageCard.swift in Sources */,
 				78A8D4ECC85D519DB04C6B07 /* DeepgramUsageCard.swift in Sources */,
 				496A54796174489473CE7F52 /* DeviceProviderZoneSubscription.swift in Sources */,
+				0D28EE2951A26C6192D17673 /* DeviceSnapshotResolver.swift in Sources */,
 				753F40CEB17DC47E704E5EDE /* ElevenLabsCreditsCard.swift in Sources */,
 				2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */,
 				FE0F6EED9F97E88267101B6C /* GrokBillingCard.swift in Sources */,
@@ -1145,6 +1150,7 @@
 				7073F4D69C1C36A686395006 /* CodexBarWidgetTimeline.swift in Sources */,
 				E026DACE186A54F8CC5B22FE /* CodexBarWidgetView.swift in Sources */,
 				728CF23CFF13DD0CA289EE7F /* CodexBarWidgets.swift in Sources */,
+				2BB9F05F0803DC295D55C93C /* DeviceSnapshotResolver.swift in Sources */,
 				57C973F513DAC5CC5E587DDE /* ProviderSnapshotMerger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

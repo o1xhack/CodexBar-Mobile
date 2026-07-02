@@ -180,19 +180,33 @@ enum CodexBarWidgetSnapshotBuilder {
     static func makeSnapshot(
         from result: MultiDeviceSyncResult,
         fallbackKVSSnapshot: SyncedUsageSnapshot? = nil,
+        providerLinkages: [ProviderAccountLinkage] = [],
+        deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
         now: Date = .now
     ) -> CodexBarWidgetSnapshot {
         switch result {
         case .success(let snapshots):
-            return self.makeSnapshot(from: snapshots, now: now)
+            return self.makeSnapshot(
+                from: snapshots,
+                providerLinkages: providerLinkages,
+                deviceLifecycleEvents: deviceLifecycleEvents,
+                now: now)
         case .empty:
             if let fallbackKVSSnapshot {
-                return self.makeSnapshot(from: [fallbackKVSSnapshot], now: now)
+                return self.makeSnapshot(
+                    from: [fallbackKVSSnapshot],
+                    providerLinkages: providerLinkages,
+                    deviceLifecycleEvents: deviceLifecycleEvents,
+                    now: now)
             }
             return .noData(now: now)
         case .error(let error):
             if let fallbackKVSSnapshot {
-                var snapshot = self.makeSnapshot(from: [fallbackKVSSnapshot], now: now)
+                var snapshot = self.makeSnapshot(
+                    from: [fallbackKVSSnapshot],
+                    providerLinkages: providerLinkages,
+                    deviceLifecycleEvents: deviceLifecycleEvents,
+                    now: now)
                 snapshot = CodexBarWidgetSnapshot(
                     state: snapshot.state,
                     generatedAt: snapshot.generatedAt,
@@ -215,13 +229,29 @@ enum CodexBarWidgetSnapshotBuilder {
 
     static func makeSnapshot(
         from snapshots: [SyncedUsageSnapshot],
+        providerLinkages: [ProviderAccountLinkage] = [],
+        deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
         now: Date = .now
     ) -> CodexBarWidgetSnapshot {
         guard !snapshots.isEmpty else {
             return .noData(now: now)
         }
 
-        guard let mergedSnapshot = ProviderSnapshotMerger.mergeSnapshots(snapshots) else {
+        let activeSnapshots = DeviceSnapshotResolver
+            .resolveDeviceSnapshots(
+                snapshots,
+                lifecycleEvents: deviceLifecycleEvents,
+                providerLinkages: providerLinkages)
+            .activeSnapshots
+
+        guard !activeSnapshots.isEmpty else {
+            return .noData(now: now)
+        }
+
+        guard let mergedSnapshot = ProviderSnapshotMerger.mergeSnapshots(
+            activeSnapshots,
+            linkages: providerLinkages)
+        else {
             return .noData(now: now)
         }
 
@@ -231,7 +261,7 @@ enum CodexBarWidgetSnapshotBuilder {
                 state: .noData,
                 generatedAt: now,
                 latestSyncAt: mergedSnapshot.syncTimestamp,
-                deviceCount: snapshots.count,
+                deviceCount: activeSnapshots.count,
                 providerCount: 0,
                 errorCount: 0,
                 todayCostUSD: nil,
@@ -247,7 +277,7 @@ enum CodexBarWidgetSnapshotBuilder {
         let todayCost = summaries.compactMap(\.todayCostUSD).reduce(0, +)
         let thirtyDayCost = summaries.compactMap(\.thirtyDayCostUSD).reduce(0, +)
         let todayTokens = summaries.compactMap(\.tokensToday).reduce(0, +)
-        let latestSyncAt = snapshots.map(\.syncTimestamp).max()
+        let latestSyncAt = activeSnapshots.map(\.syncTimestamp).max()
         let maxUsage = summaries.compactMap(\.usagePercent).max()
         let errorCount = summaries.filter(\.isError).count
 
@@ -265,7 +295,7 @@ enum CodexBarWidgetSnapshotBuilder {
             state: .loaded,
             generatedAt: now,
             latestSyncAt: latestSyncAt,
-            deviceCount: snapshots.count,
+            deviceCount: activeSnapshots.count,
             providerCount: summaries.count,
             errorCount: errorCount,
             todayCostUSD: todayCost > 0 ? todayCost : nil,

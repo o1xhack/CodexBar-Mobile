@@ -41,11 +41,19 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
                 policy: .after(now.addingTimeInterval(15 * 60)))
         }
         #endif
-        let result = await CloudSyncManager.shared.fetchAllDeviceSnapshots()
-        let fallback = CloudSyncManager.shared.fetchKVSSnapshot()
+        let syncManager = CloudSyncManager.shared
+        async let result = syncManager.fetchAllDeviceSnapshots()
+        async let providerLinkages = syncManager.fetchProviderAccountLinkages()
+        async let deviceLifecycleEvents = syncManager.fetchDeviceLifecycleEvents()
+        let fallback = syncManager.fetchKVSSnapshot()
+        let syncResult = await result
+        let linkages = await providerLinkages
+        let lifecycleEvents = await deviceLifecycleEvents
         let snapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(
-            from: result,
+            from: syncResult,
             fallbackKVSSnapshot: fallback,
+            providerLinkages: linkages,
+            deviceLifecycleEvents: lifecycleEvents,
             now: now)
         let entry = CodexBarWidgetEntry(
             date: now,

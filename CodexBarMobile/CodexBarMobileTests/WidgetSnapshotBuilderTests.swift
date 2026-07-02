@@ -228,6 +228,104 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == costDashboardTodayTokens)
     }
 
+    @Test("applies provider account linkages before building widget totals")
+    func appliesProviderAccountLinkagesBeforeBuildingWidgetTotals() {
+        let now = Self.date("2026-07-01T22:30:00Z")
+        let legacyProvider = Self.provider(
+            id: "claude",
+            name: "Claude",
+            email: nil,
+            usage: 19,
+            todayCost: 1.49,
+            tokens: 1_000,
+            updated: now.addingTimeInterval(-300))
+        let identifiedProvider = Self.provider(
+            id: "claude",
+            name: "Claude",
+            email: nil,
+            usage: 22,
+            todayCost: 2_638.98,
+            tokens: 2_000,
+            updated: now.addingTimeInterval(-60),
+            accountIdentities: ["claude:account:team"])
+        let snapshots = [
+            SyncedUsageSnapshot(
+                providers: [legacyProvider],
+                syncTimestamp: now.addingTimeInterval(-280),
+                deviceName: "MacBook Pro",
+                deviceID: "device-a"),
+            SyncedUsageSnapshot(
+                providers: [identifiedProvider],
+                syncTimestamp: now.addingTimeInterval(-40),
+                deviceName: "Mac Studio",
+                deviceID: "device-b"),
+        ]
+        let linkage = ProviderAccountLinkage(
+            providerID: "claude",
+            linkedIdentifiers: [
+                "claude:legacy-no-identity",
+                "claude:account:team",
+            ],
+            confirmedAt: now.addingTimeInterval(-20),
+            confirmedFromDeviceID: "iphone-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: snapshots,
+            providerLinkages: [linkage],
+            now: now)
+
+        #expect(widget.providerCount == 1)
+        #expect(abs((widget.todayCostUSD ?? 0) - 2_640.47) < 0.001)
+        #expect(widget.todayTokens == 3_000)
+        #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 2_640.47) < 0.001)
+    }
+
+    @Test("excludes archived device lifecycle records from widget totals")
+    func excludesArchivedDeviceLifecycleRecordsFromWidgetTotals() {
+        let now = Self.date("2026-07-01T22:30:00Z")
+        let archivedProvider = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "dev@example.com",
+            usage: 25,
+            todayCost: 101.12,
+            tokens: 124_100_000,
+            updated: now.addingTimeInterval(-300))
+        let activeProvider = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "dev@example.com",
+            usage: 27,
+            todayCost: 20.59,
+            tokens: 10_400_000,
+            updated: now.addingTimeInterval(-60))
+        let archivedDevice = SyncedUsageSnapshot(
+            providers: [archivedProvider],
+            syncTimestamp: now.addingTimeInterval(-280),
+            deviceName: "Old Mac",
+            deviceID: "device-old")
+        let activeDevice = SyncedUsageSnapshot(
+            providers: [activeProvider],
+            syncTimestamp: now.addingTimeInterval(-40),
+            deviceName: "Mac Studio",
+            deviceID: "device-active")
+        let archive = DeviceLifecycleEvent(
+            kind: .archive,
+            primaryDeviceID: "device-old",
+            confirmedAt: now.addingTimeInterval(-20),
+            confirmedFromDeviceID: "iphone-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [archivedDevice, activeDevice],
+            deviceLifecycleEvents: [archive],
+            now: now)
+
+        #expect(widget.deviceCount == 1)
+        #expect(widget.providerCount == 1)
+        #expect(abs((widget.todayCostUSD ?? 0) - 20.59) < 0.001)
+        #expect(widget.todayTokens == 10_400_000)
+    }
+
     @Test("uses KVS fallback snapshot when CloudKit has no device data")
     func usesKVSFallbackSnapshotWhenCloudKitHasNoDeviceData() {
         let now = Self.date("2026-07-01T22:30:00Z")
@@ -336,7 +434,8 @@ struct WidgetSnapshotBuilderTests {
         todayCost: Double?,
         tokens: Int?,
         updated: Date,
-        isError: Bool = false
+        isError: Bool = false,
+        accountIdentities: [String]? = nil
     ) -> ProviderUsageSnapshot {
         let dayKey = SyncCostSummary.iso8601DayKeyForTest(updated)
         let costSummary = todayCost.map { cost in
@@ -364,7 +463,8 @@ struct WidgetSnapshotBuilderTests {
             statusMessage: isError ? "Rate limit approaching" : nil,
             isError: isError,
             lastUpdated: updated,
-            costSummary: costSummary)
+            costSummary: costSummary,
+            accountIdentities: accountIdentities)
     }
 
     private static func date(_ value: String) -> Date {
