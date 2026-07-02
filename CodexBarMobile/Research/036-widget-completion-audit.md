@@ -55,7 +55,9 @@ Apple references used as the product/API baseline:
 | Light/Dark | Widget background and foreground must follow system appearance | Current-run app-preview evidence captured; current-run real SpringBoard Light and Dark screenshots captured for the placed medium widget |
 | Tinted/accented | Key metric/progress regions must be `widgetAccentable` and readable in tinted Home Screen mode | Code path present; SpringBoard tinted visual still requires a direct system-state pass |
 | Mono/Colorful | Both color styles must keep the native widget structure and avoid old dashboard clutter | Current-run Mono and Colorful app-preview evidence captured |
-| All modes | Overview, Today Cost, Provider Focus, Sync Health must be verified across families | App preview gallery captured through small/medium/large/iPad extra-large; current-run SpringBoard picker lists all four modes and one real mode switch to Today Cost is automated |
+| Render matrix | Overview, Today Cost, Provider Focus, Sync Health must render for small/medium/large/iPad extra-large, Mono/Colorful, Light/Dark | Covered by `CodexBarWidgetRenderMatrixTests`, which renders 64 loaded-state combinations through the exact `CodexBarWidgetView` |
+| State render matrix | No-data, syncing, and error states must not go blank across supported families | Covered by `CodexBarWidgetRenderMatrixTests` error/no-data/syncing family pass |
+| All modes on SpringBoard | Overview, Today Cost, Provider Focus, Sync Health must be verified in the real Home Screen configuration surface | App preview gallery captured through small/medium/large/iPad extra-large; current-run SpringBoard picker lists all four modes and one real mode switch to Today Cost is automated |
 | iPad | Extra-large and regular iPad placements must not stretch/clamp incorrectly | Current-run iPad Pro 11-inch extra-large evidence captured |
 | Localization | All user-facing strings must have en, zh-Hans, zh-Hant, ja translations | `bash Scripts/lint.sh lint` rerun passed; CodexBarMobile source-vs-catalog audit found all 358 source keys present |
 | Packaging | Extension bundle must include WidgetKit extension point and AppIntents metadata | Current archive contains `CodexBarMobileWidgets.appex`; upload event succeeded without packaging errors |
@@ -66,6 +68,7 @@ Apple references used as the product/API baseline:
 1. Local static gates:
    - `bash Scripts/lint.sh lint`
    - `xcodebuild` or XcodeBuildMCP focused test for `WidgetSnapshotBuilderTests`
+   - XcodeBuildMCP focused test for `CodexBarWidgetRenderMatrixTests`
    - broader sync merge test slice if reducer code changes
 2. Simulator app gate:
    - build/run `CodexBarMobile` with deterministic preview data
@@ -87,6 +90,7 @@ Apple references used as the product/API baseline:
 - Direct widget CloudKit/KVS reads still do not use an app-authored App Group cache. This is acceptable only because App Group entitlement work was explicitly deferred earlier; it remains the better long-term architecture for publishing the app's fully resolved local view to the widget.
 - SpringBoard tinted/accented appearance is a visual/system-context check. Unit tests can verify data and configuration, but not whether iOS renders tinted foreground contrast acceptably.
 - Widget preview screenshots can confirm spacing in the app, but they cannot replace real SpringBoard widget evidence because WidgetKit may apply container and rendering changes outside the app.
+- `CodexBarWidgetRenderMatrixTests` forces every branch to render through `ImageRenderer`, but it is not a pixel-diff/layout-overlap assertion. It prevents blank/crashing/disconnected branches; visual spacing still needs screenshots or human/visual review.
 - Full continuous SpringBoard switching across Provider Focus, Today Cost, and Sync Health was attempted, but the long chained UI test became unstable while reopening the system edit panel for the third switch. Do not mark this audit done on that basis; keep the stable gate at "real panel + all options listed + one real switch" until the long-chain path is made reliable.
 
 ## Current Audit Log
@@ -131,7 +135,17 @@ Apple references used as the product/API baseline:
   - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests`
   - Result: 9 passed, 0 failed, 0 skipped.
   - Result bundle: `/Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-07-02T09-12-23-606Z_pid82893_d8ab0fed.xcresult`
+- 2026-07-02: Added `CodexBarWidgetRenderMatrixTests` so widget branches are checked before TestFlight/user screenshots:
+  - Loaded state renders 4 modes × 4 families × 2 color styles × 2 color schemes through the exact `CodexBarWidgetView`.
+  - Error, no-data, and syncing states render across all supported families.
+  - XcodeBuildMCP focused test passed: `test_sim -only-testing:CodexBarMobileTests/CodexBarWidgetRenderMatrixTests`.
+  - Result bundle: `/Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-07-02T09-24-58-517Z_pid82893_11f7e6c1.xcresult`
+- 2026-07-02: Re-ran XcodeBuildMCP data parity gate after adding the render matrix:
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests`
+  - Result: 9 passed, 0 failed, 0 skipped.
+  - Result bundle: `/Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-07-02T09-25-09-415Z_pid82893_404af98e.xcresult`
 - 2026-07-02: Added widget-specific release checklist gates to `docs/RELEASE-CHECKLIST.md`: data parity must be tested with `WidgetSnapshotBuilderTests`, and widget layout/config changes require a real SpringBoard gate before TestFlight.
+- 2026-07-02: Tightened the release checklist again so widget layout/config/rendering changes also require `CodexBarWidgetRenderMatrixTests`; user-visible screenshots are not an acceptable primary gate.
 - 2026-07-02: Current-run real SpringBoard appearance evidence:
   - Light: `/tmp/codexbar-widget-springboard-light-current.png`
   - Dark: `/tmp/codexbar-widget-springboard-dark-current.png`
