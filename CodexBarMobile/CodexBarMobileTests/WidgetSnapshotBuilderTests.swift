@@ -167,6 +167,67 @@ struct WidgetSnapshotBuilderTests {
         #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 101.12) < 0.001)
     }
 
+    @Test("keeps Today Cost widget totals in parity with the Cost dashboard")
+    func keepsTodayCostWidgetTotalsInParityWithCostDashboard() throws {
+        let now = Self.localNoonToday()
+        let codexDeviceA = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 25,
+            todayCost: 20.59,
+            tokens: 10_400_000,
+            updated: now.addingTimeInterval(-300))
+        let codexDeviceB = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 25,
+            todayCost: 80.53,
+            tokens: 113_700_000,
+            updated: now.addingTimeInterval(-60))
+        let olderAccountProvider = Self.provider(
+            id: "openrouter",
+            name: "OpenRouter",
+            email: "dev@example.com",
+            usage: 10,
+            todayCost: 1,
+            tokens: 100,
+            updated: now.addingTimeInterval(-400))
+        let newerAccountProvider = Self.provider(
+            id: "openrouter",
+            name: "OpenRouter",
+            email: "dev@example.com",
+            usage: 11,
+            todayCost: 2,
+            tokens: 200,
+            updated: now.addingTimeInterval(-30))
+        let snapshots = [
+            SyncedUsageSnapshot(
+                providers: [codexDeviceA, olderAccountProvider],
+                syncTimestamp: now.addingTimeInterval(-280),
+                deviceName: "MacBook Pro",
+                deviceID: "device-a"),
+            SyncedUsageSnapshot(
+                providers: [codexDeviceB, newerAccountProvider],
+                syncTimestamp: now.addingTimeInterval(-40),
+                deviceName: "Mac Studio",
+                deviceID: "device-b"),
+        ]
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+        let mergedSnapshot = try #require(CloudSyncReader.mergeSnapshots(snapshots))
+        let costInsights = CostDashboardInsights(snapshot: mergedSnapshot)
+        let costDashboardTodayTokens = costInsights.providerRows
+            .compactMap { $0.provider.costSummary?.todayTotals(now: now).tokens }
+            .reduce(0, +)
+
+        #expect(abs(costInsights.totalTodayCost - 103.12) < 0.001)
+        #expect(costDashboardTodayTokens == 124_100_200)
+        #expect(abs((widget.todayCostUSD ?? 0) - costInsights.totalTodayCost) < 0.001)
+        #expect(widget.todayTokens == costDashboardTodayTokens)
+    }
+
     @Test("surfaces no-data, stale, and error states")
     func stateCoverage() {
         let now = Self.date("2026-06-28T12:00:00Z")
@@ -239,6 +300,11 @@ struct WidgetSnapshotBuilderTests {
 
     private static func date(_ value: String) -> Date {
         ISO8601DateFormatter().date(from: value)!
+    }
+
+    private static func localNoonToday() -> Date {
+        let calendar = Calendar.current
+        return calendar.date(bySettingHour: 12, minute: 0, second: 0, of: Date())!
     }
 }
 

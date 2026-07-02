@@ -569,11 +569,16 @@ Today Cost widget shared-merge follow-up on 2026-07-02:
   - local-cost providers sum across devices;
   - account-level providers keep latest non-nil cost without double counting;
   - screenshot-shaped Codex data merges to `$101.12` and `124,100,000` tokens.
+- Added a stronger parity gate after user QA: the same multi-device snapshot
+  fixture now feeds both `CloudSyncReader.mergeSnapshots` →
+  `CostDashboardInsights` and `CodexBarWidgetSnapshotBuilder`, then asserts
+  Today Cost dollars and tokens match exactly. This prevents the Cost page and
+  Widget path from drifting while both still pass their own isolated tests.
 - Prepared iOS build metadata for the next TestFlight upload:
   `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `178`.
 - Validation:
   - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
-    passed 5 tests, 0 failures.
+    passed 6 tests, 0 failures.
   - `test_sim -only-testing:CodexBarMobileTests/CloudKitMergeTests
     -only-testing:CodexBarMobileTests/AccountIdentityMergeTests
     -only-testing:CodexBarMobileTests/LinkageRecordMergeTests` — passed
