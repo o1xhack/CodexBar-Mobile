@@ -127,6 +127,11 @@ Apple references used as the product/API baseline:
   - `SpringBoard Widget Type Picker`: `/tmp/codexbar-springboard-xcattachments-final3/046906BE-9A32-479B-81B5-567EB668CCBF.png`
   - `SpringBoard Today Cost Configuration Selected`: `/tmp/codexbar-springboard-xcattachments-final3/2ED9BE72-7472-409E-8D1F-3F5FABCF08A8.png`
   - `SpringBoard Today Cost Widget`: `/tmp/codexbar-springboard-xcattachments-final3/AE4CCBDD-0B0F-4640-A220-7419A5B5BDC0.png`
+- 2026-07-02: Re-ran XcodeBuildMCP data parity gate after user explicitly rejected user-driven validation as the backstop:
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests`
+  - Result: 9 passed, 0 failed, 0 skipped.
+  - Result bundle: `/Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-07-02T09-12-23-606Z_pid82893_d8ab0fed.xcresult`
+- 2026-07-02: Added widget-specific release checklist gates to `docs/RELEASE-CHECKLIST.md`: data parity must be tested with `WidgetSnapshotBuilderTests`, and widget layout/config changes require a real SpringBoard gate before TestFlight.
 - 2026-07-02: Current-run real SpringBoard appearance evidence:
   - Light: `/tmp/codexbar-widget-springboard-light-current.png`
   - Dark: `/tmp/codexbar-widget-springboard-dark-current.png`
