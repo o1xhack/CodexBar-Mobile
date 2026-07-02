@@ -28,6 +28,11 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         .dark,
     ]
 
+    private let renderingModes: [WidgetRenderingMode] = [
+        .fullColor,
+        .accented,
+    ]
+
     private let families: [(family: WidgetFamily, size: CGSize)] = [
         (.systemSmall, CGSize(width: 158, height: 158)),
         (.systemMedium, CGSize(width: 338, height: 162)),
@@ -41,30 +46,33 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         for mode in modes {
             for colorStyle in colorStyles {
                 for colorScheme in colorSchemes {
-                    for family in families {
-                        let image = renderWidget(
-                            mode: mode,
-                            colorStyle: colorStyle,
-                            colorScheme: colorScheme,
-                            family: family.family,
-                            size: family.size,
-                            snapshot: snapshot)
+                    for renderingMode in renderingModes {
+                        for family in families {
+                            let image = renderWidget(
+                                mode: mode,
+                                colorStyle: colorStyle,
+                                colorScheme: colorScheme,
+                                renderingMode: renderingMode,
+                                family: family.family,
+                                size: family.size,
+                                snapshot: snapshot)
 
-                        XCTAssertNotNil(
-                            image,
-                            "Widget must render \(mode.rawValue)/\(family.family)/\(colorStyle.rawValue)/\(colorScheme)")
-                        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
-                        XCTAssertGreaterThan(image?.size.height ?? 0, 0)
+                            XCTAssertNotNil(
+                                image,
+                                "Widget must render \(mode.rawValue)/\(family.family)/\(colorStyle.rawValue)/\(colorScheme)/\(renderingMode)")
+                            XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+                            XCTAssertGreaterThan(image?.size.height ?? 0, 0)
 
-                        let context = "\(mode.rawValue)/\(family.family)/\(colorStyle.rawValue)/\(colorScheme)"
-                        guard let stats = self.assertVisibleImage(image, context: context) else {
-                            continue
-                        }
-                        if colorStyle == .colorful {
-                            XCTAssertGreaterThan(
-                                stats.maxSaturation,
-                                0.14,
-                                "Colorful widget must render visible accent color for \(context)")
+                            let context = "\(mode.rawValue)/\(family.family)/\(colorStyle.rawValue)/\(colorScheme)/\(renderingMode)"
+                            guard let stats = self.assertVisibleImage(image, context: context) else {
+                                continue
+                            }
+                            if colorStyle == .colorful, renderingMode == .fullColor {
+                                XCTAssertGreaterThan(
+                                    stats.maxSaturation,
+                                    0.14,
+                                    "Colorful widget must render visible accent color for \(context)")
+                            }
                         }
                     }
                 }
@@ -85,6 +93,7 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
                     mode: .syncHealth,
                     colorStyle: .colorful,
                     colorScheme: .dark,
+                    renderingMode: .accented,
                     family: family.family,
                     size: family.size,
                     snapshot: state.snapshot)
@@ -101,6 +110,7 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         mode: CodexBarWidgetMode,
         colorStyle: CodexBarWidgetColorStyle,
         colorScheme: ColorScheme,
+        renderingMode: WidgetRenderingMode = .fullColor,
         family: WidgetFamily,
         size: CGSize,
         snapshot: CodexBarWidgetSnapshot
@@ -113,6 +123,7 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
             snapshot: snapshot)
         let view = CodexBarWidgetView(entry: entry, previewFamily: family)
             .environment(\.colorScheme, colorScheme)
+            .environment(\.widgetRenderingMode, renderingMode)
             .frame(width: size.width, height: size.height)
 
         let renderer = ImageRenderer(content: view)
