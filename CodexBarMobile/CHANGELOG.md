@@ -2,6 +2,34 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (179)] — 2026-07-02 — Widget completion audit follow-up
+
+### Changed
+
+- **Large Today Cost widgets** — Rebalanced the large iPhone Today Cost layout
+  so spend and token usage share the top summary, provider rows stay compact,
+  and the lower area is filled with sync summary data instead of a stretched
+  timestamp gap.
+- **iPad extra-large Today Cost widgets** — Added sync summary rows to the
+  left column so sparse provider spend data no longer leaves the widget feeling
+  empty.
+
+### Fixed
+
+- **Widget QA gate** — Added regression tests for KVS fallback visibility and
+  AppIntent mode/color preservation so CloudKit-empty/error states and edited
+  widget configuration do not rely on user screenshots for validation.
+- **Widget completion audit** — Added a release-facing Research checklist for
+  data parity, fallback, visual matrix, SpringBoard evidence, and handoff
+  requirements.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 178 → 179.
+
+---
+
 ## [1.16.0 (178)] — 2026-07-02 — Widget cost merge follow-up
 
 ### Fixed

@@ -228,6 +228,75 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == costDashboardTodayTokens)
     }
 
+    @Test("uses KVS fallback snapshot when CloudKit has no device data")
+    func usesKVSFallbackSnapshotWhenCloudKitHasNoDeviceData() {
+        let now = Self.date("2026-07-01T22:30:00Z")
+        let fallbackProvider = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 44,
+            todayCost: 53.35,
+            tokens: 56_500_000,
+            updated: now.addingTimeInterval(-120))
+        let fallbackSnapshot = SyncedUsageSnapshot(
+            providers: [fallbackProvider],
+            syncTimestamp: now.addingTimeInterval(-90),
+            deviceName: "Mac Studio",
+            deviceID: "device-fallback")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: .empty,
+            fallbackKVSSnapshot: fallbackSnapshot,
+            now: now)
+
+        #expect(widget.state == .loaded)
+        #expect(widget.deviceCount == 1)
+        #expect(widget.providerCount == 1)
+        #expect(abs((widget.todayCostUSD ?? 0) - 53.35) < 0.001)
+        #expect(widget.todayTokens == 56_500_000)
+        #expect(widget.message == nil)
+    }
+
+    @Test("keeps KVS fallback totals visible when CloudKit returns an error")
+    func keepsKVSFallbackTotalsVisibleWhenCloudKitReturnsError() {
+        let now = Self.date("2026-07-01T22:30:00Z")
+        let fallbackProvider = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 44,
+            todayCost: 53.35,
+            tokens: 56_500_000,
+            updated: now.addingTimeInterval(-120))
+        let fallbackSnapshot = SyncedUsageSnapshot(
+            providers: [fallbackProvider],
+            syncTimestamp: now.addingTimeInterval(-90),
+            deviceName: "Mac Studio",
+            deviceID: "device-fallback")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: .error(.notAuthenticated),
+            fallbackKVSSnapshot: fallbackSnapshot,
+            now: now)
+
+        #expect(widget.state == .loaded)
+        #expect(widget.isStale)
+        #expect(widget.message == "iCloud account not signed in")
+        #expect(abs((widget.todayCostUSD ?? 0) - 53.35) < 0.001)
+        #expect(widget.todayTokens == 56_500_000)
+    }
+
+    @Test("preserves configured widget mode and color style")
+    func preservesConfiguredWidgetModeAndColorStyle() {
+        let intent = CodexBarWidgetConfigurationIntent(
+            mode: .todayCost,
+            colorStyle: .colorful)
+
+        #expect(intent.mode == .todayCost)
+        #expect(intent.colorStyle == .colorful)
+    }
+
     @Test("surfaces no-data, stale, and error states")
     func stateCoverage() {
         let now = Self.date("2026-06-28T12:00:00Z")

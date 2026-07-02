@@ -163,7 +163,7 @@ struct CodexBarWidgetView: View {
                 rowMinHeight: spacing.largeProviderRowMinHeight,
                 emptyMessage: String(localized: "No spend today"))
             divider
-            labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
+            syncSummaryStrip
         case .syncHealth:
             heroMetric(
                 value: syncValue,
@@ -204,6 +204,8 @@ struct CodexBarWidgetView: View {
                         todayCostHero
                         divider
                         labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
+                        divider
+                        syncHealthRows(limit: 3)
                     }
                     verticalDivider(height: 170)
                     providerRows(
@@ -446,7 +448,7 @@ struct CodexBarWidgetView: View {
     private var todayCostHero: some View {
         Group {
             switch family {
-            case .systemMedium:
+            case .systemMedium, .systemLarge:
                 todayCostSplitHero
             case .systemSmall:
                 todayCostStackedHero(showLabel: true, showTokens: true)
@@ -695,6 +697,8 @@ struct CodexBarWidgetView: View {
         case (.syncHealth, _),
              (.overview, .systemLarge),
              (.overview, .systemExtraLarge),
+             (.todayCost, .systemLarge),
+             (.todayCost, .systemExtraLarge),
              (.providerFocus, .systemLarge),
              (.providerFocus, .systemExtraLarge):
             false
@@ -792,7 +796,7 @@ struct CodexBarWidgetView: View {
 
     private var todayCostTokenFont: Font {
         switch family {
-        case .systemMedium:
+        case .systemMedium, .systemLarge:
             .system(size: 17, weight: .semibold, design: .rounded)
         case .systemExtraLarge:
             .title3.weight(.semibold).monospacedDigit()
