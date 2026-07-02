@@ -2864,7 +2864,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
                         String(localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
                         String(localized: "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."),
-                        String(localized: "Widget polish — Today Cost widgets now show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."),
+                        String(localized: "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),

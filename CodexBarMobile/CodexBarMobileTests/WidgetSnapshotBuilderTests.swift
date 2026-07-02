@@ -44,8 +44,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.isStale == false)
     }
 
-    @Test("deduplicates provider accounts by latest update")
-    func deduplicatesProviderAccounts() {
+    @Test("sums local-cost provider accounts across devices")
+    func sumsLocalCostProviderAccountsAcrossDevices() {
         let now = Self.date("2026-06-28T12:00:00Z")
         let older = Self.provider(
             id: "codex",
@@ -81,7 +81,90 @@ struct WidgetSnapshotBuilderTests {
 
         #expect(widget.providerCount == 1)
         #expect(widget.maxUsagePercent == 88)
-        #expect(widget.todayCostUSD == 2)
+        #expect(abs((widget.todayCostUSD ?? 0) - 3) < 0.001)
+        #expect(widget.todayTokens == 300)
+    }
+
+    @Test("uses account-level latest cost without double counting")
+    func usesAccountLevelLatestCostWithoutDoubleCounting() {
+        let now = Self.date("2026-06-28T12:00:00Z")
+        let older = Self.provider(
+            id: "openrouter",
+            name: "OpenRouter",
+            email: "dev@example.com",
+            usage: 20,
+            todayCost: 1,
+            tokens: 100,
+            updated: now.addingTimeInterval(-600))
+        let newer = Self.provider(
+            id: "openrouter",
+            name: "OpenRouter",
+            email: "dev@example.com",
+            usage: 88,
+            todayCost: 2,
+            tokens: 200,
+            updated: now.addingTimeInterval(-60))
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [
+                SyncedUsageSnapshot(
+                    providers: [older],
+                    syncTimestamp: now.addingTimeInterval(-500),
+                    deviceName: "MacBook Pro",
+                    deviceID: "device-a"),
+                SyncedUsageSnapshot(
+                    providers: [newer],
+                    syncTimestamp: now.addingTimeInterval(-50),
+                    deviceName: "Mac Studio",
+                    deviceID: "device-b"),
+            ],
+            now: now)
+
+        #expect(widget.providerCount == 1)
+        #expect(widget.maxUsagePercent == 88)
+        #expect(abs((widget.todayCostUSD ?? 0) - 2) < 0.001)
+        #expect(widget.todayTokens == 200)
+    }
+
+    @Test("matches cost dashboard today totals for multi-device Codex data")
+    func matchesCostDashboardTodayTotalsForMultiDeviceCodexData() {
+        let now = Self.date("2026-07-01T22:30:00Z")
+        let deviceA = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 25,
+            todayCost: 20.59,
+            tokens: 10_400_000,
+            updated: now.addingTimeInterval(-300))
+        let deviceB = Self.provider(
+            id: "codex",
+            name: "Codex",
+            email: "msxiao113@gmail.com",
+            usage: 25,
+            todayCost: 80.53,
+            tokens: 113_700_000,
+            updated: now.addingTimeInterval(-60))
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [
+                SyncedUsageSnapshot(
+                    providers: [deviceA],
+                    syncTimestamp: now.addingTimeInterval(-280),
+                    deviceName: "MacBook Pro",
+                    deviceID: "device-a"),
+                SyncedUsageSnapshot(
+                    providers: [deviceB],
+                    syncTimestamp: now.addingTimeInterval(-40),
+                    deviceName: "Mac Studio",
+                    deviceID: "device-b"),
+            ],
+            now: now)
+
+        #expect(widget.providerCount == 1)
+        #expect(abs((widget.todayCostUSD ?? 0) - 101.12) < 0.001)
+        #expect(widget.todayTokens == 124_100_000)
+        #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 101.12) < 0.001)
     }
 
     @Test("surfaces no-data, stale, and error states")

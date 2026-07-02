@@ -550,6 +550,51 @@ Today Cost widget polish follow-up on 2026-07-02:
   `0e08315d-8b45-48cc-898e-18a1c55689c3` (`1.16.0 (177)`) to the
   `1.16.0` App Store version; relationship readback matched.
 
+Today Cost widget shared-merge follow-up on 2026-07-02:
+
+- User QA found that Today Cost widgets could show `$20.59 / 10.4 M tokens`
+  while the Cost page showed `$101.12 / 124.1 M tokens` for the same day.
+  Root cause: `CodexBarWidgetSnapshotBuilder` had a widget-only provider
+  dedupe path that kept the latest provider/account entry, while the Cost page
+  used `CloudSyncReader.mergeSnapshots` with local-cost provider summing for
+  Codex/Claude/Vertex across devices.
+- Extracted the pure multi-device provider merge into shared
+  `ProviderSnapshotMerger`, and routed both `CloudSyncReader` and widget
+  snapshot building through that same reducer. `CloudSyncReader` still applies
+  the app-only extinct mock filter via a callback; the widget target uses the
+  same merge semantics without importing CloudKit/SwiftData app code.
+- Removed the widget-only `mergedProviders(from:)` implementation so there is
+  no second merge algorithm for widget totals.
+- Added widget regression coverage:
+  - local-cost providers sum across devices;
+  - account-level providers keep latest non-nil cost without double counting;
+  - screenshot-shaped Codex data merges to `$101.12` and `124,100,000` tokens.
+- Prepared iOS build metadata for the next TestFlight upload:
+  `MARKETING_VERSION` remains `1.16.0`, `CURRENT_PROJECT_VERSION` is `178`.
+- Validation:
+  - `test_sim -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests` —
+    passed 5 tests, 0 failures.
+  - `test_sim -only-testing:CodexBarMobileTests/CloudKitMergeTests
+    -only-testing:CodexBarMobileTests/AccountIdentityMergeTests
+    -only-testing:CodexBarMobileTests/LinkageRecordMergeTests` — passed
+    71 tests, 0 failures.
+  - `bash Scripts/lint.sh lint` — passed, including SwiftFormat, SwiftLint,
+    parser audits, documentation link checks, and `Localizable.xcstrings`
+    source-vs-catalog audit.
+  - `./Scripts/upload_ios_testflight.sh` — pre-flight lint passed, Release
+    archive succeeded, and App Store Connect export/upload succeeded.
+- Archive path: `/tmp/CodexBarMobile-20260701-224059.xcarchive`.
+- App Store Connect build check — `1.16.0 (178)` uploaded at
+  `2026-07-01T22:43:54-07:00`, build id
+  `e011e3d1-1332-43a7-9f5c-bb89859eaba6`, `processingState=VALID`.
+- App Store metadata upload — patched `whatsNew` from
+  `CodexBarMobile/AppStoreMetadata/1.16.0/{en-US,ja,zh-Hans,zh-Hant}/release_notes.txt`
+  and read back all four locales successfully; all locales include the merged
+  cost totals fix.
+- App Store build binding — bound build
+  `e011e3d1-1332-43a7-9f5c-bb89859eaba6` (`1.16.0 (178)`) to the
+  `1.16.0` App Store version; relationship readback matched.
+
 ## Residual Risks
 
 - Direct CloudKit reads from widgets can be budget-constrained. If widget freshness is poor in real use, switch to the deferred App Group cache path after explicit entitlement approval.

@@ -17835,30 +17835,30 @@
         }
       }
     },
-    "Widget polish — Today Cost widgets now show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text.": {
+    "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Widget polish — Today Cost widgets now show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."
+            "value": "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ウィジェットの調整 — Today Cost ウィジェットではトークン使用量がより分かりやすく表示され、更新時刻は中央揃えになり、プロバイダー行はアカウントプラン名ではなく有用な Provider ラベルに集中します。"
+            "value": "ウィジェットの調整 — Today Cost ウィジェットは Cost ページと同じ統合済みコスト合計を使い、トークン使用量をより分かりやすく表示し、更新時刻を中央揃えにし、プロバイダー行はアカウントプラン名ではなく有用な Provider ラベルに集中します。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "小组件细节优化 — Today Cost 小组件现在更清楚地显示 token 用量，并把更新时间居中；Provider 行也改为展示有用的 Provider 标签，不再显示账号套餐文案。"
+            "value": "小组件细节优化 — Today Cost 小组件现在使用和 Cost 页一致的合并成本总额，更清楚地显示 token 用量，并把更新时间居中；Provider 行也改为展示有用的 Provider 标签，不再显示账号套餐文案。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "小工具細節最佳化 — Today Cost 小工具現在更清楚地顯示 token 用量，並把更新時間置中；Provider 行也改為展示有用的 Provider 標籤，不再顯示帳號方案文案。"
+            "value": "小工具細節最佳化 — Today Cost 小工具現在使用和 Cost 頁一致的合併成本總額，更清楚地顯示 token 用量，並把更新時間置中；Provider 行也改為展示有用的 Provider 標籤，不再顯示帳號方案文案。"
           }
         }
       }

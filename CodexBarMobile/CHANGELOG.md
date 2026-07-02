@@ -2,6 +2,24 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (178)] — 2026-07-02 — Widget cost merge follow-up
+
+### Fixed
+
+- **Today Cost widget totals** — Widgets now use the same shared multi-device
+  provider merge as the Cost page, so Codex/Claude/Vertex local CLI spend from
+  multiple Macs is summed instead of showing only the latest device.
+- **Widget merge drift** — Removed the widget-only provider deduplication path
+  and routed CloudSyncReader and widget snapshots through the shared
+  ProviderSnapshotMerger.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 177 → 178.
+
+---
+
 ## [1.16.0 (177)] — 2026-07-02 — Today Cost widget polish
 
 ### Changed

@@ -221,12 +221,16 @@ enum CodexBarWidgetSnapshotBuilder {
             return .noData(now: now)
         }
 
-        let providers = self.mergedProviders(from: snapshots)
+        guard let mergedSnapshot = ProviderSnapshotMerger.mergeSnapshots(snapshots) else {
+            return .noData(now: now)
+        }
+
+        let providers = mergedSnapshot.providers
         guard !providers.isEmpty else {
             return CodexBarWidgetSnapshot(
                 state: .noData,
                 generatedAt: now,
-                latestSyncAt: snapshots.map(\.syncTimestamp).max(),
+                latestSyncAt: mergedSnapshot.syncTimestamp,
                 deviceCount: snapshots.count,
                 providerCount: 0,
                 errorCount: 0,
@@ -271,23 +275,6 @@ enum CodexBarWidgetSnapshotBuilder {
             topProviders: Array(topProviders.prefix(6)),
             message: nil,
             isStale: latestSyncAt.map { now.timeIntervalSince($0) > Self.staleInterval } ?? false)
-    }
-
-    static func mergedProviders(from snapshots: [SyncedUsageSnapshot]) -> [ProviderUsageSnapshot] {
-        var byIdentity: [String: ProviderUsageSnapshot] = [:]
-        for snapshot in snapshots.sorted(by: { $0.syncTimestamp < $1.syncTimestamp }) {
-            for provider in snapshot.providers {
-                let identity = "\(provider.providerID)|\(provider.accountEmail ?? "_")"
-                if let existing = byIdentity[identity] {
-                    if provider.lastUpdated >= existing.lastUpdated {
-                        byIdentity[identity] = provider
-                    }
-                } else {
-                    byIdentity[identity] = provider
-                }
-            }
-        }
-        return Array(byIdentity.values).sorted { $0.lastUpdated > $1.lastUpdated }
     }
 
     private static func summary(
