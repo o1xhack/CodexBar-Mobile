@@ -49,13 +49,13 @@ Apple references used as the product/API baseline:
 | Screenshot-shaped Codex regression | `$20.59 + $80.53` must render as `$101.12`, not `$20.59` | Covered by `matches cost dashboard today totals for multi-device Codex data` |
 | CloudKit empty fallback | KVS fallback data must stay visible when CloudKit returns no records | Added in this audit |
 | CloudKit error fallback | KVS fallback totals must stay visible with stale/error context when CloudKit errors | Added in this audit |
-| Config preservation | SpringBoard/AppIntent-edited mode and color style must not reset to Overview/Mono | Added in this audit |
+| Config preservation | SpringBoard/AppIntent-edited mode and color style must not reset to Overview/Mono | Added in this audit; current-run SpringBoard UI test opens the real edit panel, shows the system picker, selects Today Cost, and verifies the Home Screen widget changes |
 | No data / stale / error | Empty, stale, and authenticated-error states must have deterministic snapshots | Covered by `surfaces no-data, stale, and error states` |
 | Real widget preview parity | Settings preview must frame the exact `CodexBarWidgetView` spacing, not an unrelated data browser | Current-run app preview screenshots captured on iPhone and iPad |
-| Light/Dark | Widget background and foreground must follow system appearance | Current-run Light and Dark app-preview evidence captured |
+| Light/Dark | Widget background and foreground must follow system appearance | Current-run app-preview evidence captured; current-run real SpringBoard Light and Dark screenshots captured for the placed medium widget |
 | Tinted/accented | Key metric/progress regions must be `widgetAccentable` and readable in tinted Home Screen mode | Code path present; SpringBoard tinted visual still requires a direct system-state pass |
 | Mono/Colorful | Both color styles must keep the native widget structure and avoid old dashboard clutter | Current-run Mono and Colorful app-preview evidence captured |
-| All modes | Overview, Today Cost, Provider Focus, Sync Health must be verified across families | App preview gallery captured through small/medium/large/iPad extra-large; SpringBoard mode-switch editing was partially blocked by AX exposure |
+| All modes | Overview, Today Cost, Provider Focus, Sync Health must be verified across families | App preview gallery captured through small/medium/large/iPad extra-large; current-run SpringBoard picker lists all four modes and one real mode switch to Today Cost is automated |
 | iPad | Extra-large and regular iPad placements must not stretch/clamp incorrectly | Current-run iPad Pro 11-inch extra-large evidence captured |
 | Localization | All user-facing strings must have en, zh-Hans, zh-Hant, ja translations | `bash Scripts/lint.sh lint` rerun passed; CodexBarMobile source-vs-catalog audit found all 358 source keys present |
 | Packaging | Extension bundle must include WidgetKit extension point and AppIntents metadata | Current archive contains `CodexBarMobileWidgets.appex`; upload event succeeded without packaging errors |
@@ -87,6 +87,7 @@ Apple references used as the product/API baseline:
 - Direct widget CloudKit/KVS reads still do not use an app-authored App Group cache. This is acceptable only because App Group entitlement work was explicitly deferred earlier; it remains the better long-term architecture for publishing the app's fully resolved local view to the widget.
 - SpringBoard tinted/accented appearance is a visual/system-context check. Unit tests can verify data and configuration, but not whether iOS renders tinted foreground contrast acceptably.
 - Widget preview screenshots can confirm spacing in the app, but they cannot replace real SpringBoard widget evidence because WidgetKit may apply container and rendering changes outside the app.
+- Full continuous SpringBoard switching across Provider Focus, Today Cost, and Sync Health was attempted, but the long chained UI test became unstable while reopening the system edit panel for the third switch. Do not mark this audit done on that basis; keep the stable gate at "real panel + all options listed + one real switch" until the long-chain path is made reliable.
 
 ## Current Audit Log
 
@@ -117,6 +118,18 @@ Apple references used as the product/API baseline:
   - Home Screen exposed the CodexBar widget elementRef and long-press menu targets, including `com.apple.springboardhome.application-shortcut-item.configure-widget`.
   - Tapping the configure-widget target dismissed back to Home Screen instead of opening a stable configuration panel on this simulator run.
   - Result: actual SpringBoard render is verified; automated SpringBoard configuration switching is still not a current-run pass.
+- 2026-07-02: Added `CodexBarMobileUITests/testSpringBoardWidgetConfigurationPanelOpens` as an explicit local SpringBoard widget gate. It is skipped by default and runs only with `UI_TEST_SPRINGBOARD_WIDGET=1` / `TEST_RUNNER_UI_TEST_SPRINGBOARD_WIDGET=1` so CI does not assume a pre-placed Home Screen widget.
+- 2026-07-02: XcodeBuildMCP focused UI test passed:
+  - `test_sim -only-testing:CodexBarMobileUITests/CodexBarMobileUITests/testSpringBoardWidgetConfigurationPanelOpens` with `UI_TEST_SPRINGBOARD_WIDGET=1`
+  - Result bundle: `/Users/yuxiao/Library/Developer/XcodeBuildMCP/workspaces/CodexBar-feb004820bff/result-bundles/test_sim_2026-07-02T09-01-00-111Z_pid82893_8891d19c.xcresult`
+  - Exported attachments: `/tmp/codexbar-springboard-xcattachments-final3/`
+  - `SpringBoard Widget Configuration Panel`: `/tmp/codexbar-springboard-xcattachments-final3/A2A4D250-A044-4690-A0C0-93587C498AD5.png`
+  - `SpringBoard Widget Type Picker`: `/tmp/codexbar-springboard-xcattachments-final3/046906BE-9A32-479B-81B5-567EB668CCBF.png`
+  - `SpringBoard Today Cost Configuration Selected`: `/tmp/codexbar-springboard-xcattachments-final3/2ED9BE72-7472-409E-8D1F-3F5FABCF08A8.png`
+  - `SpringBoard Today Cost Widget`: `/tmp/codexbar-springboard-xcattachments-final3/AE4CCBDD-0B0F-4640-A220-7419A5B5BDC0.png`
+- 2026-07-02: Current-run real SpringBoard appearance evidence:
+  - Light: `/tmp/codexbar-widget-springboard-light-current.png`
+  - Dark: `/tmp/codexbar-widget-springboard-dark-current.png`
 - 2026-07-02: Full iOS test suite passed on iPhone 17 Pro Max simulator:
   - `xcodebuild test -project CodexBarMobile/CodexBarMobile.xcodeproj -scheme CodexBarMobile -destination 'platform=iOS Simulator,id=EB507A39-11B8-42F2-8A68-F1334CD5A7EB'`
   - Swift tests: 480 tests in 37 suites passed.

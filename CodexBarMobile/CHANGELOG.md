@@ -19,6 +19,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Widget QA gate** — Added regression tests for KVS fallback visibility and
   AppIntent mode/color preservation so CloudKit-empty/error states and edited
   widget configuration do not rely on user screenshots for validation.
+- **SpringBoard widget gate** — Added an opt-in UI test that opens the real
+  Home Screen widget edit panel, captures the system mode picker, selects Today
+  Cost, and verifies the placed widget updates outside the app preview.
 - **Widget completion audit** — Added a release-facing Research checklist for
   data parity, fallback, visual matrix, SpringBoard evidence, and handoff
   requirements.
