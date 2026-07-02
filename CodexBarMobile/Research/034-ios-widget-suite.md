@@ -478,6 +478,15 @@ Widget color style follow-up on 2026-07-01:
 - App Store Connect build check — `1.16.0 (176)` uploaded at
   `2026-07-01T16:24:22-07:00`, build id
   `d7c12b94-0e91-475a-9f90-6ae0cd92999b`, `processingState=VALID`.
+- App Store version setup — created App Store version `1.16.0` in App Store
+  Connect, state `PREPARE_FOR_SUBMISSION`, version id
+  `847f1e78-4a94-4780-81af-d1508032e384`.
+- App Store metadata upload — patched `whatsNew` from
+  `CodexBarMobile/AppStoreMetadata/1.16.0/{en-US,ja,zh-Hans,zh-Hant}/release_notes.txt`
+  and read back all four locales successfully.
+- App Store build binding — bound build
+  `d7c12b94-0e91-475a-9f90-6ae0cd92999b` (`1.16.0 (176)`) to the
+  `1.16.0` App Store version; relationship readback matched.
 
 ## Residual Risks
 
