@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (180)] — 2026-07-03 — App Store event deep link
+
+### Added
+
+- **App Store event deep link** — Registered the `codexbar://widgets` deep link
+  so the Home Screen Widgets in-app event can open directly to Widget Setting
+  from the App Store product page.
+
+### Notes
+
+- iOS-only TestFlight handoff for the approved App Store in-app event;
+  `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 179 → 180.
+
+---
+
 ## [1.16.0 (179)] — 2026-07-02 — Widget completion audit follow-up
 
 ### Changed

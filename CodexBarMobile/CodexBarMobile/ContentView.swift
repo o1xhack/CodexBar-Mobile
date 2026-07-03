@@ -33,6 +33,7 @@ struct ContentView: View {
     let usageData: SyncedUsageData
     @State private var isDemoMode = false
     @State private var selectedTab: MobileRootTab
+    @State private var isWidgetSettingsPresented = false
     @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
 
     init(usageData: SyncedUsageData) {
@@ -69,6 +70,9 @@ struct ContentView: View {
                 }
         }
         .modifier(TabBarMinimizeModifier())
+        .onOpenURL { url in
+            self.handleDeepLink(url)
+        }
         .fullScreenCover(isPresented: .init(
             get: { self.shouldShowOnboarding },
             set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
@@ -79,6 +83,32 @@ struct ContentView: View {
                 self.onboardingSeenVersion = self.currentVersion
                 self.isDemoMode = true
             })
+        }
+        .sheet(isPresented: self.$isWidgetSettingsPresented) {
+            NavigationStack {
+                WidgetSettingsView(usageData: self.usageData)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") {
+                                self.isWidgetSettingsPresented = false
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    }
+            }
+        }
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "codexbar" else { return }
+
+        switch url.host?.lowercased() {
+        case "widgets", "widget-settings":
+            self.onboardingSeenVersion = self.currentVersion
+            self.selectedTab = .settings
+            self.isWidgetSettingsPresented = true
+        default:
+            break
         }
     }
 }
