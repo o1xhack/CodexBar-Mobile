@@ -1,0 +1,398 @@
+{
+  "referenceName": "CodexBar 1.16 Home Screen Widgets Event",
+  "badge": "MAJOR_UPDATE",
+  "primaryLocale": "en-US",
+  "purchaseRequirement": "NO_COST_ASSOCIATED",
+  "priority": "HIGH",
+  "purpose": "ATTRACT_NEW_USERS",
+  "territorySchedules": [
+    {
+      "territories": [
+        "AFG",
+        "AGO",
+        "AIA",
+        "ALB",
+        "ARE",
+        "ARG",
+        "ARM",
+        "ATG",
+        "AUS",
+        "AUT",
+        "AZE",
+        "BEL",
+        "BEN",
+        "BFA",
+        "BGR",
+        "BHR",
+        "BHS",
+        "BIH",
+        "BLR",
+        "BLZ",
+        "BMU",
+        "BOL",
+        "BRA",
+        "BRB",
+        "BRN",
+        "BTN",
+        "BWA",
+        "CAN",
+        "CHE",
+        "CHL",
+        "CHN",
+        "CIV",
+        "CMR",
+        "COD",
+        "COG",
+        "COL",
+        "CPV",
+        "CRI",
+        "CYM",
+        "CYP",
+        "CZE",
+        "DEU",
+        "DMA",
+        "DNK",
+        "DOM",
+        "DZA",
+        "ECU",
+        "EGY",
+        "ESP",
+        "EST",
+        "FIN",
+        "FJI",
+        "FRA",
+        "FSM",
+        "GAB",
+        "GBR",
+        "GEO",
+        "GHA",
+        "GMB",
+        "GNB",
+        "GRC",
+        "GRD",
+        "GTM",
+        "GUY",
+        "HKG",
+        "HND",
+        "HRV",
+        "HUN",
+        "IDN",
+        "IND",
+        "IRL",
+        "IRQ",
+        "ISL",
+        "ISR",
+        "ITA",
+        "JAM",
+        "JOR",
+        "JPN",
+        "KAZ",
+        "KEN",
+        "KGZ",
+        "KHM",
+        "KNA",
+        "KOR",
+        "KWT",
+        "LAO",
+        "LBN",
+        "LBR",
+        "LBY",
+        "LCA",
+        "LKA",
+        "LTU",
+        "LUX",
+        "LVA",
+        "MAC",
+        "MAR",
+        "MDA",
+        "MDG",
+        "MDV",
+        "MEX",
+        "MKD",
+        "MLI",
+        "MLT",
+        "MMR",
+        "MNE",
+        "MNG",
+        "MOZ",
+        "MRT",
+        "MSR",
+        "MUS",
+        "MWI",
+        "MYS",
+        "NAM",
+        "NER",
+        "NGA",
+        "NIC",
+        "NLD",
+        "NOR",
+        "NPL",
+        "NRU",
+        "NZL",
+        "OMN",
+        "PAK",
+        "PAN",
+        "PER",
+        "PHL",
+        "PLW",
+        "PNG",
+        "POL",
+        "PRT",
+        "PRY",
+        "QAT",
+        "ROU",
+        "RUS",
+        "RWA",
+        "SAU",
+        "SEN",
+        "SGP",
+        "SLB",
+        "SLE",
+        "SLV",
+        "SRB",
+        "STP",
+        "SUR",
+        "SVK",
+        "SVN",
+        "SWE",
+        "SWZ",
+        "SYC",
+        "TCA",
+        "TCD",
+        "THA",
+        "TJK",
+        "TKM",
+        "TON",
+        "TTO",
+        "TUN",
+        "TUR",
+        "TWN",
+        "TZA",
+        "UGA",
+        "UKR",
+        "URY",
+        "USA",
+        "UZB",
+        "VCT",
+        "VEN",
+        "VGB",
+        "VNM",
+        "VUT",
+        "XKS",
+        "YEM",
+        "ZAF",
+        "ZMB",
+        "ZWE"
+      ],
+      "publishStart": "2026-07-10T00:00:00-07:00",
+      "eventStart": "2026-07-10T00:00:00-07:00",
+      "eventEnd": "2026-07-31T23:59:59-07:00"
+    }
+  ],
+  "localizations": {
+    "en-US": {
+      "name": "Home Screen Widgets",
+      "short": "Track AI spend at a glance",
+      "long": "Add widgets to see AI cost, usage, providers, and sync health right from your Home Screen.",
+      "hero": "AI spend, now glanceable",
+      "today": "Today",
+      "month": "30 days",
+      "usage": "Usage",
+      "updated": "Updated 3 min ago",
+      "providers": "Providers",
+      "devices": "Devices",
+      "sync": "Last sync",
+      "home": "Home Screen widgets"
+    },
+    "zh-Hans": {
+      "name": "桌面小组件上线",
+      "short": "一眼查看 AI 花费和用量",
+      "long": "添加小组件，在主屏幕直接查看 AI 花费、用量、提供商和同步健康。",
+      "hero": "AI 花费，现在一眼可见",
+      "today": "今日",
+      "month": "30 天",
+      "usage": "用量",
+      "updated": "3 分钟前更新",
+      "providers": "提供商",
+      "devices": "设备",
+      "sync": "上次同步",
+      "home": "主屏幕小组件"
+    },
+    "zh-Hant": {
+      "name": "主畫面小工具上線",
+      "short": "一眼查看 AI 花費與用量",
+      "long": "加入小工具，在主畫面直接查看 AI 花費、用量、提供商與同步健康。",
+      "hero": "AI 花費，現在一眼可見",
+      "today": "今日",
+      "month": "30 天",
+      "usage": "用量",
+      "updated": "3 分鐘前更新",
+      "providers": "提供商",
+      "devices": "裝置",
+      "sync": "上次同步",
+      "home": "主畫面小工具"
+    },
+    "ja": {
+      "name": "ホーム画面ウィジェット",
+      "short": "AI コストをひと目で確認",
+      "long": "ウィジェットで AI コスト、使用量、プロバイダー、同期状態をホーム画面から確認できます。",
+      "hero": "AI コストを、ひと目で",
+      "today": "今日",
+      "month": "30日",
+      "usage": "使用量",
+      "updated": "3分前に更新",
+      "providers": "プロバイダー",
+      "devices": "デバイス",
+      "sync": "最終同期",
+      "home": "ホーム画面ウィジェット"
+    }
+  },
+  "assets": {
+    "en-US": {
+      "card": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/en-US-event-card.png",
+      "detail": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/en-US-event-detail.png"
+    },
+    "zh-Hans": {
+      "card": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hans-event-card.png",
+      "detail": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hans-event-detail.png"
+    },
+    "zh-Hant": {
+      "card": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hant-event-card.png",
+      "detail": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hant-event-detail.png"
+    },
+    "ja": {
+      "card": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/ja-event-card.png",
+      "detail": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/ja-event-detail.png"
+    }
+  },
+  "appEventId": "6786885586",
+  "appEventCreateReadback": {
+    "status": 201,
+    "id": "6786885586",
+    "state": "DRAFT",
+    "referenceName": "CodexBar 1.16 Home Screen Widgets Event",
+    "badge": "MAJOR_UPDATE",
+    "primaryLocale": "en-US",
+    "territoryCount": 175
+  },
+  "localizationIds": {
+    "en-US": "c56f6c2a-2c1d-495d-8a38-bcd5301c5be0",
+    "zh-Hans": "cd9ba4c0-ea59-4895-b6c9-b641ff10afb8",
+    "zh-Hant": "d1cfedf1-2d13-4323-b5e5-b7ecd6ec0634",
+    "ja": "53f80dd2-1680-4519-b69a-461ef9a916c3"
+  },
+  "assetDesignNotes": {
+    "v4": "Editorial App Store event hero: localized home-screen widget art, App Store text reserved for overlay.",
+    "v4_fix": "Fixed widget typography collisions before upload.",
+    "v5": "Removed loose app icon; regenerated card/detail art from scratch with subtle rounded Today shadow and cleaner App Store overlay area.",
+    "v5_typography_fix": "Adjusted Today card height and row spacing to remove text clipping.",
+    "v5_opacity_fix": "Made Today card body fully opaque to prevent previous text layers showing through."
+  },
+  "screenshotIds": {
+    "en-US": {
+      "card": {
+        "id": "5279dc2e-65ea-4b85-8d77-c8c5004540b3",
+        "assetType": "EVENT_CARD",
+        "fileName": "en-US-event-card.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      },
+      "detail": {
+        "id": "6a16fd9a-0aef-4f44-abda-e2e14ab73688",
+        "assetType": "EVENT_DETAILS_PAGE",
+        "fileName": "en-US-event-detail.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      }
+    },
+    "zh-Hans": {
+      "card": {
+        "id": "30ef3c68-0b14-4bb1-895c-eee86219f3cc",
+        "assetType": "EVENT_CARD",
+        "fileName": "zh-Hans-event-card.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      },
+      "detail": {
+        "id": "7bc886eb-385a-47d1-978c-a55eb650ea18",
+        "assetType": "EVENT_DETAILS_PAGE",
+        "fileName": "zh-Hans-event-detail.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      }
+    },
+    "zh-Hant": {
+      "card": {
+        "id": "3232d9f4-9596-48bc-8416-24d167c0ca84",
+        "assetType": "EVENT_CARD",
+        "fileName": "zh-Hant-event-card.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      },
+      "detail": {
+        "id": "5428cba5-1295-447e-a703-3c20ca8fc958",
+        "assetType": "EVENT_DETAILS_PAGE",
+        "fileName": "zh-Hant-event-detail.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      }
+    },
+    "ja": {
+      "card": {
+        "id": "6b585cd0-85c3-41ae-9d84-8fa73d25a4a6",
+        "assetType": "EVENT_CARD",
+        "fileName": "ja-event-card.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      },
+      "detail": {
+        "id": "044cf6c0-50ca-4f55-8f94-053903f4ff98",
+        "assetType": "EVENT_DETAILS_PAGE",
+        "fileName": "ja-event-detail.png",
+        "deliveryState": {
+          "errors": null,
+          "warnings": null,
+          "state": "COMPLETE"
+        }
+      }
+    }
+  },
+  "deletedScreenshotIds": [
+    "e208ab67-d83d-4188-982b-2ccbf4386df5"
+  ],
+  "uploadedAt": "2026-07-02T22:38:19Z",
+  "deepLink": "codexbar://widgets",
+  "reviewSubmission": {
+    "id": "61cca675-8a2a-4961-94c3-4432c1954799",
+    "itemId": "NjFjY2E2NzUtOGEyYS00OTYxLTk0YzMtNDQzMmMxOTU0Nzk5fDF8Njc4Njg4NTU4Ng",
+    "submittedAt": "2026-07-03T00:27:03Z",
+    "attributes": {
+      "platform": "IOS",
+      "submittedDate": "2026-07-03T00:27:03.11Z",
+      "state": "COMPLETE"
+    }
+  },
+  "appEventState": "APPROVED",
+  "verifiedAt": "2026-07-03T04:11:05Z"
+}

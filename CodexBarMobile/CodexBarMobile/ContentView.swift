@@ -3,6 +3,7 @@ import CodexBarSync
 import SwiftData
 import SwiftUI
 import UIKit
+import WidgetKit
 
 enum CostChartStyle: String, CaseIterable, Identifiable {
     case bars
@@ -32,6 +33,7 @@ struct ContentView: View {
     let usageData: SyncedUsageData
     @State private var isDemoMode = false
     @State private var selectedTab: MobileRootTab
+    @State private var isWidgetSettingsPresented = false
     @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
 
     init(usageData: SyncedUsageData) {
@@ -68,6 +70,9 @@ struct ContentView: View {
                 }
         }
         .modifier(TabBarMinimizeModifier())
+        .onOpenURL { url in
+            self.handleDeepLink(url)
+        }
         .fullScreenCover(isPresented: .init(
             get: { self.shouldShowOnboarding },
             set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
@@ -78,6 +83,32 @@ struct ContentView: View {
                 self.onboardingSeenVersion = self.currentVersion
                 self.isDemoMode = true
             })
+        }
+        .sheet(isPresented: self.$isWidgetSettingsPresented) {
+            NavigationStack {
+                WidgetSettingsView(usageData: self.usageData)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") {
+                                self.isWidgetSettingsPresented = false
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    }
+            }
+        }
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme?.lowercased() == "codexbar" else { return }
+
+        switch url.host?.lowercased() {
+        case "widgets", "widget-settings":
+            self.onboardingSeenVersion = self.currentVersion
+            self.selectedTab = .settings
+            self.isWidgetSettingsPresented = true
+        default:
+            break
         }
     }
 }
@@ -462,7 +493,7 @@ private struct CostDashboardView: View {
                 if !self.insights.providerRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",
-                        subtitle: "30-day spend contribution across synced providers.",
+                        subtitle: self.providerShareSubtitle,
                         rows: self.insights.providerRows.map {
                             // `identityOverride: $0.id` carries the
                             // `providerID|accountEmail` composite key so
@@ -850,6 +881,13 @@ private struct CostDashboardView: View {
         }
     }
 
+    private var providerShareSubtitle: LocalizedStringResource {
+        guard let days = self.insights.historyDays, days != 30 else {
+            return "30-day spend contribution across synced providers."
+        }
+        return "Spend contribution across the selected cost window."
+    }
+
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
         let today = row.todayCost > 0
             ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
@@ -1120,6 +1158,7 @@ struct CostDashboardInsights {
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
 
         var providerRows: [ProviderRow] = []
+        var representedProviderKeys = Set<String>()
         for rollup in aggregation.providerRollups.values {
             // Match on the actual (providerID, accountEmail) tuple — avoids the
             // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
@@ -1128,13 +1167,42 @@ struct CostDashboardInsights {
                 $0.providerID == rollup.providerID
                     && $0.accountEmail == rollup.accountEmail
             }) else { continue }
+            let totals = Self.ledgerDisplayTotals(
+                rollup: rollup,
+                provider: provider,
+                windowDays: aggregation.windowDays)
             let todayCost = rollup.dailyPoints
-                .first(where: { $0.dayKey == todayKey })?.costUSD ?? 0
+                .first(where: { $0.dayKey == todayKey })?.costUSD
+                ?? provider.costSummary?.todayTotals().costUSD
+                ?? 0
             providerRows.append(ProviderRow(
                 provider: provider,
-                thirtyDayCost: rollup.totalCostUSD,
+                thirtyDayCost: totals.costUSD,
                 todayCost: todayCost,
-                thirtyDayTokens: rollup.totalTokens))
+                thirtyDayTokens: totals.tokens))
+            representedProviderKeys.insert(provider.cardIdentityKey)
+        }
+
+        for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
+            guard let costSummary = provider.costSummary else { continue }
+            let emptyRollup = CostLedgerProviderRollup(
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
+                totalCostUSD: 0,
+                totalTokens: 0,
+                dailyPoints: [],
+                modelBreakdowns: [])
+            let totals = Self.ledgerDisplayTotals(
+                rollup: emptyRollup,
+                provider: provider,
+                windowDays: aggregation.windowDays)
+            let todayCost = costSummary.todayTotals().costUSD ?? 0
+            guard totals.costUSD > 0 || todayCost > 0 else { continue }
+            providerRows.append(ProviderRow(
+                provider: provider,
+                thirtyDayCost: totals.costUSD,
+                todayCost: todayCost,
+                thirtyDayTokens: totals.tokens))
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -1179,6 +1247,34 @@ struct CostDashboardInsights {
                 return lhsRatio > rhsRatio
             },
             cwlWindowDays: aggregation.windowDays)
+    }
+
+    private static func ledgerDisplayTotals(
+        rollup: CostLedgerProviderRollup,
+        provider: ProviderUsageSnapshot,
+        windowDays: Int) -> (costUSD: Double, tokens: Int)
+    {
+        guard let summary = provider.costSummary else {
+            return (rollup.totalCostUSD, rollup.totalTokens)
+        }
+
+        var costUSD = rollup.totalCostUSD
+        var tokens = rollup.totalTokens
+        let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
+
+        if summaryWindowDays == windowDays {
+            costUSD = summary.last30DaysCostUSD ?? costUSD
+            tokens = summary.last30DaysTokens ?? tokens
+        } else if summaryWindowDays < windowDays {
+            if let summaryCost = summary.last30DaysCostUSD {
+                costUSD = max(costUSD, summaryCost)
+            }
+            if let summaryTokens = summary.last30DaysTokens {
+                tokens = max(tokens, summaryTokens)
+            }
+        }
+
+        return (costUSD, tokens)
     }
 
     private static func breakdownRows(
@@ -1573,6 +1669,15 @@ private struct SettingsTab: View {
                             title: "Cost Setting",
                             symbolName: "dollarsign.circle.fill",
                             summary: String(localized: "Configure the Cost page"))
+                    }
+
+                    NavigationLink {
+                        WidgetSettingsView(usageData: self.usageData)
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Widget Setting",
+                            symbolName: "square.grid.2x2",
+                            summary: String(localized: "Preview Home Screen widgets"))
                     }
                 }
 
@@ -2779,8 +2884,28 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.15.0",
+            version: "1.16.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
+                        String(localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
+                        String(localized: "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."),
+                        String(localized: "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."),
+                    ]),
+                .init(
+                    title: String(localized: "Under the hood"),
+                    items: [
+                        String(localized: "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."),
+                        String(localized: "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.15.0",
+            status: "",
             summary: String(localized: "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
             sections: [
                 .init(
@@ -3525,6 +3650,209 @@ private struct CostSettingsView: View {
         Binding(
             get: { CostChartStyle(rawValue: self.dashboardCostChartStyleRawValue) ?? .line },
             set: { self.dashboardCostChartStyleRawValue = $0.rawValue })
+    }
+}
+
+private struct WidgetSettingsView: View {
+    let usageData: SyncedUsageData
+
+    @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
+    @State private var selectedColorStyle = CodexBarWidgetColorStyle.mono
+
+    private let modes: [CodexBarWidgetMode] = [
+        .overview,
+        .todayCost,
+        .providerFocus,
+        .syncHealth,
+    ]
+
+    var body: some View {
+        List {
+            Section {
+                Picker(String(localized: "Widget Size"), selection: self.$selectedFamily) {
+                    ForEach(self.availableFamilies) { family in
+                        Text(family.title).tag(family)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Picker(String(localized: "Color Style"), selection: self.$selectedColorStyle) {
+                    ForEach(CodexBarWidgetColorStyle.allCases, id: \.rawValue) { colorStyle in
+                        Text(colorStyle.previewTitle).tag(colorStyle)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                VStack(spacing: self.selectedFamily.gallerySpacing) {
+                    ForEach(self.modes, id: \.rawValue) { mode in
+                        WidgetPreviewFrame(
+                            family: self.selectedFamily,
+                            mode: mode,
+                            colorStyle: self.selectedColorStyle,
+                            snapshot: self.previewSnapshot)
+                    }
+                }
+                .animation(.snappy(duration: 0.22), value: self.selectedFamily)
+                .animation(.snappy(duration: 0.22), value: self.selectedColorStyle)
+                .accessibilityIdentifier("widget-preview-gallery-\(self.selectedFamily.rawValue)-\(self.selectedColorStyle.rawValue)")
+            } header: {
+                Text("Preview")
+            }
+        }
+        .navigationTitle("Widget Setting")
+        .listStyle(.insetGrouped)
+    }
+
+    private var availableFamilies: [CodexBarWidgetPreviewFamily] {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return [.small, .medium, .large, .extraLarge]
+        }
+        return [.small, .medium, .large]
+    }
+
+    private var previewSnapshot: CodexBarWidgetSnapshot {
+        guard let snapshot = self.usageData.snapshot else {
+            return .placeholder()
+        }
+        let widgetSnapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [snapshot],
+            now: .now)
+        return widgetSnapshot.state == .loaded ? widgetSnapshot : .placeholder()
+    }
+}
+
+private struct WidgetPreviewFrame: View {
+    let family: CodexBarWidgetPreviewFamily
+    let mode: CodexBarWidgetMode
+    let colorStyle: CodexBarWidgetColorStyle
+    let snapshot: CodexBarWidgetSnapshot
+
+    var body: some View {
+        GeometryReader { proxy in
+            let size = self.family.previewSize(maxWidth: proxy.size.width)
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(self.mode.previewTitle)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    CodexBarWidgetView(
+                        entry: CodexBarWidgetEntry(
+                            date: .now,
+                            configuration: CodexBarWidgetConfigurationIntent(
+                                mode: self.mode,
+                                colorStyle: self.colorStyle),
+                            snapshot: self.snapshot),
+                        previewFamily: self.family.widgetFamily)
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: self.family.cornerRadius, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: self.family.cornerRadius, style: .continuous)
+                                .stroke(.separator.opacity(0.42), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+                        .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)-\(self.colorStyle.rawValue)")
+                }
+                .frame(width: size.width, alignment: .leading)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .frame(height: self.family.frameHeight)
+    }
+}
+
+private enum CodexBarWidgetPreviewFamily: String, CaseIterable, Identifiable {
+    case small
+    case medium
+    case large
+    case extraLarge
+
+    var id: String { self.rawValue }
+
+    var title: LocalizedStringResource {
+        switch self {
+        case .small: "Small"
+        case .medium: "Medium"
+        case .large: "Large"
+        case .extraLarge: "iPad XL"
+        }
+    }
+
+    var widgetFamily: WidgetFamily {
+        switch self {
+        case .small: .systemSmall
+        case .medium: .systemMedium
+        case .large: .systemLarge
+        case .extraLarge: .systemExtraLarge
+        }
+    }
+
+    var gallerySpacing: CGFloat {
+        switch self {
+        case .small: 16
+        case .medium: 18
+        case .large: 20
+        case .extraLarge: 18
+        }
+    }
+
+    var frameHeight: CGFloat {
+        switch self {
+        case .small: 196
+        case .medium: 190
+        case .large: 382
+        case .extraLarge: 306
+        }
+    }
+
+    var cornerRadius: CGFloat {
+        switch self {
+        case .small: 24
+        case .medium: 26
+        case .large: 28
+        case .extraLarge: 30
+        }
+    }
+
+    func previewSize(maxWidth: CGFloat) -> CGSize {
+        let available = max(140, maxWidth - 8)
+        switch self {
+        case .small:
+            let side = min(162, available)
+            return CGSize(width: side, height: side)
+        case .medium:
+            let width = min(338, available)
+            return CGSize(width: width, height: width / 2.08)
+        case .large:
+            let width = min(338, available)
+            return CGSize(width: width, height: width * 1.04)
+        case .extraLarge:
+            let width = min(560, available)
+            return CGSize(width: width, height: width / 2.05)
+        }
+    }
+}
+
+private extension CodexBarWidgetMode {
+    var previewTitle: LocalizedStringResource {
+        switch self {
+        case .overview: "Overview"
+        case .providerFocus: "Provider Focus"
+        case .todayCost: "Today Cost"
+        case .syncHealth: "Sync Health"
+        }
+    }
+}
+
+private extension CodexBarWidgetColorStyle {
+    var previewTitle: LocalizedStringResource {
+        switch self {
+        case .mono: "Mono"
+        case .colorful: "Colorful"
+        }
     }
 }
 

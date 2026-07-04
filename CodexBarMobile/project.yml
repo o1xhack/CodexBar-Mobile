@@ -34,8 +34,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.sync
         GENERATE_INFOPLIST_FILE: true
-        MARKETING_VERSION: "1.15.0"
-        CURRENT_PROJECT_VERSION: "164"
+        MARKETING_VERSION: "1.16.0"
+        CURRENT_PROJECT_VERSION: "180"
 
   CodexBarMobilePushExtension:
     type: app-extension
@@ -55,11 +55,38 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.pushextension
-        MARKETING_VERSION: "1.15.0"
-        CURRENT_PROJECT_VERSION: "164"
+        MARKETING_VERSION: "1.16.0"
+        CURRENT_PROJECT_VERSION: "180"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobilePushExtension/PushExtension.entitlements
+        SKIP_INSTALL: true
+
+  CodexBarMobileWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CodexBarMobileWidgets
+        excludes:
+          - "**/.DS_Store"
+      - path: CodexBarWidgetShared
+        excludes:
+          - "**/.DS_Store"
+      # AppIntent display names and WidgetKit UI strings resolve in the
+      # extension bundle, so compile the main localization catalog into
+      # the widget target as its source of truth.
+      - path: CodexBarMobile/Localizable.xcstrings
+    dependencies:
+      - target: CodexBarSync
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.widgets
+        MARKETING_VERSION: "1.16.0"
+        CURRENT_PROJECT_VERSION: "180"
+        DEVELOPMENT_TEAM: 3TUERHN53E
+        INFOPLIST_FILE: CodexBarMobileWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CodexBarMobileWidgets/WidgetExtension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: true
         SKIP_INSTALL: true
 
   CodexBarMobile:
@@ -69,14 +96,18 @@ targets:
       - path: CodexBarMobile
         excludes:
           - "**/.DS_Store"
+      - path: CodexBarWidgetShared
+        excludes:
+          - "**/.DS_Store"
     dependencies:
       - target: CodexBarSync
       - target: CodexBarMobilePushExtension
+      - target: CodexBarMobileWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile
-        MARKETING_VERSION: "1.15.0"
-        CURRENT_PROJECT_VERSION: "164"
+        MARKETING_VERSION: "1.16.0"
+        CURRENT_PROJECT_VERSION: "180"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobile/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobile/CodexBarMobile.entitlements

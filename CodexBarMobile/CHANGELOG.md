@@ -2,6 +2,303 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.16.0 (180)] — 2026-07-03 — App Store event deep link
+
+### Added
+
+- **App Store event deep link** — Registered the `codexbar://widgets` deep link
+  so the Home Screen Widgets in-app event can open directly to Widget Setting
+  from the App Store product page.
+
+### Notes
+
+- iOS-only TestFlight handoff for the approved App Store in-app event;
+  `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 179 → 180.
+
+---
+
+## [1.16.0 (179)] — 2026-07-02 — Widget completion audit follow-up
+
+### Changed
+
+- **Large Today Cost widgets** — Rebalanced the large iPhone Today Cost layout
+  so spend and token usage share the top summary, provider rows stay compact,
+  and the lower area is filled with sync summary data instead of a stretched
+  timestamp gap.
+- **iPad extra-large Today Cost widgets** — Added sync summary rows to the
+  left column so sparse provider spend data no longer leaves the widget feeling
+  empty.
+
+### Fixed
+
+- **Widget QA gate** — Added regression tests for KVS fallback visibility and
+  AppIntent mode/color preservation so CloudKit-empty/error states and edited
+  widget configuration do not rely on user screenshots for validation.
+- **SpringBoard widget gate** — Added an opt-in UI test that opens the real
+  Home Screen widget edit panel, captures the system mode picker, selects Today
+  Cost, and verifies the placed widget updates outside the app preview.
+- **Widget completion audit** — Added a release-facing Research checklist for
+  data parity, fallback, visual matrix, SpringBoard evidence, and handoff
+  requirements.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 178 → 179.
+
+---
+
+## [1.16.0 (178)] — 2026-07-02 — Widget cost merge follow-up
+
+### Fixed
+
+- **Today Cost widget totals** — Widgets now use the same shared multi-device
+  provider merge as the Cost page, so Codex/Claude/Vertex local CLI spend from
+  multiple Macs is summed instead of showing only the latest device.
+- **Widget merge drift** — Removed the widget-only provider deduplication path
+  and routed CloudSyncReader and widget snapshots through the shared
+  ProviderSnapshotMerger.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 177 → 178.
+
+---
+
+## [1.16.0 (177)] — 2026-07-02 — Today Cost widget polish
+
+### Changed
+
+- **Today Cost widgets** — Small widgets now show today's token usage below the
+  amount, and small/medium widgets center the updated timestamp for better
+  balance.
+- **Medium Today Cost layout** — Reworked the medium widget hero into a
+  left/right summary with spend on the left and tokens on the right.
+- **Provider row subtitles** — Widget provider rows now use a neutral
+  "Provider" subtitle instead of surfacing account plan/login labels such as
+  Pro/Team/Max.
+
+### Fixed
+
+- **Widget timestamp wording** — Fresh syncs now show "Updated just now"
+  instead of "Updated just now ago".
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 176 → 177.
+
+---
+
+## [1.16.0 (176)] — 2026-07-01 — Widget color style follow-up
+
+### Added
+
+- **Widget color style** — Added a per-widget `Color Style` configuration with
+  `Mono` as the default and a new restrained `Colorful` style for users who
+  want more visual accent without returning to the old dashboard look.
+- **Widget settings preview** — Added a matching color style segmented control
+  in Settings → Widget Setting so every framed preview can be checked in Mono
+  or Colorful using the same shared widget layout as the real Home Screen
+  widget.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 175 → 176.
+
+---
+
+## [1.16.0 (175)] — 2026-07-01 — Widget preview framing follow-up
+
+### Changed
+
+- **Widget settings preview** — Replaced the swipeable preview pager with a
+  vertical gallery of individual framed Home Screen widget previews for every
+  mode below the size selector.
+- **Preview spacing fidelity** — The in-app preview now renders the same shared
+  widget view at the selected widget family size, without preview-only vertical
+  spacers that could make the preview spacing differ from the real Home Screen
+  widget.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 174 → 175.
+
+---
+
+## [1.16.0 (174)] — 2026-07-01 — Widget spacing follow-up
+
+### Fixed
+
+- **Large Home Screen widgets** — Gave the large provider list fixed three-row
+  slots so the Overview and Today Cost layouts no longer leave a large empty
+  area below the summary on sparse data.
+- **Medium Home Screen widgets** — Removed the unbounded footer spacer so the
+  Updated timestamp follows the widget content at a fixed gap instead of being
+  pushed to the bottom when only one or two rows are shown.
+- **Small Home Screen widgets** — Tightened the inner padding slightly so small
+  widgets spend less space on the outer margin.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 173 → 174.
+
+---
+
+## [1.16.0 (173)] — 2026-07-01 — Widget content and preview follow-up
+
+### Changed
+
+- **Widget content hierarchy** — Removed redundant loaded-state mode headers
+  from Overview, Today Cost, Provider Focus, and Sync Health widgets so the
+  widget surface starts with the useful metric content.
+- **Today Cost widgets** — Medium, large, and iPad extra-large Today Cost
+  widgets now focus on today's spend, today's tokens, and providers with spend
+  today instead of mixing in 30-day usage summaries.
+- **Widget settings preview** — Added an in-app Settings preview for Home
+  Screen widgets, covering small, medium, large, and iPad extra-large sizes
+  with swipeable Overview, Today Cost, Provider Focus, and Sync Health modes.
+
+### Notes
+
+- iOS-only follow-up prepared for the next TestFlight upload;
+  `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 172 → 173.
+
+---
+
+## [1.16.0 (172)] — 2026-06-30 — Widget cross-device QA follow-up
+
+### Fixed
+
+- **Widget configuration modes** — Fixed configurable Home Screen widgets so
+  SpringBoard-edited modes such as Provider Focus, Today Cost, and Sync Health
+  render the selected view instead of falling back to Overview.
+- **Widget family layouts** — Tuned small, medium, large, and iPad
+  extra-large layouts after real SpringBoard testing on narrow iPhone,
+  Pro Max, and iPad simulators, avoiding clipped content across Light and Dark
+  appearance.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 171 → 172.
+
+---
+
+## [1.16.0 (171)] — 2026-06-30 — Widget Home Screen QA follow-up
+
+### Fixed
+
+- **Home Screen widget layouts** — Tightened small, medium, and large widget
+  layouts after real SpringBoard add-widget testing, avoiding clipped titles,
+  long error text overflow, and cramped provider rows.
+- **Widget simulator QA data** — Widget timelines now use deterministic mock
+  sync data on iOS Simulator so Home Screen widget additions can be tested
+  without relying on live CloudKit state.
+- **Widget localization** — Localized dashboard section labels such as
+  Providers and Errors in the widget extension bundle.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 170 → 171.
+
+---
+
+## [1.16.0 (170)] — 2026-06-30 — Widget visual design follow-up
+
+### Changed
+
+- **Home Screen widget design** — Reworked the widget surface to a quieter
+  single-color visual system with native Light, Dark, and tinted Home Screen
+  appearance support.
+- **Widget layouts** — Replaced colorful metric tiles and provider dots with
+  stronger typographic hierarchy, thin dividers, and monochrome progress lines
+  across small, medium, and large widget families.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 169 → 170.
+
+---
+
+## [1.16.0 (169)] — 2026-06-29 — Cost fix release notes re-upload
+
+### Notes
+
+- Repackaged and re-uploaded the same 1.16.0 Cost sync fix after confirming
+  the in-app and App Store release notes include the Cost totals correction.
+- iOS `CURRENT_PROJECT_VERSION`: 168 → 169.
+
+---
+
+## [1.16.0 (168)] — 2026-06-29 — Cost sync aggregation follow-up
+
+### Fixed
+
+- **Cost dashboard totals** — When Cost Window Ledger is enabled, provider
+  totals now use the synced provider summary as an authoritative floor for
+  equal-or-longer windows, so incomplete daily ledger rows no longer make the
+  Cost page show less spend than Raw Sync Data.
+- **Local-cost multi-device merge** — Claude, Codex, and VertexAI now sum each
+  device's synced summary totals before falling back to daily rows, preserving
+  correct totals when a Mac has a complete summary but partial daily history.
+- **Provider Share copy** — Non-30-day CWL windows now describe the selected
+  cost window instead of saying "30-day".
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 167 → 168.
+
+---
+
+## [1.16.0 (167)] — 2026-06-29 — Widget appearance follow-up
+
+### Fixed
+
+- **Widget appearance** — Home Screen widgets now follow the system Light or
+  Dark Mode appearance instead of always rendering the dark widget background.
+
+### Notes
+
+- iOS-only TestFlight QA fix; `MARKETING_VERSION` remains `1.16.0`.
+- iOS `CURRENT_PROJECT_VERSION`: 166 → 167.
+
+---
+
+## [1.16.0 (166)] — 2026-06-28 — WidgetKit suite
+
+### Added
+
+- **Home Screen widgets** — New WidgetKit extension with configurable Overview,
+  Provider Focus, Today Cost, and Sync Health modes across small, medium, and
+  large families.
+- **Widget sync reader** — Widgets read real CodexBar CloudKit sync data through
+  the shared `CodexBarSync` layer and fall back to legacy KVS when CloudKit has
+  no readable snapshot.
+
+### Changed
+
+- **Widget-ready summaries** — Added a pure widget summary builder with
+  explicit no-data, syncing, stale-data, error, and privacy-sensitive display
+  states.
+
+### Notes
+
+- No CloudKit schema changes and no App Group entitlement changes in this pass.
+- iOS `MARKETING_VERSION`: 1.15.0 → 1.16.0.
+- iOS `CURRENT_PROJECT_VERSION`: 165 → 166.
+
+---
+
 ## [1.15.0 (164)] — 2026-06-23 — v0.37.2 upstream sync
 
 ### Added
