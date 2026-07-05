@@ -166,6 +166,48 @@ bash Scripts/lint.sh lint
 # - iOS xcstrings audit passes with all 370 source keys present.
 ```
 
+## iOS TestFlight Upload Evidence
+
+Status: uploaded and processed as `VALID`.
+
+```text
+cd CodexBarMobile && xcodegen generate
+# passed
+
+./Scripts/upload_ios_testflight.sh
+# pre-flight lint passed
+# archive succeeded
+# export/upload succeeded
+# archive: /tmp/CodexBarMobile-20260704-222801.xcarchive
+# uploaded: CodexBarMobile 1.17.0 (181)
+
+xcrun altool --build-status \
+  --delivery-id c7fb51f1-e639-4475-990d-a093e2610de7
+# BUILD-STATUS: VALID
+# DELIVERY-UUID: c7fb51f1-e639-4475-990d-a093e2610de7
+# BUILD-AUDIENCE-TYPE: APP_STORE_ELIGIBLE
+# IMPORT-STATUS: VALID
+# IS-ON-APP-STORE-CONNECT: true
+# USES-NON-EXEMPT-ENCRYPTION: false
+# PROCESSINGSTATE: VALID
+# VERSION: 181
+```
+
+Archive metadata:
+
+```text
+/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' \
+  /tmp/CodexBarMobile-20260704-222801.xcarchive/Info.plist
+# 1.17.0
+
+/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' \
+  /tmp/CodexBarMobile-20260704-222801.xcarchive/Info.plist
+# 181
+```
+
+No App Store version submission was performed. No Mac release tag, GitHub draft
+release, appcast finalize, CloudKit deploy, branch push, or merge was performed.
+
 Full Mac suite residual:
 
 ```text
