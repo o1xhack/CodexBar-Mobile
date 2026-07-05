@@ -405,6 +405,10 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `7` (0.39.0.1): merged upstream v0.38.0+v0.39.0 Codex scanner
+    ///   project-metadata attribution and cost formula changes. Roll the
+    ///   pricing fingerprint so existing caches re-scan with the latest
+    ///   session/project identity behavior.
     /// - `6` (0.36.1.1): merged upstream v0.36.0+v0.36.1 cost scanner
     ///   changes. Roll the pricing fingerprint so on-disk usage caches
     ///   re-scan with the latest parser behavior.
@@ -437,7 +441,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 6
+    static let parserLogicVersion = 7
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored

@@ -17920,6 +17920,354 @@
           }
         }
       }
+    },
+    "crossmodel_usage_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel usage"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 使用状況"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 用量"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 用量"
+          }
+        }
+      }
+    },
+    "crossmodel_balance_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残高"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "余额"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "餘額"
+          }
+        }
+      }
+    },
+    "crossmodel_uncollected_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uncollected: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未回収: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待结算：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待結算：%@"
+          }
+        }
+      }
+    },
+    "crossmodel_daily_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日次"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日"
+          }
+        }
+      }
+    },
+    "crossmodel_weekly_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週次"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每周"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每週"
+          }
+        }
+      }
+    },
+    "crossmodel_monthly_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月次"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每月"
+          }
+        }
+      }
+    },
+    "crossmodel_requests_tokens_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d requests · %@ tokens"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 件のリクエスト · %@ tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 次请求 · %@ tokens"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d 次請求 · %@ tokens"
+          }
+        }
+      }
+    },
+    "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.17 では CodexBar 0.39 同期に対応し、新しいプロバイダーカード、CrossModel のウォレット詳細、拡張されたクォータ通知、最新の Mac プロバイダー修正が入ります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.17 带来 CodexBar 0.39 同步：新的 provider 卡片、CrossModel 钱包详情、更完整的额度提醒，以及最新的 Mac provider 修复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 1.17 帶來 CodexBar 0.39 同步：新的 provider 卡片、CrossModel 錢包詳情、更完整的額度提醒，以及最新的 Mac provider 修復。"
+          }
+        }
+      }
+    },
+    "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいプロバイダー — iPhone が Mac 同期から Sakana AI、Qoder、CrossModel、ClawRouter を認識し、プロバイダー色、クォータ通知、モックデータ、詳細ページにも対応します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider —— iPhone 现在可以识别 Mac 同步来的 Sakana AI、Qoder、CrossModel 和 ClawRouter，并包含 provider 颜色、额度提醒、mock 数据和详情页。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider —— iPhone 現在可以識別 Mac 同步來的 Sakana AI、Qoder、CrossModel 和 ClawRouter，並包含 provider 顏色、額度提醒、mock 資料和詳情頁。"
+          }
+        }
+      }
+    },
+    "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 詳細 — CrossModel は iPhone 上で残高、未回収金額、日次・週次・月次の使用状況を表示し、空のプロバイダーページにならなくなりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 详情 —— CrossModel 现在会在 iPhone 上显示余额、待结算金额以及每日、每周、每月用量，不再是空的 provider 页面。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CrossModel 詳情 —— CrossModel 現在會在 iPhone 上顯示餘額、待結算金額以及每日、每週、每月用量，不再是空的 provider 頁面。"
+          }
+        }
+      }
+    },
+    "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダー修正を反映 — コンパニオンアプリは、Sakana AI のクォータ、Qoder クレジット、ClawRouter の予算使用量、CrossModel のウォレット使用量、上流のメニュー/プロバイダー信頼性修正による最新 Mac データを理解します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含 provider 修复 —— companion app 现在理解 Mac 端 Sakana AI 额度、Qoder credits、ClawRouter 预算用量、CrossModel 钱包用量，以及上游菜单/provider 可靠性修复带来的最新数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含 provider 修復 —— companion app 現在理解 Mac 端 Sakana AI 額度、Qoder credits、ClawRouter 預算用量、CrossModel 錢包用量，以及上游選單/provider 可靠性修復帶來的最新資料。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.39.0.1 (fork build 97.1 or later) for the full 1.17 experience. iPhone 1.17.0 still opens older Mac data; new provider details appear after Mac updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.39.0.1 (fork build 97.1 or later) for the full 1.17 experience. iPhone 1.17.0 still opens older Mac data; new provider details appear after Mac updates."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.17 の完全な体験には、Mac CodexBar を 0.39.0.1（fork build 97.1 以降）に更新してください。iPhone 1.17.0 は古い Mac データも開けますが、新しいプロバイダー詳細は Mac 更新後に表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请将 Mac CodexBar 更新到 0.39.0.1（fork build 97.1 或更高版本）以获得完整的 1.17 体验。iPhone 1.17.0 仍可打开旧版 Mac 数据；更新 Mac 后才会显示新的 provider 详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請將 Mac CodexBar 更新到 0.39.0.1（fork build 97.1 或更高版本）以獲得完整的 1.17 體驗。iPhone 1.17.0 仍可打開舊版 Mac 資料；更新 Mac 後才會顯示新的 provider 詳情。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

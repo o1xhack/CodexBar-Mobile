@@ -147,6 +147,44 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.rateWindows.isEmpty)
     }
 
+    @Test("R5 B2b: CrossModel optional payload round-trips")
+    func crossModelPayloadRoundTrips() throws {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "crossmodel",
+            providerName: "CrossModel",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "wallet@example.com",
+            loginMethod: "API key",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            crossModelUsage: SyncCrossModelUsage(
+                currency: "USD",
+                balance: 8.06,
+                uncollected: 0.42,
+                daily: .init(
+                    cost: 0.27,
+                    promptTokens: 5200,
+                    completionTokens: 7267,
+                    totalTokens: 12467,
+                    requestCount: 84,
+                    successCount: 83),
+                weekly: nil,
+                monthly: .init(
+                    cost: 5.37,
+                    promptTokens: 110_000,
+                    completionTokens: 150_000,
+                    totalTokens: 260_000,
+                    requestCount: 3166,
+                    successCount: 3140),
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+        let data = try self.encoder().encode(snapshot)
+        let decoded = try self.decoder().decode(ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.crossModelUsage?.balance == 8.06)
+        #expect(decoded.crossModelUsage?.monthly?.requestCount == 3166)
+    }
+
     @Test("R5 B3: SyncedUsageSnapshot with multiple multi-account providers round-trips")
     func multiAccountFullyPopulatedSyncedSnapshotRoundTrips() throws {
         let alice = self.makeRichSnapshot(

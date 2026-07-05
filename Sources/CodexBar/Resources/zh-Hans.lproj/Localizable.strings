@@ -659,7 +659,7 @@
 "mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
 "mobile_section_mock_data" = "调试 · Mock provider 数据";
 "mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步推送 60 个合成 provider，覆盖 50 个 ID（6 个 rich mock 用于 codex/claude/perplexity 多账号路径，52 个简单 mock 含 7 对 openai/deepseek/antigravity/manus/copilot/venice/stepfun 多账号第二 tab、5 个 v0.27.0 单账号 provider（grok/groq/elevenlabs/deepgram/llmproxy）、3 个 v0.28/v0.29 单账号 provider（azureopenai/alibabatokenplan/t3chat），2 个 unknown-ID mock 测试 fallback 渲染）。所有 mock email 都使用 `.test` TLD，iPhone（1.5.2+）会用 MOCK 徽章渲染。关闭后 CloudKit 会在约 1 个 cycle 内自动清除。默认关闭。";
+"mobile_toggle_mock_subtitle" = "每次同步推送 69 个合成 provider，覆盖 59 个 ID（6 个 rich mock 用于 codex/claude/perplexity 多账号路径，61 个简单 mock 含 7 对 openai/deepseek/antigravity/manus/copilot/venice/stepfun 多账号第二 tab、5 个 v0.27.0 单账号 provider（grok/groq/elevenlabs/deepgram/llmproxy）、3 个 v0.28/v0.29 单账号 provider（azureopenai/alibabatokenplan/t3chat）、4 个 v0.36 单账号 provider（litellm/poe/chutes/zed）、4 个 v0.38/v0.39 单账号 provider（sakana/qoder/crossmodel/clawrouter），2 个 unknown-ID mock 测试 fallback 渲染）。所有 mock email 都使用 `.test` TLD，iPhone（1.5.2+）会用 MOCK 徽章渲染。关闭后 CloudKit 会在约 1 个 cycle 内自动清除。默认关闭。";
 "mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
 "mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
 "mobile_section_dev_test" = "DEV — iOS 推送测试";

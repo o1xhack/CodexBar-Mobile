@@ -2884,8 +2884,26 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.16.0",
+            version: "1.17.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
+                        String(localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
+                        String(localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.39.0.1 (fork build 97.1 or later) for the full 1.17 experience. iPhone 1.17.0 still opens older Mac data; new provider details appear after Mac updates."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.16.0",
+            status: "",
             summary: String(localized: "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."),
             sections: [
                 .init(

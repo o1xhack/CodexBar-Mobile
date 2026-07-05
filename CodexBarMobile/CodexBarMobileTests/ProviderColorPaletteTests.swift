@@ -420,6 +420,48 @@ struct ProviderColorPaletteTests {
         let zai = UIColor(ProviderColorPalette.color(for: "zai"))
         #expect(!zed.isApproximately(zai), "Zed and z.ai must stay visually distinct")
     }
+
+    // MARK: - iOS 1.17.0 · v0.38/v0.39 provider catch-up
+
+    @Test("Sakana AI resolves to ocean blue")
+    func sakanaIsOceanBlue() {
+        let expected = UIColor(red: 0.16, green: 0.46, blue: 0.86, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "sakana")).isApproximately(expected))
+    }
+
+    @Test("Qoder resolves to emerald")
+    func qoderIsEmerald() {
+        let expected = UIColor(red: 16.0 / 255.0, green: 185.0 / 255.0, blue: 129.0 / 255.0, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "qoder")).isApproximately(expected))
+    }
+
+    @Test("CrossModel resolves to violet")
+    func crossModelIsViolet() {
+        let expected = UIColor(red: 124.0 / 255.0, green: 58.0 / 255.0, blue: 237.0 / 255.0, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "crossmodel")).isApproximately(expected))
+    }
+
+    @Test("ClawRouter resolves to periwinkle")
+    func clawRouterIsPeriwinkle() {
+        let expected = UIColor(red: 89.0 / 255.0, green: 110.0 / 255.0, blue: 246.0 / 255.0, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "clawrouter")).isApproximately(expected))
+    }
+
+    @Test("CrossModel normalization and Codex do not collide")
+    func crossModelDoesNotCollideWithCodex() {
+        let byID = UIColor(ProviderColorPalette.color(for: "crossmodel"))
+        let byName = UIColor(ProviderColorPalette.color(for: "CrossModel"))
+        let codex = UIColor(ProviderColorPalette.color(for: "codex"))
+        #expect(byID.isApproximately(byName))
+        #expect(!byID.isApproximately(codex), "CrossModel and Codex must stay visually distinct")
+    }
+
+    @Test("ClawRouter normalization accepts hyphenated input")
+    func clawRouterNormalization() {
+        let byID = UIColor(ProviderColorPalette.color(for: "clawrouter"))
+        let byHyphen = UIColor(ProviderColorPalette.color(for: "claw-router"))
+        #expect(byID.isApproximately(byHyphen))
+    }
 }
 
 // MARK: - Test helpers

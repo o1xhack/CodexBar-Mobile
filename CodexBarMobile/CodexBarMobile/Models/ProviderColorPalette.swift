@@ -226,6 +226,23 @@ enum ProviderColorPalette {
             // the existing z.ai palette entry.
             return Color(red: 0.20, green: 0.23, blue: 0.28)
         }
+        // iOS 1.17.0 — upstream v0.38.0+v0.39.0 new providers.
+        if normalized.contains("sakana") {
+            // Sakana AI — ocean blue from upstream provider branding.
+            return Color(red: 0.16, green: 0.46, blue: 0.86)
+        }
+        if normalized.contains("qoder") {
+            // Qoder — emerald green from upstream provider branding.
+            return Color(red: 16.0 / 255.0, green: 185.0 / 255.0, blue: 129.0 / 255.0)
+        }
+        if normalized.contains("crossmodel") {
+            // CrossModel — violet from upstream provider branding.
+            return Color(red: 124.0 / 255.0, green: 58.0 / 255.0, blue: 237.0 / 255.0)
+        }
+        if normalized.contains("clawrouter") || normalized.contains("claw-router") {
+            // ClawRouter — periwinkle from upstream provider branding.
+            return Color(red: 89.0 / 255.0, green: 110.0 / 255.0, blue: 246.0 / 255.0)
+        }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {

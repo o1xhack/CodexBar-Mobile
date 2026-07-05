@@ -499,6 +499,14 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// strings so iOS does not reject newer Mac payloads.
     public let usageDataConfidence: String?
 
+    // MARK: - iOS 1.17.0 / Mac 0.39.0.1 — v0.39 sync
+    // Additive optional (decodeIfPresent); no wire-schema bump.
+
+    /// CrossModel wallet balance plus day/week/month usage windows. Populated
+    /// only on the `crossmodel` provider snapshot. CrossModel has no generic
+    /// rate window, so iOS needs this typed payload to render anything useful.
+    public let crossModelUsage: SyncCrossModelUsage?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -545,7 +553,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
         deepSeekUsage: SyncDeepSeekUsage? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil,
-        usageDataConfidence: String? = nil)
+        usageDataConfidence: String? = nil,
+        crossModelUsage: SyncCrossModelUsage? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -587,6 +596,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepSeekUsage = deepSeekUsage
         self.codexResetCredits = codexResetCredits
         self.usageDataConfidence = usageDataConfidence
+        self.crossModelUsage = crossModelUsage
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -634,7 +644,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             alibabaTokenPlan: self.alibabaTokenPlan,
             deepSeekUsage: self.deepSeekUsage,
             codexResetCredits: self.codexResetCredits,
-            usageDataConfidence: self.usageDataConfidence)
+            usageDataConfidence: self.usageDataConfidence,
+            crossModelUsage: self.crossModelUsage)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -687,6 +698,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         // iOS 1.15.0 / Mac 0.37.2.1 — v0.37 envelope extensions.
         self.codexResetCredits = try container.decodeIfPresent(SyncCodexResetCredits.self, forKey: .codexResetCredits)
         self.usageDataConfidence = try container.decodeIfPresent(String.self, forKey: .usageDataConfidence)
+        // iOS 1.17.0 / Mac 0.39.0.1 — v0.39 CrossModel wallet/usage payload.
+        self.crossModelUsage = try container.decodeIfPresent(SyncCrossModelUsage.self, forKey: .crossModelUsage)
     }
 }
 

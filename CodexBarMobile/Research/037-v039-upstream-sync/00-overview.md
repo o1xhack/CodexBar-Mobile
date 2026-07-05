@@ -207,5 +207,20 @@ Still not authorized without explicit confirmation:
   `v0.39.0` together.
 - Target fork versions are `0.39.0.1`, `97.1`, iOS `1.17.0`, Sparkle
   `97.1.1.17.0`.
-- Research is in progress; implementation, merge conflict handling, tests,
-  draft release, and final review are still pending.
+- Upstream `v0.39.0` is merged and fork conflict resolutions preserve Mobile,
+  CloudKit Production, release tooling, and the Settings Mobile pane.
+- iOS provider parity is implemented for Sakana AI, Qoder, CrossModel, and
+  ClawRouter. CrossModel receives the only new typed optional Shared payload in
+  this release.
+- Version files, iOS/root changelogs, in-app release notes, localization, mock
+  data, provider list, provider colors, parser cache invalidation, and focused
+  tests are updated.
+- CloudKit audit shows no Production schema deploy is required because the only
+  Shared model addition is an optional field inside the existing compressed
+  provider payload.
+- Focused Mac gates and the full iOS simulator scheme pass. Full Mac
+  `swift test` still has timing-sensitive residual failures outside the
+  upstream-sync surface; see `03-testing.md`.
+- Mac GitHub draft release has not been run yet because `Scripts/release.sh`
+  phase 1 publishes the release tag to `origin` and creates a remote draft
+  release.

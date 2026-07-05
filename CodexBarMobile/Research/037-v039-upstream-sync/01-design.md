@@ -86,19 +86,28 @@ serializable if upstream continues to populate `CodexRateLimitResetCredits`.
 The required audit is whether iOS UI needs to show more than current count and
 next expiry.
 
-### Candidate New Bridges
+### Implemented Bridge Decisions
 
 | Upstream data | Default plan |
 |---|---|
-| ClawRouter monthly budget/spend/requests/tokens/routed providers | Try generic `budget`, `rateWindows`, and `costSummary`. If routed-provider usage is user-visible and not represented, add optional `SyncClawRouterStats`. |
-| CrossModel wallet balance + day/week/month spend | Prefer `ProviderCostSnapshot` -> `budget` or `costSummary`. Add dedicated payload only if wallet balance cannot be distinguished from spend. |
-| Qoder big-model credit usage | Prefer generic `rateWindows`/`budget`. Dedicated payload only if credits have multiple pools or region-specific labels that generic windows flatten incorrectly. |
-| Sakana subscription + pay-as-you-go balance/recent usage | Prefer `rateWindows` plus `providerCost`/`costSummary`; add optional payload if balance and recent usage need separate display. |
+| ClawRouter monthly budget/spend/requests/tokens/routed providers | Generic rendering is sufficient for this release. No dedicated Shared payload was added. |
+| CrossModel wallet balance + day/week/month spend | Added `SyncCrossModelUsage` as an optional payload because wallet balance, uncollected amount, and multiple period windows would be flattened by generic budget rows. CrossModel native spend also maps to `SyncCostSummary` so Cost views can include it. |
+| Qoder big-model credit usage | Generic provider card, quota zones, color, mock data, and tests are sufficient for this release. No dedicated Shared payload was added. |
+| Sakana subscription + pay-as-you-go balance/recent usage | Generic provider card, quota zones, color, mock data, and tests are sufficient for this release. No dedicated Shared payload was added. |
 | Kimi monthly subscription usage | Prefer generic monthly `RateWindow` or `budget`. Add optional Kimi payload only if the upstream model exposes structured subscription details not captured by generic rows. |
 | Mistral billing credit balance | Existing Mistral `SyncCostSummary` covers daily billing spend. Add optional field only if available credit balance is lost. |
 | Codex project/worktree cost rollups | Existing `SyncCostSummary` has model/service breakdowns, not project/worktree. Add a bounded optional payload if project/worktree rollups are high-value and already available in Mac data structures. |
 | Claude model-scoped weekly windows | Existing `extraRateWindows` -> `rateWindows` should cover this. Validate with fixtures/tests and no new wire field unless labels/cadence are lost. |
 | Widget `usageBarsShowUsed` | Mac WidgetSnapshot-only. No iOS CloudKit bridge unless iOS widget rendering consumes that exact shared store. Add decode test if the shared model stays in the build. |
+
+The implemented Shared change is intentionally additive:
+
+- `ProviderUsageSnapshot.crossModelUsage` is optional and decoded with
+  `decodeIfPresent`;
+- `with(quotaWarnings:)` preserves the optional CrossModel payload;
+- no `providerPayloadVersion` or `encodingVersion` bump is required;
+- old iOS builds should ignore unknown top-level JSON fields, and new iOS
+  builds should decode old payloads with `crossModelUsage == nil`.
 
 ## CloudKit Design
 

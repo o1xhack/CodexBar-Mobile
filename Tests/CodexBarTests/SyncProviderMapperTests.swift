@@ -24,12 +24,14 @@ struct SyncProviderMapperTests {
         mistral: MistralUsageSnapshot? = nil,
         openRouter: OpenRouterUsageSnapshot? = nil,
         azure: AzureOpenAIUsageSnapshot? = nil,
-        alibaba: AlibabaTokenPlanUsageSnapshot? = nil) -> UsageSnapshot
+        alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
+        crossModel: CrossModelUsageSnapshot? = nil) -> UsageSnapshot
     {
         UsageSnapshot(
             primary: nil,
             secondary: nil,
             openRouterUsage: openRouter,
+            crossModelUsage: crossModel,
             mistralUsage: mistral,
             azureOpenAIUsage: azure,
             alibabaTokenPlanUsage: alibaba,
@@ -96,6 +98,69 @@ struct SyncProviderMapperTests {
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
+    }
+
+    // MARK: - v0.39: CrossModel wallet + cost bridge
+
+    private func crossModelFixture() -> CrossModelUsageSnapshot {
+        CrossModelUsageSnapshot(
+            currency: "USD",
+            balance: 8.06,
+            uncollected: 0.42,
+            daily: CrossModelUsageWindow(
+                cost: 0.27,
+                promptTokens: 5200,
+                completionTokens: 7267,
+                totalTokens: 12467,
+                requestCount: 84,
+                successCount: 83),
+            weekly: CrossModelUsageWindow(
+                cost: 1.92,
+                promptTokens: 41000,
+                completionTokens: 52000,
+                totalTokens: 93000,
+                requestCount: 526,
+                successCount: 520),
+            monthly: CrossModelUsageWindow(
+                cost: 5.37,
+                promptTokens: 110_000,
+                completionTokens: 150_000,
+                totalTokens: 260_000,
+                requestCount: 3166,
+                successCount: 3140),
+            updatedAt: Self.now)
+    }
+
+    @Test("mapCrossModelUsage: nil for a non-crossmodel provider")
+    func crossModelWrongProvider() {
+        #expect(SyncCoordinator.mapCrossModelUsage(
+            provider: .codex, snapshot: self.snapshot(crossModel: self.crossModelFixture())) == nil)
+    }
+
+    @Test("mapCrossModelUsage: maps wallet and usage windows")
+    func crossModelMapsTypedPayload() throws {
+        let usage = try #require(SyncCoordinator.mapCrossModelUsage(
+            provider: .crossmodel, snapshot: self.snapshot(crossModel: self.crossModelFixture())))
+        #expect(usage.balance == 8.06)
+        #expect(usage.uncollected == 0.42)
+        #expect(usage.monthly?.cost == 5.37)
+        #expect(usage.monthly?.requestCount == 3166)
+    }
+
+    @Test("mapCrossModelCostSummary: maps daily and monthly spend into the cost dashboard shape")
+    func crossModelMapsCostSummary() throws {
+        let summary = try #require(SyncCoordinator.mapCrossModelCostSummary(
+            provider: .crossmodel, snapshot: self.snapshot(crossModel: self.crossModelFixture())))
+        #expect(summary.sessionCostUSD == 0.27)
+        #expect(summary.sessionTokens == 12467)
+        #expect(summary.sessionRequests == 84)
+        #expect(summary.last30DaysCostUSD == 5.37)
+        #expect(summary.last30DaysTokens == 260_000)
+        #expect(summary.last30DaysRequests == 3166)
+        #expect(summary.currencyCode == "USD")
+        #expect(summary.daily.count == 1)
+        #expect(summary.daily.first?.costUSD == 0.27)
+        #expect(summary.daily.first?.totalTokens == 12467)
     }
 
     // MARK: - D: OpenRouter stats

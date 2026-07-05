@@ -73,7 +73,7 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 65 (55 IDs, 6 rich + 57 simple + 2 fallback entries)")
+    @Test("MR2.1: enabled count is exactly 69 (59 IDs, 6 rich + 61 simple + 2 fallback entries)")
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -85,14 +85,15 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.9.0: +3 v0.28+v0.29 simple mocks (azureopenai,
         // alibabatokenplan, t3chat) → 60. iOS 1.12.0 adds Devin → 61.
         // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed → 65.
-        #expect(MockProviderInjector.allMocks().count == 65)
+        // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter → 69.
+        #expect(MockProviderInjector.allMocks().count == 69)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
     /// (second tabs for openai/deepseek/... that already had a first
     /// entry), so unique providerID count only changes when a new real
     /// provider is appended.
-    @Test("MR2.2: 55 distinct providerIDs match the published allowlists (53 real + 2 synthetic)")
+    @Test("MR2.2: 59 distinct providerIDs match the published allowlists (57 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -105,10 +106,11 @@ struct MockProviderInjectorIntegrationTests {
         // Phase G additions REUSE existing providerIDs (second tabs
         // for openai/deepseek/... that already had a first entry), so
         // unique ID count stayed at 50 until iOS 1.12.0 appended Devin,
-        // then v0.36 added four more first-class provider IDs.
+        // then v0.36 added four more first-class provider IDs, and
+        // v0.38/v0.39 added four more.
         #expect(
-            uniqueIDs.count == 55,
-            "should be 55 distinct mock provider IDs (53 real + 2 synthetic; v0.36 added LiteLLM/Poe/Chutes/Zed)")
+            uniqueIDs.count == 59,
+            "should be 59 distinct mock provider IDs (57 real + 2 synthetic; v0.39 added Sakana/Qoder/CrossModel/ClawRouter)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
@@ -180,7 +182,8 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.8.0: +5 v0.27.0 → 57. iOS 1.9.0: +3 v0.28+v0.29 → 60.
         // iOS 1.12.0: +1 v0.34.0 → 61.
         // iOS 1.13.0: +4 v0.36.0/v0.36.1 → 65.
-        #expect(mockProviders.count == 65)
+        // iOS 1.17.0: +4 v0.38/v0.39 → 69.
+        #expect(mockProviders.count == 69)
     }
 
     @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
@@ -223,17 +226,17 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        // All 65 mocks must reach the per-provider write path. Ollama
+        // All 69 mocks must reach the per-provider write path. Ollama
         // gets a synthetic 0% "Local inference" rate window (despite
         // having no real quota in production) specifically to avoid
         // ghost-filter drop. Per Codex MCP review feedback (R2 audit):
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        // iOS 1.8/1.9/1.12/1.13: 45 → 57 → 60 → 61 → 65.
+        // iOS 1.8/1.9/1.12/1.13/1.17: 45 → 57 → 60 → 61 → 65 → 69.
         #expect(
-            mockEnvelopes.count == 65,
-            "iOS 1.13.0 expects 65 mock envelopes, including four v0.36 providers.")
+            mockEnvelopes.count == 69,
+            "iOS 1.17.0 expects 69 mock envelopes, including four v0.38/v0.39 providers.")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -347,7 +350,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 65, "65 mock providers also emit")
+        #expect(mockProviders.count == 69, "69 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -394,7 +397,7 @@ struct MockProviderInjectorIntegrationTests {
                 providerID: snap.providerID,
                 accountEmail: snap.accountEmail)
         }
-        #expect(Set(recordNames).count == recordNames.count, "all 43 mock record names must be distinct")
+        #expect(Set(recordNames).count == recordNames.count, "all mock record names must be distinct")
     }
 
     @Test("MR4.3: mock multi-account uses accountIdentities with `{providerID}:{scheme}:{value}` schema")
@@ -704,7 +707,7 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 65 mocks total; 10 intentionally have nil costSummary:
+        // 69 mocks total; 12 intentionally have nil costSummary:
         // _mock_cursor_unknown (error), _mock_synthetic_unknown (budget-
         // only), antigravity-balance (preview), antigravity-team (Phase G,
         // also preview/no-billing → thirtyDayCostUSD: 0 deliberately;
@@ -712,9 +715,10 @@ struct MockProviderInjectorIntegrationTests {
         // elevenlabs (v0.27.0, character-credit subscription with
         // $0/$0 cost — usage is character count, not USD spend), and the
         // 3 v0.28+v0.29 providers azureopenai / alibabatokenplan / t3chat
-        // (quota/subscription based, no USD spend), and Poe (points-based).
-        // Remaining 55 carry cost data.
-        #expect(withCost.count == 55, "expected 55 mocks with cost data; got \(withCost.count)")
+        // (quota/subscription based, no USD spend), Poe (points-based),
+        // and Sakana/Qoder (quota/credit based, no USD spend).
+        // Remaining 57 carry cost data.
+        #expect(withCost.count == 57, "expected 57 mocks with cost data; got \(withCost.count)")
     }
 
     @Test("MR6.2: aggregate 30-day mock cost is realistic-heavy but bounded (no skew explosion)")
