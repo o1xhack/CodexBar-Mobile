@@ -6,6 +6,7 @@ import Testing
 /// Covers the timer plumbing added on top of the pure `AdaptiveRefreshPolicy` (see
 /// `AdaptiveRefreshPolicyTests`): how `UsageStore.startTimer()` wires live signals into the
 /// policy, and how manual/fixed/adaptive modes drive (or don't drive) `refresh()` over time.
+@Suite(.serialized)
 @MainActor
 struct AdaptiveRefreshTimerTests {
     @Test
@@ -191,7 +192,9 @@ struct AdaptiveRefreshTimerTests {
         let store = Self.makeUsageStore(settings: settings, startupBehavior: .full)
         store.restartTimerWithSleepOverrideForTesting(.seconds(5))
         try await Self.waitUntil { store.completedRefreshCountForTesting >= 1 }
-        let countBeforeRestart = store.completedRefreshCountForTesting
+        let countBeforeRestart = try await Self.waitForStableCount(
+            store: store,
+            settleWindow: .milliseconds(800))
 
         // Cancels the pending 5s sleep above and starts a fresh one, still at .oneMinute. No settings
         // mutation, so no settings-observer refresh is expected here at all.
@@ -210,7 +213,9 @@ struct AdaptiveRefreshTimerTests {
         let store = Self.makeUsageStore(settings: settings, startupBehavior: .full)
         store.restartTimerWithSleepOverrideForTesting(.seconds(5))
         try await Self.waitUntil { store.completedRefreshCountForTesting >= 1 }
-        let countBeforeRestart = store.completedRefreshCountForTesting
+        let countBeforeRestart = try await Self.waitForStableCount(
+            store: store,
+            settleWindow: .milliseconds(800))
 
         store.restartTimerWithSleepOverrideForTesting(.seconds(5))
 

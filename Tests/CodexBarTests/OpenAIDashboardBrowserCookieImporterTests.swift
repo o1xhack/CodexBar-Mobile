@@ -4,10 +4,20 @@ import Testing
 
 private final class CookieCallbackHarness: @unchecked Sendable {
     private let lock = NSLock()
+    private let captured = DispatchSemaphore(value: 0)
     private var callback: (@Sendable () -> Void)?
 
     func capture(_ callback: @escaping @Sendable () -> Void) {
         self.lock.withLock { self.callback = callback }
+        self.captured.signal()
+    }
+
+    func waitUntilCaptured(timeout: DispatchTime = .now() + 15) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: self.captured.wait(timeout: timeout) == .success)
+            }
+        }
     }
 
     func finish() {
@@ -63,6 +73,7 @@ private final class CookieTimeoutProbe: @unchecked Sendable {
     }
 }
 
+@Suite(.serialized)
 struct OpenAIDashboardBrowserCookieImporterTests {
     @Test
     func `profile denial names exact running component`() {
@@ -194,8 +205,8 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         let firstOperationStarted = DispatchSemaphore(value: 0)
         let allowFirstOperationToFinish = DispatchSemaphore(value: 0)
 
-        do {
-            _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
+        let firstOperation = Task {
+            try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
                 deadline: Date().addingTimeInterval(0.05))
             {
                 log.append("first-start")
@@ -204,18 +215,21 @@ struct OpenAIDashboardBrowserCookieImporterTests {
                 log.append("first-end")
                 return true
             }
+        }
+        let firstOperationStartResult = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: firstOperationStarted.wait(timeout: .now() + 15))
+            }
+        }
+        #expect(firstOperationStartResult == .success)
+        do {
+            _ = try await firstOperation.value
             Issue.record("Expected first cache operation timeout")
         } catch let error as URLError {
             #expect(error.code == .timedOut)
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        let firstOperationStartResult = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: firstOperationStarted.wait(timeout: .now() + 5))
-            }
-        }
-        #expect(firstOperationStartResult == .success)
         do {
             _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
                 deadline: Date().addingTimeInterval(0.05))
@@ -232,7 +246,7 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         allowFirstOperationToFinish.signal()
 
         _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
-            deadline: Date().addingTimeInterval(1)) { true }
+            deadline: Date().addingTimeInterval(5)) { true }
         #expect(log.snapshot == ["first-start", "first-end", "second"])
     }
 
@@ -290,11 +304,17 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         let key = ObjectIdentifier(keyOwner)
         let first = CookieCallbackHarness()
 
-        do {
+        let firstMutation = Task { @MainActor in
             try await OpenAIDashboardBrowserCookieImporter.runSerializedCallback(
                 key: key,
-                deadline: Date().addingTimeInterval(0.05),
+                deadline: Date().addingTimeInterval(0.5),
                 start: first.capture)
+        }
+        let captured = await first.waitUntilCaptured()
+        #expect(captured)
+
+        do {
+            try await firstMutation.value
             Issue.record("Expected first mutation timeout")
         } catch let error as URLError {
             #expect(error.code == .timedOut)
@@ -304,7 +324,7 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         let second = Task { @MainActor in
             try await OpenAIDashboardBrowserCookieImporter.runSerializedCallback(
                 key: key,
-                deadline: Date().addingTimeInterval(1))
+                deadline: Date().addingTimeInterval(5))
             { completion in
                 secondStarted.set()
                 completion()

@@ -133,6 +133,12 @@ swift test --filter 'LocalizationLanguageCatalogTests|TokenAccountSyncCoverageTe
 swift test --filter 'CodexLoginRunnerTests|SubprocessRunnerTests|AntigravityDeadlineTests|AntigravityQuotaSummaryTests|CommandCodeUsageFetcherTests|DeepSeekUsageFetcherTests|KimiUsageResponseParsingTests|CLIServeRouterTests|OpenAIDashboardBrowserCookieImporterTests|MemoryPressureCacheTrimTests'
 # passed: 148 tests / 10 suites
 
+swift test --filter 'OpenAIDashboardBrowserCookieImporterTests|AdaptiveRefreshTimerTests|MockProviderInjectorIntegrationTests'
+# passed: 67 tests / 3 suites
+
+swift test --parallel --num-workers 1 --filter 'CodexLoginRunnerTests|SubprocessRunnerTests|AntigravityDeadlineTests|AntigravityQuotaSummaryTests|AntigravityCLIHTTPSFetchStrategyTests|CommandCodeUsageFetcherTests|DeepSeekUsageFetcherTests|KimiUsageResponseParsingTests|CLIServeRouterTests|MemoryPressureCacheTrimTests'
+# passed: 166 tests / 10 suites
+
 cd CodexBarMobile && xcodegen generate
 # passed
 
@@ -158,17 +164,31 @@ Full Mac suite residual:
 
 ```text
 swift test
-# failed after 44.553s with 19 issues
+# failed after 44.553s with 19 issues before follow-up test stabilization
+
+swift test --jobs 1
+# failed after 76.394s with 16 issues; --jobs only limits build concurrency
+
+swift test --parallel --num-workers 1
+# failed after 60.928s with 14 issues
 ```
 
-The failing cases were timing-sensitive elapsed-time or queue-completion
-assertions in pre-existing suites such as `CodexLoginRunnerTests`,
-`SubprocessRunnerTests`, `AntigravityQuotaSummaryTests`,
-`AntigravityDeadlineTests`, `CommandCodeUsageFetcherTests`,
-`DeepSeekUsageFetcherTests`, `KimiUsageResponseParsingTests`,
-`OpenAIDashboardBrowserCookieImporterTests`, `MemoryPressureCacheTrimTests`,
-and `AdaptiveRefreshTimerTests`. The directly affected upstream-sync suites and
-the timing-sensitive subset rerun in isolation passed.
+Follow-up stabilization fixed the compile-time `#expect` argument issue in
+`MockProviderInjectorIntegrationTests`, made `OpenAIDashboardBrowserCookieImporterTests`
+wait for serialized cookie work to enter the queue before asserting timeout
+ordering, and made the adaptive timer restart assertions wait for the startup
+refresh count to settle. The focused suites covering those changes pass.
+
+The remaining full-suite failures are still timing-sensitive elapsed-time or
+queue-completion assertions in pre-existing suites such as
+`CodexLoginRunnerTests`, `SubprocessRunnerTests`,
+`AntigravityQuotaSummaryTests`, `AntigravityDeadlineTests`,
+`CommandCodeUsageFetcherTests`, `DeepSeekUsageFetcherTests`,
+`KimiUsageResponseParsingTests`, `CLIServeRouterTests`, and
+`MemoryPressureCacheTrimTests`. The same residual cluster passes when isolated
+with `swift test --parallel --num-workers 1 --filter ...`, so the unresolved
+risk is full-repo runner saturation/shared scheduling, not the v0.39 provider
+mapping itself.
 
 ## Draft Release Evidence
 
