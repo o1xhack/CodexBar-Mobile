@@ -107,6 +107,7 @@ extension UsageStore {
 
 @MainActor
 @Observable
+// swiftlint:disable:next type_body_length
 final class UsageStore {
     nonisolated static let resetBoundaryRefreshGraceSeconds: TimeInterval = 30
     nonisolated static let resetBoundaryRefreshMinimumDelaySeconds: TimeInterval = 5

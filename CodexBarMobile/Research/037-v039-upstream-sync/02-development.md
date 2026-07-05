@@ -111,6 +111,12 @@ Result:
   CrossModel is an optional JSON field inside the existing compressed provider
   payload, and no CloudKit record type/zone/subscription/index changes were
   made in code.
+- Release-gate cleanup fixed `Scripts/sign-and-notarize.sh` so release
+  packaging runs with `CODEXBAR_SIGNING=identity`, allowing
+  `package_app.sh release` to embed the local provisioning profile before
+  notarization and launch verification.
+- Two pre-existing iOS 1.16 nomination screenshots were truecolor-optimized
+  below the 2 MiB repository-size gate introduced by upstream lint checks.
 - The GitHub draft release step is intentionally not run from a dirty tree.
   `Scripts/release.sh` phase 1 also pushes the release tag to `origin`, so the
   final remote draft boundary needs explicit confirmation if the active goal

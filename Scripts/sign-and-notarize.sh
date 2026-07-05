@@ -66,7 +66,8 @@ ARCH_LIST=( ${ARCHES_VALUE} )
 for ARCH in "${ARCH_LIST[@]}"; do
   swift build -c release --arch "$ARCH"
 done
-CODEXBAR_STAGED_APP_PATH="$STAGED_APP_BUNDLE" CODEXBAR_WIDGET_METADATA_MODE=required ARCHES="${ARCHES_VALUE}" ./Scripts/package_app.sh release
+CODEXBAR_STAGED_APP_PATH="$STAGED_APP_BUNDLE" CODEXBAR_WIDGET_METADATA_MODE=required ARCHES="${ARCHES_VALUE}" \
+  CODEXBAR_SIGNING=identity ./Scripts/package_app.sh release
 APP_BUNDLE="$STAGED_APP_BUNDLE"
 
 ENTITLEMENTS_DIR="$ROOT/.build/entitlements"

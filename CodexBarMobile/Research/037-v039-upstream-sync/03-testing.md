@@ -54,6 +54,19 @@ Notes:
 
 Verdict: no CloudKit Dashboard deploy required for this release.
 
+Post-commit documented audit form matched the same result:
+
+```text
+git diff v0.37.2.1-mobile.1.15.0..HEAD -- Shared/iCloud/CloudConstants.swift
+# no output
+
+git diff v0.37.2.1-mobile.1.15.0..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*public let|^-.*public let"
++    public let crossModelUsage: SyncCrossModelUsage?
+
+git diff v0.37.2.1-mobile.1.15.0..HEAD -- ':(exclude)docs' ':(exclude)CodexBarMobile/Research' | grep -E "^\+.*(recordType|CKRecordZone\(|addIndex|querySchema|CKContainer|providerPayloadVersion|CKQuerySubscription|encodingVersion)"
+# no code output
+```
+
 ## 2 Mac x 2 iPhone Old/New Compatibility Matrix
 
 Definitions for this release:
@@ -129,6 +142,16 @@ simulator iPhone 17, iOS 26.5
 
 bash Scripts/changelog-to-html.sh 0.39.0.1
 # passed; extracted "CodexBar 0.39.0.1-Mobile 1.17.0"
+
+bash Scripts/lint.sh audit-parser-version
+# passed: parser code changed AND parserLogicVersion bumped
+
+bash Scripts/lint.sh lint
+# passed after release-gate cleanup:
+# - package signing fixture passes because sign-and-notarize packages with CODEXBAR_SIGNING=identity;
+# - repository-size gate passes after optimizing two pre-existing 1.16 nomination PNGs below 2 MiB;
+# - SwiftLint passes with scoped suppressions for existing oversized store declarations;
+# - iOS xcstrings audit passes with all 370 source keys present.
 ```
 
 Full Mac suite residual:
@@ -146,12 +169,6 @@ assertions in pre-existing suites such as `CodexLoginRunnerTests`,
 `OpenAIDashboardBrowserCookieImporterTests`, `MemoryPressureCacheTrimTests`,
 and `AdaptiveRefreshTimerTests`. The directly affected upstream-sync suites and
 the timing-sensitive subset rerun in isolation passed.
-
-Commit-dependent gates still to rerun after the bridge commit:
-
-- `bash Scripts/lint.sh audit-parser-version`
-- `bash Scripts/lint.sh lint`
-- documented `v0.37.2.1-mobile.1.15.0..HEAD` CloudKit audit form
 
 ## Draft Release Evidence
 

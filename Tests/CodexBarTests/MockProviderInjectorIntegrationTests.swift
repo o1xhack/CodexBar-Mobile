@@ -110,7 +110,8 @@ struct MockProviderInjectorIntegrationTests {
         // v0.38/v0.39 added four more.
         #expect(
             uniqueIDs.count == 59,
-            "should be 59 distinct mock provider IDs (57 real + 2 synthetic; v0.39 added Sakana/Qoder/CrossModel/ClawRouter)")
+            "should be 59 distinct mock provider IDs " +
+                "(57 real + 2 synthetic; v0.39 added Sakana/Qoder/CrossModel/ClawRouter)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
