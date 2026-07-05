@@ -172,7 +172,7 @@ the timing-sensitive subset rerun in isolation passed.
 
 ## Draft Release Evidence
 
-Not yet run.
+Local artifact build completed.
 
 `Scripts/release.sh` phase 1 is the repo's Mac draft release path. It performs
 a clean-worktree check, runs `bash Scripts/lint.sh lint`, builds/signs/notarizes
@@ -181,17 +181,43 @@ creates a GitHub draft release.
 
 Because phase 1 publishes a remote tag and creates a remote draft release, it
 must not be run unless that remote side effect is explicitly authorized by the
-active release boundary. Local signing/notarization can still be run separately
-after the commit if a local artifact-only draft is acceptable.
+active release boundary. The local artifact-only path was run with
+`./Scripts/sign-and-notarize.sh`.
 
-Required evidence:
+Local artifact evidence:
 
-- artifact names;
-- notarization/signing result;
-- GitHub draft release URL;
-- Sparkle version and short version;
-- appcast generation status;
-- remaining live-release steps not executed.
+```text
+./Scripts/sign-and-notarize.sh
+# notarization accepted, submission id 28159ee0-a1ce-453c-9f34-25fdc05aa2a2
+# stapler validate passed
+# direct launch verification passed
+# Done: CodexBar-0.39.0.1-mobile.1.17.0.zip
+
+CodexBar-0.39.0.1-mobile.1.17.0.zip       44M (du: 45M)
+CodexBar-0.39.0.1-mobile.1.17.0.dSYM.zip  34M (du: 35M)
+CodexBar.app                              107M
+
+CFBundleShortVersionString: 0.39.0.1
+CFBundleVersion: 97.1.1.17.0
+codesign --verify --deep --strict --verbose=2 CodexBar.app
+# valid on disk; satisfies Designated Requirement
+spctl --assess --type execute --verbose CodexBar.app
+# accepted; source=Notarized Developer ID
+```
+
+GitHub draft release URL: not created. Remote tag
+`v0.39.0.1-mobile.1.17.0` was not pushed.
+
+Appcast generation status: not run. `appcast.xml` was not changed.
+
+Remaining release steps:
+
+- commit the Xcode package identity normalization from the widget build;
+- if remote draft release is authorized, run `./Scripts/release.sh` phase 1
+  from a clean tree; it should reuse the existing zip/dSYM artifacts;
+- do not run `./Scripts/release.sh --finalize`, publish appcast, push
+  `mobile-dev`, upload TestFlight, or deploy CloudKit without explicit
+  confirmation.
 
 ## Review
 

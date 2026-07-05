@@ -221,6 +221,8 @@ Still not authorized without explicit confirmation:
 - Focused Mac gates and the full iOS simulator scheme pass. Full Mac
   `swift test` still has timing-sensitive residual failures outside the
   upstream-sync surface; see `03-testing.md`.
-- Mac GitHub draft release has not been run yet because `Scripts/release.sh`
+- Local Mac artifacts were built, signed, notarized, stapled, launch-verified,
+  zipped, and dSYM-packaged with `Scripts/sign-and-notarize.sh`.
+- Mac GitHub draft release has not been run because `Scripts/release.sh`
   phase 1 publishes the release tag to `origin` and creates a remote draft
   release.
