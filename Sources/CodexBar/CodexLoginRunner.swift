@@ -123,21 +123,16 @@ struct CodexLoginRunner {
     }
 
     private static func wait(timeout: TimeInterval, termination: ProcessTermination) async -> Bool {
-        let timeoutTask = Task.detached(priority: .userInitiated) {
-            try? await Task.sleep(nanoseconds: self.timeoutNanoseconds(timeout))
-            if Task.isCancelled == false {
+        let timeoutTimer = WallClockTimeout(
+            timeInterval: timeout,
+            threadName: "CodexBar login timeout",
+            handler: {
                 termination.resolve(timedOut: true)
-            }
-        }
+            })
+        timeoutTimer.start()
         let timedOut = await termination.wait()
-        timeoutTask.cancel()
+        timeoutTimer.cancel()
         return timedOut
-    }
-
-    private static func timeoutNanoseconds(_ timeout: TimeInterval) -> UInt64 {
-        guard timeout.isFinite else { return UInt64.max }
-        let seconds = max(0, min(timeout, Double(UInt64.max) / 1_000_000_000))
-        return UInt64(seconds * 1_000_000_000)
     }
 
     private static func terminate(_ process: Process, processGroup: pid_t?) {

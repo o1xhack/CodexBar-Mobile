@@ -38,10 +38,6 @@ public struct SubprocessResult: Sendable {
 
 public enum SubprocessRunner {
     private static let log = CodexBarLog.logger(LogCategories.subprocess)
-    private static let timeoutQueue = DispatchQueue(
-        label: "com.steipete.codexbar.subprocess.timeout",
-        qos: .userInitiated,
-        attributes: .concurrent)
 
     /// Thread-safe flag for communicating between concurrent tasks (e.g. timeout → caller).
     private final class KillFlag: @unchecked Sendable {
@@ -55,26 +51,6 @@ public enum SubprocessRunner {
         var isSet: Bool {
             self.lock.withLock { self.value }
         }
-    }
-
-    private final class TimeoutTimer: @unchecked Sendable {
-        private let timer: any DispatchSourceTimer
-
-        init(timer: any DispatchSourceTimer) {
-            self.timer = timer
-        }
-
-        func cancel() {
-            self.timer.cancel()
-        }
-    }
-
-    private static func timeoutInterval(_ timeout: TimeInterval) -> DispatchTimeInterval {
-        guard timeout.isFinite else {
-            return .seconds(Int.max)
-        }
-        let nanoseconds = max(0, min(timeout * 1_000_000_000, Double(Int.max)))
-        return .nanoseconds(Int(nanoseconds))
     }
 
     private final class ProcessTermination: @unchecked Sendable {
@@ -207,15 +183,15 @@ public enum SubprocessRunner {
         }
 
         let killedByTimeout = KillFlag()
-        let timeoutTimer = DispatchSource.makeTimerSource(queue: self.timeoutQueue)
-        timeoutTimer.schedule(deadline: .now() + self.timeoutInterval(timeout))
-        timeoutTimer.setEventHandler {
-            guard process.isRunning else { return }
-            killedByTimeout.set()
-            self.terminateProcess(process, processGroup: processGroup)
-        }
-        timeoutTimer.resume()
-        let timeoutTimerBox = TimeoutTimer(timer: timeoutTimer)
+        let timeoutTimer = WallClockTimeout(
+            timeInterval: timeout,
+            threadName: "CodexBar subprocess timeout",
+            handler: {
+                guard process.isRunning else { return }
+                killedByTimeout.set()
+                self.terminateProcess(process, processGroup: processGroup)
+            })
+        timeoutTimer.start()
 
         do {
             let exitCode = try await withTaskCancellationHandler {
@@ -224,10 +200,10 @@ public enum SubprocessRunner {
                 try Task.checkCancellation()
                 return code
             } onCancel: {
-                timeoutTimerBox.cancel()
+                timeoutTimer.cancel()
                 self.terminateProcess(process, processGroup: processGroup)
             }
-            timeoutTimerBox.cancel()
+            timeoutTimer.cancel()
 
             let duration = Date().timeIntervalSince(start)
             // Race guard: the timeout timer may kill the process just before the

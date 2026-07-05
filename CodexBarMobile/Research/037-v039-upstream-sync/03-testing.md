@@ -136,8 +136,14 @@ swift test --filter 'CodexLoginRunnerTests|SubprocessRunnerTests|AntigravityDead
 swift test --filter 'OpenAIDashboardBrowserCookieImporterTests|AdaptiveRefreshTimerTests|MockProviderInjectorIntegrationTests'
 # passed: 67 tests / 3 suites
 
+swift test --filter 'SubprocessRunnerTests|CodexLoginRunnerTests|CommandCodeUsageFetcherTests|DeepSeekUsageFetcherTests|KimiUsageResponseParsingTests|CLIServeRouterTests|OpenAIDashboardBrowserCookieImporterTests'
+# passed after wall-clock timeout hardening: 130 tests / 7 suites
+
 swift test --parallel --num-workers 1 --filter 'CodexLoginRunnerTests|SubprocessRunnerTests|AntigravityDeadlineTests|AntigravityQuotaSummaryTests|AntigravityCLIHTTPSFetchStrategyTests|CommandCodeUsageFetcherTests|DeepSeekUsageFetcherTests|KimiUsageResponseParsingTests|CLIServeRouterTests|MemoryPressureCacheTrimTests'
-# passed: 166 tests / 10 suites
+# passed after wall-clock timeout hardening: 166 tests / 10 suites
+
+swift test --no-parallel --jobs 1
+# passed: 5551 tests / 564 suites in 266.617 seconds
 
 cd CodexBarMobile && xcodegen generate
 # passed
@@ -171,24 +177,33 @@ swift test --jobs 1
 
 swift test --parallel --num-workers 1
 # failed after 60.928s with 14 issues
+
+swift test --parallel --num-workers 1
+# failed after wall-clock timeout hardening in 78.108s with 23 issues
 ```
 
 Follow-up stabilization fixed the compile-time `#expect` argument issue in
 `MockProviderInjectorIntegrationTests`, made `OpenAIDashboardBrowserCookieImporterTests`
 wait for serialized cookie work to enter the queue before asserting timeout
-ordering, and made the adaptive timer restart assertions wait for the startup
-refresh count to settle. The focused suites covering those changes pass.
+ordering, made the adaptive timer restart assertions wait for the startup
+refresh count to settle, and moved shared timeout callbacks from cooperative
+task sleeps / Dispatch timers to `WallClockTimeout` for
+`BoundedTaskJoin`, `SubprocessRunner`, `CodexLoginRunner`, and OpenAI cookie
+deadline helpers. The focused suites covering those changes pass.
 
-The remaining full-suite failures are still timing-sensitive elapsed-time or
-queue-completion assertions in pre-existing suites such as
+The remaining `swift test --parallel --num-workers 1` full-run failures are
+still timing-sensitive elapsed-time or queue-completion assertions in
+pre-existing suites such as
 `CodexLoginRunnerTests`, `SubprocessRunnerTests`,
 `AntigravityQuotaSummaryTests`, `AntigravityDeadlineTests`,
 `CommandCodeUsageFetcherTests`, `DeepSeekUsageFetcherTests`,
 `KimiUsageResponseParsingTests`, `CLIServeRouterTests`, and
 `MemoryPressureCacheTrimTests`. The same residual cluster passes when isolated
-with `swift test --parallel --num-workers 1 --filter ...`, so the unresolved
-risk is full-repo runner saturation/shared scheduling, not the v0.39 provider
-mapping itself.
+with `swift test --parallel --num-workers 1 --filter ...`, and the complete
+Mac suite passes with `swift test --no-parallel --jobs 1`. Treat the explicit
+no-parallel full suite as the release gate; do not use the overloaded
+full-repo `--parallel --num-workers 1` run as a release blocker unless the
+test runner scheduling model changes.
 
 ## Draft Release Evidence
 
@@ -234,8 +249,8 @@ Remaining release steps:
 
 - if remote draft release is authorized, run `./Scripts/release.sh` phase 1
   from a clean tree; it should reuse the existing zip/dSYM artifacts;
-- resolve the full Mac `swift test` timing residual, or explicitly accept the
-  documented focused-pass/subset-pass evidence for this release train;
+- if a parallel full-suite gate is required in the future, split it into
+  smaller shards instead of running all 564 suites in one parallel worker burst;
 - do not run `./Scripts/release.sh --finalize`, publish appcast, push
   `mobile-dev`, upload TestFlight, or deploy CloudKit without explicit
   confirmation.

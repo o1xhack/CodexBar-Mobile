@@ -12,7 +12,7 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
     private var outcome: BoundedTaskJoinOutcome<Value>?
     private var continuation: CheckedContinuation<BoundedTaskJoinOutcome<Value>, Never>?
     private var observerTask: Task<Void, Never>?
-    private var timeoutTask: Task<Void, Never>?
+    private var timeoutTimer: TimeoutTimer?
 
     package init(sourceTask: Task<Value, Error>) {
         self.sourceTask = sourceTask
@@ -38,20 +38,34 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
                         self?.resolve(.failure(error), cancelSource: false)
                     }
                 }
-                self.timeoutTask = Task { [weak self] in
-                    do {
-                        if joinGrace > .zero {
-                            try await Task.sleep(for: joinGrace)
-                        }
-                        self?.resolve(.timedOut, cancelSource: true)
-                    } catch {
-                        // The source completed or the caller canceled the race.
-                    }
+                let timeoutTimer = TimeoutTimer(joinGrace: joinGrace) { [weak self] in
+                    self?.resolve(.timedOut, cancelSource: true)
                 }
+                self.timeoutTimer = timeoutTimer
+                timeoutTimer.resume()
                 self.lock.unlock()
             }
         } onCancel: {
             self.resolve(.failure(CancellationError()), cancelSource: true)
+        }
+    }
+
+    private final class TimeoutTimer: @unchecked Sendable {
+        private let timer: WallClockTimeout
+
+        init(joinGrace: Duration, handler: @escaping @Sendable () -> Void) {
+            self.timer = WallClockTimeout(
+                duration: joinGrace,
+                threadName: "CodexBar bounded task timeout",
+                handler: handler)
+        }
+
+        func resume() {
+            self.timer.start()
+        }
+
+        func cancel() {
+            self.timer.cancel()
         }
     }
 
@@ -66,16 +80,16 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
         let continuation = self.continuation
         self.continuation = nil
         let observerTask = self.observerTask
-        let timeoutTask = self.timeoutTask
+        let timeoutTimer = self.timeoutTimer
         self.observerTask = nil
-        self.timeoutTask = nil
+        self.timeoutTimer = nil
         self.lock.unlock()
 
         if cancelSource {
             self.sourceTask.cancel()
         }
         observerTask?.cancel()
-        timeoutTask?.cancel()
+        timeoutTimer?.cancel()
         continuation?.resume(returning: outcome)
     }
 }

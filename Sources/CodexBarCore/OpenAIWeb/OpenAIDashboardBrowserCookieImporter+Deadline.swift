@@ -10,9 +10,6 @@ extension OpenAIDashboardBrowserCookieImporter {
     @MainActor private static var pendingCookieStoreMutations: [ObjectIdentifier: PendingCookieStoreMutation] = [:]
     private nonisolated static let cookieCacheQueue = DispatchQueue(
         label: "com.steipete.codexbar.openai-cookie-cache")
-    private nonisolated static let deadlineQueue = DispatchQueue(
-        label: "com.steipete.codexbar.openai-cookie-deadline",
-        qos: .userInitiated)
 
     private final class CookieLoadCompletion: @unchecked Sendable {
         private let lock = NSLock()
@@ -53,16 +50,23 @@ extension OpenAIDashboardBrowserCookieImporter {
         let timeout = try self.remainingTimeout(until: deadline)
         let completion = CookieLoadCompletion()
         return try await withCheckedThrowingContinuation { continuation in
+            let timeoutTimer = WallClockTimeout(
+                timeInterval: timeout,
+                threadName: "CodexBar cookie load timeout",
+                handler: {
+                    completion.finish {
+                        timeoutObserver?()
+                        continuation.resume(throwing: URLError(.timedOut))
+                    }
+                })
             DispatchQueue.global(qos: .userInitiated).async {
                 let result = Result(catching: operation)
-                completion.finish { continuation.resume(with: result) }
-            }
-            self.deadlineQueue.asyncAfter(deadline: .now() + timeout) {
                 completion.finish {
-                    timeoutObserver?()
-                    continuation.resume(throwing: URLError(.timedOut))
+                    timeoutTimer.cancel()
+                    continuation.resume(with: result)
                 }
             }
+            timeoutTimer.start()
         }
     }
 
@@ -81,13 +85,22 @@ extension OpenAIDashboardBrowserCookieImporter {
         let timeout = try self.remainingTimeout(until: deadline)
         let completion = CookieLoadCompletion()
         return try await withCheckedThrowingContinuation { continuation in
+            let timeoutTimer = WallClockTimeout(
+                timeInterval: timeout,
+                threadName: "CodexBar cookie cache timeout",
+                handler: {
+                    completion.finish {
+                        continuation.resume(throwing: URLError(.timedOut))
+                    }
+                })
             self.cookieCacheQueue.async {
                 let result = Result(catching: operation)
-                completion.finish { continuation.resume(with: result) }
+                completion.finish {
+                    timeoutTimer.cancel()
+                    continuation.resume(with: result)
+                }
             }
-            self.deadlineQueue.asyncAfter(deadline: .now() + timeout) {
-                completion.finish { continuation.resume(throwing: URLError(.timedOut)) }
-            }
+            timeoutTimer.start()
         }
     }
 
@@ -108,15 +121,22 @@ extension OpenAIDashboardBrowserCookieImporter {
 
         let timeout = try self.remainingTimeout(until: deadline)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let timeoutTimer = WallClockTimeout(
+                timeInterval: timeout,
+                threadName: "CodexBar callback timeout",
+                handler: {
+                    completion.finish {
+                        timeoutObserver?()
+                        continuation.resume(throwing: URLError(.timedOut))
+                    }
+                })
             start {
-                completion.finish { continuation.resume() }
-            }
-            self.deadlineQueue.asyncAfter(deadline: .now() + timeout) {
                 completion.finish {
-                    timeoutObserver?()
-                    continuation.resume(throwing: URLError(.timedOut))
+                    timeoutTimer.cancel()
+                    continuation.resume()
                 }
             }
+            timeoutTimer.start()
         }
     }
 
@@ -136,15 +156,22 @@ extension OpenAIDashboardBrowserCookieImporter {
 
         let timeout = try self.remainingTimeout(until: deadline)
         return try await withCheckedThrowingContinuation { continuation in
+            let timeoutTimer = WallClockTimeout(
+                timeInterval: timeout,
+                threadName: "CodexBar value callback timeout",
+                handler: {
+                    completion.finish {
+                        timeoutObserver?()
+                        continuation.resume(throwing: URLError(.timedOut))
+                    }
+                })
             start { value in
-                completion.finish { continuation.resume(returning: value) }
-            }
-            self.deadlineQueue.asyncAfter(deadline: .now() + timeout) {
                 completion.finish {
-                    timeoutObserver?()
-                    continuation.resume(throwing: URLError(.timedOut))
+                    timeoutTimer.cancel()
+                    continuation.resume(returning: value)
                 }
             }
+            timeoutTimer.start()
         }
     }
 
