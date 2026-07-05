@@ -273,10 +273,40 @@ annotated tag, runs `git push -f origin "$TAG"`, then runs
 remote tag push/draft creation is intentionally not executed without explicit
 confirmation.
 
+No-tag-push GitHub draft attempt, 2026-07-04 18:56 PDT:
+
+```text
+TAG='v0.39.0.1-mobile.1.17.0'
+HEAD_SHA=$(git rev-parse HEAD)
+gh api repos/o1xhack/CodexBar-Mobile/releases \
+  --method POST \
+  -f tag_name="$TAG" \
+  -f target_commitish="$HEAD_SHA" \
+  -f name='CodexBar 0.39.0.1 Mobile 1.17.0' \
+  -f body="$(bash Scripts/changelog-to-html.sh 0.39.0.1)" \
+  -F draft=true \
+  -F prerelease=false
+# gh: Validation Failed (HTTP 422)
+# {"resource":"Release","code":"invalid","field":"target_commitish"}
+
+git ls-remote --tags origin v0.39.0.1-mobile.1.17.0
+# no output; remote release tag is still absent
+
+gh release view v0.39.0.1-mobile.1.17.0 --repo o1xhack/CodexBar-Mobile
+# release not found
+```
+
+Conclusion: GitHub rejected the unpublished local `HEAD` as a release target.
+An accurate remote draft release therefore needs either the release tag or the
+branch/commit to exist on `origin`. Both are remote push side effects, so this
+release remains at the local notarized-artifact stage until tag/branch push is
+explicitly authorized.
+
 Remaining release steps:
 
-- if remote draft release is authorized, run `./Scripts/release.sh` phase 1
-  from a clean tree; it should reuse the existing zip/dSYM artifacts;
+- if remote draft release plus release-tag push is authorized, run
+  `./Scripts/release.sh` phase 1 from a clean tree; it should reuse the
+  existing zip/dSYM artifacts;
 - if a parallel full-suite gate is required in the future, split it into
   smaller shards instead of running all 564 suites in one parallel worker burst;
 - do not run `./Scripts/release.sh --finalize`, publish appcast, push
