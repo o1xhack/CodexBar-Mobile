@@ -223,6 +223,7 @@ Still not authorized without explicit confirmation:
   upstream-sync surface; see `03-testing.md`.
 - Local Mac artifacts were built, signed, notarized, stapled, launch-verified,
   zipped, and dSYM-packaged with `Scripts/sign-and-notarize.sh`.
+- Local final diff review is complete with no blocking implementation findings.
 - Mac GitHub draft release has not been run because `Scripts/release.sh`
   phase 1 publishes the release tag to `origin` and creates a remote draft
   release.

@@ -212,13 +212,38 @@ Appcast generation status: not run. `appcast.xml` was not changed.
 
 Remaining release steps:
 
-- commit the Xcode package identity normalization from the widget build;
 - if remote draft release is authorized, run `./Scripts/release.sh` phase 1
   from a clean tree; it should reuse the existing zip/dSYM artifacts;
+- resolve the full Mac `swift test` timing residual, or explicitly accept the
+  documented focused-pass/subset-pass evidence for this release train;
 - do not run `./Scripts/release.sh --finalize`, publish appcast, push
   `mobile-dev`, upload TestFlight, or deploy CloudKit without explicit
   confirmation.
 
 ## Review
 
-Pending final diff review after commit-dependent gates.
+Local final diff review completed after the artifact-evidence commit.
+
+Reviewed areas:
+
+- `Shared/Models/UsageSnapshot.swift` and `Shared/Models/V039Snapshots.swift`:
+  `crossModelUsage` is additive, optional, decoded with `decodeIfPresent`, and
+  preserved through `with(quotaWarnings:)`.
+- `Sources/CodexBar/Sync/SyncCoordinator.swift`: CrossModel mapping is
+  provider-gated; generic cost summary data remains preferred before the
+  CrossModel native fallback.
+- `CodexBarMobile/CodexBarMobile/Views/CrossModelUsageCard.swift` and
+  `ProviderDetailView.swift`: iOS renders the dedicated card only when the
+  CrossModel provider ID and typed payload are both present.
+- `Shared/Notifications/QuotaProviderList.swift`,
+  `MockProviderInjector.swift`, and provider color tests: the four v0.38/v0.39
+  providers are registered without changing earlier provider ordering.
+- `Scripts/sign-and-notarize.sh`, `Scripts/package_app.sh`, and
+  `Scripts/test_package_signing.sh`: release packaging now uses identity
+  signing when the notarization path stages the app.
+- `Scripts/release.sh`: phase 1 still pushes tag
+  `v0.39.0.1-mobile.1.17.0` to `origin` before creating a GitHub draft release,
+  so it was not run under the current no-tag-publish boundary.
+
+No blocking implementation findings were found in the local review. Remaining
+open items are release-policy/test-evidence items, not unreviewed code paths.

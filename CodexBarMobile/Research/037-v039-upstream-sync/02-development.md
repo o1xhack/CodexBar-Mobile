@@ -50,12 +50,15 @@ Result:
 5. Update version files, changelogs, release notes, localization, tests, and
    mock/preview data. Done.
 6. Run build/lint/test gates and compatibility matrix substitutions or real
-   hardware evidence. In progress; focused gates and iOS simulator gate pass,
-   full Mac `swift test` has existing timing residuals recorded in
-   `03-testing.md`.
-7. Run draft release prep and record artifact evidence. Pending clean commit and
-   explicit boundary decision for remote tag/GitHub draft creation.
-8. Run final review loop and fix all blockers. Pending.
+   hardware evidence. Focused gates and the iOS simulator gate pass; full Mac
+   `swift test` still has timing residuals recorded in `03-testing.md`, so the
+   release acceptance gate remains in-progress.
+7. Run draft release prep and record artifact evidence. Local signed/notarized
+   artifacts are done; remote tag/GitHub draft creation remains gated on
+   explicit authorization.
+8. Run final review loop and fix all blockers. Local final diff review is done
+   with no blocking implementation findings; remaining blockers are the remote
+   draft/tag boundary and the full-suite timing residual.
 
 ## Merge Notes
 
@@ -117,7 +120,11 @@ Result:
   notarization and launch verification.
 - Two pre-existing iOS 1.16 nomination screenshots were truecolor-optimized
   below the 2 MiB repository-size gate introduced by upstream lint checks.
-- The GitHub draft release step is intentionally not run from a dirty tree.
-  `Scripts/release.sh` phase 1 also pushes the release tag to `origin`, so the
-  final remote draft boundary needs explicit confirmation if the active goal
-  does not already authorize tag publication.
+- Local final review covered the additive `crossModelUsage` wire field,
+  `SyncCoordinator` mapping, CrossModel iOS detail rendering, quota-provider
+  registration, mock inventory, provider colors, package-signing release gate,
+  and current Research evidence. No blocking implementation issue was found.
+- `Scripts/release.sh` phase 1 pushes the release tag to `origin` before
+  creating the GitHub draft release, so the final remote draft boundary needs
+  explicit confirmation if the active goal does not already authorize tag
+  publication.
