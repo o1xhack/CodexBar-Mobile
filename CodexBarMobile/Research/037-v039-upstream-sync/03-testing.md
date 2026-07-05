@@ -245,6 +245,34 @@ GitHub draft release URL: not created. Remote tag
 
 Appcast generation status: not run. `appcast.xml` was not changed.
 
+Current external recheck, 2026-07-04 18:53 PDT:
+
+```text
+gh release list --repo steipete/CodexBar --limit 5
+# latest upstream remains v0.39.0, published 2026-07-04T20:01:15Z
+
+gh issue list --repo o1xhack/CodexBar-Mobile --state open --search 'upstream-sync'
+# issue #37 remains the only open upstream-sync issue
+
+git ls-remote --tags origin v0.39.0.1-mobile.1.17.0
+# no output; remote release tag is absent
+
+gh release view v0.39.0.1-mobile.1.17.0 --repo o1xhack/CodexBar-Mobile
+# release not found
+
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' CodexBar.app/Contents/Info.plist
+# 0.39.0.1
+
+/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' CodexBar.app/Contents/Info.plist
+# 97.1.1.17.0
+```
+
+Release script boundary rechecked in `Scripts/release.sh`: phase 1 creates an
+annotated tag, runs `git push -f origin "$TAG"`, then runs
+`gh release create "$TAG" ... --draft`. Under the current goal boundary, this
+remote tag push/draft creation is intentionally not executed without explicit
+confirmation.
+
 Remaining release steps:
 
 - if remote draft release is authorized, run `./Scripts/release.sh` phase 1
