@@ -234,6 +234,7 @@
 "Picker subtitle" = "Subtítulo do seletor";
 "Placeholder" = "Texto de exemplo";
 "Plan" = "Plano";
+"Plan Usage" = "Uso do plano";
 "Play full-screen confetti when weekly usage resets." = "Mostra confete em tela cheia quando o uso semanal for renovado.";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "Consulta as páginas de status da OpenAI/Claude e o Google Workspace para ";
 "Prevents any Keychain access while enabled." = "Impede qualquer acesso ao Keychain quando ativado.";
@@ -301,12 +302,13 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Armazenado em ~/.codexbar/config.json. Cole sua chave de API do MiniMax.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "Armazenado em ~/.codexbar/config.json. Você também pode informar KILO_API_KEY ou ";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "Armazena histórico local de uso do Codex (8 semanas) para personalizar previsões de Ritmo.";
-"Subscription Utilization" = "Uso da assinatura";
 "Surprise me" = "Surpreenda-me";
 "Switcher shows icons" = "Alternador mostra ícones";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Cria symlink de CodexBarCLI em /usr/local/bin e /opt/homebrew/bin como codexbar.";
 "System" = "Sistema";
 "Temporarily shows the loading animation after the next refresh." = "Mostra temporariamente a animação de carregamento após a próxima atualização.";
+"terminal_app_subtitle" = "Terminal usado pela ação Abrir Terminal";
+"terminal_app_title" = "Terminal padrão";
 "Tertiary (\\(label))" = "Terciário (\\(label))";
 "Tertiary (\\(tertiaryTitle))" = "Terciário (\\(tertiaryTitle))";
 "The default Codex account on this Mac." = "A conta Codex padrão deste Mac.";
@@ -406,17 +408,31 @@
 "language_german" = "Deutsch";
 "language_french" = "Francês";
 "language_ukrainian" = "Ucraniano";
+"language_russian" = "Русский";
 "language_japanese" = "Japonês";
 "language_korean" = "Coreano";
 "start_at_login_title" = "Iniciar ao fazer login";
 "start_at_login_subtitle" = "Abre o CodexBar automaticamente ao iniciar o Mac.";
 "show_cost_summary" = "Mostrar resumo de custos";
 "show_cost_summary_subtitle" = "Lê logs de uso locais. Mostra o custo de hoje + janela selecionada no menu.";
+"cost_summary_style_title" = "Estilo de exibição";
+"cost_summary_style_inline" = "Somente embutido";
+"cost_summary_style_submenu" = "Somente submenu";
+"cost_summary_style_both" = "Ambos";
+"cost_summary_style_inline_help" = "Mostra o resumo de custos diretamente no menu principal.";
+"cost_summary_style_submenu_help" = "Mostra o submenu Custo detalhado em vez disso.";
+"cost_summary_style_both_help" = "Mostra o resumo no menu principal e o submenu Custo detalhado.";
+"cost_history_window_title" = "Janela do histórico";
+"cost_history_window_help" = "Define quantos dias de logs de uso locais aparecem no menu.";
 "cost_history_days_title" = "Janela do histórico: %d dias";
 "cost_auto_refresh_info" = "Atualização automática: a cada hora · Timeout: 10 min";
+"cost_comparison_periods_title" = "Mostrar períodos de comparação mais curtos";
+"cost_comparison_periods_subtitle" = "Adiciona totais de 7, 30 e 90 dias quando couberem na janela de histórico selecionada. Esses totais reutilizam a mesma varredura local.";
 "refresh_cadence_title" = "Cadência de atualização";
 "refresh_cadence_subtitle" = "Frequência com que o CodexBar consulta provedores em segundo plano.";
 "manual_refresh_hint" = "A atualização automática está desativada; use Atualizar no menu.";
+"refresh_on_open_title" = "Atualizar ao abrir o menu";
+"refresh_on_open_subtitle" = "Busca o uso mais recente de cada provedor sempre que você abre o menu.";
 "check_provider_status_title" = "Verificar status dos provedores";
 "check_provider_status_subtitle" = "Consulta páginas de status da OpenAI/Claude e o Google Workspace para Gemini/Antigravity, exibindo incidentes no ícone e no menu.";
 "session_quota_notifications_title" = "Notificações de cota de sessão";
@@ -438,6 +454,7 @@
 "quota_warning_warn_at" = "Alertar em";
 "quota_warning_global_threshold_subtitle" = "Percentuais restantes para as janelas de sessão e semanal, a menos que um provedor defina valores próprios.";
 "quota_warning_sound" = "Reproduzir som de notificação";
+"quota_warning_onscreen_alert" = "Mostrar alerta de texto na tela";
 "quota_warning_provider_inherits" = "Usa as configurações globais de alerta de cota, a menos que uma janela seja personalizada aqui.";
 "quota_warning_customize_thresholds" = "Personalizar limites de %@";
 "quota_warning_enable_warnings" = "Ativar alertas de %@";
@@ -535,6 +552,8 @@
 "show_debug_settings_subtitle" = "Exibe ferramentas de diagnóstico na aba Depuração.";
 "surprise_me_title" = "Surpreenda-me";
 "surprise_me_subtitle" = "Veja se você gosta dos seus agentes se divertindo ali em cima.";
+"session_limit_confetti_title" = "Confete do limite de sessão";
+"session_limit_confetti_subtitle" = "Mostra confete em tela cheia quando o uso da sessão for redefinido.";
 "weekly_limit_confetti_title" = "Confete do limite semanal";
 "weekly_limit_confetti_subtitle" = "Mostra confete em tela cheia quando o uso semanal for renovado.";
 "hide_personal_info_title" = "Ocultar informações pessoais";
@@ -638,6 +657,7 @@
 
 /* Provider status */
 "status_operational" = "Operacional";
+"status_degraded" = "Desempenho degradado";
 "status_partial_outage" = "Falha parcial";
 "status_major_outage" = "Falha geral";
 "status_critical_issue" = "Problema crítico";
@@ -651,6 +671,7 @@
 "refresh_5min" = "5 min";
 "refresh_15min" = "15 min";
 "refresh_30min" = "30 min";
+"refresh_adaptive" = "Adaptativo";
 
 /* Additional keys */
 "not_found" = "Não encontrado";
@@ -694,6 +715,7 @@
 "Add Account..." = "Adicionar conta...";
 "Usage Dashboard" = "Dashboard de uso";
 "Status Page" = "Página de status";
+"Open Status Page" = "Abrir página de status";
 "Settings..." = "Ajustes...";
 "About CodexBar" = "Sobre o CodexBar";
 "Quit" = "Encerrar";
@@ -708,7 +730,10 @@
 "Resets now" = "Renova agora";
 "reset_tomorrow_format" = "amanhã, %@";
 "Lasts until reset" = "Dura até a renovação";
+"1.5× headroom" = "folga de 1,5×";
 "Updated %@" = "Atualizado %@";
+"Updated relative %@" = "Atualizado %@";
+"Updated absolute %@" = "Atualizado %@";
 "Updated %@h ago" = "Atualizado há %@h";
 "Updated %@m ago" = "Atualizado há %@m";
 "Updated just now" = "Atualizado agora mesmo";
@@ -977,6 +1002,8 @@
 "Enterprise host" = "Host Enterprise";
 "Extra usage balance: %@" = "Saldo de uso extra: %@";
 "Keychain Access Required" = "Acesso ao Chaves necessário";
+"keychain_prompt_learn_more" = "Saiba mais…";
+"keychain_prompt_privacy_note" = "A digitação da senha de início de sessão do Mac é processada pelo macOS, não pelo CodexBar. Você pode desativar o acesso às Chaves a qualquer momento em Ajustes → Avançado.";
 "Kiro menu bar value" = "Valor do Kiro na barra de menu";
 "Label" = "Rótulo";
 "No organizations loaded. Click Refresh after setting your API key." = "Nenhuma organização carregada. Clique em Atualizar depois de definir sua chave API.";
@@ -1003,6 +1030,7 @@
 "Optional. Leave blank to discover and aggregate projects visible to the API key." = "Opcional. Deixe em branco para descobrir e agregar projetos visíveis à chave API.";
 "Org ID (optional)" = "ID da org. (opcional)";
 "Organizations" = "Organizações";
+"Organization ID" = "ID da organização";
 "Password" = "Senha";
 "%@ authentication is disabled." = "A autenticação de %@ está desativada.";
 "%@ cookies are disabled." = "Os cookies de %@ estão desativados.";
@@ -1056,6 +1084,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Armazenado em ~/.codexbar/config.json. Você também pode fornecer CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Armazenado em ~/.codexbar/config.json. Você também pode fornecer KILO_API_KEY ou ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "Cookie do T3 Chat";
+"Team mode" = "Modo de equipe";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "Essa conta não está mais disponível no CodexBar. Atualize a lista de contas e tente novamente.";
 "The browser login did not complete in time. Try Antigravity login again." = "O login no navegador não foi concluído a tempo. Tente o login do Antigravity novamente.";
 "Timed out waiting for Cursor login. %@" = "Tempo esgotado aguardando o login do Cursor. %@";
@@ -1094,10 +1123,13 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "Créditos de redefinição de limite";
-"1 manual reset available" = "1 redefinição manual disponível";
-"%d manual resets available" = "%d redefinições manuais disponíveis";
+"1 available" = "1 disponível";
+"%d available" = "%d disponíveis";
 "Next expires %@" = "Próximo expira %@";
+"Expires %@" = "Expira %@";
+"No expiry" = "Sem validade";
 "Other (%d items)" = "Outros (%d itens)";
 "Expand" = "Expandir";
 "Collapse" = "Recolher";
@@ -1109,3 +1141,15 @@
 "byte_unit_megabytes" = "megabytes";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabytes";
+"CrossModel API spend trend" = "Tendência de gastos da API CrossModel";
+
+/* Settings sidebar redesign */
+"Enable" = "Ativar";
+"Disable" = "Desativar";
+"providers_on_count" = "%d ativos";
+"section_cost_summary" = "Resumo de custos";
+"section_command_line" = "Linha de comando";
+"section_privacy" = "Privacidade";
+"section_diagnostics" = "Diagnósticos";
+"section_updates" = "Atualizações";
+"section_links" = "Links";

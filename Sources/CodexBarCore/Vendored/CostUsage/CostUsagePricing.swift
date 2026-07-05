@@ -633,6 +633,9 @@ enum CostUsagePricing {
         cachedInputTokens: Int,
         outputTokens: Int) -> Double
     {
+        // Codex/OpenAI reports `input_tokens` as the total prompt size, with cached reads as a
+        // SUBSET of it. Clamp cached to input and price only the remainder at the input rate so
+        // cached tokens are not billed twice (full input rate + cache rate).
         let cached = min(max(0, cachedInputTokens), max(0, inputTokens))
         let nonCached = max(0, inputTokens - cached)
         let cachedRate = pricing.cacheReadInputCostPerToken ?? pricing.inputCostPerToken
@@ -642,7 +645,7 @@ enum CostUsagePricing {
             ? pricing.inputCostPerTokenAboveThreshold ?? pricing.inputCostPerToken
             : pricing.inputCostPerToken
         let cachedInputRate = usesLongContextRates
-            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? cachedRate
+            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? pricing.cacheReadInputCostPerToken ?? inputRate
             : cachedRate
         let outputRate = usesLongContextRates
             ? pricing.outputCostPerTokenAboveThreshold ?? pricing.outputCostPerToken

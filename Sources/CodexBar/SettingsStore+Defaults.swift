@@ -13,6 +13,16 @@ extension SettingsStore {
         }
     }
 
+    /// When enabled, keeping the menu open through its short refresh delay fetches usage for every
+    /// enabled provider. The periodic refresh clock remains unchanged. See `scheduleOpenMenuRefresh`.
+    var refreshAllProvidersOnMenuOpen: Bool {
+        get { self.defaultsState.refreshAllProvidersOnMenuOpen }
+        set {
+            self.defaultsState.refreshAllProvidersOnMenuOpen = newValue
+            self.userDefaults.set(newValue, forKey: "refreshAllProvidersOnMenuOpen")
+        }
+    }
+
     var launchAtLogin: Bool {
         get { self.defaultsState.launchAtLogin }
         set {
@@ -170,6 +180,14 @@ extension SettingsStore {
         set {
             self.defaultsState.quotaWarningSoundEnabled = newValue
             self.userDefaults.set(newValue, forKey: "quotaWarningSoundEnabled")
+        }
+    }
+
+    var quotaWarningOnScreenAlertEnabled: Bool {
+        get { self.defaultsState.quotaWarningOnScreenAlertEnabled }
+        set {
+            self.defaultsState.quotaWarningOnScreenAlertEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "quotaWarningOnScreenAlertEnabled")
         }
     }
 
@@ -342,6 +360,27 @@ extension SettingsStore {
         }
     }
 
+    var costComparisonPeriodsEnabled: Bool {
+        get { self.defaultsState.costComparisonPeriodsEnabled }
+        set {
+            self.defaultsState.costComparisonPeriodsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "costComparisonPeriodsEnabled")
+        }
+    }
+
+    var costSummaryDisplayStyleRaw: String {
+        get { self.defaultsState.costSummaryDisplayStyleRaw }
+        set {
+            self.defaultsState.costSummaryDisplayStyleRaw = newValue
+            self.userDefaults.set(newValue, forKey: "costSummaryDisplayStyle")
+        }
+    }
+
+    var costSummaryDisplayStyle: CostSummaryDisplayStyle {
+        get { CostSummaryDisplayStyle(rawValue: self.costSummaryDisplayStyleRaw) ?? .both }
+        set { self.costSummaryDisplayStyleRaw = newValue.rawValue }
+    }
+
     var hidePersonalInfo: Bool {
         get { self.defaultsState.hidePersonalInfo }
         set {
@@ -355,6 +394,14 @@ extension SettingsStore {
         set {
             self.defaultsState.randomBlinkEnabled = newValue
             self.userDefaults.set(newValue, forKey: "randomBlinkEnabled")
+        }
+    }
+
+    var confettiOnSessionLimitResetsEnabled: Bool {
+        get { self.defaultsState.confettiOnSessionLimitResetsEnabled }
+        set {
+            self.defaultsState.confettiOnSessionLimitResetsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "confettiOnSessionLimitResetsEnabled")
         }
     }
 
@@ -388,9 +435,10 @@ extension SettingsStore {
     var claudeOAuthKeychainReadStrategy: ClaudeOAuthKeychainReadStrategy {
         get {
             guard let raw = self.defaultsState.claudeOAuthKeychainReadStrategyRaw else {
-                return .securityCLIExperimental
+                return .securityFramework
             }
-            return ClaudeOAuthKeychainReadStrategy(rawValue: raw) ?? .securityFramework
+            let strategy = ClaudeOAuthKeychainReadStrategy(rawValue: raw) ?? .securityFramework
+            return strategy == .securityCLIExperimental ? .securityFramework : strategy
         }
         set {
             self.defaultsState.claudeOAuthKeychainReadStrategyRaw = newValue.rawValue
@@ -399,11 +447,14 @@ extension SettingsStore {
     }
 
     var claudeOAuthPromptFreeCredentialsEnabled: Bool {
-        get { self.claudeOAuthKeychainReadStrategy == .securityCLIExperimental }
+        get { self.claudeOAuthKeychainPromptMode == .never }
         set {
-            self.claudeOAuthKeychainReadStrategy = newValue
-                ? .securityCLIExperimental
-                : .securityFramework
+            self.claudeOAuthKeychainReadStrategy = .securityFramework
+            if newValue {
+                self.claudeOAuthKeychainPromptMode = .never
+            } else if self.claudeOAuthKeychainPromptMode == .never {
+                self.claudeOAuthKeychainPromptMode = .onlyOnUserAction
+            }
         }
     }
 

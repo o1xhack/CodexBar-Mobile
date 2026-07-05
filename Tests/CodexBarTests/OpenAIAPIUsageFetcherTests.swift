@@ -111,6 +111,38 @@ struct OpenAIAPIUsageFetcherTests {
         #expect(snapshot.topModels.first?.totalTokens == 1800)
     }
 
+    @Test(arguments: ["NaN", "Infinity", "-Infinity", "1e309", "-1e309"])
+    func `rejects nonfinite cost strings`(value: String) {
+        let costs = """
+        {
+          "data": [{
+            "start_time": 1700000000,
+            "end_time": 1700086400,
+            "results": [{ "amount": { "value": "\(value)", "currency": "usd" } }]
+          }],
+          "has_more": false,
+          "next_page": null
+        }
+        """
+        let completions = #"{"data":[],"has_more":false,"next_page":null}"#
+
+        do {
+            _ = try OpenAIAPIUsageFetcher._parseSnapshotForTesting(
+                costs: Data(costs.utf8),
+                completions: Data(completions.utf8),
+                now: Date(timeIntervalSince1970: 1_700_179_200))
+            Issue.record("Expected a costs parse failure.")
+        } catch let error as OpenAIAPIUsageError {
+            guard case let .parseFailed(endpoint, _) = error else {
+                Issue.record("Expected a costs parse failure, got \(error).")
+                return
+            }
+            #expect(endpoint == "costs")
+        } catch {
+            Issue.record("Expected OpenAIAPIUsageError, got \(error).")
+        }
+    }
+
     @Test
     func `admin usage fetch pages long history within endpoint bucket limit`() async throws {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
@@ -385,14 +417,16 @@ struct OpenAIAPIUsageFetcherTests {
     }
 
     @Test
-    func `maps project scoped admin usage to cost token snapshot`() {
-        let now = Date(timeIntervalSince1970: 1_700_179_200)
+    func `maps project scoped admin usage to cost token snapshot`() throws {
+        let now = try Self.localNoon(year: 2023, month: 11, day: 17)
+        let firstDay = try Self.localNoon(year: 2023, month: 11, day: 13)
+        let secondDay = try Self.localNoon(year: 2023, month: 11, day: 14)
         let apiUsage = OpenAIAPIUsageSnapshot(
             daily: [
                 OpenAIAPIUsageSnapshot.DailyBucket(
                     day: "2023-11-13",
-                    startTime: now.addingTimeInterval(-86400),
-                    endTime: now,
+                    startTime: firstDay,
+                    endTime: firstDay.addingTimeInterval(86400),
                     costUSD: 2.25,
                     requests: 3,
                     inputTokens: 300,
@@ -411,8 +445,8 @@ struct OpenAIAPIUsageFetcherTests {
                     ]),
                 OpenAIAPIUsageSnapshot.DailyBucket(
                     day: "2023-11-14",
-                    startTime: now,
-                    endTime: now.addingTimeInterval(86400),
+                    startTime: secondDay,
+                    endTime: secondDay.addingTimeInterval(86400),
                     costUSD: 8.5,
                     requests: 42,
                     inputTokens: 1000,
@@ -442,9 +476,11 @@ struct OpenAIAPIUsageFetcherTests {
         #expect(usage.identity?.accountOrganization == "Project: proj_abc")
         #expect(snapshot.historyDays == 7)
         #expect(snapshot.currencyCode == "USD")
-        #expect(snapshot.sessionCostUSD == 8.5)
-        #expect(snapshot.sessionTokens == 1250)
-        #expect(snapshot.sessionRequests == 42)
+        #expect(apiUsage.currentDay.costUSD == 0)
+        #expect(apiUsage.currentDay.totalTokens == 0)
+        #expect(snapshot.sessionCostUSD == 0)
+        #expect(snapshot.sessionTokens == 0)
+        #expect(snapshot.sessionRequests == 0)
         #expect(snapshot.last30DaysCostUSD == 10.75)
         #expect(snapshot.last30DaysTokens == 1750)
         #expect(snapshot.last30DaysRequests == 45)
@@ -460,6 +496,10 @@ struct OpenAIAPIUsageFetcherTests {
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return nil }
         return components.queryItems?.first(where: { $0.name == name })?.value
+    }
+
+    private static func localNoon(year: Int, month: Int, day: Int) throws -> Date {
+        try #require(Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: 12)))
     }
 }
 

@@ -90,6 +90,7 @@ public enum ProviderDescriptorRegistry {
         .perplexity: PerplexityProviderDescriptor.descriptor,
         .mimo: MiMoProviderDescriptor.descriptor,
         .doubao: DoubaoProviderDescriptor.descriptor,
+        .sakana: SakanaProviderDescriptor.descriptor,
         .abacus: AbacusProviderDescriptor.descriptor,
         .mistral: MistralProviderDescriptor.descriptor,
         .deepseek: DeepSeekProviderDescriptor.descriptor,
@@ -97,6 +98,7 @@ public enum ProviderDescriptorRegistry {
         .crof: CrofProviderDescriptor.descriptor,
         .venice: VeniceProviderDescriptor.descriptor,
         .commandcode: CommandCodeProviderDescriptor.descriptor,
+        .qoder: QoderProviderDescriptor.descriptor,
         .stepfun: StepFunProviderDescriptor.descriptor,
         .bedrock: BedrockProviderDescriptor.descriptor,
         .grok: GrokProviderDescriptor.descriptor,
@@ -106,6 +108,8 @@ public enum ProviderDescriptorRegistry {
         .deepgram: DeepgramProviderDescriptor.descriptor,
         .poe: PoeProviderDescriptor.descriptor,
         .chutes: ChutesProviderDescriptor.descriptor,
+        .crossmodel: CrossModelProviderDescriptor.descriptor,
+        .clawrouter: ClawRouterProviderDescriptor.descriptor,
     ]
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {

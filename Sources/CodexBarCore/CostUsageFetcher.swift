@@ -116,7 +116,11 @@ public struct CostUsageFetcher: Sendable {
                 environment: environment,
                 since: since,
                 until: until)
-            return Self.tokenSnapshot(from: daily, now: now, historyDays: clampedHistoryDays)
+            return Self.tokenSnapshot(
+                from: daily,
+                now: now,
+                historyDays: clampedHistoryDays,
+                useCurrentLocalDayForSession: false)
         }
 
         var options = overrideScannerOptions ?? CostUsageScanner.Options()
@@ -161,7 +165,7 @@ public struct CostUsageFetcher: Sendable {
         // pool thread; CostUsageScanExecutor bridges this task's cancellation into the
         // scanner-level checks.
         let scanOptions = options
-        let daily = try await CostUsageScanExecutor.run { checkCancellation in
+        let scanResult = try await CostUsageScanExecutor.run { checkCancellation in
             var daily = try CostUsageScanner.loadDailyReportCancellable(
                 provider: provider,
                 since: since,
@@ -188,6 +192,15 @@ public struct CostUsageFetcher: Sendable {
                 try checkCancellation()
             }
 
+            var projects: [CostUsageProjectBreakdown] = []
+            var piDaily: CostUsageDailyReport?
+            if provider == .codex {
+                let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: scanOptions.cacheRoot)
+                projects = CostUsageScanner.buildCodexProjectBreakdownsFromCache(
+                    cache: cache,
+                    range: CostUsageScanner.CostUsageDayRange(since: since, until: until),
+                    modelsDevCacheRoot: scanOptions.cacheRoot)
+            }
             if provider == .codex || provider == .claude {
                 let piReport = try PiSessionCostScanner.loadDailyReportCancellable(
                     provider: provider,
@@ -197,12 +210,23 @@ public struct CostUsageFetcher: Sendable {
                     options: piOptions,
                     checkCancellation: checkCancellation)
                 try checkCancellation()
+                if provider == .codex {
+                    piDaily = piReport
+                }
                 daily = CostUsageDailyReport.merged([daily, piReport])
             }
-            return daily
+            if provider == .codex {
+                projects = Self.mergedProjectBreakdowns(
+                    projects + [piDaily.flatMap(Self.unknownProjectBreakdown(from:))].compactMap(\.self))
+            }
+            return (daily: daily, projects: projects)
         }
 
-        return Self.tokenSnapshot(from: daily, now: now, historyDays: clampedHistoryDays)
+        return Self.tokenSnapshot(
+            from: scanResult.daily,
+            now: now,
+            historyDays: clampedHistoryDays,
+            projects: scanResult.projects)
     }
 
     static func loadCachedCodexTokenSnapshot(
@@ -227,6 +251,7 @@ public struct CostUsageFetcher: Sendable {
             let options = overrideScannerOptions ?? CostUsageScanner.Options()
             let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: options.cacheRoot)
             var reports: [CostUsageDailyReport] = []
+            var projects: [CostUsageProjectBreakdown] = []
 
             if !cache.days.isEmpty,
                cache.roots == CostUsageScanner.codexRootsFingerprint(options: options),
@@ -238,6 +263,12 @@ public struct CostUsageFetcher: Sendable {
                     modelsDevCacheRoot: options.cacheRoot)
                 if !daily.data.isEmpty {
                     reports.append(daily)
+                    if cache.codexProjectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion {
+                        projects.append(contentsOf: CostUsageScanner.buildCodexProjectBreakdownsFromCache(
+                            cache: cache,
+                            range: range,
+                            modelsDevCacheRoot: options.cacheRoot))
+                    }
                 }
             }
 
@@ -249,13 +280,17 @@ public struct CostUsageFetcher: Sendable {
                 cacheRoot: options.cacheRoot)
             {
                 reports.append(piDaily)
+                if let piProject = Self.unknownProjectBreakdown(from: piDaily) {
+                    projects.append(piProject)
+                }
             }
 
             guard !reports.isEmpty else { return nil }
             return Self.tokenSnapshot(
                 from: CostUsageDailyReport.merged(reports),
                 now: now,
-                historyDays: clampedHistoryDays)
+                historyDays: clampedHistoryDays,
+                projects: Self.mergedProjectBreakdowns(projects))
         }
         return cachedSnapshot.flatMap(\.self)
     }
@@ -276,23 +311,28 @@ public struct CostUsageFetcher: Sendable {
     static func tokenSnapshot(
         from daily: CostUsageDailyReport,
         now: Date,
-        historyDays: Int = 30) -> CostUsageTokenSnapshot
+        historyDays: Int = 30,
+        useCurrentLocalDayForSession: Bool = true,
+        projects: [CostUsageProjectBreakdown] = []) -> CostUsageTokenSnapshot
     {
-        // Pick the most recent day; break ties by cost/tokens to keep a stable "session" row.
-        let currentDay = daily.data.compactMap { entry -> (entry: CostUsageDailyReport.Entry, date: Date)? in
-            guard let date = CostUsageDateParser.parse(entry.date) else { return nil }
-            return (entry, date)
+        let sessionEntry = useCurrentLocalDayForSession
+            ? CostUsageTokenSnapshot.entry(in: daily.data, forLocalDayContaining: now)
+            : CostUsageTokenSnapshot.latestEntry(in: daily.data)
+        let hasHistoricalRows = !daily.data.isEmpty
+        let sessionTokens: Int? = if let sessionEntry {
+            sessionEntry.totalTokens
+        } else if hasHistoricalRows {
+            0
+        } else {
+            nil
         }
-        .max { lhs, rhs in
-            if lhs.date != rhs.date { return lhs.date < rhs.date }
-            let lCost = lhs.entry.costUSD ?? -1
-            let rCost = rhs.entry.costUSD ?? -1
-            if lCost != rCost { return lCost < rCost }
-            let lTokens = lhs.entry.totalTokens ?? -1
-            let rTokens = rhs.entry.totalTokens ?? -1
-            if lTokens != rTokens { return lTokens < rTokens }
-            return lhs.entry.date < rhs.entry.date
-        }?.entry
+        let sessionCostUSD: Double? = if let sessionEntry {
+            sessionEntry.costUSD
+        } else if hasHistoricalRows {
+            0
+        } else {
+            nil
+        }
         // Prefer summary totals when present; fall back to summing daily entries.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
@@ -302,13 +342,163 @@ public struct CostUsageFetcher: Sendable {
         let last30DaysTokens = totalTokensFromSummary ?? (totalTokensFromEntries > 0 ? totalTokensFromEntries : nil)
 
         return CostUsageTokenSnapshot(
-            sessionTokens: currentDay?.totalTokens,
-            sessionCostUSD: currentDay?.costUSD,
+            sessionTokens: sessionTokens,
+            sessionCostUSD: sessionCostUSD,
             last30DaysTokens: last30DaysTokens,
             last30DaysCostUSD: last30DaysCostUSD,
             historyDays: historyDays,
             daily: daily.data,
+            projects: projects,
             updatedAt: now)
+    }
+
+    private static func unknownProjectBreakdown(from daily: CostUsageDailyReport) -> CostUsageProjectBreakdown? {
+        guard !daily.data.isEmpty else { return nil }
+        return CostUsageProjectBreakdown(
+            name: CostUsageProjectBreakdown.unknownProjectName,
+            path: nil,
+            totalTokens: daily.summary?.totalTokens,
+            totalCostUSD: daily.summary?.totalCostUSD,
+            daily: daily.data,
+            modelBreakdowns: self.projectModelBreakdowns(from: daily.data),
+            sources: [
+                CostUsageProjectSourceBreakdown(
+                    name: CostUsageProjectBreakdown.unknownProjectName,
+                    path: nil,
+                    totalTokens: daily.summary?.totalTokens,
+                    totalCostUSD: daily.summary?.totalCostUSD,
+                    daily: daily.data,
+                    modelBreakdowns: self.projectModelBreakdowns(from: daily.data)),
+            ])
+    }
+
+    private static func mergedProjectBreakdowns(
+        _ projects: [CostUsageProjectBreakdown]) -> [CostUsageProjectBreakdown]
+    {
+        var dailyByPath: [String: [CostUsageDailyReport]] = [:]
+        var namesByPath: [String: String] = [:]
+        var sourceDailyByProjectPath: [String: [String: [CostUsageDailyReport]]] = [:]
+        var sourceNamesByProjectPath: [String: [String: String]] = [:]
+        for project in projects {
+            let key = project.path ?? ""
+            namesByPath[key] = project.name
+            dailyByPath[key, default: []].append(CostUsageDailyReport(data: project.daily, summary: nil))
+            let sources = project.sources.isEmpty
+                ? [
+                    CostUsageProjectSourceBreakdown(
+                        name: project.name,
+                        path: project.path,
+                        totalTokens: project.totalTokens,
+                        totalCostUSD: project.totalCostUSD,
+                        daily: project.daily,
+                        modelBreakdowns: project.modelBreakdowns),
+                ]
+                : project.sources
+            for source in sources {
+                let sourceKey = source.path ?? ""
+                sourceNamesByProjectPath[key, default: [:]][sourceKey] = source.name
+                sourceDailyByProjectPath[key, default: [:]][sourceKey, default: []]
+                    .append(CostUsageDailyReport(data: source.daily, summary: nil))
+            }
+        }
+        return dailyByPath.map { key, reports in
+            let merged = CostUsageDailyReport.merged(reports)
+            return CostUsageProjectBreakdown(
+                name: namesByPath[key] ?? CostUsageProjectBreakdown.unknownProjectName,
+                path: key.isEmpty ? nil : key,
+                totalTokens: merged.summary?.totalTokens,
+                totalCostUSD: merged.summary?.totalCostUSD,
+                daily: merged.data,
+                modelBreakdowns: Self.projectModelBreakdowns(from: merged.data),
+                sources: Self.mergedProjectSources(
+                    sourceDailyByPath: sourceDailyByProjectPath[key] ?? [:],
+                    sourceNamesByPath: sourceNamesByProjectPath[key] ?? [:]))
+        }
+        .sorted { lhs, rhs in
+            let lhsCost = lhs.totalCostUSD ?? -1
+            let rhsCost = rhs.totalCostUSD ?? -1
+            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            let lhsTokens = lhs.totalTokens ?? -1
+            let rhsTokens = rhs.totalTokens ?? -1
+            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private static func mergedProjectSources(
+        sourceDailyByPath: [String: [CostUsageDailyReport]],
+        sourceNamesByPath: [String: String]) -> [CostUsageProjectSourceBreakdown]
+    {
+        sourceDailyByPath.map { key, reports in
+            let merged = CostUsageDailyReport.merged(reports)
+            return CostUsageProjectSourceBreakdown(
+                name: sourceNamesByPath[key] ?? CostUsageProjectBreakdown.unknownProjectName,
+                path: key.isEmpty ? nil : key,
+                totalTokens: merged.summary?.totalTokens,
+                totalCostUSD: merged.summary?.totalCostUSD,
+                daily: merged.data,
+                modelBreakdowns: Self.projectModelBreakdowns(from: merged.data))
+        }
+        .sorted { lhs, rhs in
+            let lhsCost = lhs.totalCostUSD ?? -1
+            let rhsCost = rhs.totalCostUSD ?? -1
+            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            let lhsTokens = lhs.totalTokens ?? -1
+            let rhsTokens = rhs.totalTokens ?? -1
+            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private struct ProjectBreakdownAccumulator {
+        var totalTokens = 0
+        var sawTotalTokens = false
+        var costUSD: Double = 0
+        var sawCost = false
+
+        mutating func add(_ breakdown: CostUsageDailyReport.ModelBreakdown) {
+            if let totalTokens = breakdown.totalTokens {
+                self.totalTokens += totalTokens
+                self.sawTotalTokens = true
+            }
+            if let costUSD = breakdown.costUSD {
+                self.costUSD += costUSD
+                self.sawCost = true
+            }
+        }
+
+        func build(modelName: String) -> CostUsageDailyReport.ModelBreakdown {
+            CostUsageDailyReport.ModelBreakdown(
+                modelName: modelName,
+                costUSD: self.sawCost ? self.costUSD : nil,
+                totalTokens: self.sawTotalTokens ? self.totalTokens : nil)
+        }
+    }
+
+    private static func projectModelBreakdowns(
+        from entries: [CostUsageDailyReport.Entry]) -> [CostUsageDailyReport.ModelBreakdown]?
+    {
+        var accumulators: [String: ProjectBreakdownAccumulator] = [:]
+        for entry in entries {
+            for breakdown in entry.modelBreakdowns ?? [] {
+                var accumulator = accumulators[breakdown.modelName] ?? ProjectBreakdownAccumulator()
+                accumulator.add(breakdown)
+                accumulators[breakdown.modelName] = accumulator
+            }
+        }
+        guard !accumulators.isEmpty else { return nil }
+        return accumulators.map { modelName, accumulator in
+            accumulator.build(modelName: modelName)
+        }
+        .sorted { lhs, rhs in
+            let lhsCost = lhs.costUSD ?? -1
+            let rhsCost = rhs.costUSD ?? -1
+            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            let lhsTokens = lhs.totalTokens ?? -1
+            let rhsTokens = rhs.totalTokens ?? -1
+            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            return lhs.modelName > rhs.modelName
+        }
     }
 
     static func selectCurrentSession(from sessions: [CostUsageSessionReport.Entry])

@@ -1,12 +1,12 @@
 import Foundation
 
 enum PiSessionCostCacheIO {
-    /// Artifact version 3 includes upstream cache layout fixes plus the
+    /// Artifact version 4 includes upstream cache layout fixes plus the
     /// fork's pricing-fingerprint invalidation:
     /// pi-session cache stores per-(day, provider, model) packed usage with
     /// `costNanos` baked in at parse time. If either the layout version or
     /// pricing fingerprint changes, old files are ignored and re-scanned.
-    private static let artifactVersion = 3
+    private static let artifactVersion = 4
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -74,7 +74,7 @@ struct PiSessionCostCache: Codable {
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 3, pricingFingerprint: String? = nil) {
+    init(version: Int = 4, pricingFingerprint: String? = nil) {
         self.version = version
         self.pricingFingerprint = pricingFingerprint
     }

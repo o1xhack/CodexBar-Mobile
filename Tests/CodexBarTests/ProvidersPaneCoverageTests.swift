@@ -29,6 +29,82 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
+    func `zai token account descriptor shows team mode controls only for zai`() throws {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-zai-team-controls")
+        let store = Self.makeUsageStore(settings: settings)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        let zaiDescriptor = try #require(pane._test_tokenAccountDescriptor(for: .zai))
+        #expect(zaiDescriptor.showsTeamModeControls)
+        #expect(!zaiDescriptor.showsOrganizationField)
+
+        let claudeDescriptor = try #require(pane._test_tokenAccountDescriptor(for: .claude))
+        #expect(!claudeDescriptor.showsTeamModeControls)
+        #expect(claudeDescriptor.showsOrganizationField)
+    }
+
+    @Test
+    func `zai team account add button requires organization and project`() {
+        #expect(ProviderSettingsTokenAccountsRowView.isAddDisabled(
+            label: "Team",
+            token: "token",
+            showsTeamModeControls: true,
+            teamMode: true,
+            teamContext: (organizationID: "", projectID: "proj-test")))
+        #expect(ProviderSettingsTokenAccountsRowView.isAddDisabled(
+            label: "Team",
+            token: "token",
+            showsTeamModeControls: true,
+            teamMode: true,
+            teamContext: (organizationID: "org-test", projectID: "")))
+        #expect(!ProviderSettingsTokenAccountsRowView.isAddDisabled(
+            label: "Team",
+            token: "token",
+            showsTeamModeControls: true,
+            teamMode: true,
+            teamContext: (organizationID: "org-test", projectID: "proj-test")))
+        #expect(!ProviderSettingsTokenAccountsRowView.isAddDisabled(
+            label: "Personal",
+            token: "token",
+            showsTeamModeControls: true,
+            teamMode: false,
+            teamContext: (organizationID: "", projectID: "")))
+    }
+
+    @Test
+    func `zai team account draft requires complete ids before apply`() {
+        let original = ProviderSettingsTokenAccountsRowView.TeamAccountDraft(
+            teamMode: false,
+            organizationID: "",
+            projectID: "")
+
+        #expect(ProviderSettingsTokenAccountsRowView.isTeamDraftApplyDisabled(
+            draft: original,
+            original: original))
+        #expect(ProviderSettingsTokenAccountsRowView.isTeamDraftApplyDisabled(
+            draft: ProviderSettingsTokenAccountsRowView.TeamAccountDraft(
+                teamMode: true,
+                organizationID: "org-test",
+                projectID: ""),
+            original: original))
+        #expect(!ProviderSettingsTokenAccountsRowView.isTeamDraftApplyDisabled(
+            draft: ProviderSettingsTokenAccountsRowView.TeamAccountDraft(
+                teamMode: true,
+                organizationID: "org-test",
+                projectID: "proj-test"),
+            original: original))
+        #expect(!ProviderSettingsTokenAccountsRowView.isTeamDraftApplyDisabled(
+            draft: ProviderSettingsTokenAccountsRowView.TeamAccountDraft(
+                teamMode: false,
+                organizationID: "",
+                projectID: ""),
+            original: ProviderSettingsTokenAccountsRowView.TeamAccountDraft(
+                teamMode: true,
+                organizationID: "org-test",
+                projectID: "proj-test")))
+    }
+
+    @Test
     func `provider search filters display names and raw ids`() {
         let providers: [UsageProvider] = [.codex, .claude, .openrouter, .deepseek]
         let names: [UsageProvider: String] = [
@@ -69,21 +145,12 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
-    func `selected provider sidebar palette uses contrasting selected text colors`() {
-        let palette = ProviderSidebarRowPalette(isSelected: true)
-
-        #expect(palette.primary.isEqual(NSColor.alternateSelectedControlTextColor))
-        #expect(palette.secondary.alphaComponent == 0.82)
-        #expect(palette.tertiary.alphaComponent == 0.65)
-    }
-
-    @Test
-    func `unselected provider sidebar palette uses standard label colors`() {
-        let palette = ProviderSidebarRowPalette(isSelected: false)
-
-        #expect(palette.primary.isEqual(NSColor.labelColor))
-        #expect(palette.secondary.isEqual(NSColor.secondaryLabelColor))
-        #expect(palette.tertiary.isEqual(NSColor.tertiaryLabelColor))
+    @MainActor
+    func `settings pane titles cover app panes and providers`() {
+        #expect(SettingsPane.general.title == L("tab_general"))
+        #expect(SettingsPane.about.title == L("tab_about"))
+        #expect(!SettingsPane.provider(.codex).title.isEmpty)
+        #expect(SettingsPane.provider(.codex) != SettingsPane.provider(.claude))
     }
 
     @Test
@@ -178,7 +245,7 @@ struct ProvidersPaneCoverageTests {
             ])
             #expect(picker?.options.first?.title == "Pay-as-you-go")
             #expect(picker?.options.last?.title == "Monthly Plan")
-            #expect(picker?.subtitle == "Shows current-month Mistral API spend in the menu bar.")
+            #expect(picker?.subtitle == "Choose Mistral API spend or Monthly Plan usage for the menu bar.")
         }
     }
 
@@ -295,6 +362,17 @@ struct ProvidersPaneCoverageTests {
         let picker = pane._test_menuBarMetricPicker(for: .claude)
         let ids = picker?.options.map(\.id) ?? []
         #expect(ids.contains(MenuBarMetricPreference.extraUsage.rawValue))
+    }
+
+    @Test
+    func `claude menu bar metric picker includes session plus weekly lane`() {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-claude-session-weekly-picker")
+        let store = Self.makeUsageStore(settings: settings)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        let picker = pane._test_menuBarMetricPicker(for: .claude)
+        let ids = picker?.options.map(\.id) ?? []
+        #expect(ids.contains(MenuBarMetricPreference.primaryAndSecondary.rawValue))
     }
 
     @Test

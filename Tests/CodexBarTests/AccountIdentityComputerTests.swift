@@ -97,7 +97,7 @@ struct AccountIdentityComputerTests {
             .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
             .alibaba, .factory, .minimax, .kimi, .kimik2, .augment, .jetbrains,
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
-            .zai, .antigravity, .kilo, .kiro,
+            .zai, .antigravity, .kilo, .kiro, .sakana, .qoder, .crossmodel, .clawrouter,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

@@ -234,6 +234,7 @@
 "Picker subtitle" = "ピッカーのサブタイトル";
 "Placeholder" = "プレースホルダ";
 "Plan" = "プラン";
+"Plan Usage" = "プラン使用状況";
 "Play full-screen confetti when weekly usage resets." = "週間使用量がリセットされたときに全画面の紙吹雪を表示します。";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "OpenAI/Claude のステータスページと Google Workspace をポーリングして、";
 "Prevents any Keychain access while enabled." = "有効にすると、キーチェーンへのアクセスをすべて防ぎます。";
@@ -301,12 +302,13 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "~/.codexbar/config.json に保存されます。MiniMax API キーを貼り付けてください。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "~/.codexbar/config.json に保存されます。KILO_API_KEY を指定することもできます。または ";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "ローカルの Codex 使用履歴（8 週間分）を保存して、ペース予測をパーソナライズします。";
-"Subscription Utilization" = "サブスクリプション利用率";
 "Surprise me" = "サプライズ";
 "Switcher shows icons" = "切替バーにアイコンを表示";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "CodexBarCLI を codexbar として /usr/local/bin と /opt/homebrew/bin にシンボリックリンクします。";
 "System" = "システム";
 "Temporarily shows the loading animation after the next refresh." = "次回の更新後に読み込みアニメーションを一時的に表示します。";
+"terminal_app_subtitle" = "「ターミナルを開く」アクションで使用するターミナル";
+"terminal_app_title" = "デフォルトのターミナル";
 "Tertiary (\\(label))" = "第3（\\(label)）";
 "Tertiary (\\(tertiaryTitle))" = "第3（\\(tertiaryTitle)）";
 "The default Codex account on this Mac." = "この Mac のデフォルトの Codex アカウントです。";
@@ -406,6 +408,7 @@
 "language_french" = "フランス語";
 "language_german" = "ドイツ語";
 "language_ukrainian" = "ウクライナ語";
+"language_russian" = "Русский";
 "language_japanese" = "日本語";
 "language_korean" = "韓国語";
 "language_italian" = "イタリア語";
@@ -414,11 +417,24 @@
 "start_at_login_subtitle" = "Mac の起動時に CodexBar を自動的に開きます。";
 "show_cost_summary" = "コスト概要を表示";
 "show_cost_summary_subtitle" = "ローカルの使用ログを読み取り、今日分と選択した履歴期間をメニューに表示します。";
+"cost_summary_style_title" = "表示スタイル";
+"cost_summary_style_inline" = "インラインのみ";
+"cost_summary_style_submenu" = "サブメニューのみ";
+"cost_summary_style_both" = "両方";
+"cost_summary_style_inline_help" = "コスト概要をメインメニューに直接表示します。";
+"cost_summary_style_submenu_help" = "代わりに詳細なコストサブメニューを表示します。";
+"cost_summary_style_both_help" = "メインメニューの概要と詳細なコストサブメニューの両方を表示します。";
+"cost_history_window_title" = "履歴期間";
+"cost_history_window_help" = "メニューに表示するローカル使用ログの日数を設定します。";
 "cost_history_days_title" = "履歴期間: %d 日";
 "cost_auto_refresh_info" = "自動更新: 1 時間ごと · タイムアウト: 10 分";
+"cost_comparison_periods_title" = "短い比較期間を表示";
+"cost_comparison_periods_subtitle" = "選択した履歴期間に収まる場合、7日、30日、90日の合計を追加します。これらの合計には同じローカルスキャンを再利用します。";
 "refresh_cadence_title" = "更新間隔";
 "refresh_cadence_subtitle" = "CodexBar がバックグラウンドでプロバイダをポーリングする頻度です。";
 "manual_refresh_hint" = "自動更新はオフです。メニューの「更新」コマンドを使用してください。";
+"refresh_on_open_title" = "メニューを開いたときに更新";
+"refresh_on_open_subtitle" = "メニューを開くたびに、すべてのプロバイダーの最新の使用状況を取得します。";
 "check_provider_status_title" = "プロバイダのステータスを確認";
 "check_provider_status_subtitle" = "OpenAI/Claude のステータスページと Gemini/Antigravity 用の Google Workspace をポーリングし、障害情報をアイコンとメニューに表示します。";
 "session_quota_notifications_title" = "セッションクォータ通知";
@@ -440,6 +456,7 @@
 "quota_warning_warn_at" = "警告する残量";
 "quota_warning_global_threshold_subtitle" = "プロバイダ側で上書きされない限り、セッションおよび週間ウインドウの残量パーセントに適用されます。";
 "quota_warning_sound" = "通知音を再生";
+"quota_warning_onscreen_alert" = "画面上にテキストアラートを表示";
 "quota_warning_provider_inherits" = "ここでウインドウをカスタマイズしない限り、グローバルのクォータ警告設定を使用します。";
 "quota_warning_customize_thresholds" = "%@ のしきい値をカスタマイズ";
 "quota_warning_enable_warnings" = "%@ の警告を有効にする";
@@ -537,6 +554,8 @@
 "show_debug_settings_subtitle" = "デバッグタブにトラブルシューティングツールを表示します。";
 "surprise_me_title" = "サプライズ";
 "surprise_me_subtitle" = "エージェントたちがメニューバーで少し遊ぶのが好きか試してみてください。";
+"session_limit_confetti_title" = "セッション上限の紙吹雪";
+"session_limit_confetti_subtitle" = "セッション使用量がリセットされたときに全画面の紙吹雪を表示します。";
 "weekly_limit_confetti_title" = "週間上限の紙吹雪";
 "weekly_limit_confetti_subtitle" = "週間使用量がリセットされたときに全画面の紙吹雪を再生します。";
 "hide_personal_info_title" = "個人情報を隠す";
@@ -640,6 +659,7 @@
 
 /* Provider status */
 "status_operational" = "正常稼働中";
+"status_degraded" = "パフォーマンス低下";
 "status_partial_outage" = "一部障害";
 "status_major_outage" = "重大な障害";
 "status_critical_issue" = "致命的な問題";
@@ -653,6 +673,7 @@
 "refresh_5min" = "5分";
 "refresh_15min" = "15分";
 "refresh_30min" = "30分";
+"refresh_adaptive" = "アダプティブ";
 
 /* Additional keys */
 "not_found" = "見つかりません";
@@ -696,6 +717,7 @@
 "Add Account..." = "アカウントを追加...";
 "Usage Dashboard" = "使用状況ダッシュボード";
 "Status Page" = "ステータスページ";
+"Open Status Page" = "ステータスページを開く";
 "Settings..." = "設定...";
 "About CodexBar" = "CodexBar について";
 "Quit" = "終了";
@@ -710,7 +732,10 @@
 "Resets now" = "まもなくリセット";
 "reset_tomorrow_format" = "明日 %@";
 "Lasts until reset" = "リセットまで持続";
+"1.5× headroom" = "1.5倍の余裕";
 "Updated %@" = "%@ に更新";
+"Updated relative %@" = "%@ に更新";
+"Updated absolute %@" = "%@ に更新";
 "Updated %@h ago" = "%@時間前に更新";
 "Updated %@m ago" = "%@分前に更新";
 "Updated just now" = "たった今更新";
@@ -979,6 +1004,8 @@
 "Enterprise host" = "Enterprise ホスト";
 "Extra usage balance: %@" = "追加使用量の残高: %@";
 "Keychain Access Required" = "キーチェーンへのアクセスが必要です";
+"keychain_prompt_learn_more" = "詳しく見る…";
+"keychain_prompt_privacy_note" = "Macのログインパスワード入力を処理するのはCodexBarではなくmacOSです。キーチェーンへのアクセスは「設定」→「詳細」でいつでも無効にできます。";
 "Kiro menu bar value" = "Kiro メニューバー表示値";
 "Label" = "ラベル";
 "No organizations loaded. Click Refresh after setting your API key." = "組織が読み込まれていません。API キーを設定してから「更新」をクリックしてください。";
@@ -1005,6 +1032,7 @@
 "Optional. Leave blank to discover and aggregate projects visible to the API key." = "オプション。空欄のままにすると、API キーから参照できるプロジェクトを検出して集計します。";
 "Org ID (optional)" = "組織 ID(オプション)";
 "Organizations" = "組織";
+"Organization ID" = "組織 ID";
 "Password" = "パスワード";
 "%@ authentication is disabled." = "%@ の認証は無効になっています。";
 "%@ cookies are disabled." = "%@ の Cookie は無効になっています。";
@@ -1058,6 +1086,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "~/.codexbar/config.json に保存されます。CROF_API_KEY を指定することもできます。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "~/.codexbar/config.json に保存されます。KILO_API_KEY または ~/.local/share/kilo/auth.json(kilo.access)を指定することもできます。";
 "T3 Chat cookie" = "T3 Chat Cookie";
+"Team mode" = "チームモード";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "そのアカウントは CodexBar で利用できなくなっています。アカウントリストを更新してからやり直してください。";
 "The browser login did not complete in time. Try Antigravity login again." = "ブラウザでのログインが時間内に完了しませんでした。Antigravity のログインをもう一度お試しください。";
 "Timed out waiting for Cursor login. %@" = "Cursor のログイン待機がタイムアウトしました。%@";
@@ -1089,10 +1118,13 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "上限リセットクレジット";
-"1 manual reset available" = "手動リセットが1回利用可能";
-"%d manual resets available" = "手動リセットが%d回利用可能";
+"1 available" = "1件利用可能";
+"%d available" = "%d件利用可能";
 "Next expires %@" = "次回の有効期限：%@";
+"Expires %@" = "%@ に期限切れ";
+"No expiry" = "有効期限なし";
 "Other (%d items)" = "その他（%d項目）";
 "Expand" = "展開";
 "Collapse" = "折りたたむ";
@@ -1104,3 +1136,15 @@
 "byte_unit_megabytes" = "メガバイト";
 "byte_unit_gigabyte" = "ギガバイト";
 "byte_unit_gigabytes" = "ギガバイト";
+"CrossModel API spend trend" = "CrossModel API の支出推移";
+
+/* Settings sidebar redesign */
+"Enable" = "有効にする";
+"Disable" = "無効にする";
+"providers_on_count" = "%d 件オン";
+"section_cost_summary" = "コスト概要";
+"section_command_line" = "コマンドライン";
+"section_privacy" = "プライバシー";
+"section_diagnostics" = "診断";
+"section_updates" = "アップデート";
+"section_links" = "リンク";

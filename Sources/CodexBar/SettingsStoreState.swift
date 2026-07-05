@@ -2,6 +2,7 @@ import Foundation
 
 struct SettingsDefaultsState {
     var refreshFrequency: RefreshFrequency
+    var refreshAllProvidersOnMenuOpen: Bool
     var launchAtLogin: Bool
     var debugMenuEnabled: Bool
     var debugDisableKeychainAccess: Bool
@@ -18,6 +19,7 @@ struct SettingsDefaultsState {
     var quotaWarningSessionEnabled: Bool
     var quotaWarningWeeklyEnabled: Bool
     var quotaWarningSoundEnabled: Bool
+    var quotaWarningOnScreenAlertEnabled: Bool
     var quotaWarningMarkersVisible: Bool
     var weeklyProgressWorkDays: Int?
     var usageBarsShowUsed: Bool
@@ -36,8 +38,11 @@ struct SettingsDefaultsState {
     var copilotIconSecondaryWindowIDRaw: String
     var costUsageEnabled: Bool
     var costUsageHistoryDays: Int
+    var costComparisonPeriodsEnabled: Bool
+    var costSummaryDisplayStyleRaw: String
     var hidePersonalInfo: Bool
     var randomBlinkEnabled: Bool
+    var confettiOnSessionLimitResetsEnabled: Bool
     var confettiOnWeeklyLimitResetsEnabled: Bool
     var menuBarShowsHighestUsage: Bool
     var claudeOAuthKeychainPromptModeRaw: String?

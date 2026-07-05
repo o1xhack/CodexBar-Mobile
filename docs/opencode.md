@@ -16,13 +16,15 @@ read_when:
 
 ## Usage mapping
 - Primary window: rolling 5-hour usage (`rollingUsage.usagePercent`, `rollingUsage.resetInSec`).
-- Secondary window: weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
+- Secondary window: optional weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
 - Resets computed as `now + resetInSec`.
 
 ## Notes
 - Responses are `text/javascript` with serialized objects; parse via regex.
-- Missing workspace ID or usage fields should raise parse errors.
-- Cookie import defaults to Chrome-only to avoid extra browser prompts; pass a browser list to override.
+- Missing workspace ID or rolling usage fields should raise parse errors; omitted weekly usage stays absent.
+- OpenCode web Auto imports Chrome first, then Dia when their cookie stores exist; Keychain preflight stays scoped
+  to each candidate browser. Other browsers stay on Manual Cookie import until CodexBar has an explicit browser
+  selector.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
 - Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL.
 - Cached cookies: Keychain cache `com.steipete.codexbar.cache` (account `cookie.opencode`, source + timestamp). Browser

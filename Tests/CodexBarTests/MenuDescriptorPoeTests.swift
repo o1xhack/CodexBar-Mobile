@@ -72,19 +72,23 @@ struct MenuDescriptorPoeTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
 
-        let now = Date(timeIntervalSince1970: 1_717_171_717)
+        let now = Date()
+        let calendar = Calendar.current
+        // Fixed calendar-day fixtures keep this stable around midnight.
+        let today = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? now.addingTimeInterval(-86400)
         let history = PoeUsageHistorySnapshot(
             entries: [
                 .init(
                     id: "a",
-                    createdAt: now.addingTimeInterval(-1000),
+                    createdAt: today,
                     model: "GPT-4o",
                     usageType: "chat",
                     points: 100,
                     costUSD: nil),
                 .init(
                     id: "b",
-                    createdAt: now.addingTimeInterval(-86000),
+                    createdAt: yesterday,
                     model: "Claude-3.7-Sonnet",
                     usageType: "chat",
                     points: 200,

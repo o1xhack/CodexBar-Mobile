@@ -40,6 +40,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case perplexity
     case mimo
     case doubao
+    case sakana
     case abacus
     case mistral
     case deepseek
@@ -47,6 +48,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case crof
     case venice
     case commandcode
+    case qoder
     case stepfun
     case bedrock
     case grok
@@ -56,6 +58,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case deepgram
     case poe
     case chutes
+    case crossmodel
+    case clawrouter
 }
 
 // swiftformat:enable sortDeclarations
@@ -96,6 +100,7 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case perplexity
     case mimo
     case doubao
+    case sakana
     case abacus
     case mistral
     case deepseek
@@ -103,6 +108,7 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case crof
     case venice
     case commandcode
+    case qoder
     case stepfun
     case bedrock
     case grok
@@ -112,6 +118,8 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case deepgram
     case poe
     case chutes
+    case crossmodel
+    case clawrouter
     case combined
 }
 
@@ -221,6 +229,16 @@ public enum ProviderBrowserCookieDefaults {
         #endif
     }
 
+    /// OpenCode web Auto stays Chrome-only by default, with Dia as the one bounded provider exception
+    /// because Dia has a confirmed reporter need. Other browsers stay on Manual until users can choose them.
+    public static var opencodeCookieImportOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome, .dia]
+        #else
+        nil
+        #endif
+    }
+
     /// Grok is normally signed in through Chrome; keep this narrow so CLI/live probes do not touch
     /// unrelated browser keychains.
     public static var grokCookieImportOrder: BrowserCookieImportOrder? {
@@ -254,6 +272,16 @@ public enum ProviderBrowserCookieDefaults {
 
     /// Copilot budget imports should stay Chrome-only by default to avoid prompting unrelated browsers.
     public static var copilotCookieImportOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome]
+        #else
+        nil
+        #endif
+    }
+
+    /// Qoder sessions are documented through Chrome cookie import. Keep automatic import narrow
+    /// so enabling this provider does not probe unrelated browser keychains.
+    public static var qoderCookieImportOrder: BrowserCookieImportOrder? {
         #if os(macOS)
         [.chrome]
         #else

@@ -1212,7 +1212,7 @@ final class SyncCoordinator {
         let paceWindow = Self.codexWeeklyWindow(snapshot: snapshot)
         let pace = paceWindow.flatMap { UsagePace.weekly(window: $0) }
         let paceDelta: Double? = pace.map { $0.deltaPercent / 100.0 }
-        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(pace: $0) }
+        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(provider: .codex, pace: $0) }
 
         // Skip emitting an empty envelope so iOS doesn't render a
         // ghost row — every reader checks the optional.
@@ -1816,7 +1816,12 @@ final class SyncCoordinator {
              // Chutes, and Zed surface provider-computed usage/quota
              // values (or no USD cost), not local Codex/Claude model
              // pricing table estimates.
-             .litellm, .poe, .chutes, .zed:
+             .litellm, .poe, .chutes, .zed,
+             // Upstream v0.38.0–v0.39.0 new providers. Sakana, Qoder,
+             // CrossModel, and ClawRouter surface provider-computed
+             // values (or no USD cost), not local Codex/Claude model
+             // pricing table estimates.
+             .sakana, .qoder, .crossmodel, .clawrouter:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
