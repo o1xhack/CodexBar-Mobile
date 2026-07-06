@@ -165,6 +165,58 @@ struct CloudKitMergeTests {
         #expect(provider.usageDataConfidence == "estimated")
     }
 
+    @Test("Same provider old/new Mac merge preserves v0.39 CrossModel usage")
+    func sameProviderPreservesV039CrossModelUsage() throws {
+        let crossModelUsage = SyncCrossModelUsage(
+            currency: "USD",
+            balance: 8.06,
+            uncollected: 0.42,
+            daily: .init(
+                cost: 0.27,
+                promptTokens: 5_200,
+                completionTokens: 7_267,
+                totalTokens: 12_467,
+                requestCount: 84,
+                successCount: 83),
+            weekly: nil,
+            monthly: .init(
+                cost: 5.37,
+                promptTokens: 110_000,
+                completionTokens: 150_000,
+                totalTokens: 260_000,
+                requestCount: 3_166,
+                successCount: 3_140),
+            updatedAt: olderDate)
+        let olderMacProvider = ProviderUsageSnapshot(
+            providerID: "crossmodel",
+            providerName: "CrossModel",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "wallet@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: olderDate,
+            crossModelUsage: crossModelUsage)
+        let newerMacProvider = makeProvider(
+            id: "crossmodel", name: "CrossModel", email: "wallet@example.com",
+            lastUpdated: newerDate, usedPercent: 0)
+
+        let olderMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old",
+            providers: [olderMacProvider])
+        let newerMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new",
+            providers: [newerMacProvider])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([olderMac, newerMac]))
+        let provider = try #require(merged.providers.first)
+        #expect(provider.primary?.usedPercent == 0)
+        #expect(provider.crossModelUsage?.balance == 8.06)
+        #expect(provider.crossModelUsage?.daily?.totalTokens == 12_467)
+        #expect(provider.crossModelUsage?.monthly?.requestCount == 3_166)
+    }
+
     // MARK: - Same provider, different accounts → keep both
 
     @Test("Same provider + different accounts are preserved as separate entries")

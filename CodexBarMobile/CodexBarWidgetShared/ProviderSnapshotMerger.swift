@@ -263,7 +263,8 @@ enum ProviderSnapshotMerger {
             alibabaTokenPlan: Self.latestNonNil(entries, \.alibabaTokenPlan),
             deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage),
             codexResetCredits: Self.latestNonNil(entries, \.codexResetCredits),
-            usageDataConfidence: Self.latestNonNil(entries, \.usageDataConfidence))
+            usageDataConfidence: Self.latestNonNil(entries, \.usageDataConfidence),
+            crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage))
     }
 
     private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {
