@@ -481,7 +481,11 @@ struct AntigravityCLISessionTests {
         let firstReplacement = Task {
             try await fixture.session.beginProbe(binary: "/new/agy")
         }
-        await fixture.sleeper?.waitForSleeps(1)
+        // Two sleeps register here: the lingering idle-timer sleep (armed by the prior finishProbe;
+        // the fake sleeper does not honor cancellation) and the teardown grace-period sleep. Wait for
+        // both before resuming — waiting for only one lets resumeAll() fire before the grace sleep
+        // parks, stranding it so teardown never completes and the suite hangs to the 120s timeout.
+        await fixture.sleeper?.waitForSleeps(2)
 
         let secondReplacement = Task {
             try await fixture.session.beginProbe(binary: "/new/agy")
@@ -692,7 +696,15 @@ struct AntigravityCLISessionTests {
             handle.closePTY()
         }
 
-        for _ in 0..<200 where !FileManager.default.fileExists(atPath: outputURL.path) {
+        for _ in 0..<200 {
+            if FileManager.default.fileExists(atPath: outputURL.path),
+               let output = try? String(contentsOf: outputURL, encoding: .utf8)
+            {
+                let lines = output
+                    .split(separator: "\n")
+                    .map(String.init)
+                if lines.count >= 2, output.hasSuffix("\n") { break }
+            }
             Thread.sleep(forTimeInterval: 0.01)
         }
         let lines = try String(contentsOf: outputURL, encoding: .utf8)

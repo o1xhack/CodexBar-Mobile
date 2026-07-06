@@ -99,6 +99,10 @@ public enum ProviderTokenResolver {
         self.openRouterResolution(environment: environment)?.token
     }
 
+    public static func crossModelToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.crossModelResolution(environment: environment)?.token
+    }
+
     public static func elevenLabsToken(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
@@ -115,6 +119,12 @@ public enum ProviderTokenResolver {
 
     public static func liteLLMToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.liteLLMResolution(environment: environment)?.token
+    }
+
+    public static func clawRouterToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.clawRouterResolution(environment: environment)?.token
     }
 
     public static func perplexitySessionToken(
@@ -340,6 +350,12 @@ public enum ProviderTokenResolver {
         self.resolveEnv(OpenRouterSettingsReader.apiToken(environment: environment))
     }
 
+    public static func crossModelResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(CrossModelSettingsReader.apiToken(environment: environment))
+    }
+
     public static func elevenLabsResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
@@ -362,6 +378,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(LiteLLMSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func clawRouterResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(ClawRouterSettingsReader.apiKey(environment: environment))
     }
 
     public enum DeepgramCredentialKind: Sendable {

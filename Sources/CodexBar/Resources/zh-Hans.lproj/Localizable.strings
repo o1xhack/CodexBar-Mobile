@@ -239,6 +239,7 @@
 "Picker subtitle" = "选择器副标题";
 "Placeholder" = "占位符";
 "Plan" = "套餐";
+"Plan Usage" = "套餐用量";
 "Play full-screen confetti when weekly usage resets." = "当每周用量重置时播放全屏彩纸。";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "轮询 OpenAI/Claude 状态页面和 Google Workspace，以检查";
 "Prevents any Keychain access while enabled." = "启用时阻止任何钥匙串访问。";
@@ -310,12 +311,13 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "存储在 ~/.codexbar/config.json 中。请粘贴你的 MiniMax API 密钥。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "存储在 ~/.codexbar/config.json 中。你也可以提供 KILO_API_KEY 或";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "存储本地 Codex 用量历史（8 周），用于个性化进度预测。";
-"Subscription Utilization" = "订阅使用率";
 "Surprise me" = "给我惊喜";
 "Switcher shows icons" = "切换器显示图标";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "将 CodexBarCLI 作为 codexbar 符号链接到 /usr/local/bin 和 /opt/homebrew/bin。";
 "System" = "系统";
 "Temporarily shows the loading animation after the next refresh." = "下次刷新后临时显示加载动画。";
+"terminal_app_subtitle" = "“打开终端”操作使用的终端";
+"terminal_app_title" = "默认终端";
 "Tertiary (\\(label))" = "第三（\\(label)）";
 "Tertiary (\\(tertiaryTitle))" = "第三（\\(tertiaryTitle)）";
 "The default Codex account on this Mac." = "此 Mac 上的默认 Codex 账户。";
@@ -413,17 +415,31 @@
 "language_german" = "Deutsch";
 "language_french" = "法语";
 "language_ukrainian" = "乌克兰语";
+"language_russian" = "Русский";
 "language_japanese" = "日语";
 "language_korean" = "韩语";
 "start_at_login_title" = "开机启动";
 "start_at_login_subtitle" = "启动 Mac 时自动打开 CodexBar。";
 "show_cost_summary" = "显示费用摘要";
 "show_cost_summary_subtitle" = "读取本地用量日志。在菜单中显示今天及所选历史窗口的费用。";
+"cost_summary_style_title" = "显示样式";
+"cost_summary_style_inline" = "仅内联";
+"cost_summary_style_submenu" = "仅子菜单";
+"cost_summary_style_both" = "两者";
+"cost_summary_style_inline_help" = "直接在主菜单中显示费用摘要。";
+"cost_summary_style_submenu_help" = "改为显示详细的费用子菜单。";
+"cost_summary_style_both_help" = "同时显示主菜单摘要和详细的费用子菜单。";
+"cost_history_window_title" = "历史窗口";
+"cost_history_window_help" = "设置菜单中显示多少天的本地使用日志。";
 "cost_history_days_title" = "历史窗口：%d 天";
 "cost_auto_refresh_info" = "自动刷新：每小时 · 超时：10 分钟";
+"cost_comparison_periods_title" = "显示更短的对比周期";
+"cost_comparison_periods_subtitle" = "当 7 天、30 天和 90 天处于所选历史窗口内时，添加相应汇总。这些汇总复用同一次本地扫描。";
 "refresh_cadence_title" = "刷新频率";
 "refresh_cadence_subtitle" = "CodexBar 在后台轮询提供商的频率。";
 "manual_refresh_hint" = "自动刷新已关闭；请使用菜单中的“刷新”命令。";
+"refresh_on_open_title" = "打开菜单时刷新";
+"refresh_on_open_subtitle" = "每次打开菜单时获取每个提供商的最新用量。";
 "check_provider_status_title" = "检查提供商状态";
 "check_provider_status_subtitle" = "轮询 OpenAI/Claude 状态页面和 Google Workspace 的 Gemini/Antigravity，在图标和菜单中显示故障信息。";
 "session_quota_notifications_title" = "会话配额通知";
@@ -438,6 +454,7 @@
 "quota_warning_warn_at" = "预警阈值";
 "quota_warning_global_threshold_subtitle" = "会话和每周窗口的剩余百分比，除非提供商单独覆盖。";
 "quota_warning_sound" = "播放通知声音";
+"quota_warning_onscreen_alert" = "显示屏幕文字提醒";
 "quota_warning_provider_inherits" = "默认使用全局配额预警设置，除非在这里自定义窗口。";
 "quota_warning_customize_thresholds" = "自定义 %@ 阈值";
 "quota_warning_enable_warnings" = "启用 %@ 预警";
@@ -524,6 +541,8 @@
 "show_debug_settings_subtitle" = "在“调试”标签中显示故障排除工具。";
 "surprise_me_title" = "给我惊喜";
 "surprise_me_subtitle" = "看看你是否喜欢你的智能体在上面找点乐子。";
+"session_limit_confetti_title" = "会话限制彩带";
+"session_limit_confetti_subtitle" = "会话用量重置时播放全屏彩带。";
 "weekly_limit_confetti_title" = "每周限制彩纸";
 "weekly_limit_confetti_subtitle" = "当每周用量重置时播放全屏彩纸。";
 "hide_personal_info_title" = "隐藏个人信息";
@@ -616,6 +635,7 @@
 "display_mode_both_desc" = "同时显示百分比和进度（例如 45% · +5%）";
 "display_mode_reset_time_desc" = "显示所选指标的重置时间（例如 ↻ 3:56 PM）";
 "status_operational" = "正常运行";
+"status_degraded" = "性能下降";
 "status_partial_outage" = "部分中断";
 "status_major_outage" = "重大中断";
 "status_critical_issue" = "严重问题";
@@ -627,6 +647,7 @@
 "refresh_5min" = "5 分钟";
 "refresh_15min" = "15 分钟";
 "refresh_30min" = "30 分钟";
+"refresh_adaptive" = "自适应";
 "not_found" = "未找到";
 
 // === Fork-only Mac UI strings (Mobile pane) — added 2026-05-12 ===
@@ -638,7 +659,7 @@
 "mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
 "mobile_section_mock_data" = "调试 · Mock provider 数据";
 "mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步推送 60 个合成 provider，覆盖 50 个 ID（6 个 rich mock 用于 codex/claude/perplexity 多账号路径，52 个简单 mock 含 7 对 openai/deepseek/antigravity/manus/copilot/venice/stepfun 多账号第二 tab、5 个 v0.27.0 单账号 provider（grok/groq/elevenlabs/deepgram/llmproxy）、3 个 v0.28/v0.29 单账号 provider（azureopenai/alibabatokenplan/t3chat），2 个 unknown-ID mock 测试 fallback 渲染）。所有 mock email 都使用 `.test` TLD，iPhone（1.5.2+）会用 MOCK 徽章渲染。关闭后 CloudKit 会在约 1 个 cycle 内自动清除。默认关闭。";
+"mobile_toggle_mock_subtitle" = "每次同步推送 69 个合成 provider，覆盖 59 个 ID（6 个 rich mock 用于 codex/claude/perplexity 多账号路径，61 个简单 mock 含 7 对 openai/deepseek/antigravity/manus/copilot/venice/stepfun 多账号第二 tab、5 个 v0.27.0 单账号 provider（grok/groq/elevenlabs/deepgram/llmproxy）、3 个 v0.28/v0.29 单账号 provider（azureopenai/alibabatokenplan/t3chat）、4 个 v0.36 单账号 provider（litellm/poe/chutes/zed）、4 个 v0.38/v0.39 单账号 provider（sakana/qoder/crossmodel/clawrouter），2 个 unknown-ID mock 测试 fallback 渲染）。所有 mock email 都使用 `.test` TLD，iPhone（1.5.2+）会用 MOCK 徽章渲染。关闭后 CloudKit 会在约 1 个 cycle 内自动清除。默认关闭。";
 "mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
 "mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
 "mobile_section_dev_test" = "DEV — iOS 推送测试";
@@ -698,6 +719,7 @@
 "Add Account..." = "添加账户…";
 "Usage Dashboard" = "用量仪表盘";
 "Status Page" = "状态页";
+"Open Status Page" = "打开状态页";
 "Settings..." = "设置…";
 "About CodexBar" = "关于 CodexBar";
 "Quit" = "退出";
@@ -712,7 +734,10 @@
 "Resets now" = "立即重置";
 "reset_tomorrow_format" = "明天 %@";
 "Lasts until reset" = "持续到重置";
+"1.5× headroom" = "1.5 倍余量";
 "Updated %@" = "更新于 %@";
+"Updated relative %@" = "%@已更新";
+"Updated absolute %@" = "更新于 %@";
 "Updated %@h ago" = "%@ 小时前更新";
 "Updated %@m ago" = "%@ 分钟前更新";
 "Updated just now" = "刚刚更新";
@@ -839,6 +864,7 @@
 "Cache read" = "缓存读取";
 "Claude Admin API 30 day spend trend" = "Claude Admin API 30 天支出趋势";
 "OpenRouter API key spend trend" = "OpenRouter API 密钥支出趋势";
+"CrossModel API spend trend" = "CrossModel API 支出趋势";
 "z.ai hourly token trend" = "z.ai 每小时 token 趋势";
 "MiniMax 30 day token usage trend" = "MiniMax 30 天 token 用量趋势";
 "Today cash" = "今日现金";
@@ -978,6 +1004,8 @@
 "Enterprise host" = "Enterprise 主机";
 "Extra usage balance: %@" = "额外使用量余额：%@";
 "Keychain Access Required" = "需要钥匙串访问权限";
+"keychain_prompt_learn_more" = "了解更多…";
+"keychain_prompt_privacy_note" = "Mac 登录密码由 macOS（而非 CodexBar）处理。你可以随时在“设置”→“高级”中停用所有钥匙串访问。";
 "Kiro menu bar value" = "Kiro 菜单栏数值";
 "Label" = "标签";
 "No organizations loaded. Click Refresh after setting your API key." = "尚未加载组织。设置 API 密钥后点击“刷新”。";
@@ -1004,6 +1032,7 @@
 "Optional. Leave blank to discover and aggregate projects visible to the API key." = "选填。留空会发现并汇总 API 密钥可见的项目。";
 "Org ID (optional)" = "组织 ID（选填）";
 "Organizations" = "组织";
+"Organization ID" = "组织 ID";
 "Password" = "密码";
 "%@ authentication is disabled." = "%@ 认证已禁用。";
 "%@ cookies are disabled." = "%@ Cookie 已禁用。";
@@ -1057,6 +1086,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "存储在 ~/.codexbar/config.json 中。你也可以提供 CROF_API_KEY。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "存储在 ~/.codexbar/config.json 中。你也可以提供 KILO_API_KEY 或 ~/.local/share/kilo/auth.json（kilo.access）。";
 "T3 Chat cookie" = "T3 Chat Cookie";
+"Team mode" = "团队模式";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "该账号已无法在 CodexBar 中使用。请刷新账号列表后再试。";
 "The browser login did not complete in time. Try Antigravity login again." = "浏览器登录未在时限内完成。请再次尝试 Antigravity 登录。";
 "Timed out waiting for Cursor login. %@" = "等待 Cursor 登录超时。%@";
@@ -1097,10 +1127,13 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "限额重置额度";
-"1 manual reset available" = "1 次手动重置可用";
-"%d manual resets available" = "%d 次手动重置可用";
+"1 available" = "1 次可用";
+"%d available" = "%d 次可用";
 "Next expires %@" = "下一个将于 %@ 到期";
+"Expires %@" = "%@ 到期";
+"No expiry" = "永不过期";
 "Other (%d items)" = "其他（%d 项）";
 "Expand" = "展开";
 "Collapse" = "收起";
@@ -1112,3 +1145,14 @@
 "byte_unit_megabytes" = "兆字节";
 "byte_unit_gigabyte" = "吉字节";
 "byte_unit_gigabytes" = "吉字节";
+
+/* Settings sidebar redesign */
+"Enable" = "启用";
+"Disable" = "停用";
+"providers_on_count" = "%d 个已开启";
+"section_cost_summary" = "费用摘要";
+"section_command_line" = "命令行";
+"section_privacy" = "隐私";
+"section_diagnostics" = "诊断";
+"section_updates" = "更新";
+"section_links" = "链接";

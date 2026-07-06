@@ -539,6 +539,35 @@ final class SyncCoordinator {
         return confidence.rawValue
     }
 
+    static func mapCrossModelUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCrossModelUsage?
+    {
+        guard provider == .crossmodel,
+              let usage = snapshot?.crossModelUsage
+        else { return nil }
+
+        func mapWindow(_ window: CrossModelUsageWindow?) -> SyncCrossModelUsage.Window? {
+            guard let window else { return nil }
+            return SyncCrossModelUsage.Window(
+                cost: window.cost,
+                promptTokens: window.promptTokens,
+                completionTokens: window.completionTokens,
+                totalTokens: window.totalTokens,
+                requestCount: window.requestCount,
+                successCount: window.successCount)
+        }
+
+        return SyncCrossModelUsage(
+            currency: usage.currency,
+            balance: usage.balance,
+            uncollected: usage.uncollected,
+            daily: mapWindow(usage.daily),
+            weekly: mapWindow(usage.weekly),
+            monthly: mapWindow(usage.monthly),
+            updatedAt: usage.updatedAt)
+    }
+
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -685,6 +714,8 @@ final class SyncCoordinator {
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
+        let crossModelUsage = Self.mapCrossModelUsage(provider: provider, snapshot: snapshot)
+        let crossModelCostSummary = Self.mapCrossModelCostSummary(provider: provider, snapshot: snapshot)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -696,7 +727,9 @@ final class SyncCoordinator {
             statusMessage: error,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
-            costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
+            costSummary: sharedCostSummary
+                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
+                ?? crossModelCostSummary,
             budget: budgetSnap,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
@@ -728,7 +761,8 @@ final class SyncCoordinator {
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             codexResetCredits: codexResetCredits,
-            usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot))
+            usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot),
+            crossModelUsage: crossModelUsage)
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1212,7 +1246,7 @@ final class SyncCoordinator {
         let paceWindow = Self.codexWeeklyWindow(snapshot: snapshot)
         let pace = paceWindow.flatMap { UsagePace.weekly(window: $0) }
         let paceDelta: Double? = pace.map { $0.deltaPercent / 100.0 }
-        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(pace: $0) }
+        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(provider: .codex, pace: $0) }
 
         // Skip emitting an empty envelope so iOS doesn't render a
         // ghost row — every reader checks the optional.
@@ -1663,6 +1697,46 @@ final class SyncCoordinator {
             currencyCode: m.currency)
     }
 
+    /// Builds a cost summary for CrossModel from its native wallet/usage
+    /// windows. CrossModel does not write token-DB entries, but it does expose
+    /// current daily and monthly spend. Feeding that into `SyncCostSummary`
+    /// lets the iOS Cost tab include it while the dedicated card renders the
+    /// richer wallet details.
+    static func mapCrossModelCostSummary(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCostSummary?
+    {
+        guard provider == .crossmodel, let usage = snapshot?.crossModelUsage else {
+            return nil
+        }
+
+        let dailyPoints: [SyncDailyPoint] = usage.daily.map { window in
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.timeZone = TimeZone(identifier: "UTC")
+            formatter.dateFormat = "yyyy-MM-dd"
+            return SyncDailyPoint(
+                dayKey: formatter.string(from: usage.updatedAt),
+                costUSD: window.cost,
+                totalTokens: window.totalTokens,
+                modelBreakdowns: [],
+                serviceBreakdowns: [],
+                isEstimated: nil)
+        }.map { [$0] } ?? []
+
+        return SyncCostSummary(
+            sessionCostUSD: usage.daily?.cost,
+            sessionTokens: usage.daily?.totalTokens,
+            last30DaysCostUSD: usage.monthly?.cost,
+            last30DaysTokens: usage.monthly?.totalTokens,
+            daily: dailyPoints,
+            isEstimated: nil,
+            sessionRequests: usage.daily?.requestCount,
+            last30DaysRequests: usage.monthly?.requestCount,
+            currencyCode: usage.currency)
+    }
+
     /// Maps OpenRouter's native balance/credits + per-key usage windows into
     /// the wire envelope (gap D). Before this, all of OpenRouter's
     /// /api/v1/credits + /api/v1/key data collapsed to a "Balance: $X"
@@ -1816,7 +1890,12 @@ final class SyncCoordinator {
              // Chutes, and Zed surface provider-computed usage/quota
              // values (or no USD cost), not local Codex/Claude model
              // pricing table estimates.
-             .litellm, .poe, .chutes, .zed:
+             .litellm, .poe, .chutes, .zed,
+             // Upstream v0.38.0–v0.39.0 new providers. Sakana, Qoder,
+             // CrossModel, and ClawRouter surface provider-computed
+             // values (or no USD cost), not local Codex/Claude model
+             // pricing table estimates.
+             .sakana, .qoder, .crossmodel, .clawrouter:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

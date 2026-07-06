@@ -299,11 +299,25 @@ public struct AntigravityStatusSnapshot: Sendable {
 
     private static func displayTitle(forQuotaGroup group: AntigravityQuotaSummaryGroup) -> String {
         let title = group.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercasedTitle = title.lowercased()
+        if lowercasedTitle.contains("gemini") {
+            return "Gemini"
+        }
+        if lowercasedTitle.contains("claude") || lowercasedTitle.contains("gpt") {
+            return "Claude/GPT"
+        }
         return title.isEmpty ? "Quota" : title
     }
 
     private static func displayTitle(forQuotaBucket bucket: AntigravityQuotaSummaryBucket) -> String {
-        bucket.displayName
+        switch self.quotaBucketKind(for: bucket) {
+        case .session:
+            "5-hour"
+        case .weekly:
+            "weekly"
+        case .other:
+            bucket.displayName
+        }
     }
 
     private static func windowMinutes(forQuotaBucket bucket: AntigravityQuotaSummaryBucket) -> Int? {
@@ -991,7 +1005,9 @@ public struct AntigravityStatusProbe: Sendable {
         return first
     }
 
-    private static func detectProcessInfos(
+    /// Internal (not private): called by AntigravityCLIHTTPSFetchStrategy
+    /// .liveWarmAgyDependencies to discover an already-running `agy` for reuse.
+    static func detectProcessInfos(
         timeout: TimeInterval,
         scope: ProcessScope = .ideAndCLI) async throws -> [ProcessInfoResult]
     {

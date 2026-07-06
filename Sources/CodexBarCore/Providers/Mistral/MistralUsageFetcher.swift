@@ -14,7 +14,8 @@ public enum MistralUsageFetcher {
     public static func fetchUsage(
         cookieHeader: String,
         csrfToken: String?,
-        timeout: TimeInterval = 15) async throws -> MistralUsageSnapshot
+        timeout: TimeInterval = 15,
+        transport: ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> MistralUsageSnapshot
     {
         let now = Date()
         var calendar = Calendar(identifier: .gregorian)
@@ -41,7 +42,7 @@ public enum MistralUsageFetcher {
             request.setValue(csrfToken, forHTTPHeaderField: "X-CSRFTOKEN")
         }
 
-        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let response = try await transport.response(for: request)
         let data = response.data
 
         switch response.statusCode {
@@ -59,6 +60,7 @@ public enum MistralUsageFetcher {
 
     public static func fetchVibeUsage(
         csrfToken: String,
+        cookieHeader: String? = nil,
         timeout: TimeInterval = 4,
         transport: ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> MistralVibeUsageResult
     {
@@ -68,11 +70,14 @@ public enum MistralUsageFetcher {
         }
 
         var request = URLRequest(url: url, timeoutInterval: timeout)
-        // The observed console request sends only csrftoken; keep admin Ory cookies origin-bound.
         request.httpShouldHandleCookies = false
         let validatedCSRFToken = try Self.validatedVibeCSRFToken(csrfToken)
         request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue("csrftoken=\(validatedCSRFToken)", forHTTPHeaderField: "Cookie")
+        // Forward ory_session_* and csrftoken cookies — scoped to what console.mistral.ai needs.
+        let consoleCookie = Self.consoleCookieHeader(
+            csrfToken: validatedCSRFToken,
+            adminCookieHeader: cookieHeader)
+        request.setValue(consoleCookie, forHTTPHeaderField: "Cookie")
         request.setValue(validatedCSRFToken, forHTTPHeaderField: "X-CSRFToken")
 
         let response = try await transport.response(for: request)
@@ -89,6 +94,38 @@ public enum MistralUsageFetcher {
         }
 
         return try Self.parseVibeUsage(data: data)
+    }
+
+    public static func fetchCredits(
+        cookieHeader: String,
+        csrfToken: String?,
+        timeout: TimeInterval = 4,
+        transport: ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> MistralCreditsSnapshot
+    {
+        let url = self.baseURL.appendingPathComponent("/api/billing/credits")
+        var request = URLRequest(url: url, timeoutInterval: timeout)
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.setValue("https://admin.mistral.ai/organization/billing", forHTTPHeaderField: "Referer")
+        request.setValue("https://admin.mistral.ai", forHTTPHeaderField: "Origin")
+        if let csrfToken {
+            request.setValue(csrfToken, forHTTPHeaderField: "X-CSRFTOKEN")
+        }
+
+        let response = try await transport.response(for: request)
+        let data = response.data
+
+        switch response.statusCode {
+        case 200:
+            break
+        case 401, 403:
+            throw MistralUsageError.invalidCredentials
+        default:
+            let body = String(data: data.prefix(200), encoding: .utf8) ?? ""
+            throw MistralUsageError.apiError("HTTP \(response.statusCode): \(body)")
+        }
+
+        return try Self.parseCredits(data: data)
     }
 
     static func parseVibeUsage(data: Data) throws -> MistralVibeUsageResult {
@@ -109,8 +146,36 @@ public enum MistralUsageFetcher {
             resetAt: json.resetAt.flatMap(Self.parseISO8601Date))
     }
 
+    static func parseCredits(data: Data) throws -> MistralCreditsSnapshot {
+        let response: MistralCreditsResponse
+        do {
+            response = try JSONDecoder().decode(MistralCreditsResponse.self, from: data)
+        } catch {
+            throw MistralUsageError.parseFailed(error.localizedDescription)
+        }
+
+        return MistralCreditsSnapshot(
+            walletAmount: response.walletAmount,
+            creditNotesAmount: response.creditNotesAmount ?? 0,
+            ongoingUsageBalance: response.ongoingUsageBalance ?? 0,
+            currency: response.currency)
+    }
+
     static func vibeCookieHeader(csrfToken: String) throws -> String {
         try "csrftoken=\(self.validatedVibeCSRFToken(csrfToken))"
+    }
+
+    /// Builds a minimal Cookie header for console.mistral.ai.
+    /// Only csrftoken + ory_session_* pass through; all other admin.mistral.ai cookies stay origin-bound.
+    static func consoleCookieHeader(csrfToken: String, adminCookieHeader: String?) -> String {
+        var pairs = ["csrftoken=\(csrfToken)"]
+        if let adminCookies = adminCookieHeader {
+            let sessionPairs = CookieHeaderNormalizer.pairs(from: adminCookies)
+                .filter { $0.name.hasPrefix("ory_session_") }
+                .map { "\($0.name)=\($0.value)" }
+            pairs.append(contentsOf: sessionPairs)
+        }
+        return pairs.joined(separator: "; ")
     }
 
     private static func validatedVibeCSRFToken(_ csrfToken: String) throws -> String {
@@ -155,7 +220,7 @@ public enum MistralUsageFetcher {
                 totalInput += input
                 totalOutput += output
                 totalCached += cached
-                totalCost += cost
+                Self.accumulateFiniteCost(cost, into: &totalCost)
                 Self.addDailyEntries(
                     modelName: modelName,
                     data: modelData,
@@ -170,7 +235,7 @@ public enum MistralUsageFetcher {
             if let models = category?.models {
                 for (modelName, modelData) in models {
                     let (_, _, _, cost) = Self.aggregateModel(modelData, prices: prices)
-                    totalCost += cost
+                    Self.accumulateFiniteCost(cost, into: &totalCost)
                     Self.addDailyEntries(
                         modelName: modelName,
                         data: modelData,
@@ -185,7 +250,7 @@ public enum MistralUsageFetcher {
         if let models = billing.librariesApi?.pages?.models {
             for (modelName, modelData) in models {
                 let (_, _, _, cost) = Self.aggregateModel(modelData, prices: prices)
-                totalCost += cost
+                Self.accumulateFiniteCost(cost, into: &totalCost)
                 Self.addDailyEntries(
                     modelName: modelName,
                     data: modelData,
@@ -197,7 +262,7 @@ public enum MistralUsageFetcher {
         if let models = billing.librariesApi?.tokens?.models {
             for (modelName, modelData) in models {
                 let (_, _, _, cost) = Self.aggregateModel(modelData, prices: prices)
-                totalCost += cost
+                Self.accumulateFiniteCost(cost, into: &totalCost)
                 Self.addDailyEntries(
                     modelName: modelName,
                     data: modelData,
@@ -212,7 +277,7 @@ public enum MistralUsageFetcher {
             if let models {
                 for (modelName, modelData) in models {
                     let (_, _, _, cost) = Self.aggregateModel(modelData, prices: prices)
-                    totalCost += cost
+                    Self.accumulateFiniteCost(cost, into: &totalCost)
                     Self.addDailyEntries(
                         modelName: modelName,
                         data: modelData,
@@ -251,7 +316,8 @@ public enum MistralUsageFetcher {
             guard let metric = price.billingMetric,
                   let group = price.billingGroup,
                   let priceStr = price.price,
-                  let value = Double(priceStr)
+                  let value = Double(priceStr),
+                  value.isFinite
             else { continue }
             let key = "\(metric)::\(group)"
             index[key] = value
@@ -271,28 +337,19 @@ public enum MistralUsageFetcher {
         for entry in data.input ?? [] {
             let tokens = entry.valuePaid ?? entry.value ?? 0
             totalInput += tokens
-            if let metric = entry.billingMetric, let group = entry.billingGroup {
-                let pricePerToken = prices["\(metric)::\(group)"] ?? 0
-                totalCost += Double(tokens) * pricePerToken
-            }
+            Self.accumulateFiniteCost(Self.cost(for: entry, units: tokens, prices: prices), into: &totalCost)
         }
 
         for entry in data.output ?? [] {
             let tokens = entry.valuePaid ?? entry.value ?? 0
             totalOutput += tokens
-            if let metric = entry.billingMetric, let group = entry.billingGroup {
-                let pricePerToken = prices["\(metric)::\(group)"] ?? 0
-                totalCost += Double(tokens) * pricePerToken
-            }
+            Self.accumulateFiniteCost(Self.cost(for: entry, units: tokens, prices: prices), into: &totalCost)
         }
 
         for entry in data.cached ?? [] {
             let tokens = entry.valuePaid ?? entry.value ?? 0
             totalCached += tokens
-            if let metric = entry.billingMetric, let group = entry.billingGroup {
-                let pricePerToken = prices["\(metric)::\(group)"] ?? 0
-                totalCost += Double(tokens) * pricePerToken
-            }
+            Self.accumulateFiniteCost(Self.cost(for: entry, units: tokens, prices: prices), into: &totalCost)
         }
 
         return (totalInput, totalOutput, totalCached, totalCost)
@@ -359,7 +416,15 @@ public enum MistralUsageFetcher {
 
     private static func cost(for entry: MistralUsageEntry, units: Int, prices: [String: Double]) -> Double {
         guard let metric = entry.billingMetric, let group = entry.billingGroup else { return 0 }
-        return Double(units) * (prices["\(metric)::\(group)"] ?? 0)
+        let cost = Double(units) * (prices["\(metric)::\(group)"] ?? 0)
+        return cost.isFinite ? cost : 0
+    }
+
+    fileprivate static func accumulateFiniteCost(_ cost: Double, into total: inout Double) {
+        guard cost.isFinite else { return }
+        let updatedTotal = total + cost
+        guard updatedTotal.isFinite else { return }
+        total = updatedTotal
     }
 
     private static func displayModelName(_ raw: String, entry: MistralUsageEntry) -> String {
@@ -412,9 +477,9 @@ private struct DailyAccumulator {
         cost: Double,
         countsTokens: Bool)
     {
-        self.cost += cost
+        MistralUsageFetcher.accumulateFiniteCost(cost, into: &self.cost)
         var model = self.models[modelName] ?? ModelAccumulator(name: modelName)
-        model.cost += cost
+        MistralUsageFetcher.accumulateFiniteCost(cost, into: &model.cost)
         guard countsTokens else {
             self.models[modelName] = model
             return
@@ -481,5 +546,19 @@ private struct VibeUsageResponse: Decodable {
                 }
             }
         }
+    }
+}
+
+private struct MistralCreditsResponse: Decodable {
+    let walletAmount: Double
+    let creditNotesAmount: Double?
+    let ongoingUsageBalance: Double?
+    let currency: String
+
+    enum CodingKeys: String, CodingKey {
+        case currency
+        case walletAmount = "wallet_amount"
+        case creditNotesAmount = "credit_notes_amount"
+        case ongoingUsageBalance = "ongoing_usage_balance"
     }
 }

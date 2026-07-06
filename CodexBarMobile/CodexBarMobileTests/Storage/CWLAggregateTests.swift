@@ -10,9 +10,8 @@ import Testing
 ///
 /// - **T4**: single-device aggregation correctness — totals, activeDayCount,
 ///   per-provider rollups, daily series order.
-/// - **T5**: cross-device merge — same `(providerID, dayKey)` from two
-///   devices with different `lastUpdated` → max wins (NOT sum); other
-///   `(providerID, dayKey)` combos coexist.
+/// - **T5**: cross-device merge — local-cost providers sum active-device
+///   rows, while account-level providers keep the latest account/day row.
 /// - **T6**: window filtering — 7d / 30d / 90d / 365d return exactly the
 ///   days inside the window; boundary day inclusive.
 /// - Diagnostics smoke: counts, earliest dayKey, latestWriteAt.
@@ -62,6 +61,8 @@ struct CWLAggregateTests {
         daysAgo: Int,
         cost: Double,
         tokens: Int,
+        modelBreakdowns: [SyncCostBreakdown] = [],
+        serviceBreakdowns: [SyncCostBreakdown] = [],
         lastUpdated: Date) throws
     {
         try CostLedgerService.upsertDayPoint(
@@ -72,8 +73,8 @@ struct CWLAggregateTests {
             costUSD: cost,
             totalTokens: tokens,
             isEstimated: nil,
-            modelBreakdowns: [],
-            serviceBreakdowns: [],
+            modelBreakdowns: modelBreakdowns,
+            serviceBreakdowns: serviceBreakdowns,
             lastUpdated: lastUpdated,
             in: context)
     }
@@ -129,30 +130,148 @@ struct CWLAggregateTests {
 
     // MARK: - T5
 
-    @Test("T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)")
-    func testCrossDeviceLatestWins() throws {
+    @Test("T5: local-cost same provider/account/day across devices → active-device rows sum")
+    func testCrossDeviceLocalCostSums() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
         let t1 = t0.addingTimeInterval(3600) // 1 hour later
 
-        // Same (providerID, dayKey), two devices, different lastUpdated + values.
+        // Codex is a local-cost provider. Two active Macs report different
+        // local CLI spend for the same day, so the correct answer is SUM.
         try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t0)
+            daysAgo: 0, cost: 1.0, tokens: 100,
+            modelBreakdowns: [
+                SyncCostBreakdown(
+                    label: "gpt-5", costUSD: 1.0,
+                    standardCostUSD: 1.0, standardTokens: 100),
+            ],
+            serviceBreakdowns: [
+                SyncCostBreakdown(label: "Codex Run", costUSD: 0.25),
+            ],
+            lastUpdated: t0)
         try self.insert(context, device: "dev-B", provider: "codex",
-            daysAgo: 0, cost: 9.0, tokens: 900, lastUpdated: t1)
+            daysAgo: 0, cost: 9.0, tokens: 900,
+            modelBreakdowns: [
+                SyncCostBreakdown(
+                    label: "gpt-5", costUSD: 9.0,
+                    priorityCostUSD: 9.0, priorityTokens: 900),
+            ],
+            serviceBreakdowns: [
+                SyncCostBreakdown(label: "Codex Run", costUSD: 1.75),
+            ],
+            lastUpdated: t1)
         try context.save()
 
         let agg = try CostLedgerService.aggregate(
             windowDays: 7, in: context, asOf: Self.asOf)
 
-        // Latest (dev-B, 9.0) wins. Sum (10.0) would be the WRONG answer.
-        #expect(agg.totalCostUSD == 9.0)
-        #expect(agg.totalTokens == 900)
+        #expect(agg.totalCostUSD == 10.0)
+        #expect(agg.totalTokens == 1_000)
         #expect(agg.activeDayCount == 1)
         let codex = try #require(agg.providerRollups["codex|_"])
-        #expect(codex.totalCostUSD == 9.0)
+        #expect(codex.totalCostUSD == 10.0)
+        #expect(codex.totalTokens == 1_000)
+
+        let model = try #require(agg.modelMix.first { $0.label == "gpt-5" })
+        #expect(model.costUSD == 10.0)
+        #expect(model.standardCostUSD == 1.0)
+        #expect(model.priorityCostUSD == 9.0)
+        #expect(model.standardTokens == 100)
+        #expect(model.priorityTokens == 900)
+
+        let service = try #require(agg.serviceMix.first { $0.label == "Codex Run" })
+        #expect(service.costUSD == 2.0)
+        #expect(codex.dailyPoints.first?.modelBreakdowns.first?.costUSD == 10.0)
+        #expect(codex.serviceBreakdowns.first?.costUSD == 2.0)
+    }
+
+    @Test("T5: account-level same provider/account/day across devices → latest wins")
+    func testCrossDeviceAccountLevelLatestWins() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let t1 = t0.addingTimeInterval(3600)
+
+        try self.insert(context, device: "dev-A", provider: "openrouter",
+            account: "api@example.com", daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t0)
+        try self.insert(context, device: "dev-B", provider: "openrouter",
+            account: "api@example.com", daysAgo: 0, cost: 9.0, tokens: 900, lastUpdated: t1)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+
+        #expect(agg.totalCostUSD == 9.0)
+        #expect(agg.totalTokens == 900)
+        let openrouter = try #require(agg.providerRollups["openrouter|api@example.com"])
+        #expect(openrouter.totalCostUSD == 9.0)
+    }
+
+    @Test("T5: activeDeviceIDs filter excludes archived local-cost rows before summing")
+    func testActiveDeviceFilterExcludesArchivedRows() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(context, device: "dev-archived", provider: "codex",
+            daysAgo: 0, cost: 100.0, tokens: 10_000, lastUpdated: t)
+        try self.insert(context, device: "dev-active", provider: "codex",
+            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: Self.asOf,
+            activeDeviceIDs: ["dev-active"])
+
+        #expect(agg.totalCostUSD == 2.0)
+        #expect(agg.totalTokens == 200)
+        let codex = try #require(agg.providerRollups["codex|_"])
+        #expect(codex.totalCostUSD == 2.0)
+    }
+
+    @Test("T5: activeDeviceIDs filter includes legacy fallback device rows")
+    func testActiveDeviceFilterIncludesLegacyFallbackRows() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        let legacySnapshot = SyncedUsageSnapshot(
+            providers: [],
+            syncTimestamp: t,
+            deviceName: "Old Mac",
+            deviceID: nil)
+        let modernSnapshot = SyncedUsageSnapshot(
+            providers: [],
+            syncTimestamp: t,
+            deviceName: "New Mac",
+            deviceID: "dev-new")
+        let activeDeviceIDs = try #require(CostLedgerDeviceFilter.activeDeviceIDs(
+            for: [legacySnapshot, modernSnapshot]))
+
+        try self.insert(context, device: "legacy:Old Mac", provider: "codex",
+            daysAgo: 0, cost: 3.0, tokens: 300, lastUpdated: t)
+        try self.insert(context, device: "dev-new", provider: "codex",
+            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(context, device: "dev-archived", provider: "codex",
+            daysAgo: 0, cost: 100.0, tokens: 10_000, lastUpdated: t)
+        try context.save()
+
+        #expect(activeDeviceIDs == ["legacy:Old Mac", "dev-new"])
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: Self.asOf,
+            activeDeviceIDs: activeDeviceIDs)
+
+        #expect(agg.totalCostUSD == 5.0)
+        #expect(agg.totalTokens == 500)
+        let codex = try #require(agg.providerRollups["codex|_"])
+        #expect(codex.totalCostUSD == 5.0)
     }
 
     @Test("T5: cross-device different (providerID, dayKey) → both kept (no merge)")

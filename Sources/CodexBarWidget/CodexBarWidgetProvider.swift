@@ -84,12 +84,15 @@ enum ProviderChoice: String, AppEnum {
         case .ollama: return nil // Ollama not yet supported in widgets
         case .synthetic: return nil // Synthetic not yet supported in widgets
         case .openrouter: return nil // OpenRouter not yet supported in widgets
+        case .crossmodel: return nil // CrossModel not yet supported in widgets
+        case .clawrouter: return nil // ClawRouter not yet supported in widgets
         case .elevenlabs: return nil // ElevenLabs not yet supported in widgets
         case .warp: return nil // Warp not yet supported in widgets
         case .windsurf: return nil // Windsurf not yet supported in widgets
         case .perplexity: return nil // Perplexity not yet supported in widgets
         case .mimo: return nil // Xiaomi MiMo not yet supported in widgets
         case .doubao: return nil // Doubao not yet supported in widgets
+        case .sakana: return nil // Sakana AI not yet supported in widgets
         case .abacus: return nil // Abacus AI not yet supported in widgets
         case .mistral: return nil // Mistral not yet supported in widgets
         case .deepseek: return nil // DeepSeek not yet supported in widgets
@@ -97,6 +100,7 @@ enum ProviderChoice: String, AppEnum {
         case .crof: return nil // Crof not yet supported in widgets
         case .venice: return nil // Venice not yet supported in widgets
         case .commandcode: return nil // CommandCode not yet supported in widgets
+        case .qoder: return nil // Qoder not yet supported in widgets
         case .stepfun: return nil // StepFun not yet supported in widgets
         case .bedrock: return nil // Bedrock not yet supported in widgets
         case .grok: return nil // Grok not yet supported in widgets

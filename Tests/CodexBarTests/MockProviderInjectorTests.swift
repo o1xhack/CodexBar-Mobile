@@ -55,9 +55,10 @@ struct MockProviderInjectorTests {
         // (azureopenai/alibabatokenplan/t3chat). 57 → 60.
         // iOS 1.12.0 adds Devin. 60 → 61.
         // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed. 61 → 65.
+        // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter. 65 → 69.
         #expect(
-            MockProviderInjector.allMocks().count == 65,
-            "iOS 1.13.0: 61 → 65 (+LiteLLM/Poe/Chutes/Zed simple mocks).")
+            MockProviderInjector.allMocks().count == 69,
+            "iOS 1.17.0: 65 → 69 (+Sakana/Qoder/CrossModel/ClawRouter simple mocks).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")
@@ -162,6 +163,19 @@ struct MockProviderInjectorTests {
         #expect(credits?.planName == "Pro")
     }
 
+    @Test("CrossModel mock has wallet/usage payload on `crossmodel` providerID")
+    func crossModelMockHasUsagePayload() {
+        self.resetActivationState()
+        UserDefaults.standard.set(
+            true, forKey: MockProviderInjector.userDefaultsKey)
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.allMocks()
+        let crossModel = snapshots.first { $0.providerID == "crossmodel" }
+        #expect(crossModel != nil)
+        #expect(crossModel?.crossModelUsage?.balance == 8.06)
+        #expect(crossModel?.crossModelUsage?.monthly?.requestCount == 3166)
+    }
+
     @Test("Cursor fallback mock has isError + statusMessage on `_mock_cursor_unknown` providerID")
     func cursorErrorMockHasErrorState() {
         self.resetActivationState()
@@ -257,6 +271,7 @@ struct MockProviderInjectorTests {
         //   - alibabatokenplan (v0.29.0, token-plan credit quota, no USD)
         //   - t3chat (v0.28.0, web-session subscription %, no USD)
         //   - poe (v0.36.1, points/subscription usage, no USD)
+        //   - sakana/qoder (v0.38/v0.39, quota/credit usage, no USD)
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
@@ -264,7 +279,7 @@ struct MockProviderInjectorTests {
             Set(costLessIDs).isSubset(of: [
                 "antigravity", "ollama", "elevenlabs",
                 "azureopenai", "alibabatokenplan", "t3chat",
-                "poe",
+                "poe", "sakana", "qoder",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

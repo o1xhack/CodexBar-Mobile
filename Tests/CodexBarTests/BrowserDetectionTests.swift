@@ -8,6 +8,36 @@ import SweetCookieKit
 
 @Suite(.serialized)
 struct BrowserDetectionTests {
+    private func detection(
+        homeDirectory: String,
+        installedBrowsers: Set<Browser>) -> BrowserDetection
+    {
+        let installedAppPaths = Set(installedBrowsers.map { "/Applications/\($0.appBundleName).app" })
+        return BrowserDetection(
+            homeDirectory: homeDirectory,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                if path.hasSuffix(".app") {
+                    return installedAppPaths.contains(path)
+                }
+                return FileManager.default.fileExists(atPath: path)
+            },
+            directoryContents: { path in
+                try? FileManager.default.contentsOfDirectory(atPath: path)
+            },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
+    }
+
+    private static func labelIDs(for browser: Browser) -> [String] {
+        browser.safeStorageLabels.map { self.labelID(service: $0.service, account: $0.account) }
+    }
+
+    private static func labelID(service: String, account: String?) -> String {
+        "\(service)|\(account ?? "")"
+    }
+
     @Test(.disabled(
         if: ProcessInfo.processInfo.environment[BrowserCookieAccessGate.allowTestCookieAccessEnvironmentKey] == "1",
         "Default-home cookie access is explicitly enabled for this test run."))
@@ -125,7 +155,7 @@ struct BrowserDetectionTests {
             atPath: firefoxProfile.appendingPathComponent("cookies.sqlite").path,
             contents: Data())
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.firefox])
         let browsers: [Browser] = [.firefox, .safari, .chrome]
         // Chrome is filtered out deterministically because it lacks usable on-disk profile/cookie store data.
         #expect(browsers.cookieImportCandidates(using: detection) == [.firefox, .safari])
@@ -137,7 +167,7 @@ struct BrowserDetectionTests {
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.chrome])
         #expect(detection.isCookieSourceAvailable(.chrome) == false)
 
         let profile = temp
@@ -177,7 +207,7 @@ struct BrowserDetectionTests {
         try FileManager.default.createDirectory(at: cookiesDir, withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: cookiesDir.appendingPathComponent("Cookies").path, contents: Data())
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.chrome])
         let browsers: [Browser] = [.chrome, .safari]
         #expect(browsers.cookieImportCandidates(using: detection) == [.safari])
     }
@@ -260,12 +290,90 @@ struct BrowserDetectionTests {
     }
 
     @Test
+    func `chrome keychain preflight queries only chrome labels`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        let chromeLabels = Self.labelIDs(for: .chrome)
+        let chromeLabelSet = Set(chromeLabels)
+        var queriedLabels: [String] = []
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { service, account in
+                let label = Self.labelID(service: service, account: account)
+                queriedLabels.append(label)
+                return .notFound
+            } operation: {
+                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome) == true)
+            }
+        }
+
+        #expect(queriedLabels == chromeLabels)
+        #expect(queriedLabels.allSatisfy { chromeLabelSet.contains($0) })
+    }
+
+    @Test
+    func `dia keychain preflight queries only dia labels`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        let diaLabels = Self.labelIDs(for: .dia)
+        let diaLabelSet = Set(diaLabels)
+        var queriedLabels: [String] = []
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { service, account in
+                let label = Self.labelID(service: service, account: account)
+                queriedLabels.append(label)
+                return .notFound
+            } operation: {
+                #expect(BrowserCookieAccessGate.shouldAttempt(.dia) == true)
+            }
+        }
+
+        #expect(queriedLabels == diaLabels)
+        #expect(queriedLabels.allSatisfy { diaLabelSet.contains($0) })
+    }
+
+    @Test
+    func `browser keychain interaction suppresses only that browser`() throws {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        let start = Date(timeIntervalSince1970: 2000)
+        let chromeLabels = Self.labelIDs(for: .chrome)
+        let diaLabels = Self.labelIDs(for: .dia)
+        let firstChromeLabel = try #require(chromeLabels.first)
+        let firstDiaLabel = try #require(diaLabels.first)
+        let allowedLabels = Set(chromeLabels + diaLabels)
+        var queriedLabels: [String] = []
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { service, account in
+                let label = Self.labelID(service: service, account: account)
+                queriedLabels.append(label)
+                if label == firstChromeLabel { return .allowed }
+                if label == firstDiaLabel { return .interactionRequired }
+                return .notFound
+            } operation: {
+                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start) == true)
+                #expect(BrowserCookieAccessGate.shouldAttempt(.dia, now: start.addingTimeInterval(1)) == false)
+                #expect(BrowserCookieAccessGate.shouldAttempt(.chrome, now: start.addingTimeInterval(60)) == true)
+                #expect(BrowserCookieAccessGate.shouldAttempt(.dia, now: start.addingTimeInterval(60)) == false)
+            }
+        }
+
+        #expect(queriedLabels == [firstChromeLabel, firstDiaLabel, firstChromeLabel])
+        #expect(queriedLabels.allSatisfy { allowedLabels.contains($0) })
+    }
+
+    @Test
     func `dia requires profile data`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.dia])
         #expect(detection.isCookieSourceAvailable(.dia) == false)
 
         let profile = temp
@@ -283,6 +391,136 @@ struct BrowserDetectionTests {
     }
 
     @Test
+    func `removed browser with stale cookies is not a candidate`() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookies = temp
+            .appendingPathComponent("Library/Application Support/Dia/User Data/Default/Network/Cookies")
+        try FileManager.default.createDirectory(
+            at: cookies.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookies.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [])
+
+        #expect(detection.hasUsableProfileData(.dia))
+        #expect(!detection.isCookieSourceAvailable(.dia))
+        #expect([Browser.dia].cookieImportCandidates(using: detection).isEmpty)
+    }
+
+    @Test
+    func `browser uninstall invalidates cookie source immediately`() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookies = temp
+            .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network/Cookies")
+        try FileManager.default.createDirectory(
+            at: cookies.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookies.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let installed = OSAllocatedUnfairLock(initialState: true)
+        let detection = BrowserDetection(
+            homeDirectory: temp.path,
+            cacheTTL: 600,
+            fileExists: { path in
+                if path == "/Applications/Google Chrome.app" {
+                    return installed.withLock { $0 }
+                }
+                return FileManager.default.fileExists(atPath: path)
+            },
+            directoryContents: { path in
+                try? FileManager.default.contentsOfDirectory(atPath: path)
+            })
+
+        #expect(detection.isCookieSourceAvailable(.chrome))
+        installed.withLock { $0 = false }
+        #expect(!detection.isCookieSourceAvailable(.chrome))
+    }
+
+    @Test
+    func `registered browser outside Applications is a candidate`() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookies = temp
+            .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network/Cookies")
+        try FileManager.default.createDirectory(
+            at: cookies.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookies.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let appURL = URL(fileURLWithPath: "/Volumes/Tools/Google Chrome.app")
+        let detection = BrowserDetection(
+            homeDirectory: temp.path,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                path == appURL.path || FileManager.default.fileExists(atPath: path)
+            },
+            directoryContents: { path in
+                try? FileManager.default.contentsOfDirectory(atPath: path)
+            },
+            applicationURLs: { appName in
+                appName == Browser.chrome.appBundleName ? [appURL] : []
+            },
+            profileAccessIssue: { _ in nil })
+
+        #expect(detection.isCookieSourceAvailable(.chrome))
+    }
+
+    @Test
+    func `stale registered browser outside Applications is not a candidate`() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let cookies = temp
+            .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network/Cookies")
+        try FileManager.default.createDirectory(
+            at: cookies.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookies.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let staleAppURL = URL(fileURLWithPath: "/Volumes/Removed/Google Chrome.app")
+        let detection = BrowserDetection(
+            homeDirectory: temp.path,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                if path.hasSuffix("/Google Chrome.app") {
+                    return false
+                }
+                return FileManager.default.fileExists(atPath: path)
+            },
+            directoryContents: { path in
+                try? FileManager.default.contentsOfDirectory(atPath: path)
+            },
+            applicationURLs: { appName in
+                appName == Browser.chrome.appBundleName ? [staleAppURL] : []
+            },
+            profileAccessIssue: { _ in nil })
+
+        #expect(!detection.isCookieSourceAvailable(.chrome))
+    }
+
+    @Test
+    func `installed browser reports denied profile access`() {
+        let home = "/tmp/codexbar-denied-browser-profile"
+        let profileRoot = "\(home)/Library/Application Support/Google/Chrome"
+        let detection = BrowserDetection(
+            homeDirectory: home,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                path == "/Applications/Google Chrome.app" || path == profileRoot
+            },
+            directoryContents: { _ in nil },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in .accessDenied })
+
+        #expect(detection.cookieSourceProfileAccessIssue(.chrome) == .accessDenied)
+        #expect(!detection.isCookieSourceAvailable(.chrome))
+    }
+
+    @Test
     func `firefox requires default profile dir`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
@@ -295,7 +533,7 @@ struct BrowserDetectionTests {
             .appendingPathComponent("Profiles")
         try FileManager.default.createDirectory(at: profiles, withIntermediateDirectories: true)
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.firefox])
         #expect(detection.isCookieSourceAvailable(.firefox) == false)
 
         let profile = profiles.appendingPathComponent("abc.default-release")
@@ -317,7 +555,7 @@ struct BrowserDetectionTests {
             .appendingPathComponent("Profiles")
         try FileManager.default.createDirectory(at: profiles, withIntermediateDirectories: true)
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.zen])
         #expect(detection.isCookieSourceAvailable(.zen) == false)
 
         let profile = profiles.appendingPathComponent("abc.Default (release)")

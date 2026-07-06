@@ -56,6 +56,10 @@ extension UsageStore {
             return ZaiSettingsError.missingToken.errorDescription
         case .openrouter:
             return OpenRouterSettingsError.missingToken.errorDescription
+        case .crossmodel:
+            return CrossModelSettingsError.missingToken.errorDescription
+        case .clawrouter:
+            return ClawRouterUsageError.missingCredentials.errorDescription
         case .azureopenai:
             return AzureOpenAISettingsError.missingAPIKey.errorDescription
         case .elevenlabs:
@@ -80,6 +84,11 @@ extension UsageStore {
 
     func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
         self.status(for: provider)?.indicator ?? .none
+    }
+
+    func statusComponents(for provider: UsageProvider) -> [ProviderStatusComponent] {
+        guard self.statusChecksEnabled else { return [] }
+        return self.statusComponents[provider] ?? []
     }
 
     func accountInfo(for provider: UsageProvider) -> AccountInfo {

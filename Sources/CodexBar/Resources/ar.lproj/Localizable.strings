@@ -21,6 +21,7 @@
 "Animation pattern" = "نمط الرسوم المتحركة";
 "Antigravity login is managed in the app" = "يتم إدارة Antigravity تسجيل الدخول في التطبيق";
 "Applies only to the Security.framework OAuth keychain reader." = "ينطبق فقط على قارئ سلسلة مفاتيح Security.framework OAuth.";
+"Alternatively, set a custom path in Settings." = "بدلاً من ذلك، عيّن مسارًا مخصصًا في الإعدادات.";
 "Auto falls back to the next source if the preferred one fails." = "التلقائي يعود إلى المصدر التالي إذا فشل المصدر المفضل.";
 "Auto uses API first, then falls back to CLI on auth failures." = "يستخدم التلقائي API أولا، ثم يعود إلى CLI عند فشل التصديق.";
 "Auto-detect" = "الكشف التلقائي";
@@ -148,6 +149,7 @@
 "Install the Claude CLI (npm i -g @anthropic-ai/claude-code) and try again." = "ثبت Claude CLI (npm i -g @anthropic-ai/claude-code) وجرب مرة أخرى.";
 "Install the Codex CLI (npm i -g @openai/codex) and try again." = "ثبت Codex CLI (npm i -g @openai/codex) وجرب مرة أخرى.";
 "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again." = "ثبت Gemini CLI (npm i -g @google/gemini-cli) وجرب مرة أخرى.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "ثبّت بيئة JetBrains IDE مع تفعيل AI Assistant، ثم حدّث CodexBar.";
 "JetBrains AI is ready" = "JetBrains الذكاء الاصطناعي جاهز";
 "JetBrains IDE" = "JetBrains IDE";
 "Keep CLI sessions alive" = "حافظ على الجلسات CLI حية";
@@ -234,6 +236,7 @@
 "Picker subtitle" = "عنوان فرعي لاختيار";
 "Placeholder" = "العنصر المؤقت";
 "Plan" = "الخطة";
+"Plan Usage" = "استخدام الخطة";
 "Play full-screen confetti when weekly usage resets." = "شغل ورق الورق الورقية بملء الشاشة عند إعادة ضبط الاستخدام الأسبوعي.";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "استطلاعات OpenAI/Claude صفحات الحالة ومساحة العمل Google ل  ";
 "Prevents any Keychain access while enabled." = "يمنع أي وصول Keychain أثناء التفعيل.";
@@ -278,6 +281,7 @@
 "Show provider icons in the switcher (otherwise show a weekly progress line)." = "عرض أيقونات المزودين في جهاز التبديل (وإلا اعرض خط تقدم أسبوعي).";
 "Show reset time as clock" = "عرض وقت إعادة التعيين كساعة";
 "Show usage as used" = "استخدام العرض كما هو مستخدم";
+"Sign in with Claude Code..." = "تسجيل الدخول باستخدام Claude Code...";
 "Sign in via button below" = "سجل الدخول عبر الزر أدناه";
 "Skip teardown between probes (debug-only)." = "تخطي التفكيك بين المجسات (تصحيح فقط).";
 "Stack token accounts in the menu (otherwise show an account switcher bar)." = "قم بتكديس حسابات الرموز في القائمة (وإلا اعرض شريط تبديل الحسابات).";
@@ -301,7 +305,6 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "مخزن في ~/.codexbar/config.json. الصق مفتاح MiniMax API الخاص بك.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "مخزنة في ~/.codexbar/config.json. يمكنك أيضا توفير KILO_API_KEY or ";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "يخزن تاريخ استخدام Codex محليا (8 أسابيع) لتخصيص توقعات Pac.";
-"Subscription Utilization" = "استخدام الاشتراكات";
 "Surprise me" = "فاجئني";
 "Switcher shows icons" = "المحول يعرض الأيقونات";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink CodexBarCLI إلى /usr/local/bin و /opt/homebrew/bin ك codexbar.";
@@ -408,6 +411,7 @@
 "language_swedish" = "السويديا";
 "language_french" = "الفرنسية";
 "language_ukrainian" = "Українська";
+"language_russian" = "Русский";
 "language_japanese" = "ياباني";
 "language_korean" = "الكورية";
 "language_turkish" = "تركجه";
@@ -417,11 +421,24 @@
 "start_at_login_subtitle" = "يفتح تلقائيا CodexBar عند تشغيل جهاز الماك.";
 "show_cost_summary" = "ملخص تكلفة العرض";
 "show_cost_summary_subtitle" = "يقرأ سجلات الاستخدام المحلية. يعرض اليوم + نافذة التاريخ المحددة في القائمة.";
+"cost_summary_style_title" = "نمط العرض";
+"cost_summary_style_inline" = "مضمن فقط";
+"cost_summary_style_submenu" = "قائمة فرعية فقط";
+"cost_summary_style_both" = "كلاهما";
+"cost_summary_style_inline_help" = "يعرض ملخص التكلفة مباشرة في القائمة الرئيسية.";
+"cost_summary_style_submenu_help" = "يعرض بدلاً من ذلك قائمة التكلفة الفرعية التفصيلية.";
+"cost_summary_style_both_help" = "يعرض ملخص القائمة الرئيسية وقائمة التكلفة الفرعية التفصيلية.";
+"cost_history_window_title" = "نافذة التاريخ";
+"cost_history_window_help" = "يحدد عدد أيام سجلات الاستخدام المحلية التي تظهر في القائمة.";
 "cost_history_days_title" = "نافذة التاريخ: %d أيام";
+"cost_comparison_periods_title" = "إظهار فترات مقارنة أقصر";
+"cost_comparison_periods_subtitle" = "أضف إجماليات 7 و30 و90 يومًا عندما تقع ضمن نافذة التاريخ المحددة. تعيد هذه الإجماليات استخدام الفحص المحلي نفسه.";
 "cost_auto_refresh_info" = "تحديث تلقائي: كل ساعة · وقت الاستراحة: 10m";
 "refresh_cadence_title" = "وتيرة التحديث";
 "refresh_cadence_subtitle" = "كم مرة CodexBar استطلاعات في الخلفية.";
 "manual_refresh_hint" = "التحديث التلقائي مغلق؛ استخدم أمر التحديث في القائمة.";
+"refresh_on_open_title" = "التحديث عند فتح القائمة";
+"refresh_on_open_subtitle" = "جلب أحدث بيانات الاستخدام لكل مزوّد في كل مرة تفتح فيها القائمة.";
 "check_provider_status_title" = "تحقق من حالة المزود";
 "check_provider_status_subtitle" = "استطلاعات OpenAI/Claude صفحات الحالة و Google مساحة العمل Gemini/Antigravity، وتظهر الحوادث في الأيقونة والقائمة.";
 "session_quota_notifications_title" = "إشعارات حصص الجلسة";
@@ -443,6 +460,7 @@
 "quota_warning_warn_at" = "التحذير في";
 "quota_warning_global_threshold_subtitle" = "النسب المتبقية للجلسات والفترات الأسبوعية ما لم يتجاوزها مقدم الخدمة.";
 "quota_warning_sound" = "تشغيل صوت الإشعار";
+"quota_warning_onscreen_alert" = "إظهار تنبيه نصي على الشاشة";
 "quota_warning_provider_inherits" = "يستخدم إعدادات تحذير الحصص العامة إلا إذا تم تخصيص نافذة هنا.";
 "quota_warning_customize_thresholds" = "تخصيص عتبات %@";
 "quota_warning_enable_warnings" = "تفعيل تحذيرات %@";
@@ -540,6 +558,8 @@
 "show_debug_settings_subtitle" = "اعرض أدوات استكشاف الأخطاء في تبويب التصحيح.";
 "surprise_me_title" = "فاجئني";
 "surprise_me_subtitle" = "تحقق إذا كنت تحب وكلائنك يستمتعون هناك.";
+"session_limit_confetti_title" = "قصاصات ورقية لحد الجلسة";
+"session_limit_confetti_subtitle" = "اعرض قصاصات ورقية بملء الشاشة عند إعادة تعيين استخدام الجلسة.";
 "weekly_limit_confetti_title" = "قصاصات كونفيتي أسبوعية محدودة";
 "weekly_limit_confetti_subtitle" = "شغل ورق الورق الورقية بملء الشاشة عند إعادة ضبط الاستخدام الأسبوعي.";
 "hide_personal_info_title" = "إخفاء المعلومات الشخصية";
@@ -643,6 +663,7 @@
 
 /* Provider status */
 "status_operational" = "التشغيل";
+"status_degraded" = "أداء متدهور";
 "status_partial_outage" = "انقطاع جزئي";
 "status_major_outage" = "انقطاع كبير";
 "status_critical_issue" = "القضية الحرجة";
@@ -656,6 +677,7 @@
 "refresh_5min" = "5 دقائق";
 "refresh_15min" = "15 دقيقة";
 "refresh_30min" = "30 دقيقة";
+"refresh_adaptive" = "تكيفي";
 
 /* Additional keys */
 "not_found" = "لم يعثر عليه";
@@ -699,6 +721,7 @@
 "Add Account..." = "أضف حساب...";
 "Usage Dashboard" = "لوحة تحكم الاستخدام";
 "Status Page" = "صفحة الحالة";
+"Open Status Page" = "فتح صفحة الحالة";
 "Settings..." = "الإعدادات...";
 "About CodexBar" = "حول CodexBar";
 "Quit" = "استقال";
@@ -713,7 +736,10 @@
 "Resets now" = "إعادة التعيين الآن";
 "reset_tomorrow_format" = "غدًا، %@";
 "Lasts until reset" = "يستمر حتى إعادة التعيين";
+"1.5× headroom" = "هامش 1.5×";
 "Updated %@" = "تحديث %@";
+"Updated relative %@" = "تحديث %@";
+"Updated absolute %@" = "تحديث %@";
 "Updated %@h ago" = "تم التحديث %@h قبل";
 "Updated %@m ago" = "تم التحديث %@m قبل";
 "Updated just now" = "تم التحديث للتو";
@@ -769,6 +795,7 @@
 "Est. total (%@): %@" = "التقدير الكلي (%@): %@";
 "Hover a bar for details" = "مرر المؤشر على الشريط لمزيد من التفاصيل";
 "%@: %@ · %@ tokens" = "%@: %@ · رموز %@";
+"%@: %@" = "%@: %@";
 "No providers selected for Overview." = "لم يتم اختيار أي مقدمي خدمة للنظرة العامة.";
 "No overview data available." = "لا توجد بيانات عامة متوفرة.";
 "Auto uses the local IDE API first, then Google OAuth when the IDE is closed." = "يستخدم الأوتوماتيكي IDE API المحلي أولا، ثم Google OAuth عندما يكون IDE مغلقا.";
@@ -985,6 +1012,8 @@
 "Enterprise host" = "مضيف مؤسسي";
 "Extra usage balance: %@" = "توازن الاستخدام الإضافي: %@";
 "Keychain Access Required" = "Keychain الوصول المطلوب";
+"keychain_prompt_learn_more" = "معرفة المزيد…";
+"keychain_prompt_privacy_note" = "يتولى macOS، وليس CodexBar، إدخال كلمة سر تسجيل الدخول إلى Mac. يمكنك تعطيل وصول سلسلة المفاتيح في أي وقت من الإعدادات ← متقدم.";
 "Kiro menu bar value" = "Kiro قيمة شريط القائمة";
 "Label" = "العلامة التجارية";
 "No organizations loaded. Click Refresh after setting your API key." = "لا توجد منظمات محملة. انقر على تحديث بعد تعيين مفتاح API.";
@@ -1011,6 +1040,7 @@
 "Optional. Leave blank to discover and aggregate projects visible to the API key." = "اختياري. اترك فارغا لاكتشاف وتجميع المشاريع المرئية لمفتاح API.";
 "Org ID (optional)" = "معرف المنظمة (اختياري)";
 "Organizations" = "المنظمات";
+"Organization ID" = "معرف المنظمة";
 "Password" = "كلمة المرور";
 "%@ authentication is disabled." = "%@ المصادقة معطلة.";
 "%@ cookies are disabled." = "%@ ملفات تعريف الارتباط معطلة.";
@@ -1064,6 +1094,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "مخزن في ~/.codexbar/config.json. يمكنك أيضا توفير CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "مخزنة في ~/.codexbar/config.json. يمكنك أيضا توفير KILO_API_KEY أو ~/.local/share/kilo/auth.json (كيلو.أكس).";
 "T3 Chat cookie" = "T3 Chat كوكي";
+"Team mode" = "وضع الفريق";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "هذا الحساب لم يعد متاحا في عام CodexBar. قم بتحديث قائمة الحسابات وحاول مرة أخرى.";
 "The browser login did not complete in time. Try Antigravity login again." = "لم يكتمل تسجيل الدخول في المتصفح في الوقت المناسب. حاول تسجيل الدخول Antigravity مرة أخرى.";
 "Timed out waiting for Cursor login. %@" = "انتهى الوقت في انتظار تسجيل الدخول Cursor. %@";
@@ -1096,10 +1127,13 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "أرصدة إعادة تعيين الحد";
-"1 manual reset available" = "تتوفر إعادة تعيين يدوية واحدة";
-"%d manual resets available" = "تتوفر %d عمليات إعادة تعيين يدوية";
+"1 available" = "1 متاح";
+"%d available" = "%d متاح";
 "Next expires %@" = "تنتهي صلاحية التالية %@";
+"Expires %@" = "تنتهي الصلاحية %@";
+"No expiry" = "لا انتهاء صلاحية";
 "byte_unit_byte" = "بايت";
 "byte_unit_bytes" = "بايتات";
 "byte_unit_kilobyte" = "كيلوبايت";
@@ -1134,3 +1168,15 @@
 "mobile_toggle_sync_title" = "مزامنة الاستخدام إلى iCloud";
 "tab_mobile" = "الجوال";
 "∞ Unlimited" = "∞ غير محدود";
+"CrossModel API spend trend" = "اتجاه إنفاق CrossModel API";
+
+/* Settings sidebar redesign */
+"Enable" = "تفعيل";
+"Disable" = "تعطيل";
+"providers_on_count" = "%d مفعّل";
+"section_cost_summary" = "ملخص التكلفة";
+"section_command_line" = "سطر الأوامر";
+"section_privacy" = "الخصوصية";
+"section_diagnostics" = "التشخيصات";
+"section_updates" = "التحديثات";
+"section_links" = "روابط";

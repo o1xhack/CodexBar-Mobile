@@ -229,6 +229,8 @@ enum MockProviderInjector {
         "devin",
         // iOS 1.13.0 catch-up (upstream v0.36.0+v0.36.1 new providers).
         "litellm", "poe", "chutes", "zed",
+        // iOS 1.17.0 catch-up (upstream v0.38.0-v0.39.0 new providers).
+        "sakana", "qoder", "crossmodel", "clawrouter",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1364,6 +1366,51 @@ enum MockProviderInjector {
                 resetsInSeconds: 13 * 86400,
                 resetDescription: "Zed Pro · 58% used"),
             thirtyDayCostUSD: 9.60, sessionCostUSD: 0.33),
+        // iOS 1.17.0 — upstream v0.38.0-v0.39.0 new providers.
+        .init(
+            providerID: "sakana", providerName: "Sakana AI",
+            accountLocal: "console", loginMethod: "Console cookie",
+            primaryUsage: 47, primaryLabel: "5-hour",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 74 * 60,
+            primaryResetDescription: "5-hour · 47% used",
+            secondary: .init(
+                label: "Weekly", usedPercent: 31,
+                windowMinutes: 10080,
+                resetsInSeconds: 4 * 86400,
+                resetDescription: "Weekly · 31% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "qoder", providerName: "Qoder",
+            accountLocal: "global", loginMethod: "Web cookie",
+            primaryUsage: 39, primaryLabel: "Credits",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 17 * 86400,
+            primaryResetDescription: "1,950 / 5,000 credits used",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "crossmodel", providerName: "CrossModel",
+            accountLocal: "wallet", loginMethod: "API key",
+            primaryUsage: nil, primaryLabel: "Credits",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 5.37, sessionCostUSD: 0.27),
+        .init(
+            providerID: "clawrouter", providerName: "ClawRouter",
+            accountLocal: "router", loginMethod: "API token",
+            primaryUsage: 33, primaryLabel: "Monthly budget",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 19 * 86400,
+            primaryResetDescription: "Monthly budget · 33% used",
+            secondary: .init(
+                label: "Requests", usedPercent: 21,
+                windowMinutes: 43200,
+                resetsInSeconds: 19 * 86400,
+                resetDescription: "Requests · 21% used"),
+            thirtyDayCostUSD: 3.70, sessionCostUSD: 0.14),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1634,6 +1681,36 @@ enum MockProviderInjector {
         }
     }
 
+    private static func v039CrossModelUsage(providerID: String, now: Date) -> SyncCrossModelUsage? {
+        guard providerID == "crossmodel" else { return nil }
+        return SyncCrossModelUsage(
+            currency: "USD",
+            balance: 8.06,
+            uncollected: 0.42,
+            daily: SyncCrossModelUsage.Window(
+                cost: 0.27,
+                promptTokens: 5200,
+                completionTokens: 7267,
+                totalTokens: 12467,
+                requestCount: 84,
+                successCount: 83),
+            weekly: SyncCrossModelUsage.Window(
+                cost: 1.92,
+                promptTokens: 41000,
+                completionTokens: 52000,
+                totalTokens: 93000,
+                requestCount: 526,
+                successCount: 520),
+            monthly: SyncCrossModelUsage.Window(
+                cost: 5.37,
+                promptTokens: 110_000,
+                completionTokens: 150_000,
+                totalTokens: 260_000,
+                requestCount: 3166,
+                successCount: 3140),
+            updatedAt: now)
+    }
+
     /// Builds a `ProviderUsageSnapshot` from a `SimpleProviderProfile`.
     /// Centralizes the boilerplate so the profile table stays compact.
     /// Email format `{accountLocal}-mock@{providerID}.test` matches the
@@ -1696,6 +1773,7 @@ enum MockProviderInjector {
                 dailyTotals: daily)
         }
         let extras = Self.v026ExtrasFor(providerID: profile.providerID)
+        let crossModelUsage = Self.v039CrossModelUsage(providerID: profile.providerID, now: now)
         return ProviderUsageSnapshot(
             providerID: profile.providerID,
             providerName: "\(profile.providerName) (\(profile.accountLocal) · Mock)",
@@ -1724,7 +1802,8 @@ enum MockProviderInjector {
             openRouterStats: extras?.openRouterStats,
             azureOpenAIInfo: extras?.azureOpenAIInfo,
             alibabaTokenPlan: extras?.alibabaTokenPlan,
-            deepSeekUsage: extras?.deepSeekUsage)
+            deepSeekUsage: extras?.deepSeekUsage,
+            crossModelUsage: crossModelUsage)
     }
 }
 

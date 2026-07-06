@@ -14,7 +14,7 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (53 after v0.36 catch-up)")
+    @Test("Provider list has expected count (57 after v0.39 catch-up)")
     func providerCount() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
@@ -23,9 +23,11 @@ struct QuotaProviderListTests {
         // v0.27.0) → 48 in iOS 1.9.0 (Azure OpenAI, Alibaba Token Plan,
         // T3 Chat from upstream v0.28.0+v0.29.0) → 49 in iOS 1.12.0
         // (Devin from upstream v0.34.0) → 53 in iOS 1.13.0 (LiteLLM,
-        // Poe, Chutes, Zed from upstream v0.36.0+v0.36.1). Must stay synced with
+        // Poe, Chutes, Zed from upstream v0.36.0+v0.36.1) → 57 in
+        // iOS 1.17.0 (Sakana AI, Qoder, CrossModel, ClawRouter from
+        // upstream v0.38.0-v0.39.0). Must stay synced with
         // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 53)
+        #expect(QuotaProviderList.providers.count == 57)
     }
 
     @Test("Perplexity is registered with the Mac-side displayName")
@@ -88,7 +90,7 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 53 × 3 = 159 (depleted + restored + warning)")
+    @Test("iOS subscription count is 57 × 3 = 171 (depleted + restored + warning)")
     func subscriptionCountDerivation() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
@@ -99,14 +101,16 @@ struct QuotaProviderListTests {
         // +azureopenai, +alibabatokenplan, +t3chat) →
         // 147 in iOS 1.12.0 (49 × 3 after the v0.34 catch-up: +devin) →
         // 159 in iOS 1.13.0 (53 × 3 after the v0.36 catch-up:
-        // +litellm, +poe, +chutes, +zed).
+        // +litellm, +poe, +chutes, +zed) →
+        // 171 in iOS 1.17.0 (57 × 3 after the v0.38/v0.39 catch-up:
+        // +sakana, +qoder, +crossmodel, +clawrouter).
         // If this fails,
         // someone either dropped a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 159)
+        #expect(subscriptionCount == 171)
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up
@@ -151,5 +155,29 @@ struct QuotaProviderListTests {
     func zedRegistered() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "zed" })
         #expect(entry.displayName == "Zed")
+    }
+
+    @Test("Sakana AI is registered with the Mac-side displayName")
+    func sakanaRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "sakana" })
+        #expect(entry.displayName == "Sakana AI")
+    }
+
+    @Test("Qoder is registered with the Mac-side displayName")
+    func qoderRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "qoder" })
+        #expect(entry.displayName == "Qoder")
+    }
+
+    @Test("CrossModel is registered with the Mac-side displayName")
+    func crossModelRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "crossmodel" })
+        #expect(entry.displayName == "CrossModel")
+    }
+
+    @Test("ClawRouter is registered with the Mac-side displayName")
+    func clawRouterRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "clawrouter" })
+        #expect(entry.displayName == "ClawRouter")
     }
 }

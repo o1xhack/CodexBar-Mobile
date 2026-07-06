@@ -159,6 +159,12 @@ struct ProviderDetailView: View {
                 {
                     DeepSeekUsageCard(usage: deepSeekUsage, tintColor: self.providerColor)
                 }
+                // iOS 1.17.0 — CrossModel wallet + usage windows (v0.39.0).
+                if self.provider.providerID == "crossmodel",
+                   let crossModelUsage = self.provider.crossModelUsage
+                {
+                    CrossModelUsageCard(usage: crossModelUsage, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID

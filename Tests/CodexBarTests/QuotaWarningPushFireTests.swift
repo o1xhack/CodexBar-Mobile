@@ -44,12 +44,22 @@ struct QuotaWarningPushFireTests {
         private(set) var quotaWarningPosts: [(
             event: QuotaWarningEvent,
             provider: UsageProvider,
-            soundEnabled: Bool)] = []
+            soundEnabled: Bool,
+            onScreenAlertEnabled: Bool)] = []
 
         func post(transition _: SessionQuotaTransition, provider _: UsageProvider, badge _: NSNumber?) {}
 
-        func postQuotaWarning(event: QuotaWarningEvent, provider: UsageProvider, soundEnabled: Bool) {
-            self.quotaWarningPosts.append((event: event, provider: provider, soundEnabled: soundEnabled))
+        func postQuotaWarning(
+            event: QuotaWarningEvent,
+            provider: UsageProvider,
+            soundEnabled: Bool,
+            onScreenAlertEnabled: Bool)
+        {
+            self.quotaWarningPosts.append((
+                event: event,
+                provider: provider,
+                soundEnabled: soundEnabled,
+                onScreenAlertEnabled: onScreenAlertEnabled))
         }
     }
 

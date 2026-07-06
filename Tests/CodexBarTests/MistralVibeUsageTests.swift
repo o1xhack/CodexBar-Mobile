@@ -18,7 +18,36 @@ private final class MistralRequestCapture: @unchecked Sendable {
     }
 }
 
+private final class MistralRequestPathLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedPaths: [String] = []
+
+    var paths: [String] {
+        self.lock.withLock { self.storedPaths }
+    }
+
+    func record(_ request: URLRequest) {
+        let host = request.url?.host ?? ""
+        let path = request.url?.path ?? ""
+        self.lock.withLock {
+            self.storedPaths.append("\(host)\(path)")
+        }
+    }
+}
+
 struct MistralVibeUsageTests {
+    #if os(macOS)
+    @Test
+    func `cookie importer uses only accepted Mistral domains`() {
+        #expect(Set(MistralCookieImporter.cookieDomains) == [
+            "mistral.ai",
+            "admin.mistral.ai",
+            "auth.mistral.ai",
+            "console.mistral.ai",
+        ])
+    }
+    #endif
+
     @Test
     func `parses subscription percentage and reset`() throws {
         let data = Data(Self.responseJSON(usagePercentage: 2.8141356666666666).utf8)
@@ -121,6 +150,45 @@ struct MistralVibeUsageTests {
     }
 
     @Test
+    func `combined fetch preserves monthly plan when optional credits time out`() async throws {
+        let requestLog = MistralRequestPathLog()
+        let usageData = Data(Self.billingUsageResponseJSON.utf8)
+        let vibeData = Data(Self.responseJSON(usagePercentage: 37).utf8)
+        let transport = ProviderHTTPTransportHandler { request in
+            requestLog.record(request)
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.host == "admin.mistral.ai", url.path == "/api/billing/v2/usage" {
+                let response = try Self.response(url: url, statusCode: 200)
+                return (usageData, response)
+            }
+            if url.host == "console.mistral.ai" {
+                let response = try Self.response(url: url, statusCode: 200)
+                return (vibeData, response)
+            }
+            if url.host == "admin.mistral.ai", url.path == "/api/billing/credits" {
+                try await Task.sleep(for: .milliseconds(25))
+                throw URLError(.timedOut)
+            }
+            throw URLError(.badURL)
+        }
+
+        let snapshot = try await MistralWebFetchStrategy.fetchUsageWithVibe(
+            cookieHeader: "ory_session_test=abc; csrftoken=csrf",
+            csrfToken: "csrf",
+            timeout: 1,
+            transport: transport)
+
+        let monthlyPlan = snapshot.extraRateWindows?.first { $0.id == "mistral-monthly-plan" }
+        #expect(monthlyPlan?.window.usedPercent == 37)
+        #expect(snapshot.mistralUsage?.credits == nil)
+        #expect(requestLog.paths == [
+            "admin.mistral.ai/api/billing/v2/usage",
+            "console.mistral.ai/api-ui/trpc/billing.vibeUsage",
+            "admin.mistral.ai/api/billing/credits",
+        ])
+    }
+
+    @Test
     func `monthly plan window preserves existing extras`() {
         let existing = NamedRateWindow(
             id: "existing",
@@ -140,6 +208,40 @@ struct MistralVibeUsageTests {
         #expect(updated.extraRateWindows?.last?.window.usedPercent == 25)
     }
 
+    // MARK: - consoleCookieHeader allowlist
+
+    @Test
+    func `console cookie header contains only csrf when no admin header`() {
+        let cookie = MistralUsageFetcher.consoleCookieHeader(csrfToken: "tok", adminCookieHeader: nil)
+        #expect(cookie == "csrftoken=tok")
+    }
+
+    @Test
+    func `console cookie header forwards ory session alongside csrf`() {
+        let admin = "csrftoken=tok; ory_session_coolcurranf83m3srkfl=sess123; other_admin=secret"
+        let cookie = MistralUsageFetcher.consoleCookieHeader(csrfToken: "tok", adminCookieHeader: admin)
+        #expect(cookie == "csrftoken=tok; ory_session_coolcurranf83m3srkfl=sess123")
+    }
+
+    @Test
+    func `console cookie header excludes non-session admin cookies`() {
+        let admin = "csrftoken=tok; session_token=other; admin_secret=x"
+        let cookie = MistralUsageFetcher.consoleCookieHeader(csrfToken: "tok", adminCookieHeader: admin)
+        #expect(cookie == "csrftoken=tok")
+        #expect(!cookie.contains("admin_secret"))
+        #expect(!cookie.contains("session_token"))
+    }
+
+    @Test
+    func `console cookie header forwards multiple ory session cookies`() {
+        let admin = "ory_session_a=val1; ory_session_b=val2; unrelated=drop"
+        let cookie = MistralUsageFetcher.consoleCookieHeader(csrfToken: "tok", adminCookieHeader: admin)
+        #expect(cookie.contains("csrftoken=tok"))
+        #expect(cookie.contains("ory_session_a=val1"))
+        #expect(cookie.contains("ory_session_b=val2"))
+        #expect(!cookie.contains("unrelated"))
+    }
+
     private static func responseJSON(usagePercentage: Double) -> String {
         """
         [{"result":{"data":{"json":{
@@ -149,5 +251,35 @@ struct MistralVibeUsageTests {
           "reset_at":"2026-07-01T00:00:00Z"
         }}}}]
         """
+    }
+
+    private static var billingUsageResponseJSON: String {
+        """
+        {
+          "completion": {"models": {}},
+          "ocr": {"models": {}},
+          "connectors": {"models": {}},
+          "libraries_api": {"pages": {"models": {}}, "tokens": {"models": {}}},
+          "fine_tuning": {"training": {}, "storage": {}},
+          "audio": {"models": {}},
+          "vibe_usage": 0.0,
+          "date": "2026-02-01T00:00:00Z",
+          "previous_month": "2026-01",
+          "next_month": "2026-03",
+          "start_date": "2026-02-01T00:00:00Z",
+          "end_date": "2026-02-28T23:59:59.999Z",
+          "currency": "USD",
+          "currency_symbol": "$",
+          "prices": []
+        }
+        """
+    }
+
+    private static func response(url: URL, statusCode: Int) throws -> HTTPURLResponse {
+        try #require(HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: nil,
+            headerFields: nil))
     }
 }

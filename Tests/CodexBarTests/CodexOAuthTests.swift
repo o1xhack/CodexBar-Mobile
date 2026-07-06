@@ -3,12 +3,18 @@ import Testing
 @testable import CodexBarCore
 
 struct CodexOAuthTests {
-    private func makeContext(sourceMode: ProviderSourceMode = .auto) -> ProviderFetchContext {
+    private func makeContext(
+        runtime: ProviderRuntime = .app,
+        sourceMode: ProviderSourceMode = .auto,
+        includeCredits: Bool = true,
+        includeOptionalUsage: Bool = true) -> ProviderFetchContext
+    {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
-            runtime: .app,
+            runtime: runtime,
             sourceMode: sourceMode,
-            includeCredits: true,
+            includeCredits: includeCredits,
+            includeOptionalUsage: includeOptionalUsage,
             webTimeout: 60,
             webDebugDumpHTML: false,
             verbose: false,
@@ -75,6 +81,32 @@ struct CodexOAuthTests {
         #expect(creds.refreshToken.isEmpty)
         #expect(creds.idToken == nil)
         #expect(creds.accountId == nil)
+    }
+
+    @Test
+    func `reset-credit token load ignores an API key beside O auth tokens`() throws {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-reset-credit-oauth-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let json = """
+        {
+          "OPENAI_API_KEY": "sk-test",
+          "tokens": {
+            "access_token": "oauth-access-token",
+            "refresh_token": "oauth-refresh-token",
+            "account_id": "account-123"
+          },
+          "last_refresh": "2026-07-01T12:00:00Z"
+        }
+        """
+        try Data(json.utf8).write(to: home.appendingPathComponent("auth.json"))
+
+        let credentials = try CodexOAuthCredentialsStore.loadOAuthTokens(env: ["CODEX_HOME": home.path])
+
+        #expect(credentials.accessToken == "oauth-access-token")
+        #expect(credentials.refreshToken == "oauth-refresh-token")
+        #expect(credentials.accountId == "account-123")
     }
 
     @Test
@@ -695,56 +727,6 @@ struct CodexOAuthTests {
         #expect(result.usage.secondary == nil)
         #expect(result.credits?.remaining == 14.5)
         #expect(result.sourceLabel == "oauth")
-    }
-
-    @Test
-    func `reset credits only O auth payload still returns usage result`() throws {
-        let json = #"{"rate_limit":{"primary_window":null,"secondary_window":null}}"#
-        let now = Date()
-        let resetCredits = CodexRateLimitResetCreditsSnapshot(
-            credits: [],
-            availableCount: 2,
-            updatedAt: now)
-        let creds = CodexOAuthCredentials(
-            accessToken: "access",
-            refreshToken: "refresh",
-            idToken: nil,
-            accountId: nil,
-            lastRefresh: now)
-
-        let result = try CodexOAuthFetchStrategy._mapResultForTesting(
-            Data(json.utf8),
-            credentials: creds,
-            resetCredits: resetCredits)
-
-        #expect(result.usage.primary == nil)
-        #expect(result.usage.secondary == nil)
-        #expect(result.usage.codexResetCredits?.availableCount == 2)
-        #expect(result.credits == nil)
-        #expect(result.sourceLabel == "oauth")
-    }
-
-    @Test
-    func `empty reset credits do not mask missing O auth usage`() {
-        let json = #"{"rate_limit":{"primary_window":null,"secondary_window":null}}"#
-        let now = Date()
-        let resetCredits = CodexRateLimitResetCreditsSnapshot(
-            credits: [],
-            availableCount: 0,
-            updatedAt: now)
-        let creds = CodexOAuthCredentials(
-            accessToken: "access",
-            refreshToken: "refresh",
-            idToken: nil,
-            accountId: nil,
-            lastRefresh: now)
-
-        #expect(throws: UsageError.self) {
-            try CodexOAuthFetchStrategy._mapResultForTesting(
-                Data(json.utf8),
-                credentials: creds,
-                resetCredits: resetCredits)
-        }
     }
 
     @Test

@@ -75,7 +75,11 @@ public enum AccountIdentityComputer {
              // Upstream v0.36.0–v0.36.1 new providers. iOS 1.13 surfaces
              // these via generic single-account cards and push subscriptions;
              // promote only when cross-Mac merging has a stable account ID.
-             .zed, .litellm, .poe, .chutes:
+             .zed, .litellm, .poe, .chutes,
+             // Upstream v0.38.0–v0.39.0 new providers. iOS 1.17 surfaces
+             // these via generic single-account cards and push subscriptions;
+             // promote only when cross-Mac merging has a stable account ID.
+             .sakana, .qoder, .crossmodel, .clawrouter:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

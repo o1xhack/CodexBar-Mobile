@@ -33,9 +33,25 @@ struct MenuCardHeightFingerprintTests {
         #expect(left != changedPercent)
     }
 
+    @Test
+    func `height fingerprint tracks reset-credit inventory shape`() {
+        let one = Self.model(resetCredits: CodexResetCreditsPresentation(
+            text: "1 available",
+            items: [.init(expiryText: "Expires in 1d", compactExpiryText: "1d")]))
+        let two = Self.model(resetCredits: CodexResetCreditsPresentation(
+            text: "2 available",
+            items: [
+                .init(expiryText: "Expires in 1d", compactExpiryText: "1d"),
+                .init(expiryText: "No expiry", compactExpiryText: "No expiry"),
+            ]))
+
+        #expect(one.heightFingerprint(section: "card") != two.heightFingerprint(section: "card"))
+    }
+
     private static func model(
         percent: Double = 42,
-        percentStyle: UsageMenuCardView.Model.PercentStyle = .left) -> UsageMenuCardView.Model
+        percentStyle: UsageMenuCardView.Model.PercentStyle = .left,
+        resetCredits: CodexResetCreditsPresentation? = nil) -> UsageMenuCardView.Model
     {
         UsageMenuCardView.Model(
             provider: .codex,
@@ -63,8 +79,11 @@ struct MenuCardHeightFingerprintTests {
             inlineUsageDashboard: nil,
             creditsText: nil,
             creditsRemaining: nil,
+            creditsProgressPercent: nil,
+            creditsScaleText: nil,
             creditsHintText: nil,
             creditsHintCopyText: nil,
+            codexResetCredits: resetCredits,
             providerCost: nil,
             tokenUsage: nil,
             placeholder: nil,

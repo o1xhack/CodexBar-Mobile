@@ -234,6 +234,7 @@
 "Picker subtitle" = "Tiêu đề phụ của bộ chọn";
 "Placeholder" = "Trình giữ chỗ";
 "Plan" = "Kế hoạch";
+"Plan Usage" = "Mức sử dụng gói";
 "Play full-screen confetti when weekly usage resets." = "Phát hoa giấy toàn màn hình khi đặt lại Mức sử dụng hàng tuần.";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "Cuộc thăm dò ý kiến ​​OpenAI / Claude trang trạng thái và Google Không gian làm việc dành cho";
 "Prevents any Keychain access while enabled." = "Ngăn chặn mọi quyền truy cập Keychain khi được bật.";
@@ -301,12 +302,13 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa MiniMax API của bạn.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "Được lưu trữ trong ~/.codexbar/config.json. Bạn cũng có thể cung cấp lịch sử KILO_API_KEY hoặc";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "Stores Codex cục bộ Mức sử dụng (8 tuần) để cá nhân hóa dự đoán Pace.";
-"Subscription Utilization" = "Gói đăng ký Mức sử dụng";
 "Surprise me" = "Làm tôi ngạc nhiên";
 "Switcher shows icons" = "Trình chuyển đổi hiển thị các biểu tượng";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink CodexBarCLI tới /usr/local/bin và /opt/homebrew/bin dưới dạng codexbar.";
 "System" = "Hệ thống";
 "Temporarily shows the loading animation after the next refresh." = "Tạm thời hiển thị hoạt ảnh đang tải sau lần làm mới tiếp theo.";
+"terminal_app_subtitle" = "Terminal dùng cho tác vụ Mở Terminal";
+"terminal_app_title" = "Terminal mặc định";
 "Tertiary (\\(label))" = "Cấp ba (\\(label))";
 "Tertiary (\\(tertiaryTitle))" = "Cấp ba (\\(tertiaryTitle))";
 "The default Codex account on this Mac." = "Tài khoản Codex mặc định trên máy Mac này.";
@@ -406,17 +408,31 @@
 "language_french" = "Tiếng Pháp";
 "language_dutch" = "Tiếng Hà Lan";
 "language_ukrainian" = "Tiếng Ukraina";
+"language_russian" = "Русский";
 "language_japanese" = "Tiếng Nhật";
 "language_korean" = "Tiếng Hàn";
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 "start_at_login_subtitle" = "Tự động mở CodexBar khi bạn khởi động máy Mac.";
 "show_cost_summary" = "Hiển thị tóm tắt chi phí";
 "show_cost_summary_subtitle" = "Đọc nhật ký Mức sử dụng cục bộ. Hiển thị hôm nay + cửa sổ lịch sử đã chọn trong menu.";
+"cost_summary_style_title" = "Kiểu hiển thị";
+"cost_summary_style_inline" = "Chỉ nội tuyến";
+"cost_summary_style_submenu" = "Chỉ menu con";
+"cost_summary_style_both" = "Cả hai";
+"cost_summary_style_inline_help" = "Hiển thị tóm tắt chi phí trực tiếp trong menu chính.";
+"cost_summary_style_submenu_help" = "Thay vào đó hiển thị menu con Chi phí chi tiết.";
+"cost_summary_style_both_help" = "Hiển thị cả tóm tắt menu chính và menu con Chi phí chi tiết.";
+"cost_history_window_title" = "Cửa sổ lịch sử";
+"cost_history_window_help" = "Đặt số ngày nhật ký sử dụng cục bộ xuất hiện trong menu.";
 "cost_history_days_title" = "Cửa sổ lịch sử: %d ngày";
 "cost_auto_refresh_info" = "Tự động làm mới: hàng giờ · Thời gian chờ: 10 phút";
+"cost_comparison_periods_title" = "Hiển thị các khoảng so sánh ngắn hơn";
+"cost_comparison_periods_subtitle" = "Thêm tổng 7, 30 và 90 ngày khi nằm trong cửa sổ lịch sử đã chọn. Các tổng này dùng lại cùng một lần quét cục bộ.";
 "refresh_cadence_title" = "Nhịp làm mới";
 "refresh_cadence_subtitle" = "Tần suất CodexBar thăm dò ý kiến ​​các nhà cung cấp trong nền.";
 "manual_refresh_hint" = "Tính năng tự động làm mới bị tắt; sử dụng lệnh Làm mới của menu.";
+"refresh_on_open_title" = "Làm mới khi mở menu";
+"refresh_on_open_subtitle" = "Tải mức sử dụng mới nhất của mọi nhà cung cấp mỗi khi bạn mở menu.";
 "check_provider_status_title" = "Kiểm tra Nhà cung cấp trạng thái";
 "check_provider_status_subtitle" = "Thăm dò ý kiến ​​OpenAI / Claude các trang trạng thái và Google Không gian làm việc dành cho Gemini /AntiGravity, phát hiện các sự cố trong biểu tượng và menu.";
 "session_quota_notifications_title" = "Thông báo về phiên Hạn mức";
@@ -438,6 +454,7 @@
 "quota_warning_warn_at" = "Cảnh báo ở";
 "quota_warning_global_threshold_subtitle" = "Tỷ lệ phần trăm còn lại cho phiên và thời lượng hàng tuần trừ khi Nhà cung cấp ghi đè chúng.";
 "quota_warning_sound" = "Phát âm thanh thông báo";
+"quota_warning_onscreen_alert" = "Hiển thị cảnh báo văn bản trên màn hình";
 "quota_warning_provider_inherits" = "Sử dụng cảnh báo Hạn mức toàn cầu Cài đặt trừ khi một cửa sổ được tùy chỉnh tại đây.";
 "quota_warning_customize_thresholds" = "Tùy chỉnh %@ ngưỡng";
 "quota_warning_enable_warnings" = "Bật %@ cảnh báo";
@@ -535,6 +552,8 @@
 "show_debug_settings_subtitle" = "Hiển thị các công cụ khắc phục sự cố trong tab Gỡ lỗi.";
 "surprise_me_title" = "Làm tôi ngạc nhiên";
 "surprise_me_subtitle" = "Kiểm tra xem bạn có thích các đại lý của mình vui vẻ ở đó không.";
+"session_limit_confetti_title" = "Pháo giấy giới hạn phiên";
+"session_limit_confetti_subtitle" = "Hiển thị pháo giấy toàn màn hình khi mức sử dụng phiên được đặt lại.";
 "weekly_limit_confetti_title" = "Hoa giấy giới hạn hàng tuần";
 "weekly_limit_confetti_subtitle" = "Phát hoa giấy toàn màn hình khi đặt lại Mức sử dụng hàng tuần.";
 "hide_personal_info_title" = "Ẩn thông tin cá nhân";
@@ -638,6 +657,7 @@
 
 /* Provider status */
 "status_operational" = "Hoạt động";
+"status_degraded" = "Hiệu suất giảm";
 "status_partial_outage" = "Mất điện một phần";
 "status_major_outage" = "Mất điện lớn";
 "status_critical_issue" = "Sự cố nghiêm trọng";
@@ -651,6 +671,7 @@
 "refresh_5min" = "5 phút";
 "refresh_15min" = "15 phút";
 "refresh_30min" = "30 phút";
+"refresh_adaptive" = "Thích ứng";
 
 /* Additional keys */
 "not_found" = "Không tìm thấy";
@@ -694,6 +715,7 @@
 "Add Account..." = "Thêm tài khoản...";
 "Usage Dashboard" = "Mức sử dụng Trang tổng quan";
 "Status Page" = "Trang trạng thái";
+"Open Status Page" = "Mở trang trạng thái";
 "Settings..." = "Cài đặt ...";
 "About CodexBar" = "Giới thiệu về CodexBar";
 "Quit" = "Thoát";
@@ -708,7 +730,10 @@
 "Resets now" = "Đặt lại ngay";
 "reset_tomorrow_format" = "ngày mai, %@";
 "Lasts until reset" = "Kéo dài cho đến Đặt lại";
+"1.5× headroom" = "dư địa 1,5×";
 "Updated %@" = "Đã cập nhật %@";
+"Updated relative %@" = "Đã cập nhật %@";
+"Updated absolute %@" = "Đã cập nhật %@";
 "Updated %@h ago" = "Đã cập nhật %@ h trước";
 "Updated %@m ago" = "Đã cập nhật %@ tháng trước";
 "Updated just now" = "Vừa cập nhật";
@@ -774,8 +799,8 @@
 "Quota" = "Hạn mức";
 "tokens" = "mã thông báo";
 "requests" = "yêu cầu";
-"Latest" = "";
-"Monthly" = "Mới nhất";
+"Latest" = "Mới nhất";
+"Monthly" = "Hàng tháng";
 "Sonnet" = "Sonnet";
 "Overages" = "Quá tải";
 "Activity" = "Hoạt động";
@@ -977,6 +1002,8 @@
 "Enterprise host" = "Máy chủ doanh nghiệp";
 "Extra usage balance: %@" = "Extra usage balance: %@";
 "Keychain Access Required" = "Keychain Yêu cầu quyền truy cập";
+"keychain_prompt_learn_more" = "Tìm hiểu thêm…";
+"keychain_prompt_privacy_note" = "macOS, không phải CodexBar, xử lý việc nhập mật khẩu đăng nhập Mac. Bạn có thể tắt mọi quyền truy cập Keychain bất kỳ lúc nào trong Cài đặt → Nâng cao.";
 "Kiro menu bar value" = "Kiro thanh menu value";
 "Label" = "Nhãn";
 "No organizations loaded. Click Refresh after setting your API key." = "Chưa có tổ chức nào được tải. Nhấp vào Làm mới sau khi đặt khóa API của bạn.";
@@ -1003,6 +1030,7 @@
 "Optional. Leave blank to discover and aggregate projects visible to the API key." = "Tùy chọn. Để trống để khám phá và tổng hợp các dự án hiển thị với khóa API.";
 "Org ID (optional)" = "ID tổ chức (tùy chọn)";
 "Organizations" = "Tổ chức";
+"Organization ID" = "ID tổ chức";
 "Password" = "Mật khẩu";
 "%@ authentication is disabled." = "%@ xác thực bị tắt. Cookie";
 "%@ cookies are disabled." = "%@ bị tắt. Quyền truy cập";
@@ -1056,6 +1084,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "Được lưu trữ trong ~/.codexbar/config.json. Bạn cũng có thể cung cấp CROF_API_KEY.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "Được lưu trữ trong ~/.codexbar/config.json. Bạn cũng có thể cung cấp KILO_API_KEY hoặc ~/.local/share/kilo/auth.json (kilo.access).";
 "T3 Chat cookie" = "Cookie trò chuyện T3";
+"Team mode" = "Chế độ nhóm";
 "That account is no longer available in CodexBar. Refresh the account list and try again." = "Tài khoản đó không còn khả dụng trong CodexBar . Hãy làm mới danh sách tài khoản và thử lại.";
 "The browser login did not complete in time. Try Antigravity login again." = "Quá trình đăng nhập trình duyệt không hoàn tất kịp thời. Hãy thử đăng nhập lại bằng AntiGravity.";
 "Timed out waiting for Cursor login. %@" = "Đã hết thời gian chờ đăng nhập Con trỏ. %@";
@@ -1094,10 +1123,13 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "Lượt đặt lại giới hạn";
-"1 manual reset available" = "Có 1 lần đặt lại thủ công";
-"%d manual resets available" = "Có %d lần đặt lại thủ công";
+"1 available" = "1 lượt";
+"%d available" = "%d lượt";
 "Next expires %@" = "Lượt tiếp theo hết hạn %@";
+"Expires %@" = "Hết hạn %@";
+"No expiry" = "Không hết hạn";
 "Other (%d items)" = "Khác (%d mục)";
 "Expand" = "Mở rộng";
 "Collapse" = "Thu gọn";
@@ -1109,3 +1141,15 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
+"CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
+
+/* Settings sidebar redesign */
+"Enable" = "Bật";
+"Disable" = "Tắt";
+"providers_on_count" = "%d đang bật";
+"section_cost_summary" = "Tóm tắt chi phí";
+"section_command_line" = "Dòng lệnh";
+"section_privacy" = "Quyền riêng tư";
+"section_diagnostics" = "Chẩn đoán";
+"section_updates" = "Cập nhật";
+"section_links" = "Liên kết";

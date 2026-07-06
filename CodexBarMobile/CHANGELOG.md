@@ -2,6 +2,60 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.17.0 (182)] — 2026-07-06 — Cost data integrity hotfix
+
+### Fixed
+
+- **Cost dashboard data integrity** — Cost Window Ledger aggregation now uses
+  the same provider-aware merge rule as CloudKit snapshots: local CLI cost
+  providers (`codex`, `claude`, `vertexai`) sum active-device daily rows, while
+  account-level providers keep the latest account/day row.
+- **Cost category completeness** — Local-cost merges now preserve model split
+  metadata, service breakdowns, request counts, currency, and provider daily
+  points so Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix,
+  and share cards all read from consistent data.
+- **Provider/share presentation** — Provider Share hides zero-spend rows, and
+  share cards compute 7-day provider contribution from exact provider daily
+  points instead of proportional 30-day scaling.
+
+### Notes
+
+- iOS-only hotfix on the `1.17.0` line; `MARKETING_VERSION` remains `1.17.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `181` → `182`.
+
+---
+
+## [1.17.0 (181)] — 2026-07-04 — CodexBar 0.39 upstream sync
+
+### Added
+
+- **New provider support** — Registered Sakana AI, Qoder, CrossModel, and
+  ClawRouter for iOS provider colors, quota-transition subscriptions, mock data,
+  and provider-detail routing.
+- **CrossModel detail card** — Added a dedicated iPhone card for CrossModel
+  balance, uncollected spend, and daily / weekly / monthly usage windows.
+
+### Changed
+
+- **Cost dashboard coverage** — CrossModel Mac sync now maps native daily and
+  monthly spend into the shared cost summary so iOS Cost views can include it.
+- **Mock provider matrix** — Expanded Mac synthetic sync data to 69 providers
+  across 59 IDs, including v0.38/v0.39 provider samples.
+
+### Fixed
+
+- **Upstream-sync compatibility** — iPhone 1.17 understands the latest optional
+  Mac payload field while still decoding older Mac snapshots.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.39.0.1` / build `97.1` and upstream
+  `steipete/CodexBar` `v0.39.0`.
+- iOS `MARKETING_VERSION`: `1.16.0` → `1.17.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `180` → `181`.
+
+---
+
 ## [1.16.0 (180)] — 2026-07-03 — App Store event deep link
 
 ### Added

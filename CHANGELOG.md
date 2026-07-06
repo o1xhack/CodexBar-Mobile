@@ -1,5 +1,67 @@
 # Changelog
 
+## 0.39.0.1 (Mobile 1.17.0 · build 97.1) — 2026-07-04 — upstream v0.39.0 sync
+
+Syncs the Mac app to upstream CodexBar **v0.39.0** (spanning v0.38.0–v0.39.0)
+and pairs it with iOS **1.17.0**. This is one combined upstream-sync release
+for the current upstream-sync issue set, keeping the provider additions,
+settings redesign, menu/provider fixes, and iOS compatibility work together.
+
+### Added / Improved
+
+- **New upstream providers** — Sakana AI, Qoder, CrossModel, and ClawRouter are
+  included in the Mac provider registry, diagnostics, status/menu rendering,
+  and the fork's iCloud sync path.
+- **iOS provider parity** — The companion app now registers the new providers
+  for quota-transition zones, provider colors, synthetic test data, and detail
+  pages. CrossModel gets a typed optional sync payload for wallet balance,
+  uncollected spend, and day/week/month usage windows.
+- **Cost sync bridge** — CrossModel native spend maps into `SyncCostSummary`,
+  so iOS Cost views can include it without requiring a CloudKit schema change.
+- **Settings sync preservation** — The upstream Settings `NavigationSplitView`
+  redesign is merged while preserving the fork's Mobile pane and iCloud sync
+  controls.
+- **Mock QA coverage** — Mac mock sync now emits 69 synthetic providers across
+  59 IDs, including the v0.38/v0.39 provider set for iPhone layout and
+  compatibility testing.
+
+### Compatibility
+
+- CloudKit stays in the Production environment. No CloudKit Dashboard deploy is
+  expected for this release because the sync changes are additive optional
+  fields inside the existing compressed provider payload.
+- The 2 Mac x 2 iPhone old/new compatibility gate and substituted evidence are
+  tracked in `CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md`.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.39.0**（覆盖 v0.38.0–v0.39.0），并配套 iOS
+**1.17.0**。本次把当前 upstream-sync issue 集合合并为一个版本，避免把 provider
+新增、Settings 改版、菜单/provider 修复和 iOS 兼容工作拆散。
+
+### 新增 / 改进
+
+- **新增上游 provider** —— Sakana AI、Qoder、CrossModel、ClawRouter 已纳入 Mac
+  provider registry、诊断、状态/menu 渲染，以及 fork 的 iCloud sync 路径。
+- **iOS provider 对齐** —— companion app 为新 provider 补齐 quota-transition zone、
+  provider 颜色、合成测试数据和详情页；CrossModel 通过可选 typed payload 显示钱包余额、
+  待结算金额和 day/week/month 用量。
+- **Cost sync bridge** —— CrossModel 原生 spend 会映射为 `SyncCostSummary`，
+  iOS Cost 视图无需 CloudKit schema 变更即可纳入它。
+- **Settings sync 保留** —— 合并上游 Settings `NavigationSplitView` 改版，同时保留
+  fork 的 Mobile pane 和 iCloud sync 控件。
+- **Mock QA 覆盖** —— Mac mock sync 现在推送 69 个 synthetic provider、覆盖 59 个 ID，
+  包含 v0.38/v0.39 provider 集，用于 iPhone 布局和兼容测试。
+
+### 兼容性
+
+- CloudKit 保持 Production 环境。本次 sync 变更只是既有压缩 provider payload 内的可选字段，
+  预期不需要 CloudKit Dashboard deploy。
+- 2 Mac x 2 iPhone 新旧版本兼容 gate 与替代证据记录在
+  `CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md`。
+
+---
+
 ## 0.37.2.1 (Mobile 1.15.0 · build 92.1) — 2026-06-23 — upstream v0.37.2 sync
 
 Syncs the Mac app to upstream CodexBar **v0.37.2** (spanning v0.37.0–v0.37.2)

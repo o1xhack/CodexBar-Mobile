@@ -3,10 +3,12 @@ import CryptoKit
 #else
 import Crypto
 #endif
+import Dispatch
 import Foundation
 
 // swiftlint:disable type_body_length file_length
 enum CostUsageScanner {
+    static let codexProjectMetadataVersion = 1
     typealias CancellationCheck = () throws -> Void
 
     static let log = CodexBarLog.logger(LogCategories.tokenCost)
@@ -57,6 +59,7 @@ enum CostUsageScanner {
         let lastCodexTurnID: String?
         let sessionId: String?
         let forkedFromId: String?
+        let projectPath: String?
         let rows: [CodexUsageRow]
     }
 
@@ -64,14 +67,26 @@ enum CostUsageScanner {
         let day: String
         let model: String
         let turnID: String?
+        let eventIndex: Int?
         let input: Int
         let cached: Int
         let output: Int
     }
 
     struct CodexScanState {
-        var seenSessionIds: Set<String> = []
+        var contributingSessionIds: Set<String> = []
         var seenFileIds: Set<String> = []
+        var seenCodexUsageRowKeys: Set<String> = []
+    }
+
+    struct CodexScannedSession {
+        let id: String?
+        let contributedUsage: Bool
+
+        init(id: String?, days: [String: [String: [Int]]]) {
+            self.id = id
+            self.contributedUsage = !days.isEmpty
+        }
     }
 
     private struct CodexTimestampedTotals {
@@ -164,6 +179,7 @@ enum CostUsageScanner {
     struct CodexScanResources {
         let fileIndex: CodexSessionFileIndex
         let inheritedResolver: CodexInheritedTotalsResolver
+        let projectPathResolver: CodexCanonicalProjectPathResolver
         let modelsDevCatalog: ModelsDevCatalog?
         let modelsDevCacheRoot: URL?
         let priorityTurns: [String: CodexPriorityTurnMetadata]
@@ -179,6 +195,94 @@ enum CostUsageScanner {
         let checkCancellation: CancellationCheck?
     }
 
+    final class CodexCanonicalProjectPathResolver {
+        private var cache: [String: String] = [:]
+        private let homeCodexWorktreesPrefix: String
+
+        init(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) {
+            self.homeCodexWorktreesPrefix = homeDirectory
+                .appendingPathComponent(".codex/worktrees", isDirectory: true)
+                .standardizedFileURL
+                .path
+        }
+
+        func canonicalProjectPath(for projectPath: String?) -> String? {
+            guard let projectPath else { return nil }
+            if let cached = self.cache[projectPath] {
+                return cached
+            }
+            let resolved = self.resolveCanonicalProjectPath(projectPath) ?? projectPath
+            self.cache[projectPath] = resolved
+            return resolved
+        }
+
+        private func resolveCanonicalProjectPath(_ projectPath: String) -> String? {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: projectPath, isDirectory: &isDirectory),
+                  isDirectory.boolValue
+            else { return nil }
+            guard let output = self.gitWorktreeList(projectPath: projectPath) else { return nil }
+            let worktrees = output
+                .split(separator: "\n")
+                .compactMap { line -> String? in
+                    guard line.hasPrefix("worktree ") else { return nil }
+                    let rawPath = line.dropFirst("worktree ".count)
+                    return Self.standardizedAbsolutePath(String(rawPath))
+                }
+            guard !worktrees.isEmpty else { return nil }
+            return worktrees.first { !self.isEphemeralWorktreePath($0) }
+        }
+
+        private func gitWorktreeList(projectPath: String) -> String? {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["git", "-C", projectPath, "worktree", "list", "--porcelain"]
+
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
+            let outputCapture = ProcessPipeCapture(pipe: outputPipe)
+            let errorCapture = ProcessPipeCapture(pipe: errorPipe)
+
+            let semaphore = DispatchSemaphore(value: 0)
+            process.terminationHandler = { _ in semaphore.signal() }
+            do {
+                try process.run()
+            } catch {
+                return nil
+            }
+            outputCapture.start()
+            errorCapture.start()
+
+            if semaphore.wait(timeout: .now() + .seconds(1)) == .timedOut {
+                process.terminate()
+                outputCapture.stop()
+                errorCapture.stop()
+                return nil
+            }
+            let data = outputCapture.finishSynchronously(timeout: 0.1)
+            errorCapture.stop()
+            guard process.terminationStatus == 0 else { return nil }
+            return String(data: data, encoding: .utf8)
+        }
+
+        private func isEphemeralWorktreePath(_ path: String) -> Bool {
+            path == self.homeCodexWorktreesPrefix
+                || path.hasPrefix(self.homeCodexWorktreesPrefix + "/")
+                || path.hasSuffix("/.codex/worktrees")
+                || path.contains("/.codex/worktrees/")
+                || path == "/private/tmp"
+                || path.hasPrefix("/private/tmp/")
+        }
+
+        private static func standardizedAbsolutePath(_ path: String) -> String? {
+            let expanded = (path as NSString).expandingTildeInPath
+            guard expanded.hasPrefix("/") else { return nil }
+            return URL(fileURLWithPath: expanded, isDirectory: true).standardizedFileURL.path
+        }
+    }
+
     struct CodexRefreshPlan {
         let refreshMs: Int64
         let roots: [URL]
@@ -186,6 +290,7 @@ enum CostUsageScanner {
         let rootsChanged: Bool
         let windowExpanded: Bool
         let needsCostCacheMigration: Bool
+        let needsProjectMetadataMigration: Bool
         let modelsDevCatalog: ModelsDevCatalog?
         let codexPricingKey: String
         let codexPriorityMetadataKey: String
@@ -450,9 +555,9 @@ enum CostUsageScanner {
         case .openai, .azureopenai, .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba,
              .alibabatokenplan, .factory,
              .copilot, .devin, .minimax, .manus, .kilo, .kiro, .kimi, .kimik2, .moonshot, .augment, .jetbrains, .amp,
-             .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .abacus,
-             .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .stepfun, .bedrock, .grok,
-             .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes:
+             .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
+             .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .qoder, .stepfun,
+             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .crossmodel, .clawrouter:
             return emptyReport
         }
     }
@@ -588,12 +693,18 @@ enum CostUsageScanner {
         self.codexRootsFingerprint(self.codexSessionsRoots(options: options))
     }
 
+    /// Bump when the cost FORMULA changes (not the rates) so caches written by an older formula
+    /// are invalidated and repriced. The pricing fingerprints below only capture rate constants,
+    /// so formula-only fixes would otherwise reuse stale precomputed costs.
+    private static let codexCostFormulaVersion = 2
+
     private static func codexPricingKey(modelsDevArtifact: ModelsDevCacheArtifact?) -> String {
+        let versionPrefix = "costFormulaVersion=\(Self.codexCostFormulaVersion)\n"
         guard let modelsDevArtifact else {
-            let fingerprint = CostUsagePricing.codexBuiltInPricingFingerprint()
+            let fingerprint = versionPrefix + CostUsagePricing.codexBuiltInPricingFingerprint()
             return "builtin-\(Self.sha256Hex(Data(fingerprint.utf8)))"
         }
-        let fingerprint = self.modelsDevPricingFingerprint(modelsDevArtifact.catalog)
+        let fingerprint = versionPrefix + self.modelsDevPricingFingerprint(modelsDevArtifact.catalog)
         return "models-dev-v\(modelsDevArtifact.version)-\(Self.sha256Hex(Data(fingerprint.utf8)))"
     }
 
@@ -937,6 +1048,7 @@ enum CostUsageScanner {
         let sessionId: String?
         let forkedFromId: String?
         let forkTimestamp: String?
+        let projectPath: String?
     }
 
     private struct CodexTokenCountRecord {
@@ -975,6 +1087,7 @@ enum CostUsageScanner {
     private static let codexJSONFieldTurnId = Array("turn_id".utf8)
     private static let codexJSONFieldTurnIdCamel = Array("turnId".utf8)
     private static let codexJSONFieldType = Array("type".utf8)
+    private static let codexJSONFieldCwd = Array("cwd".utf8)
 
     private static func codexForkParentId(from payload: [String: Any]?) -> String? {
         guard let payload else { return nil }
@@ -1047,6 +1160,24 @@ enum CostUsageScanner {
         return nil
     }
 
+    static func normalizedCodexProjectPath(_ rawPath: String?) -> String? {
+        guard let rawPath = rawPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawPath.isEmpty
+        else { return nil }
+        let expanded = (rawPath as NSString).expandingTildeInPath
+        guard expanded.hasPrefix("/") else { return nil }
+        return URL(fileURLWithPath: expanded, isDirectory: true).standardizedFileURL.path
+    }
+
+    private static func codexProjectPath(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        payloadRange: Range<Int>?) -> String?
+    {
+        guard let payloadRange else { return nil }
+        return Self.normalizedCodexProjectPath(
+            Self.extractJSONByteStringField(Self.codexJSONFieldCwd, from: bytes, in: payloadRange, atDepth: 1))
+    }
+
     private static func codexTotals(
         from bytes: UnsafeBufferPointer<UInt8>,
         in objectRange: Range<Int>?) -> CostUsageCodexTotals?
@@ -1104,7 +1235,8 @@ enum CostUsageScanner {
                         Self.codexJSONFieldTimestamp,
                         from: rawBuffer,
                         in: objectRange,
-                        atDepth: 1)))
+                        atDepth: 1),
+                    projectPath: Self.codexProjectPath(from: rawBuffer, payloadRange: payloadRange)))
 
             case "turn_context":
                 guard let payloadRange = Self.extractJSONByteObjectField(
@@ -1262,7 +1394,8 @@ enum CostUsageScanner {
                         ?? obj["id"] as? String,
                     forkedFromId: Self.codexForkParentId(from: payload),
                     forkTimestamp: payload?["timestamp"] as? String
-                        ?? obj["timestamp"] as? String)
+                        ?? obj["timestamp"] as? String,
+                    projectPath: Self.normalizedCodexProjectPath(payload?["cwd"] as? String))
             }
         }
 
@@ -1459,6 +1592,7 @@ enum CostUsageScanner {
         initialRawTotalsBaseline: CostUsageCodexTotals? = nil,
         initialHasDivergentTotals: Bool = false,
         initialCodexTurnID: String? = nil,
+        initialCodexUsageRowIndex: Int = 0,
         inheritedTotalsResolver: ((String, String) -> CodexForkBaseline)? = nil) -> CodexParseResult
     {
         let throwingResolver: ((String, String) throws -> CodexForkBaseline)? = inheritedTotalsResolver
@@ -1475,6 +1609,7 @@ enum CostUsageScanner {
                 initialRawTotalsBaseline: initialRawTotalsBaseline,
                 initialHasDivergentTotals: initialHasDivergentTotals,
                 initialCodexTurnID: initialCodexTurnID,
+                initialCodexUsageRowIndex: initialCodexUsageRowIndex,
                 inheritedTotalsResolver: throwingResolver,
                 checkCancellation: nil)) ?? CodexParseResult(
             days: [:],
@@ -1487,6 +1622,7 @@ enum CostUsageScanner {
             lastCodexTurnID: initialCodexTurnID,
             sessionId: nil,
             forkedFromId: nil,
+            projectPath: nil,
             rows: [])
     }
 
@@ -1500,6 +1636,7 @@ enum CostUsageScanner {
         initialRawTotalsBaseline: CostUsageCodexTotals? = nil,
         initialHasDivergentTotals: Bool = false,
         initialCodexTurnID: String? = nil,
+        initialCodexUsageRowIndex: Int = 0,
         inheritedTotalsResolver: ((String, String) throws -> CodexForkBaseline)? = nil,
         checkCancellation: CancellationCheck? = nil) throws -> CodexParseResult
     {
@@ -1507,12 +1644,14 @@ enum CostUsageScanner {
         var previousTotals = initialTotals
         var sessionId: String?
         var forkedFromId: String?
+        var projectPath: String?
         var inheritedTotals: CostUsageCodexTotals?
         var remainingInheritedTotals: CostUsageCodexTotals?
         var forkBaselineResolved = false
         var hasUnresolvedForkBaseline = false
         var unresolvedForkTotalWatermark: CostUsageCodexTotals?
         var currentTurnID = initialCodexTurnID
+        var codexUsageRowIndex = initialCodexUsageRowIndex
         var rawTotalsBaseline = initialRawTotalsBaseline ?? initialTotals
         var sawDivergentTotals = initialHasDivergentTotals
         var deferredError: Error?
@@ -1554,6 +1693,9 @@ enum CostUsageScanner {
             }
             if forkedFromId == nil {
                 forkedFromId = metadata.forkedFromId
+            }
+            if projectPath == nil {
+                projectPath = metadata.projectPath
             }
             if let forkedFromId {
                 try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: metadata.forkTimestamp ?? "")
@@ -1726,13 +1868,14 @@ enum CostUsageScanner {
             }
 
             if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
-            let cachedClamp = min(deltaCached, deltaInput)
+            let eventIndex = codexUsageRowIndex
+            codexUsageRowIndex += 1
             let normModel = CostUsagePricing.normalizeCodexModel(model)
             add(
                 dayKey: dayKey,
                 model: normModel,
                 input: deltaInput,
-                cached: cachedClamp,
+                cached: deltaCached,
                 output: deltaOutput)
             if CostUsageDayRange.isInRange(
                 dayKey: dayKey,
@@ -1743,8 +1886,9 @@ enum CostUsageScanner {
                     day: dayKey,
                     model: normModel,
                     turnID: record.turnID ?? currentTurnID,
+                    eventIndex: eventIndex,
                     input: deltaInput,
-                    cached: cachedClamp,
+                    cached: deltaCached,
                     output: deltaOutput))
             }
         }
@@ -1781,6 +1925,7 @@ enum CostUsageScanner {
         {
             sessionId = metadata.sessionId
             forkedFromId = metadata.forkedFromId
+            projectPath = metadata.projectPath
             if let forkedFromId = metadata.forkedFromId,
                inheritedTotals == nil
             {
@@ -1848,6 +1993,9 @@ enum CostUsageScanner {
                             }
                             if forkedFromId == nil {
                                 forkedFromId = Self.codexForkParentId(from: payload)
+                            }
+                            if projectPath == nil {
+                                projectPath = Self.normalizedCodexProjectPath(payload?["cwd"] as? String)
                             }
                             if let forkedFromId {
                                 let forkedAt = payload?["timestamp"] as? String
@@ -2070,13 +2218,14 @@ enum CostUsageScanner {
                         }
 
                         if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
-                        let cachedClamp = min(deltaCached, deltaInput)
+                        let eventIndex = codexUsageRowIndex
+                        codexUsageRowIndex += 1
                         let normModel = CostUsagePricing.normalizeCodexModel(model)
                         add(
                             dayKey: dayKey,
                             model: normModel,
                             input: deltaInput,
-                            cached: cachedClamp,
+                            cached: deltaCached,
                             output: deltaOutput)
                         if CostUsageDayRange.isInRange(
                             dayKey: dayKey,
@@ -2087,8 +2236,9 @@ enum CostUsageScanner {
                                 day: dayKey,
                                 model: normModel,
                                 turnID: Self.codexTurnID(from: payload) ?? currentTurnID,
+                                eventIndex: eventIndex,
                                 input: deltaInput,
-                                cached: cachedClamp,
+                                cached: deltaCached,
                                 output: deltaOutput))
                         }
                     }
@@ -2118,6 +2268,7 @@ enum CostUsageScanner {
             lastCodexTurnID: currentTurnID,
             sessionId: sessionId,
             forkedFromId: forkedFromId,
+            projectPath: projectPath,
             rows: rows)
     }
 
@@ -2145,10 +2296,6 @@ enum CostUsageScanner {
         }
 
         let cached = cache.files[metadata.path]
-        if let cachedSessionId = cached?.sessionId, state.seenSessionIds.contains(cachedSessionId) {
-            Self.dropCachedCodexFile(path: metadata.path, cached: cached, cache: &cache)
-            return
-        }
 
         let input = CodexFileScanInput(fileURL: fileURL, metadata: metadata, cached: cached)
         if Self.keepCachedCodexFileIfFresh(input: input, context: context, cache: &cache, state: &state) {
@@ -2173,6 +2320,7 @@ enum CostUsageScanner {
         let rootsChanged = cache.roots != rootsFingerprint
         let windowExpanded = Self.requestedWindowExpandsCache(range: range, cache: cache)
         let needsCostCacheMigration = cache.files.values.contains { Self.needsCodexCostCache($0, range: range) }
+        let needsProjectMetadataMigration = cache.codexProjectMetadataVersion != Self.codexProjectMetadataVersion
         let modelsDevLoad = ModelsDevCache.load(now: now, cacheRoot: options.cacheRoot)
         let modelsDevCatalog = modelsDevLoad.artifact?.catalog
         let codexPricingKey = Self.codexPricingKey(modelsDevArtifact: modelsDevLoad.artifact)
@@ -2191,6 +2339,7 @@ enum CostUsageScanner {
             || windowExpanded
             || rootsChanged
             || needsCostCacheMigration
+            || needsProjectMetadataMigration
             || needsTurnIDCacheMigration
             || pricingChanged
             || priorityMetadataChanged
@@ -2221,6 +2370,7 @@ enum CostUsageScanner {
             || windowExpanded
             || rootsChanged
             || needsCostCacheMigration
+            || needsProjectMetadataMigration
             || needsTurnIDCacheMigration
             || pricingChanged
             || priorityMetadataChanged
@@ -2236,6 +2386,7 @@ enum CostUsageScanner {
             rootsChanged: rootsChanged,
             windowExpanded: windowExpanded,
             needsCostCacheMigration: needsCostCacheMigration,
+            needsProjectMetadataMigration: needsProjectMetadataMigration,
             modelsDevCatalog: modelsDevCatalog,
             codexPricingKey: codexPricingKey,
             codexPriorityMetadataKey: codexPriorityMetadataKey,
@@ -2327,23 +2478,20 @@ enum CostUsageScanner {
             let resources = CodexScanResources(
                 fileIndex: fileIndex,
                 inheritedResolver: inheritedResolver,
+                projectPathResolver: CodexCanonicalProjectPathResolver(),
                 modelsDevCatalog: plan.modelsDevCatalog,
                 modelsDevCacheRoot: options.cacheRoot,
                 priorityTurns: plan.priorityTurns)
+            let scanContext = Self.codexFileScanContext(
+                range: range,
+                options: options,
+                plan: plan,
+                resources: resources,
+                checkCancellation: checkCancellation)
             for fileURL in files {
                 try Self.scanCodexFile(
                     fileURL: fileURL,
-                    context: CodexFileScanContext(
-                        range: range,
-                        forceFullScan: options
-                            .forceRescan || plan.windowExpanded || plan.pricingChanged || plan.priorityMetadataChanged,
-                        dropDeferredCodexRows: options.forceRescan || plan.pricingChanged || plan
-                            .priorityMetadataChanged
-                            || plan.needsTurnIDCacheMigration,
-                        requiresTurnIDCache: plan.needsTurnIDCacheMigration,
-                        changedPriorityTurnIDs: plan.changedPriorityTurnIDs,
-                        resources: resources,
-                        checkCancellation: checkCancellation),
+                    context: scanContext,
                     cache: &cache,
                     state: &scanState)
             }
@@ -2355,6 +2503,7 @@ enum CostUsageScanner {
                 isForceRescan: options.forceRescan)
 
             let shouldDropAllUnscannedFiles = options.forceRescan || plan.rootsChanged || cache.files.isEmpty
+                || plan.needsProjectMetadataMigration
             for key in cache.files.keys where !filePathsInScan.contains(key) {
                 guard let old = cache.files[key] else { continue }
                 let shouldDrop = shouldDropAllUnscannedFiles ||
@@ -2378,7 +2527,7 @@ enum CostUsageScanner {
             }
 
             let shouldRetainWiderWindow = !options.forceRescan && !plan.pricingChanged && !plan
-                .priorityMetadataChanged && !plan.needsTurnIDCacheMigration
+                .priorityMetadataChanged && !plan.needsTurnIDCacheMigration && !plan.needsProjectMetadataMigration
             let retainedSinceKey = shouldRetainWiderWindow
                 ? [cachedSinceKey, range.scanSinceKey].compactMap(\.self).min() ?? range.scanSinceKey
                 : range.scanSinceKey
@@ -2391,6 +2540,7 @@ enum CostUsageScanner {
             cache.scanUntilKey = retainedUntilKey
             cache.codexPricingKey = plan.codexPricingKey
             cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
+            cache.codexProjectMetadataVersion = Self.codexProjectMetadataVersion
             if plan.hasPriorityMetadata {
                 cache.codexPriorityTurnKeys = Self.mergePriorityTurnKeys(
                     existing: shouldRetainWiderWindow ? cache.codexPriorityTurnKeys : nil,
@@ -2416,6 +2566,25 @@ enum CostUsageScanner {
             modelsDevCatalog: plan.modelsDevCatalog,
             modelsDevCacheRoot: options.cacheRoot,
             priorityTurns: plan.priorityTurns)
+    }
+
+    private static func codexFileScanContext(
+        range: CostUsageDayRange,
+        options: Options,
+        plan: CodexRefreshPlan,
+        resources: CodexScanResources,
+        checkCancellation: CancellationCheck?) -> CodexFileScanContext
+    {
+        CodexFileScanContext(
+            range: range,
+            forceFullScan: options.forceRescan || plan.windowExpanded || plan.pricingChanged
+                || plan.priorityMetadataChanged || plan.needsProjectMetadataMigration,
+            dropDeferredCodexRows: options.forceRescan || plan.pricingChanged || plan.priorityMetadataChanged
+                || plan.needsTurnIDCacheMigration,
+            requiresTurnIDCache: plan.needsTurnIDCacheMigration,
+            changedPriorityTurnIDs: plan.changedPriorityTurnIDs,
+            resources: resources,
+            checkCancellation: checkCancellation)
     }
 }
 

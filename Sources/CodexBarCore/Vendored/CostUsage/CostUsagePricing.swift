@@ -405,6 +405,10 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `7` (0.39.0.1): merged upstream v0.38.0+v0.39.0 Codex scanner
+    ///   project-metadata attribution and cost formula changes. Roll the
+    ///   pricing fingerprint so existing caches re-scan with the latest
+    ///   session/project identity behavior.
     /// - `6` (0.36.1.1): merged upstream v0.36.0+v0.36.1 cost scanner
     ///   changes. Roll the pricing fingerprint so on-disk usage caches
     ///   re-scan with the latest parser behavior.
@@ -437,7 +441,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 6
+    static let parserLogicVersion = 7
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -633,6 +637,9 @@ enum CostUsagePricing {
         cachedInputTokens: Int,
         outputTokens: Int) -> Double
     {
+        // Codex/OpenAI reports `input_tokens` as the total prompt size, with cached reads as a
+        // SUBSET of it. Clamp cached to input and price only the remainder at the input rate so
+        // cached tokens are not billed twice (full input rate + cache rate).
         let cached = min(max(0, cachedInputTokens), max(0, inputTokens))
         let nonCached = max(0, inputTokens - cached)
         let cachedRate = pricing.cacheReadInputCostPerToken ?? pricing.inputCostPerToken
@@ -642,7 +649,7 @@ enum CostUsagePricing {
             ? pricing.inputCostPerTokenAboveThreshold ?? pricing.inputCostPerToken
             : pricing.inputCostPerToken
         let cachedInputRate = usesLongContextRates
-            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? cachedRate
+            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? pricing.cacheReadInputCostPerToken ?? inputRate
             : cachedRate
         let outputRate = usesLongContextRates
             ? pricing.outputCostPerTokenAboveThreshold ?? pricing.outputCostPerToken

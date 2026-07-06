@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-CodexBar currently registers 53 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+CodexBar currently registers 57 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -53,11 +53,13 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Ollama | API key verifies Cloud API access (`api`); browser cookies expose Cloud quota windows (`web`). |
 | Synthetic | API key from config/env → quota API (`api`). |
 | OpenRouter | API token (config, overrides env) → credits API (`api`). |
+| CrossModel | API key from config/env → credits + usage API (`api`). |
 | Perplexity | Browser cookies/manual cookie/env session token → credits API (`web`). |
 | Xiaomi MiMo | Browser cookies → balance/token plan endpoints (`web`). |
 | Doubao | API key from config/env → Volcengine Ark chat-completions probe (`api`). |
+| Sakana AI | Manual Cookie header → billing page parser for 5-hour/weekly quota windows plus a best-effort pay-as-you-go credit balance (`web`). |
 | Abacus AI | Browser cookies → compute points + billing API (`web`). |
-| Mistral | Console billing and Vibe subscription usage via browser cookies (`web`). |
+| Mistral | Console billing, credit balance, and Vibe subscription usage via browser cookies (`web`). |
 | DeepSeek | API key from env or token accounts → balance endpoint (`api`). |
 | Moonshot | API key from config/env → balance endpoint (`api`). |
 | Codebuff | API token from config/env or `codebuff login` credentials → usage API (`api`). |
@@ -69,6 +71,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Grok | `grok agent stdio` JSON-RPC `x.ai/billing` (`cli`) → grok.com billing gRPC-web via Chrome session cookies (`web`); local `~/.grok/sessions` signals as fallback. |
 | GroqCloud | API key → Prometheus metrics API for request/token/cache-hit rates (`api`). |
 | LLM Proxy | API key + base URL → `/v1/quota-stats` aggregate proxy usage (`api`). |
+| ClawRouter | API key + optional base URL → `/v1/usage` monthly budget, spend, and routed-provider usage (`api`). |
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
@@ -126,6 +129,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Credits endpoint: `POST https://api.manus.im/user.v1.UserService/GetAvailableCredits`.
 - Auto mode prefers cached/browser cookies before env fallback; manual mode accepts either a bare `session_id` value or a full Cookie header.
 - Status: none yet.
+- Details: `docs/manus.md`.
 
 ## MiniMax
 - Coding Plan API token or web session from configured/manual/browser sources.
@@ -229,6 +233,12 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Status: none yet.
 - Details: `docs/warp.md`.
 
+## Windsurf
+- Web session bundle from browser localStorage import, manual Settings entry, or local SQLite cache.
+- Shows daily and weekly quota usage with reset timing; local cache reads `state.vscdb` when web API is unavailable.
+- Status: none yet.
+- Details: `docs/windsurf.md`.
+
 ## ElevenLabs
 - API key from Settings, token accounts, `ELEVENLABS_API_KEY`, or `XI_API_KEY`.
 - Reads `GET /v1/user/subscription` from `api.elevenlabs.io`.
@@ -277,6 +287,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Parses JSONL response lines and extracts customer data from the embedded tRPC payload.
 - Shows the 4-hour Base bucket and monthly Overage bucket documented in the T3 Chat FAQ.
 - Status: none yet.
+- Details: `docs/t3chat.md`.
 
 ## Ollama
 - Web settings page (`https://ollama.com/settings`) via browser cookies.
@@ -297,14 +308,23 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Status: `https://status.openrouter.ai` (link only, no auto-polling yet).
 - Details: `docs/openrouter.md`.
 
+## CrossModel
+- API key from `~/.codexbar/config.json` (`providers[].apiKey`) or `CROSSMODEL_API_KEY` env var.
+- Reads wallet balance (`/v1/credits`) and matching-currency UTC day/week/month spend (`/v1/usage`).
+- Shows balance plus today/this week/this month spend; no quota meter (prepaid wallet, no per-key limit).
+- Override base URL with `CROSSMODEL_API_URL` env var (loopback HTTP allowed for local testing).
+- Details: `docs/crossmodel.md`.
+
 ## Perplexity
 - Browser session cookie from automatic import, manual header/token, or `PERPLEXITY_SESSION_TOKEN` / `PERPLEXITY_COOKIE`.
 - Tracks recurring credits, bonus/promotional credits, purchased credits, and renewal date when present.
 - Status: `https://status.perplexity.com/` (link only, no auto-polling).
 
 ## Xiaomi MiMo
-- Browser cookies from automatic import or manual `Cookie:` header.
-- Reads balance and token-plan usage from `platform.xiaomimimo.com`.
+- Browser cookies from automatic import or manual `Cookie:` header for `platform.xiaomimimo.com` balance and token-plan endpoints.
+- Optional testing override via `MIMO_API_URL`; overrides must be HTTPS or bare hosts normalized to HTTPS, and invalid
+  overrides fail closed instead of falling back to local MiMo usage accounting.
+- Local MiMo token accounting is available only when the opt-in cache file exists.
 - Status: none yet.
 - Details: `docs/mimo.md`.
 
@@ -313,6 +333,14 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Probes Volcengine Ark chat completions and reads request rate-limit headers when present.
 - Status: none yet.
 - Details: `docs/doubao.md`.
+
+## Sakana AI
+- Manual `Cookie:` header from `console.sakana.ai`; no automatic browser import.
+- Reads the billing page and surfaces 5-hour and weekly quota windows when present.
+- Also fetches the pay-as-you-go tab (best-effort, never fails the primary quota fetch) for a
+  `fugu`/`fugu-ultra` prepaid credit balance and a rolling usage total.
+- Status: none yet.
+- Details: `docs/sakana.md`.
 
 ## Abacus AI
 - Browser cookies (`abacus.ai`, `apps.abacus.ai`) via automatic import or manual header.
@@ -324,11 +352,11 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## Mistral
 - Session cookie (`ory_session_*`) from browser auto-import or manual `Cookie:` header.
 - CSRF token (`csrftoken` cookie) sent as `X-CSRFTOKEN` for billing and Vibe usage requests.
-- Domains: `admin.mistral.ai` for API billing and `console.mistral.ai` for optional Vibe subscription usage. Admin Ory cookies are never forwarded to the console origin.
-- Reads monthly usage and pricing from the Mistral billing API.
+- Domains: `admin.mistral.ai` for API billing and credit balance, and `console.mistral.ai` for optional Vibe subscription usage. Console requests forward only `csrftoken` and `ory_session_*`; all other admin cookies stay origin-bound.
+- Reads monthly usage and pricing from the billing usage endpoint, plus credit balance from the billing credits endpoint, using the Mistral web session.
 - Cost is computed client-side from token counts and response pricing.
 - Reads Vibe monthly-plan usage percentage and reset time when the console endpoint is available.
-- The menu bar metric can show either pay-as-you-go API spend or monthly-plan usage.
+- The menu bar metric can show either pay-as-you-go API spend or monthly-plan usage; the provider card shows balance when the credits endpoint is available.
 - Resets at end of calendar month.
 - Status: `https://status.mistral.ai` (link only, no auto-polling).
 
@@ -376,6 +404,12 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Status: none yet.
 - Details: `docs/command-code.md`.
 
+## Qoder
+- Chrome session cookies from automatic import, or a manual `Cookie:` header/cURL capture on macOS or Linux.
+- Reads big model credit usage from the Qoder account dashboard on `qoder.com` or `qoder.com.cn`.
+- Shows used and total credits plus the usage percentage; invalid cached sessions retry freshly imported cookies.
+- Status: none yet.
+
 ## Grok
 - `grok agent stdio` (ACP) JSON-RPC `x.ai/billing` method; requires `grok login` (SuperGrok OAuth/OIDC).
 - Reads cached credentials from `~/.grok/auth.json` for identity (email, team).
@@ -384,6 +418,26 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Local fallback aggregates `~/.grok/sessions/**/signals.json` token counts when the RPC is unavailable.
 - Status: link only to `https://status.x.ai` (no auto-polling yet).
 - Details: `docs/grok.md`.
+
+## GroqCloud
+- API key from `~/.codexbar/config.json` or `GROQ_API_KEY`; base URL override via `GROQ_API_URL`.
+- Reads Enterprise Prometheus metrics for request, token, and cache-hit rates per minute.
+- Dashboard link: GroqCloud metrics console.
+- Status: `https://status.groq.com`.
+- Details: `docs/groqcloud.md`.
+
+## LLM Proxy
+- API key + base URL from `~/.codexbar/config.json` (`enterpriseHost`), `LLM_PROXY_API_KEY`, or `LLM_PROXY_BASE_URL`.
+- Reads `/v1/quota-stats` for aggregate proxy usage with lowest remaining quota, requests, tokens, and approximate cost.
+- Status: none yet.
+- Details: `docs/llm-proxy.md`.
+
+## ClawRouter
+- API key from the resolved CodexBar config (`providers[].apiKey`) or `CLAWROUTER_API_KEY`.
+- Defaults to `https://clawrouter.openclaw.ai`; optional config `enterpriseHost` or `CLAWROUTER_BASE_URL` selects another HTTPS deployment.
+- Reads `/v1/usage` for the key policy's monthly budget, spend, request/token totals, and per-provider breakdown.
+- Provider rows are data-driven, so any routed provider returned by ClawRouter is displayed without provider-specific CodexBar code.
+- Details: `docs/clawrouter.md`.
 
 ## AWS Bedrock
 - AWS credentials from `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
@@ -399,13 +453,6 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Optional API base URL override via `DEEPGRAM_API_URL`; overrides must be HTTPS or bare hosts normalized to HTTPS.
 - Reads Deepgram usage breakdowns for audio hours, agent hours, token totals, TTS characters, and requests.
 - Details: `docs/deepgram.md`.
-
-## Xiaomi MiMo
-- Browser cookies or manual Cookie header for `platform.xiaomimimo.com` balance and token-plan endpoints.
-- Optional testing override via `MIMO_API_URL`; overrides must be HTTPS or bare hosts normalized to HTTPS, and invalid
-  overrides fail closed instead of falling back to local MiMo usage accounting.
-- Local MiMo token accounting is available only when the opt-in cache file exists.
-- Details: `docs/mimo.md`.
 
 ## LiteLLM
 - API key from config or `LITELLM_API_KEY`; base URL from config `enterpriseHost` or `LITELLM_BASE_URL`.

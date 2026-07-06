@@ -2,6 +2,10 @@ import CodexBarCore
 import SwiftUI
 import WidgetKit
 
+extension EnvironmentValues {
+    @Entry fileprivate var widgetUsageShowsUsed: Bool = false
+}
+
 struct CodexBarUsageWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: CodexBarWidgetEntry
@@ -17,6 +21,7 @@ struct CodexBarUsageWidgetView: View {
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
+        .environment(\.widgetUsageShowsUsed, self.entry.snapshot.usageBarsShowUsed)
     }
 
     @ViewBuilder
@@ -127,6 +132,7 @@ struct CodexBarSwitcherWidgetView: View {
             .padding(12)
         }
         .containerBackground(.fill.tertiary, for: .widget)
+        .environment(\.widgetUsageShowsUsed, self.entry.snapshot.usageBarsShowUsed)
     }
 
     @ViewBuilder
@@ -293,12 +299,15 @@ private struct ProviderSwitchChip: View {
         case .ollama: "Ollama"
         case .synthetic: "Synthetic"
         case .openrouter: "OpenRouter"
+        case .crossmodel: "CrossModel"
+        case .clawrouter: "ClawRouter"
         case .elevenlabs: "ElevenLabs"
         case .warp: "Warp"
         case .windsurf: "Windsurf"
         case .perplexity: "Pplx"
         case .mimo: "MiMo"
         case .doubao: "Doubao"
+        case .sakana: "Sakana"
         case .abacus: "Abacus"
         case .mistral: "Mistral"
         case .deepseek: "DeepSeek"
@@ -306,6 +315,7 @@ private struct ProviderSwitchChip: View {
         case .crof: "Crof"
         case .venice: "Venice"
         case .commandcode: "Command Code"
+        case .qoder: "Qoder"
         case .stepfun: "StepFun"
         case .bedrock: "Bedrock"
         case .grok: "Grok"
@@ -339,6 +349,14 @@ private struct SwitcherSmallUsageView: View {
                     title: "Code review",
                     percentLeft: codeReview,
                     color: WidgetColors.color(for: self.entry.provider))
+            }
+            if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
+                ValueLine(
+                    title: token.sessionLabel,
+                    value: WidgetFormat.costAndTokens(
+                        cost: token.sessionCostUSD,
+                        tokens: token.sessionTokens,
+                        currencyCode: token.currencyCode))
             }
         }
     }
@@ -435,6 +453,14 @@ private struct SmallUsageView: View {
                     title: "Code review",
                     percentLeft: codeReview,
                     color: WidgetColors.color(for: self.entry.provider))
+            }
+            if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
+                ValueLine(
+                    title: token.sessionLabel,
+                    value: WidgetFormat.costAndTokens(
+                        cost: token.sessionCostUSD,
+                        tokens: token.sessionTokens,
+                        currencyCode: token.currencyCode))
             }
         }
         .padding(12)
@@ -606,6 +632,17 @@ struct WidgetUsageRow: Identifiable, Equatable {
         return Array(rows.prefix(max(0, limit)))
     }
 
+    static func compactTokenUsage(
+        for entry: WidgetSnapshot.ProviderEntry) -> WidgetSnapshot.TokenUsageSummary?
+    {
+        guard self.rows(for: entry).isEmpty,
+              entry.codeReviewRemainingPercent == nil
+        else {
+            return nil
+        }
+        return entry.tokenUsage
+    }
+
     private static func antigravityQuotaFamily(for row: WidgetUsageRow) -> AntigravityQuotaFamily? {
         guard row.id.hasPrefix("antigravity-quota-summary-") else { return nil }
         let id = row.id.lowercased()
@@ -637,6 +674,14 @@ struct WidgetUsageRow: Identifiable, Equatable {
         case (.none, .none):
             false
         }
+    }
+}
+
+enum WidgetUsageDisplay {
+    static func percent(fromRemaining remaining: Double?, showUsed: Bool) -> Double? {
+        guard let remaining else { return nil }
+        let clamped = max(0, min(100, remaining))
+        return showUsed ? 100 - clamped : clamped
     }
 }
 
@@ -686,22 +731,24 @@ private struct HeaderView: View {
 }
 
 private struct UsageBarRow: View {
+    @Environment(\.widgetUsageShowsUsed) private var showUsed
     let title: String
     let percentLeft: Double?
     let color: Color
 
     var body: some View {
+        let percent = WidgetUsageDisplay.percent(fromRemaining: self.percentLeft, showUsed: self.showUsed)
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(self.title)
                     .font(.caption)
                 Spacer()
-                Text(WidgetFormat.percent(self.percentLeft))
+                Text(WidgetFormat.percent(percent))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             GeometryReader { proxy in
-                let width = max(0, min(1, (percentLeft ?? 0) / 100)) * proxy.size.width
+                let width = max(0, min(1, (percent ?? 0) / 100)) * proxy.size.width
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.primary.opacity(0.08))
                     Capsule().fill(self.color).frame(width: width)
@@ -813,6 +860,10 @@ enum WidgetColors {
             Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255) // Synthetic charcoal
         case .openrouter:
             Color(red: 111 / 255, green: 66 / 255, blue: 193 / 255) // OpenRouter purple
+        case .crossmodel:
+            Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255) // CrossModel purple
+        case .clawrouter:
+            Color(red: 89 / 255, green: 110 / 255, blue: 246 / 255)
         case .elevenlabs:
             Color(red: 235 / 255, green: 235 / 255, blue: 230 / 255)
         case .warp:
@@ -825,6 +876,8 @@ enum WidgetColors {
             Color(red: 1.0, green: 105 / 255, blue: 0)
         case .doubao:
             Color(red: 45 / 255, green: 136 / 255, blue: 255 / 255) // Doubao blue
+        case .sakana:
+            Color(red: 41 / 255, green: 117 / 255, blue: 219 / 255)
         case .abacus:
             Color(red: 56 / 255, green: 189 / 255, blue: 248 / 255)
         case .mistral:
@@ -839,6 +892,8 @@ enum WidgetColors {
             Color(red: 51 / 255, green: 153 / 255, blue: 1.0)
         case .commandcode:
             Color(red: 0, green: 0, blue: 0)
+        case .qoder:
+            Color(red: 16 / 255, green: 185 / 255, blue: 129 / 255)
         case .stepfun:
             Color(red: 255 / 255, green: 140 / 255, blue: 0 / 255) // StepFun orange
         case .bedrock:
@@ -854,7 +909,7 @@ enum WidgetColors {
         case .deepgram:
             Color(red: 10 / 255, green: 18 / 255, blue: 27 / 255)
         case .poe:
-            Color(red: 0.15, green: 0.68, blue: 0.38)
+            Color(red: 93 / 255, green: 92 / 255, blue: 222 / 255) // Poe purple
         case .chutes:
             Color(red: 24 / 255, green: 160 / 255, blue: 88 / 255)
         case .zed:

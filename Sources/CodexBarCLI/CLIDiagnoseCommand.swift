@@ -225,6 +225,8 @@ extension CodexBarCLI {
             ChutesSettingsReader.apiKey(environment: environment) != nil
         case .crof:
             CrofSettingsReader.apiKey(environment: environment) != nil
+        case .crossmodel:
+            CrossModelSettingsReader.apiToken(environment: environment) != nil
         case .deepgram:
             DeepgramSettingsReader.apiKey(environment: environment) != nil
         case .deepseek:
@@ -253,6 +255,8 @@ extension CodexBarCLI {
             KimiK2SettingsReader.apiKey(environment: environment) != nil
         case .llmproxy:
             LLMProxySettingsReader.apiKey(environment: environment) != nil
+        case .clawrouter:
+            ClawRouterSettingsReader.apiKey(environment: environment) != nil
         case .moonshot:
             MoonshotSettingsReader.apiKey(environment: environment) != nil
         case .ollama:
