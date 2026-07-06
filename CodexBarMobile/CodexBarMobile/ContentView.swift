@@ -378,6 +378,15 @@ private struct SyncStatusBar: View {
 
 // MARK: - Cost Tab
 
+enum CostLedgerDeviceFilter {
+    static func activeDeviceIDs(for snapshots: [SyncedUsageSnapshot]) -> Set<String>? {
+        let ids = Set(snapshots.map { snapshot in
+            snapshot.deviceID ?? SwiftDataBridge.deviceIDFallback(for: snapshot)
+        })
+        return ids.isEmpty ? nil : ids
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
@@ -424,8 +433,7 @@ private struct CostTab: View {
     }
 
     private var activeDeviceIDsForLedger: Set<String>? {
-        let ids = Set(self.usageData.deviceSnapshots.compactMap(\.deviceID))
-        return ids.isEmpty ? nil : ids
+        CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
     }
 
     var body: some View {

@@ -234,6 +234,46 @@ struct CWLAggregateTests {
         #expect(codex.totalCostUSD == 2.0)
     }
 
+    @Test("T5: activeDeviceIDs filter includes legacy fallback device rows")
+    func testActiveDeviceFilterIncludesLegacyFallbackRows() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        let legacySnapshot = SyncedUsageSnapshot(
+            providers: [],
+            syncTimestamp: t,
+            deviceName: "Old Mac",
+            deviceID: nil)
+        let modernSnapshot = SyncedUsageSnapshot(
+            providers: [],
+            syncTimestamp: t,
+            deviceName: "New Mac",
+            deviceID: "dev-new")
+        let activeDeviceIDs = try #require(CostLedgerDeviceFilter.activeDeviceIDs(
+            for: [legacySnapshot, modernSnapshot]))
+
+        try self.insert(context, device: "legacy:Old Mac", provider: "codex",
+            daysAgo: 0, cost: 3.0, tokens: 300, lastUpdated: t)
+        try self.insert(context, device: "dev-new", provider: "codex",
+            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(context, device: "dev-archived", provider: "codex",
+            daysAgo: 0, cost: 100.0, tokens: 10_000, lastUpdated: t)
+        try context.save()
+
+        #expect(activeDeviceIDs == ["legacy:Old Mac", "dev-new"])
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: Self.asOf,
+            activeDeviceIDs: activeDeviceIDs)
+
+        #expect(agg.totalCostUSD == 5.0)
+        #expect(agg.totalTokens == 500)
+        let codex = try #require(agg.providerRollups["codex|_"])
+        #expect(codex.totalCostUSD == 5.0)
+    }
+
     @Test("T5: cross-device different (providerID, dayKey) → both kept (no merge)")
     func testCrossDeviceDistinctKeysCoexist() throws {
         let (url, context) = self.makeContext()
