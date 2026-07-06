@@ -29,8 +29,9 @@ import SwiftData
 /// Result of `CostLedgerService.aggregate(windowDays:in:asOf:)`. Mirrors
 /// the shape `CostDashboardInsights` consumes today, so P4 can swap the
 /// blob-derived insights for this without changing the dashboard renderer.
-/// Cross-device merge is done in the aggregator (per `(providerID, dayKey)`
-/// group, take the row with the largest `lastUpdated`).
+/// Cross-device merge is done in the aggregator with provider-aware semantics:
+/// local-cost providers sum active-device rows; account-level providers keep
+/// the latest row for the same `(providerID, accountEmail, dayKey)`.
 struct CostLedgerAggregation: Equatable {
     /// Window the aggregator was asked to compute, in days.
     let windowDays: Int
@@ -69,6 +70,8 @@ struct CostLedgerProviderRollup: Equatable {
     let dailyPoints: [SyncDailyPoint]
     /// Model mix just for this provider. Sorted by `costUSD` descending.
     let modelBreakdowns: [SyncCostBreakdown]
+    /// Service mix just for this provider. Sorted by `costUSD` descending.
+    let serviceBreakdowns: [SyncCostBreakdown]
 }
 
 /// Lightweight ledger diagnostics for the Settings panel (P4). All fields
@@ -216,10 +219,13 @@ enum CostLedgerService {
 
     // MARK: - Aggregate (reader · Round 3 / P3)
 
-    /// Aggregate ledger rows for the trailing `windowDays`. Cross-device
-    /// merge:within the window, group by `(providerID, dayKey)` and keep
-    /// the row with the largest `lastUpdated` (same rule the writer uses
-    /// to dedup within a device, applied across devices at read time).
+    /// Aggregate ledger rows for the trailing `windowDays`.
+    ///
+    /// Cross-device merge is provider-aware:
+    /// - local-cost providers (`codex`, `claude`, `vertexai`) sum active-device
+    ///   rows because their cost comes from per-machine local history.
+    /// - account-level providers keep the latest row for the same provider /
+    ///   account / day because those APIs already return account-wide totals.
     ///
     /// `asOf` exists for deterministic tests; production callers pass `Date()`.
     /// The "window" is `[asOf-(windowDays-1) … asOf]` in UTC dayKeys.
@@ -230,31 +236,39 @@ enum CostLedgerService {
     static func aggregate(
         windowDays: Int,
         in context: ModelContext,
-        asOf: Date = Date()) throws -> CostLedgerAggregation
+        asOf: Date = Date(),
+        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerAggregation
     {
         let windowDays = max(1, min(windowDays, 365))
         let cutoffKey = Self.cutoffDayKey(windowDays: windowDays, asOf: asOf)
 
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate { $0.dayKey >= cutoffKey })
-        let rows = try context.fetch(descriptor)
-
-        // Cross-device merge: group by (providerID, accountEmail, dayKey), keep
-        // latest lastUpdated. accountEmail is part of the key so multi-account
-        // providers stay distinct (matching the blob path's cardIdentityKey).
-        var survivors: [String: DailyCostPoint] = [:]
-        for row in rows {
-            let key = "\(row.providerID)|\(row.accountEmail ?? "_")|\(row.dayKey)"
-            if let existing = survivors[key] {
-                if row.lastUpdated > existing.lastUpdated {
-                    survivors[key] = row
-                }
-            } else {
-                survivors[key] = row
-            }
+        let fetchedRows = try context.fetch(descriptor)
+        let rows: [DailyCostPoint]
+        if let activeDeviceIDs {
+            rows = fetchedRows.filter { activeDeviceIDs.contains($0.deviceID) }
+        } else {
+            rows = fetchedRows
         }
 
         let decoder = CloudSyncConstants.makeJSONDecoder()
+        var groupedRows: [LedgerGroupKey: [DailyCostPoint]] = [:]
+        for row in rows {
+            groupedRows[LedgerGroupKey(row: row), default: []].append(row)
+        }
+
+        let mergedPoints: [AggregatedDailyCostPoint] = groupedRows.values.compactMap { group in
+            guard let first = group.first else { return nil }
+            if ProviderSnapshotMerger.usesLocalCostMerge(providerID: first.providerID) {
+                return AggregatedDailyCostPoint.mergingLocalCostRows(group, decoder: decoder)
+            }
+            guard let latest = group.max(by: { $0.lastUpdated < $1.lastUpdated }) else {
+                return nil
+            }
+            return AggregatedDailyCostPoint(row: latest, decoder: decoder)
+        }
+
         // Per-account-provider accumulators, keyed by cardIdentityKey
         // (providerID|accountEmail) so the dashboard can match rows per account.
         var perProvider: [String: ProviderAccumulator] = [:]
@@ -264,38 +278,23 @@ enum CostLedgerService {
         // Per-model cost + Codex standard/fast split (upstream #1070), summed
         // across the window so the rebuilt modelMix carries the split through
         // to the dashboard's Model Mix rows — at parity with the blob path.
-        var perModel: [String: (cost: Double, std: Double, fast: Double, hasSplit: Bool)] = [:]
-        var perService: [String: Double] = [:]
+        var perModel: [String: CostBreakdownAccumulator] = [:]
+        var perService: [String: CostBreakdownAccumulator] = [:]
 
-        for survivor in survivors.values {
-            let rollupKey = "\(survivor.providerID)|\(survivor.accountEmail ?? "_")"
+        for point in mergedPoints {
+            let rollupKey = "\(point.providerID)|\(point.accountEmail ?? "_")"
             var acc = perProvider[rollupKey] ?? ProviderAccumulator(
-                providerID: survivor.providerID,
-                accountEmail: survivor.accountEmail)
-            acc.ingest(survivor, decoder: decoder)
+                providerID: point.providerID,
+                accountEmail: point.accountEmail)
+            acc.ingest(point)
             perProvider[rollupKey] = acc
 
-            perDay[survivor.dayKey, default: .init()].ingest(survivor)
-            if let data = survivor.modelBreakdownsData,
-               let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
-            {
-                for breakdown in decoded where breakdown.costUSD > 0 {
-                    var entry = perModel[breakdown.label] ?? (0, 0, 0, false)
-                    entry.cost += breakdown.costUSD
-                    if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
-                        entry.hasSplit = true
-                        entry.std += breakdown.standardCostUSD ?? 0
-                        entry.fast += breakdown.priorityCostUSD ?? 0
-                    }
-                    perModel[breakdown.label] = entry
-                }
+            perDay[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
+            for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                perModel[breakdown.label, default: .init()].ingest(breakdown)
             }
-            if let data = survivor.serviceBreakdownsData,
-               let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
-            {
-                for breakdown in decoded where breakdown.costUSD > 0 {
-                    perService[breakdown.label, default: 0] += breakdown.costUSD
-                }
+            for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
+                perService[breakdown.label, default: .init()].ingest(breakdown)
             }
         }
 
@@ -306,29 +305,15 @@ enum CostLedgerService {
 
         let dailyPoints = perDay
             .sorted { $0.key < $1.key }
-            .map { dayKey, acc in
-                SyncDailyPoint(
-                    dayKey: dayKey,
-                    costUSD: acc.costUSD,
-                    totalTokens: acc.totalTokens,
-                    modelBreakdowns: [],
-                    serviceBreakdowns: [],
-                    isEstimated: nil)
-            }
+            .map { _, acc in acc.toDailyPoint() }
 
         let modelMix = perModel
-            .map { label, entry in
-                SyncCostBreakdown(
-                    label: label,
-                    costUSD: entry.cost,
-                    standardCostUSD: entry.hasSplit ? entry.std : nil,
-                    priorityCostUSD: entry.hasSplit ? entry.fast : nil)
-            }
-            .sorted { $0.costUSD > $1.costUSD }
+            .map { label, entry in entry.toBreakdown(label: label) }
+            .sortedByCostThenName()
 
         let serviceMix = perService
-            .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
-            .sorted { $0.costUSD > $1.costUSD }
+            .map { label, entry in entry.toBreakdown(label: label) }
+            .sortedByCostThenName()
 
         let totalCostUSD = perDay.values.reduce(0) { $0 + $1.costUSD }
         let totalTokens = perDay.values.reduce(0) { $0 + $1.totalTokens }
@@ -353,10 +338,14 @@ enum CostLedgerService {
         accountEmail: String?,
         windowDays: Int,
         in context: ModelContext,
-        asOf: Date = Date()) throws -> CostLedgerProviderRollup
+        asOf: Date = Date(),
+        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerProviderRollup
     {
         let full = try Self.aggregate(
-            windowDays: windowDays, in: context, asOf: asOf)
+            windowDays: windowDays,
+            in: context,
+            asOf: asOf,
+            activeDeviceIDs: activeDeviceIDs)
         let rollupKey = "\(providerID)|\(accountEmail ?? "_")"
         return full.providerRollups[rollupKey] ?? CostLedgerProviderRollup(
             providerID: providerID,
@@ -364,7 +353,8 @@ enum CostLedgerService {
             totalCostUSD: 0,
             totalTokens: 0,
             dailyPoints: [],
-            modelBreakdowns: [])
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
     }
 
     // MARK: - Diagnostics (Round 3 / P3)
@@ -463,12 +453,129 @@ enum CostLedgerService {
 
     // MARK: - Private accumulators
 
+    private struct LedgerGroupKey: Hashable {
+        let providerID: String
+        let accountEmail: String?
+        let dayKey: String
+
+        init(row: DailyCostPoint) {
+            self.providerID = row.providerID
+            self.accountEmail = row.accountEmail
+            self.dayKey = row.dayKey
+        }
+    }
+
+    private struct AggregatedDailyCostPoint {
+        let providerID: String
+        let accountEmail: String?
+        let dayKey: String
+        let costUSD: Double
+        let totalTokens: Int
+        let isEstimated: Bool?
+        let modelBreakdowns: [SyncCostBreakdown]
+        let serviceBreakdowns: [SyncCostBreakdown]
+
+        init(row: DailyCostPoint, decoder: JSONDecoder) {
+            self.providerID = row.providerID
+            self.accountEmail = row.accountEmail
+            self.dayKey = row.dayKey
+            self.costUSD = row.costUSD
+            self.totalTokens = row.totalTokens
+            self.isEstimated = row.isEstimated
+            self.modelBreakdowns = Self.decodeBreakdowns(row.modelBreakdownsData, decoder: decoder)
+            self.serviceBreakdowns = Self.decodeBreakdowns(row.serviceBreakdownsData, decoder: decoder)
+        }
+
+        static func mergingLocalCostRows(
+            _ rows: [DailyCostPoint],
+            decoder: JSONDecoder
+        ) -> AggregatedDailyCostPoint? {
+            guard let first = rows.first else { return nil }
+            var dayAccumulator = DayAccumulator(dayKey: first.dayKey)
+            for row in rows {
+                dayAccumulator.ingest(AggregatedDailyCostPoint(row: row, decoder: decoder))
+            }
+            return AggregatedDailyCostPoint(
+                providerID: first.providerID,
+                accountEmail: first.accountEmail,
+                dayKey: first.dayKey,
+                costUSD: dayAccumulator.costUSD,
+                totalTokens: dayAccumulator.totalTokens,
+                isEstimated: dayAccumulator.isEstimated ? true : nil,
+                modelBreakdowns: dayAccumulator.modelBreakdownsArray,
+                serviceBreakdowns: dayAccumulator.serviceBreakdownsArray)
+        }
+
+        private init(
+            providerID: String,
+            accountEmail: String?,
+            dayKey: String,
+            costUSD: Double,
+            totalTokens: Int,
+            isEstimated: Bool?,
+            modelBreakdowns: [SyncCostBreakdown],
+            serviceBreakdowns: [SyncCostBreakdown])
+        {
+            self.providerID = providerID
+            self.accountEmail = accountEmail
+            self.dayKey = dayKey
+            self.costUSD = costUSD
+            self.totalTokens = totalTokens
+            self.isEstimated = isEstimated
+            self.modelBreakdowns = modelBreakdowns
+            self.serviceBreakdowns = serviceBreakdowns
+        }
+
+        private static func decodeBreakdowns(_ data: Data?, decoder: JSONDecoder) -> [SyncCostBreakdown] {
+            guard let data,
+                  let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
+            else { return [] }
+            return decoded
+        }
+    }
+
     private struct DayAccumulator {
+        let dayKey: String
         var costUSD: Double = 0
         var totalTokens: Int = 0
-        mutating func ingest(_ row: DailyCostPoint) {
-            self.costUSD += row.costUSD
-            self.totalTokens += row.totalTokens
+        var isEstimated = false
+        var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
+        var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
+
+        mutating func ingest(_ point: AggregatedDailyCostPoint) {
+            self.costUSD += point.costUSD
+            self.totalTokens += point.totalTokens
+            if point.isEstimated == true {
+                self.isEstimated = true
+            }
+            for breakdown in point.modelBreakdowns {
+                self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+            for breakdown in point.serviceBreakdowns {
+                self.serviceBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+        }
+
+        var modelBreakdownsArray: [SyncCostBreakdown] {
+            self.modelBreakdowns
+                .map { label, entry in entry.toBreakdown(label: label) }
+                .sortedByCostThenName()
+        }
+
+        var serviceBreakdownsArray: [SyncCostBreakdown] {
+            self.serviceBreakdowns
+                .map { label, entry in entry.toBreakdown(label: label) }
+                .sortedByCostThenName()
+        }
+
+        func toDailyPoint() -> SyncDailyPoint {
+            SyncDailyPoint(
+                dayKey: self.dayKey,
+                costUSD: self.costUSD,
+                totalTokens: self.totalTokens,
+                modelBreakdowns: self.modelBreakdownsArray,
+                serviceBreakdowns: self.serviceBreakdownsArray,
+                isEstimated: self.isEstimated ? true : nil)
         }
     }
 
@@ -477,25 +584,24 @@ enum CostLedgerService {
         let accountEmail: String?
         var costUSD: Double = 0
         var totalTokens: Int = 0
-        var perDay: [String: (cost: Double, tokens: Int)] = [:]
-        var perModel: [String: Double] = [:]
+        var perDay: [String: DayAccumulator] = [:]
+        var perModel: [String: CostBreakdownAccumulator] = [:]
+        var perService: [String: CostBreakdownAccumulator] = [:]
 
         init(providerID: String, accountEmail: String?) {
             self.providerID = providerID
             self.accountEmail = accountEmail
         }
 
-        mutating func ingest(_ row: DailyCostPoint, decoder: JSONDecoder) {
-            self.costUSD += row.costUSD
-            self.totalTokens += row.totalTokens
-            self.perDay[row.dayKey, default: (0, 0)].cost += row.costUSD
-            self.perDay[row.dayKey, default: (0, 0)].tokens += row.totalTokens
-            if let data = row.modelBreakdownsData,
-               let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
-            {
-                for breakdown in decoded where breakdown.costUSD > 0 {
-                    self.perModel[breakdown.label, default: 0] += breakdown.costUSD
-                }
+        mutating func ingest(_ point: AggregatedDailyCostPoint) {
+            self.costUSD += point.costUSD
+            self.totalTokens += point.totalTokens
+            self.perDay[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
+            for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                self.perModel[breakdown.label, default: .init()].ingest(breakdown)
+            }
+            for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
+                self.perService[breakdown.label, default: .init()].ingest(breakdown)
             }
         }
 
@@ -507,18 +613,71 @@ enum CostLedgerService {
                 totalTokens: self.totalTokens,
                 dailyPoints: self.perDay
                     .sorted { $0.key < $1.key }
-                    .map { day, vals in
-                        SyncDailyPoint(
-                            dayKey: day,
-                            costUSD: vals.cost,
-                            totalTokens: vals.tokens,
-                            modelBreakdowns: [],
-                            serviceBreakdowns: [],
-                            isEstimated: nil)
-                    },
+                    .map { _, acc in acc.toDailyPoint() },
                 modelBreakdowns: self.perModel
-                    .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
-                    .sorted { $0.costUSD > $1.costUSD })
+                    .map { label, entry in entry.toBreakdown(label: label) }
+                    .sortedByCostThenName(),
+                serviceBreakdowns: self.perService
+                    .map { label, entry in entry.toBreakdown(label: label) }
+                    .sortedByCostThenName())
+        }
+    }
+
+    private struct CostBreakdownAccumulator {
+        var costUSD: Double = 0
+        var isEstimated = false
+        var standardCostUSD: Double = 0
+        var priorityCostUSD: Double = 0
+        var standardTokens: Int = 0
+        var priorityTokens: Int = 0
+        var hasStandardCost = false
+        var hasPriorityCost = false
+        var hasStandardTokens = false
+        var hasPriorityTokens = false
+
+        mutating func ingest(_ breakdown: SyncCostBreakdown) {
+            self.costUSD += breakdown.costUSD
+            if breakdown.isEstimated == true {
+                self.isEstimated = true
+            }
+            if let value = breakdown.standardCostUSD {
+                self.standardCostUSD += value
+                self.hasStandardCost = true
+            }
+            if let value = breakdown.priorityCostUSD {
+                self.priorityCostUSD += value
+                self.hasPriorityCost = true
+            }
+            if let value = breakdown.standardTokens {
+                self.standardTokens += value
+                self.hasStandardTokens = true
+            }
+            if let value = breakdown.priorityTokens {
+                self.priorityTokens += value
+                self.hasPriorityTokens = true
+            }
+        }
+
+        func toBreakdown(label: String) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: self.costUSD,
+                isEstimated: self.isEstimated ? true : nil,
+                standardCostUSD: self.hasStandardCost ? self.standardCostUSD : nil,
+                priorityCostUSD: self.hasPriorityCost ? self.priorityCostUSD : nil,
+                standardTokens: self.hasStandardTokens ? self.standardTokens : nil,
+                priorityTokens: self.hasPriorityTokens ? self.priorityTokens : nil)
+        }
+    }
+}
+
+private extension Array where Element == SyncCostBreakdown {
+    func sortedByCostThenName() -> [SyncCostBreakdown] {
+        self.sorted { lhs, rhs in
+            if lhs.costUSD == rhs.costUSD {
+                return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+            }
+            return lhs.costUSD > rhs.costUSD
         }
     }
 }

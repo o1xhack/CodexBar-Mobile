@@ -18211,6 +18211,35 @@
         }
       }
     },
+    "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コストデータ整合性 — Overview、Provider Share、Daily Spend、Model Mix、Codex Service Mix、共有カードが同じプロバイダー別コスト集計を使うようになり、ローカル CLI の支出はアクティブな Mac 間で合算し、アカウント単位のプロバイダーは二重計上しません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost 数据一致性 —— Overview、Provider Share、Daily Spend、Model Mix、Codex Service Mix 和分享卡现在使用同一套按 provider 区分的 cost reducer：本地 CLI 花费会跨活跃 Mac 求和，账户级 provider 不会被重复计算。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost 資料一致性 —— Overview、Provider Share、Daily Spend、Model Mix、Codex Service Mix 和分享卡現在使用同一套按 provider 區分的 cost reducer：本地 CLI 花費會跨活躍 Mac 求和，帳戶級 provider 不會被重複計算。"
+          }
+        }
+      }
+    },
     "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes.": {
       "extractionState": "manual",
       "localizations": {

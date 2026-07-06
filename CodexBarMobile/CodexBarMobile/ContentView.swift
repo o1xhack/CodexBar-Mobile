@@ -411,7 +411,9 @@ private struct CostTab: View {
         if self.cwlEnabled,
            !self.isDemoMode,
            let aggregation = try? CostLedgerService.aggregate(
-               windowDays: self.cwlWindowDays, in: self.modelContext)
+               windowDays: self.cwlWindowDays,
+               in: self.modelContext,
+               activeDeviceIDs: self.activeDeviceIDsForLedger)
         {
             insights = CostDashboardInsights.fromLedger(
                 aggregation: aggregation, snapshot: snapshot)
@@ -419,6 +421,11 @@ private struct CostTab: View {
             insights = CostDashboardInsights(snapshot: snapshot)
         }
         return insights.hasDisplayData ? insights : nil
+    }
+
+    private var activeDeviceIDsForLedger: Set<String>? {
+        let ids = Set(self.usageData.deviceSnapshots.compactMap(\.deviceID))
+        return ids.isEmpty ? nil : ids
     }
 
     var body: some View {
@@ -490,11 +497,11 @@ private struct CostDashboardView: View {
                 MockProviderBanner(snapshot: self.usageData.snapshot)
                 self.summarySection
 
-                if !self.insights.providerRows.isEmpty {
+                if !self.insights.spendProviderRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",
                         subtitle: self.providerShareSubtitle,
-                        rows: self.insights.providerRows.map {
+                        rows: self.insights.spendProviderRows.map {
                             // `identityOverride: $0.id` carries the
                             // `providerID|accountEmail` composite key so
                             // multi-account scenarios (e.g. two Codex
@@ -508,7 +515,7 @@ private struct CostDashboardView: View {
                                 color: providerTint(for: $0.provider),
                                 identityOverride: $0.id)
                         },
-                        total: self.insights.total30DayCost)
+                        total: self.insights.spendProviderRows.reduce(0) { $0 + $1.thirtyDayCost })
                 }
 
                 if !self.insights.dailyPoints.isEmpty {
@@ -967,20 +974,6 @@ private struct CostBreakdownMetricColumn: View {
 }
 
 struct CostDashboardInsights {
-    struct ProviderRow: Identifiable {
-        let provider: ProviderUsageSnapshot
-        let thirtyDayCost: Double
-        let todayCost: Double
-        let thirtyDayTokens: Int
-
-        /// Composite key (providerID|accountEmail) so multi-account rows
-        /// with the same providerID don't collapse in SwiftUI ForEach.
-        /// Hit on user QA 2026-05-04 — see RawSyncDataView fix in same commit.
-        var id: String {
-            self.provider.cardIdentityKey
-        }
-    }
-
     struct DailyPoint: Identifiable {
         let dayKey: String
         let date: Date
@@ -989,6 +982,22 @@ struct CostDashboardInsights {
 
         var id: String {
             self.dayKey
+        }
+    }
+
+    struct ProviderRow: Identifiable {
+        let provider: ProviderUsageSnapshot
+        let thirtyDayCost: Double
+        let todayCost: Double
+        let thirtyDayTokens: Int
+        let todayTokens: Int
+        let dailyPoints: [DailyPoint]
+
+        /// Composite key (providerID|accountEmail) so multi-account rows
+        /// with the same providerID don't collapse in SwiftUI ForEach.
+        /// Hit on user QA 2026-05-04 — see RawSyncDataView fix in same commit.
+        var id: String {
+            self.provider.cardIdentityKey
         }
     }
 
@@ -1013,6 +1022,10 @@ struct CostDashboardInsights {
 
     var total30DayTokens: Int {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayTokens }
+    }
+
+    var spendProviderRows: [ProviderRow] {
+        self.providerRows.filter { $0.thirtyDayCost > 0 }
     }
 
     /// Cost-history window in days shown in the Overview headline. When CWL is
@@ -1041,7 +1054,6 @@ struct CostDashboardInsights {
     }
 
     init(snapshot: SyncedUsageSnapshot) {
-        let todayKey = Self.dayKeyFormatter.string(from: Date())
         var providerRows: [ProviderRow] = []
         var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
         var modelTotals: [String: Double] = [:]
@@ -1067,17 +1079,23 @@ struct CostDashboardInsights {
             let thirtyDayTokens = costSummary.last30DaysTokens
                 ?? costSummary.daily.reduce(0) { $0 + $1.totalTokens }
 
-            let todayPoint = costSummary.daily.first(where: { $0.dayKey == todayKey })
-            let todayCost = todayPoint?.costUSD ?? costSummary.sessionCostUSD ?? 0
+            let todayTotals = costSummary.todayTotals()
+            let todayCost = todayTotals.costUSD ?? 0
+            let todayTokens = todayTotals.tokens ?? 0
+            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
 
-            guard thirtyDayCost > 0 || todayCost > 0 || !costSummary.daily.isEmpty else { continue }
+            guard thirtyDayCost > 0 || todayCost > 0 || thirtyDayTokens > 0 || todayTokens > 0 else {
+                continue
+            }
 
             providerRows.append(
                 ProviderRow(
                     provider: provider,
                     thirtyDayCost: thirtyDayCost,
                     todayCost: todayCost,
-                    thirtyDayTokens: thirtyDayTokens))
+                    thirtyDayTokens: thirtyDayTokens,
+                    todayTokens: todayTokens,
+                    dailyPoints: providerDailyPoints))
 
             for point in costSummary.daily {
                 dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
@@ -1171,15 +1189,18 @@ struct CostDashboardInsights {
                 rollup: rollup,
                 provider: provider,
                 windowDays: aggregation.windowDays)
-            let todayCost = rollup.dailyPoints
-                .first(where: { $0.dayKey == todayKey })?.costUSD
-                ?? provider.costSummary?.todayTotals().costUSD
-                ?? 0
+            let providerDailyPoints = rollup.dailyPoints.compactMap(Self.dailyPoint)
+            let todayPoint = providerDailyPoints.first(where: { $0.dayKey == todayKey })
+            let fallbackToday = provider.costSummary?.todayTotals()
+            let todayCost = todayPoint?.costUSD ?? fallbackToday?.costUSD ?? 0
+            let todayTokens = todayPoint?.totalTokens ?? fallbackToday?.tokens ?? 0
             providerRows.append(ProviderRow(
                 provider: provider,
                 thirtyDayCost: totals.costUSD,
                 todayCost: todayCost,
-                thirtyDayTokens: totals.tokens))
+                thirtyDayTokens: totals.tokens,
+                todayTokens: todayTokens,
+                dailyPoints: providerDailyPoints))
             representedProviderKeys.insert(provider.cardIdentityKey)
         }
 
@@ -1191,18 +1212,26 @@ struct CostDashboardInsights {
                 totalCostUSD: 0,
                 totalTokens: 0,
                 dailyPoints: [],
-                modelBreakdowns: [])
+                modelBreakdowns: [],
+                serviceBreakdowns: [])
             let totals = Self.ledgerDisplayTotals(
                 rollup: emptyRollup,
                 provider: provider,
                 windowDays: aggregation.windowDays)
-            let todayCost = costSummary.todayTotals().costUSD ?? 0
-            guard totals.costUSD > 0 || todayCost > 0 else { continue }
+            let todayTotals = costSummary.todayTotals()
+            let todayCost = todayTotals.costUSD ?? 0
+            let todayTokens = todayTotals.tokens ?? 0
+            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
+            guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
+                continue
+            }
             providerRows.append(ProviderRow(
                 provider: provider,
                 thirtyDayCost: totals.costUSD,
                 todayCost: todayCost,
-                thirtyDayTokens: totals.tokens))
+                thirtyDayTokens: totals.tokens,
+                todayTokens: todayTokens,
+                dailyPoints: providerDailyPoints))
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -1212,12 +1241,7 @@ struct CostDashboardInsights {
             }
         }
 
-        let dailyPoints: [DailyPoint] = aggregation.dailyPoints.compactMap { point in
-            guard let date = Self.dayKeyFormatter.date(from: point.dayKey) else { return nil }
-            return DailyPoint(
-                dayKey: point.dayKey, date: date,
-                costUSD: point.costUSD, totalTokens: point.totalTokens)
-        }
+        let dailyPoints = aggregation.dailyPoints.compactMap(Self.dailyPoint)
 
         let modelTotals = Dictionary(
             uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
@@ -1299,6 +1323,15 @@ struct CostDashboardInsights {
                 }
                 return lhs.amountUSD > rhs.amountUSD
             }
+    }
+
+    private static func dailyPoint(from point: SyncDailyPoint) -> DailyPoint? {
+        guard let date = Self.dayKeyFormatter.date(from: point.dayKey) else { return nil }
+        return DailyPoint(
+            dayKey: point.dayKey,
+            date: date,
+            costUSD: point.costUSD,
+            totalTokens: point.totalTokens)
     }
 
     /// Wire-format `dayKey` formatter used to match records to today's
@@ -2893,6 +2926,7 @@ private enum MobileReleaseNotesCatalog {
                     items: [
                         String(localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
                         String(localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
+                        String(localized: "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."),
                         String(localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
                     ]),
                 .init(

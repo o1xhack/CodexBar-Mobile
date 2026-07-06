@@ -16,6 +16,10 @@ enum ProviderSnapshotMerger {
     /// non-nil account-level value is the safe merge.
     private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
 
+    static func usesLocalCostMerge(providerID: String) -> Bool {
+        localCostProviders.contains(providerID)
+    }
+
     static func mergeSnapshots(
         _ snapshots: [SyncedUsageSnapshot],
         linkages: [ProviderAccountLinkage] = [],
@@ -208,7 +212,7 @@ enum ProviderSnapshotMerger {
         sumLocalCosts: Bool = true
     ) -> ProviderUsageSnapshot {
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
-        let isLocalCost = localCostProviders.contains(base.providerID)
+        let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
         let mergedCost: SyncCostSummary?
         if isLocalCost, sumLocalCosts {
             mergedCost = mergeCostSummaries(entries.compactMap(\.costSummary))
@@ -266,38 +270,17 @@ enum ProviderSnapshotMerger {
         guard !summaries.isEmpty else { return nil }
         if summaries.count == 1 { return summaries[0] }
 
-        var dailyByKey: [String: (costUSD: Double, totalTokens: Int, modelBreakdowns: [SyncCostBreakdown])] = [:]
+        var dailyByKey: [String: DailyCostAccumulator] = [:]
 
         for summary in summaries {
             for point in summary.daily {
-                if var existing = dailyByKey[point.dayKey] {
-                    existing.costUSD += point.costUSD
-                    existing.totalTokens += point.totalTokens
-                    var breakdownByLabel: [String: Double] = [:]
-                    for breakdown in existing.modelBreakdowns {
-                        breakdownByLabel[breakdown.label, default: 0] += breakdown.costUSD
-                    }
-                    for breakdown in point.modelBreakdowns {
-                        breakdownByLabel[breakdown.label, default: 0] += breakdown.costUSD
-                    }
-                    existing.modelBreakdowns = breakdownByLabel
-                        .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
-                        .sorted { $0.costUSD > $1.costUSD }
-                    dailyByKey[point.dayKey] = existing
-                } else {
-                    dailyByKey[point.dayKey] = (point.costUSD, point.totalTokens, point.modelBreakdowns)
-                }
+                dailyByKey[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
             }
         }
 
-        let mergedDaily = dailyByKey.keys.sorted().map { dayKey in
-            let entry = dailyByKey[dayKey]!
-            return SyncDailyPoint(
-                dayKey: dayKey,
-                costUSD: entry.costUSD,
-                totalTokens: entry.totalTokens,
-                modelBreakdowns: entry.modelBreakdowns)
-        }
+        let mergedDaily = dailyByKey.values
+            .sorted { $0.dayKey < $1.dayKey }
+            .map { $0.toDailyPoint() }
 
         let fallbackDailyCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
         let fallbackDailyTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
@@ -315,7 +298,11 @@ enum ProviderSnapshotMerger {
 
         let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
         let sessionTokens = summaries.compactMap(\.sessionTokens).reduce(0, +)
+        let sessionRequests = summaries.compactMap(\.sessionRequests).reduce(0, +)
+        let windowRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
         let historyDays = summaries.compactMap(\.historyDays).max()
+        let currencies = Set(summaries.compactMap(\.currencyCode))
+        let currencyCode = currencies.count == 1 ? currencies.first : nil
 
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
@@ -324,7 +311,103 @@ enum ProviderSnapshotMerger {
             last30DaysTokens: windowTokens.isEmpty && mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
             isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
-            historyDays: historyDays)
+            historyDays: historyDays,
+            sessionRequests: sessionRequests > 0 ? sessionRequests : nil,
+            last30DaysRequests: windowRequests > 0 ? windowRequests : nil,
+            currencyCode: currencyCode)
+    }
+
+    private struct DailyCostAccumulator {
+        let dayKey: String
+        var costUSD: Double = 0
+        var totalTokens: Int = 0
+        var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
+        var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
+        var isEstimated = false
+
+        mutating func ingest(_ point: SyncDailyPoint) {
+            self.costUSD += point.costUSD
+            self.totalTokens += point.totalTokens
+            if point.isEstimated == true {
+                self.isEstimated = true
+            }
+            for breakdown in point.modelBreakdowns {
+                self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+            for breakdown in point.serviceBreakdowns {
+                self.serviceBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+        }
+
+        func toDailyPoint() -> SyncDailyPoint {
+            SyncDailyPoint(
+                dayKey: self.dayKey,
+                costUSD: self.costUSD,
+                totalTokens: self.totalTokens,
+                modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
+                serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns),
+                isEstimated: self.isEstimated ? true : nil)
+        }
+
+        private static func sortedBreakdowns(
+            _ values: [String: CostBreakdownAccumulator]
+        ) -> [SyncCostBreakdown] {
+            values
+                .map { label, accumulator in accumulator.toBreakdown(label: label) }
+                .sorted { lhs, rhs in
+                    if lhs.costUSD == rhs.costUSD {
+                        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    }
+                    return lhs.costUSD > rhs.costUSD
+                }
+        }
+    }
+
+    private struct CostBreakdownAccumulator {
+        var costUSD: Double = 0
+        var isEstimated = false
+        var standardCostUSD: Double = 0
+        var priorityCostUSD: Double = 0
+        var standardTokens: Int = 0
+        var priorityTokens: Int = 0
+        var hasStandardCost = false
+        var hasPriorityCost = false
+        var hasStandardTokens = false
+        var hasPriorityTokens = false
+
+        mutating func ingest(_ breakdown: SyncCostBreakdown) {
+            self.costUSD += breakdown.costUSD
+            if breakdown.isEstimated == true {
+                self.isEstimated = true
+            }
+            if let value = breakdown.standardCostUSD {
+                self.standardCostUSD += value
+                self.hasStandardCost = true
+            }
+            if let value = breakdown.priorityCostUSD {
+                self.priorityCostUSD += value
+                self.hasPriorityCost = true
+            }
+            if let value = breakdown.standardTokens {
+                self.standardTokens += value
+                self.hasStandardTokens = true
+            }
+            if let value = breakdown.priorityTokens {
+                self.priorityTokens += value
+                self.hasPriorityTokens = true
+            }
+        }
+
+        func toBreakdown(label: String) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: self.costUSD,
+                isEstimated: self.isEstimated ? true : nil,
+                standardCostUSD: self.hasStandardCost ? self.standardCostUSD : nil,
+                priorityCostUSD: self.hasPriorityCost ? self.priorityCostUSD : nil,
+                standardTokens: self.hasStandardTokens ? self.standardTokens : nil,
+                priorityTokens: self.hasPriorityTokens ? self.priorityTokens : nil)
+        }
     }
 
     private static func mergeUtilizationHistories(

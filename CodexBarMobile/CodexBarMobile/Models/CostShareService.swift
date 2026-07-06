@@ -152,31 +152,14 @@ extension ShareCardData {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        // Provider rows (sorted by cost descending already)
-        let providerRows: [ProviderRow] = insights.providerRows.map { row in
-            let cost: Double
-            switch period {
-            case .today:
-                cost = row.todayCost
-            case .week, .month:
-                cost = row.thirtyDayCost // we'll recalculate for 7d below
-            }
-            return ProviderRow(
-                name: row.provider.providerName,
-                cost: cost,
-                share: 0, // computed below
-                color: Self.providerColor(for: row.provider.providerID)
-            )
-        }
-
         // Filter daily points by period
         let filteredDays: [CostDashboardInsights.DailyPoint]
         switch period {
         case .today:
             filteredDays = []
         case .week:
-            let weekAgo = calendar.date(byAdding: .day, value: -7, to: today)!
-            filteredDays = insights.dailyPoints.filter { $0.date >= weekAgo }
+            let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
+            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart }
         case .month:
             filteredDays = insights.dailyPoints
         }
@@ -188,8 +171,7 @@ extension ShareCardData {
         case .today:
             periodCost = insights.totalTodayCost
             periodTokens = insights.providerRows.reduce(0) { total, row in
-                // Today's tokens from provider's cost summary
-                total + (row.provider.costSummary?.sessionTokens ?? 0)
+                total + row.todayTokens
             }
         case .week:
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
@@ -199,30 +181,27 @@ extension ShareCardData {
             periodTokens = insights.total30DayTokens
         }
 
-        // Recalculate provider shares based on period cost
-        let adjustedProviders: [ProviderRow]
-        if period == .week {
-            // For 7-day, scale provider costs proportionally
-            let ratio = periodCost > 0 && insights.total30DayCost > 0
-                ? periodCost / insights.total30DayCost : 1.0
-            adjustedProviders = providerRows.map { p in
-                let cost = p.cost * ratio
-                return ProviderRow(
-                    name: p.name,
-                    cost: cost,
-                    share: periodCost > 0 ? cost / periodCost : 0,
-                    color: p.color
-                )
+        // Provider rows are computed from provider-level daily points. This
+        // keeps 7-day share cards exact instead of scaling 30-day shares.
+        let adjustedProviders: [ProviderRow] = insights.providerRows.map { row in
+            let cost: Double
+            switch period {
+            case .today:
+                cost = row.todayCost
+            case .week:
+                let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
+                cost = row.dailyPoints
+                    .filter { $0.date >= weekStart }
+                    .reduce(0) { $0 + $1.costUSD }
+            case .month:
+                cost = row.thirtyDayCost
             }
-        } else {
-            adjustedProviders = providerRows.map { p in
-                ProviderRow(
-                    name: p.name,
-                    cost: p.cost,
-                    share: periodCost > 0 ? p.cost / periodCost : 0,
-                    color: p.color
-                )
-            }
+            return ProviderRow(
+                name: row.provider.providerName,
+                cost: cost,
+                share: periodCost > 0 ? cost / periodCost : 0,
+                color: Self.providerColor(for: row.provider.providerID)
+            )
         }
 
         let activeDays: Int

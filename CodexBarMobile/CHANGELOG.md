@@ -2,6 +2,29 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.17.0 (182)] — 2026-07-06 — Cost data integrity hotfix
+
+### Fixed
+
+- **Cost dashboard data integrity** — Cost Window Ledger aggregation now uses
+  the same provider-aware merge rule as CloudKit snapshots: local CLI cost
+  providers (`codex`, `claude`, `vertexai`) sum active-device daily rows, while
+  account-level providers keep the latest account/day row.
+- **Cost category completeness** — Local-cost merges now preserve model split
+  metadata, service breakdowns, request counts, currency, and provider daily
+  points so Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix,
+  and share cards all read from consistent data.
+- **Provider/share presentation** — Provider Share hides zero-spend rows, and
+  share cards compute 7-day provider contribution from exact provider daily
+  points instead of proportional 30-day scaling.
+
+### Notes
+
+- iOS-only hotfix on the `1.17.0` line; `MARKETING_VERSION` remains `1.17.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `181` → `182`.
+
+---
+
 ## [1.17.0 (181)] — 2026-07-04 — CodexBar 0.39 upstream sync
 
 ### Added

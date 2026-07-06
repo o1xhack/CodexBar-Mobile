@@ -705,6 +705,110 @@ struct CloudKitMergeTests {
         #expect(cost.historyDays == 30)
     }
 
+    @Test("local-cost merge preserves daily model split and service breakdowns")
+    func localCostMergePreservesDailyBreakdowns() throws {
+        let dayKey = "2026-06-30"
+        let costA = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: dayKey,
+                    costUSD: 1.0,
+                    totalTokens: 100,
+                    modelBreakdowns: [
+                        SyncCostBreakdown(
+                            label: "gpt-5",
+                            costUSD: 1.0,
+                            standardCostUSD: 1.0,
+                            standardTokens: 100),
+                    ],
+                    serviceBreakdowns: [
+                        SyncCostBreakdown(label: "Codex Run", costUSD: 0.8),
+                        SyncCostBreakdown(label: "Codex Cloud", costUSD: 0.2),
+                    ],
+                    isEstimated: false),
+            ],
+            isEstimated: false,
+            historyDays: 30,
+            sessionRequests: 2,
+            last30DaysRequests: 20,
+            currencyCode: "USD")
+        let costB = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: dayKey,
+                    costUSD: 9.0,
+                    totalTokens: 900,
+                    modelBreakdowns: [
+                        SyncCostBreakdown(
+                            label: "gpt-5",
+                            costUSD: 9.0,
+                            isEstimated: true,
+                            priorityCostUSD: 9.0,
+                            priorityTokens: 900),
+                    ],
+                    serviceBreakdowns: [
+                        SyncCostBreakdown(label: "Codex Run", costUSD: 7.2),
+                        SyncCostBreakdown(label: "Codex Cloud", costUSD: 1.8),
+                    ],
+                    isEstimated: true),
+            ],
+            isEstimated: true,
+            historyDays: 30,
+            sessionRequests: 3,
+            last30DaysRequests: 30,
+            currencyCode: "USD")
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: olderDate,
+                costSummary: costA),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: newerDate,
+                costSummary: costB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first)
+        let cost = try #require(codex.costSummary)
+        let point = try #require(cost.daily.first)
+        let model = try #require(point.modelBreakdowns.first { $0.label == "gpt-5" })
+        let serviceTotals = Dictionary(uniqueKeysWithValues: point.serviceBreakdowns.map {
+            ($0.label, $0.costUSD)
+        })
+
+        #expect(point.costUSD == 10.0)
+        #expect(point.totalTokens == 1_000)
+        #expect(point.isEstimated == true)
+        #expect(model.costUSD == 10.0)
+        #expect(model.isEstimated == true)
+        #expect(model.standardCostUSD == 1.0)
+        #expect(model.priorityCostUSD == 9.0)
+        #expect(model.standardTokens == 100)
+        #expect(model.priorityTokens == 900)
+        #expect(serviceTotals["Codex Run"] == 8.0)
+        #expect(serviceTotals["Codex Cloud"] == 2.0)
+        #expect(cost.sessionRequests == 5)
+        #expect(cost.last30DaysRequests == 50)
+        #expect(cost.currencyCode == "USD")
+    }
+
     @Test("loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan")
     func loginMethodInvertedFreshnessKeepsData() throws {
         let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [

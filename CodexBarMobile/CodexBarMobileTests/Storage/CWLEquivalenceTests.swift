@@ -151,6 +151,118 @@ struct CWLEquivalenceTests {
         }
     }
 
+    @Test("Equivalence holds for multi-device local-cost provider totals, daily, model, and service mix")
+    func testEquivalenceMultiDeviceLocalCostSums() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let dayKey = self.dayKey(daysAgo: 0)
+
+        func codexProvider(
+            cost: Double,
+            tokens: Int,
+            updated: Date,
+            standardCost: Double? = nil,
+            priorityCost: Double? = nil
+        ) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "dev@example.com",
+                loginMethod: "Pro",
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updated,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: nil,
+                    last30DaysTokens: nil,
+                    daily: [
+                        SyncDailyPoint(
+                            dayKey: dayKey,
+                            costUSD: cost,
+                            totalTokens: tokens,
+                            modelBreakdowns: [
+                                SyncCostBreakdown(
+                                    label: "gpt-5",
+                                    costUSD: cost,
+                                    standardCostUSD: standardCost,
+                                    priorityCostUSD: priorityCost),
+                            ],
+                            serviceBreakdowns: [
+                                SyncCostBreakdown(label: "Codex Run", costUSD: cost * 0.8),
+                                SyncCostBreakdown(label: "Codex Cloud", costUSD: cost * 0.2),
+                            ],
+                            isEstimated: false),
+                    ],
+                    isEstimated: false,
+                    historyDays: 30))
+        }
+
+        let macA = SyncedUsageSnapshot(
+            providers: [
+                codexProvider(
+                    cost: 1.0,
+                    tokens: 100,
+                    updated: now.addingTimeInterval(-600),
+                    standardCost: 1.0),
+            ],
+            syncTimestamp: now.addingTimeInterval(-500),
+            deviceName: "MacBook Pro",
+            deviceID: "dev-A")
+        let macB = SyncedUsageSnapshot(
+            providers: [
+                codexProvider(
+                    cost: 9.0,
+                    tokens: 900,
+                    updated: now.addingTimeInterval(-60),
+                    priorityCost: 9.0),
+            ],
+            syncTimestamp: now.addingTimeInterval(-50),
+            deviceName: "Mac Studio",
+            deviceID: "dev-B")
+        let mergedSnapshot = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+
+        let blob = CostDashboardInsights(snapshot: mergedSnapshot)
+        for snapshot in [macA, macB] {
+            for provider in snapshot.providers {
+                try CostLedgerService.upsertFromSnapshot(provider, deviceID: snapshot.deviceID!, in: context)
+            }
+        }
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 365,
+            in: context,
+            activeDeviceIDs: ["dev-A", "dev-B"])
+        let ledger = CostDashboardInsights.fromLedger(
+            aggregation: aggregation, snapshot: mergedSnapshot)
+
+        #expect(abs(blob.total30DayCost - 10.0) < Self.tolerance)
+        #expect(abs(blob.total30DayCost - ledger.total30DayCost) < Self.tolerance)
+        #expect(blob.total30DayTokens == ledger.total30DayTokens)
+        #expect(blob.dailyPoints.map(\.costUSD) == ledger.dailyPoints.map(\.costUSD))
+
+        let ledgerProvider = try #require(ledger.providerRows.first)
+        #expect(abs(ledgerProvider.thirtyDayCost - 10.0) < Self.tolerance)
+        #expect(ledgerProvider.thirtyDayTokens == 1_000)
+        #expect(ledgerProvider.dailyPoints.first?.costUSD == 10.0)
+
+        let ledgerModels = Dictionary(
+            uniqueKeysWithValues: ledger.modelRows.map { ($0.label, $0.amountUSD) })
+        let ledgerServices = Dictionary(
+            uniqueKeysWithValues: ledger.serviceRows.map { ($0.label, $0.amountUSD) })
+        #expect(abs((ledgerModels["gpt-5"] ?? 0) - 10.0) < Self.tolerance)
+        #expect(abs((ledgerServices["Codex Run"] ?? 0) - 8.0) < Self.tolerance)
+        #expect(abs((ledgerServices["Codex Cloud"] ?? 0) - 2.0) < Self.tolerance)
+    }
+
     @Test("CWL ON: Overview window follows the selected window, not max provider historyDays")
     func testLedgerHistoryDaysFollowsSelectedWindow() throws {
         let url = self.makeTempStoreURL()
