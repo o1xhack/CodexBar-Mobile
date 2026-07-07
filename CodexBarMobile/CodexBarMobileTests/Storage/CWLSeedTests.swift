@@ -178,6 +178,49 @@ struct CWLSeedTests {
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
     }
 
+    @Test("T10: re-enable seed preserves clear tombstone and imports only newer blobs")
+    func testReEnableSeedPreservesClearTombstone() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let suiteName = "CodexBarTests-CWLSeed-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let oldSync = Date(timeIntervalSince1970: 1_700_000_000)
+        let clearedAt = oldSync.addingTimeInterval(60)
+        let newSync = clearedAt.addingTimeInterval(60)
+        defaults.set(
+            clearedAt.timeIntervalSince1970,
+            forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
+
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: oldSync,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 5.0, 500)])))
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "claude",
+            providerName: "Claude",
+            accountEmail: nil,
+            lastUpdated: newSync,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 6.0, 600)])))
+        try context.save()
+
+        try CostLedgerService.seedFromExistingBlobsRespectingClearTombstone(
+            in: context,
+            userDefaults: defaults)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.providerID == "claude")
+        #expect(rows.first?.costUSD == 6.0)
+        #expect(defaults.double(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) == clearedAt.timeIntervalSince1970)
+    }
+
     // MARK: - T11
 
     @Test("T11: corrupt blob is skipped, valid rows still seed, no crash")

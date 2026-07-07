@@ -3901,12 +3901,14 @@ private struct CostSettingsView: View {
         .onChange(of: self.cwlEnabled) { _, isOn in
             // First enable: import the existing blob history into the ledger so
             // the dashboard has data immediately instead of waiting for the next
-            // Mac sync. On failure, revert the toggle (CWL stays off, blob path
-            // keeps working). Idempotent — re-enabling is a cheap no-op.
+            // Mac sync. If the user previously cleared local history, keep that
+            // clear boundary so re-enabling does not restore older blob data. On
+            // failure, revert the toggle (CWL stays off, blob path keeps working).
+            // Idempotent — re-enabling is a cheap no-op.
             guard isOn else { return }
             do {
-                try CostLedgerService.seedFromExistingBlobs(in: self.modelContext)
-                UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
+                try CostLedgerService.seedFromExistingBlobsRespectingClearTombstone(
+                    in: self.modelContext)
             } catch {
                 self.cwlEnabled = false
             }

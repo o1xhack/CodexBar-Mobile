@@ -493,6 +493,18 @@ enum CostLedgerService {
         try context.save()
     }
 
+    /// Seed existing blob-path history while preserving an explicit clear
+    /// boundary. Used by the Settings off→on path so re-enabling Local Cost
+    /// History does not restore blob data the user just cleared.
+    static func seedFromExistingBlobsRespectingClearTombstone(
+        in context: ModelContext,
+        userDefaults: UserDefaults = .standard) throws
+    {
+        try Self.seedFromExistingBlobs(
+            in: context,
+            newerThan: Self.blobSeedClearedAt(userDefaults: userDefaults))
+    }
+
     private static func hasSeedableCostBlobs(in context: ModelContext, newerThan: Date?) throws -> Bool {
         try context.fetch(FetchDescriptor<ProviderSnapshotModel>()).contains { row in
             guard row.costSummaryData != nil else { return false }
