@@ -787,11 +787,7 @@ struct CodexBarWidgetView: View {
     }
 
     private var footerAlignment: Alignment {
-        if entry.configuration.mode == .todayCost,
-           family == .systemSmall || family == .systemMedium {
-            return .center
-        }
-        return .leading
+        .center
     }
 
     private var todayCostTokenFont: Font {

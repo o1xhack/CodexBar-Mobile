@@ -106,6 +106,19 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    func testLoadedFooterLineIsAlwaysCentered() throws {
+        let sourceURL = Self.sourceFileURL(
+            forRelative: "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetView.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private var footerAlignment: Alignment {\n        .center\n    }"),
+            "The loaded `Updated ...` footer must stay centered for every widget mode and family.")
+        XCTAssertFalse(
+            source.contains("return .leading"),
+            "Do not reintroduce mode/family-specific leading alignment for the loaded footer.")
+    }
+
     private func renderWidget(
         mode: CodexBarWidgetMode,
         colorStyle: CodexBarWidgetColorStyle,
@@ -136,6 +149,16 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2.0
         return renderer.uiImage
+    }
+
+    private static func sourceFileURL(forRelative relativePath: String) -> URL {
+        var url = URL(fileURLWithPath: #filePath)
+        let parts = url.pathComponents
+        guard let idx = parts.lastIndex(of: "CodexBarMobile") else {
+            return URL(fileURLWithPath: relativePath)
+        }
+        let root = URL(fileURLWithPath: parts[..<idx].joined(separator: "/"), isDirectory: true)
+        return root.appendingPathComponent(relativePath)
     }
 
     @discardableResult

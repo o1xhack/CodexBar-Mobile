@@ -210,13 +210,13 @@ struct CWLWriterTests {
 
     // MARK: - Gate (`isEnabled`)
 
-    @Test("Gate: isEnabled returns false when flag absent on a fresh UserDefaults")
-    func testGateDefaultsToFalse() throws {
+    @Test("Gate: isEnabled defaults to product default when flag is absent")
+    func testGateUsesProductDefaultWhenAbsent() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        #expect(CostLedgerService.isEnabled(userDefaults: defaults) == false)
+        #expect(CostLedgerService.isEnabled(userDefaults: defaults) == MobileSettingsDefaults.cwlEnabled)
     }
 
     @Test("Gate: isEnabled returns true when flag set")

@@ -394,11 +394,10 @@ private struct CostTab: View {
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
     // in demo mode, the dashboard reads the ledger (re-windowed by
-    // `cwlWindowDays`) instead of the blob path. Both default to the historical
-    // behavior (OFF / 30d) so untouched users are unaffected.
+    // `cwlWindowDays`) instead of the blob path.
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
-    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -2724,6 +2723,15 @@ private struct DeveloperToolsView: View {
                 }
 
                 NavigationLink {
+                    CostDiagnosticsView(usageData: self.usageData)
+                } label: {
+                    SettingSummaryRow(
+                        title: "Cost Diagnostics",
+                        symbolName: "dollarsign.gauge.chart.lefthalf.righthalf",
+                        summary: String(localized: "Audit Cost totals and merge rules"))
+                }
+
+                NavigationLink {
                     PushSetupDiagnosticView()
                 } label: {
                     SettingSummaryRow(
@@ -2732,11 +2740,209 @@ private struct DeveloperToolsView: View {
                         summary: "Alert push subscription state")
                 }
             } footer: {
-                Text("These tools expose internal sync and push state to help diagnose issues.")
+                Text("These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown.")
                     .font(.caption2)
             }
         }
         .navigationTitle("Developer Tools")
+    }
+}
+
+// MARK: - Cost Diagnostics View
+
+private struct CostDiagnosticsView: View {
+    let usageData: SyncedUsageData
+
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
+
+    var body: some View {
+        List {
+            if let report = self.report {
+                Section("Summary") {
+                    LabeledContent("Source", value: self.sourceText(report.dataSource))
+                    LabeledContent("Window", value: String(format: String(localized: "%d days"), report.windowDays))
+                    LabeledContent("Total Cost", value: CostFormatting.usd(report.totalCostUSD))
+                    LabeledContent("Today", value: CostFormatting.usd(report.todayCostUSD))
+                    LabeledContent("Active Days", value: "\(report.activeDayCount)")
+                    LabeledContent("Top Driver", value: self.topDriverText(report))
+                    LabeledContent("Active Devices", value: "\(report.activeDeviceCount)")
+                    if report.excludedDeviceCount > 0 {
+                        LabeledContent("Excluded Devices", value: "\(report.excludedDeviceCount)")
+                    }
+                }
+
+                Section("Provider Rules") {
+                    ForEach(report.providerRules) { rule in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(rule.providerName)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text(self.mergeRuleText(rule.rule))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let account = rule.accountEmail, !account.isEmpty {
+                                Text(account)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Reconciliation") {
+                    ForEach(report.checks) { item in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: self.statusSymbol(item.status))
+                                .foregroundStyle(self.statusColor(item.status))
+                                .frame(width: 18)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(self.checkTitle(item.kind))
+                                    .fontWeight(.medium)
+                                Text(self.checkDetail(item.detail))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Raw Inputs") {
+                    NavigationLink {
+                        RawSyncDataView(usageData: self.usageData)
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Open Raw Sync Data",
+                            symbolName: "doc.text.magnifyingglass",
+                            summary: String(localized: "Inspect per-device synced rows used as source input"))
+                    }
+                }
+            } else {
+                Section {
+                    Text("No cost data available")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Cost Diagnostics")
+    }
+
+    private var report: CostDiagnosticsReport? {
+        guard let snapshot = self.usageData.snapshot else { return nil }
+        let aggregation = self.cwlEnabled
+            ? try? CostLedgerService.aggregate(
+                windowDays: self.cwlWindowDays,
+                in: self.modelContext,
+                activeDeviceIDs: self.activeDeviceIDsForLedger)
+            : nil
+        let insights = aggregation.map {
+            CostDashboardInsights.fromLedger(aggregation: $0, snapshot: snapshot)
+        } ?? CostDashboardInsights(snapshot: snapshot)
+
+        return CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: self.usageData.rawDeviceSnapshots,
+            activeDeviceSnapshots: self.usageData.deviceSnapshots,
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            ledgerAvailable: aggregation != nil)
+    }
+
+    private var activeDeviceIDsForLedger: Set<String>? {
+        CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
+    }
+
+    private func sourceText(_ source: CostDiagnosticsDataSource) -> String {
+        switch source {
+        case .localLedger:
+            String(localized: "Local Ledger")
+        case .syncedSnapshots:
+            String(localized: "Synced Snapshots")
+        case .syncedSnapshotsAfterLedgerFailure:
+            String(localized: "Synced Snapshots (ledger unavailable)")
+        }
+    }
+
+    private func mergeRuleText(_ rule: CostDiagnosticsMergeRule) -> String {
+        switch rule {
+        case .sumActiveDevices:
+            String(localized: "sum active devices")
+        case .latestAccountDay:
+            String(localized: "latest account/day row")
+        }
+    }
+
+    private func checkTitle(_ kind: CostDiagnosticsCheckKind) -> String {
+        switch kind {
+        case .providerShare:
+            String(localized: "Provider Share")
+        case .dailySpend:
+            String(localized: "Daily Spend")
+        case .modelMix:
+            String(localized: "Model Mix")
+        case .serviceMix:
+            String(localized: "Codex Service Mix")
+        case .shareCard:
+            String(localized: "Share Card")
+        }
+    }
+
+    private func checkDetail(_ detail: CostDiagnosticsCheckDetail) -> String {
+        switch detail {
+        case .matchesOverviewTotal:
+            String(localized: "Matches Overview total")
+        case .difference(let delta):
+            String(
+                format: String(localized: "Difference %@"),
+                CostFormatting.usd(delta))
+        case .covers(let fraction):
+            String(
+                format: String(localized: "Covers %.0f%% of total"),
+                fraction * 100)
+        case .noCostTotal:
+            String(localized: "No cost total")
+        case .noBreakdownData:
+            String(localized: "No breakdown data")
+        case .usesExactProviderDailyPoints:
+            String(localized: "Uses exact provider daily points")
+        case .sevenDayProviderDifference(let delta):
+            String(
+                format: String(localized: "7-day provider difference %@"),
+                CostFormatting.usd(delta))
+        }
+    }
+
+    private func topDriverText(_ report: CostDiagnosticsReport) -> String {
+        guard let name = report.topDriverName, let cost = report.topDriverCostUSD else {
+            return String(localized: "None")
+        }
+        return "\(name) · \(CostFormatting.usd(cost))"
+    }
+
+    private func statusSymbol(_ status: CostDiagnosticsStatus) -> String {
+        switch status {
+        case .pass:
+            "checkmark.circle.fill"
+        case .warning:
+            "exclamationmark.triangle.fill"
+        case .unavailable:
+            "minus.circle.fill"
+        }
+    }
+
+    private func statusColor(_ status: CostDiagnosticsStatus) -> Color {
+        switch status {
+        case .pass:
+            .green
+        case .warning:
+            .orange
+        case .unavailable:
+            .secondary
+        }
     }
 }
 
@@ -2935,6 +3141,9 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
                         String(localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
                         String(localized: "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."),
+                        String(localized: "Cost history defaults — Local cost history now starts on with a 90-day window, and Cost Settings explains how it differs from the synced Mac snapshot path."),
+                        String(localized: "Cost diagnostics — Developer Tools can now show the source path, provider rules, and reconciliation checks behind the Cost totals."),
+                        String(localized: "Widget polish — updated timestamps are centered across every widget size and mode."),
                         String(localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
                     ]),
                 .init(
@@ -3595,8 +3804,8 @@ private struct CostSettingsView: View {
 
     // Round 6 / P4b — Cost Window Ledger controls.
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
-    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
     @State private var showClearLedgerConfirm = false
 
     var body: some View {
@@ -3605,7 +3814,10 @@ private struct CostSettingsView: View {
                 Toggle(isOn: self.$cwlEnabled) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Local cost history")
-                        Text("Keep a longer cost history on this iPhone, independent of the Mac's window. Builds up as the Mac keeps syncing.")
+                        Text("Off uses the latest synced Mac snapshots and the Mac history window.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("On keeps synced daily cost points on this iPhone for the selected window. It still requires Mac sync and never reads Mac logs directly.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

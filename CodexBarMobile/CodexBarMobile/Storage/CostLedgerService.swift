@@ -11,9 +11,10 @@ import SwiftData
 // they describe.
 //
 // Invariants:
-//   1. Default OFF. `isEnabled` reads `MobileSettingsKeys.cwlEnabled` from
-//      `UserDefaults.standard`. Until a user flips it (P4 UI), nothing in
-//      this file runs in production — build-140 behavior is identical.
+//   1. Default ON as of iOS 1.17.x. `isEnabled` reads
+//      `MobileSettingsKeys.cwlEnabled` from `UserDefaults.standard`, but
+//      treats an absent key as the product default so new users build a
+//      local ledger without visiting Settings first.
 //   2. Per-day uniqueness by `(deviceID, providerID, dayKey)`. Enforced via
 //      `DailyCostPoint.compositeKey` lookup before insert.
 //   3. Dedup rule: `existing.lastUpdated >= incoming.lastUpdated` → skip.
@@ -109,7 +110,10 @@ enum CostLedgerService {
     /// pass a per-suite `UserDefaults(suiteName:)` to verify the flag
     /// logic without touching the shared store.
     static func isEnabled(userDefaults: UserDefaults = .standard) -> Bool {
-        userDefaults.bool(forKey: MobileSettingsKeys.cwlEnabled)
+        guard userDefaults.object(forKey: MobileSettingsKeys.cwlEnabled) != nil else {
+            return MobileSettingsDefaults.cwlEnabled
+        }
+        return userDefaults.bool(forKey: MobileSettingsKeys.cwlEnabled)
     }
 
     // MARK: - Upsert: snapshot → daily rows
