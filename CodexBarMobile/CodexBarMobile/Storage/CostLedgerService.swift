@@ -349,9 +349,10 @@ enum CostLedgerService {
             serviceMix: serviceMix)
     }
 
-    /// Aggregate for default-on CWL readers. If the ledger is still empty but
-    /// existing synced blob snapshots are present, seed those blobs first and
-    /// re-run the aggregate so upgraded users do not briefly lose Cost history.
+    /// Aggregate for default-on CWL readers. If existing synced blob snapshots
+    /// contain rows not yet represented in the ledger, seed those missing rows
+    /// first and re-run the aggregate so upgraded or partially seeded users do
+    /// not lose Daily Spend / Model Mix / Service Mix history.
     static func aggregateSeedingFromExistingBlobsIfNeeded(
         windowDays: Int,
         in context: ModelContext,
@@ -359,19 +360,10 @@ enum CostLedgerService {
         activeDeviceIDs: Set<String>? = nil,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
-        let first = try Self.aggregate(
-            windowDays: windowDays,
-            in: context,
-            asOf: asOf,
-            activeDeviceIDs: activeDeviceIDs)
         let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
-        guard !first.hasDisplayData,
-              try Self.hasSeedableCostBlobs(in: context, newerThan: clearedAt)
-        else {
-            return first
+        if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
+            try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
         }
-
-        try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
         return try Self.aggregate(
             windowDays: windowDays,
             in: context,
@@ -505,14 +497,30 @@ enum CostLedgerService {
             newerThan: Self.blobSeedClearedAt(userDefaults: userDefaults))
     }
 
-    private static func hasSeedableCostBlobs(in context: ModelContext, newerThan: Date?) throws -> Bool {
-        try context.fetch(FetchDescriptor<ProviderSnapshotModel>()).contains { row in
-            guard row.costSummaryData != nil else { return false }
-            if let newerThan {
-                return row.lastUpdated > newerThan
+    private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        for row in providers {
+            if let newerThan, row.lastUpdated <= newerThan { continue }
+            guard let blob = row.costSummaryData,
+                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
+            else { continue }
+            for point in summary.daily {
+                let key = DailyCostPoint.makeCompositeKey(
+                    deviceID: row.deviceID,
+                    providerID: row.providerID,
+                    accountEmail: row.accountEmail,
+                    dayKey: point.dayKey)
+                let descriptor = FetchDescriptor<DailyCostPoint>(
+                    predicate: #Predicate { $0.compositeKey == key })
+                guard let existing = try context.fetch(descriptor).first,
+                      existing.lastUpdated >= row.lastUpdated
+                else {
+                    return true
+                }
             }
-            return true
         }
+        return false
     }
 
     private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {

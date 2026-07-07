@@ -124,6 +124,43 @@ struct CWLSeedTests {
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
     }
 
+    @Test("T10: default-on aggregate backfills blobs when ledger is partially populated")
+    func testDefaultOnAggregateBackfillsPartialLedger() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "codex",
+            dayKey: "2026-05-28",
+            costUSD: 5.0,
+            totalTokens: 500,
+            isEstimated: false,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: asOf,
+            in: context)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "claude",
+            providerName: "Claude",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 6.0, 600)])))
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf)
+
+        #expect(aggregation.totalCostUSD == 11.0)
+        #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
+        #expect(aggregation.providerRollups["claude|_"]?.totalCostUSD == 6.0)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+    }
+
     @Test("T10: default-on aggregate does not reseed blobs older than explicit clear")
     func testDefaultOnAggregateHonorsClearTombstone() throws {
         let (url, context) = self.makeContext()
