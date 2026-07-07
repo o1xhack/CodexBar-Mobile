@@ -133,14 +133,22 @@ enum CostLedgerService {
     /// snapshot for the current Mac window).
     ///
     /// All days in one call share `provider.lastUpdated` — the wire format
-    /// has no per-day timestamp.
+    /// has no per-day timestamp. If the user has explicitly cleared local
+    /// cost history, snapshots at or before that clear timestamp are skipped
+    /// so unchanged CloudKit data cannot immediately recreate deleted rows.
     static func upsertFromSnapshot(
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
-        in context: ModelContext) throws
+        in context: ModelContext,
+        userDefaults: UserDefaults = .standard) throws
     {
         guard let summary = provider.costSummary else { return }
         guard !summary.daily.isEmpty else { return }
+        if let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults),
+           provider.lastUpdated <= clearedAt
+        {
+            return
+        }
 
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for point in summary.daily {

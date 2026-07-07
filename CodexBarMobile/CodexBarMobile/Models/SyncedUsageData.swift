@@ -664,15 +664,18 @@ final class SyncedUsageData {
             }
         }
 
-        // 5. Republish merged view.
-        self.republishFromCache()
+        // 5. Mirror the incrementally refreshed cache to SwiftData, then
+        // republish the merged view. The Cost ledger reads SwiftData by
+        // default, so incremental sync must keep it in lockstep with the
+        // in-memory snapshot cache.
+        self.republishFromCache(persistToSwiftData: context)
     }
 
     // MARK: - Republish helper
 
     /// Derive the published state from the current cache. Called after every
     /// mutation (full fetch, incremental delta, cold-start seed).
-    private func republishFromCache() {
+    private func republishFromCache(persistToSwiftData context: ModelContext? = nil) {
         let rawDeviceSnapshots = self.cache.buildDeviceSnapshots()
         self.rawDeviceSnapshots = rawDeviceSnapshots
         let resolution = CloudSyncReader.resolveDeviceSnapshots(
@@ -681,6 +684,16 @@ final class SyncedUsageData {
             providerLinkages: self.providerLinkages)
         self.deviceSnapshots = resolution.activeSnapshots
         self.deviceManagementItems = resolution.items
+
+        let merged = CloudSyncReader.mergeSnapshots(
+            resolution.activeSnapshots,
+            linkages: self.providerLinkages)
+        if let context {
+            CloudSyncReader.persistToSwiftData(
+                deviceSnapshots: rawDeviceSnapshots,
+                merged: merged,
+                context: context)
+        }
 
         if rawDeviceSnapshots.isEmpty {
             self.snapshot = nil
@@ -692,9 +705,7 @@ final class SyncedUsageData {
             }
             return
         }
-        if let merged = CloudSyncReader.mergeSnapshots(
-            resolution.activeSnapshots, linkages: self.providerLinkages)
-        {
+        if let merged {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
         } else if resolution.activeSnapshots.isEmpty {

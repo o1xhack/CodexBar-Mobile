@@ -206,11 +206,11 @@ enum SwiftDataBridge {
             into: model,
             context: context)
 
-        // Round 2 / P2 — Cost Window Ledger writer hook. Off by default; flag
-        // lives in `MobileSettingsKeys.cwlEnabled`. The blob path above always
-        // runs — even with CWL on the ledger and blob stay in sync (blob acts
-        // as the authoritative current-window snapshot, ledger accumulates a
-        // longer rolling history).
+        // Cost Window Ledger writer hook. The default-on flag lives in
+        // `MobileSettingsKeys.cwlEnabled`. The blob path above always runs —
+        // even with CWL on, the ledger and blob stay in sync (blob acts as the
+        // authoritative current-window snapshot, ledger accumulates a longer
+        // rolling history).
         if CostLedgerService.isEnabled() {
             try CostLedgerService.upsertFromSnapshot(
                 provider, deviceID: deviceID, in: context)
