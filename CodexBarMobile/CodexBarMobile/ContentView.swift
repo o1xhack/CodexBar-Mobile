@@ -418,7 +418,7 @@ private struct CostTab: View {
         // no ledger). `try?` falls back to the blob path on any ledger error.
         if self.cwlEnabled,
            !self.isDemoMode,
-           let aggregation = try? CostLedgerService.aggregate(
+           let aggregation = try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
                windowDays: self.cwlWindowDays,
                in: self.modelContext,
                activeDeviceIDs: self.activeDeviceIDsForLedger)
@@ -2833,7 +2833,7 @@ private struct CostDiagnosticsView: View {
     private var report: CostDiagnosticsReport? {
         guard let snapshot = self.usageData.snapshot else { return nil }
         let aggregation = self.cwlEnabled
-            ? try? CostLedgerService.aggregate(
+            ? try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
                 windowDays: self.cwlWindowDays,
                 in: self.modelContext,
                 activeDeviceIDs: self.activeDeviceIDsForLedger)

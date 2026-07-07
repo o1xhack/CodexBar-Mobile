@@ -58,6 +58,13 @@ struct CostLedgerAggregation: Equatable {
     var sortedProviderRollups: [CostLedgerProviderRollup] {
         self.providerRollups.values.sorted { $0.providerID < $1.providerID }
     }
+
+    var hasDisplayData: Bool {
+        !self.providerRollups.isEmpty ||
+            !self.dailyPoints.isEmpty ||
+            !self.modelMix.isEmpty ||
+            !self.serviceMix.isEmpty
+    }
 }
 
 struct CostLedgerProviderRollup: Equatable {
@@ -334,6 +341,34 @@ enum CostLedgerService {
             serviceMix: serviceMix)
     }
 
+    /// Aggregate for default-on CWL readers. If the ledger is still empty but
+    /// existing synced blob snapshots are present, seed those blobs first and
+    /// re-run the aggregate so upgraded users do not briefly lose Cost history.
+    static func aggregateSeedingFromExistingBlobsIfNeeded(
+        windowDays: Int,
+        in context: ModelContext,
+        asOf: Date = Date(),
+        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerAggregation
+    {
+        let first = try Self.aggregate(
+            windowDays: windowDays,
+            in: context,
+            asOf: asOf,
+            activeDeviceIDs: activeDeviceIDs)
+        guard !first.hasDisplayData,
+              try Self.hasSeedableCostBlobs(in: context)
+        else {
+            return first
+        }
+
+        try Self.seedFromExistingBlobs(in: context)
+        return try Self.aggregate(
+            windowDays: windowDays,
+            in: context,
+            asOf: asOf,
+            activeDeviceIDs: activeDeviceIDs)
+    }
+
     /// Same as `aggregate(...)` but filtered to one provider. Used by
     /// `ProviderDetailView` (P4) — avoids materialising the cross-provider
     /// aggregate just to display a single provider's per-day cost section.
@@ -438,6 +473,12 @@ enum CostLedgerService {
             }
         }
         try context.save()
+    }
+
+    private static func hasSeedableCostBlobs(in context: ModelContext) throws -> Bool {
+        let descriptor = FetchDescriptor<ProviderSnapshotModel>(
+            predicate: #Predicate { $0.costSummaryData != nil })
+        return !(try context.fetch(descriptor)).isEmpty
     }
 
     // MARK: - Helpers

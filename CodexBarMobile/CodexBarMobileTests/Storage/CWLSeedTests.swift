@@ -96,6 +96,34 @@ struct CWLSeedTests {
         #expect(rows.first?.costUSD == 5.0)
     }
 
+    @Test("T10: default-on aggregate seeds existing blobs before first ledger read")
+    func testDefaultOnAggregateSeedsBeforeRead() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 5.0, 500)])))
+        try context.save()
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf)
+
+        #expect(aggregation.totalCostUSD == 5.0)
+        #expect(aggregation.totalTokens == 500)
+        #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
+    }
+
     // MARK: - T11
 
     @Test("T11: corrupt blob is skipped, valid rows still seed, no crash")
