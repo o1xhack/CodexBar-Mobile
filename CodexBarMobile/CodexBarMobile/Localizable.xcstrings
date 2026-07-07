@@ -8919,30 +8919,30 @@
         }
       }
     },
-    "These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown.": {
+    "These tools may show internal sync state, device identifiers, and account emails for debugging.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown."
+            "value": "These tools may show internal sync state, device identifiers, and account emails for debugging."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "これらのツールは内部の同期および通知の状態を表示し、問題の診断に役立ちます。機密データは表示されません。"
+            "value": "これらのツールは、デバッグのために内部同期状態、デバイス識別子、アカウントのメールアドレスを表示することがあります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这些工具用于查看内部同步和通知状态以帮助排查问题，不会显示任何敏感信息。"
+            "value": "这些工具可能会显示内部同步状态、设备标识符和账号邮箱，用于排查问题。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "這些工具用於查看內部同步和通知狀態以協助排查問題，不會顯示任何敏感資訊。"
+            "value": "這些工具可能會顯示內部同步狀態、裝置識別碼和帳號信箱，用於排查問題。"
           }
         }
       }

@@ -479,6 +479,10 @@ struct CWLAggregateTests {
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
+        let suiteName = "CodexBarTests-CWLClear-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
         try self.insert(context, device: "dev-A", provider: "codex",
             daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
         try self.insert(context, device: "dev-A", provider: "claude",
@@ -489,11 +493,12 @@ struct CWLAggregateTests {
         try context.save()
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
 
-        try CostLedgerService.clearAll(in: context)
+        try CostLedgerService.clearAll(in: context, clearedAt: t, userDefaults: defaults)
 
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty,
             "ledger must be empty after clearAll")
         #expect(try context.fetch(FetchDescriptor<DeviceRecord>()).count == 1,
             "clearAll must only delete DailyCostPoint, not other entities")
+        #expect(defaults.double(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) == t.timeIntervalSince1970)
     }
 }

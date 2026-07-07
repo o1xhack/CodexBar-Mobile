@@ -2740,7 +2740,7 @@ private struct DeveloperToolsView: View {
                         summary: "Alert push subscription state")
                 }
             } footer: {
-                Text("These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown.")
+                Text("These tools may show internal sync state, device identifiers, and account emails for debugging.")
                     .font(.caption2)
             }
         }
@@ -3906,6 +3906,7 @@ private struct CostSettingsView: View {
             guard isOn else { return }
             do {
                 try CostLedgerService.seedFromExistingBlobs(in: self.modelContext)
+                UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
             } catch {
                 self.cwlEnabled = false
             }

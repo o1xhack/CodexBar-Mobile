@@ -124,6 +124,60 @@ struct CWLSeedTests {
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
     }
 
+    @Test("T10: default-on aggregate does not reseed blobs older than explicit clear")
+    func testDefaultOnAggregateHonorsClearTombstone() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let suiteName = "CodexBarTests-CWLSeed-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let clearedAt = asOf.addingTimeInterval(60)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 5.0, 500)])))
+        try context.save()
+
+        try CostLedgerService.seedFromExistingBlobs(in: context)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
+
+        try CostLedgerService.clearAll(in: context, clearedAt: clearedAt, userDefaults: defaults)
+
+        let clearedAggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf,
+            userDefaults: defaults)
+
+        #expect(clearedAggregation.totalCostUSD == 0)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "claude",
+            providerName: "Claude",
+            accountEmail: nil,
+            lastUpdated: clearedAt.addingTimeInterval(60),
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 6.0, 600)])))
+        try context.save()
+
+        let refreshedAggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf,
+            userDefaults: defaults)
+
+        #expect(refreshedAggregation.totalCostUSD == 6.0)
+        #expect(refreshedAggregation.providerRollups["claude|_"]?.totalCostUSD == 6.0)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
+    }
+
     // MARK: - T11
 
     @Test("T11: corrupt blob is skipped, valid rows still seed, no crash")

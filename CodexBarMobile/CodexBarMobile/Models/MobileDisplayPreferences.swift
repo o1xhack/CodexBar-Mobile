@@ -31,6 +31,10 @@ enum MobileSettingsKeys {
     /// is on, aggregates the ledger over this trailing window. Picker offers
     /// 7 / 30 / 90 / 365; default 90.
     static let cwlWindowDays = "cwlWindowDays"
+    /// Timestamp written when the user explicitly clears local cost history.
+    /// Default-on blob migration only seeds provider blobs newer than this
+    /// value, so a normal Cost-page read cannot immediately undo the clear.
+    static let cwlBlobSeedClearedAt = "cwlBlobSeedClearedAt"
 }
 
 enum MobileSettingsDefaults {

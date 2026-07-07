@@ -348,20 +348,22 @@ enum CostLedgerService {
         windowDays: Int,
         in context: ModelContext,
         asOf: Date = Date(),
-        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerAggregation
+        activeDeviceIDs: Set<String>? = nil,
+        userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
         let first = try Self.aggregate(
             windowDays: windowDays,
             in: context,
             asOf: asOf,
             activeDeviceIDs: activeDeviceIDs)
+        let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
         guard !first.hasDisplayData,
-              try Self.hasSeedableCostBlobs(in: context)
+              try Self.hasSeedableCostBlobs(in: context, newerThan: clearedAt)
         else {
             return first
         }
 
-        try Self.seedFromExistingBlobs(in: context)
+        try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
         return try Self.aggregate(
             windowDays: windowDays,
             in: context,
@@ -427,11 +429,18 @@ enum CostLedgerService {
     /// Delete every `DailyCostPoint` row. Wired to the Settings "clear ledger"
     /// button (with a confirmation dialog). Touches ONLY the ledger — the blob
     /// path (`ProviderSnapshotModel.costSummaryData`) and all other SwiftData
-    /// entities are untouched, so toggling CWL off + clearing leaves the
-    /// build-140 dashboard fully intact.
-    static func clearAll(in context: ModelContext) throws {
+    /// entities are untouched. A clear timestamp is written so the default-on
+    /// migration path cannot immediately rebuild the ledger from older blobs.
+    static func clearAll(
+        in context: ModelContext,
+        clearedAt: Date = Date(),
+        userDefaults: UserDefaults = .standard) throws
+    {
         try context.delete(model: DailyCostPoint.self)
         try context.save()
+        userDefaults.set(
+            clearedAt.timeIntervalSince1970,
+            forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
     }
 
     // MARK: - Seed from existing blobs (migration · Round 7 / P6)
@@ -448,11 +457,12 @@ enum CostLedgerService {
     /// no-op. A corrupt / undecodable blob is skipped (that provider just has
     /// no seeded history); other rows still seed. Throws only on the final
     /// `save()` — the caller (toggle-on) turns CWL back off on throw.
-    static func seedFromExistingBlobs(in context: ModelContext) throws {
+    static func seedFromExistingBlobs(in context: ModelContext, newerThan: Date? = nil) throws {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
+            if let newerThan, row.lastUpdated <= newerThan { continue }
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
@@ -475,10 +485,23 @@ enum CostLedgerService {
         try context.save()
     }
 
-    private static func hasSeedableCostBlobs(in context: ModelContext) throws -> Bool {
-        let descriptor = FetchDescriptor<ProviderSnapshotModel>(
-            predicate: #Predicate { $0.costSummaryData != nil })
-        return !(try context.fetch(descriptor)).isEmpty
+    private static func hasSeedableCostBlobs(in context: ModelContext, newerThan: Date?) throws -> Bool {
+        try context.fetch(FetchDescriptor<ProviderSnapshotModel>()).contains { row in
+            guard row.costSummaryData != nil else { return false }
+            if let newerThan {
+                return row.lastUpdated > newerThan
+            }
+            return true
+        }
+    }
+
+    private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {
+        guard let rawValue = userDefaults.object(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) as? Double,
+              rawValue > 0
+        else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: rawValue)
     }
 
     // MARK: - Helpers
