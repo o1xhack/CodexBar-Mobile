@@ -18762,6 +18762,35 @@
         }
       }
     },
+    "None": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "なし"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無"
+          }
+        }
+      }
+    },
     "Off uses the latest synced Mac snapshots and the Mac history window.": {
       "extractionState": "manual",
       "localizations": {
