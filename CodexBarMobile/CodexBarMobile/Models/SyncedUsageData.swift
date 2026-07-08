@@ -609,12 +609,14 @@ final class SyncedUsageData {
         //    nil-token reply replays every record currently in the zone, so
         //    we treat it as a FULL replacement of the per-provider bucket
         //    (equivalent to a full fetch of the new zone).
+        var didReplayProviderZoneReplacement = false
         if delta.tokenExpired {
             try? SwiftDataBridge.saveChangeToken(
                 forZone: zoneName, tokenData: nil, context: context)
             delta = await reader.fetchPerProviderZoneChanges(since: nil)
             if !delta.tokenExpired, !delta.zoneMissing {
                 self.cache.replacePerProviderFromReplay(delta.upserted)
+                didReplayProviderZoneReplacement = true
             }
         } else if delta.zoneMissing {
             // No zone yet — nothing to apply. The priority merge will fall
@@ -668,9 +670,13 @@ final class SyncedUsageData {
         // republish the merged view. The Cost ledger reads SwiftData by
         // default, so incremental sync must keep it in lockstep with the
         // in-memory snapshot cache.
-        self.republishFromCache(
-            persistIncrementallyToSwiftData: context,
-            deletedRecordNames: delta.deletedRecordNames)
+        if didReplayProviderZoneReplacement {
+            self.republishFromCache(persistToSwiftData: context)
+        } else {
+            self.republishFromCache(
+                persistIncrementallyToSwiftData: context,
+                deletedRecordNames: delta.deletedRecordNames)
+        }
     }
 
     // MARK: - Republish helper

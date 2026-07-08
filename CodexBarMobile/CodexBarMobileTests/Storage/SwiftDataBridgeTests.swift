@@ -257,6 +257,67 @@ struct SwiftDataBridgeTests {
         #expect(ledgerRows.first?.providerID == "codex")
     }
 
+    @Test("Full upsert prunes missing providers and their ledger rows")
+    func testFullUpsertPrunesMissingProvidersAndLedgerRows() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        func summary(cost: Double) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100,
+                        modelBreakdowns: [],
+                        serviceBreakdowns: [],
+                        isEstimated: false),
+                ],
+                isEstimated: false)
+        }
+
+        let codex = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: nil,
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 1))
+        let claude = self.makeProvider(
+            id: "claude",
+            name: "Claude",
+            email: "user@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 2))
+        let full = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [codex, claude],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [full], into: context)
+        try CostLedgerService.upsertFromSnapshot(codex, deviceID: "device-A", in: context)
+        try CostLedgerService.upsertFromSnapshot(claude, deviceID: "device-A", in: context)
+
+        let replacement = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [
+                self.makeProvider(id: "codex", name: "Codex Replay", email: nil, lastUpdated: self.ts2),
+            ],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [replacement], into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 1)
+        #expect(providers.first?.providerID == "codex")
+        #expect(providers.first?.providerName == "Codex Replay")
+
+        let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(ledgerRows.count == 1)
+        #expect(ledgerRows.first?.providerID == "codex")
+    }
+
     @Test("Subscription metadata survives SwiftData bridge round-trip")
     func testSubscriptionMetadataRoundTrip() throws {
         let container = self.makeContainer()

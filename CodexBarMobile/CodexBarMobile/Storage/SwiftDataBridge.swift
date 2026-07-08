@@ -156,6 +156,11 @@ enum SwiftDataBridge {
             let existingForDevice = try context.fetch(staleDescriptor)
             for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
                 context.delete(existing)
+                try CostLedgerService.deleteRows(
+                    deviceID: existing.deviceID,
+                    providerID: existing.providerID,
+                    accountEmail: existing.accountEmail,
+                    in: context)
             }
         }
 
