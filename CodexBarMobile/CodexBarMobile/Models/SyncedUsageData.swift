@@ -708,7 +708,9 @@ final class SyncedUsageData {
         }
         if let incrementalContext {
             CloudSyncReader.persistIncrementalToSwiftData(
-                deviceSnapshots: rawDeviceSnapshots,
+                deviceSnapshots: Self.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+                    rawDeviceSnapshots,
+                    deletedRecordNames: deletedRecordNames),
                 deletedRecordNames: deletedRecordNames,
                 context: incrementalContext)
         }
@@ -733,6 +735,52 @@ final class SyncedUsageData {
         } else {
             self.syncStatus = .incompatibleData
         }
+    }
+
+    nonisolated static func snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+        _ snapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String]
+    ) -> [SyncedUsageSnapshot] {
+        var deletedByDevice: [String: Set<String>] = [:]
+        for recordName in deletedRecordNames {
+            guard let parsed = Self.splitProviderRecordName(recordName) else { continue }
+            deletedByDevice[parsed.deviceID, default: []].insert(parsed.composite)
+        }
+        guard !deletedByDevice.isEmpty else { return snapshots }
+
+        return snapshots.map { snapshot in
+            guard let deviceID = snapshot.deviceID,
+                  let deletedComposites = deletedByDevice[deviceID],
+                  !deletedComposites.isEmpty
+            else {
+                return snapshot
+            }
+            let providers = snapshot.providers.filter { provider in
+                !deletedComposites.contains(Self.providerCompositeKey(provider))
+            }
+            guard providers.count != snapshot.providers.count else { return snapshot }
+            return SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: snapshot.syncTimestamp,
+                deviceName: snapshot.deviceName,
+                deviceID: snapshot.deviceID,
+                appVersion: snapshot.appVersion,
+                mobileVersion: snapshot.mobileVersion,
+                notificationPushEnabled: snapshot.notificationPushEnabled)
+        }
+    }
+
+    private nonisolated static func splitProviderRecordName(_ recordName: String) -> (
+        deviceID: String,
+        composite: String
+    )? {
+        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        return (String(parts[0]), "\(parts[1])|\(parts[2])")
+    }
+
+    private nonisolated static func providerCompositeKey(_ provider: ProviderUsageSnapshot) -> String {
+        "\(provider.providerID)|\(provider.accountEmail ?? "_")"
     }
 
     // MARK: - Public API

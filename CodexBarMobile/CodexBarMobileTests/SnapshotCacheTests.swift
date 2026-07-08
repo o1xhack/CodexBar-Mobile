@@ -134,6 +134,25 @@ struct SnapshotCacheTests {
         #expect(cache.deviceMetadata["mac-A"] != nil)
     }
 
+    @Test("Incremental persistence payload filters deleted providers from legacy fallback")
+    func incrementalPersistenceFiltersDeletedProviderFromLegacyFallback() {
+        let legacyFallback = snapshot(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providers: [
+                provider(id: "codex", lastUpdated: t1),
+                provider(id: "claude", lastUpdated: t1),
+            ],
+            timestamp: t1)
+
+        let filtered = SyncedUsageData.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+            [legacyFallback],
+            deletedRecordNames: ["mac-A|codex|_"])
+
+        #expect(filtered.count == 1)
+        #expect(filtered[0].providers.map(\.providerID) == ["claude"])
+    }
+
     // MARK: - Priority merge
 
     @Test("Device in per-provider bucket wins over legacy bucket")

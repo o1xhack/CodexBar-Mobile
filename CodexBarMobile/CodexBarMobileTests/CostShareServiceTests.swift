@@ -1,5 +1,6 @@
 import CodexBarSync
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexBarMobile
 
@@ -13,7 +14,8 @@ struct CostShareServiceTests {
         sessionTokens: Int? = nil,
         thirtyDayCost: Double? = nil,
         thirtyDayTokens: Int? = nil,
-        historyDays: Int? = nil
+        historyDays: Int? = nil,
+        daily: [SyncDailyPoint] = []
     ) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: id,
@@ -30,7 +32,7 @@ struct CostShareServiceTests {
                 sessionTokens: sessionTokens,
                 last30DaysCostUSD: thirtyDayCost,
                 last30DaysTokens: thirtyDayTokens,
-                daily: [],
+                daily: daily,
                 historyDays: historyDays))
     }
 
@@ -44,6 +46,23 @@ struct CostShareServiceTests {
             date: date,
             costUSD: cost,
             totalTokens: tokens)
+    }
+
+    private func summaryDay(
+        daysAgo: Int,
+        cost: Double,
+        tokens: Int,
+        models: [SyncCostBreakdown]
+    ) -> SyncDailyPoint {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let date = calendar.date(byAdding: .day, value: -daysAgo, to: today)!
+        let formatter = SyncCostSummary.iso8601DayKeyFormatter()
+        return SyncDailyPoint(
+            dayKey: formatter.string(from: date),
+            costUSD: cost,
+            totalTokens: tokens,
+            modelBreakdowns: models)
     }
 
     @Test("Provider Share filters zero-spend rows but keeps spend totals intact")
@@ -161,6 +180,53 @@ struct CostShareServiceTests {
         #expect(monthly.providers.count == 1)
         #expect(abs((codexShare?.cost ?? 0) - 30) < Self.tolerance)
         #expect(monthly.dailyBars.count == 2)
+    }
+
+    @Test("Share card 30-day period caps top models to the same window")
+    func shareCardMonthCapsTopModelsToThirtyDays() {
+        let recentModel = SyncCostBreakdown(label: "recent-model", costUSD: 3)
+        let oldModel = SyncCostBreakdown(label: "old-model", costUSD: 9)
+        let recentSummaryDay = self.summaryDay(
+            daysAgo: 0,
+            cost: 3,
+            tokens: 300,
+            models: [recentModel])
+        let oldSummaryDay = self.summaryDay(
+            daysAgo: 45,
+            cost: 9,
+            tokens: 900,
+            models: [oldModel])
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "codex",
+                name: "Codex",
+                daily: [recentSummaryDay, oldSummaryDay]),
+            thirtyDayCost: 12,
+            todayCost: 3,
+            thirtyDayTokens: 1_200,
+            todayTokens: 300,
+            dailyPoints: [
+                self.day(daysAgo: 0, cost: 3, tokens: 300),
+                self.day(daysAgo: 45, cost: 9, tokens: 900),
+            ])
+        let insights = CostDashboardInsights(
+            providerRows: [codex],
+            dailyPoints: [
+                self.day(daysAgo: 0, cost: 3, tokens: 300),
+                self.day(daysAgo: 45, cost: 9, tokens: 900),
+            ],
+            modelRows: [
+                CostBreakdownRow(label: "old-model", amountUSD: 9, subtitle: nil, color: .blue),
+                CostBreakdownRow(label: "recent-model", amountUSD: 3, subtitle: nil, color: .green),
+            ],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(monthly.topModels.map(\.label) == ["recent-model"])
+        #expect(abs((monthly.topModels.first?.cost ?? 0) - 3) < Self.tolerance)
     }
 
     @Test("Share card 30-day period preserves summary-only provider costs")

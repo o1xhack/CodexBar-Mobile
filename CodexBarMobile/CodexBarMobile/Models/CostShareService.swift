@@ -1,3 +1,4 @@
+import CodexBarSync
 import SwiftUI
 import CoreImage.CIFilterBuiltins
 
@@ -196,6 +197,55 @@ extension ShareCardData {
             return max(dailyTokens, summaryTokens)
         }
 
+        let dayKeyFormatter = SyncCostSummary.iso8601DayKeyFormatter()
+
+        func costSummaryPoints(
+            for row: CostDashboardInsights.ProviderRow,
+            period: SharePeriod
+        ) -> [SyncDailyPoint] {
+            guard let summary = row.provider.costSummary else { return [] }
+            return summary.daily.filter { point in
+                guard let date = dayKeyFormatter.date(from: point.dayKey) else { return false }
+                switch period {
+                case .today:
+                    return calendar.isDate(date, inSameDayAs: today)
+                case .week:
+                    return date >= weekStart
+                case .month:
+                    return date >= monthStart
+                }
+            }
+        }
+
+        func modelRows(for period: SharePeriod) -> [BreakdownRow] {
+            var totals: [String: Double] = [:]
+            for row in insights.providerRows {
+                for point in costSummaryPoints(for: row, period: period) {
+                    for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                        totals[breakdown.label, default: 0] += breakdown.costUSD
+                    }
+                }
+            }
+            let totalModel = totals.values.reduce(0, +)
+            guard totalModel > 0 else { return [] }
+            return totals
+                .map { label, cost in
+                    BreakdownRow(
+                        label: label,
+                        cost: cost,
+                        share: cost / totalModel)
+                }
+                .sorted {
+                    if $0.cost == $1.cost {
+                        $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                    } else {
+                        $0.cost > $1.cost
+                    }
+                }
+                .prefix(5)
+                .map { $0 }
+        }
+
         // Compute totals
         let periodCost: Double
         let periodTokens: Int
@@ -254,14 +304,7 @@ extension ShareCardData {
         self.providers = adjustedProviders.filter { $0.cost > 0 }
 
         // Top models (top 5 — bumped from 3 in iOS 1.9.0 for cap consistency).
-        self.topModels = insights.modelRows.prefix(5).map { row in
-            let totalModel = insights.modelRows.reduce(0.0) { $0 + $1.amountUSD }
-            return BreakdownRow(
-                label: row.label,
-                cost: row.amountUSD,
-                share: totalModel > 0 ? row.amountUSD / totalModel : 0
-            )
-        }
+        self.topModels = modelRows(for: period)
 
         // Daily bars
         let weekdayFormatter = DateFormatter()
