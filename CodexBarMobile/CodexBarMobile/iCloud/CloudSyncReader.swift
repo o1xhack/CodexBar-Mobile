@@ -147,11 +147,13 @@ final class CloudSyncReader: @unchecked Sendable {
 
     static func persistIncrementalToSwiftData(
         deviceSnapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String] = [],
         context: ModelContext
     ) {
         do {
             try SwiftDataBridge.upsertIncremental(
                 deviceSnapshots: deviceSnapshots,
+                deletedRecordNames: deletedRecordNames,
                 into: context)
         } catch {
             print("[CodexBar SwiftData] Incremental upsert failed: \(error)")

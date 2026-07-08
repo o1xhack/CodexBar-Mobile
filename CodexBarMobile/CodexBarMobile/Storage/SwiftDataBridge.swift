@@ -75,11 +75,44 @@ enum SwiftDataBridge {
     /// or missing devices.
     static func upsertIncremental(
         deviceSnapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String] = [],
         into context: ModelContext
     ) throws {
+        try Self.deleteProviderRecords(named: deletedRecordNames, from: context)
         for snapshot in deviceSnapshots {
             try Self.upsertSnapshot(snapshot, into: context, pruneMissingProviders: false)
         }
+        try context.save()
+    }
+
+    static func deleteProviderRecords(
+        named recordNames: [String],
+        from context: ModelContext
+    ) throws {
+        guard !recordNames.isEmpty else { return }
+
+        for recordName in recordNames {
+            guard let parsed = Self.splitProviderRecordName(recordName) else {
+                continue
+            }
+
+            let compositeKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: parsed.deviceID,
+                providerID: parsed.providerID,
+                accountEmail: parsed.accountEmail)
+            let providerDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+                predicate: #Predicate { $0.compositeKey == compositeKey })
+            for provider in try context.fetch(providerDescriptor) {
+                context.delete(provider)
+            }
+
+            try CostLedgerService.deleteRows(
+                deviceID: parsed.deviceID,
+                providerID: parsed.providerID,
+                accountEmail: parsed.accountEmail,
+                in: context)
+        }
+
         try context.save()
     }
 
@@ -396,6 +429,22 @@ enum SwiftDataBridge {
         }
 
         return snapshots
+    }
+
+    // MARK: - Provider record-name parsing
+
+    private static func splitProviderRecordName(_ recordName: String) -> (
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?
+    )? {
+        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        let rawEmail = String(parts[2])
+        return (
+            deviceID: String(parts[0]),
+            providerID: String(parts[1]),
+            accountEmail: rawEmail == "_" ? nil : rawEmail)
     }
 
     // MARK: - Fallbacks

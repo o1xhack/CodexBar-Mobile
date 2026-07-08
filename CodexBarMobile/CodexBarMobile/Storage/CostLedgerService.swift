@@ -445,6 +445,27 @@ enum CostLedgerService {
             forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
     }
 
+    static func deleteRows(
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?,
+        in context: ModelContext
+    ) throws {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        let rows = try context.fetch(descriptor)
+        var didDelete = false
+        for row in rows where row.accountEmail == accountEmail {
+            context.delete(row)
+            didDelete = true
+        }
+        if didDelete {
+            try context.save()
+        }
+    }
+
     // MARK: - Seed from existing blobs (migration · Round 7 / P6)
 
     /// One-shot import of the existing blob-path data into the ledger. Run on
