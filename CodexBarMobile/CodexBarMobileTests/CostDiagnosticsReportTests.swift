@@ -162,6 +162,30 @@ struct CostDiagnosticsReportTests {
         #expect(report.providerRules.map(\.providerID) == ["codex"])
     }
 
+    @Test("Snapshot diagnostics default missing history to 30 days")
+    func snapshotDiagnosticsDefaultMissingHistoryToThirtyDays() throws {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1_200, historyDays: nil),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let insights = CostDashboardInsights(snapshot: snapshot)
+
+        let report = CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot],
+            cwlEnabled: true,
+            cwlWindowDays: 90,
+            ledgerAvailable: false)
+
+        #expect(report.dataSource == .syncedSnapshotsAfterLedgerFailure)
+        #expect(report.windowDays == 30)
+    }
+
     private func day(daysAgo: Int, cost: Double, tokens: Int) -> CostDashboardInsights.DailyPoint {
         let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: self.now) ?? self.now
         return CostDashboardInsights.DailyPoint(
@@ -183,7 +207,13 @@ struct CostDiagnosticsReportTests {
             serviceMix: [])
     }
 
-    private func provider(id: String, name: String, cost: Double, tokens: Int) -> ProviderUsageSnapshot {
+    private func provider(
+        id: String,
+        name: String,
+        cost: Double,
+        tokens: Int,
+        historyDays: Int? = 30) -> ProviderUsageSnapshot
+    {
         let dayKey = SyncCostSummary.iso8601DayKey(for: self.now)
         let daily = SyncDailyPoint(
             dayKey: dayKey,
@@ -209,6 +239,6 @@ struct CostDiagnosticsReportTests {
                 last30DaysTokens: tokens,
                 daily: [daily],
                 isEstimated: false,
-                historyDays: 30))
+                historyDays: historyDays))
     }
 }

@@ -142,10 +142,15 @@ struct CostDiagnosticsReport: Equatable {
                 overviewTotal: totalCost,
                 compareMonthlyToOverview: (insights.historyDays ?? 30) <= 30),
         ]
+        let windowDays = if dataSource == .localLedger {
+            insights.historyDays ?? cwlWindowDays
+        } else {
+            insights.historyDays ?? 30
+        }
 
         return CostDiagnosticsReport(
             dataSource: dataSource,
-            windowDays: insights.historyDays ?? cwlWindowDays,
+            windowDays: windowDays,
             totalCostUSD: totalCost,
             todayCostUSD: insights.totalTodayCost,
             totalTokens: insights.total30DayTokens,
