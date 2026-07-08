@@ -400,7 +400,8 @@ enum CostTabInsightsResolver {
             if aggregation.hasDisplayData {
                 insights = CostDashboardInsights.fromLedger(
                     aggregation: aggregation,
-                    snapshot: snapshot)
+                    snapshot: snapshot,
+                    includeSnapshotFallbackForMissingProviders: !clearedLocalHistory)
             } else if clearedLocalHistory {
                 insights = CostDashboardInsights(
                     providerRows: [],
@@ -1209,7 +1210,8 @@ struct CostDashboardInsights {
     /// provider — no metadata to render).
     static func fromLedger(
         aggregation: CostLedgerAggregation,
-        snapshot: SyncedUsageSnapshot) -> CostDashboardInsights
+        snapshot: SyncedUsageSnapshot,
+        includeSnapshotFallbackForMissingProviders: Bool = true) -> CostDashboardInsights
     {
         let todayKey = Self.dayKeyFormatter.string(from: Date())
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
@@ -1243,34 +1245,36 @@ struct CostDashboardInsights {
             representedProviderKeys.insert(provider.cardIdentityKey)
         }
 
-        for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
-            guard let costSummary = provider.costSummary else { continue }
-            let emptyRollup = CostLedgerProviderRollup(
-                providerID: provider.providerID,
-                accountEmail: provider.accountEmail,
-                totalCostUSD: 0,
-                totalTokens: 0,
-                dailyPoints: [],
-                modelBreakdowns: [],
-                serviceBreakdowns: [])
-            let totals = Self.ledgerDisplayTotals(
-                rollup: emptyRollup,
-                provider: provider,
-                windowDays: aggregation.windowDays)
-            let todayTotals = costSummary.todayTotals()
-            let todayCost = todayTotals.costUSD ?? 0
-            let todayTokens = todayTotals.tokens ?? 0
-            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
-            guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
-                continue
+        if includeSnapshotFallbackForMissingProviders {
+            for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
+                guard let costSummary = provider.costSummary else { continue }
+                let emptyRollup = CostLedgerProviderRollup(
+                    providerID: provider.providerID,
+                    accountEmail: provider.accountEmail,
+                    totalCostUSD: 0,
+                    totalTokens: 0,
+                    dailyPoints: [],
+                    modelBreakdowns: [],
+                    serviceBreakdowns: [])
+                let totals = Self.ledgerDisplayTotals(
+                    rollup: emptyRollup,
+                    provider: provider,
+                    windowDays: aggregation.windowDays)
+                let todayTotals = costSummary.todayTotals()
+                let todayCost = todayTotals.costUSD ?? 0
+                let todayTokens = todayTotals.tokens ?? 0
+                let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
+                guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
+                    continue
+                }
+                providerRows.append(ProviderRow(
+                    provider: provider,
+                    thirtyDayCost: totals.costUSD,
+                    todayCost: todayCost,
+                    thirtyDayTokens: totals.tokens,
+                    todayTokens: todayTokens,
+                    dailyPoints: providerDailyPoints))
             }
-            providerRows.append(ProviderRow(
-                provider: provider,
-                thirtyDayCost: totals.costUSD,
-                todayCost: todayCost,
-                thirtyDayTokens: totals.tokens,
-                todayTokens: todayTokens,
-                dailyPoints: providerDailyPoints))
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -2871,7 +2875,10 @@ private struct CostDiagnosticsView: View {
                 activeDeviceIDs: self.activeDeviceIDsForLedger)
             : nil
         let insights = aggregation.map {
-            CostDashboardInsights.fromLedger(aggregation: $0, snapshot: snapshot)
+            CostDashboardInsights.fromLedger(
+                aggregation: $0,
+                snapshot: snapshot,
+                includeSnapshotFallbackForMissingProviders: !CostLedgerService.hasBlobSeedClearTombstone())
         } ?? CostDashboardInsights(snapshot: snapshot)
 
         return CostDiagnosticsReport.make(

@@ -41,6 +41,61 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.total30DayCost == 12)
     }
 
+    @Test("Partial ledger after clear does not append missing providers from stale snapshots")
+    func partialClearedLedgerDoesNotAppendMissingSnapshotProviders() {
+        let refreshed = self.provider(id: "codex", name: "Codex", cost: 8, tokens: 800)
+        let stale = self.provider(id: "claude", name: "Claude", cost: 12, tokens: 1_200)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [refreshed, stale],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 90,
+            totalCostUSD: 8,
+            totalTokens: 800,
+            activeDayCount: 1,
+            providerRollups: [
+                "codex|_": CostLedgerProviderRollup(
+                    providerID: "codex",
+                    accountEmail: nil,
+                    totalCostUSD: 8,
+                    totalTokens: 800,
+                    dailyPoints: [
+                        SyncDailyPoint(
+                            dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+                            costUSD: 8,
+                            totalTokens: 800,
+                            modelBreakdowns: [],
+                            serviceBreakdowns: [],
+                            isEstimated: false),
+                    ],
+                    modelBreakdowns: [],
+                    serviceBreakdowns: []),
+            ],
+            dailyPoints: [
+                SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+                    costUSD: 8,
+                    totalTokens: 800,
+                    modelBreakdowns: [],
+                    serviceBreakdowns: [],
+                    isEstimated: false),
+            ],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            clearedLocalHistory: true)
+
+        #expect(insights?.total30DayCost == 8)
+        #expect(insights?.providerRows.map(\.provider.providerID) == ["codex"])
+    }
+
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
         CostLedgerAggregation(
             windowDays: windowDays,
@@ -53,7 +108,12 @@ struct CostTabInsightsResolverTests {
             serviceMix: [])
     }
 
-    private func provider(cost: Double, tokens: Int) -> ProviderUsageSnapshot {
+    private func provider(
+        id: String = "codex",
+        name: String = "Codex",
+        cost: Double,
+        tokens: Int) -> ProviderUsageSnapshot
+    {
         let daily = SyncDailyPoint(
             dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
             costUSD: cost,
@@ -62,8 +122,8 @@ struct CostTabInsightsResolverTests {
             serviceBreakdowns: [],
             isEstimated: false)
         return ProviderUsageSnapshot(
-            providerID: "codex",
-            providerName: "Codex",
+            providerID: id,
+            providerName: name,
             primary: nil,
             secondary: nil,
             accountEmail: nil,
