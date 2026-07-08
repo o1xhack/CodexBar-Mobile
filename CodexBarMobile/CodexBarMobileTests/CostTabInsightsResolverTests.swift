@@ -41,6 +41,35 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.total30DayCost == 12)
     }
 
+    @Test("Empty ledger after clear preserves synced budget rows")
+    func emptyClearedLedgerPreservesBudgets() {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(
+                    cost: 12,
+                    tokens: 1_200,
+                    budget: SyncBudgetSnapshot(
+                        usedAmount: 40,
+                        limitAmount: 100,
+                        currencyCode: "USD",
+                        period: "Monthly",
+                        resetsAt: nil)),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: self.emptyAggregation(windowDays: 90),
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            clearedLocalHistory: true)
+
+        #expect(insights?.total30DayCost == 0)
+        #expect(insights?.providerRows.isEmpty == true)
+        #expect(insights?.budgetRows.count == 1)
+    }
+
     @Test("Partial ledger after clear does not append missing providers from stale snapshots")
     func partialClearedLedgerDoesNotAppendMissingSnapshotProviders() {
         let refreshed = self.provider(id: "codex", name: "Codex", cost: 8, tokens: 800)
@@ -112,7 +141,8 @@ struct CostTabInsightsResolverTests {
         id: String = "codex",
         name: String = "Codex",
         cost: Double,
-        tokens: Int) -> ProviderUsageSnapshot
+        tokens: Int,
+        budget: SyncBudgetSnapshot? = nil) -> ProviderUsageSnapshot
     {
         let daily = SyncDailyPoint(
             dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
@@ -138,6 +168,7 @@ struct CostTabInsightsResolverTests {
                 last30DaysTokens: tokens,
                 daily: [daily],
                 isEstimated: false,
-                historyDays: 30))
+                historyDays: 30),
+            budget: budget)
     }
 }

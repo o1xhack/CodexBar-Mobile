@@ -403,13 +403,10 @@ enum CostTabInsightsResolver {
                     snapshot: snapshot,
                     includeSnapshotFallbackForMissingProviders: !clearedLocalHistory)
             } else if clearedLocalHistory {
-                insights = CostDashboardInsights(
-                    providerRows: [],
-                    dailyPoints: [],
-                    modelRows: [],
-                    serviceRows: [],
-                    budgetRows: [],
-                    cwlWindowDays: aggregation.windowDays)
+                insights = CostDashboardInsights.fromLedger(
+                    aggregation: aggregation,
+                    snapshot: snapshot,
+                    includeSnapshotFallbackForMissingProviders: false)
             } else {
                 insights = CostDashboardInsights(snapshot: snapshot)
             }
