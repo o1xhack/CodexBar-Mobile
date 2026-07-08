@@ -7,7 +7,14 @@ import Testing
 struct CostShareServiceTests {
     private static let tolerance = 0.001
 
-    private func provider(id: String, name: String, sessionTokens: Int? = nil) -> ProviderUsageSnapshot {
+    private func provider(
+        id: String,
+        name: String,
+        sessionTokens: Int? = nil,
+        thirtyDayCost: Double? = nil,
+        thirtyDayTokens: Int? = nil,
+        historyDays: Int? = nil
+    ) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -21,9 +28,10 @@ struct CostShareServiceTests {
             costSummary: SyncCostSummary(
                 sessionCostUSD: nil,
                 sessionTokens: sessionTokens,
-                last30DaysCostUSD: nil,
-                last30DaysTokens: nil,
-                daily: []))
+                last30DaysCostUSD: thirtyDayCost,
+                last30DaysTokens: thirtyDayTokens,
+                daily: [],
+                historyDays: historyDays))
     }
 
     private func day(daysAgo: Int, cost: Double, tokens: Int) -> CostDashboardInsights.DailyPoint {
@@ -153,6 +161,52 @@ struct CostShareServiceTests {
         #expect(monthly.providers.count == 1)
         #expect(abs((codexShare?.cost ?? 0) - 30) < Self.tolerance)
         #expect(monthly.dailyBars.count == 2)
+    }
+
+    @Test("Share card 30-day period preserves summary-only provider costs")
+    func shareCardMonthPreservesSummaryOnlyProviderCosts() {
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "codex",
+                name: "Codex",
+                thirtyDayCost: 42,
+                thirtyDayTokens: 4_200,
+                historyDays: 30),
+            thirtyDayCost: 42,
+            todayCost: 0,
+            thirtyDayTokens: 4_200,
+            todayTokens: 0,
+            dailyPoints: [])
+        let claude = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "claude",
+                name: "Claude",
+                thirtyDayCost: 8,
+                thirtyDayTokens: 800,
+                historyDays: 30),
+            thirtyDayCost: 8,
+            todayCost: 0,
+            thirtyDayTokens: 800,
+            todayTokens: 0,
+            dailyPoints: [])
+        let insights = CostDashboardInsights(
+            providerRows: [codex, claude],
+            dailyPoints: [],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [])
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+        let codexShare = monthly.providers.first { $0.name == "Codex" }
+        let claudeShare = monthly.providers.first { $0.name == "Claude" }
+
+        #expect(abs(monthly.totalCost - 50) < Self.tolerance)
+        #expect(monthly.totalTokens == 5_000)
+        #expect(monthly.providers.count == 2)
+        #expect(abs((codexShare?.cost ?? 0) - 42) < Self.tolerance)
+        #expect(abs((claudeShare?.cost ?? 0) - 8) < Self.tolerance)
+        #expect(abs((codexShare?.share ?? 0) - 0.84) < Self.tolerance)
+        #expect(abs((claudeShare?.share ?? 0) - 0.16) < Self.tolerance)
     }
 
     @Test("Share card Today tokens use resolved daily totals, not stale session tokens")

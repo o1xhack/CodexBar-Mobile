@@ -165,6 +165,37 @@ extension ShareCardData {
             filteredDays = insights.dailyPoints.filter { $0.date >= monthStart }
         }
 
+        func monthlyDailyPoints(for row: CostDashboardInsights.ProviderRow) -> [CostDashboardInsights.DailyPoint] {
+            row.dailyPoints.filter { $0.date >= monthStart }
+        }
+
+        func authoritativeThirtyDaySummary(for row: CostDashboardInsights.ProviderRow) -> (costUSD: Double?, tokens: Int?) {
+            guard let summary = row.provider.costSummary else {
+                return (nil, nil)
+            }
+            let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
+            guard summaryWindowDays <= 30 else {
+                return (nil, nil)
+            }
+            return (summary.last30DaysCostUSD, summary.last30DaysTokens)
+        }
+
+        func monthlyCost(for row: CostDashboardInsights.ProviderRow) -> Double {
+            let dailyCost = monthlyDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+            guard let summaryCost = authoritativeThirtyDaySummary(for: row).costUSD else {
+                return dailyCost
+            }
+            return max(dailyCost, summaryCost)
+        }
+
+        func monthlyTokens(for row: CostDashboardInsights.ProviderRow) -> Int {
+            let dailyTokens = monthlyDailyPoints(for: row).reduce(0) { $0 + $1.totalTokens }
+            guard let summaryTokens = authoritativeThirtyDaySummary(for: row).tokens else {
+                return dailyTokens
+            }
+            return max(dailyTokens, summaryTokens)
+        }
+
         // Compute totals
         let periodCost: Double
         let periodTokens: Int
@@ -178,8 +209,12 @@ extension ShareCardData {
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
         case .month:
-            periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
-            periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
+            let providerCost = insights.providerRows.reduce(0) { $0 + monthlyCost(for: $1) }
+            let dailyCost = filteredDays.reduce(0) { $0 + $1.costUSD }
+            periodCost = providerCost > 0 ? providerCost : dailyCost
+            let providerTokens = insights.providerRows.reduce(0) { $0 + monthlyTokens(for: $1) }
+            let dailyTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
+            periodTokens = providerTokens > 0 ? providerTokens : dailyTokens
         }
 
         // Provider rows are computed from provider-level daily points. This
@@ -194,9 +229,7 @@ extension ShareCardData {
                     .filter { $0.date >= weekStart }
                     .reduce(0) { $0 + $1.costUSD }
             case .month:
-                cost = row.dailyPoints
-                    .filter { $0.date >= monthStart }
-                    .reduce(0) { $0 + $1.costUSD }
+                cost = monthlyCost(for: row)
             }
             return ProviderRow(
                 name: row.provider.providerName,
