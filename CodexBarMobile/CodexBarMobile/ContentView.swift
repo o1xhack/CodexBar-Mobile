@@ -475,6 +475,21 @@ enum CostDiagnosticsReportResolver {
     }
 }
 
+enum CostDiagnosticsLedgerAggregationResolver {
+    static func make(
+        cwlEnabled: Bool,
+        cwlWindowDays: Int,
+        modelContext: ModelContext,
+        activeDeviceIDs: Set<String>?) -> CostLedgerAggregation?
+    {
+        guard cwlEnabled else { return nil }
+        return try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: cwlWindowDays,
+            in: modelContext,
+            activeDeviceIDs: activeDeviceIDs)
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
@@ -2964,12 +2979,11 @@ private struct CostDiagnosticsView: View {
 
     private var report: CostDiagnosticsReport? {
         guard let snapshot = self.usageData.snapshot else { return nil }
-        let aggregation = self.cwlEnabled
-            ? try? CostLedgerService.aggregate(
-                windowDays: self.cwlWindowDays,
-                in: self.modelContext,
-                activeDeviceIDs: self.activeDeviceIDsForLedger)
-            : nil
+        let aggregation = CostDiagnosticsLedgerAggregationResolver.make(
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            modelContext: self.modelContext,
+            activeDeviceIDs: self.activeDeviceIDsForLedger)
 
         return CostDiagnosticsReportResolver.make(
             snapshot: snapshot,

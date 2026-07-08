@@ -124,6 +124,34 @@ struct CWLSeedTests {
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
     }
 
+    @Test("T10: diagnostics aggregate seeds existing blobs before reporting")
+    func testDiagnosticsAggregateSeedsBeforeReport() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: self.summaryBlob(daily: [self.day("2026-05-28", 7.0, 700)])))
+        try context.save()
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+
+        let aggregation = try #require(CostDiagnosticsLedgerAggregationResolver.make(
+            cwlEnabled: true,
+            cwlWindowDays: 90,
+            modelContext: context,
+            activeDeviceIDs: ["dev-A"]))
+
+        #expect(aggregation.totalCostUSD == 7.0)
+        #expect(aggregation.totalTokens == 700)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 1)
+    }
+
     @Test("T10: default-on aggregate backfills blobs when ledger is partially populated")
     func testDefaultOnAggregateBackfillsPartialLedger() throws {
         let (url, context) = self.makeContext()

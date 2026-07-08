@@ -246,6 +246,27 @@ extension ShareCardData {
                     }
                 }
             }
+            if totals.isEmpty, period != .today {
+                let fallbackRows = insights.modelRows
+                    .filter { $0.amountUSD > 0 }
+                    .sorted {
+                        if $0.amountUSD == $1.amountUSD {
+                            $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                        } else {
+                            $0.amountUSD > $1.amountUSD
+                        }
+                    }
+                    .prefix(5)
+                let fallbackTotal = fallbackRows.reduce(0) { $0 + $1.amountUSD }
+                guard fallbackTotal > 0 else { return [] }
+                return fallbackRows
+                    .map { row in
+                        BreakdownRow(
+                            label: row.label,
+                            cost: row.amountUSD,
+                            share: row.amountUSD / fallbackTotal)
+                    }
+            }
             let totalModel = totals.values.reduce(0, +)
             guard totalModel > 0 else { return [] }
             return totals

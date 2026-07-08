@@ -229,6 +229,42 @@ struct CostShareServiceTests {
         #expect(abs((monthly.topModels.first?.cost ?? 0) - 3) < Self.tolerance)
     }
 
+    @Test("Share card preserves ledger model mix when provider summaries are missing")
+    func shareCardUsesLedgerModelRowsWhenSummaryBreakdownsAreMissing() {
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: Date(),
+                costSummary: nil),
+            thirtyDayCost: 10,
+            todayCost: 2,
+            thirtyDayTokens: 1_000,
+            todayTokens: 200,
+            dailyPoints: [self.day(daysAgo: 0, cost: 2, tokens: 200)])
+        let insights = CostDashboardInsights(
+            providerRows: [codex],
+            dailyPoints: [self.day(daysAgo: 0, cost: 2, tokens: 200)],
+            modelRows: [
+                CostBreakdownRow(label: "gpt-5", amountUSD: 7, subtitle: nil, color: .blue),
+                CostBreakdownRow(label: "gpt-5-mini", amountUSD: 3, subtitle: nil, color: .green),
+            ],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(monthly.topModels.map(\.label) == ["gpt-5", "gpt-5-mini"])
+        #expect(abs((monthly.topModels.first?.share ?? 0) - 0.7) < Self.tolerance)
+    }
+
     @Test("Share card 30-day period preserves summary-only provider costs")
     func shareCardMonthPreservesSummaryOnlyProviderCosts() {
         let codex = CostDashboardInsights.ProviderRow(
