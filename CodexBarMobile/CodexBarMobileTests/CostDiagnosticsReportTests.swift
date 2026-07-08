@@ -90,6 +90,64 @@ struct CostDiagnosticsReportTests {
         #expect(Set(report.providerRules.map(\.id)).count == report.providerRules.count)
     }
 
+    @Test("Report does not compare 90-day overview against 30-day share card")
+    func shareCardCheckPassesForWiderLedgerWindow() throws {
+        let oldPoint = self.day(daysAgo: 45, cost: 70, tokens: 7_000)
+        let recentPoint = self.day(daysAgo: 3, cost: 30, tokens: 3_000)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: nil)
+        let insights = CostDashboardInsights(
+            providerRows: [
+                CostDashboardInsights.ProviderRow(
+                    provider: provider,
+                    thirtyDayCost: 100,
+                    todayCost: 0,
+                    thirtyDayTokens: 10_000,
+                    todayTokens: 0,
+                    dailyPoints: [oldPoint, recentPoint]),
+            ],
+            dailyPoints: [oldPoint, recentPoint],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let report = CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot],
+            cwlEnabled: true,
+            cwlWindowDays: 90,
+            ledgerAvailable: true)
+
+        #expect(report.totalCostUSD == 100)
+        #expect(report.checks.first(where: { $0.kind == .shareCard })?.status == .pass)
+    }
+
+    private func day(daysAgo: Int, cost: Double, tokens: Int) -> CostDashboardInsights.DailyPoint {
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: self.now) ?? self.now
+        return CostDashboardInsights.DailyPoint(
+            dayKey: SyncCostSummary.iso8601DayKey(for: date),
+            date: date,
+            costUSD: cost,
+            totalTokens: tokens)
+    }
+
     private func provider(id: String, name: String, cost: Double, tokens: Int) -> ProviderUsageSnapshot {
         let dayKey = SyncCostSummary.iso8601DayKey(for: self.now)
         let daily = SyncDailyPoint(

@@ -387,6 +387,38 @@ enum CostLedgerDeviceFilter {
     }
 }
 
+enum CostTabInsightsResolver {
+    static func make(
+        snapshot: SyncedUsageSnapshot,
+        ledgerAggregation: CostLedgerAggregation?,
+        isLedgerEnabled: Bool,
+        isDemoMode: Bool,
+        clearedLocalHistory: Bool) -> CostDashboardInsights?
+    {
+        let insights: CostDashboardInsights
+        if isLedgerEnabled, !isDemoMode, let aggregation = ledgerAggregation {
+            if aggregation.hasDisplayData {
+                insights = CostDashboardInsights.fromLedger(
+                    aggregation: aggregation,
+                    snapshot: snapshot)
+            } else if clearedLocalHistory {
+                insights = CostDashboardInsights(
+                    providerRows: [],
+                    dailyPoints: [],
+                    modelRows: [],
+                    serviceRows: [],
+                    budgetRows: [],
+                    cwlWindowDays: aggregation.windowDays)
+            } else {
+                insights = CostDashboardInsights(snapshot: snapshot)
+            }
+        } else {
+            insights = CostDashboardInsights(snapshot: snapshot)
+        }
+        return insights.hasDisplayData ? insights : nil
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
@@ -413,22 +445,22 @@ private struct CostTab: View {
     /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
     private var currentInsights: CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
-        let insights: CostDashboardInsights
         // CWL path only outside demo mode (demo uses a synthetic snapshot with
-        // no ledger). `try?` falls back to the blob path on any ledger error.
-        if self.cwlEnabled,
-           !self.isDemoMode,
-           let aggregation = try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+        // no ledger). A missing aggregation falls back to the blob path, while
+        // an intentionally empty ledger after Clear Local Cost History stays
+        // empty instead of rebuilding stale costs from synced blobs.
+        let aggregation = self.cwlEnabled && !self.isDemoMode
+            ? try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
                windowDays: self.cwlWindowDays,
                in: self.modelContext,
                activeDeviceIDs: self.activeDeviceIDsForLedger)
-        {
-            insights = CostDashboardInsights.fromLedger(
-                aggregation: aggregation, snapshot: snapshot)
-        } else {
-            insights = CostDashboardInsights(snapshot: snapshot)
-        }
-        return insights.hasDisplayData ? insights : nil
+            : nil
+        return CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: self.cwlEnabled,
+            isDemoMode: self.isDemoMode,
+            clearedLocalHistory: CostLedgerService.hasBlobSeedClearTombstone())
     }
 
     private var activeDeviceIDsForLedger: Set<String>? {

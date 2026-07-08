@@ -445,6 +445,10 @@ enum CostLedgerService {
             forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
     }
 
+    static func hasBlobSeedClearTombstone(userDefaults: UserDefaults = .standard) -> Bool {
+        Self.blobSeedClearedAt(userDefaults: userDefaults) != nil
+    }
+
     static func deleteRows(
         deviceID: String,
         providerID: String,

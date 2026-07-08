@@ -139,7 +139,8 @@ struct CostDiagnosticsReport: Equatable {
             Self.shareCardCheck(
                 weekly: weeklyShareCard,
                 monthly: monthlyShareCard,
-                overviewTotal: totalCost),
+                overviewTotal: totalCost,
+                compareMonthlyToOverview: (insights.historyDays ?? 30) <= 30),
         ]
 
         return CostDiagnosticsReport(
@@ -195,9 +196,10 @@ struct CostDiagnosticsReport: Equatable {
     private static func shareCardCheck(
         weekly: ShareCardData,
         monthly: ShareCardData,
-        overviewTotal: Double) -> CostDiagnosticsCheck
+        overviewTotal: Double,
+        compareMonthlyToOverview: Bool) -> CostDiagnosticsCheck
     {
-        guard abs(monthly.totalCost - overviewTotal) < 0.01 else {
+        if compareMonthlyToOverview, abs(monthly.totalCost - overviewTotal) >= 0.01 {
             return CostDiagnosticsCheck(
                 kind: .shareCard,
                 detail: .difference(abs(monthly.totalCost - overviewTotal)),
