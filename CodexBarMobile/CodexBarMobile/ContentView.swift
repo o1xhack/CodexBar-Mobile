@@ -2903,6 +2903,9 @@ private struct CostDiagnosticsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
+    @State private var cachedLedgerSignature: String?
+    @State private var cachedLedgerAggregation: CostLedgerAggregation?
 
     var body: some View {
         List {
@@ -2975,15 +2978,16 @@ private struct CostDiagnosticsView: View {
             }
         }
         .navigationTitle("Cost Diagnostics")
+        .task(id: self.ledgerRefreshSignature) {
+            self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
+        }
     }
 
     private var report: CostDiagnosticsReport? {
         guard let snapshot = self.usageData.snapshot else { return nil }
-        let aggregation = CostDiagnosticsLedgerAggregationResolver.make(
-            cwlEnabled: self.cwlEnabled,
-            cwlWindowDays: self.cwlWindowDays,
-            modelContext: self.modelContext,
-            activeDeviceIDs: self.activeDeviceIDsForLedger)
+        let aggregation = self.cwlEnabled && self.cachedLedgerSignature == self.ledgerRefreshSignature
+            ? self.cachedLedgerAggregation
+            : nil
 
         return CostDiagnosticsReportResolver.make(
             snapshot: snapshot,
@@ -2997,6 +3001,43 @@ private struct CostDiagnosticsView: View {
 
     private var activeDeviceIDsForLedger: Set<String>? {
         CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
+    }
+
+    private var ledgerRefreshSignature: String {
+        guard self.cwlEnabled else {
+            return "off"
+        }
+        let activeDeviceIDs = self.activeDeviceIDsForLedger?.sorted().joined(separator: ",") ?? "_"
+        let latestSync = self.usageData.deviceSnapshots
+            .map(\.syncTimestamp.timeIntervalSince1970)
+            .max() ?? 0
+        let latestProviderUpdate = self.usageData.deviceSnapshots
+            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
+            .max() ?? 0
+        let providerCount = self.usageData.deviceSnapshots.reduce(0) { $0 + $1.providers.count }
+        return [
+            "\(self.cwlWindowDays)",
+            activeDeviceIDs,
+            "\(latestSync)",
+            "\(latestProviderUpdate)",
+            "\(providerCount)",
+            "\(self.cwlBlobSeedClearedAt)",
+        ].joined(separator: "|")
+    }
+
+    @MainActor
+    private func refreshLedgerAggregation(for signature: String) {
+        guard self.cwlEnabled else {
+            self.cachedLedgerSignature = signature
+            self.cachedLedgerAggregation = nil
+            return
+        }
+        self.cachedLedgerAggregation = CostDiagnosticsLedgerAggregationResolver.make(
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            modelContext: self.modelContext,
+            activeDeviceIDs: self.activeDeviceIDsForLedger)
+        self.cachedLedgerSignature = signature
     }
 
     private func sourceText(_ source: CostDiagnosticsDataSource) -> String {

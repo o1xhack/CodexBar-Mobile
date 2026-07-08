@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.17.0 (183)] — 2026-07-07 — Cost diagnostics and widget footer follow-up
+## [1.17.0 (185)] — 2026-07-07 — Cost diagnostics and widget footer follow-up
 
 ### Added
 
@@ -29,7 +29,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 - iOS-only follow-up on the `1.17.0` line; `MARKETING_VERSION` remains
   `1.17.0`.
-- iOS `CURRENT_PROJECT_VERSION`: `182` → `183`.
+- iOS `CURRENT_PROJECT_VERSION`: `182` → `185`.
 
 ---
 
