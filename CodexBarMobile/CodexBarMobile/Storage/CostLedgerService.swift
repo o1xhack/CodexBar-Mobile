@@ -449,6 +449,10 @@ enum CostLedgerService {
         Self.blobSeedClearedAt(userDefaults: userDefaults) != nil
     }
 
+    static func blobSeedClearTombstoneDate(userDefaults: UserDefaults = .standard) -> Date? {
+        Self.blobSeedClearedAt(userDefaults: userDefaults)
+    }
+
     static func deleteRows(
         deviceID: String,
         providerID: String,

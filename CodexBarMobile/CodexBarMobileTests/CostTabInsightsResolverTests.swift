@@ -19,7 +19,7 @@ struct CostTabInsightsResolverTests {
             ledgerAggregation: self.emptyAggregation(windowDays: 90),
             isLedgerEnabled: true,
             isDemoMode: false,
-            clearedLocalHistory: true)
+            localHistoryClearedAt: self.now.addingTimeInterval(60))
 
         #expect(insights == nil)
     }
@@ -36,7 +36,7 @@ struct CostTabInsightsResolverTests {
             ledgerAggregation: self.emptyAggregation(windowDays: 90),
             isLedgerEnabled: true,
             isDemoMode: false,
-            clearedLocalHistory: false)
+            localHistoryClearedAt: nil)
 
         #expect(insights?.total30DayCost == 12)
     }
@@ -63,7 +63,7 @@ struct CostTabInsightsResolverTests {
             ledgerAggregation: self.emptyAggregation(windowDays: 90),
             isLedgerEnabled: true,
             isDemoMode: false,
-            clearedLocalHistory: true)
+            localHistoryClearedAt: self.now.addingTimeInterval(60))
 
         #expect(insights?.total30DayCost == 0)
         #expect(insights?.providerRows.isEmpty == true)
@@ -119,10 +119,38 @@ struct CostTabInsightsResolverTests {
             ledgerAggregation: aggregation,
             isLedgerEnabled: true,
             isDemoMode: false,
-            clearedLocalHistory: true)
+            localHistoryClearedAt: self.now.addingTimeInterval(60))
 
         #expect(insights?.total30DayCost == 8)
         #expect(insights?.providerRows.map(\.provider.providerID) == ["codex"])
+    }
+
+    @Test("Summary-only snapshot after clear can still fill missing ledger provider")
+    func freshSummaryOnlySnapshotAfterClearCanFallback() {
+        let clearTime = self.now
+        let freshSummaryOnly = self.provider(
+            id: "claude",
+            name: "Claude",
+            cost: 14,
+            tokens: 1_400,
+            lastUpdated: clearTime.addingTimeInterval(60),
+            includeDaily: false)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [freshSummaryOnly],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: self.emptyAggregation(windowDays: 90),
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: clearTime)
+
+        #expect(insights?.total30DayCost == 14)
+        #expect(insights?.providerRows.map(\.provider.providerID) == ["claude"])
+        #expect(insights?.dailyPoints.isEmpty == true)
     }
 
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
@@ -142,7 +170,9 @@ struct CostTabInsightsResolverTests {
         name: String = "Codex",
         cost: Double,
         tokens: Int,
-        budget: SyncBudgetSnapshot? = nil) -> ProviderUsageSnapshot
+        budget: SyncBudgetSnapshot? = nil,
+        lastUpdated: Date? = nil,
+        includeDaily: Bool = true) -> ProviderUsageSnapshot
     {
         let daily = SyncDailyPoint(
             dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
@@ -160,13 +190,13 @@ struct CostTabInsightsResolverTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: self.now,
+            lastUpdated: lastUpdated ?? self.now,
             costSummary: SyncCostSummary(
                 sessionCostUSD: cost,
                 sessionTokens: tokens,
                 last30DaysCostUSD: cost,
                 last30DaysTokens: tokens,
-                daily: [daily],
+                daily: includeDaily ? [daily] : [],
                 isEstimated: false,
                 historyDays: 30),
             budget: budget)
