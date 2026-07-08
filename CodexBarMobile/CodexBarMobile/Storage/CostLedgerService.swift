@@ -360,6 +360,8 @@ enum CostLedgerService {
         activeDeviceIDs: Set<String>? = nil,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
+        try Self.pruneLedgerRowsMissingProviderSnapshots(in: context)
+
         let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
         if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
             try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
@@ -521,6 +523,29 @@ enum CostLedgerService {
             }
         }
         return false
+    }
+
+    private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
+        let providerKeys = Set(
+            try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+                .map(\.compositeKey))
+        guard !providerKeys.isEmpty else { return }
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        var didDelete = false
+        for row in rows {
+            let providerKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: row.deviceID,
+                providerID: row.providerID,
+                accountEmail: row.accountEmail)
+            if !providerKeys.contains(providerKey) {
+                context.delete(row)
+                didDelete = true
+            }
+        }
+        if didDelete {
+            try context.save()
+        }
     }
 
     private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {

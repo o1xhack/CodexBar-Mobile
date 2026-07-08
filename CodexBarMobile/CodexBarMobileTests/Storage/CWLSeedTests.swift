@@ -143,6 +143,13 @@ struct CWLSeedTests {
             in: context)
         context.insert(ProviderSnapshotModel(
             deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: nil))
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
             providerID: "claude",
             providerName: "Claude",
             accountEmail: nil,
@@ -159,6 +166,55 @@ struct CWLSeedTests {
         #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
         #expect(aggregation.providerRollups["claude|_"]?.totalCostUSD == 6.0)
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+    }
+
+    @Test("T10: default-on aggregate prunes ledger rows for removed provider snapshots")
+    func testDefaultOnAggregatePrunesRemovedProviderRows() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "codex",
+            dayKey: "2026-05-28",
+            costUSD: 5.0,
+            totalTokens: 500,
+            isEstimated: false,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: asOf,
+            in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "claude",
+            dayKey: "2026-05-28",
+            costUSD: 6.0,
+            totalTokens: 600,
+            isEstimated: false,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: asOf,
+            in: context)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: nil))
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(aggregation.totalCostUSD == 5.0)
+        #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
+        #expect(aggregation.providerRollups["claude|_"] == nil)
+        #expect(rows.map(\.providerID) == ["codex"])
     }
 
     @Test("T10: default-on aggregate does not reseed blobs older than explicit clear")
