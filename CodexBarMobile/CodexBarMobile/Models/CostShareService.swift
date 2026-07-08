@@ -217,6 +217,26 @@ extension ShareCardData {
             }
         }
 
+        func monthlySummaryDailyPoints() -> [CostDashboardInsights.DailyPoint] {
+            var totals: [String: (date: Date, costUSD: Double, totalTokens: Int)] = [:]
+            for row in insights.providerRows {
+                for point in costSummaryPoints(for: row, period: .month) {
+                    guard let date = dayKeyFormatter.date(from: point.dayKey) else { continue }
+                    totals[point.dayKey, default: (date, 0, 0)].costUSD += point.costUSD
+                    totals[point.dayKey, default: (date, 0, 0)].totalTokens += point.totalTokens
+                }
+            }
+            return totals
+                .map { dayKey, total in
+                    CostDashboardInsights.DailyPoint(
+                        dayKey: dayKey,
+                        date: total.date,
+                        costUSD: total.costUSD,
+                        totalTokens: total.totalTokens)
+                }
+                .sorted { $0.date < $1.date }
+        }
+
         func modelRows(for period: SharePeriod) -> [BreakdownRow] {
             var totals: [String: Double] = [:]
             for row in insights.providerRows {
@@ -249,15 +269,19 @@ extension ShareCardData {
         // Compute totals
         let periodCost: Double
         let periodTokens: Int
+        let monthlySummaryDays = monthlySummaryDailyPoints()
+        let monthlyUsesProviderSummary: Bool
         switch period {
         case .today:
             periodCost = insights.totalTodayCost
             periodTokens = insights.providerRows.reduce(0) { total, row in
                 total + row.todayTokens
             }
+            monthlyUsesProviderSummary = false
         case .week:
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
+            monthlyUsesProviderSummary = false
         case .month:
             let providerCost = insights.providerRows.reduce(0) { $0 + monthlyCost(for: $1) }
             let dailyCost = filteredDays.reduce(0) { $0 + $1.costUSD }
@@ -265,6 +289,7 @@ extension ShareCardData {
             let providerTokens = insights.providerRows.reduce(0) { $0 + monthlyTokens(for: $1) }
             let dailyTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
             periodTokens = providerTokens > 0 ? providerTokens : dailyTokens
+            monthlyUsesProviderSummary = providerCost > dailyCost || providerTokens > dailyTokens
         }
 
         // Provider rows are computed from provider-level daily points. This
@@ -290,10 +315,19 @@ extension ShareCardData {
         }
 
         let activeDays: Int
+        let displayDays: [CostDashboardInsights.DailyPoint]
         switch period {
-        case .today: activeDays = 1
-        case .week: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
-        case .month: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
+        case .today:
+            displayDays = []
+            activeDays = 1
+        case .week:
+            displayDays = filteredDays
+            activeDays = displayDays.count(where: { $0.costUSD > 0 })
+        case .month:
+            displayDays = monthlyUsesProviderSummary && !monthlySummaryDays.isEmpty
+                ? monthlySummaryDays
+                : filteredDays
+            activeDays = displayDays.count(where: { $0.costUSD > 0 })
         }
 
         self.totalCost = periodCost
@@ -314,11 +348,11 @@ extension ShareCardData {
         case .today:
             self.dailyBars = []
         case .week:
-            self.dailyBars = filteredDays.map { point in
+            self.dailyBars = displayDays.map { point in
                 DailyBar(label: weekdayFormatter.string(from: point.date), cost: point.costUSD)
             }
         case .month:
-            self.dailyBars = filteredDays.enumerated().map { index, point in
+            self.dailyBars = displayDays.enumerated().map { index, point in
                 let dayNum = index + 1
                 // Label every 7th day (= one label per week) plus day 1 and
                 // the final day for visual anchors. On a 30-day window this
@@ -327,7 +361,7 @@ extension ShareCardData {
                 // count: 7)` gridlines, so the share card and dashboard
                 // chart read as a matching pair. Changing the 7 here will
                 // un-sync the two charts — also update ContentView's stride.
-                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == filteredDays.count
+                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == displayDays.count
                 return DailyBar(label: showLabel ? "\(dayNum)" : "", cost: point.costUSD)
             }
         }

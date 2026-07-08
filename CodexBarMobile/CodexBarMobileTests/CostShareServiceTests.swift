@@ -275,6 +275,45 @@ struct CostShareServiceTests {
         #expect(abs((claudeShare?.share ?? 0) - 0.16) < Self.tolerance)
     }
 
+    @Test("Share card 30-day period uses summary daily bars when local window is shorter")
+    func shareCardMonthUsesSummaryDailyBarsForShorterLedgerWindow() {
+        let summaryDays = (0..<30).map { day in
+            self.summaryDay(
+                daysAgo: day,
+                cost: 1,
+                tokens: 100,
+                models: [])
+        }
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "codex",
+                name: "Codex",
+                thirtyDayCost: 30,
+                thirtyDayTokens: 3_000,
+                historyDays: 30,
+                daily: summaryDays),
+            thirtyDayCost: 7,
+            todayCost: 1,
+            thirtyDayTokens: 700,
+            todayTokens: 100,
+            dailyPoints: (0..<7).map { self.day(daysAgo: $0, cost: 1, tokens: 100) })
+        let insights = CostDashboardInsights(
+            providerRows: [codex],
+            dailyPoints: (0..<7).map { self.day(daysAgo: $0, cost: 1, tokens: 100) },
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 7)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(abs(monthly.totalCost - 30) < Self.tolerance)
+        #expect(monthly.totalTokens == 3_000)
+        #expect(monthly.activeDays == 30)
+        #expect(monthly.dailyBars.count == 30)
+        #expect(abs(monthly.dailyBars.reduce(0) { $0 + $1.cost } - 30) < Self.tolerance)
+    }
+
     @Test("Share card Today tokens use resolved daily totals, not stale session tokens")
     func shareCardTodayTokensUseResolvedDailyTotals() {
         let codex = CostDashboardInsights.ProviderRow(

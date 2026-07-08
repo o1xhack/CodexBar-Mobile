@@ -139,6 +139,29 @@ struct CostDiagnosticsReportTests {
         #expect(report.checks.first(where: { $0.kind == .shareCard })?.status == .pass)
     }
 
+    @Test("Diagnostics reuse Cost tab fallback when ledger is empty")
+    func diagnosticsReuseCostTabFallbackForEmptyLedger() throws {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1_200),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let report = try #require(CostDiagnosticsReportResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: self.emptyAggregation(windowDays: 90),
+            rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot],
+            cwlEnabled: true,
+            cwlWindowDays: 90,
+            localHistoryClearedAt: nil))
+
+        #expect(report.totalCostUSD == 12)
+        #expect(report.dataSource == .syncedSnapshotsAfterLedgerFailure)
+        #expect(report.providerRules.map(\.providerID) == ["codex"])
+    }
+
     private func day(daysAgo: Int, cost: Double, tokens: Int) -> CostDashboardInsights.DailyPoint {
         let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: self.now) ?? self.now
         return CostDashboardInsights.DailyPoint(
@@ -146,6 +169,18 @@ struct CostDiagnosticsReportTests {
             date: date,
             costUSD: cost,
             totalTokens: tokens)
+    }
+
+    private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
+        CostLedgerAggregation(
+            windowDays: windowDays,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
     }
 
     private func provider(id: String, name: String, cost: Double, tokens: Int) -> ProviderUsageSnapshot {

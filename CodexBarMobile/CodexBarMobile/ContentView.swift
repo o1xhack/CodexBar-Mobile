@@ -417,6 +417,41 @@ enum CostTabInsightsResolver {
     }
 }
 
+enum CostDiagnosticsReportResolver {
+    static func make(
+        snapshot: SyncedUsageSnapshot,
+        ledgerAggregation: CostLedgerAggregation?,
+        rawDeviceSnapshots: [SyncedUsageSnapshot],
+        activeDeviceSnapshots: [SyncedUsageSnapshot],
+        cwlEnabled: Bool,
+        cwlWindowDays: Int,
+        localHistoryClearedAt: Date?) -> CostDiagnosticsReport?
+    {
+        guard let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: ledgerAggregation,
+            isLedgerEnabled: cwlEnabled,
+            isDemoMode: false,
+            localHistoryClearedAt: localHistoryClearedAt)
+        else {
+            return nil
+        }
+
+        let reportsLocalLedger = cwlEnabled && (
+            ledgerAggregation?.hasDisplayData == true || localHistoryClearedAt != nil
+        )
+
+        return CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: rawDeviceSnapshots,
+            activeDeviceSnapshots: activeDeviceSnapshots,
+            cwlEnabled: cwlEnabled,
+            cwlWindowDays: cwlWindowDays,
+            ledgerAvailable: reportsLocalLedger)
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
@@ -2872,21 +2907,15 @@ private struct CostDiagnosticsView: View {
                 in: self.modelContext,
                 activeDeviceIDs: self.activeDeviceIDsForLedger)
             : nil
-        let insights = aggregation.map {
-            CostDashboardInsights.fromLedger(
-                aggregation: $0,
-                snapshot: snapshot,
-                snapshotFallbackCutoff: CostLedgerService.blobSeedClearTombstoneDate())
-        } ?? CostDashboardInsights(snapshot: snapshot)
 
-        return CostDiagnosticsReport.make(
-            insights: insights,
+        return CostDiagnosticsReportResolver.make(
             snapshot: snapshot,
+            ledgerAggregation: aggregation,
             rawDeviceSnapshots: self.usageData.rawDeviceSnapshots,
             activeDeviceSnapshots: self.usageData.deviceSnapshots,
             cwlEnabled: self.cwlEnabled,
             cwlWindowDays: self.cwlWindowDays,
-            ledgerAvailable: aggregation != nil)
+            localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate())
     }
 
     private var activeDeviceIDsForLedger: Set<String>? {
