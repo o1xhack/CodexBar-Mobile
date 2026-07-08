@@ -465,6 +465,7 @@ private struct CostTab: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -517,6 +518,7 @@ private struct CostTab: View {
             "\(latestSync)",
             "\(latestProviderUpdate)",
             "\(providerCount)",
+            "\(self.cwlBlobSeedClearedAt)",
         ].joined(separator: "|")
     }
 
