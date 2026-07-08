@@ -217,6 +217,35 @@ struct CWLSeedTests {
         #expect(rows.map(\.providerID) == ["codex"])
     }
 
+    @Test("T10: default-on aggregate prunes ledger rows when no provider snapshots remain")
+    func testDefaultOnAggregatePrunesRowsWhenLastProviderRemoved() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "claude",
+            dayKey: "2026-05-28",
+            costUSD: 6.0,
+            totalTokens: 600,
+            isEstimated: false,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: asOf,
+            in: context)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf)
+
+        #expect(aggregation.totalCostUSD == 0)
+        #expect(aggregation.providerRollups.isEmpty)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+    }
+
     @Test("T10: default-on aggregate does not reseed blobs older than explicit clear")
     func testDefaultOnAggregateHonorsClearTombstone() throws {
         let (url, context) = self.makeContext()

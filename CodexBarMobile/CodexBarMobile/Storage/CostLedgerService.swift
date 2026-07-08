@@ -529,7 +529,6 @@ enum CostLedgerService {
         let providerKeys = Set(
             try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
                 .map(\.compositeKey))
-        guard !providerKeys.isEmpty else { return }
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         var didDelete = false
