@@ -24,6 +24,24 @@ struct CostTabInsightsResolverTests {
         #expect(insights == nil)
     }
 
+    @Test("Missing ledger after clear does not fall back to stale synced cost summary")
+    func missingClearedLedgerStaysEmpty() {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [self.provider(cost: 12, tokens: 1_200)],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: nil,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: self.now.addingTimeInterval(60),
+            ledgerWindowDays: 90)
+
+        #expect(insights == nil)
+    }
+
     @Test("Empty ledger without clear falls back to synced snapshot")
     func emptyUnclearedLedgerFallsBackToSnapshot() {
         let snapshot = SyncedUsageSnapshot(

@@ -393,18 +393,28 @@ enum CostTabInsightsResolver {
         ledgerAggregation: CostLedgerAggregation?,
         isLedgerEnabled: Bool,
         isDemoMode: Bool,
-        localHistoryClearedAt: Date?) -> CostDashboardInsights?
+        localHistoryClearedAt: Date?,
+        ledgerWindowDays: Int? = nil) -> CostDashboardInsights?
     {
         let insights: CostDashboardInsights
-        if isLedgerEnabled, !isDemoMode, let aggregation = ledgerAggregation {
-            if aggregation.hasDisplayData {
-                insights = CostDashboardInsights.fromLedger(
-                    aggregation: aggregation,
-                    snapshot: snapshot,
-                    snapshotFallbackCutoff: localHistoryClearedAt)
+        if isLedgerEnabled, !isDemoMode {
+            if let aggregation = ledgerAggregation {
+                if aggregation.hasDisplayData {
+                    insights = CostDashboardInsights.fromLedger(
+                        aggregation: aggregation,
+                        snapshot: snapshot,
+                        snapshotFallbackCutoff: localHistoryClearedAt)
+                } else if localHistoryClearedAt != nil {
+                    insights = CostDashboardInsights.fromLedger(
+                        aggregation: aggregation,
+                        snapshot: snapshot,
+                        snapshotFallbackCutoff: localHistoryClearedAt)
+                } else {
+                    insights = CostDashboardInsights(snapshot: snapshot)
+                }
             } else if localHistoryClearedAt != nil {
                 insights = CostDashboardInsights.fromLedger(
-                    aggregation: aggregation,
+                    aggregation: self.emptyAggregation(windowDays: ledgerWindowDays ?? 30),
                     snapshot: snapshot,
                     snapshotFallbackCutoff: localHistoryClearedAt)
             } else {
@@ -414,6 +424,18 @@ enum CostTabInsightsResolver {
             insights = CostDashboardInsights(snapshot: snapshot)
         }
         return insights.hasDisplayData ? insights : nil
+    }
+
+    private static func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
+        CostLedgerAggregation(
+            windowDays: windowDays,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
     }
 }
 
@@ -432,7 +454,8 @@ enum CostDiagnosticsReportResolver {
             ledgerAggregation: ledgerAggregation,
             isLedgerEnabled: cwlEnabled,
             isDemoMode: false,
-            localHistoryClearedAt: localHistoryClearedAt)
+            localHistoryClearedAt: localHistoryClearedAt,
+            ledgerWindowDays: cwlWindowDays)
         else {
             return nil
         }
@@ -489,7 +512,8 @@ private struct CostTab: View {
             ledgerAggregation: aggregation,
             isLedgerEnabled: self.cwlEnabled,
             isDemoMode: self.isDemoMode,
-            localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate())
+            localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate(),
+            ledgerWindowDays: self.cwlWindowDays)
     }
 
     private var activeDeviceIDsForLedger: Set<String>? {
