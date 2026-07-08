@@ -143,6 +143,62 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.providerRows.map(\.provider.providerID) == ["codex"])
     }
 
+    @Test("Partial ledger fallback contributes to daily and breakdown aggregates")
+    func partialLedgerFallbackContributesToAllAggregates() throws {
+        let codexDay = self.syncDay(
+            cost: 8,
+            tokens: 800,
+            models: [SyncCostBreakdown(label: "codex-model", costUSD: 8)],
+            services: [SyncCostBreakdown(label: "codex-run", costUSD: 8)])
+        let claude = self.provider(
+            id: "claude",
+            name: "Claude",
+            cost: 12,
+            tokens: 1_200,
+            models: [SyncCostBreakdown(label: "claude-model", costUSD: 12)],
+            services: [SyncCostBreakdown(label: "claude-api", costUSD: 12)])
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(id: "codex", name: "Codex", cost: 8, tokens: 800),
+                claude,
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 90,
+            totalCostUSD: 8,
+            totalTokens: 800,
+            activeDayCount: 1,
+            providerRollups: [
+                "codex|_": CostLedgerProviderRollup(
+                    providerID: "codex",
+                    accountEmail: nil,
+                    totalCostUSD: 8,
+                    totalTokens: 800,
+                    dailyPoints: [codexDay],
+                    modelBreakdowns: [SyncCostBreakdown(label: "codex-model", costUSD: 8)],
+                    serviceBreakdowns: [SyncCostBreakdown(label: "codex-run", costUSD: 8)]),
+            ],
+            dailyPoints: [codexDay],
+            modelMix: [SyncCostBreakdown(label: "codex-model", costUSD: 8)],
+            serviceMix: [SyncCostBreakdown(label: "codex-run", costUSD: 8)])
+
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: nil))
+
+        #expect(insights.total30DayCost == 20)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == 20)
+        #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-model"])
+        #expect(insights.modelRows.reduce(0) { $0 + $1.amountUSD } == 20)
+        #expect(Set(insights.serviceRows.map(\.label)) == ["codex-run", "claude-api"])
+        #expect(insights.serviceRows.reduce(0) { $0 + $1.amountUSD } == 20)
+    }
+
     @Test("Summary-only snapshot after clear can still fill missing ledger provider")
     func freshSummaryOnlySnapshotAfterClearCanFallback() {
         let clearTime = self.now
@@ -192,13 +248,34 @@ struct CostTabInsightsResolverTests {
         lastUpdated: Date? = nil,
         includeDaily: Bool = true) -> ProviderUsageSnapshot
     {
-        let daily = SyncDailyPoint(
-            dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
-            costUSD: cost,
-            totalTokens: tokens,
-            modelBreakdowns: [],
-            serviceBreakdowns: [],
-            isEstimated: false)
+        self.provider(
+            id: id,
+            name: name,
+            cost: cost,
+            tokens: tokens,
+            budget: budget,
+            lastUpdated: lastUpdated,
+            includeDaily: includeDaily,
+            models: [],
+            services: [])
+    }
+
+    private func provider(
+        id: String,
+        name: String,
+        cost: Double,
+        tokens: Int,
+        budget: SyncBudgetSnapshot? = nil,
+        lastUpdated: Date? = nil,
+        includeDaily: Bool = true,
+        models: [SyncCostBreakdown],
+        services: [SyncCostBreakdown]) -> ProviderUsageSnapshot
+    {
+        let daily = self.syncDay(
+            cost: cost,
+            tokens: tokens,
+            models: models,
+            services: services)
         return ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -218,5 +295,20 @@ struct CostTabInsightsResolverTests {
                 isEstimated: false,
                 historyDays: 30),
             budget: budget)
+    }
+
+    private func syncDay(
+        cost: Double,
+        tokens: Int,
+        models: [SyncCostBreakdown],
+        services: [SyncCostBreakdown]) -> SyncDailyPoint
+    {
+        SyncDailyPoint(
+            dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+            costUSD: cost,
+            totalTokens: tokens,
+            modelBreakdowns: models,
+            serviceBreakdowns: services,
+            isEstimated: false)
     }
 }

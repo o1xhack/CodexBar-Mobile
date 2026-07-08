@@ -1314,10 +1314,12 @@ struct CostDashboardInsights {
     /// series, model / service mix) come from the ledger — re-aggregated over
     /// the user's chosen window, which can exceed Mac's historyDays. Provider
     /// metadata (name, color, budget, loginMethod) still comes from the live
-    /// snapshot since the ledger stores only IDs + numbers. Providers in the
-    /// snapshot but absent from the ledger get no row (no cost yet); ledger
-    /// rollups with no matching live provider are dropped (stale / removed
-    /// provider — no metadata to render).
+    /// snapshot since the ledger stores only IDs + numbers. Fresh snapshot
+    /// providers absent from the ledger can fill a missing row, and their
+    /// daily/model/service points are folded into the same aggregate so every
+    /// Cost surface reads one consistent result. Ledger rollups with no
+    /// matching live provider are dropped (stale / removed provider — no
+    /// metadata to render).
     static func fromLedger(
         aggregation: CostLedgerAggregation,
         snapshot: SyncedUsageSnapshot,
@@ -1328,6 +1330,21 @@ struct CostDashboardInsights {
 
         var providerRows: [ProviderRow] = []
         var representedProviderKeys = Set<String>()
+        var dailyTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.dailyPoints.map { point in
+                (point.dayKey, (costUSD: point.costUSD, totalTokens: point.totalTokens))
+            })
+        var modelTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
+        var modelSplits = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.compactMap {
+                bd -> (String, (std: Double, fast: Double))? in
+                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
+                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
+            })
+        var serviceTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+
         for rollup in aggregation.providerRollups.values {
             // Match on the actual (providerID, accountEmail) tuple — avoids the
             // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
@@ -1355,6 +1372,9 @@ struct CostDashboardInsights {
             representedProviderKeys.insert(provider.cardIdentityKey)
         }
 
+        let fallbackCutoffKey = CostLedgerService.cutoffDayKey(
+            windowDays: aggregation.windowDays,
+            asOf: Date())
         for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
             if let snapshotFallbackCutoff, provider.lastUpdated <= snapshotFallbackCutoff {
                 continue
@@ -1375,7 +1395,8 @@ struct CostDashboardInsights {
             let todayTotals = costSummary.todayTotals()
             let todayCost = todayTotals.costUSD ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
+            let fallbackSyncPoints = costSummary.daily.filter { $0.dayKey >= fallbackCutoffKey }
+            let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
             guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
                 continue
             }
@@ -1386,6 +1407,23 @@ struct CostDashboardInsights {
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
+
+            for point in fallbackSyncPoints {
+                dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
+                dailyTotals[point.dayKey, default: (0, 0)].totalTokens += point.totalTokens
+
+                for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                    modelTotals[breakdown.label, default: 0] += breakdown.costUSD
+                    if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                        modelSplits[breakdown.label, default: (0, 0)].std += breakdown.standardCostUSD ?? 0
+                        modelSplits[breakdown.label, default: (0, 0)].fast += breakdown.priorityCostUSD ?? 0
+                    }
+                }
+
+                for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
+                    serviceTotals[breakdown.label, default: 0] += breakdown.costUSD
+                }
+            }
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -1395,18 +1433,15 @@ struct CostDashboardInsights {
             }
         }
 
-        let dailyPoints = aggregation.dailyPoints.compactMap(Self.dailyPoint)
-
-        let modelTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
-        let modelSplits = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.compactMap {
-                bd -> (String, (std: Double, fast: Double))? in
-                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
-                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
-            })
-        let serviceTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+        let dailyPoints: [DailyPoint] = dailyTotals.keys.compactMap { dayKey in
+            guard let date = Self.dayKeyFormatter.date(from: dayKey),
+                  let totals = dailyTotals[dayKey] else { return nil }
+            return DailyPoint(
+                dayKey: dayKey,
+                date: date,
+                costUSD: totals.costUSD,
+                totalTokens: totals.totalTokens)
+        }
 
         return CostDashboardInsights(
             providerRows: providerRows.sorted { lhs, rhs in
