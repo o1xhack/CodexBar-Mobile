@@ -387,6 +387,53 @@ enum CostLedgerDeviceFilter {
     }
 }
 
+enum CostLedgerRefreshClock {
+    static func currentDayKey(now: Date = Date()) -> String {
+        SyncCostSummary.iso8601DayKey(for: now)
+    }
+
+    static func nanosecondsUntilNextLocalDay(now: Date = Date()) -> UInt64 {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let startOfDay = calendar.startOfDay(for: now)
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now.addingTimeInterval(60)
+        let seconds = max(1, nextDay.timeIntervalSince(now) + 1)
+        return UInt64(seconds * 1_000_000_000)
+    }
+}
+
+enum CostLedgerRefreshSignature {
+    static func make(
+        isEnabled: Bool,
+        windowDays: Int,
+        activeDeviceIDs: Set<String>?,
+        snapshots: [SyncedUsageSnapshot],
+        clearTombstone: Double,
+        currentDayKey: String) -> String
+    {
+        guard isEnabled else {
+            return "off"
+        }
+        let activeDeviceIDs = activeDeviceIDs?.sorted().joined(separator: ",") ?? "_"
+        let latestSync = snapshots
+            .map(\.syncTimestamp.timeIntervalSince1970)
+            .max() ?? 0
+        let latestProviderUpdate = snapshots
+            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
+            .max() ?? 0
+        let providerCount = snapshots.reduce(0) { $0 + $1.providers.count }
+        return [
+            currentDayKey,
+            "\(windowDays)",
+            activeDeviceIDs,
+            "\(latestSync)",
+            "\(latestProviderUpdate)",
+            "\(providerCount)",
+            "\(clearTombstone)",
+        ].joined(separator: "|")
+    }
+}
+
 enum CostTabInsightsResolver {
     static func make(
         snapshot: SyncedUsageSnapshot,
@@ -504,6 +551,7 @@ private struct CostTab: View {
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
     @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -540,25 +588,13 @@ private struct CostTab: View {
     }
 
     private var ledgerRefreshSignature: String {
-        guard self.shouldUseLedger else {
-            return "off"
-        }
-        let activeDeviceIDs = self.activeDeviceIDsForLedger?.sorted().joined(separator: ",") ?? "_"
-        let latestSync = self.usageData.deviceSnapshots
-            .map(\.syncTimestamp.timeIntervalSince1970)
-            .max() ?? 0
-        let latestProviderUpdate = self.usageData.deviceSnapshots
-            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
-            .max() ?? 0
-        let providerCount = self.usageData.deviceSnapshots.reduce(0) { $0 + $1.providers.count }
-        return [
-            "\(self.cwlWindowDays)",
-            activeDeviceIDs,
-            "\(latestSync)",
-            "\(latestProviderUpdate)",
-            "\(providerCount)",
-            "\(self.cwlBlobSeedClearedAt)",
-        ].joined(separator: "|")
+        CostLedgerRefreshSignature.make(
+            isEnabled: self.shouldUseLedger,
+            windowDays: self.cwlWindowDays,
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            snapshots: self.usageData.deviceSnapshots,
+            clearTombstone: self.cwlBlobSeedClearedAt,
+            currentDayKey: self.ledgerRefreshDayKey)
     }
 
     @MainActor
@@ -625,6 +661,20 @@ private struct CostTab: View {
             .task(id: self.ledgerRefreshSignature) {
                 self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
             }
+            .task {
+                await self.keepLedgerRefreshDayCurrent()
+            }
+        }
+    }
+
+    @MainActor
+    private func keepLedgerRefreshDayCurrent() async {
+        while !Task.isCancelled {
+            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            if self.ledgerRefreshDayKey != currentDayKey {
+                self.ledgerRefreshDayKey = currentDayKey
+            }
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
         }
     }
 }
@@ -2941,6 +2991,7 @@ private struct CostDiagnosticsView: View {
     @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
     @State private var cachedLedgerSignature: String?
     @State private var cachedLedgerAggregation: CostLedgerAggregation?
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
 
     var body: some View {
         List {
@@ -3016,6 +3067,9 @@ private struct CostDiagnosticsView: View {
         .task(id: self.ledgerRefreshSignature) {
             self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
         }
+        .task {
+            await self.keepLedgerRefreshDayCurrent()
+        }
     }
 
     private var report: CostDiagnosticsReport? {
@@ -3039,25 +3093,13 @@ private struct CostDiagnosticsView: View {
     }
 
     private var ledgerRefreshSignature: String {
-        guard self.cwlEnabled else {
-            return "off"
-        }
-        let activeDeviceIDs = self.activeDeviceIDsForLedger?.sorted().joined(separator: ",") ?? "_"
-        let latestSync = self.usageData.deviceSnapshots
-            .map(\.syncTimestamp.timeIntervalSince1970)
-            .max() ?? 0
-        let latestProviderUpdate = self.usageData.deviceSnapshots
-            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
-            .max() ?? 0
-        let providerCount = self.usageData.deviceSnapshots.reduce(0) { $0 + $1.providers.count }
-        return [
-            "\(self.cwlWindowDays)",
-            activeDeviceIDs,
-            "\(latestSync)",
-            "\(latestProviderUpdate)",
-            "\(providerCount)",
-            "\(self.cwlBlobSeedClearedAt)",
-        ].joined(separator: "|")
+        CostLedgerRefreshSignature.make(
+            isEnabled: self.cwlEnabled,
+            windowDays: self.cwlWindowDays,
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            snapshots: self.usageData.deviceSnapshots,
+            clearTombstone: self.cwlBlobSeedClearedAt,
+            currentDayKey: self.ledgerRefreshDayKey)
     }
 
     @MainActor
@@ -3073,6 +3115,17 @@ private struct CostDiagnosticsView: View {
             modelContext: self.modelContext,
             activeDeviceIDs: self.activeDeviceIDsForLedger)
         self.cachedLedgerSignature = signature
+    }
+
+    @MainActor
+    private func keepLedgerRefreshDayCurrent() async {
+        while !Task.isCancelled {
+            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            if self.ledgerRefreshDayKey != currentDayKey {
+                self.ledgerRefreshDayKey = currentDayKey
+            }
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
+        }
     }
 
     private func sourceText(_ source: CostDiagnosticsDataSource) -> String {

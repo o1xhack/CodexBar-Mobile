@@ -199,6 +199,34 @@ struct CostTabInsightsResolverTests {
         #expect(insights.serviceRows.reduce(0) { $0 + $1.amountUSD } == 20)
     }
 
+    @Test("Ledger refresh signature changes when the local day changes")
+    func ledgerRefreshSignatureIncludesCurrentDay() {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [self.provider(cost: 8, tokens: 800)],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let today = CostLedgerRefreshSignature.make(
+            isEnabled: true,
+            windowDays: 90,
+            activeDeviceIDs: ["mac-A"],
+            snapshots: [snapshot],
+            clearTombstone: 0,
+            currentDayKey: "2026-07-07")
+        let tomorrow = CostLedgerRefreshSignature.make(
+            isEnabled: true,
+            windowDays: 90,
+            activeDeviceIDs: ["mac-A"],
+            snapshots: [snapshot],
+            clearTombstone: 0,
+            currentDayKey: "2026-07-08")
+
+        #expect(today != tomorrow)
+        #expect(today.hasPrefix("2026-07-07|"))
+        #expect(tomorrow.hasPrefix("2026-07-08|"))
+    }
+
     @Test("Summary-only snapshot after clear can still fill missing ledger provider")
     func freshSummaryOnlySnapshotAfterClearCanFallback() {
         let clearTime = self.now
