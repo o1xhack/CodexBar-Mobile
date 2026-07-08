@@ -151,6 +151,8 @@ extension ShareCardData {
     init(insights: CostDashboardInsights, period: SharePeriod) {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
+        let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
+        let monthStart = calendar.date(byAdding: .day, value: -29, to: today)!
 
         // Filter daily points by period
         let filteredDays: [CostDashboardInsights.DailyPoint]
@@ -158,10 +160,9 @@ extension ShareCardData {
         case .today:
             filteredDays = []
         case .week:
-            let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
             filteredDays = insights.dailyPoints.filter { $0.date >= weekStart }
         case .month:
-            filteredDays = insights.dailyPoints
+            filteredDays = insights.dailyPoints.filter { $0.date >= monthStart }
         }
 
         // Compute totals
@@ -177,8 +178,8 @@ extension ShareCardData {
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
         case .month:
-            periodCost = insights.total30DayCost
-            periodTokens = insights.total30DayTokens
+            periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
+            periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
         }
 
         // Provider rows are computed from provider-level daily points. This
@@ -189,12 +190,13 @@ extension ShareCardData {
             case .today:
                 cost = row.todayCost
             case .week:
-                let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
                 cost = row.dailyPoints
                     .filter { $0.date >= weekStart }
                     .reduce(0) { $0 + $1.costUSD }
             case .month:
-                cost = row.thirtyDayCost
+                cost = row.dailyPoints
+                    .filter { $0.date >= monthStart }
+                    .reduce(0) { $0 + $1.costUSD }
             }
             return ProviderRow(
                 name: row.provider.providerName,
@@ -208,7 +210,7 @@ extension ShareCardData {
         switch period {
         case .today: activeDays = 1
         case .week: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
-        case .month: activeDays = insights.activeDayCount
+        case .month: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
         }
 
         self.totalCost = periodCost

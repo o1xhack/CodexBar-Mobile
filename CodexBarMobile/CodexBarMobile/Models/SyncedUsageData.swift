@@ -668,14 +668,17 @@ final class SyncedUsageData {
         // republish the merged view. The Cost ledger reads SwiftData by
         // default, so incremental sync must keep it in lockstep with the
         // in-memory snapshot cache.
-        self.republishFromCache(persistToSwiftData: context)
+        self.republishFromCache(persistIncrementallyToSwiftData: context)
     }
 
     // MARK: - Republish helper
 
     /// Derive the published state from the current cache. Called after every
     /// mutation (full fetch, incremental delta, cold-start seed).
-    private func republishFromCache(persistToSwiftData context: ModelContext? = nil) {
+    private func republishFromCache(
+        persistToSwiftData context: ModelContext? = nil,
+        persistIncrementallyToSwiftData incrementalContext: ModelContext? = nil)
+    {
         let rawDeviceSnapshots = self.cache.buildDeviceSnapshots()
         self.rawDeviceSnapshots = rawDeviceSnapshots
         let resolution = CloudSyncReader.resolveDeviceSnapshots(
@@ -693,6 +696,11 @@ final class SyncedUsageData {
                 deviceSnapshots: rawDeviceSnapshots,
                 merged: merged,
                 context: context)
+        }
+        if let incrementalContext {
+            CloudSyncReader.persistIncrementalToSwiftData(
+                deviceSnapshots: rawDeviceSnapshots,
+                context: incrementalContext)
         }
 
         if rawDeviceSnapshots.isEmpty {

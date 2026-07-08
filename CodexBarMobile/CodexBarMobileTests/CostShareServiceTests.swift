@@ -111,6 +111,50 @@ struct CostShareServiceTests {
         #expect(abs((claudeShare?.share ?? 0) - 0.2) < Self.tolerance)
     }
 
+    @Test("Share card 30-day period caps wider CWL insights to the last 30 days")
+    func shareCardMonthCapsWiderLedgerWindow() {
+        let codexToday = self.day(daysAgo: 0, cost: 10, tokens: 100)
+        let codexDay29 = self.day(daysAgo: 29, cost: 20, tokens: 200)
+        let codexDay30 = self.day(daysAgo: 30, cost: 100, tokens: 1_000)
+        let claudeDay30 = self.day(daysAgo: 30, cost: 50, tokens: 500)
+
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(id: "codex", name: "Codex"),
+            thirtyDayCost: 130,
+            todayCost: 10,
+            thirtyDayTokens: 1_300,
+            todayTokens: 100,
+            dailyPoints: [codexToday, codexDay29, codexDay30])
+        let claude = CostDashboardInsights.ProviderRow(
+            provider: self.provider(id: "claude", name: "Claude"),
+            thirtyDayCost: 50,
+            todayCost: 0,
+            thirtyDayTokens: 500,
+            todayTokens: 0,
+            dailyPoints: [claudeDay30])
+        let insights = CostDashboardInsights(
+            providerRows: [codex, claude],
+            dailyPoints: [
+                self.day(daysAgo: 0, cost: 10, tokens: 100),
+                self.day(daysAgo: 29, cost: 20, tokens: 200),
+                self.day(daysAgo: 30, cost: 150, tokens: 1_500),
+            ],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+        let codexShare = monthly.providers.first { $0.name == "Codex" }
+
+        #expect(abs(monthly.totalCost - 30) < Self.tolerance)
+        #expect(monthly.totalTokens == 300)
+        #expect(monthly.activeDays == 2)
+        #expect(monthly.providers.count == 1)
+        #expect(abs((codexShare?.cost ?? 0) - 30) < Self.tolerance)
+        #expect(monthly.dailyBars.count == 2)
+    }
+
     @Test("Share card Today tokens use resolved daily totals, not stale session tokens")
     func shareCardTodayTokensUseResolvedDailyTotals() {
         let codex = CostDashboardInsights.ProviderRow(

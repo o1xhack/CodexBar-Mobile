@@ -162,6 +162,35 @@ struct SwiftDataBridgeTests {
         #expect(providers.first?.lastUpdated == self.ts2)
     }
 
+    @Test("Incremental upsert does not prune providers missing from a partial delta")
+    func testIncrementalUpsertDoesNotPruneMissingProviders() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        let full = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [
+                self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.ts1),
+                self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.ts1),
+            ],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [full], into: context)
+
+        let partialDelta = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [
+                self.makeProvider(id: "codex", name: "Codex Updated", lastUpdated: self.ts2),
+            ],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsertIncremental(deviceSnapshots: [partialDelta], into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 2)
+        let namesByID = Dictionary(uniqueKeysWithValues: providers.map { ($0.providerID, $0.providerName) })
+        #expect(namesByID["codex"] == "Codex Updated")
+        #expect(namesByID["claude"] == "Claude")
+    }
+
     @Test("Subscription metadata survives SwiftData bridge round-trip")
     func testSubscriptionMetadataRoundTrip() throws {
         let container = self.makeContainer()

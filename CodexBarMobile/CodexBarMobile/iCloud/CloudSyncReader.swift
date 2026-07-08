@@ -145,6 +145,19 @@ final class CloudSyncReader: @unchecked Sendable {
         }
     }
 
+    static func persistIncrementalToSwiftData(
+        deviceSnapshots: [SyncedUsageSnapshot],
+        context: ModelContext
+    ) {
+        do {
+            try SwiftDataBridge.upsertIncremental(
+                deviceSnapshots: deviceSnapshots,
+                into: context)
+        } catch {
+            print("[CodexBar SwiftData] Incremental upsert failed: \(error)")
+        }
+    }
+
     // MARK: - Multi-device merge
 
     static func mergeSnapshots(

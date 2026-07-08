@@ -69,11 +69,26 @@ enum SwiftDataBridge {
         try context.save()
     }
 
+    /// Upsert incrementally refreshed snapshots without treating the payload
+    /// as a complete mirror. Silent-push deltas may contain only changed
+    /// providers for a device, so this path must not prune missing providers
+    /// or missing devices.
+    static func upsertIncremental(
+        deviceSnapshots: [SyncedUsageSnapshot],
+        into context: ModelContext
+    ) throws {
+        for snapshot in deviceSnapshots {
+            try Self.upsertSnapshot(snapshot, into: context, pruneMissingProviders: false)
+        }
+        try context.save()
+    }
+
     // MARK: - Core upsert
 
     private static func upsertSnapshot(
         _ snapshot: SyncedUsageSnapshot,
-        into context: ModelContext
+        into context: ModelContext,
+        pruneMissingProviders: Bool = true
     ) throws {
         let deviceID = snapshot.deviceID ?? Self.deviceIDFallback(for: snapshot)
         let device = try Self.fetchOrCreateDevice(
@@ -102,11 +117,13 @@ enum SwiftDataBridge {
         // Prune rows that belonged to this device but disappeared from the
         // incoming snapshot. Cascade delete on the provider → utilization
         // relationship cleans up orphan entries automatically.
-        let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
-            predicate: #Predicate { $0.deviceID == deviceID })
-        let existingForDevice = try context.fetch(staleDescriptor)
-        for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
-            context.delete(existing)
+        if pruneMissingProviders {
+            let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+                predicate: #Predicate { $0.deviceID == deviceID })
+            let existingForDevice = try context.fetch(staleDescriptor)
+            for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
+                context.delete(existing)
+            }
         }
 
         // Flush pending inserts/deletes so @Attribute(.unique) lookups resolve
