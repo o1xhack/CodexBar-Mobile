@@ -139,6 +139,67 @@ struct CostDiagnosticsReportTests {
         #expect(report.checks.first(where: { $0.kind == .shareCard })?.status == .pass)
     }
 
+    @Test("Report does not compare 7-day overview against 30-day share card")
+    func shareCardCheckPassesForShorterLedgerWindow() throws {
+        let summaryDays = (0..<30).map { day in
+            self.syncDay(daysAgo: day, cost: 1, tokens: 100)
+        }
+        let ledgerDays = (0..<7).map { day in
+            self.day(daysAgo: day, cost: 1, tokens: 100)
+        }
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 30,
+                last30DaysTokens: 3_000,
+                daily: summaryDays,
+                isEstimated: false,
+                historyDays: 30))
+        let insights = CostDashboardInsights(
+            providerRows: [
+                CostDashboardInsights.ProviderRow(
+                    provider: provider,
+                    thirtyDayCost: 7,
+                    todayCost: 1,
+                    thirtyDayTokens: 700,
+                    todayTokens: 100,
+                    dailyPoints: ledgerDays),
+            ],
+            dailyPoints: ledgerDays,
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 7)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let report = CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot],
+            cwlEnabled: true,
+            cwlWindowDays: 7,
+            ledgerAvailable: true)
+
+        #expect(report.totalCostUSD == 7)
+        #expect(report.windowDays == 7)
+        #expect(report.checks.first(where: { $0.kind == .shareCard })?.status == .pass)
+    }
+
     @Test("Diagnostics reuse Cost tab fallback when ledger is empty")
     func diagnosticsReuseCostTabFallbackForEmptyLedger() throws {
         let snapshot = SyncedUsageSnapshot(
@@ -193,6 +254,17 @@ struct CostDiagnosticsReportTests {
             date: date,
             costUSD: cost,
             totalTokens: tokens)
+    }
+
+    private func syncDay(daysAgo: Int, cost: Double, tokens: Int) -> SyncDailyPoint {
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: self.now) ?? self.now
+        return SyncDailyPoint(
+            dayKey: SyncCostSummary.iso8601DayKey(for: date),
+            costUSD: cost,
+            totalTokens: tokens,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            isEstimated: false)
     }
 
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {

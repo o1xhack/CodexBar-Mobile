@@ -140,7 +140,7 @@ struct CostDiagnosticsReport: Equatable {
                 weekly: weeklyShareCard,
                 monthly: monthlyShareCard,
                 overviewTotal: totalCost,
-                compareMonthlyToOverview: (insights.historyDays ?? 30) <= 30),
+                compareMonthlyToOverview: (insights.historyDays ?? 30) == 30),
         ]
         let windowDays = if dataSource == .localLedger {
             insights.historyDays ?? cwlWindowDays

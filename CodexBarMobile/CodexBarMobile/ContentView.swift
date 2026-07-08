@@ -456,6 +456,8 @@ private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
+    @State private var cachedLedgerSignature: String?
+    @State private var cachedLedgerAggregation: CostLedgerAggregation?
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
     // in demo mode, the dashboard reads the ledger (re-windowed by
@@ -478,15 +480,8 @@ private struct CostTab: View {
     /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
     private var currentInsights: CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
-        // CWL path only outside demo mode (demo uses a synthetic snapshot with
-        // no ledger). A missing aggregation falls back to the blob path, while
-        // an intentionally empty ledger after Clear Local Cost History stays
-        // empty instead of rebuilding stale costs from synced blobs.
-        let aggregation = self.cwlEnabled && !self.isDemoMode
-            ? try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
-               windowDays: self.cwlWindowDays,
-               in: self.modelContext,
-               activeDeviceIDs: self.activeDeviceIDsForLedger)
+        let aggregation = self.shouldUseLedger && self.cachedLedgerSignature == self.ledgerRefreshSignature
+            ? self.cachedLedgerAggregation
             : nil
         return CostTabInsightsResolver.make(
             snapshot: snapshot,
@@ -498,6 +493,45 @@ private struct CostTab: View {
 
     private var activeDeviceIDsForLedger: Set<String>? {
         CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
+    }
+
+    private var shouldUseLedger: Bool {
+        self.cwlEnabled && !self.isDemoMode
+    }
+
+    private var ledgerRefreshSignature: String {
+        guard self.shouldUseLedger else {
+            return "off"
+        }
+        let activeDeviceIDs = self.activeDeviceIDsForLedger?.sorted().joined(separator: ",") ?? "_"
+        let latestSync = self.usageData.deviceSnapshots
+            .map(\.syncTimestamp.timeIntervalSince1970)
+            .max() ?? 0
+        let latestProviderUpdate = self.usageData.deviceSnapshots
+            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
+            .max() ?? 0
+        let providerCount = self.usageData.deviceSnapshots.reduce(0) { $0 + $1.providers.count }
+        return [
+            "\(self.cwlWindowDays)",
+            activeDeviceIDs,
+            "\(latestSync)",
+            "\(latestProviderUpdate)",
+            "\(providerCount)",
+        ].joined(separator: "|")
+    }
+
+    @MainActor
+    private func refreshLedgerAggregation(for signature: String) {
+        guard self.shouldUseLedger else {
+            self.cachedLedgerSignature = signature
+            self.cachedLedgerAggregation = nil
+            return
+        }
+        self.cachedLedgerAggregation = try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: self.cwlWindowDays,
+            in: self.modelContext,
+            activeDeviceIDs: self.activeDeviceIDsForLedger)
+        self.cachedLedgerSignature = signature
     }
 
     var body: some View {
@@ -546,6 +580,9 @@ private struct CostTab: View {
                 if let insights = self.currentInsights {
                     CostShareSheet(insights: insights)
                 }
+            }
+            .task(id: self.ledgerRefreshSignature) {
+                self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
             }
         }
     }
@@ -2902,7 +2939,7 @@ private struct CostDiagnosticsView: View {
     private var report: CostDiagnosticsReport? {
         guard let snapshot = self.usageData.snapshot else { return nil }
         let aggregation = self.cwlEnabled
-            ? try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            ? try? CostLedgerService.aggregate(
                 windowDays: self.cwlWindowDays,
                 in: self.modelContext,
                 activeDeviceIDs: self.activeDeviceIDsForLedger)
