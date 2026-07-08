@@ -99,9 +99,9 @@ struct CostLedgerDiagnostics: Equatable {
 
 enum CostLedgerService {
 
-    /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
-    /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
-    /// for read-only use after configuration.
+    /// `YYYY-MM-DD` UTC formatter retained for deterministic historical test
+    /// fixtures. Production window cutoffs use `SyncCostSummary`'s local
+    /// day-key formatter so CWL windows match Mac-synced cost day keys.
     static let utcDayKeyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -247,7 +247,7 @@ enum CostLedgerService {
     ///   account / day because those APIs already return account-wide totals.
     ///
     /// `asOf` exists for deterministic tests; production callers pass `Date()`.
-    /// The "window" is `[asOf-(windowDays-1) … asOf]` in UTC dayKeys.
+    /// The "window" is `[asOf-(windowDays-1) … asOf]` in local dayKeys.
     ///
     /// O(n) over surviving rows after window filter. For Round 7 / P7
     /// performance work we may move this to a background actor; for now
@@ -588,16 +588,17 @@ enum CostLedgerService {
     // MARK: - Helpers
 
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`
-    /// UTC dayKey string. Comparison against `DailyCostPoint.dayKey` works
+    /// local dayKey string. Comparison against `DailyCostPoint.dayKey` works
     /// lexicographically because the format is fixed-width.
     static func cutoffDayKey(windowDays: Int, asOf: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        calendar.timeZone = .current
+        let localDay = calendar.startOfDay(for: asOf)
         let cutoff = calendar.date(
             byAdding: .day,
             value: -(windowDays - 1),
-            to: asOf) ?? asOf
-        return Self.utcDayKeyFormatter.string(from: cutoff)
+            to: localDay) ?? localDay
+        return SyncCostSummary.iso8601DayKeyFormatter().string(from: cutoff)
     }
 
     // MARK: - Private accumulators

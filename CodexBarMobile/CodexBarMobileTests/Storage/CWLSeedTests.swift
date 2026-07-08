@@ -101,7 +101,7 @@ struct CWLSeedTests {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
-        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
         context.insert(ProviderSnapshotModel(
             deviceID: "dev-A",
             providerID: "codex",
@@ -129,7 +129,7 @@ struct CWLSeedTests {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
-        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
         try CostLedgerService.upsertDayPoint(
             deviceID: "dev-A",
             providerID: "codex",
@@ -173,7 +173,7 @@ struct CWLSeedTests {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
-        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
         try CostLedgerService.upsertDayPoint(
             deviceID: "dev-A",
             providerID: "codex",
@@ -222,7 +222,7 @@ struct CWLSeedTests {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
-        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
         try CostLedgerService.upsertDayPoint(
             deviceID: "dev-A",
             providerID: "claude",
@@ -255,7 +255,7 @@ struct CWLSeedTests {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
-        let asOf = try #require(CostLedgerService.utcDayKeyFormatter.date(from: "2026-05-28"))
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
         let clearedAt = asOf.addingTimeInterval(60)
         context.insert(ProviderSnapshotModel(
             deviceID: "dev-A",
