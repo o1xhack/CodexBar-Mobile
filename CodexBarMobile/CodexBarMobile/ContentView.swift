@@ -422,6 +422,14 @@ enum CostLedgerRefreshSignature {
             .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
             .max() ?? 0
         let providerCount = snapshots.reduce(0) { $0 + $1.providers.count }
+        let providerIdentities = snapshots
+            .flatMap { snapshot in
+                snapshot.providers.map { provider in
+                    "\(snapshot.deviceID ?? "_"):\(provider.cardIdentityKey)"
+                }
+            }
+            .sorted()
+            .joined(separator: ";")
         return [
             currentDayKey,
             "\(windowDays)",
@@ -429,6 +437,7 @@ enum CostLedgerRefreshSignature {
             "\(latestSync)",
             "\(latestProviderUpdate)",
             "\(providerCount)",
+            providerIdentities,
             "\(clearTombstone)",
         ].joined(separator: "|")
     }

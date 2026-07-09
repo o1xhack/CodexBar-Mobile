@@ -227,6 +227,73 @@ struct CostTabInsightsResolverTests {
         #expect(tomorrow.hasPrefix("2026-07-08|"))
     }
 
+    @Test("Ledger refresh signature changes when provider identities change")
+    func ledgerRefreshSignatureIncludesProviderIdentities() {
+        let codex = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "codex@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 8,
+                last30DaysTokens: 800,
+                daily: [],
+                historyDays: 30))
+        let claude = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "claude@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 8,
+                last30DaysTokens: 800,
+                daily: [],
+                historyDays: 30))
+        let codexSnapshot = SyncedUsageSnapshot(
+            providers: [codex],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let claudeSnapshot = SyncedUsageSnapshot(
+            providers: [claude],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let codexSignature = CostLedgerRefreshSignature.make(
+            isEnabled: true,
+            windowDays: 90,
+            activeDeviceIDs: ["mac-A"],
+            snapshots: [codexSnapshot],
+            clearTombstone: 0,
+            currentDayKey: "2026-07-07")
+        let claudeSignature = CostLedgerRefreshSignature.make(
+            isEnabled: true,
+            windowDays: 90,
+            activeDeviceIDs: ["mac-A"],
+            snapshots: [claudeSnapshot],
+            clearTombstone: 0,
+            currentDayKey: "2026-07-07")
+
+        #expect(codexSignature != claudeSignature)
+        #expect(codexSignature.contains("mac-A:codex|codex@example.com"))
+        #expect(claudeSignature.contains("mac-A:claude|claude@example.com"))
+    }
+
     @Test("Summary-only snapshot after clear can still fill missing ledger provider")
     func freshSummaryOnlySnapshotAfterClearCanFallback() {
         let clearTime = self.now
