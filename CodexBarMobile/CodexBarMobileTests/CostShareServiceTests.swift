@@ -505,11 +505,19 @@ struct CostShareServiceTests {
     @Test("Share card 30-day period uses summary daily bars when local window is shorter")
     func shareCardMonthUsesSummaryDailyBarsForShorterLedgerWindow() {
         let summaryDays = (0..<30).map { day in
-            self.summaryDay(
+            let model = day < 7 ? "recent-model" : "older-month-model"
+            return self.summaryDay(
                 daysAgo: day,
                 cost: 1,
                 tokens: 100,
-                models: [])
+                models: [SyncCostBreakdown(label: model, costUSD: 1)])
+        }
+        let ledgerDays = (0..<7).map { day in
+            self.day(
+                daysAgo: day,
+                cost: 1,
+                tokens: 100,
+                models: [SyncCostBreakdown(label: "recent-model", costUSD: 1)])
         }
         let codex = CostDashboardInsights.ProviderRow(
             provider: self.provider(
@@ -523,11 +531,13 @@ struct CostShareServiceTests {
             todayCost: 1,
             thirtyDayTokens: 700,
             todayTokens: 100,
-            dailyPoints: (0..<7).map { self.day(daysAgo: $0, cost: 1, tokens: 100) })
+            dailyPoints: ledgerDays)
         let insights = CostDashboardInsights(
             providerRows: [codex],
-            dailyPoints: (0..<7).map { self.day(daysAgo: $0, cost: 1, tokens: 100) },
-            modelRows: [],
+            dailyPoints: ledgerDays,
+            modelRows: [
+                CostBreakdownRow(label: "recent-model", amountUSD: 7, subtitle: nil, color: .blue),
+            ],
             serviceRows: [],
             budgetRows: [],
             cwlWindowDays: 7)
@@ -539,6 +549,59 @@ struct CostShareServiceTests {
         #expect(monthly.activeDays == 30)
         #expect(monthly.dailyBars.count == 30)
         #expect(abs(monthly.dailyBars.reduce(0) { $0 + $1.cost } - 30) < Self.tolerance)
+        #expect(monthly.topModels.map(\.label) == ["older-month-model", "recent-model"])
+        #expect(abs((monthly.topModels.first?.cost ?? 0) - 23) < Self.tolerance)
+    }
+
+    @Test("Share card uses monthly models when short-window and summary totals are equal")
+    func shareCardMonthUsesSummaryModelsForEqualTotals() {
+        let summaryDay = self.summaryDay(
+            daysAgo: 10,
+            cost: 7,
+            tokens: 700,
+            models: [SyncCostBreakdown(label: "monthly-model", costUSD: 7)])
+        let ledgerDay = self.day(
+            daysAgo: 0,
+            cost: 7,
+            tokens: 700,
+            models: [SyncCostBreakdown(label: "ledger-model", costUSD: 7)])
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: Date(),
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 90,
+                    last30DaysTokens: 9_000,
+                    daily: [summaryDay],
+                    historyDays: 90)),
+            thirtyDayCost: 7,
+            todayCost: 7,
+            thirtyDayTokens: 700,
+            todayTokens: 700,
+            dailyPoints: [ledgerDay])
+        let insights = CostDashboardInsights(
+            providerRows: [codex],
+            dailyPoints: [ledgerDay],
+            modelRows: [
+                CostBreakdownRow(label: "ledger-model", amountUSD: 7, subtitle: nil, color: .blue),
+            ],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 7)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(monthly.totalCost == 7)
+        #expect(monthly.topModels.map(\.label) == ["monthly-model"])
     }
 
     @Test("Share card Today tokens use resolved daily totals, not stale session tokens")
