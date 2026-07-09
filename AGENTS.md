@@ -68,10 +68,13 @@ exist, not just "code committed" or "pushed":
 - appcast, versioning, CloudKit audit, release notes, and Todoist state are
   updated
 
-Credentials live on the user's Mac (`~/.codexbar-secrets/` plus the Developer
-ID certificate in Keychain). When the user has authorized release/upload work,
-run the release commands on this machine instead of only listing commands for
-the user. The complete release gate is
+Credentials live on the user's Mac. CodexBar-specific release secrets such as
+Sparkle live under `~/.codexbar-secrets/`; Apple App Store Connect App Manager
+credentials are global Apple release/signing credentials under
+`~/.codex-secrets/apple/app-store-connect/`; the Developer ID certificate is in
+Keychain. When the user has authorized release/upload work, run the release
+commands on this machine instead of only listing commands for the user. The
+complete release gate is
 [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); read it before every
 release or upstream-sync completion check.
 

@@ -6,7 +6,20 @@ fi
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DEFAULT_RELEASE_ENV="$HOME/.codexbar-secrets/codexbar-release.env"
+GLOBAL_APP_MANAGER_ASC_DIR="$HOME/.codex-secrets/apple/app-store-connect"
+GLOBAL_APP_MANAGER_ASC_HELPER="$GLOBAL_APP_MANAGER_ASC_DIR/load-app-manager-env.sh"
+GLOBAL_APP_MANAGER_ASC_ENV="$GLOBAL_APP_MANAGER_ASC_DIR/app-manager.env"
 RELEASE_ENV_CANDIDATES=()
+
+if [[ -f "${GLOBAL_APP_MANAGER_ASC_HELPER}" ]]; then
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_HELPER}"
+elif [[ -f "${GLOBAL_APP_MANAGER_ASC_ENV}" ]]; then
+  # Support the documented env-only setup when the optional loader helper
+  # has not been installed on this Mac.
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_ENV}"
+fi
 
 if [[ -n "${CODEXBAR_RELEASE_ENV:-}" ]]; then
   RELEASE_ENV_CANDIDATES+=("${CODEXBAR_RELEASE_ENV}")
@@ -24,6 +37,14 @@ for release_env in "${RELEASE_ENV_CANDIDATES[@]}"; do
   fi
 done
 
+# Release scripts consume the generic names below. Global App Manager files may
+# expose only their scoped aliases, so normalize aliases into the canonical
+# names after project-local overrides have had the final word.
+APP_STORE_CONNECT_KEY_ID="${APP_STORE_CONNECT_KEY_ID:-${APP_STORE_CONNECT_APP_MANAGER_KEY_ID:-}}"
+APP_STORE_CONNECT_ISSUER_ID="${APP_STORE_CONNECT_ISSUER_ID:-${APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID:-}}"
+APP_STORE_CONNECT_API_KEY_FILE="${APP_STORE_CONNECT_API_KEY_FILE:-${APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE:-}}"
+APP_STORE_CONNECT_API_KEY_P8="${APP_STORE_CONNECT_API_KEY_P8:-${APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8:-}}"
+
 if [[ -z "${SPARKLE_PRIVATE_KEY_FILE:-}" && -f "$HOME/.codexbar-secrets/sparkle_ed25519.key" ]]; then
   SPARKLE_PRIVATE_KEY_FILE="$HOME/.codexbar-secrets/sparkle_ed25519.key"
 fi
@@ -35,9 +56,21 @@ if [[ -z "${APP_STORE_CONNECT_API_KEY_FILE:-}" && -n "${APP_STORE_CONNECT_KEY_ID
   fi
 fi
 
+# Keep the scoped aliases consistent for ASC tooling that reads them directly.
+# Generic values win because explicit CodexBar release env files use those
+# canonical names and load after the global defaults.
+APP_STORE_CONNECT_APP_MANAGER_KEY_ID="${APP_STORE_CONNECT_KEY_ID:-${APP_STORE_CONNECT_APP_MANAGER_KEY_ID:-}}"
+APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID="${APP_STORE_CONNECT_ISSUER_ID:-${APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID:-}}"
+APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE="${APP_STORE_CONNECT_API_KEY_FILE:-${APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE:-}}"
+APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8="${APP_STORE_CONNECT_API_KEY_P8:-${APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8:-}}"
+
 export SPARKLE_PRIVATE_KEY_FILE
 export APP_STORE_CONNECT_API_KEY_FILE
 export APP_STORE_CONNECT_API_KEY_P8
 export APP_STORE_CONNECT_KEY_ID
 export APP_STORE_CONNECT_ISSUER_ID
+export APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE
+export APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8
+export APP_STORE_CONNECT_APP_MANAGER_KEY_ID
+export APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID
 export CODEXBAR_RELEASE_SECRETS_LOADED=1

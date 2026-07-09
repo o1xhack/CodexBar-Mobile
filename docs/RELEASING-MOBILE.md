@@ -15,8 +15,8 @@ For upstream release docs see `docs/RELEASING.md`.
 | Item | Location |
 |------|----------|
 | Sparkle Ed25519 private key | `~/.codexbar-secrets/sparkle_ed25519.key` |
-| App Store Connect API key | `~/.codexbar-secrets/AuthKey_*.p8` |
-| Release env (key ID, issuer) | `~/.codexbar-secrets/codexbar-release.env` |
+| App Store Connect App Manager key | `~/.codex-secrets/apple/app-store-connect/` |
+| CodexBar release env | `~/.codexbar-secrets/codexbar-release.env` |
 | Signing identity | `Developer ID Application: Yuxiao Wang (3TUERHN53E)` |
 | `generate_appcast` | `.build/artifacts/sparkle/Sparkle/bin/generate_appcast` (built by SwiftPM) |
 

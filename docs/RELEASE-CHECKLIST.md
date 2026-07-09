@@ -4,8 +4,10 @@
 > **已经打包签名公证 + 发布到用户手里**（Mac Sparkle draft→notarize→appcast +
 > iOS TestFlight），**不是**"代码 commit 了 / push 了"。
 >
-> 凭证都在用户 Mac 上：`~/.codexbar-secrets/`（Sparkle key + App Store Connect
-> key）+ keychain 里的 `Developer ID Application: Yuxiao Wang (3TUERHN53E)`。
+> 凭证都在用户 Mac 上：`~/.codexbar-secrets/`（CodexBar Sparkle key 等项目私有
+> release secret）+ `~/.codex-secrets/apple/app-store-connect/`（全局 Apple App
+> Manager / App Store Connect 凭据）+ keychain 里的
+> `Developer ID Application: Yuxiao Wang (3TUERHN53E)`。
 > **直接在用户的 Mac 上跑这些命令，不要只把命令列给用户让他自己跑。**
 
 ## 0. 什么叫"做完"

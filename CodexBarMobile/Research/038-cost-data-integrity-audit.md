@@ -84,6 +84,39 @@ Validation on 2026-07-06:
   `225b252c-ec68-426c-99a6-298f39fd6290`, `processingState=VALID`, uploaded
   `2026-07-06T15:37:48-07:00`.
 
+## Follow-up Hardening
+
+PR #45 extended the initial reducer fix through the remaining cache, window,
+diagnostic, and presentation boundaries:
+
+- Local Cost History now defaults on with a 90-day window, seeds existing
+  synced blobs before the first read, preserves clear tombstones, and backfills
+  partial ledger coverage without restoring data the user cleared.
+- Cost dashboard, diagnostics, and share cards now resolve Today, 7-day,
+  30-day, monthly, and selected-window totals from matching daily sources.
+  Model and service breakdowns are scoped to the same days as their totals.
+- Ledger cache invalidation now includes local day and provider/account
+  identity, preventing stale aggregates when the provider set changes without
+  changing row count or latest timestamp.
+- Incremental persistence now treats each included device snapshot as the
+  complete filtered provider set for that device. Removed or stale providers
+  and their ledger rows are pruned, while devices absent from the incremental
+  mirror are preserved.
+- Developer Tools gained Cost Diagnostics for source, merge-rule, and
+  cross-surface reconciliation checks. Widget update footers are centered for
+  every supported family.
+
+Final validation on 2026-07-09:
+
+- Full iOS suite: 542 tests in 40 suites passed.
+- GitHub CI: all 11 checks passed, including six macOS Swift-test shards,
+  Linux arm64/x64 builds, lint, and the release lint/build gate.
+- Codex review covered final commit `98b4bbd8` with zero unresolved threads.
+- PR #45 merged to `mobile-dev` as `57ef8fc9`.
+- TestFlight `1.17.0 (185)` uploaded from final commit `98b4bbd8`; App Store
+  Connect reports `processingState=VALID`, and App Store version 1.17.0 is
+  bound to build 185 while remaining `PREPARE_FOR_SUBMISSION`.
+
 ## Residual Risk
 
 This fixes the iOS reducer and presentation mismatch. It cannot retroactively
