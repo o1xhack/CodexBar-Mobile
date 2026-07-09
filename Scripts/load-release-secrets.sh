@@ -6,7 +6,9 @@ fi
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DEFAULT_RELEASE_ENV="$HOME/.codexbar-secrets/codexbar-release.env"
-GLOBAL_APP_MANAGER_ASC_HELPER="$HOME/.codex-secrets/apple/app-store-connect/load-app-manager-env.sh"
+GLOBAL_APP_MANAGER_ASC_DIR="$HOME/.codex-secrets/apple/app-store-connect"
+GLOBAL_APP_MANAGER_ASC_HELPER="$GLOBAL_APP_MANAGER_ASC_DIR/load-app-manager-env.sh"
+GLOBAL_APP_MANAGER_ASC_ENV="$GLOBAL_APP_MANAGER_ASC_DIR/app-manager.env"
 RELEASE_ENV_CANDIDATES=()
 
 if [[ -n "${CODEXBAR_RELEASE_ENV:-}" ]]; then
@@ -28,6 +30,11 @@ done
 if [[ -f "${GLOBAL_APP_MANAGER_ASC_HELPER}" ]]; then
   # shellcheck disable=SC1090
   source "${GLOBAL_APP_MANAGER_ASC_HELPER}"
+elif [[ -f "${GLOBAL_APP_MANAGER_ASC_ENV}" ]]; then
+  # Support the documented env-only setup when the optional loader helper
+  # has not been installed on this Mac.
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_ENV}"
 fi
 
 if [[ -z "${SPARKLE_PRIVATE_KEY_FILE:-}" && -f "$HOME/.codexbar-secrets/sparkle_ed25519.key" ]]; then
