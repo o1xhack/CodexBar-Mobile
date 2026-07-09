@@ -145,14 +145,14 @@ final class CloudSyncReader: @unchecked Sendable {
         }
     }
 
-    static func persistIncrementalToSwiftData(
-        deviceSnapshots: [SyncedUsageSnapshot],
+    static func persistIncrementalCacheMirrorToSwiftData(
+        cacheDeviceSnapshots: [SyncedUsageSnapshot],
         deletedRecordNames: [String] = [],
         context: ModelContext
     ) {
         do {
-            try SwiftDataBridge.upsertIncremental(
-                deviceSnapshots: deviceSnapshots,
+            try SwiftDataBridge.upsertIncrementalCacheMirror(
+                cacheDeviceSnapshots: cacheDeviceSnapshots,
                 deletedRecordNames: deletedRecordNames,
                 into: context)
         } catch {

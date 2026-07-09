@@ -707,8 +707,8 @@ final class SyncedUsageData {
                 context: context)
         }
         if let incrementalContext {
-            CloudSyncReader.persistIncrementalToSwiftData(
-                deviceSnapshots: Self.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+            CloudSyncReader.persistIncrementalCacheMirrorToSwiftData(
+                cacheDeviceSnapshots: Self.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
                     rawDeviceSnapshots,
                     deletedRecordNames: deletedRecordNames),
                 deletedRecordNames: deletedRecordNames,

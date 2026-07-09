@@ -69,18 +69,20 @@ enum SwiftDataBridge {
         try context.save()
     }
 
-    /// Upsert incrementally refreshed snapshots without treating the payload
-    /// as a complete mirror. Silent-push deltas may contain only changed
-    /// providers for a device, so this path must not prune missing providers
-    /// or missing devices.
-    static func upsertIncremental(
-        deviceSnapshots: [SyncedUsageSnapshot],
+    /// Mirror the cache state after an incremental refresh.
+    ///
+    /// `SnapshotCache.buildDeviceSnapshots()` supplies the complete, filtered
+    /// provider set for every included device. Missing providers are therefore
+    /// removed for those devices. The device array is not authoritative at the
+    /// global level, so devices absent from this call are preserved.
+    static func upsertIncrementalCacheMirror(
+        cacheDeviceSnapshots: [SyncedUsageSnapshot],
         deletedRecordNames: [String] = [],
         into context: ModelContext
     ) throws {
         try Self.deleteProviderRecords(named: deletedRecordNames, from: context)
-        for snapshot in deviceSnapshots {
-            try Self.upsertSnapshot(snapshot, into: context, pruneMissingProviders: false)
+        for snapshot in cacheDeviceSnapshots {
+            try Self.upsertSnapshot(snapshot, into: context)
         }
         try context.save()
     }
@@ -120,8 +122,7 @@ enum SwiftDataBridge {
 
     private static func upsertSnapshot(
         _ snapshot: SyncedUsageSnapshot,
-        into context: ModelContext,
-        pruneMissingProviders: Bool = true
+        into context: ModelContext
     ) throws {
         let deviceID = snapshot.deviceID ?? Self.deviceIDFallback(for: snapshot)
         let device = try Self.fetchOrCreateDevice(
@@ -150,18 +151,16 @@ enum SwiftDataBridge {
         // Prune rows that belonged to this device but disappeared from the
         // incoming snapshot. Cascade delete on the provider → utilization
         // relationship cleans up orphan entries automatically.
-        if pruneMissingProviders {
-            let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
-                predicate: #Predicate { $0.deviceID == deviceID })
-            let existingForDevice = try context.fetch(staleDescriptor)
-            for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
-                context.delete(existing)
-                try CostLedgerService.deleteRows(
-                    deviceID: existing.deviceID,
-                    providerID: existing.providerID,
-                    accountEmail: existing.accountEmail,
-                    in: context)
-            }
+        let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+            predicate: #Predicate { $0.deviceID == deviceID })
+        let existingForDevice = try context.fetch(staleDescriptor)
+        for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
+            context.delete(existing)
+            try CostLedgerService.deleteRows(
+                deviceID: existing.deviceID,
+                providerID: existing.providerID,
+                accountEmail: existing.accountEmail,
+                in: context)
         }
 
         // Flush pending inserts/deletes so @Attribute(.unique) lookups resolve
