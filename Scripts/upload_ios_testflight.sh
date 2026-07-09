@@ -17,13 +17,10 @@
 # That's the one-time setup; Xcode's session persists across runs.
 #
 # Explicitly DO NOT pass `-authenticationKeyPath` / `-authenticationKeyID`
-# to xcodebuild — when present, they override the Xcode session and force
-# the API-key-based cloud signing path, which requires an App Manager or
-# Admin role. Our current ASC API key is Developer role (sufficient for
-# notarization / upload but NOT for cloud-sign authorization), so passing
-# it triggers `Cloud signing permission error`. Without those flags,
-# xcodebuild falls back to Xcode's session credentials (higher privilege)
-# and the upload works.
+# to xcodebuild. When present, they override the Xcode session and force
+# the API-key-based cloud-signing path. CodexBar's upload path is intentionally
+# based on the logged-in Xcode Apple ID session, while the global App Manager
+# ASC key is reserved for App Store Connect / Developer API write operations.
 #
 # Usage: ./Scripts/upload_ios_testflight.sh
 set -euo pipefail

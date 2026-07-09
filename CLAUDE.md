@@ -37,9 +37,11 @@ git commit → git push → Todoist comment (含 commit 链接) → 移到 Code 
 ### Definition of Done（release / upstream-sync 类任务的验收标准）
 
 **"完成" = 已打包签名公证 + 发布到用户手里**（Mac Sparkle draft→notarize→appcast +
-iOS TestFlight），**不是**"代码 commit / push 了"。凭证在用户 Mac 的
-`~/.codexbar-secrets/`（Sparkle key + App Store Connect key）+ keychain 的
-Developer ID 证书 —— **直接在用户 Mac 上跑发布命令，别只把命令列出来让用户自己跑**。
+iOS TestFlight），**不是**"代码 commit / push 了"。CodexBar Sparkle key 等项目私有
+release secret 在 `~/.codexbar-secrets/`；Apple App Manager / App Store Connect
+凭据是全局 Apple release/signing 凭据，在
+`~/.codex-secrets/apple/app-store-connect/`；Developer ID 证书在 keychain。
+**直接在用户 Mac 上跑发布命令，别只把命令列出来让用户自己跑**。
 完整验收清单（每个新 provider 要改的全部文件、parserLogicVersion bump、多账号/多设备
 枚举验证、CloudKit 审计、Opus CR 闸门、发布步骤）见
 **[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md)** —— 每次 release 前自己过一遍，不用等用户提醒。

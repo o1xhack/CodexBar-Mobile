@@ -6,6 +6,7 @@ fi
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DEFAULT_RELEASE_ENV="$HOME/.codexbar-secrets/codexbar-release.env"
+GLOBAL_APP_MANAGER_ASC_HELPER="$HOME/.codex-secrets/apple/app-store-connect/load-app-manager-env.sh"
 RELEASE_ENV_CANDIDATES=()
 
 if [[ -n "${CODEXBAR_RELEASE_ENV:-}" ]]; then
@@ -24,6 +25,11 @@ for release_env in "${RELEASE_ENV_CANDIDATES[@]}"; do
   fi
 done
 
+if [[ -f "${GLOBAL_APP_MANAGER_ASC_HELPER}" ]]; then
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_HELPER}"
+fi
+
 if [[ -z "${SPARKLE_PRIVATE_KEY_FILE:-}" && -f "$HOME/.codexbar-secrets/sparkle_ed25519.key" ]]; then
   SPARKLE_PRIVATE_KEY_FILE="$HOME/.codexbar-secrets/sparkle_ed25519.key"
 fi
@@ -40,4 +46,6 @@ export APP_STORE_CONNECT_API_KEY_FILE
 export APP_STORE_CONNECT_API_KEY_P8
 export APP_STORE_CONNECT_KEY_ID
 export APP_STORE_CONNECT_ISSUER_ID
+export APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE
+export APP_STORE_CONNECT_APP_MANAGER_KEY_ID
 export CODEXBAR_RELEASE_SECRETS_LOADED=1

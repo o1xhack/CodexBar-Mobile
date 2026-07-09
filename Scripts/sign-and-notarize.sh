@@ -6,7 +6,7 @@ APP_IDENTITY="Developer ID Application: Yuxiao Wang (3TUERHN53E)"
 APP_BUNDLE="CodexBar.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/version.env"
-# Load local-only release secrets from ~/.codexbar-secrets if available.
+# Load CodexBar-local release secrets plus global Apple App Manager ASC creds.
 source "$ROOT/Scripts/load-release-secrets.sh"
 source "$ROOT/Scripts/package_product_paths.sh"
 source "$ROOT/Scripts/release_dsym_paths.sh"
