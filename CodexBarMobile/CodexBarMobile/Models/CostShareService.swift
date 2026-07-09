@@ -246,7 +246,10 @@ extension ShareCardData {
                     }
                 }
             }
-            if totals.isEmpty, period != .today {
+            let hasLedgerOnlyProvider = insights.providerRows.contains { row in
+                row.provider.costSummary == nil && (row.thirtyDayCost > 0 || !row.dailyPoints.isEmpty)
+            }
+            if period != .today && (totals.isEmpty || hasLedgerOnlyProvider) {
                 let fallbackRows = insights.modelRows
                     .filter { $0.amountUSD > 0 }
                     .sorted {

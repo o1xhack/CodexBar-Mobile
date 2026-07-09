@@ -265,6 +265,61 @@ struct CostShareServiceTests {
         #expect(abs((monthly.topModels.first?.share ?? 0) - 0.7) < Self.tolerance)
     }
 
+    @Test("Share card preserves ledger model mix when summary and ledger-only providers are mixed")
+    func shareCardUsesLedgerModelRowsForMixedSummaryAndLedgerProviders() {
+        let summaryDay = self.summaryDay(
+            daysAgo: 0,
+            cost: 4,
+            tokens: 400,
+            models: [SyncCostBreakdown(label: "summary-model", costUSD: 4)])
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "codex",
+                name: "Codex",
+                daily: [summaryDay]),
+            thirtyDayCost: 4,
+            todayCost: 4,
+            thirtyDayTokens: 400,
+            todayTokens: 400,
+            dailyPoints: [self.day(daysAgo: 0, cost: 4, tokens: 400)])
+        let claude = CostDashboardInsights.ProviderRow(
+            provider: ProviderUsageSnapshot(
+                providerID: "claude",
+                providerName: "Claude",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: Date(),
+                costSummary: nil),
+            thirtyDayCost: 6,
+            todayCost: 0,
+            thirtyDayTokens: 600,
+            todayTokens: 0,
+            dailyPoints: [self.day(daysAgo: 1, cost: 6, tokens: 600)])
+        let insights = CostDashboardInsights(
+            providerRows: [codex, claude],
+            dailyPoints: [
+                self.day(daysAgo: 0, cost: 4, tokens: 400),
+                self.day(daysAgo: 1, cost: 6, tokens: 600),
+            ],
+            modelRows: [
+                CostBreakdownRow(label: "ledger-only-model", amountUSD: 6, subtitle: nil, color: .blue),
+                CostBreakdownRow(label: "summary-model", amountUSD: 4, subtitle: nil, color: .green),
+            ],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(monthly.topModels.map(\.label) == ["ledger-only-model", "summary-model"])
+        #expect(abs((monthly.topModels.first?.cost ?? 0) - 6) < Self.tolerance)
+        #expect(abs((monthly.topModels.first?.share ?? 0) - 0.6) < Self.tolerance)
+    }
+
     @Test("Share card 30-day period preserves summary-only provider costs")
     func shareCardMonthPreservesSummaryOnlyProviderCosts() {
         let codex = CostDashboardInsights.ProviderRow(
