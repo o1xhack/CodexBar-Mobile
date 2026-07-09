@@ -219,11 +219,28 @@ extension ShareCardData {
 
         func monthlySummaryDailyPoints() -> [CostDashboardInsights.DailyPoint] {
             var totals: [String: (date: Date, costUSD: Double, totalTokens: Int)] = [:]
+            func addDay(dayKey: String, date: Date, costUSD: Double, totalTokens: Int) {
+                totals[dayKey, default: (date, 0, 0)].costUSD += costUSD
+                totals[dayKey, default: (date, 0, 0)].totalTokens += totalTokens
+            }
             for row in insights.providerRows {
-                for point in costSummaryPoints(for: row, period: .month) {
-                    guard let date = dayKeyFormatter.date(from: point.dayKey) else { continue }
-                    totals[point.dayKey, default: (date, 0, 0)].costUSD += point.costUSD
-                    totals[point.dayKey, default: (date, 0, 0)].totalTokens += point.totalTokens
+                if row.provider.costSummary == nil {
+                    for point in monthlyDailyPoints(for: row) {
+                        addDay(
+                            dayKey: point.dayKey,
+                            date: point.date,
+                            costUSD: point.costUSD,
+                            totalTokens: point.totalTokens)
+                    }
+                } else {
+                    for point in costSummaryPoints(for: row, period: .month) {
+                        guard let date = dayKeyFormatter.date(from: point.dayKey) else { continue }
+                        addDay(
+                            dayKey: point.dayKey,
+                            date: date,
+                            costUSD: point.costUSD,
+                            totalTokens: point.totalTokens)
+                    }
                 }
             }
             return totals

@@ -320,6 +320,62 @@ struct CostShareServiceTests {
         #expect(abs((monthly.topModels.first?.share ?? 0) - 0.6) < Self.tolerance)
     }
 
+    @Test("Share card summary daily bars include ledger-only provider days")
+    func shareCardSummaryDailyBarsIncludeLedgerOnlyProviderDays() {
+        let summaryDay = self.summaryDay(
+            daysAgo: 0,
+            cost: 30,
+            tokens: 3_000,
+            models: [])
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: self.provider(
+                id: "codex",
+                name: "Codex",
+                thirtyDayCost: 30,
+                thirtyDayTokens: 3_000,
+                historyDays: 30,
+                daily: [summaryDay]),
+            thirtyDayCost: 1,
+            todayCost: 1,
+            thirtyDayTokens: 100,
+            todayTokens: 100,
+            dailyPoints: [self.day(daysAgo: 0, cost: 1, tokens: 100)])
+        let claude = CostDashboardInsights.ProviderRow(
+            provider: ProviderUsageSnapshot(
+                providerID: "claude",
+                providerName: "Claude",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: Date(),
+                costSummary: nil),
+            thirtyDayCost: 6,
+            todayCost: 0,
+            thirtyDayTokens: 600,
+            todayTokens: 0,
+            dailyPoints: [self.day(daysAgo: 1, cost: 6, tokens: 600)])
+        let insights = CostDashboardInsights(
+            providerRows: [codex, claude],
+            dailyPoints: [
+                self.day(daysAgo: 0, cost: 1, tokens: 100),
+                self.day(daysAgo: 1, cost: 6, tokens: 600),
+            ],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(abs(monthly.totalCost - 36) < Self.tolerance)
+        #expect(monthly.activeDays == 2)
+        #expect(monthly.dailyBars.count == 2)
+        #expect(abs(monthly.dailyBars.reduce(0) { $0 + $1.cost } - 36) < Self.tolerance)
+    }
+
     @Test("Share card 30-day period preserves summary-only provider costs")
     func shareCardMonthPreservesSummaryOnlyProviderCosts() {
         let codex = CostDashboardInsights.ProviderRow(
