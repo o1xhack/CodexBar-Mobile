@@ -11,6 +11,16 @@ GLOBAL_APP_MANAGER_ASC_HELPER="$GLOBAL_APP_MANAGER_ASC_DIR/load-app-manager-env.
 GLOBAL_APP_MANAGER_ASC_ENV="$GLOBAL_APP_MANAGER_ASC_DIR/app-manager.env"
 RELEASE_ENV_CANDIDATES=()
 
+if [[ -f "${GLOBAL_APP_MANAGER_ASC_HELPER}" ]]; then
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_HELPER}"
+elif [[ -f "${GLOBAL_APP_MANAGER_ASC_ENV}" ]]; then
+  # Support the documented env-only setup when the optional loader helper
+  # has not been installed on this Mac.
+  # shellcheck disable=SC1090
+  source "${GLOBAL_APP_MANAGER_ASC_ENV}"
+fi
+
 if [[ -n "${CODEXBAR_RELEASE_ENV:-}" ]]; then
   RELEASE_ENV_CANDIDATES+=("${CODEXBAR_RELEASE_ENV}")
 fi
@@ -26,16 +36,6 @@ for release_env in "${RELEASE_ENV_CANDIDATES[@]}"; do
     break
   fi
 done
-
-if [[ -f "${GLOBAL_APP_MANAGER_ASC_HELPER}" ]]; then
-  # shellcheck disable=SC1090
-  source "${GLOBAL_APP_MANAGER_ASC_HELPER}"
-elif [[ -f "${GLOBAL_APP_MANAGER_ASC_ENV}" ]]; then
-  # Support the documented env-only setup when the optional loader helper
-  # has not been installed on this Mac.
-  # shellcheck disable=SC1090
-  source "${GLOBAL_APP_MANAGER_ASC_ENV}"
-fi
 
 if [[ -z "${SPARKLE_PRIVATE_KEY_FILE:-}" && -f "$HOME/.codexbar-secrets/sparkle_ed25519.key" ]]; then
   SPARKLE_PRIVATE_KEY_FILE="$HOME/.codexbar-secrets/sparkle_ed25519.key"
