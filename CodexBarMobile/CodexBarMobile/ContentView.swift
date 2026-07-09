@@ -1473,14 +1473,18 @@ struct CostDashboardInsights {
             let todayTokens = todayTotals.tokens ?? 0
             let fallbackSyncPoints = costSummary.daily.filter { $0.dayKey >= fallbackCutoffKey }
             let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
-            guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
+            let fallbackDailyCost = fallbackSyncPoints.reduce(0) { $0 + $1.costUSD }
+            let fallbackDailyTokens = fallbackSyncPoints.reduce(0) { $0 + $1.totalTokens }
+            let resolvedCost = max(totals.costUSD, max(fallbackDailyCost, todayCost))
+            let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
+            guard resolvedCost > 0 || resolvedTokens > 0 else {
                 continue
             }
             providerRows.append(ProviderRow(
                 provider: provider,
-                thirtyDayCost: totals.costUSD,
+                thirtyDayCost: resolvedCost,
                 todayCost: todayCost,
-                thirtyDayTokens: totals.tokens,
+                thirtyDayTokens: resolvedTokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
 

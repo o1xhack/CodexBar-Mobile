@@ -252,6 +252,72 @@ struct CostTabInsightsResolverTests {
         #expect(insights.serviceRows.reduce(0) { $0 + $1.amountUSD } == 20)
     }
 
+    @Test("Short ledger windows count missing-provider daily fallback totals")
+    func shortLedgerWindowCountsMissingProviderDailyFallback() throws {
+        let codexDay = self.syncDay(
+            daysAgo: 0,
+            cost: 2,
+            tokens: 200,
+            models: [SyncCostBreakdown(label: "codex-model", costUSD: 2)],
+            services: [])
+        let claudeRecentDay = self.syncDay(
+            daysAgo: 1,
+            cost: 6,
+            tokens: 600,
+            models: [SyncCostBreakdown(label: "claude-recent", costUSD: 6)],
+            services: [])
+        let claudeOldDay = self.syncDay(
+            daysAgo: 10,
+            cost: 10,
+            tokens: 1_000,
+            models: [SyncCostBreakdown(label: "claude-old", costUSD: 10)],
+            services: [])
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(id: "codex", name: "Codex", cost: 2, tokens: 200),
+                self.provider(
+                    id: "claude",
+                    name: "Claude",
+                    cost: 16,
+                    tokens: 1_600,
+                    daily: [claudeRecentDay, claudeOldDay]),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 7,
+            totalCostUSD: 2,
+            totalTokens: 200,
+            activeDayCount: 1,
+            providerRollups: [
+                "codex|_": CostLedgerProviderRollup(
+                    providerID: "codex",
+                    accountEmail: nil,
+                    totalCostUSD: 2,
+                    totalTokens: 200,
+                    dailyPoints: [codexDay],
+                    modelBreakdowns: codexDay.modelBreakdowns,
+                    serviceBreakdowns: []),
+            ],
+            dailyPoints: [codexDay],
+            modelMix: codexDay.modelBreakdowns,
+            serviceMix: [])
+
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: nil))
+
+        #expect(insights.total30DayCost == 8)
+        #expect(insights.total30DayTokens == 800)
+        #expect(insights.providerRows.first(where: { $0.provider.providerID == "claude" })?.thirtyDayCost == 6)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == 8)
+        #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-recent"])
+    }
+
     @Test("Ledger refresh signature changes when the local day changes")
     func ledgerRefreshSignatureIncludesCurrentDay() {
         let snapshot = SyncedUsageSnapshot(
@@ -413,6 +479,33 @@ struct CostTabInsightsResolverTests {
         name: String,
         cost: Double,
         tokens: Int,
+        daily: [SyncDailyPoint]) -> ProviderUsageSnapshot
+    {
+        ProviderUsageSnapshot(
+            providerID: id,
+            providerName: name,
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: tokens,
+                daily: daily,
+                isEstimated: false,
+                historyDays: 30))
+    }
+
+    private func provider(
+        id: String,
+        name: String,
+        cost: Double,
+        tokens: Int,
         budget: SyncBudgetSnapshot? = nil,
         lastUpdated: Date? = nil,
         includeDaily: Bool = true,
@@ -446,13 +539,15 @@ struct CostTabInsightsResolverTests {
     }
 
     private func syncDay(
+        daysAgo: Int = 0,
         cost: Double,
         tokens: Int,
         models: [SyncCostBreakdown],
         services: [SyncCostBreakdown]) -> SyncDailyPoint
     {
-        SyncDailyPoint(
-            dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: self.now) ?? self.now
+        return SyncDailyPoint(
+            dayKey: SyncCostSummary.iso8601DayKey(for: date),
             costUSD: cost,
             totalTokens: tokens,
             modelBreakdowns: models,
