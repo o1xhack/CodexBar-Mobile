@@ -36,7 +36,13 @@ struct CostShareServiceTests {
                 historyDays: historyDays))
     }
 
-    private func day(daysAgo: Int, cost: Double, tokens: Int) -> CostDashboardInsights.DailyPoint {
+    private func day(
+        daysAgo: Int,
+        cost: Double,
+        tokens: Int,
+        models: [SyncCostBreakdown] = [],
+        services: [SyncCostBreakdown] = []) -> CostDashboardInsights.DailyPoint
+    {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let date = calendar.date(byAdding: .day, value: -daysAgo, to: today)!
@@ -45,7 +51,9 @@ struct CostShareServiceTests {
             dayKey: formatter.string(from: date),
             date: date,
             costUSD: cost,
-            totalTokens: tokens)
+            totalTokens: tokens,
+            modelBreakdowns: models,
+            serviceBreakdowns: services)
     }
 
     private func summaryDay(
@@ -206,14 +214,14 @@ struct CostShareServiceTests {
             thirtyDayTokens: 1_200,
             todayTokens: 300,
             dailyPoints: [
-                self.day(daysAgo: 0, cost: 3, tokens: 300),
-                self.day(daysAgo: 45, cost: 9, tokens: 900),
+                self.day(daysAgo: 0, cost: 3, tokens: 300, models: [recentModel]),
+                self.day(daysAgo: 45, cost: 9, tokens: 900, models: [oldModel]),
             ])
         let insights = CostDashboardInsights(
             providerRows: [codex],
             dailyPoints: [
-                self.day(daysAgo: 0, cost: 3, tokens: 300),
-                self.day(daysAgo: 45, cost: 9, tokens: 900),
+                self.day(daysAgo: 0, cost: 3, tokens: 300, models: [recentModel]),
+                self.day(daysAgo: 45, cost: 9, tokens: 900, models: [oldModel]),
             ],
             modelRows: [
                 CostBreakdownRow(label: "old-model", amountUSD: 9, subtitle: nil, color: .blue),
@@ -231,6 +239,14 @@ struct CostShareServiceTests {
 
     @Test("Share card preserves ledger model mix when provider summaries are missing")
     func shareCardUsesLedgerModelRowsWhenSummaryBreakdownsAreMissing() {
+        let ledgerDay = self.day(
+            daysAgo: 0,
+            cost: 10,
+            tokens: 1_000,
+            models: [
+                SyncCostBreakdown(label: "gpt-5", costUSD: 7),
+                SyncCostBreakdown(label: "gpt-5-mini", costUSD: 3),
+            ])
         let codex = CostDashboardInsights.ProviderRow(
             provider: ProviderUsageSnapshot(
                 providerID: "codex",
@@ -247,10 +263,10 @@ struct CostShareServiceTests {
             todayCost: 2,
             thirtyDayTokens: 1_000,
             todayTokens: 200,
-            dailyPoints: [self.day(daysAgo: 0, cost: 2, tokens: 200)])
+            dailyPoints: [ledgerDay])
         let insights = CostDashboardInsights(
             providerRows: [codex],
-            dailyPoints: [self.day(daysAgo: 0, cost: 2, tokens: 200)],
+            dailyPoints: [ledgerDay],
             modelRows: [
                 CostBreakdownRow(label: "gpt-5", amountUSD: 7, subtitle: nil, color: .blue),
                 CostBreakdownRow(label: "gpt-5-mini", amountUSD: 3, subtitle: nil, color: .green),
@@ -281,7 +297,11 @@ struct CostShareServiceTests {
             todayCost: 4,
             thirtyDayTokens: 400,
             todayTokens: 400,
-            dailyPoints: [self.day(daysAgo: 0, cost: 4, tokens: 400)])
+            dailyPoints: [self.day(
+                daysAgo: 0,
+                cost: 4,
+                tokens: 400,
+                models: [SyncCostBreakdown(label: "summary-model", costUSD: 4)])])
         let claude = CostDashboardInsights.ProviderRow(
             provider: ProviderUsageSnapshot(
                 providerID: "claude",
@@ -298,12 +318,24 @@ struct CostShareServiceTests {
             todayCost: 0,
             thirtyDayTokens: 600,
             todayTokens: 0,
-            dailyPoints: [self.day(daysAgo: 1, cost: 6, tokens: 600)])
+            dailyPoints: [self.day(
+                daysAgo: 1,
+                cost: 6,
+                tokens: 600,
+                models: [SyncCostBreakdown(label: "ledger-only-model", costUSD: 6)])])
         let insights = CostDashboardInsights(
             providerRows: [codex, claude],
             dailyPoints: [
-                self.day(daysAgo: 0, cost: 4, tokens: 400),
-                self.day(daysAgo: 1, cost: 6, tokens: 600),
+                self.day(
+                    daysAgo: 0,
+                    cost: 4,
+                    tokens: 400,
+                    models: [SyncCostBreakdown(label: "summary-model", costUSD: 4)]),
+                self.day(
+                    daysAgo: 1,
+                    cost: 6,
+                    tokens: 600,
+                    models: [SyncCostBreakdown(label: "ledger-only-model", costUSD: 6)]),
             ],
             modelRows: [
                 CostBreakdownRow(label: "ledger-only-model", amountUSD: 6, subtitle: nil, color: .blue),
@@ -318,6 +350,54 @@ struct CostShareServiceTests {
         #expect(monthly.topModels.map(\.label) == ["ledger-only-model", "summary-model"])
         #expect(abs((monthly.topModels.first?.cost ?? 0) - 6) < Self.tolerance)
         #expect(abs((monthly.topModels.first?.share ?? 0) - 0.6) < Self.tolerance)
+    }
+
+    @Test("Share card model mix stays inside the selected period")
+    func shareCardModelMixUsesPeriodScopedDailyBreakdowns() {
+        let recentDay = self.day(
+            daysAgo: 2,
+            cost: 3,
+            tokens: 300,
+            models: [SyncCostBreakdown(label: "recent-model", costUSD: 3)])
+        let oldDay = self.day(
+            daysAgo: 45,
+            cost: 9,
+            tokens: 900,
+            models: [SyncCostBreakdown(label: "old-model", costUSD: 9)])
+        let codex = CostDashboardInsights.ProviderRow(
+            provider: ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: Date(),
+                costSummary: nil),
+            thirtyDayCost: 12,
+            todayCost: 0,
+            thirtyDayTokens: 1_200,
+            todayTokens: 0,
+            dailyPoints: [recentDay, oldDay])
+        let insights = CostDashboardInsights(
+            providerRows: [codex],
+            dailyPoints: [recentDay, oldDay],
+            modelRows: [
+                CostBreakdownRow(label: "old-model", amountUSD: 9, subtitle: nil, color: .blue),
+                CostBreakdownRow(label: "recent-model", amountUSD: 3, subtitle: nil, color: .green),
+            ],
+            serviceRows: [],
+            budgetRows: [],
+            cwlWindowDays: 90)
+
+        let weekly = ShareCardData(insights: insights, period: .week)
+        let monthly = ShareCardData(insights: insights, period: .month)
+
+        #expect(weekly.topModels.map(\.label) == ["recent-model"])
+        #expect(monthly.topModels.map(\.label) == ["recent-model"])
+        #expect(abs((monthly.topModels.first?.cost ?? 0) - 3) < Self.tolerance)
     }
 
     @Test("Share card summary daily bars include ledger-only provider days")

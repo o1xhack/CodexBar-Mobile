@@ -1188,6 +1188,24 @@ struct CostDashboardInsights {
         let date: Date
         let costUSD: Double
         let totalTokens: Int
+        let modelBreakdowns: [SyncCostBreakdown]
+        let serviceBreakdowns: [SyncCostBreakdown]
+
+        init(
+            dayKey: String,
+            date: Date,
+            costUSD: Double,
+            totalTokens: Int,
+            modelBreakdowns: [SyncCostBreakdown] = [],
+            serviceBreakdowns: [SyncCostBreakdown] = [])
+        {
+            self.dayKey = dayKey
+            self.date = date
+            self.costUSD = costUSD
+            self.totalTokens = totalTokens
+            self.modelBreakdowns = modelBreakdowns
+            self.serviceBreakdowns = serviceBreakdowns
+        }
 
         var id: String {
             self.dayKey
@@ -1264,7 +1282,7 @@ struct CostDashboardInsights {
 
     init(snapshot: SyncedUsageSnapshot) {
         var providerRows: [ProviderRow] = []
-        var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
+        var dailyTotals: [String: DailyAccumulator] = [:]
         var modelTotals: [String: Double] = [:]
         // Codex standard/fast split summed per model across the window, so the
         // Model Mix rows can show a "Std / Fast" sub-line (upstream #1070).
@@ -1307,8 +1325,7 @@ struct CostDashboardInsights {
                     dailyPoints: providerDailyPoints))
 
             for point in costSummary.daily {
-                dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
-                dailyTotals[point.dayKey, default: (0, 0)].totalTokens += point.totalTokens
+                dailyTotals[point.dayKey, default: .init()].ingest(point)
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
@@ -1335,7 +1352,7 @@ struct CostDashboardInsights {
         self.dailyPoints = dailyTotals.keys.compactMap { dayKey in
             guard let date = Self.dayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
-            return DailyPoint(dayKey: dayKey, date: date, costUSD: totals.costUSD, totalTokens: totals.totalTokens)
+            return totals.dailyPoint(dayKey: dayKey, date: date)
         }
         .sorted { $0.date < $1.date }
 
@@ -1389,10 +1406,10 @@ struct CostDashboardInsights {
 
         var providerRows: [ProviderRow] = []
         var representedProviderKeys = Set<String>()
-        var dailyTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.dailyPoints.map { point in
-                (point.dayKey, (costUSD: point.costUSD, totalTokens: point.totalTokens))
-            })
+        var dailyTotals: [String: DailyAccumulator] = [:]
+        for point in aggregation.dailyPoints {
+            dailyTotals[point.dayKey, default: .init()].ingest(point)
+        }
         var modelTotals = Dictionary(
             uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
         var modelSplits = Dictionary(
@@ -1468,8 +1485,7 @@ struct CostDashboardInsights {
                 dailyPoints: providerDailyPoints))
 
             for point in fallbackSyncPoints {
-                dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
-                dailyTotals[point.dayKey, default: (0, 0)].totalTokens += point.totalTokens
+                dailyTotals[point.dayKey, default: .init()].ingest(point)
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
@@ -1495,11 +1511,7 @@ struct CostDashboardInsights {
         let dailyPoints: [DailyPoint] = dailyTotals.keys.compactMap { dayKey in
             guard let date = Self.dayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
-            return DailyPoint(
-                dayKey: dayKey,
-                date: date,
-                costUSD: totals.costUSD,
-                totalTokens: totals.totalTokens)
+            return totals.dailyPoint(dayKey: dayKey, date: date)
         }
 
         return CostDashboardInsights(
@@ -1579,7 +1591,95 @@ struct CostDashboardInsights {
             dayKey: point.dayKey,
             date: date,
             costUSD: point.costUSD,
-            totalTokens: point.totalTokens)
+            totalTokens: point.totalTokens,
+            modelBreakdowns: point.modelBreakdowns,
+            serviceBreakdowns: point.serviceBreakdowns)
+    }
+
+    private struct DailyAccumulator {
+        var costUSD: Double = 0
+        var totalTokens: Int = 0
+        var modelBreakdowns: [String: BreakdownAccumulator] = [:]
+        var serviceBreakdowns: [String: BreakdownAccumulator] = [:]
+
+        mutating func ingest(_ point: SyncDailyPoint) {
+            self.costUSD += point.costUSD
+            self.totalTokens += point.totalTokens
+            for breakdown in point.modelBreakdowns {
+                self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+            for breakdown in point.serviceBreakdowns {
+                self.serviceBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+        }
+
+        func dailyPoint(dayKey: String, date: Date) -> DailyPoint {
+            DailyPoint(
+                dayKey: dayKey,
+                date: date,
+                costUSD: self.costUSD,
+                totalTokens: self.totalTokens,
+                modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
+                serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns))
+        }
+
+        private static func sortedBreakdowns(
+            _ totals: [String: BreakdownAccumulator]
+        ) -> [SyncCostBreakdown] {
+            totals
+                .map { label, accumulator in accumulator.breakdown(label: label) }
+                .sorted { lhs, rhs in
+                    if lhs.costUSD == rhs.costUSD {
+                        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    }
+                    return lhs.costUSD > rhs.costUSD
+                }
+        }
+    }
+
+    private struct BreakdownAccumulator {
+        var costUSD: Double = 0
+        var isEstimated = false
+        var standardCostUSD: Double = 0
+        var priorityCostUSD: Double = 0
+        var standardTokens: Int = 0
+        var priorityTokens: Int = 0
+        var hasStandardCost = false
+        var hasPriorityCost = false
+        var hasStandardTokens = false
+        var hasPriorityTokens = false
+
+        mutating func ingest(_ breakdown: SyncCostBreakdown) {
+            self.costUSD += breakdown.costUSD
+            self.isEstimated = self.isEstimated || breakdown.isEstimated == true
+            if let standardCostUSD = breakdown.standardCostUSD {
+                self.standardCostUSD += standardCostUSD
+                self.hasStandardCost = true
+            }
+            if let priorityCostUSD = breakdown.priorityCostUSD {
+                self.priorityCostUSD += priorityCostUSD
+                self.hasPriorityCost = true
+            }
+            if let standardTokens = breakdown.standardTokens {
+                self.standardTokens += standardTokens
+                self.hasStandardTokens = true
+            }
+            if let priorityTokens = breakdown.priorityTokens {
+                self.priorityTokens += priorityTokens
+                self.hasPriorityTokens = true
+            }
+        }
+
+        func breakdown(label: String) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: self.costUSD,
+                isEstimated: self.isEstimated ? true : nil,
+                standardCostUSD: self.hasStandardCost ? self.standardCostUSD : nil,
+                priorityCostUSD: self.hasPriorityCost ? self.priorityCostUSD : nil,
+                standardTokens: self.hasStandardTokens ? self.standardTokens : nil,
+                priorityTokens: self.hasPriorityTokens ? self.priorityTokens : nil)
+        }
     }
 
     /// Wire-format `dayKey` formatter used to match records to today's

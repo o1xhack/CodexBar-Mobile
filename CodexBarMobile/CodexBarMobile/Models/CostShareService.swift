@@ -154,20 +154,21 @@ extension ShareCardData {
         let today = calendar.startOfDay(for: Date())
         let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
         let monthStart = calendar.date(byAdding: .day, value: -29, to: today)!
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
 
         // Filter daily points by period
         let filteredDays: [CostDashboardInsights.DailyPoint]
         switch period {
         case .today:
-            filteredDays = []
+            filteredDays = insights.dailyPoints.filter { calendar.isDate($0.date, inSameDayAs: today) }
         case .week:
-            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart }
+            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart && $0.date < tomorrow }
         case .month:
-            filteredDays = insights.dailyPoints.filter { $0.date >= monthStart }
+            filteredDays = insights.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
         }
 
         func monthlyDailyPoints(for row: CostDashboardInsights.ProviderRow) -> [CostDashboardInsights.DailyPoint] {
-            row.dailyPoints.filter { $0.date >= monthStart }
+            row.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
         }
 
         func authoritativeThirtyDaySummary(for row: CostDashboardInsights.ProviderRow) -> (costUSD: Double?, tokens: Int?) {
@@ -210,9 +211,9 @@ extension ShareCardData {
                 case .today:
                     return calendar.isDate(date, inSameDayAs: today)
                 case .week:
-                    return date >= weekStart
+                    return date >= weekStart && date < tomorrow
                 case .month:
-                    return date >= monthStart
+                    return date >= monthStart && date < tomorrow
                 }
             }
         }
@@ -256,17 +257,17 @@ extension ShareCardData {
 
         func modelRows(for period: SharePeriod) -> [BreakdownRow] {
             var totals: [String: Double] = [:]
-            for row in insights.providerRows {
-                for point in costSummaryPoints(for: row, period: period) {
-                    for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
-                        totals[breakdown.label, default: 0] += breakdown.costUSD
-                    }
+            for point in filteredDays {
+                for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                    totals[breakdown.label, default: 0] += breakdown.costUSD
                 }
             }
-            let hasLedgerOnlyProvider = insights.providerRows.contains { row in
-                row.provider.costSummary == nil && (row.thirtyDayCost > 0 || !row.dailyPoints.isEmpty)
+            let periodDays: Int = switch period {
+            case .today: 1
+            case .week: 7
+            case .month: 30
             }
-            if period != .today && (totals.isEmpty || hasLedgerOnlyProvider) {
+            if totals.isEmpty, (insights.historyDays ?? 30) <= periodDays {
                 let fallbackRows = insights.modelRows
                     .filter { $0.amountUSD > 0 }
                     .sorted {
@@ -342,7 +343,7 @@ extension ShareCardData {
                 cost = row.todayCost
             case .week:
                 cost = row.dailyPoints
-                    .filter { $0.date >= weekStart }
+                    .filter { $0.date >= weekStart && $0.date < tomorrow }
                     .reduce(0) { $0 + $1.costUSD }
             case .month:
                 cost = monthlyCost(for: row)

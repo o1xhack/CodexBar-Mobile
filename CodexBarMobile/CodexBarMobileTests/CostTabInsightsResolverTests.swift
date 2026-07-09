@@ -59,6 +59,49 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.total30DayCost == 12)
     }
 
+    @Test("Snapshot insights preserve daily model and service breakdowns")
+    func snapshotInsightsPreserveDailyBreakdowns() throws {
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(
+                    id: "codex",
+                    name: "Codex",
+                    cost: 8,
+                    tokens: 800,
+                    models: [SyncCostBreakdown(label: "codex-model", costUSD: 8)],
+                    services: [SyncCostBreakdown(label: "codex-run", costUSD: 8)]),
+                self.provider(
+                    id: "claude",
+                    name: "Claude",
+                    cost: 12,
+                    tokens: 1_200,
+                    models: [SyncCostBreakdown(label: "claude-model", costUSD: 12)],
+                    services: [SyncCostBreakdown(label: "claude-api", costUSD: 12)]),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: nil,
+            isLedgerEnabled: false,
+            isDemoMode: false,
+            localHistoryClearedAt: nil))
+
+        #expect(insights.dailyPoints.count == 1)
+        #expect(Set(insights.dailyPoints[0].modelBreakdowns.map(\.label)) == [
+            "codex-model",
+            "claude-model",
+        ])
+        #expect(insights.dailyPoints[0].modelBreakdowns.reduce(0) { $0 + $1.costUSD } == 20)
+        #expect(Set(insights.dailyPoints[0].serviceBreakdowns.map(\.label)) == [
+            "codex-run",
+            "claude-api",
+        ])
+        #expect(insights.dailyPoints[0].serviceBreakdowns.reduce(0) { $0 + $1.costUSD } == 20)
+    }
+
     @Test("Empty ledger after clear preserves synced budget rows")
     func emptyClearedLedgerPreservesBudgets() {
         let snapshot = SyncedUsageSnapshot(
@@ -193,6 +236,16 @@ struct CostTabInsightsResolverTests {
 
         #expect(insights.total30DayCost == 20)
         #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == 20)
+        #expect(Set(insights.dailyPoints.flatMap(\.modelBreakdowns).map(\.label)) == [
+            "codex-model",
+            "claude-model",
+        ])
+        #expect(insights.dailyPoints.flatMap(\.modelBreakdowns).reduce(0) { $0 + $1.costUSD } == 20)
+        #expect(Set(insights.dailyPoints.flatMap(\.serviceBreakdowns).map(\.label)) == [
+            "codex-run",
+            "claude-api",
+        ])
+        #expect(insights.dailyPoints.flatMap(\.serviceBreakdowns).reduce(0) { $0 + $1.costUSD } == 20)
         #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-model"])
         #expect(insights.modelRows.reduce(0) { $0 + $1.amountUSD } == 20)
         #expect(Set(insights.serviceRows.map(\.label)) == ["codex-run", "claude-api"])
