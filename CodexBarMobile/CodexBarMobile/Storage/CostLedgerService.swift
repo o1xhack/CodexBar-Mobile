@@ -11,9 +11,10 @@ import SwiftData
 // they describe.
 //
 // Invariants:
-//   1. Default OFF. `isEnabled` reads `MobileSettingsKeys.cwlEnabled` from
-//      `UserDefaults.standard`. Until a user flips it (P4 UI), nothing in
-//      this file runs in production — build-140 behavior is identical.
+//   1. Default ON as of iOS 1.17.x. `isEnabled` reads
+//      `MobileSettingsKeys.cwlEnabled` from `UserDefaults.standard`, but
+//      treats an absent key as the product default so new users build a
+//      local ledger without visiting Settings first.
 //   2. Per-day uniqueness by `(deviceID, providerID, dayKey)`. Enforced via
 //      `DailyCostPoint.compositeKey` lookup before insert.
 //   3. Dedup rule: `existing.lastUpdated >= incoming.lastUpdated` → skip.
@@ -57,6 +58,13 @@ struct CostLedgerAggregation: Equatable {
     var sortedProviderRollups: [CostLedgerProviderRollup] {
         self.providerRollups.values.sorted { $0.providerID < $1.providerID }
     }
+
+    var hasDisplayData: Bool {
+        !self.providerRollups.isEmpty ||
+            !self.dailyPoints.isEmpty ||
+            !self.modelMix.isEmpty ||
+            !self.serviceMix.isEmpty
+    }
 }
 
 struct CostLedgerProviderRollup: Equatable {
@@ -91,9 +99,9 @@ struct CostLedgerDiagnostics: Equatable {
 
 enum CostLedgerService {
 
-    /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
-    /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
-    /// for read-only use after configuration.
+    /// `YYYY-MM-DD` UTC formatter retained for deterministic historical test
+    /// fixtures. Production window cutoffs use `SyncCostSummary`'s local
+    /// day-key formatter so CWL windows match Mac-synced cost day keys.
     static let utcDayKeyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -109,7 +117,10 @@ enum CostLedgerService {
     /// pass a per-suite `UserDefaults(suiteName:)` to verify the flag
     /// logic without touching the shared store.
     static func isEnabled(userDefaults: UserDefaults = .standard) -> Bool {
-        userDefaults.bool(forKey: MobileSettingsKeys.cwlEnabled)
+        guard userDefaults.object(forKey: MobileSettingsKeys.cwlEnabled) != nil else {
+            return MobileSettingsDefaults.cwlEnabled
+        }
+        return userDefaults.bool(forKey: MobileSettingsKeys.cwlEnabled)
     }
 
     // MARK: - Upsert: snapshot → daily rows
@@ -122,14 +133,22 @@ enum CostLedgerService {
     /// snapshot for the current Mac window).
     ///
     /// All days in one call share `provider.lastUpdated` — the wire format
-    /// has no per-day timestamp.
+    /// has no per-day timestamp. If the user has explicitly cleared local
+    /// cost history, snapshots at or before that clear timestamp are skipped
+    /// so unchanged CloudKit data cannot immediately recreate deleted rows.
     static func upsertFromSnapshot(
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
-        in context: ModelContext) throws
+        in context: ModelContext,
+        userDefaults: UserDefaults = .standard) throws
     {
         guard let summary = provider.costSummary else { return }
         guard !summary.daily.isEmpty else { return }
+        if let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults),
+           provider.lastUpdated <= clearedAt
+        {
+            return
+        }
 
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for point in summary.daily {
@@ -228,7 +247,7 @@ enum CostLedgerService {
     ///   account / day because those APIs already return account-wide totals.
     ///
     /// `asOf` exists for deterministic tests; production callers pass `Date()`.
-    /// The "window" is `[asOf-(windowDays-1) … asOf]` in UTC dayKeys.
+    /// The "window" is `[asOf-(windowDays-1) … asOf]` in local dayKeys.
     ///
     /// O(n) over surviving rows after window filter. For Round 7 / P7
     /// performance work we may move this to a background actor; for now
@@ -330,6 +349,30 @@ enum CostLedgerService {
             serviceMix: serviceMix)
     }
 
+    /// Aggregate for default-on CWL readers. If existing synced blob snapshots
+    /// contain rows not yet represented in the ledger, seed those missing rows
+    /// first and re-run the aggregate so upgraded or partially seeded users do
+    /// not lose Daily Spend / Model Mix / Service Mix history.
+    static func aggregateSeedingFromExistingBlobsIfNeeded(
+        windowDays: Int,
+        in context: ModelContext,
+        asOf: Date = Date(),
+        activeDeviceIDs: Set<String>? = nil,
+        userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
+    {
+        try Self.pruneLedgerRowsMissingProviderSnapshots(in: context)
+
+        let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
+        if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
+            try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
+        }
+        return try Self.aggregate(
+            windowDays: windowDays,
+            in: context,
+            asOf: asOf,
+            activeDeviceIDs: activeDeviceIDs)
+    }
+
     /// Same as `aggregate(...)` but filtered to one provider. Used by
     /// `ProviderDetailView` (P4) — avoids materialising the cross-provider
     /// aggregate just to display a single provider's per-day cost section.
@@ -388,11 +431,47 @@ enum CostLedgerService {
     /// Delete every `DailyCostPoint` row. Wired to the Settings "clear ledger"
     /// button (with a confirmation dialog). Touches ONLY the ledger — the blob
     /// path (`ProviderSnapshotModel.costSummaryData`) and all other SwiftData
-    /// entities are untouched, so toggling CWL off + clearing leaves the
-    /// build-140 dashboard fully intact.
-    static func clearAll(in context: ModelContext) throws {
+    /// entities are untouched. A clear timestamp is written so the default-on
+    /// migration path cannot immediately rebuild the ledger from older blobs.
+    static func clearAll(
+        in context: ModelContext,
+        clearedAt: Date = Date(),
+        userDefaults: UserDefaults = .standard) throws
+    {
         try context.delete(model: DailyCostPoint.self)
         try context.save()
+        userDefaults.set(
+            clearedAt.timeIntervalSince1970,
+            forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
+    }
+
+    static func hasBlobSeedClearTombstone(userDefaults: UserDefaults = .standard) -> Bool {
+        Self.blobSeedClearedAt(userDefaults: userDefaults) != nil
+    }
+
+    static func blobSeedClearTombstoneDate(userDefaults: UserDefaults = .standard) -> Date? {
+        Self.blobSeedClearedAt(userDefaults: userDefaults)
+    }
+
+    static func deleteRows(
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?,
+        in context: ModelContext
+    ) throws {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        let rows = try context.fetch(descriptor)
+        var didDelete = false
+        for row in rows where row.accountEmail == accountEmail {
+            context.delete(row)
+            didDelete = true
+        }
+        if didDelete {
+            try context.save()
+        }
     }
 
     // MARK: - Seed from existing blobs (migration · Round 7 / P6)
@@ -409,11 +488,12 @@ enum CostLedgerService {
     /// no-op. A corrupt / undecodable blob is skipped (that provider just has
     /// no seeded history); other rows still seed. Throws only on the final
     /// `save()` — the caller (toggle-on) turns CWL back off on throw.
-    static func seedFromExistingBlobs(in context: ModelContext) throws {
+    static func seedFromExistingBlobs(in context: ModelContext, newerThan: Date? = nil) throws {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
+            if let newerThan, row.lastUpdated <= newerThan { continue }
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
@@ -436,19 +516,89 @@ enum CostLedgerService {
         try context.save()
     }
 
+    /// Seed existing blob-path history while preserving an explicit clear
+    /// boundary. Used by the Settings off→on path so re-enabling Local Cost
+    /// History does not restore blob data the user just cleared.
+    static func seedFromExistingBlobsRespectingClearTombstone(
+        in context: ModelContext,
+        userDefaults: UserDefaults = .standard) throws
+    {
+        try Self.seedFromExistingBlobs(
+            in: context,
+            newerThan: Self.blobSeedClearedAt(userDefaults: userDefaults))
+    }
+
+    private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        for row in providers {
+            if let newerThan, row.lastUpdated <= newerThan { continue }
+            guard let blob = row.costSummaryData,
+                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
+            else { continue }
+            for point in summary.daily {
+                let key = DailyCostPoint.makeCompositeKey(
+                    deviceID: row.deviceID,
+                    providerID: row.providerID,
+                    accountEmail: row.accountEmail,
+                    dayKey: point.dayKey)
+                let descriptor = FetchDescriptor<DailyCostPoint>(
+                    predicate: #Predicate { $0.compositeKey == key })
+                guard let existing = try context.fetch(descriptor).first,
+                      existing.lastUpdated >= row.lastUpdated
+                else {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
+        let providerKeys = Set(
+            try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+                .map(\.compositeKey))
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        var didDelete = false
+        for row in rows {
+            let providerKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: row.deviceID,
+                providerID: row.providerID,
+                accountEmail: row.accountEmail)
+            if !providerKeys.contains(providerKey) {
+                context.delete(row)
+                didDelete = true
+            }
+        }
+        if didDelete {
+            try context.save()
+        }
+    }
+
+    private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {
+        guard let rawValue = userDefaults.object(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) as? Double,
+              rawValue > 0
+        else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: rawValue)
+    }
+
     // MARK: - Helpers
 
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`
-    /// UTC dayKey string. Comparison against `DailyCostPoint.dayKey` works
+    /// local dayKey string. Comparison against `DailyCostPoint.dayKey` works
     /// lexicographically because the format is fixed-width.
     static func cutoffDayKey(windowDays: Int, asOf: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        calendar.timeZone = .current
+        let localDay = calendar.startOfDay(for: asOf)
         let cutoff = calendar.date(
             byAdding: .day,
             value: -(windowDays - 1),
-            to: asOf) ?? asOf
-        return Self.utcDayKeyFormatter.string(from: cutoff)
+            to: localDay) ?? localDay
+        return SyncCostSummary.iso8601DayKeyFormatter().string(from: cutoff)
     }
 
     // MARK: - Private accumulators

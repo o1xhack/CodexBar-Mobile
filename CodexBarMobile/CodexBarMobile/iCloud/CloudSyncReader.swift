@@ -145,6 +145,21 @@ final class CloudSyncReader: @unchecked Sendable {
         }
     }
 
+    static func persistIncrementalCacheMirrorToSwiftData(
+        cacheDeviceSnapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String] = [],
+        context: ModelContext
+    ) {
+        do {
+            try SwiftDataBridge.upsertIncrementalCacheMirror(
+                cacheDeviceSnapshots: cacheDeviceSnapshots,
+                deletedRecordNames: deletedRecordNames,
+                into: context)
+        } catch {
+            print("[CodexBar SwiftData] Incremental upsert failed: \(error)")
+        }
+    }
+
     // MARK: - Multi-device merge
 
     static func mergeSnapshots(

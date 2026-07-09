@@ -78,14 +78,18 @@ struct DeviceLifecycleEventTests {
         let oldMac = Self.makeMac(deviceID: "old", deviceName: "Pixel's Mac", cost: 1, timestamp: 100)
         let newMac = Self.makeMac(deviceID: "new", deviceName: "Pixel's Mac", cost: 2, timestamp: 200)
         let alias = DeviceLifecycleEvent(
+            recordID: "alias-old-new",
             kind: .alias,
             primaryDeviceID: "new",
             relatedDeviceIDs: ["old"],
+            confirmedAt: Date(timeIntervalSince1970: 100),
             confirmedFromDeviceID: "iphone-a")
         let unalias = DeviceLifecycleEvent(
+            recordID: "unalias-old-new",
             kind: .unalias,
             primaryDeviceID: "old",
             relatedDeviceIDs: ["new"],
+            confirmedAt: Date(timeIntervalSince1970: 200),
             confirmedFromDeviceID: "iphone-a")
 
         let resolved = CloudSyncReader.resolveDeviceSnapshots(

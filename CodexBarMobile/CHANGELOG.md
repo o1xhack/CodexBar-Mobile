@@ -2,6 +2,37 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.17.0 (185)] — 2026-07-07 — Cost diagnostics and widget footer follow-up
+
+### Added
+
+- **Cost Diagnostics** — Added a Developer Tools audit page that shows the
+  Cost source path, 90-day/active-day summary, provider merge rules,
+  reconciliation checks for Overview / Provider Share / Daily Spend / Model Mix
+  / Codex Service Mix / share cards, and a link back to Raw Sync Data for source
+  inspection.
+
+### Changed
+
+- **Local cost history default** — Local Cost History now defaults on with a
+  90-day window. Cost Settings explains that OFF uses synced Mac snapshots and
+  the Mac history window, while ON keeps synced daily cost points locally on
+  iPhone for the selected window.
+
+### Fixed
+
+- **Widget footer alignment** — The "Updated just now" footer is centered for
+  every widget mode and supported widget family, not only selected Today Cost
+  layouts.
+
+### Notes
+
+- iOS-only follow-up on the `1.17.0` line; `MARKETING_VERSION` remains
+  `1.17.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `182` → `185`.
+
+---
+
 ## [1.17.0 (182)] — 2026-07-06 — Cost data integrity hotfix
 
 ### Fixed

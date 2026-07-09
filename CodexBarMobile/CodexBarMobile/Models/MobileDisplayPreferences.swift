@@ -22,16 +22,24 @@ enum MobileSettingsKeys {
     // iOS 1.9.0 + Round 2 (research doc 024) — Cost Window Ledger.
     /// When `true`, `SwiftDataBridge.upsertProvider` also writes each
     /// per-day cost point into the `DailyCostPoint` ledger (via
-    /// `CostLedgerService.upsertFromSnapshot`). When `false` (default), the
-    /// ledger is untouched — every existing user keeps exactly build-140
-    /// behavior. UI to flip this lands in Round 4 / P4. Reader (Round 3 /
-    /// P3) honors the same key when deciding whether to read from the
-    /// ledger vs. the existing blob path.
+    /// `CostLedgerService.upsertFromSnapshot`). Defaults to `true` so Cost
+    /// uses the local daily ledger when available, with the existing blob path
+    /// as fallback. Reader (Round 3 / P3) honors the same key when deciding
+    /// whether to read from the ledger vs. the existing blob path.
     static let cwlEnabled = "cwlEnabled"
     /// CWL cost window in days (Round 6 / P4b). The Cost dashboard, when CWL
     /// is on, aggregates the ledger over this trailing window. Picker offers
-    /// 7 / 30 / 90 / 365; default 30 (matches the historical blob window).
+    /// 7 / 30 / 90 / 365; default 90.
     static let cwlWindowDays = "cwlWindowDays"
+    /// Timestamp written when the user explicitly clears local cost history.
+    /// Default-on blob migration only seeds provider blobs newer than this
+    /// value, so a normal Cost-page read cannot immediately undo the clear.
+    static let cwlBlobSeedClearedAt = "cwlBlobSeedClearedAt"
+}
+
+enum MobileSettingsDefaults {
+    static let cwlEnabled = true
+    static let cwlWindowDays = 90
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {

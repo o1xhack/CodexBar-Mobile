@@ -27,6 +27,7 @@ struct SwiftDataBridgeTests {
         name: String = "Claude",
         email: String? = "user@example.com",
         lastUpdated: Date,
+        costSummary: SyncCostSummary? = nil,
         utilization: [SyncUtilizationSeries]? = nil,
         subscriptionExpiresAt: Date? = nil,
         subscriptionRenewsAt: Date? = nil,
@@ -43,6 +44,7 @@ struct SwiftDataBridgeTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: lastUpdated,
+            costSummary: costSummary,
             subscriptionExpiresAt: subscriptionExpiresAt,
             subscriptionRenewsAt: subscriptionRenewsAt,
             rateWindows: [],
@@ -160,6 +162,226 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
         #expect(providers.first?.providerName == "Claude Code")
         #expect(providers.first?.lastUpdated == self.ts2)
+    }
+
+    @Test("Incremental cache mirror prunes filtered providers and their ledger rows")
+    func testIncrementalCacheMirrorPrunesMissingProvidersAndLedgerRows() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        func summary(cost: Double) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100,
+                        modelBreakdowns: [],
+                        serviceBreakdowns: [],
+                        isEstimated: false),
+                ],
+                isEstimated: false)
+        }
+
+        let codex = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: nil,
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 1))
+        let staleClaude = self.makeProvider(
+            id: "claude",
+            name: "Claude",
+            email: "user@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 2))
+
+        let full = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [codex, staleClaude],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [full], into: context)
+
+        let filteredCacheSnapshot = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [
+                self.makeProvider(
+                    id: "codex",
+                    name: "Codex Updated",
+                    email: nil,
+                    lastUpdated: self.ts2,
+                    costSummary: summary(cost: 1)),
+            ],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [filteredCacheSnapshot],
+            into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 1)
+        #expect(providers.first?.providerID == "codex")
+        #expect(providers.first?.providerName == "Codex Updated")
+
+        let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(ledgerRows.count == 1)
+        #expect(ledgerRows.first?.providerID == "codex")
+    }
+
+    @Test("Incremental cache mirror preserves devices absent from the refresh")
+    func testIncrementalCacheMirrorDoesNotPruneMissingDevices() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        let deviceA = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.ts1)],
+            timestamp: self.ts1)
+        let deviceB = self.makeSnapshot(
+            deviceID: "device-B",
+            providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.ts1)],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [deviceA, deviceB], into: context)
+
+        let refreshedDeviceA = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [self.makeProvider(id: "codex", name: "Codex Updated", lastUpdated: self.ts2)],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [refreshedDeviceA],
+            into: context)
+
+        let devices = try context.fetch(FetchDescriptor<DeviceRecord>())
+        #expect(Set(devices.map(\.deviceID)) == ["device-A", "device-B"])
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(Set(providers.map(\.deviceID)) == ["device-A", "device-B"])
+    }
+
+    @Test("Incremental cache mirror applies explicit deletes outside included devices")
+    func testIncrementalUpsertDeletesExplicitProviderRecords() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        func summary(cost: Double) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100,
+                        modelBreakdowns: [],
+                        serviceBreakdowns: [],
+                        isEstimated: false),
+                ],
+                isEstimated: false)
+        }
+
+        let codex = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: nil,
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 1))
+        let claude = self.makeProvider(
+            id: "claude",
+            name: "Claude",
+            email: "user@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 2))
+        let full = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [codex, claude],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [full], into: context)
+        try CostLedgerService.upsertFromSnapshot(codex, deviceID: "device-A", in: context)
+        try CostLedgerService.upsertFromSnapshot(claude, deviceID: "device-A", in: context)
+
+        let refreshedOtherDevice = self.makeSnapshot(
+            deviceID: "device-B",
+            providers: [
+                self.makeProvider(id: "gemini", name: "Gemini", email: nil, lastUpdated: self.ts2),
+            ],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [refreshedOtherDevice],
+            deletedRecordNames: ["device-A|claude|user@example.com"],
+            into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 2)
+        #expect(Set(providers.map(\.providerID)) == ["codex", "gemini"])
+
+        let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(ledgerRows.count == 1)
+        #expect(ledgerRows.first?.providerID == "codex")
+    }
+
+    @Test("Full upsert prunes missing providers and their ledger rows")
+    func testFullUpsertPrunesMissingProvidersAndLedgerRows() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        func summary(cost: Double) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100,
+                        modelBreakdowns: [],
+                        serviceBreakdowns: [],
+                        isEstimated: false),
+                ],
+                isEstimated: false)
+        }
+
+        let codex = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: nil,
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 1))
+        let claude = self.makeProvider(
+            id: "claude",
+            name: "Claude",
+            email: "user@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(cost: 2))
+        let full = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [codex, claude],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [full], into: context)
+        try CostLedgerService.upsertFromSnapshot(codex, deviceID: "device-A", in: context)
+        try CostLedgerService.upsertFromSnapshot(claude, deviceID: "device-A", in: context)
+
+        let replacement = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [
+                self.makeProvider(id: "codex", name: "Codex Replay", email: nil, lastUpdated: self.ts2),
+            ],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [replacement], into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 1)
+        #expect(providers.first?.providerID == "codex")
+        #expect(providers.first?.providerName == "Codex Replay")
+
+        let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(ledgerRows.count == 1)
+        #expect(ledgerRows.first?.providerID == "codex")
     }
 
     @Test("Subscription metadata survives SwiftData bridge round-trip")

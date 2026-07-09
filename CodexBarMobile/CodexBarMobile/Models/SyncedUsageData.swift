@@ -609,12 +609,14 @@ final class SyncedUsageData {
         //    nil-token reply replays every record currently in the zone, so
         //    we treat it as a FULL replacement of the per-provider bucket
         //    (equivalent to a full fetch of the new zone).
+        var didReplayProviderZoneReplacement = false
         if delta.tokenExpired {
             try? SwiftDataBridge.saveChangeToken(
                 forZone: zoneName, tokenData: nil, context: context)
             delta = await reader.fetchPerProviderZoneChanges(since: nil)
             if !delta.tokenExpired, !delta.zoneMissing {
                 self.cache.replacePerProviderFromReplay(delta.upserted)
+                didReplayProviderZoneReplacement = true
             }
         } else if delta.zoneMissing {
             // No zone yet — nothing to apply. The priority merge will fall
@@ -664,15 +666,28 @@ final class SyncedUsageData {
             }
         }
 
-        // 5. Republish merged view.
-        self.republishFromCache()
+        // 5. Mirror the incrementally refreshed cache to SwiftData, then
+        // republish the merged view. The Cost ledger reads SwiftData by
+        // default, so incremental sync must keep it in lockstep with the
+        // in-memory snapshot cache.
+        if didReplayProviderZoneReplacement {
+            self.republishFromCache(persistToSwiftData: context)
+        } else {
+            self.republishFromCache(
+                persistIncrementallyToSwiftData: context,
+                deletedRecordNames: delta.deletedRecordNames)
+        }
     }
 
     // MARK: - Republish helper
 
     /// Derive the published state from the current cache. Called after every
     /// mutation (full fetch, incremental delta, cold-start seed).
-    private func republishFromCache() {
+    private func republishFromCache(
+        persistToSwiftData context: ModelContext? = nil,
+        persistIncrementallyToSwiftData incrementalContext: ModelContext? = nil,
+        deletedRecordNames: [String] = [])
+    {
         let rawDeviceSnapshots = self.cache.buildDeviceSnapshots()
         self.rawDeviceSnapshots = rawDeviceSnapshots
         let resolution = CloudSyncReader.resolveDeviceSnapshots(
@@ -681,6 +696,24 @@ final class SyncedUsageData {
             providerLinkages: self.providerLinkages)
         self.deviceSnapshots = resolution.activeSnapshots
         self.deviceManagementItems = resolution.items
+
+        let merged = CloudSyncReader.mergeSnapshots(
+            resolution.activeSnapshots,
+            linkages: self.providerLinkages)
+        if let context {
+            CloudSyncReader.persistToSwiftData(
+                deviceSnapshots: rawDeviceSnapshots,
+                merged: merged,
+                context: context)
+        }
+        if let incrementalContext {
+            CloudSyncReader.persistIncrementalCacheMirrorToSwiftData(
+                cacheDeviceSnapshots: Self.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+                    rawDeviceSnapshots,
+                    deletedRecordNames: deletedRecordNames),
+                deletedRecordNames: deletedRecordNames,
+                context: incrementalContext)
+        }
 
         if rawDeviceSnapshots.isEmpty {
             self.snapshot = nil
@@ -692,9 +725,7 @@ final class SyncedUsageData {
             }
             return
         }
-        if let merged = CloudSyncReader.mergeSnapshots(
-            resolution.activeSnapshots, linkages: self.providerLinkages)
-        {
+        if let merged {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
         } else if resolution.activeSnapshots.isEmpty {
@@ -704,6 +735,52 @@ final class SyncedUsageData {
         } else {
             self.syncStatus = .incompatibleData
         }
+    }
+
+    nonisolated static func snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+        _ snapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String]
+    ) -> [SyncedUsageSnapshot] {
+        var deletedByDevice: [String: Set<String>] = [:]
+        for recordName in deletedRecordNames {
+            guard let parsed = Self.splitProviderRecordName(recordName) else { continue }
+            deletedByDevice[parsed.deviceID, default: []].insert(parsed.composite)
+        }
+        guard !deletedByDevice.isEmpty else { return snapshots }
+
+        return snapshots.map { snapshot in
+            guard let deviceID = snapshot.deviceID,
+                  let deletedComposites = deletedByDevice[deviceID],
+                  !deletedComposites.isEmpty
+            else {
+                return snapshot
+            }
+            let providers = snapshot.providers.filter { provider in
+                !deletedComposites.contains(Self.providerCompositeKey(provider))
+            }
+            guard providers.count != snapshot.providers.count else { return snapshot }
+            return SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: snapshot.syncTimestamp,
+                deviceName: snapshot.deviceName,
+                deviceID: snapshot.deviceID,
+                appVersion: snapshot.appVersion,
+                mobileVersion: snapshot.mobileVersion,
+                notificationPushEnabled: snapshot.notificationPushEnabled)
+        }
+    }
+
+    private nonisolated static func splitProviderRecordName(_ recordName: String) -> (
+        deviceID: String,
+        composite: String
+    )? {
+        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        return (String(parts[0]), "\(parts[1])|\(parts[2])")
+    }
+
+    private nonisolated static func providerCompositeKey(_ provider: ProviderUsageSnapshot) -> String {
+        "\(provider.providerID)|\(provider.accountEmail ?? "_")"
     }
 
     // MARK: - Public API

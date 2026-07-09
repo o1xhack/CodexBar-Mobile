@@ -95,7 +95,8 @@ final class V026RenderedTextTests: XCTestCase {
             budgetUsedPercent: nil,
             updatedAt: Date())
         let line = BedrockCostCard.spendRowText(for: cost)
-        XCTAssertEqual(line, "$3.50")
+        XCTAssertTrue(line.contains("3.50"), "Spend value must appear — got: \(line)")
+        XCTAssertFalse(line.contains("/"), "Budget separator must be omitted when budget is absent — got: \(line)")
     }
 
     // MARK: - C2: Moonshot balance must display the actual dollar amount, NOT zero

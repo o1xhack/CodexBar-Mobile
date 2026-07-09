@@ -38,19 +38,21 @@ struct CWLAggregateTests {
         return (url, ModelContext(container))
     }
 
-    /// Fixed "today" so window math is deterministic regardless of when
-    /// the test runs. Built from explicit components instead of a magic
+    /// Fixed local "today" so window math is deterministic regardless of
+    /// when the test runs. Built from explicit components instead of a magic
     /// timestamp — easier to verify by eye.
     private static let asOf: Date = {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = .current
         return calendar.date(
-            from: DateComponents(year: 2026, month: 5, day: 28))!
+            from: DateComponents(year: 2026, month: 5, day: 28, hour: 12))!
     }()
 
     private func dayKey(daysAgo: Int) -> String {
-        let d = Self.asOf.addingTimeInterval(-TimeInterval(daysAgo * 86400))
-        return CostLedgerService.utcDayKeyFormatter.string(from: d)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let d = calendar.date(byAdding: .day, value: -daysAgo, to: Self.asOf) ?? Self.asOf
+        return SyncCostSummary.iso8601DayKeyFormatter().string(from: d)
     }
 
     private func insert(
@@ -355,11 +357,26 @@ struct CWLAggregateTests {
 
     @Test("T6: cutoffDayKey — windowDays=1 → today; windowDays=7 → today-6")
     func testCutoffDayKey() {
-        // 2026-05-28 UTC
+        // 2026-05-28 local time
         let asOf = Self.asOf
         #expect(CostLedgerService.cutoffDayKey(windowDays: 1, asOf: asOf) == "2026-05-28")
         #expect(CostLedgerService.cutoffDayKey(windowDays: 7, asOf: asOf) == "2026-05-22")
         #expect(CostLedgerService.cutoffDayKey(windowDays: 30, asOf: asOf) == "2026-04-29")
+    }
+
+    @Test("T6: cutoffDayKey follows local day when UTC has advanced")
+    func testCutoffDayKeyUsesLocalTimezone() throws {
+        let previousDefault = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        defer { NSTimeZone.default = previousDefault }
+
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+        let utcNextDay = try #require(utcCalendar.date(
+            from: DateComponents(year: 2026, month: 5, day: 29, hour: 0, minute: 30)))
+
+        #expect(CostLedgerService.cutoffDayKey(windowDays: 1, asOf: utcNextDay) == "2026-05-28")
+        #expect(CostLedgerService.cutoffDayKey(windowDays: 7, asOf: utcNextDay) == "2026-05-22")
     }
 
     // MARK: - aggregateProvider
@@ -479,6 +496,10 @@ struct CWLAggregateTests {
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
+        let suiteName = "CodexBarTests-CWLClear-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
         try self.insert(context, device: "dev-A", provider: "codex",
             daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
         try self.insert(context, device: "dev-A", provider: "claude",
@@ -489,11 +510,12 @@ struct CWLAggregateTests {
         try context.save()
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
 
-        try CostLedgerService.clearAll(in: context)
+        try CostLedgerService.clearAll(in: context, clearedAt: t, userDefaults: defaults)
 
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty,
             "ledger must be empty after clearAll")
         #expect(try context.fetch(FetchDescriptor<DeviceRecord>()).count == 1,
             "clearAll must only delete DailyCostPoint, not other entities")
+        #expect(defaults.double(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) == t.timeIntervalSince1970)
     }
 }

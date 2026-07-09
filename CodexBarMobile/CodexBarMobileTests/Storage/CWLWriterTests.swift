@@ -210,13 +210,13 @@ struct CWLWriterTests {
 
     // MARK: - Gate (`isEnabled`)
 
-    @Test("Gate: isEnabled returns false when flag absent on a fresh UserDefaults")
-    func testGateDefaultsToFalse() throws {
+    @Test("Gate: isEnabled defaults to product default when flag is absent")
+    func testGateUsesProductDefaultWhenAbsent() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        #expect(CostLedgerService.isEnabled(userDefaults: defaults) == false)
+        #expect(CostLedgerService.isEnabled(userDefaults: defaults) == MobileSettingsDefaults.cwlEnabled)
     }
 
     @Test("Gate: isEnabled returns true when flag set")
@@ -284,6 +284,74 @@ struct CWLWriterTests {
         for row in rows {
             #expect(row.lastUpdated == t)
         }
+    }
+
+    @Test("upsertFromSnapshot: clear tombstone skips old snapshots and allows newer sync")
+    func testUpsertFromSnapshotHonorsClearTombstone() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let suite = "CodexBarTests-CWLWriter-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let oldUpdate = Date(timeIntervalSince1970: 1_700_000_000)
+        let clearedAt = oldUpdate.addingTimeInterval(60)
+        let newerUpdate = clearedAt.addingTimeInterval(60)
+        defaults.set(
+            clearedAt.timeIntervalSince1970,
+            forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
+
+        func snapshot(lastUpdated: Date, cost: Double) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: lastUpdated,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [
+                        SyncDailyPoint(
+                            dayKey: "2026-05-28",
+                            costUSD: cost,
+                            totalTokens: 100,
+                            modelBreakdowns: [],
+                            serviceBreakdowns: [],
+                            isEstimated: false),
+                    ],
+                    isEstimated: false))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(lastUpdated: oldUpdate, cost: 5.0),
+            deviceID: "dev-A",
+            in: context,
+            userDefaults: defaults)
+        try context.save()
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(lastUpdated: newerUpdate, cost: 6.0),
+            deviceID: "dev-A",
+            in: context,
+            userDefaults: defaults)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.costUSD == 6.0)
+        #expect(rows.first?.lastUpdated == newerUpdate)
     }
 
     @Test("upsertFromSnapshot: nil costSummary → no rows written")

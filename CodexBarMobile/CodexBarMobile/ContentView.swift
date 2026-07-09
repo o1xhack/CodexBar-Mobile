@@ -387,18 +387,180 @@ enum CostLedgerDeviceFilter {
     }
 }
 
+enum CostLedgerRefreshClock {
+    static func currentDayKey(now: Date = Date()) -> String {
+        SyncCostSummary.iso8601DayKey(for: now)
+    }
+
+    static func nanosecondsUntilNextLocalDay(now: Date = Date()) -> UInt64 {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let startOfDay = calendar.startOfDay(for: now)
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now.addingTimeInterval(60)
+        let seconds = max(1, nextDay.timeIntervalSince(now) + 1)
+        return UInt64(seconds * 1_000_000_000)
+    }
+}
+
+enum CostLedgerRefreshSignature {
+    static func make(
+        isEnabled: Bool,
+        windowDays: Int,
+        activeDeviceIDs: Set<String>?,
+        snapshots: [SyncedUsageSnapshot],
+        clearTombstone: Double,
+        currentDayKey: String) -> String
+    {
+        guard isEnabled else {
+            return "off"
+        }
+        let activeDeviceIDs = activeDeviceIDs?.sorted().joined(separator: ",") ?? "_"
+        let latestSync = snapshots
+            .map(\.syncTimestamp.timeIntervalSince1970)
+            .max() ?? 0
+        let latestProviderUpdate = snapshots
+            .flatMap { $0.providers.map(\.lastUpdated.timeIntervalSince1970) }
+            .max() ?? 0
+        let providerCount = snapshots.reduce(0) { $0 + $1.providers.count }
+        let providerIdentities = snapshots
+            .flatMap { snapshot in
+                snapshot.providers.map { provider in
+                    "\(snapshot.deviceID ?? "_"):\(provider.cardIdentityKey)"
+                }
+            }
+            .sorted()
+            .joined(separator: ";")
+        return [
+            currentDayKey,
+            "\(windowDays)",
+            activeDeviceIDs,
+            "\(latestSync)",
+            "\(latestProviderUpdate)",
+            "\(providerCount)",
+            providerIdentities,
+            "\(clearTombstone)",
+        ].joined(separator: "|")
+    }
+}
+
+enum CostTabInsightsResolver {
+    static func make(
+        snapshot: SyncedUsageSnapshot,
+        ledgerAggregation: CostLedgerAggregation?,
+        isLedgerEnabled: Bool,
+        isDemoMode: Bool,
+        localHistoryClearedAt: Date?,
+        ledgerWindowDays: Int? = nil) -> CostDashboardInsights?
+    {
+        let insights: CostDashboardInsights
+        if isLedgerEnabled, !isDemoMode {
+            if let aggregation = ledgerAggregation {
+                if aggregation.hasDisplayData {
+                    insights = CostDashboardInsights.fromLedger(
+                        aggregation: aggregation,
+                        snapshot: snapshot,
+                        snapshotFallbackCutoff: localHistoryClearedAt)
+                } else if localHistoryClearedAt != nil {
+                    insights = CostDashboardInsights.fromLedger(
+                        aggregation: aggregation,
+                        snapshot: snapshot,
+                        snapshotFallbackCutoff: localHistoryClearedAt)
+                } else {
+                    insights = CostDashboardInsights(snapshot: snapshot)
+                }
+            } else if localHistoryClearedAt != nil {
+                insights = CostDashboardInsights.fromLedger(
+                    aggregation: self.emptyAggregation(windowDays: ledgerWindowDays ?? 30),
+                    snapshot: snapshot,
+                    snapshotFallbackCutoff: localHistoryClearedAt)
+            } else {
+                insights = CostDashboardInsights(snapshot: snapshot)
+            }
+        } else {
+            insights = CostDashboardInsights(snapshot: snapshot)
+        }
+        return insights.hasDisplayData ? insights : nil
+    }
+
+    private static func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
+        CostLedgerAggregation(
+            windowDays: windowDays,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
+    }
+}
+
+enum CostDiagnosticsReportResolver {
+    static func make(
+        snapshot: SyncedUsageSnapshot,
+        ledgerAggregation: CostLedgerAggregation?,
+        rawDeviceSnapshots: [SyncedUsageSnapshot],
+        activeDeviceSnapshots: [SyncedUsageSnapshot],
+        cwlEnabled: Bool,
+        cwlWindowDays: Int,
+        localHistoryClearedAt: Date?) -> CostDiagnosticsReport?
+    {
+        guard let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: ledgerAggregation,
+            isLedgerEnabled: cwlEnabled,
+            isDemoMode: false,
+            localHistoryClearedAt: localHistoryClearedAt,
+            ledgerWindowDays: cwlWindowDays)
+        else {
+            return nil
+        }
+
+        let reportsLocalLedger = cwlEnabled && (
+            ledgerAggregation?.hasDisplayData == true || localHistoryClearedAt != nil
+        )
+
+        return CostDiagnosticsReport.make(
+            insights: insights,
+            snapshot: snapshot,
+            rawDeviceSnapshots: rawDeviceSnapshots,
+            activeDeviceSnapshots: activeDeviceSnapshots,
+            cwlEnabled: cwlEnabled,
+            cwlWindowDays: cwlWindowDays,
+            ledgerAvailable: reportsLocalLedger)
+    }
+}
+
+enum CostDiagnosticsLedgerAggregationResolver {
+    static func make(
+        cwlEnabled: Bool,
+        cwlWindowDays: Int,
+        modelContext: ModelContext,
+        activeDeviceIDs: Set<String>?) -> CostLedgerAggregation?
+    {
+        guard cwlEnabled else { return nil }
+        return try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: cwlWindowDays,
+            in: modelContext,
+            activeDeviceIDs: activeDeviceIDs)
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
+    @State private var cachedLedgerSignature: String?
+    @State private var cachedLedgerAggregation: CostLedgerAggregation?
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
     // in demo mode, the dashboard reads the ledger (re-windowed by
-    // `cwlWindowDays`) instead of the blob path. Both default to the historical
-    // behavior (OFF / 30d) so untouched users are unaffected.
+    // `cwlWindowDays`) instead of the blob path.
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
-    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -414,26 +576,48 @@ private struct CostTab: View {
     /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
     private var currentInsights: CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
-        let insights: CostDashboardInsights
-        // CWL path only outside demo mode (demo uses a synthetic snapshot with
-        // no ledger). `try?` falls back to the blob path on any ledger error.
-        if self.cwlEnabled,
-           !self.isDemoMode,
-           let aggregation = try? CostLedgerService.aggregate(
-               windowDays: self.cwlWindowDays,
-               in: self.modelContext,
-               activeDeviceIDs: self.activeDeviceIDsForLedger)
-        {
-            insights = CostDashboardInsights.fromLedger(
-                aggregation: aggregation, snapshot: snapshot)
-        } else {
-            insights = CostDashboardInsights(snapshot: snapshot)
-        }
-        return insights.hasDisplayData ? insights : nil
+        let aggregation = self.shouldUseLedger && self.cachedLedgerSignature == self.ledgerRefreshSignature
+            ? self.cachedLedgerAggregation
+            : nil
+        return CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: self.cwlEnabled,
+            isDemoMode: self.isDemoMode,
+            localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate(),
+            ledgerWindowDays: self.cwlWindowDays)
     }
 
     private var activeDeviceIDsForLedger: Set<String>? {
         CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
+    }
+
+    private var shouldUseLedger: Bool {
+        self.cwlEnabled && !self.isDemoMode
+    }
+
+    private var ledgerRefreshSignature: String {
+        CostLedgerRefreshSignature.make(
+            isEnabled: self.shouldUseLedger,
+            windowDays: self.cwlWindowDays,
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            snapshots: self.usageData.deviceSnapshots,
+            clearTombstone: self.cwlBlobSeedClearedAt,
+            currentDayKey: self.ledgerRefreshDayKey)
+    }
+
+    @MainActor
+    private func refreshLedgerAggregation(for signature: String) {
+        guard self.shouldUseLedger else {
+            self.cachedLedgerSignature = signature
+            self.cachedLedgerAggregation = nil
+            return
+        }
+        self.cachedLedgerAggregation = try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: self.cwlWindowDays,
+            in: self.modelContext,
+            activeDeviceIDs: self.activeDeviceIDsForLedger)
+        self.cachedLedgerSignature = signature
     }
 
     var body: some View {
@@ -483,6 +667,23 @@ private struct CostTab: View {
                     CostShareSheet(insights: insights)
                 }
             }
+            .task(id: self.ledgerRefreshSignature) {
+                self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
+            }
+            .task {
+                await self.keepLedgerRefreshDayCurrent()
+            }
+        }
+    }
+
+    @MainActor
+    private func keepLedgerRefreshDayCurrent() async {
+        while !Task.isCancelled {
+            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            if self.ledgerRefreshDayKey != currentDayKey {
+                self.ledgerRefreshDayKey = currentDayKey
+            }
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
         }
     }
 }
@@ -987,6 +1188,24 @@ struct CostDashboardInsights {
         let date: Date
         let costUSD: Double
         let totalTokens: Int
+        let modelBreakdowns: [SyncCostBreakdown]
+        let serviceBreakdowns: [SyncCostBreakdown]
+
+        init(
+            dayKey: String,
+            date: Date,
+            costUSD: Double,
+            totalTokens: Int,
+            modelBreakdowns: [SyncCostBreakdown] = [],
+            serviceBreakdowns: [SyncCostBreakdown] = [])
+        {
+            self.dayKey = dayKey
+            self.date = date
+            self.costUSD = costUSD
+            self.totalTokens = totalTokens
+            self.modelBreakdowns = modelBreakdowns
+            self.serviceBreakdowns = serviceBreakdowns
+        }
 
         var id: String {
             self.dayKey
@@ -1063,7 +1282,7 @@ struct CostDashboardInsights {
 
     init(snapshot: SyncedUsageSnapshot) {
         var providerRows: [ProviderRow] = []
-        var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
+        var dailyTotals: [String: DailyAccumulator] = [:]
         var modelTotals: [String: Double] = [:]
         // Codex standard/fast split summed per model across the window, so the
         // Model Mix rows can show a "Std / Fast" sub-line (upstream #1070).
@@ -1106,8 +1325,7 @@ struct CostDashboardInsights {
                     dailyPoints: providerDailyPoints))
 
             for point in costSummary.daily {
-                dailyTotals[point.dayKey, default: (0, 0)].costUSD += point.costUSD
-                dailyTotals[point.dayKey, default: (0, 0)].totalTokens += point.totalTokens
+                dailyTotals[point.dayKey, default: .init()].ingest(point)
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
@@ -1134,7 +1352,7 @@ struct CostDashboardInsights {
         self.dailyPoints = dailyTotals.keys.compactMap { dayKey in
             guard let date = Self.dayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
-            return DailyPoint(dayKey: dayKey, date: date, costUSD: totals.costUSD, totalTokens: totals.totalTokens)
+            return totals.dailyPoint(dayKey: dayKey, date: date)
         }
         .sorted { $0.date < $1.date }
 
@@ -1172,19 +1390,37 @@ struct CostDashboardInsights {
     /// series, model / service mix) come from the ledger — re-aggregated over
     /// the user's chosen window, which can exceed Mac's historyDays. Provider
     /// metadata (name, color, budget, loginMethod) still comes from the live
-    /// snapshot since the ledger stores only IDs + numbers. Providers in the
-    /// snapshot but absent from the ledger get no row (no cost yet); ledger
-    /// rollups with no matching live provider are dropped (stale / removed
-    /// provider — no metadata to render).
+    /// snapshot since the ledger stores only IDs + numbers. Fresh snapshot
+    /// providers absent from the ledger can fill a missing row, and their
+    /// daily/model/service points are folded into the same aggregate so every
+    /// Cost surface reads one consistent result. Ledger rollups with no
+    /// matching live provider are dropped (stale / removed provider — no
+    /// metadata to render).
     static func fromLedger(
         aggregation: CostLedgerAggregation,
-        snapshot: SyncedUsageSnapshot) -> CostDashboardInsights
+        snapshot: SyncedUsageSnapshot,
+        snapshotFallbackCutoff: Date? = nil) -> CostDashboardInsights
     {
         let todayKey = Self.dayKeyFormatter.string(from: Date())
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
 
         var providerRows: [ProviderRow] = []
         var representedProviderKeys = Set<String>()
+        var dailyTotals: [String: DailyAccumulator] = [:]
+        for point in aggregation.dailyPoints {
+            dailyTotals[point.dayKey, default: .init()].ingest(point)
+        }
+        var modelTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
+        var modelSplits = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.compactMap {
+                bd -> (String, (std: Double, fast: Double))? in
+                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
+                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
+            })
+        var serviceTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+
         for rollup in aggregation.providerRollups.values {
             // Match on the actual (providerID, accountEmail) tuple — avoids the
             // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
@@ -1212,7 +1448,13 @@ struct CostDashboardInsights {
             representedProviderKeys.insert(provider.cardIdentityKey)
         }
 
+        let fallbackCutoffKey = CostLedgerService.cutoffDayKey(
+            windowDays: aggregation.windowDays,
+            asOf: Date())
         for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
+            if let snapshotFallbackCutoff, provider.lastUpdated <= snapshotFallbackCutoff {
+                continue
+            }
             guard let costSummary = provider.costSummary else { continue }
             let emptyRollup = CostLedgerProviderRollup(
                 providerID: provider.providerID,
@@ -1229,17 +1471,38 @@ struct CostDashboardInsights {
             let todayTotals = costSummary.todayTotals()
             let todayCost = todayTotals.costUSD ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
-            guard totals.costUSD > 0 || todayCost > 0 || totals.tokens > 0 || todayTokens > 0 else {
+            let fallbackSyncPoints = costSummary.daily.filter { $0.dayKey >= fallbackCutoffKey }
+            let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
+            let fallbackDailyCost = fallbackSyncPoints.reduce(0) { $0 + $1.costUSD }
+            let fallbackDailyTokens = fallbackSyncPoints.reduce(0) { $0 + $1.totalTokens }
+            let resolvedCost = max(totals.costUSD, max(fallbackDailyCost, todayCost))
+            let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
+            guard resolvedCost > 0 || resolvedTokens > 0 else {
                 continue
             }
             providerRows.append(ProviderRow(
                 provider: provider,
-                thirtyDayCost: totals.costUSD,
+                thirtyDayCost: resolvedCost,
                 todayCost: todayCost,
-                thirtyDayTokens: totals.tokens,
+                thirtyDayTokens: resolvedTokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
+
+            for point in fallbackSyncPoints {
+                dailyTotals[point.dayKey, default: .init()].ingest(point)
+
+                for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                    modelTotals[breakdown.label, default: 0] += breakdown.costUSD
+                    if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                        modelSplits[breakdown.label, default: (0, 0)].std += breakdown.standardCostUSD ?? 0
+                        modelSplits[breakdown.label, default: (0, 0)].fast += breakdown.priorityCostUSD ?? 0
+                    }
+                }
+
+                for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
+                    serviceTotals[breakdown.label, default: 0] += breakdown.costUSD
+                }
+            }
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -1249,18 +1512,11 @@ struct CostDashboardInsights {
             }
         }
 
-        let dailyPoints = aggregation.dailyPoints.compactMap(Self.dailyPoint)
-
-        let modelTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
-        let modelSplits = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.compactMap {
-                bd -> (String, (std: Double, fast: Double))? in
-                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
-                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
-            })
-        let serviceTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+        let dailyPoints: [DailyPoint] = dailyTotals.keys.compactMap { dayKey in
+            guard let date = Self.dayKeyFormatter.date(from: dayKey),
+                  let totals = dailyTotals[dayKey] else { return nil }
+            return totals.dailyPoint(dayKey: dayKey, date: date)
+        }
 
         return CostDashboardInsights(
             providerRows: providerRows.sorted { lhs, rhs in
@@ -1339,7 +1595,95 @@ struct CostDashboardInsights {
             dayKey: point.dayKey,
             date: date,
             costUSD: point.costUSD,
-            totalTokens: point.totalTokens)
+            totalTokens: point.totalTokens,
+            modelBreakdowns: point.modelBreakdowns,
+            serviceBreakdowns: point.serviceBreakdowns)
+    }
+
+    private struct DailyAccumulator {
+        var costUSD: Double = 0
+        var totalTokens: Int = 0
+        var modelBreakdowns: [String: BreakdownAccumulator] = [:]
+        var serviceBreakdowns: [String: BreakdownAccumulator] = [:]
+
+        mutating func ingest(_ point: SyncDailyPoint) {
+            self.costUSD += point.costUSD
+            self.totalTokens += point.totalTokens
+            for breakdown in point.modelBreakdowns {
+                self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+            for breakdown in point.serviceBreakdowns {
+                self.serviceBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
+            }
+        }
+
+        func dailyPoint(dayKey: String, date: Date) -> DailyPoint {
+            DailyPoint(
+                dayKey: dayKey,
+                date: date,
+                costUSD: self.costUSD,
+                totalTokens: self.totalTokens,
+                modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
+                serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns))
+        }
+
+        private static func sortedBreakdowns(
+            _ totals: [String: BreakdownAccumulator]
+        ) -> [SyncCostBreakdown] {
+            totals
+                .map { label, accumulator in accumulator.breakdown(label: label) }
+                .sorted { lhs, rhs in
+                    if lhs.costUSD == rhs.costUSD {
+                        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    }
+                    return lhs.costUSD > rhs.costUSD
+                }
+        }
+    }
+
+    private struct BreakdownAccumulator {
+        var costUSD: Double = 0
+        var isEstimated = false
+        var standardCostUSD: Double = 0
+        var priorityCostUSD: Double = 0
+        var standardTokens: Int = 0
+        var priorityTokens: Int = 0
+        var hasStandardCost = false
+        var hasPriorityCost = false
+        var hasStandardTokens = false
+        var hasPriorityTokens = false
+
+        mutating func ingest(_ breakdown: SyncCostBreakdown) {
+            self.costUSD += breakdown.costUSD
+            self.isEstimated = self.isEstimated || breakdown.isEstimated == true
+            if let standardCostUSD = breakdown.standardCostUSD {
+                self.standardCostUSD += standardCostUSD
+                self.hasStandardCost = true
+            }
+            if let priorityCostUSD = breakdown.priorityCostUSD {
+                self.priorityCostUSD += priorityCostUSD
+                self.hasPriorityCost = true
+            }
+            if let standardTokens = breakdown.standardTokens {
+                self.standardTokens += standardTokens
+                self.hasStandardTokens = true
+            }
+            if let priorityTokens = breakdown.priorityTokens {
+                self.priorityTokens += priorityTokens
+                self.hasPriorityTokens = true
+            }
+        }
+
+        func breakdown(label: String) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: self.costUSD,
+                isEstimated: self.isEstimated ? true : nil,
+                standardCostUSD: self.hasStandardCost ? self.standardCostUSD : nil,
+                priorityCostUSD: self.hasPriorityCost ? self.priorityCostUSD : nil,
+                standardTokens: self.hasStandardTokens ? self.standardTokens : nil,
+                priorityTokens: self.hasPriorityTokens ? self.priorityTokens : nil)
+        }
     }
 
     /// Wire-format `dayKey` formatter used to match records to today's
@@ -2724,6 +3068,15 @@ private struct DeveloperToolsView: View {
                 }
 
                 NavigationLink {
+                    CostDiagnosticsView(usageData: self.usageData)
+                } label: {
+                    SettingSummaryRow(
+                        title: "Cost Diagnostics",
+                        symbolName: "dollarsign.gauge.chart.lefthalf.righthalf",
+                        summary: String(localized: "Audit Cost totals and merge rules"))
+                }
+
+                NavigationLink {
                     PushSetupDiagnosticView()
                 } label: {
                     SettingSummaryRow(
@@ -2732,11 +3085,249 @@ private struct DeveloperToolsView: View {
                         summary: "Alert push subscription state")
                 }
             } footer: {
-                Text("These tools expose internal sync and push state to help diagnose issues.")
+                Text("These tools may show internal sync state, device identifiers, and account emails for debugging.")
                     .font(.caption2)
             }
         }
         .navigationTitle("Developer Tools")
+    }
+}
+
+// MARK: - Cost Diagnostics View
+
+private struct CostDiagnosticsView: View {
+    let usageData: SyncedUsageData
+
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
+    @State private var cachedLedgerSignature: String?
+    @State private var cachedLedgerAggregation: CostLedgerAggregation?
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
+
+    var body: some View {
+        List {
+            if let report = self.report {
+                Section("Summary") {
+                    LabeledContent("Source", value: self.sourceText(report.dataSource))
+                    LabeledContent("Window", value: String(format: String(localized: "%d days"), report.windowDays))
+                    LabeledContent("Total Cost", value: CostFormatting.usd(report.totalCostUSD))
+                    LabeledContent("Today", value: CostFormatting.usd(report.todayCostUSD))
+                    LabeledContent("Active Days", value: "\(report.activeDayCount)")
+                    LabeledContent("Top Driver", value: self.topDriverText(report))
+                    LabeledContent("Active Devices", value: "\(report.activeDeviceCount)")
+                    if report.excludedDeviceCount > 0 {
+                        LabeledContent("Excluded Devices", value: "\(report.excludedDeviceCount)")
+                    }
+                }
+
+                Section("Provider Rules") {
+                    ForEach(report.providerRules) { rule in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(rule.providerName)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text(self.mergeRuleText(rule.rule))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let account = rule.accountEmail, !account.isEmpty {
+                                Text(account)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Reconciliation") {
+                    ForEach(report.checks) { item in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: self.statusSymbol(item.status))
+                                .foregroundStyle(self.statusColor(item.status))
+                                .frame(width: 18)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(self.checkTitle(item.kind))
+                                    .fontWeight(.medium)
+                                Text(self.checkDetail(item.detail))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Raw Inputs") {
+                    NavigationLink {
+                        RawSyncDataView(usageData: self.usageData)
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Open Raw Sync Data",
+                            symbolName: "doc.text.magnifyingglass",
+                            summary: String(localized: "Inspect per-device synced rows used as source input"))
+                    }
+                }
+            } else {
+                Section {
+                    Text("No cost data available")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Cost Diagnostics")
+        .task(id: self.ledgerRefreshSignature) {
+            self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
+        }
+        .task {
+            await self.keepLedgerRefreshDayCurrent()
+        }
+    }
+
+    private var report: CostDiagnosticsReport? {
+        guard let snapshot = self.usageData.snapshot else { return nil }
+        let aggregation = self.cwlEnabled && self.cachedLedgerSignature == self.ledgerRefreshSignature
+            ? self.cachedLedgerAggregation
+            : nil
+
+        return CostDiagnosticsReportResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            rawDeviceSnapshots: self.usageData.rawDeviceSnapshots,
+            activeDeviceSnapshots: self.usageData.deviceSnapshots,
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate())
+    }
+
+    private var activeDeviceIDsForLedger: Set<String>? {
+        CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
+    }
+
+    private var ledgerRefreshSignature: String {
+        CostLedgerRefreshSignature.make(
+            isEnabled: self.cwlEnabled,
+            windowDays: self.cwlWindowDays,
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            snapshots: self.usageData.deviceSnapshots,
+            clearTombstone: self.cwlBlobSeedClearedAt,
+            currentDayKey: self.ledgerRefreshDayKey)
+    }
+
+    @MainActor
+    private func refreshLedgerAggregation(for signature: String) {
+        guard self.cwlEnabled else {
+            self.cachedLedgerSignature = signature
+            self.cachedLedgerAggregation = nil
+            return
+        }
+        self.cachedLedgerAggregation = CostDiagnosticsLedgerAggregationResolver.make(
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            modelContext: self.modelContext,
+            activeDeviceIDs: self.activeDeviceIDsForLedger)
+        self.cachedLedgerSignature = signature
+    }
+
+    @MainActor
+    private func keepLedgerRefreshDayCurrent() async {
+        while !Task.isCancelled {
+            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            if self.ledgerRefreshDayKey != currentDayKey {
+                self.ledgerRefreshDayKey = currentDayKey
+            }
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
+        }
+    }
+
+    private func sourceText(_ source: CostDiagnosticsDataSource) -> String {
+        switch source {
+        case .localLedger:
+            String(localized: "Local Ledger")
+        case .syncedSnapshots:
+            String(localized: "Synced Snapshots")
+        case .syncedSnapshotsAfterLedgerFailure:
+            String(localized: "Synced Snapshots (ledger unavailable)")
+        }
+    }
+
+    private func mergeRuleText(_ rule: CostDiagnosticsMergeRule) -> String {
+        switch rule {
+        case .sumActiveDevices:
+            String(localized: "sum active devices")
+        case .latestAccountDay:
+            String(localized: "latest account/day row")
+        }
+    }
+
+    private func checkTitle(_ kind: CostDiagnosticsCheckKind) -> String {
+        switch kind {
+        case .providerShare:
+            String(localized: "Provider Share")
+        case .dailySpend:
+            String(localized: "Daily Spend")
+        case .modelMix:
+            String(localized: "Model Mix")
+        case .serviceMix:
+            String(localized: "Codex Service Mix")
+        case .shareCard:
+            String(localized: "Share Card")
+        }
+    }
+
+    private func checkDetail(_ detail: CostDiagnosticsCheckDetail) -> String {
+        switch detail {
+        case .matchesOverviewTotal:
+            String(localized: "Matches Overview total")
+        case .difference(let delta):
+            String(
+                format: String(localized: "Difference %@"),
+                CostFormatting.usd(delta))
+        case .covers(let fraction):
+            String(
+                format: String(localized: "Covers %.0f%% of total"),
+                fraction * 100)
+        case .noCostTotal:
+            String(localized: "No cost total")
+        case .noBreakdownData:
+            String(localized: "No breakdown data")
+        case .usesExactProviderDailyPoints:
+            String(localized: "Uses exact provider daily points")
+        case .sevenDayProviderDifference(let delta):
+            String(
+                format: String(localized: "7-day provider difference %@"),
+                CostFormatting.usd(delta))
+        }
+    }
+
+    private func topDriverText(_ report: CostDiagnosticsReport) -> String {
+        guard let name = report.topDriverName, let cost = report.topDriverCostUSD else {
+            return String(localized: "None")
+        }
+        return "\(name) · \(CostFormatting.usd(cost))"
+    }
+
+    private func statusSymbol(_ status: CostDiagnosticsStatus) -> String {
+        switch status {
+        case .pass:
+            "checkmark.circle.fill"
+        case .warning:
+            "exclamationmark.triangle.fill"
+        case .unavailable:
+            "minus.circle.fill"
+        }
+    }
+
+    private func statusColor(_ status: CostDiagnosticsStatus) -> Color {
+        switch status {
+        case .pass:
+            .green
+        case .warning:
+            .orange
+        case .unavailable:
+            .secondary
+        }
     }
 }
 
@@ -2935,6 +3526,9 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
                         String(localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
                         String(localized: "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."),
+                        String(localized: "Cost history defaults — Local cost history now starts on with a 90-day window, and Cost Settings explains how it differs from the synced Mac snapshot path."),
+                        String(localized: "Cost diagnostics — Developer Tools can now show the source path, provider rules, and reconciliation checks behind the Cost totals."),
+                        String(localized: "Widget polish — updated timestamps are centered across every widget size and mode."),
                         String(localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
                     ]),
                 .init(
@@ -3595,8 +4189,8 @@ private struct CostSettingsView: View {
 
     // Round 6 / P4b — Cost Window Ledger controls.
     @Environment(\.modelContext) private var modelContext
-    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
-    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
     @State private var showClearLedgerConfirm = false
 
     var body: some View {
@@ -3605,7 +4199,10 @@ private struct CostSettingsView: View {
                 Toggle(isOn: self.$cwlEnabled) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Local cost history")
-                        Text("Keep a longer cost history on this iPhone, independent of the Mac's window. Builds up as the Mac keeps syncing.")
+                        Text("Off uses the latest synced Mac snapshots and the Mac history window.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("On keeps synced daily cost points on this iPhone for the selected window. It still requires Mac sync and never reads Mac logs directly.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -3689,11 +4286,14 @@ private struct CostSettingsView: View {
         .onChange(of: self.cwlEnabled) { _, isOn in
             // First enable: import the existing blob history into the ledger so
             // the dashboard has data immediately instead of waiting for the next
-            // Mac sync. On failure, revert the toggle (CWL stays off, blob path
-            // keeps working). Idempotent — re-enabling is a cheap no-op.
+            // Mac sync. If the user previously cleared local history, keep that
+            // clear boundary so re-enabling does not restore older blob data. On
+            // failure, revert the toggle (CWL stays off, blob path keeps working).
+            // Idempotent — re-enabling is a cheap no-op.
             guard isOn else { return }
             do {
-                try CostLedgerService.seedFromExistingBlobs(in: self.modelContext)
+                try CostLedgerService.seedFromExistingBlobsRespectingClearTombstone(
+                    in: self.modelContext)
             } catch {
                 self.cwlEnabled = false
             }

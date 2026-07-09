@@ -69,6 +69,55 @@ enum SwiftDataBridge {
         try context.save()
     }
 
+    /// Mirror the cache state after an incremental refresh.
+    ///
+    /// `SnapshotCache.buildDeviceSnapshots()` supplies the complete, filtered
+    /// provider set for every included device. Missing providers are therefore
+    /// removed for those devices. The device array is not authoritative at the
+    /// global level, so devices absent from this call are preserved.
+    static func upsertIncrementalCacheMirror(
+        cacheDeviceSnapshots: [SyncedUsageSnapshot],
+        deletedRecordNames: [String] = [],
+        into context: ModelContext
+    ) throws {
+        try Self.deleteProviderRecords(named: deletedRecordNames, from: context)
+        for snapshot in cacheDeviceSnapshots {
+            try Self.upsertSnapshot(snapshot, into: context)
+        }
+        try context.save()
+    }
+
+    static func deleteProviderRecords(
+        named recordNames: [String],
+        from context: ModelContext
+    ) throws {
+        guard !recordNames.isEmpty else { return }
+
+        for recordName in recordNames {
+            guard let parsed = Self.splitProviderRecordName(recordName) else {
+                continue
+            }
+
+            let compositeKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: parsed.deviceID,
+                providerID: parsed.providerID,
+                accountEmail: parsed.accountEmail)
+            let providerDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+                predicate: #Predicate { $0.compositeKey == compositeKey })
+            for provider in try context.fetch(providerDescriptor) {
+                context.delete(provider)
+            }
+
+            try CostLedgerService.deleteRows(
+                deviceID: parsed.deviceID,
+                providerID: parsed.providerID,
+                accountEmail: parsed.accountEmail,
+                in: context)
+        }
+
+        try context.save()
+    }
+
     // MARK: - Core upsert
 
     private static func upsertSnapshot(
@@ -107,6 +156,11 @@ enum SwiftDataBridge {
         let existingForDevice = try context.fetch(staleDescriptor)
         for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
             context.delete(existing)
+            try CostLedgerService.deleteRows(
+                deviceID: existing.deviceID,
+                providerID: existing.providerID,
+                accountEmail: existing.accountEmail,
+                in: context)
         }
 
         // Flush pending inserts/deletes so @Attribute(.unique) lookups resolve
@@ -206,11 +260,11 @@ enum SwiftDataBridge {
             into: model,
             context: context)
 
-        // Round 2 / P2 — Cost Window Ledger writer hook. Off by default; flag
-        // lives in `MobileSettingsKeys.cwlEnabled`. The blob path above always
-        // runs — even with CWL on the ledger and blob stay in sync (blob acts
-        // as the authoritative current-window snapshot, ledger accumulates a
-        // longer rolling history).
+        // Cost Window Ledger writer hook. The default-on flag lives in
+        // `MobileSettingsKeys.cwlEnabled`. The blob path above always runs —
+        // even with CWL on, the ledger and blob stay in sync (blob acts as the
+        // authoritative current-window snapshot, ledger accumulates a longer
+        // rolling history).
         if CostLedgerService.isEnabled() {
             try CostLedgerService.upsertFromSnapshot(
                 provider, deviceID: deviceID, in: context)
@@ -379,6 +433,22 @@ enum SwiftDataBridge {
         }
 
         return snapshots
+    }
+
+    // MARK: - Provider record-name parsing
+
+    private static func splitProviderRecordName(_ recordName: String) -> (
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?
+    )? {
+        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        let rawEmail = String(parts[2])
+        return (
+            deviceID: String(parts[0]),
+            providerID: String(parts[1]),
+            accountEmail: rawEmail == "_" ? nil : rawEmail)
     }
 
     // MARK: - Fallbacks

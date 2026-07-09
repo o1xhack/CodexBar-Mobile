@@ -1,3 +1,4 @@
+import CodexBarSync
 import SwiftUI
 import CoreImage.CIFilterBuiltins
 
@@ -151,34 +152,240 @@ extension ShareCardData {
     init(insights: CostDashboardInsights, period: SharePeriod) {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
+        let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
+        let monthStart = calendar.date(byAdding: .day, value: -29, to: today)!
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
 
         // Filter daily points by period
         let filteredDays: [CostDashboardInsights.DailyPoint]
         switch period {
         case .today:
-            filteredDays = []
+            filteredDays = insights.dailyPoints.filter { calendar.isDate($0.date, inSameDayAs: today) }
         case .week:
-            let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
-            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart }
+            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart && $0.date < tomorrow }
         case .month:
-            filteredDays = insights.dailyPoints
+            filteredDays = insights.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
+        }
+
+        func monthlyDailyPoints(for row: CostDashboardInsights.ProviderRow) -> [CostDashboardInsights.DailyPoint] {
+            row.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
+        }
+
+        let dayKeyFormatter = SyncCostSummary.iso8601DayKeyFormatter()
+
+        func authoritativeThirtyDaySummary(for row: CostDashboardInsights.ProviderRow) -> (costUSD: Double?, tokens: Int?) {
+            guard let summary = row.provider.costSummary else {
+                return (nil, nil)
+            }
+            let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
+            let monthlyPoints = summary.daily.filter { point in
+                guard let date = dayKeyFormatter.date(from: point.dayKey) else { return false }
+                return date >= monthStart && date < tomorrow
+            }
+            let dailyCost = monthlyPoints.isEmpty ? nil : monthlyPoints.reduce(0) { $0 + $1.costUSD }
+            let dailyTokens = monthlyPoints.isEmpty ? nil : monthlyPoints.reduce(0) { $0 + $1.totalTokens }
+            guard summaryWindowDays <= 30 else {
+                return (dailyCost, dailyTokens)
+            }
+            return (
+                summary.last30DaysCostUSD ?? dailyCost,
+                summary.last30DaysTokens ?? dailyTokens)
+        }
+
+        func monthlyCost(for row: CostDashboardInsights.ProviderRow) -> Double {
+            let dailyCost = monthlyDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+            guard let summaryCost = authoritativeThirtyDaySummary(for: row).costUSD else {
+                return dailyCost
+            }
+            return max(dailyCost, summaryCost)
+        }
+
+        func monthlyTokens(for row: CostDashboardInsights.ProviderRow) -> Int {
+            let dailyTokens = monthlyDailyPoints(for: row).reduce(0) { $0 + $1.totalTokens }
+            guard let summaryTokens = authoritativeThirtyDaySummary(for: row).tokens else {
+                return dailyTokens
+            }
+            return max(dailyTokens, summaryTokens)
+        }
+
+        func costSummaryPoints(
+            for row: CostDashboardInsights.ProviderRow,
+            period: SharePeriod
+        ) -> [SyncDailyPoint] {
+            guard let summary = row.provider.costSummary else { return [] }
+            return summary.daily.filter { point in
+                guard let date = dayKeyFormatter.date(from: point.dayKey) else { return false }
+                switch period {
+                case .today:
+                    return calendar.isDate(date, inSameDayAs: today)
+                case .week:
+                    return date >= weekStart && date < tomorrow
+                case .month:
+                    return date >= monthStart && date < tomorrow
+                }
+            }
+        }
+
+        func monthlySummaryDisplayData() -> (
+            dailyPoints: [CostDashboardInsights.DailyPoint],
+            modelBreakdowns: [SyncCostBreakdown]
+        ) {
+            var totals: [String: (date: Date, costUSD: Double, totalTokens: Int)] = [:]
+            var modelTotals: [String: Double] = [:]
+            func addDay(
+                dayKey: String,
+                date: Date,
+                costUSD: Double,
+                totalTokens: Int,
+                modelBreakdowns: [SyncCostBreakdown])
+            {
+                totals[dayKey, default: (date, 0, 0)].costUSD += costUSD
+                totals[dayKey, default: (date, 0, 0)].totalTokens += totalTokens
+                for breakdown in modelBreakdowns where breakdown.costUSD > 0 {
+                    modelTotals[breakdown.label, default: 0] += breakdown.costUSD
+                }
+            }
+            for row in insights.providerRows {
+                if row.provider.costSummary == nil {
+                    for point in monthlyDailyPoints(for: row) {
+                        addDay(
+                            dayKey: point.dayKey,
+                            date: point.date,
+                            costUSD: point.costUSD,
+                            totalTokens: point.totalTokens,
+                            modelBreakdowns: point.modelBreakdowns)
+                    }
+                } else {
+                    for point in costSummaryPoints(for: row, period: .month) {
+                        guard let date = dayKeyFormatter.date(from: point.dayKey) else { continue }
+                        addDay(
+                            dayKey: point.dayKey,
+                            date: date,
+                            costUSD: point.costUSD,
+                            totalTokens: point.totalTokens,
+                            modelBreakdowns: point.modelBreakdowns)
+                    }
+                }
+            }
+            let dailyPoints = totals
+                .map { dayKey, total in
+                    CostDashboardInsights.DailyPoint(
+                        dayKey: dayKey,
+                        date: total.date,
+                        costUSD: total.costUSD,
+                        totalTokens: total.totalTokens)
+                }
+                .sorted { $0.date < $1.date }
+            let modelBreakdowns = modelTotals
+                .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
+                .sorted {
+                    if $0.costUSD == $1.costUSD {
+                        return $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                    }
+                    return $0.costUSD > $1.costUSD
+                }
+            return (dailyPoints, modelBreakdowns)
+        }
+
+        func modelRows(
+            for period: SharePeriod,
+            monthlyUsesProviderSummary: Bool,
+            monthlySummaryModelBreakdowns: [SyncCostBreakdown]
+        ) -> [BreakdownRow] {
+            var totals: [String: Double] = [:]
+            if period == .month, monthlyUsesProviderSummary {
+                for breakdown in monthlySummaryModelBreakdowns where breakdown.costUSD > 0 {
+                    totals[breakdown.label, default: 0] += breakdown.costUSD
+                }
+            } else {
+                for point in filteredDays {
+                    for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                        totals[breakdown.label, default: 0] += breakdown.costUSD
+                    }
+                }
+            }
+            let periodDays: Int = switch period {
+            case .today: 1
+            case .week: 7
+            case .month: 30
+            }
+            let usesDashboardWindow = period != .month || !monthlyUsesProviderSummary
+            if totals.isEmpty,
+               usesDashboardWindow,
+               (insights.historyDays ?? 30) <= periodDays
+            {
+                let fallbackRows = insights.modelRows
+                    .filter { $0.amountUSD > 0 }
+                    .sorted {
+                        if $0.amountUSD == $1.amountUSD {
+                            $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                        } else {
+                            $0.amountUSD > $1.amountUSD
+                        }
+                    }
+                    .prefix(5)
+                let fallbackTotal = fallbackRows.reduce(0) { $0 + $1.amountUSD }
+                guard fallbackTotal > 0 else { return [] }
+                return fallbackRows
+                    .map { row in
+                        BreakdownRow(
+                            label: row.label,
+                            cost: row.amountUSD,
+                            share: row.amountUSD / fallbackTotal)
+                    }
+            }
+            let totalModel = totals.values.reduce(0, +)
+            guard totalModel > 0 else { return [] }
+            return totals
+                .map { label, cost in
+                    BreakdownRow(
+                        label: label,
+                        cost: cost,
+                        share: cost / totalModel)
+                }
+                .sorted {
+                    if $0.cost == $1.cost {
+                        $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                    } else {
+                        $0.cost > $1.cost
+                    }
+                }
+                .prefix(5)
+                .map { $0 }
         }
 
         // Compute totals
         let periodCost: Double
         let periodTokens: Int
+        let monthlySummaryData = monthlySummaryDisplayData()
+        let monthlySummaryDays = monthlySummaryData.dailyPoints
+        let monthlyUsesProviderSummary: Bool
         switch period {
         case .today:
             periodCost = insights.totalTodayCost
             periodTokens = insights.providerRows.reduce(0) { total, row in
                 total + row.todayTokens
             }
+            monthlyUsesProviderSummary = false
         case .week:
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
+            monthlyUsesProviderSummary = false
         case .month:
-            periodCost = insights.total30DayCost
-            periodTokens = insights.total30DayTokens
+            let providerCost = insights.providerRows.reduce(0) { $0 + monthlyCost(for: $1) }
+            let dailyCost = filteredDays.reduce(0) { $0 + $1.costUSD }
+            periodCost = providerCost > 0 ? providerCost : dailyCost
+            let providerTokens = insights.providerRows.reduce(0) { $0 + monthlyTokens(for: $1) }
+            let dailyTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
+            periodTokens = providerTokens > 0 ? providerTokens : dailyTokens
+            let summaryExtendsShortDashboardWindow = (insights.historyDays ?? 30) < 30
+                && insights.providerRows.contains { row in
+                    let summary = authoritativeThirtyDaySummary(for: row)
+                    return summary.costUSD != nil || summary.tokens != nil
+                }
+            monthlyUsesProviderSummary = summaryExtendsShortDashboardWindow
+                || providerCost > dailyCost
+                || providerTokens > dailyTokens
         }
 
         // Provider rows are computed from provider-level daily points. This
@@ -189,12 +396,11 @@ extension ShareCardData {
             case .today:
                 cost = row.todayCost
             case .week:
-                let weekStart = calendar.date(byAdding: .day, value: -6, to: today)!
                 cost = row.dailyPoints
-                    .filter { $0.date >= weekStart }
+                    .filter { $0.date >= weekStart && $0.date < tomorrow }
                     .reduce(0) { $0 + $1.costUSD }
             case .month:
-                cost = row.thirtyDayCost
+                cost = monthlyCost(for: row)
             }
             return ProviderRow(
                 name: row.provider.providerName,
@@ -205,10 +411,19 @@ extension ShareCardData {
         }
 
         let activeDays: Int
+        let displayDays: [CostDashboardInsights.DailyPoint]
         switch period {
-        case .today: activeDays = 1
-        case .week: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
-        case .month: activeDays = insights.activeDayCount
+        case .today:
+            displayDays = []
+            activeDays = 1
+        case .week:
+            displayDays = filteredDays
+            activeDays = displayDays.count(where: { $0.costUSD > 0 })
+        case .month:
+            displayDays = monthlyUsesProviderSummary && !monthlySummaryDays.isEmpty
+                ? monthlySummaryDays
+                : filteredDays
+            activeDays = displayDays.count(where: { $0.costUSD > 0 })
         }
 
         self.totalCost = periodCost
@@ -219,14 +434,10 @@ extension ShareCardData {
         self.providers = adjustedProviders.filter { $0.cost > 0 }
 
         // Top models (top 5 — bumped from 3 in iOS 1.9.0 for cap consistency).
-        self.topModels = insights.modelRows.prefix(5).map { row in
-            let totalModel = insights.modelRows.reduce(0.0) { $0 + $1.amountUSD }
-            return BreakdownRow(
-                label: row.label,
-                cost: row.amountUSD,
-                share: totalModel > 0 ? row.amountUSD / totalModel : 0
-            )
-        }
+        self.topModels = modelRows(
+            for: period,
+            monthlyUsesProviderSummary: monthlyUsesProviderSummary,
+            monthlySummaryModelBreakdowns: monthlySummaryData.modelBreakdowns)
 
         // Daily bars
         let weekdayFormatter = DateFormatter()
@@ -236,11 +447,11 @@ extension ShareCardData {
         case .today:
             self.dailyBars = []
         case .week:
-            self.dailyBars = filteredDays.map { point in
+            self.dailyBars = displayDays.map { point in
                 DailyBar(label: weekdayFormatter.string(from: point.date), cost: point.costUSD)
             }
         case .month:
-            self.dailyBars = filteredDays.enumerated().map { index, point in
+            self.dailyBars = displayDays.enumerated().map { index, point in
                 let dayNum = index + 1
                 // Label every 7th day (= one label per week) plus day 1 and
                 // the final day for visual anchors. On a 30-day window this
@@ -249,7 +460,7 @@ extension ShareCardData {
                 // count: 7)` gridlines, so the share card and dashboard
                 // chart read as a matching pair. Changing the 7 here will
                 // un-sync the two charts — also update ContentView's stride.
-                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == filteredDays.count
+                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == displayDays.count
                 return DailyBar(label: showLabel ? "\(dayNum)" : "", cost: point.costUSD)
             }
         }
