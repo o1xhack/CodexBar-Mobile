@@ -30,14 +30,14 @@ write_alias_env() {
 
 assert_credentials() {
   local expected=$1
-  [[ "$APP_STORE_CONNECT_KEY_ID" == "${expected}_KEY" ]]
-  [[ "$APP_STORE_CONNECT_ISSUER_ID" == "${expected}_ISSUER" ]]
-  [[ "$APP_STORE_CONNECT_API_KEY_FILE" == "/tmp/${expected}-key.p8" ]]
-  [[ "$APP_STORE_CONNECT_API_KEY_P8" == "${expected}_P8" ]]
-  [[ "$APP_STORE_CONNECT_APP_MANAGER_KEY_ID" == "$APP_STORE_CONNECT_KEY_ID" ]]
-  [[ "$APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID" == "$APP_STORE_CONNECT_ISSUER_ID" ]]
-  [[ "$APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE" == "$APP_STORE_CONNECT_API_KEY_FILE" ]]
-  [[ "$APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8" == "$APP_STORE_CONNECT_API_KEY_P8" ]]
+  [[ "$APP_STORE_CONNECT_KEY_ID" == "${expected}_KEY" ]] || return 1
+  [[ "$APP_STORE_CONNECT_ISSUER_ID" == "${expected}_ISSUER" ]] || return 1
+  [[ "$APP_STORE_CONNECT_API_KEY_FILE" == "/tmp/${expected}-key.p8" ]] || return 1
+  [[ "$APP_STORE_CONNECT_API_KEY_P8" == "${expected}_P8" ]] || return 1
+  [[ "$APP_STORE_CONNECT_APP_MANAGER_KEY_ID" == "$APP_STORE_CONNECT_KEY_ID" ]] || return 1
+  [[ "$APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID" == "$APP_STORE_CONNECT_ISSUER_ID" ]] || return 1
+  [[ "$APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE" == "$APP_STORE_CONNECT_API_KEY_FILE" ]] || return 1
+  [[ "$APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8" == "$APP_STORE_CONNECT_API_KEY_P8" ]] || return 1
 }
 
 run_case() {
@@ -45,7 +45,12 @@ run_case() {
   HOME="$TMP_HOME" CODEXBAR_RELEASE_ENV="$release_env" EXPECTED="$expected" ROOT="$ROOT" \
     ASSERT_FN="$(declare -f assert_credentials)" \
     bash -c '
-      unset CODEXBAR_RELEASE_SECRETS_LOADED
+      set -euo pipefail
+      unset CODEXBAR_RELEASE_SECRETS_LOADED CODEX_APP_MANAGER_ASC_ENV_LOADED
+      unset APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID
+      unset APP_STORE_CONNECT_API_KEY_FILE APP_STORE_CONNECT_API_KEY_P8
+      unset APP_STORE_CONNECT_APP_MANAGER_KEY_ID APP_STORE_CONNECT_APP_MANAGER_ISSUER_ID
+      unset APP_STORE_CONNECT_APP_MANAGER_API_KEY_FILE APP_STORE_CONNECT_APP_MANAGER_API_KEY_P8
       source "$ROOT/Scripts/load-release-secrets.sh"
       eval "$ASSERT_FN"
       assert_credentials "$EXPECTED"
@@ -68,5 +73,10 @@ run_case GLOBAL_HELPER
 # scoped aliases are mirrored back from the winning canonical values.
 write_generic_env "$TMP_HOME/project-release.env" PROJECT
 run_case PROJECT "$TMP_HOME/project-release.env"
+
+if run_case WRONG "$TMP_HOME/project-release.env"; then
+  echo "release secret assertions accepted an invalid expected value" >&2
+  exit 1
+fi
 
 echo "release secret loader precedence and alias tests passed"
