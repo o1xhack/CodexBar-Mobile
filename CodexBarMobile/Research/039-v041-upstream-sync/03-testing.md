@@ -22,10 +22,10 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 | Upstream release facts | pass | GitHub Releases: v0.40.0 at `2026-07-05T23:10:19Z`; v0.41.0 at `2026-07-06T23:46:03Z` |
 | Upstream merge | pass | merge commit `00a13189`; all ten conflicts resolved; target tag is second parent |
 | Mac build | pass | `swift build` completed in 30.49s after conflict resolution |
-| Mac lint | pending | |
+| Mac lint | pass | `bash Scripts/lint.sh lint`: SwiftFormat 0 pending files; SwiftLint 0 violations across 1,348 files; localization and parser-version audits passed |
 | Mac focused tests | pass | 241 tests across SubprocessRunner, browser-cookie deadline/context, Kimi, Claude plan, widget snapshots, and CostUsage passed; Kimi isolated rerun also passed |
-| Mac full tests | pending | |
-| Multi-account / multi-device tests | pending | |
+| Mac full tests | pass | `swift test --no-parallel`: 5,810 tests in 588 suites, 0 failures, 225.321s |
+| Multi-account / multi-device tests | pass | release-checklist filter: 76 tests in 10 suites, 0 failures, 2.184s |
 | Parser version/hash | pass | `parserLogicVersion=8`; generated hash `67c76db38c18af6a`; audit scripts pass |
 | iOS xcodegen/build/tests | pass | XcodeBuildMCP iPhone 17 / iOS 26.4: build+launch 28.8s; focused 10/10; full unit target 582/582 |
 | Widget/provider display tests | pass | full iOS unit run includes WidgetSnapshotBuilder and CodexBarWidgetRenderMatrix; Mac Kimi/Claude sync tests pass |
@@ -35,6 +35,24 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 | Candidate appcast | pending | |
 | GitHub draft release | pending | no push or published tag allowed |
 | Final review blockers | pending | |
+
+### Mac full-test concurrency note
+
+Swift Testing 1902 runs tests in-process and in parallel by default. On this
+56-worker Mac, both `swift test --parallel` and
+`swift test --parallel --num-workers 8` overloaded deadline-sensitive suites:
+the runs completed all 5,810 tests but reported 21-24 timing/cancellation
+issues. The worker flag only reduced outer XCTest workers and did not limit
+Swift Testing task-group concurrency.
+
+Every suite named by those runs was then rerun in an isolated filter: 141 tests
+across Command Code, DeepSeek, Kimi, Claude web deadlines, Antigravity,
+SubprocessRunner, Codex login, CLI serve routing, and memory-pressure handling
+passed. The one later cache-fixture hit also passed 7/7 in isolation. Finally,
+the Apple-documented global switch `swift test --no-parallel` passed the full
+5,810-test set. This is classified as a high-core-count test-runner scheduling
+risk, not a product regression; CI should still be observed after any future
+push.
 
 ## CloudKit Production Schema Audit
 

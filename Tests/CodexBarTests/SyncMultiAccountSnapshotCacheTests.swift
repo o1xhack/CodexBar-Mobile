@@ -9,7 +9,6 @@ import Testing
 /// though Mac's `UsageStore.snapshots[.codex]` only ever holds the active
 /// account at any moment. See `Research/020-multi-account-comprehensive.md`.
 @MainActor
-@Suite
 struct SyncMultiAccountSnapshotCacheTests {
     private func makeSnapshot(
         providerID: String = "codex",
@@ -36,7 +35,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func recordAndRetrieveSingleAccount() {
+    func `record and retrieve single account`() {
         let cache = SyncMultiAccountSnapshotCache()
         let alice = self.makeSnapshot(accountEmail: "alice@example.com")
         cache.record(alice, providerID: "codex", accountID: "uuid-A")
@@ -49,7 +48,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func cachedSnapshotsExcludeActive() {
+    func `cached snapshots exclude active`() {
         let cache = SyncMultiAccountSnapshotCache()
         let alice = self.makeSnapshot(accountEmail: "alice@example.com")
         let bob = self.makeSnapshot(accountEmail: "bob@example.com")
@@ -67,7 +66,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func recordReplacesExistingEntry() {
+    func `record replaces existing entry`() {
         let cache = SyncMultiAccountSnapshotCache()
         let aliceOld = self.makeSnapshot(
             accountEmail: "alice@example.com",
@@ -89,7 +88,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func purgeStaleAccountsRemovesUnreferenced() {
+    func `purge stale accounts removes unreferenced`() {
         let cache = SyncMultiAccountSnapshotCache()
         let alice = self.makeSnapshot(accountEmail: "alice@example.com")
         let bob = self.makeSnapshot(accountEmail: "bob@example.com")
@@ -111,7 +110,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func purgeStaleAccountsEmptyLivingWipesProvider() {
+    func `purge stale accounts empty living wipes provider`() {
         let cache = SyncMultiAccountSnapshotCache()
         cache.record(
             self.makeSnapshot(accountEmail: "alice@example.com"),
@@ -127,7 +126,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func crossProviderIsolation() {
+    func `cross provider isolation`() {
         // R2 readiness: cache must not leak between providers when token-based
         // providers are added in Round 2.
         let cache = SyncMultiAccountSnapshotCache()
@@ -146,7 +145,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func resetClearsAllProviders() {
+    func `reset clears all providers`() {
         let cache = SyncMultiAccountSnapshotCache()
         cache.record(
             self.makeSnapshot(providerID: "codex", accountEmail: "alice@x.com"),
@@ -162,7 +161,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func differentProvidersWithSameAccountIDDoNotCollide() {
+    func `different providers with same account ID do not collide`() {
         // Edge case: same UUID string used for both providers (shouldn't
         // happen in practice but cache must not key-collide).
         let cache = SyncMultiAccountSnapshotCache()
@@ -184,7 +183,7 @@ struct SyncMultiAccountSnapshotCacheTests {
     }
 
     @Test
-    func excludingAccountIDWithNoRecordReturnsAll() {
+    func `excluding account ID with no record returns all`() {
         // SyncCoordinator scenario: active account is fresh (just got recorded
         // earlier in same call) — excluding it from "before record" view
         // returns nothing. But excluding an account that was never cached

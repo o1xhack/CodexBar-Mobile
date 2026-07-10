@@ -36,8 +36,8 @@ struct V029SnapshotsCodableTests {
 
     // MARK: - Individual block round-trip
 
-    @Test("OpenRouter stats: round-trips with full key-usage windows + rate limit")
-    func openRouterStatsRoundTrip() throws {
+    @Test
+    func `OpenRouter stats: round-trips with full key-usage windows + rate limit`() throws {
         let source = SyncOpenRouterStats(
             balanceUSD: 7.5, totalCreditsUSD: 50.0, totalUsageUSD: 42.5, usedPercent: 85.0,
             keyUsageDailyUSD: 1.25, keyUsageWeeklyUSD: 8.0, keyUsageMonthlyUSD: 30.0,
@@ -51,8 +51,8 @@ struct V029SnapshotsCodableTests {
         #expect(decoded.rateLimitInterval == "10s")
     }
 
-    @Test("OpenRouter stats: round-trips with nil key windows + nil rate limit")
-    func openRouterStatsRoundTripNils() throws {
+    @Test
+    func `OpenRouter stats: round-trips with nil key windows + nil rate limit`() throws {
         let source = SyncOpenRouterStats(
             balanceUSD: 0, totalCreditsUSD: 0, totalUsageUSD: 0, usedPercent: 0,
             keyUsageDailyUSD: nil, keyUsageWeeklyUSD: nil, keyUsageMonthlyUSD: nil,
@@ -65,8 +65,8 @@ struct V029SnapshotsCodableTests {
         #expect(decoded.rateLimitRequests == nil)
     }
 
-    @Test("Azure OpenAI info: round-trips with model present and absent")
-    func azureOpenAIInfoRoundTrip() throws {
+    @Test
+    func `Azure OpenAI info: round-trips with model present and absent`() throws {
         let withModel = SyncAzureOpenAIInfo(
             endpointHost: "my-res.openai.azure.com", deploymentName: "gpt-4o-prod",
             model: "gpt-4o", apiVersion: "2024-10-21", updatedAt: Self.now)
@@ -83,8 +83,8 @@ struct V029SnapshotsCodableTests {
         #expect(dNo.model == nil)
     }
 
-    @Test("Alibaba Token Plan: round-trips with full credits and all-nil quota")
-    func alibabaTokenPlanRoundTrip() throws {
+    @Test
+    func `Alibaba Token Plan: round-trips with full credits and all-nil quota`() throws {
         let full = SyncAlibabaTokenPlan(
             planName: "Bailian Pro", usedCredits: 300, totalCredits: 1000,
             remainingCredits: 700, resetsAt: Self.now, updatedAt: Self.now)
@@ -105,8 +105,8 @@ struct V029SnapshotsCodableTests {
 
     // MARK: - Cross-version compat — old payload decoded by NEW reader
 
-    @Test("Snapshot decode: pre-1.9.0 payload → all three parity blocks land nil")
-    func snapshotDecodesPre190PayloadWithNilParityFields() throws {
+    @Test
+    func `Snapshot decode: pre-1.9.0 payload → all three parity blocks land nil`() throws {
         // Wire format from a pre-1.9.0 Mac: none of the gap D/E/G keys present.
         let json = """
         {
@@ -134,8 +134,8 @@ struct V029SnapshotsCodableTests {
 
     // MARK: - Cross-version compat — new payload round-trips on reader
 
-    @Test("Snapshot decode: 1.9.0 payload with all three parity blocks round-trips")
-    func snapshotRoundTripWithAllParityBlocks() throws {
+    @Test
+    func `Snapshot decode: 1.9.0 payload with all three parity blocks round-trips`() throws {
         let source = ProviderUsageSnapshot(
             providerID: "openrouter",
             providerName: "OpenRouter",
@@ -169,8 +169,8 @@ struct V029SnapshotsCodableTests {
 
     // MARK: - gap F — SyncCostSummary.historyDays
 
-    @Test("Cost summary: pre-1.9.0 payload (no historyDays) decodes as nil")
-    func costSummaryDecodesOldPayloadHistoryDaysNil() throws {
+    @Test
+    func `Cost summary: pre-1.9.0 payload (no historyDays) decodes as nil`() throws {
         let json = """
         {
           "sessionCostUSD": null, "sessionTokens": null,
@@ -183,8 +183,8 @@ struct V029SnapshotsCodableTests {
         #expect(decoded.last30DaysCostUSD == 1.0)
     }
 
-    @Test("Cost summary: round-trips historyDays = 90")
-    func costSummaryRoundTripsHistoryDays() throws {
+    @Test
+    func `Cost summary: round-trips historyDays = 90`() throws {
         let source = SyncCostSummary(
             sessionCostUSD: nil, sessionTokens: nil,
             last30DaysCostUSD: 1.0, last30DaysTokens: 100,

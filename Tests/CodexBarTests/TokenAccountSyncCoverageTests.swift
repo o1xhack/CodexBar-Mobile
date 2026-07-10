@@ -21,8 +21,8 @@ import Testing
 @MainActor
 @Suite("Token-account sync coverage — catalog ⇔ SyncCoordinator")
 struct TokenAccountSyncCoverageTests {
-    @Test("SyncCoordinator.tokenBasedMultiAccountProviders mirrors TokenAccountSupportCatalog.allProviders")
-    func syncListMirrorsCatalog() {
+    @Test
+    func `SyncCoordinator.tokenBasedMultiAccountProviders mirrors TokenAccountSupportCatalog.allProviders`() {
         let syncList = Set(SyncCoordinator.tokenBasedMultiAccountProvidersForTesting)
         let catalog = Set(TokenAccountSupportCatalog.allProviders)
         let missingFromSync = catalog.subtracting(syncList)
@@ -35,8 +35,8 @@ struct TokenAccountSyncCoverageTests {
         #expect(extraInSync.isEmpty, "Extra: \(extraInSync.map(\.rawValue).sorted())")
     }
 
-    @Test("Catalog contains the 23 providers known through v0.39.0 (regression sentinel)")
-    func catalogContainsExpectedProviders() {
+    @Test
+    func `Catalog contains the 23 providers known through v0.39.0 (regression sentinel)`() {
         // v0.39.0 baseline — 23 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -50,7 +50,7 @@ struct TokenAccountSyncCoverageTests {
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
         // rather than silently shipping a regressed sync.
-        let expected: Set<String> = [
+        let expected: Set = [
             "openai", "claude", "deepseek", "antigravity", "zai",
             "cursor", "opencode", "opencodego", "factory", "minimax",
             "manus", "augment", "ollama", "abacus", "mistral",
@@ -73,8 +73,8 @@ struct TokenAccountSyncCoverageTests {
             "Catalog lost providers since Phase G baseline (verify upstream rename / removal): \(removed.sorted())")
     }
 
-    @Test("Catalog providers are ordered deterministically (stable sort by rawValue)")
-    func catalogIsStablySorted() {
+    @Test
+    func `Catalog providers are ordered deterministically (stable sort by rawValue)`() {
         let providers = TokenAccountSupportCatalog.allProviders
         let raws = providers.map(\.rawValue)
         let sorted = raws.sorted()

@@ -33,8 +33,8 @@ struct SyncCoordinatorV026MapperTests {
 
     // MARK: - mapOpenAIAPIDashboard
 
-    @Test("OpenAI dashboard mapper: returns nil when provider != .openai")
-    func openAIDashboardWrongProviderReturnsNil() {
+    @Test
+    func `OpenAI dashboard mapper: returns nil when provider != .openai`() {
         let snapshot = UsageSnapshot(
             primary: nil,
             secondary: nil,
@@ -45,8 +45,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result == nil)
     }
 
-    @Test("OpenAI dashboard mapper: returns nil when openAIAPIUsage is missing")
-    func openAIDashboardMissingUsageReturnsNil() {
+    @Test
+    func `OpenAI dashboard mapper: returns nil when openAIAPIUsage is missing`() {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil, updatedAt: Self.now)
         let result = SyncCoordinator.mapOpenAIAPIDashboard(
@@ -54,8 +54,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result == nil)
     }
 
-    @Test("OpenAI dashboard mapper: maps daily buckets + summaries faithfully")
-    func openAIDashboardMapsDailyBuckets() {
+    @Test
+    func `OpenAI dashboard mapper: maps daily buckets + summaries faithfully`() {
         let bucket = OpenAIAPIUsageSnapshot.DailyBucket(
             day: "2026-05-15",
             startTime: Self.now,
@@ -89,8 +89,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.last30Days.totalCostUSD == 4.20)
     }
 
-    @Test("OpenAI dashboard mapper: returns latestDay=nil when daily buckets are empty")
-    func openAIDashboardEmptyBucketsLatestDayNil() {
+    @Test
+    func `OpenAI dashboard mapper: returns latestDay=nil when daily buckets are empty`() {
         let upstream = OpenAIAPIUsageSnapshot(daily: [], updatedAt: Self.now)
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil,
@@ -102,8 +102,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.dailyBuckets.isEmpty == true)
     }
 
-    @Test("OpenAI dashboard mapper: caps top models / line items at 8 entries")
-    func openAIDashboardTopListsBounded() {
+    @Test
+    func `OpenAI dashboard mapper: caps top models / line items at 8 entries`() {
         let manyModels = (0..<10).map { i in
             OpenAIAPIUsageSnapshot.ModelBreakdown(
                 name: "m-\(i)", requests: 100 - i, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0,
@@ -144,24 +144,24 @@ struct SyncCoordinatorV026MapperTests {
             updatedAt: Self.now)
     }
 
-    @Test("z.ai mapper: returns nil when provider != .zai")
-    func zaiWrongProviderReturnsNil() {
+    @Test
+    func `z.ai mapper: returns nil when provider != .zai`() {
         let snapshot = Self.makeZaiSnapshot(modelUsage: nil)
         let result = SyncCoordinator.mapZaiHourlyUsage(
             provider: .claude, snapshot: snapshot)
         #expect(result == nil)
     }
 
-    @Test("z.ai mapper: returns nil when modelUsage is missing")
-    func zaiNoModelUsageReturnsNil() {
+    @Test
+    func `z.ai mapper: returns nil when modelUsage is missing`() {
         let snapshot = Self.makeZaiSnapshot(modelUsage: nil)
         let result = SyncCoordinator.mapZaiHourlyUsage(
             provider: .zai, snapshot: snapshot)
         #expect(result == nil)
     }
 
-    @Test("z.ai mapper: parses ISO8601 timestamps with fractional seconds")
-    func zaiHourlyParsesISO8601() {
+    @Test
+    func `z.ai mapper: parses ISO8601 timestamps with fractional seconds`() {
         let modelUsage = ZaiModelUsageData(
             xTime: ["2026-05-15T00:00:00.000Z", "2026-05-15T01:00:00.000Z"],
             modelDataList: [
@@ -175,8 +175,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.modelSeries.first?.modelName == "glm-4.6")
     }
 
-    @Test("z.ai mapper: drops rows where the upstream model name is nil")
-    func zaiHourlyDropsNilModelNames() {
+    @Test
+    func `z.ai mapper: drops rows where the upstream model name is nil`() {
         let modelUsage = ZaiModelUsageData(
             xTime: ["2026-05-15T00:00:00Z"],
             modelDataList: [
@@ -218,8 +218,8 @@ struct SyncCoordinatorV026MapperTests {
             contextUsage: nil)
     }
 
-    @Test("Kiro mapper: returns nil when provider != .kiro")
-    func kiroWrongProviderReturnsNil() {
+    @Test
+    func `Kiro mapper: returns nil when provider != .kiro`() {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil,
             kiroUsage: Self.makeKiroDetails(),
@@ -229,8 +229,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result == nil)
     }
 
-    @Test("Kiro mapper: derives credits percent when total is positive")
-    func kiroMapperDerivesPercent() {
+    @Test
+    func `Kiro mapper: derives credits percent when total is positive`() {
         let kiro = Self.makeKiroDetails(
             used: 250, total: 1000,
             bonusUsed: 20, bonusTotal: 100, bonusExpiryDays: 14)
@@ -247,8 +247,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.bonusExpiryDays == 14)
     }
 
-    @Test("Kiro mapper: omits creditsTotal + percent when upstream total is 0")
-    func kiroMapperZeroTotal() {
+    @Test
+    func `Kiro mapper: omits creditsTotal + percent when upstream total is 0`() {
         let kiro = Self.makeKiroDetails(used: 0, total: 0)
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil,
@@ -262,23 +262,23 @@ struct SyncCoordinatorV026MapperTests {
 
     // MARK: - mapBedrockCost
 
-    @Test("Bedrock mapper: returns nil when provider != .bedrock")
-    func bedrockWrongProviderReturnsNil() {
+    @Test
+    func `Bedrock mapper: returns nil when provider != .bedrock`() {
         let pc = ProviderCostSnapshot(used: 10, limit: 50, currencyCode: "USD", period: "Monthly", updatedAt: Self.now)
         let result = SyncCoordinator.mapBedrockCost(
             provider: .claude, snapshot: nil, providerCost: pc, region: "us-east-1")
         #expect(result == nil)
     }
 
-    @Test("Bedrock mapper: returns nil when providerCost is nil")
-    func bedrockMissingCostReturnsNil() {
+    @Test
+    func `Bedrock mapper: returns nil when providerCost is nil`() {
         let result = SyncCoordinator.mapBedrockCost(
             provider: .bedrock, snapshot: nil, providerCost: nil, region: nil)
         #expect(result == nil)
     }
 
-    @Test("Bedrock mapper: derives budget percent and uses supplied region")
-    func bedrockMapperComputesPercent() {
+    @Test
+    func `Bedrock mapper: derives budget percent and uses supplied region`() {
         let pc = ProviderCostSnapshot(
             used: 19.10,
             limit: 50,
@@ -300,16 +300,16 @@ struct SyncCoordinatorV026MapperTests {
         #expect((result?.budgetUsedPercent ?? 0) < 39.0)
     }
 
-    @Test("Bedrock mapper: region is nil when caller passes nil (no SettingsStore value)")
-    func bedrockMapperNoRegion() {
+    @Test
+    func `Bedrock mapper: region is nil when caller passes nil (no SettingsStore value)`() {
         let pc = ProviderCostSnapshot(used: 1, limit: 50, currencyCode: "USD", period: "Monthly", updatedAt: Self.now)
         let result = SyncCoordinator.mapBedrockCost(
             provider: .bedrock, snapshot: nil, providerCost: pc, region: nil)
         #expect(result?.region == nil)
     }
 
-    @Test("Bedrock mapper: drops budget + percent when upstream limit is 0")
-    func bedrockMapperZeroLimit() {
+    @Test
+    func `Bedrock mapper: drops budget + percent when upstream limit is 0`() {
         let pc = ProviderCostSnapshot(used: 5, limit: 0, currencyCode: "USD", period: "Monthly", updatedAt: Self.now)
         let result = SyncCoordinator.mapBedrockCost(
             provider: .bedrock, snapshot: nil, providerCost: pc, region: "ap-southeast-2")
@@ -318,8 +318,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.region == "ap-southeast-2")
     }
 
-    @Test("Bedrock mapper: clamps percent to 100 when spend exceeds budget")
-    func bedrockMapperOverBudgetClamps() {
+    @Test
+    func `Bedrock mapper: clamps percent to 100 when spend exceeds budget`() {
         let pc = ProviderCostSnapshot(used: 200, limit: 50, currencyCode: "USD", period: "Monthly", updatedAt: Self.now)
         let result = SyncCoordinator.mapBedrockCost(
             provider: .bedrock, snapshot: nil, providerCost: pc, region: nil)
@@ -328,16 +328,16 @@ struct SyncCoordinatorV026MapperTests {
 
     // MARK: - mapMoonshotBalance
 
-    @Test("Moonshot mapper: returns nil when provider != .moonshot")
-    func moonshotWrongProviderReturnsNil() {
+    @Test
+    func `Moonshot mapper: returns nil when provider != .moonshot`() {
         let snapshot = UsageSnapshot(primary: nil, secondary: nil, updatedAt: Self.now)
         let result = SyncCoordinator.mapMoonshotBalance(
             provider: .claude, snapshot: snapshot, primaryWindow: nil)
         #expect(result == nil)
     }
 
-    @Test("Moonshot mapper: parses balance from upstream loginMethod string")
-    func moonshotMapperParsesLoginMethod() {
+    @Test
+    func `Moonshot mapper: parses balance from upstream loginMethod string`() {
         // Simulates the production output of
         // `MoonshotUsageSummary.toUsageSnapshot()`:
         // loginMethod = "Balance: $58.40"
@@ -352,8 +352,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.region == nil)
     }
 
-    @Test("Moonshot mapper: parses balance when loginMethod also reports a deficit")
-    func moonshotMapperParsesLoginMethodWithDeficit() {
+    @Test
+    func `Moonshot mapper: parses balance when loginMethod also reports a deficit`() {
         // Production deficit format:
         // loginMethod = "Balance: $58.40 · $5.00 in deficit"
         let snapshot = UsageSnapshot(
@@ -365,8 +365,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.balanceAmount == 58.40)
     }
 
-    @Test("Moonshot mapper: falls back to providerCost.used when loginMethod is empty")
-    func moonshotMapperFromProviderCost() {
+    @Test
+    func `Moonshot mapper: falls back to providerCost.used when loginMethod is empty`() {
         // Future-proofing: if upstream switches Moonshot to publish
         // the balance via providerCost, the fallback path still works.
         let pc = ProviderCostSnapshot(used: 58.40, limit: 0, currencyCode: "CNY", period: nil, updatedAt: Self.now)
@@ -380,8 +380,8 @@ struct SyncCoordinatorV026MapperTests {
         #expect(result?.balanceCurrency == "CNY")
     }
 
-    @Test("Moonshot mapper: returns nil when no signal in any lane")
-    func moonshotMapperNoSignal() {
+    @Test
+    func `Moonshot mapper: returns nil when no signal in any lane`() {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil,
             updatedAt: Self.now,
@@ -393,29 +393,29 @@ struct SyncCoordinatorV026MapperTests {
 
     // MARK: - parseMoonshotBalance (parser)
 
-    @Test("parseMoonshotBalance: handles USD $ prefix")
-    func parseMoonshotUSD() {
+    @Test
+    func `parseMoonshotBalance: handles USD $ prefix`() {
         let parsed = SyncCoordinator.parseMoonshotBalance(from: "Balance: $58.40")
         #expect(parsed?.amount == 58.40)
         #expect(parsed?.currency == "USD")
     }
 
-    @Test("parseMoonshotBalance: handles CNY ¥ prefix")
-    func parseMoonshotCNY() {
+    @Test
+    func `parseMoonshotBalance: handles CNY ¥ prefix`() {
         let parsed = SyncCoordinator.parseMoonshotBalance(from: "Balance: ¥412.30 · ¥5 in deficit")
         #expect(parsed?.amount == 412.30)
         #expect(parsed?.currency == "CNY")
     }
 
-    @Test("parseMoonshotBalance: returns nil for malformed input")
-    func parseMoonshotMalformed() {
+    @Test
+    func `parseMoonshotBalance: returns nil for malformed input`() {
         #expect(SyncCoordinator.parseMoonshotBalance(from: "") == nil)
         #expect(SyncCoordinator.parseMoonshotBalance(from: "Account: $58.40") == nil)
         #expect(SyncCoordinator.parseMoonshotBalance(from: "Balance: abc") == nil)
     }
 
-    @Test("parseMoonshotBalance: handles integer-only amount")
-    func parseMoonshotInteger() {
+    @Test
+    func `parseMoonshotBalance: handles integer-only amount`() {
         let parsed = SyncCoordinator.parseMoonshotBalance(from: "Balance: $100")
         #expect(parsed?.amount == 100.0)
     }

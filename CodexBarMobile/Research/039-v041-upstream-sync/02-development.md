@@ -74,7 +74,16 @@ and scope changes. Command outputs and final pass/fail results belong in
 
 ### Round 4 — Release artifacts and full gates
 
-- Run Mac/iOS full gates and 16-row compatibility evidence.
+- Imported the upstream SwiftFormat policy mechanically across 33 Swift files;
+  this converted legacy Swift Testing names to sentence-style backticked names
+  and removed one redundant generic annotation. Split the two v0.41 sync tests
+  into their own suite to keep `SyncCoordinatorTests` below the SwiftLint body
+  limit.
+- Full repository lint passes with zero SwiftFormat/SwiftLint violations.
+- The release-checklist multi-account filter passes 76/76. All suites exposed
+  by high-core-count parallel timing flakes pass in focused runs, and the
+  complete `swift test --no-parallel` gate passes 5,810/5,810.
+- Record 16-row compatibility evidence.
 - Sign, notarize, staple, package, and appcast-validate.
 - Create a remote draft only within the no-push/no-published-tag boundary.
 

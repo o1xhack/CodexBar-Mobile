@@ -73,8 +73,8 @@ struct QuotaWarningPushFireTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
-    @Test("crossing a threshold writes a CKRecord when push gate is on")
-    func warningFireWritesCKRecord() {
+    @Test
+    func `crossing a threshold writes a CKRecord when push gate is on`() {
         let settings = self.makeSettings(suiteName: "QuotaWarningPushFireTests-on")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
@@ -116,8 +116,8 @@ struct QuotaWarningPushFireTests {
         #expect(writer.warningWrites.first?.threshold == 50)
     }
 
-    @Test("push gate off → local notification fires but no CKRecord write")
-    func warningFireRespectsPushGate() {
+    @Test
+    func `push gate off → local notification fires but no CKRecord write`() {
         let settings = self.makeSettings(suiteName: "QuotaWarningPushFireTests-off")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
@@ -151,8 +151,8 @@ struct QuotaWarningPushFireTests {
         #expect(writer.warningWrites.isEmpty)
     }
 
-    @Test("crossing two thresholds in sequence writes two records")
-    func twoThresholdCrossingsTwoRecords() {
+    @Test
+    func `crossing two thresholds in sequence writes two records`() {
         let settings = self.makeSettings(suiteName: "QuotaWarningPushFireTests-two-thresholds")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false

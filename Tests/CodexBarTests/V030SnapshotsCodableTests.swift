@@ -48,8 +48,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - S1 — full round-trip
 
-    @Test("SyncDeepSeekUsage round-trips with all fields")
-    func deepSeekRoundTrip() throws {
+    @Test
+    func `SyncDeepSeekUsage round-trips with all fields`() throws {
         let source = Self.sampleUsage()
         let data = try Self.encoder.encode(source)
         let decoded = try Self.decoder.decode(SyncDeepSeekUsage.self, from: data)
@@ -64,8 +64,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - free-tier — missing optional keys degrade silently
 
-    @Test("SyncDeepSeekUsage decodes with optional balance/daily/cost omitted")
-    func deepSeekFreeTierDecode() throws {
+    @Test
+    func `SyncDeepSeekUsage decodes with optional balance/daily/cost omitted`() throws {
         // Only the always-present counters + updatedAt; no costs, no balances,
         // no daily, no currency.
         let json = """
@@ -82,8 +82,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - S1 — envelope carries the field through ProviderUsageSnapshot
 
-    @Test("ProviderUsageSnapshot carries deepSeekUsage through round-trip")
-    func providerSnapshotCarriesDeepSeek() throws {
+    @Test
+    func `ProviderUsageSnapshot carries deepSeekUsage through round-trip`() throws {
         let snap = ProviderUsageSnapshot(
             providerID: "deepseek", providerName: "DeepSeek",
             primary: nil, secondary: nil,
@@ -98,8 +98,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - S3 — old Mac payload (no deepSeekUsage) → new reader = nil
 
-    @Test("Old payload without deepSeekUsage decodes to nil (backward compat)")
-    func oldPayloadDecodesDeepSeekNil() throws {
+    @Test
+    func `Old payload without deepSeekUsage decodes to nil (backward compat)`() throws {
         let json = """
         {"providerID": "deepseek", "providerName": "DeepSeek",
          "isError": false, "lastUpdated": "2023-11-14T22:13:20Z"}
@@ -112,8 +112,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - S2 dual — payload with an unknown future key does not throw
 
-    @Test("Payload with deepSeekUsage + unknown future key decodes (forward compat)")
-    func unknownFutureKeyTolerated() throws {
+    @Test
+    func `Payload with deepSeekUsage + unknown future key decodes (forward compat)`() throws {
         let json = """
         {"providerID": "deepseek", "providerName": "DeepSeek",
          "isError": false, "lastUpdated": "2023-11-14T22:13:20Z",
@@ -127,8 +127,8 @@ struct V030SnapshotsCodableTests {
 
     // MARK: - #1163 request counts + currency on SyncCostSummary
 
-    @Test("SyncCostSummary round-trips with request counts + currency")
-    func costSummaryRequestsRoundTrip() throws {
+    @Test
+    func `SyncCostSummary round-trips with request counts + currency`() throws {
         let source = SyncCostSummary(
             sessionCostUSD: 1.0, sessionTokens: 1000,
             last30DaysCostUSD: 28.9, last30DaysTokens: 1_200_000,
@@ -141,8 +141,8 @@ struct V030SnapshotsCodableTests {
         #expect(decoded.currencyCode == "EUR")
     }
 
-    @Test("Old SyncCostSummary payload without request counts decodes to nil")
-    func costSummaryRequestsBackwardCompat() throws {
+    @Test
+    func `Old SyncCostSummary payload without request counts decodes to nil`() throws {
         let json = """
         {"sessionCostUSD": 1.0, "sessionTokens": 1000, "last30DaysCostUSD": 28.9,
          "last30DaysTokens": 1200000, "daily": []}

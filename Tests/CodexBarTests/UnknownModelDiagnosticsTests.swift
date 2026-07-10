@@ -8,8 +8,8 @@ import Testing
 /// in dedup, count bumps, and ordering invariants.
 @Suite("UnknownModelDiagnostics")
 struct UnknownModelDiagnosticsTests {
-    @Test("First record creates an entry with count 1")
-    func firstRecordCreatesEntry() async {
+    @Test
+    func `First record creates an entry with count 1`() async {
         let diag = UnknownModelDiagnostics()
         await diag.record(
             providerKey: "claude",
@@ -23,8 +23,8 @@ struct UnknownModelDiagnosticsTests {
         #expect(snapshot[0].occurrenceCount == 1)
     }
 
-    @Test("Repeat record on same (provider, raw) bumps count, keeps single entry")
-    func repeatRecordBumpsCount() async {
+    @Test
+    func `Repeat record on same (provider, raw) bumps count, keeps single entry`() async {
         let diag = UnknownModelDiagnostics()
         for _ in 0..<5 {
             await diag.record(
@@ -38,8 +38,8 @@ struct UnknownModelDiagnosticsTests {
         #expect(snapshot[0].occurrenceCount == 5)
     }
 
-    @Test("Distinct (provider, raw) pairs each get their own entry")
-    func distinctPairsKeepSeparate() async {
+    @Test
+    func `Distinct (provider, raw) pairs each get their own entry`() async {
         let diag = UnknownModelDiagnostics()
         await diag.record(
             providerKey: "claude",
@@ -55,8 +55,8 @@ struct UnknownModelDiagnosticsTests {
         #expect(snapshot.count == 2)
     }
 
-    @Test("Same raw name across different providers tracks separately")
-    func sameRawAcrossProvidersTracksSeparately() async {
+    @Test
+    func `Same raw name across different providers tracks separately`() async {
         // Defensive — `claude-opus-4-99` shouldn't ever appear under
         // codex in practice, but if it did the dedup should NOT collapse
         // the rows because the fallback target may differ per provider.
@@ -75,8 +75,8 @@ struct UnknownModelDiagnosticsTests {
         #expect(snapshot.count == 2)
     }
 
-    @Test("Snapshot orders by recency, then count, then provider/raw alphabetical")
-    func snapshotIsDeterministic() async {
+    @Test
+    func `Snapshot orders by recency, then count, then provider/raw alphabetical`() async {
         let diag = UnknownModelDiagnostics()
         let pinnedDate = Date(timeIntervalSince1970: 1_700_000_000)
         // Same `firstSeenAt` → tiebreaker chain should pick most-bumped
@@ -108,8 +108,8 @@ struct UnknownModelDiagnosticsTests {
         #expect(snapshot[1].rawModel == "gpt-5.6")
     }
 
-    @Test("Reset clears entries and log counter")
-    func resetClears() async {
+    @Test
+    func `Reset clears entries and log counter`() async {
         let diag = UnknownModelDiagnostics()
         await diag.record(
             providerKey: "claude",

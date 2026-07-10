@@ -39,8 +39,8 @@ struct V037SnapshotsCodableTests {
             updatedAt: self.now)
     }
 
-    @Test("SyncCodexResetCredits round-trips with all fields")
-    func resetCreditsRoundTrip() throws {
+    @Test
+    func `SyncCodexResetCredits round-trips with all fields`() throws {
         let source = Self.sampleCredits()
         let data = try Self.encoder.encode(source)
         let decoded = try Self.decoder.decode(SyncCodexResetCredits.self, from: data)
@@ -50,8 +50,8 @@ struct V037SnapshotsCodableTests {
         #expect(decoded.credits.first?.status == "available")
     }
 
-    @Test("Partial reset-credit payload decodes with defaults")
-    func partialResetCreditsPayloadDecodes() throws {
+    @Test
+    func `Partial reset-credit payload decodes with defaults`() throws {
         let json = """
         {"availableCount": 2, "updatedAt": "2023-11-14T22:13:20Z"}
         """
@@ -62,8 +62,8 @@ struct V037SnapshotsCodableTests {
         #expect(decoded.updatedAt == Self.now)
     }
 
-    @Test("ProviderUsageSnapshot carries v0.37 Codex fields through round-trip")
-    func providerSnapshotCarriesCodexV037Fields() throws {
+    @Test
+    func `ProviderUsageSnapshot carries v0.37 Codex fields through round-trip`() throws {
         let snap = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -83,8 +83,8 @@ struct V037SnapshotsCodableTests {
         #expect(decoded.usageDataConfidence == "estimated")
     }
 
-    @Test("Old provider payload without v0.37 fields decodes to nil")
-    func oldProviderPayloadDecodesV037FieldsNil() throws {
+    @Test
+    func `Old provider payload without v0.37 fields decodes to nil`() throws {
         let json = """
         {"providerID": "codex", "providerName": "Codex",
          "isError": false, "lastUpdated": "2023-11-14T22:13:20Z"}
@@ -95,8 +95,8 @@ struct V037SnapshotsCodableTests {
         #expect(decoded.providerID == "codex")
     }
 
-    @Test("Future reset-credit status and unknown provider keys are tolerated")
-    func futureValuesAreTolerated() throws {
+    @Test
+    func `Future reset-credit status and unknown provider keys are tolerated`() throws {
         let json = """
         {"providerID": "codex", "providerName": "Codex",
          "isError": false, "lastUpdated": "2023-11-14T22:13:20Z",
@@ -119,8 +119,8 @@ struct V037SnapshotsCodableTests {
         #expect(decoded.usageDataConfidence == "future-confidence")
     }
 
-    @Test("Partial credit entries decode with defaults")
-    func partialCreditEntriesDecodeWithDefaults() throws {
+    @Test
+    func `Partial credit entries decode with defaults`() throws {
         let json = """
         {"availableCount": 1,
          "updatedAt": "2023-11-14T22:13:20Z",

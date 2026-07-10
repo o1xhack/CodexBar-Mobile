@@ -23,8 +23,8 @@ struct MockProviderInjectorTests {
         // exported it before running tests. We assume clean env.
     }
 
-    @Test("Disabled by default — env var absent")
-    func defaultIsDisabled() {
+    @Test
+    func `Disabled by default — env var absent`() {
         // Test process inherits a clean env without
         // CODEXBAR_MOCK_PROVIDERS, so the real isEnabled gate fires
         // and reports false. (allMocks() is shape-only and always
@@ -33,8 +33,8 @@ struct MockProviderInjectorTests {
         #expect(!MockProviderInjector.isEnabled)
     }
 
-    @Test("Env var truthy + defaults true → activates")
-    func envVarTruthyActivates() {
+    @Test
+    func `Env var truthy + defaults true → activates`() {
         // Hardened in 0.23.5: env var is the gate. Verify via the
         // testable variant since env vars cannot be mutated from
         // inside a running process.
@@ -61,8 +61,8 @@ struct MockProviderInjectorTests {
             "iOS 1.17.0: 65 → 69 (+Sakana/Qoder/CrossModel/ClawRouter simple mocks).")
     }
 
-    @Test("UserDefaults true alone (no env var) → disabled")
-    func userDefaultsAloneDisabled() {
+    @Test
+    func `UserDefaults true alone (no env var) → disabled`() {
         // Env var is required. UserDefaults state alone cannot
         // activate mock injection — keeps the Settings UI clean for
         // normal users.
@@ -76,8 +76,8 @@ struct MockProviderInjectorTests {
             environment: env, userDefaults: defaults))
     }
 
-    @Test("Mock providerIDs are split: real-borrowed (for first-class iOS UI) + `_mock_*` (for fallback test)")
-    func mockProviderIDsSplitRealAndSynthetic() {
+    @Test
+    func `Mock providerIDs are split: real-borrowed (for first-class iOS UI) + _mock_* (for fallback test)`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -93,16 +93,16 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("Synthetic providerIDs are exactly `_mock_*` prefixed (mock-only namespace)")
-    func syntheticIDsArePrefixed() {
+    @Test
+    func `Synthetic providerIDs are exactly _mock_* prefixed (mock-only namespace)`() {
         for id in MockProviderInjector.syntheticProviderIDs {
             #expect(id.hasPrefix("_mock_"), "synthetic mock providerID must use `_mock_` prefix; got \(id)")
             #expect(id != "_mock_", "synthetic providerID must have non-empty suffix")
         }
     }
 
-    @Test("All mock account emails use `.test` TLD (RFC 6761 reserved)")
-    func allMockEmailsAreReservedTLD() {
+    @Test
+    func `All mock account emails use .test TLD (RFC 6761 reserved)`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -117,8 +117,8 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("Codex (real ID) mock has 3 distinct accounts on `codex` providerID")
-    func codexMockHas3DistinctAccounts() {
+    @Test
+    func `Codex (real ID) mock has 3 distinct accounts on codex providerID`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -133,8 +133,8 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("Claude (real ID) mock has 2 distinct accounts on `claude` providerID")
-    func claudeMockHas2DistinctAccounts() {
+    @Test
+    func `Claude (real ID) mock has 2 distinct accounts on claude providerID`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -146,8 +146,8 @@ struct MockProviderInjectorTests {
         #expect(emails.count == 2)
     }
 
-    @Test("Perplexity (real ID) mock has structured credit breakdown on `perplexity` providerID")
-    func perplexityMockHasCreditBreakdown() {
+    @Test
+    func `Perplexity (real ID) mock has structured credit breakdown on perplexity providerID`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -163,8 +163,8 @@ struct MockProviderInjectorTests {
         #expect(credits?.planName == "Pro")
     }
 
-    @Test("CrossModel mock has wallet/usage payload on `crossmodel` providerID")
-    func crossModelMockHasUsagePayload() {
+    @Test
+    func `CrossModel mock has wallet/usage payload on crossmodel providerID`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -176,8 +176,8 @@ struct MockProviderInjectorTests {
         #expect(crossModel?.crossModelUsage?.monthly?.requestCount == 3166)
     }
 
-    @Test("Cursor fallback mock has isError + statusMessage on `_mock_cursor_unknown` providerID")
-    func cursorErrorMockHasErrorState() {
+    @Test
+    func `Cursor fallback mock has isError + statusMessage on _mock_cursor_unknown providerID`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -190,8 +190,8 @@ struct MockProviderInjectorTests {
         #expect(errorMock?.statusMessage?.contains("Mock") == true)
     }
 
-    @Test("Synthetic fallback mock has 3 rate windows + 30-day utilization history")
-    func syntheticMockHas3LanesAndHistory() {
+    @Test
+    func `Synthetic fallback mock has 3 rate windows + 30-day utilization history`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -208,8 +208,8 @@ struct MockProviderInjectorTests {
         #expect(synthetic?.budget != nil, "Synthetic mock has a budget snapshot")
     }
 
-    @Test("Mock data round-trips through JSON encoding")
-    func mockDataRoundTripsJSON() throws {
+    @Test
+    func `Mock data round-trips through JSON encoding`() throws {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -229,8 +229,8 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("All mock snapshots have non-empty accountIdentities (except cursor fallback)")
-    func mockSnapshotsHaveAccountIdentities() {
+    @Test
+    func `All mock snapshots have non-empty accountIdentities (except cursor fallback)`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -251,8 +251,8 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("Most real-borrowed mocks include cost data so iPhone Cost dashboard is exercisable")
-    func realBorrowedMocksHaveCostData() {
+    @Test
+    func `Most real-borrowed mocks include cost data so iPhone Cost dashboard is exercisable`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -285,8 +285,8 @@ struct MockProviderInjectorTests {
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
     }
 
-    @Test("Codex Alice mock has 30-day daily breakdown so per-day chart is exercisable")
-    func codexAliceHasDailyBreakdown() {
+    @Test
+    func `Codex Alice mock has 30-day daily breakdown so per-day chart is exercisable`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)

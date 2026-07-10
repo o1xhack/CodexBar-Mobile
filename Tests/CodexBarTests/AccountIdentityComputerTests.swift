@@ -10,8 +10,8 @@ import Testing
 struct AccountIdentityComputerTests {
     // MARK: - Tier-A providers produce identifiers
 
-    @Test("Codex with org + email produces both identifiers, account first")
-    func codexBothFields() throws {
+    @Test
+    func `Codex with org + email produces both identifiers, account first`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: "user@example.com",
@@ -23,8 +23,8 @@ struct AccountIdentityComputerTests {
         #expect(ids[1] == "codex:email:user@example.com")
     }
 
-    @Test("Codex with only email returns email-only set")
-    func codexEmailOnly() throws {
+    @Test
+    func `Codex with only email returns email-only set`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: "user@example.com",
@@ -34,8 +34,8 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["codex:email:user@example.com"])
     }
 
-    @Test("Codex with only org returns account-only set")
-    func codexOrgOnly() throws {
+    @Test
+    func `Codex with only org returns account-only set`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: nil,
@@ -45,8 +45,8 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["codex:account:org-abc"])
     }
 
-    @Test("Codex with empty identity returns empty array (transient signin)")
-    func codexEmptyIdentity() throws {
+    @Test
+    func `Codex with empty identity returns empty array (transient signin)`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: nil,
@@ -58,16 +58,16 @@ struct AccountIdentityComputerTests {
             "Tier-A provider with no identity → [] (not nil) so iOS distinguishes 'we tried' from 'old Mac'.")
     }
 
-    @Test("Codex with nil identity returns nil (legacy path)")
-    func codexNilIdentity() {
+    @Test
+    func `Codex with nil identity returns nil (legacy path)`() {
         // nil identity means we don't have an authoritative identity
         // record at all — same semantics as a legacy Mac that didn't
         // populate the field. Returning [] would be misleading.
         #expect(AccountIdentityComputer.compute(provider: .codex, identity: nil) == [])
     }
 
-    @Test("Claude follows the same shape as Codex")
-    func claudeBothFields() throws {
+    @Test
+    func `Claude follows the same shape as Codex`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .claude,
             accountEmail: "claude-user@example.com",
@@ -77,8 +77,8 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["claude:account:anthropic-org-xyz", "claude:email:claude-user@example.com"])
     }
 
-    @Test("VertexAI uses project: prefix for the org identifier")
-    func vertexAIShape() throws {
+    @Test
+    func `VertexAI uses project: prefix for the org identifier`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .vertexai,
             accountEmail: "gcp-user@example.com",
@@ -90,8 +90,8 @@ struct AccountIdentityComputerTests {
 
     // MARK: - Non-Tier-A providers
 
-    @Test("Non-Tier-A providers return nil — fall to legacy per-device bucket on iOS")
-    func nonTierAReturnsNil() {
+    @Test
+    func `Non-Tier-A providers return nil — fall to legacy per-device bucket on iOS`() {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
             .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
@@ -113,8 +113,8 @@ struct AccountIdentityComputerTests {
 
     // MARK: - Normalization
 
-    @Test("Email is lowercased + trimmed before being used as identifier value")
-    func emailNormalization() throws {
+    @Test
+    func `Email is lowercased + trimmed before being used as identifier value`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: "  USER@EXAMPLE.COM  ",
@@ -124,8 +124,8 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["codex:email:user@example.com"])
     }
 
-    @Test("Empty / whitespace-only values are dropped, not encoded as `email:`")
-    func emptyValueDropped() throws {
+    @Test
+    func `Empty / whitespace-only values are dropped, not encoded as email:`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: "   ",
@@ -136,8 +136,8 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["codex:account:org-abc"])
     }
 
-    @Test("Special characters in value are URL-encoded so `:` separator stays unambiguous")
-    func specialCharacterEncoding() throws {
+    @Test
+    func `Special characters in value are URL-encoded so : separator stays unambiguous`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: nil,
@@ -153,8 +153,8 @@ struct AccountIdentityComputerTests {
             "Embedded colons in value must be URL-encoded so iOS can split correctly if it ever wants to.")
     }
 
-    @Test("Unicode NFC normalization applied (composed and decomposed forms collapse)")
-    func unicodeNFCNormalization() throws {
+    @Test
+    func `Unicode NFC normalization applied (composed and decomposed forms collapse)`() throws {
         // Same logical name written two ways: composed (one code point)
         // and decomposed (two code points). After NFC normalization they
         // produce the same identifier — so two Macs that capture the
@@ -176,8 +176,8 @@ struct AccountIdentityComputerTests {
         #expect(composedIDs == decomposedIDs)
     }
 
-    @Test("Identifier value capped at maxIdentifierLength")
-    func valueLengthCap() throws {
+    @Test
+    func `Identifier value capped at maxIdentifierLength`() throws {
         let huge = String(repeating: "a", count: AccountIdentityComputer.maxIdentifierLength + 100)
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
@@ -189,8 +189,8 @@ struct AccountIdentityComputerTests {
         #expect(value.count <= AccountIdentityComputer.maxIdentifierLength)
     }
 
-    @Test("normalize rejects nil")
-    func normalizeNil() {
+    @Test
+    func `normalize rejects nil`() {
         #expect(AccountIdentityComputer.normalize(nil) == nil)
     }
 
@@ -205,8 +205,8 @@ struct AccountIdentityComputerTests {
     /// `AccountIdentityNormalizeContractTests` pins the iOS side to the
     /// SAME expected outputs. If you change normalize, update both
     /// sides AND both tests in the same commit.
-    @Test("normalize byte-equals iOS shared contract")
-    func normalizeMatchesSharedContract() {
+    @Test
+    func `normalize byte-equals iOS shared contract`() {
         let cases: [(String?, String?)] = [
             ("ABC", "abc"),
             ("Café@Example.com", "caf%C3%A9@example.com"),

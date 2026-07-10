@@ -113,8 +113,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Core scenario: 3 accounts, sequential switch
 
-    @Test("R5 A1: switching between 3 Codex managed accounts fills cache and emits all 3")
-    func threeManagedAccountsSequentialSwitchEmitsAll() async throws {
+    @Test
+    func `R5 A1: switching between 3 Codex managed accounts fills cache and emits all 3`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob")
         let carol = self.makeManagedAccount(email: "carol@example.com", homeSuffix: "carol")
@@ -166,8 +166,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Active source = .liveSystem
 
-    @Test("R5 A2: liveSystem active source does NOT trigger multi-account expansion")
-    func liveSystemActiveSourceDoesNotExpand() async throws {
+    @Test
+    func `R5 A2: liveSystem active source does NOT trigger multi-account expansion`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob")
         let (settings, store, mock, coordinator) = try self.setupCoordinator(
@@ -191,8 +191,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Account removal
 
-    @Test("R5 A3: removing managed account from store purges cache + immediate delete")
-    func removingManagedAccountPurgesCacheAndDeletesRecord() async throws {
+    @Test
+    func `R5 A3: removing managed account from store purges cache + immediate delete`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob")
         let (settings, store, mock, coordinator) = try self.setupCoordinator(
@@ -237,8 +237,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Non-ASCII email
 
-    @Test("R5 A4: managed account with non-ASCII email pushes correctly")
-    func nonASCIIEmailManagedAccountPushesCorrectly() async throws {
+    @Test
+    func `R5 A4: managed account with non-ASCII email pushes correctly`() async throws {
         // Codex MCP review noted that accountIdentities normalization
         // (Research/019) mirrors iOS for non-ASCII emails. Here we
         // verify Mac-side push doesn't choke on it.
@@ -267,8 +267,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Active-account switch race (P2.1 ghost guard)
 
-    @Test("R5 A5: active-account switch with ghost snapshot does NOT pollute cache")
-    func activeAccountSwitchGhostDoesNotPolluteCache() async throws {
+    @Test
+    func `R5 A5: active-account switch with ghost snapshot does NOT pollute cache`() async throws {
         // Reproduces the race window described in Research/020 H7:
         // user switches account A → B; `prepareCodexAccountScopedRefreshIfNeeded`
         // wipes snapshots[.codex]; observation triggers push BEFORE B's
@@ -314,8 +314,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - 0 / 1 managed accounts edge cases
 
-    @Test("R5 A6: 0 stored accounts → no expansion, falls through to active path")
-    func zeroStoredAccountsFallsThrough() async throws {
+    @Test
+    func `R5 A6: 0 stored accounts → no expansion, falls through to active path`() async throws {
         let (settings, store, mock, coordinator) = try self.setupCoordinator(
             suite: "R5A6-Empty",
             managedAccounts: [])
@@ -339,8 +339,8 @@ struct SyncCodexMultiAccountIntegrationTests {
         #expect(cycle1.count == 1)
     }
 
-    @Test("R5 A7: 1 stored account = single-account behavior, no expansion")
-    func singleStoredAccountSkipsExpansion() async throws {
+    @Test
+    func `R5 A7: 1 stored account = single-account behavior, no expansion`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let (settings, store, mock, coordinator) = try self.setupCoordinator(
             suite: "R5A7-Single",
@@ -356,8 +356,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Cache size up to 5 accounts
 
-    @Test("R5 A8: 5 managed accounts all become visible after rotating through")
-    func fiveAccountsAllVisibleAfterRotation() async throws {
+    @Test
+    func `R5 A8: 5 managed accounts all become visible after rotating through`() async throws {
         let accounts = (1...5).map { i in
             self.makeManagedAccount(
                 email: "user\(i)@example.com", homeSuffix: "u\(i)")
@@ -390,8 +390,8 @@ struct SyncCodexMultiAccountIntegrationTests {
 
     // MARK: - Active source switching back to previously-cached account
 
-    @Test("R5 A9: switching back to previously-active account refreshes cached entry")
-    func switchingBackRefreshesCachedEntry() async throws {
+    @Test
+    func `R5 A9: switching back to previously-active account refreshes cached entry`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob")
         let (settings, store, mock, coordinator) = try self.setupCoordinator(

@@ -40,8 +40,8 @@ struct V026EndToEndPipelineTests {
 
     // MARK: - Bedrock
 
-    @Test("Bedrock end-to-end: upstream → mapper → encode → decode → region preserved (C1 regression)")
-    func bedrockEndToEndPipelineCarriesRegion() throws {
+    @Test
+    func `Bedrock end-to-end: upstream → mapper → encode → decode → region preserved (C1 regression)`() throws {
         // Step 1 — real upstream fetcher output. This is the exact
         // shape `BedrockUsageSnapshot.toUsageSnapshot()` produces in
         // production today: providerCost is populated; loginMethod is
@@ -98,8 +98,8 @@ struct V026EndToEndPipelineTests {
         #expect((received.budgetUsedPercent ?? 0) < 39.0)
     }
 
-    @Test("Bedrock end-to-end: region nil propagates as nil (graceful fallback when SettingsStore is empty)")
-    func bedrockEndToEndNilRegion() throws {
+    @Test
+    func `Bedrock end-to-end: region nil propagates as nil (graceful fallback when SettingsStore is empty)`() throws {
         let bedrock = BedrockUsageSnapshot(
             monthlySpend: 3.50, monthlyBudget: nil,
             inputTokens: nil, outputTokens: nil,
@@ -129,8 +129,8 @@ struct V026EndToEndPipelineTests {
 
     // MARK: - Moonshot
 
-    @Test("Moonshot end-to-end: upstream → mapper → encode → decode → balance non-zero (C2 regression)")
-    func moonshotEndToEndPipelineCarriesBalance() throws {
+    @Test
+    func `Moonshot end-to-end: upstream → mapper → encode → decode → balance non-zero (C2 regression)`() throws {
         // Step 1 — real upstream fetcher output. Production format:
         // providerCost = nil, primary = nil, loginMethod = "Balance: $X".
         // Anything that reads providerCost.used or primaryWindow's
@@ -177,8 +177,8 @@ struct V026EndToEndPipelineTests {
         #expect(received.balanceCurrency == "USD")
     }
 
-    @Test("Moonshot end-to-end: deficit path also parses balance correctly")
-    func moonshotEndToEndDeficitPath() throws {
+    @Test
+    func `Moonshot end-to-end: deficit path also parses balance correctly`() throws {
         // Triggers the deficit branch in
         // MoonshotUsageSummary.toUsageSnapshot(): cashBalance < 0.
         // loginMethod becomes "Balance: $58.40 · $5.00 in deficit".
@@ -198,8 +198,8 @@ struct V026EndToEndPipelineTests {
         #expect(typed.balanceAmount == 58.40, "Must parse `Balance: $58.40` even when the deficit suffix is appended.")
     }
 
-    @Test("Moonshot end-to-end: zero balance → mapper returns nil → iOS hides card (not '0.00')")
-    func moonshotEndToEndZeroHidesCard() {
+    @Test
+    func `Moonshot end-to-end: zero balance → mapper returns nil → iOS hides card (not '0.00')`() {
         // A real Moonshot user can hit zero balance temporarily. The
         // mapper should return nil so iOS hides the card rather than
         // displaying "0.00" — which is what the C2 bug ACTUALLY did
@@ -219,8 +219,8 @@ struct V026EndToEndPipelineTests {
 
     // MARK: - Kiro
 
-    @Test("Kiro end-to-end: upstream → mapper → encode → decode → credits + bonus preserved")
-    func kiroEndToEndPipelineCarriesCredits() throws {
+    @Test
+    func `Kiro end-to-end: upstream → mapper → encode → decode → credits + bonus preserved`() throws {
         // Build a KiroUsageSnapshot the way the upstream fetcher
         // would after a successful credentials probe, then convert
         // via the same `toUsageDetails()` extension that lives on
@@ -273,8 +273,8 @@ struct V026EndToEndPipelineTests {
 
     // MARK: - Wire-contract pin
 
-    @Test("All six v0.26 typed fields survive a full Codable round-trip on ProviderUsageSnapshot")
-    func sixFieldsSurviveCompleteRoundTrip() throws {
+    @Test
+    func `All six v0.26 typed fields survive a full Codable round-trip on ProviderUsageSnapshot`() throws {
         let envelope = ProviderUsageSnapshot(
             providerID: "openai", providerName: "OpenAI",
             primary: nil, secondary: nil,

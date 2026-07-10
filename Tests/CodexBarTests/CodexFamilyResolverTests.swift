@@ -12,45 +12,45 @@ struct CodexFamilyResolverTests {
 
     // MARK: - Parser
 
-    @Test("Parses `gpt-5` (no minor, no variant)")
-    func parseGPT5() throws {
+    @Test
+    func `Parses gpt-5 (no minor, no variant)`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5"))
         #expect(parsed.majorVersion == 5)
         #expect(parsed.minorVersion == nil)
         #expect(parsed.family.isEmpty)
     }
 
-    @Test("Parses `gpt-5.4` (no variant)")
-    func parseGPT54() throws {
+    @Test
+    func `Parses gpt-5.4 (no variant)`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.4"))
         #expect(parsed.majorVersion == 5)
         #expect(parsed.minorVersion == 4)
         #expect(parsed.family.isEmpty)
     }
 
-    @Test("Parses `gpt-5.4-mini` with family=mini")
-    func parseMini() throws {
+    @Test
+    func `Parses gpt-5.4-mini with family=mini`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.4-mini"))
         #expect(parsed.minorVersion == 4)
         #expect(parsed.family == "mini")
     }
 
-    @Test("Parses `gpt-5.1-codex-max` with family=codex-max (multi-token variant)")
-    func parseCodexMax() throws {
+    @Test
+    func `Parses gpt-5.1-codex-max with family=codex-max (multi-token variant)`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.1-codex-max"))
         #expect(parsed.minorVersion == 1)
         #expect(parsed.family == "codex-max")
     }
 
-    @Test("Parses `gpt-5.3-codex-spark` (research-preview zero-priced variant)")
-    func parseCodexSpark() throws {
+    @Test
+    func `Parses gpt-5.3-codex-spark (research-preview zero-priced variant)`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.3-codex-spark"))
         #expect(parsed.minorVersion == 3)
         #expect(parsed.family == "codex-spark")
     }
 
-    @Test("Distinguishes `mini` and `codex-mini` as separate families")
-    func miniAndCodexMiniAreDifferentFamilies() throws {
+    @Test
+    func `Distinguishes mini and codex-mini as separate families`() throws {
         let mini = try #require(Self.resolver.parse("gpt-5.4-mini"))
         let codexMini = try #require(Self.resolver.parse("gpt-5.1-codex-mini"))
         #expect(mini.family == "mini")
@@ -58,30 +58,30 @@ struct CodexFamilyResolverTests {
         #expect(mini.family != codexMini.family)
     }
 
-    @Test("Rejects non-gpt prefixes")
-    func rejectsNonGPT() {
+    @Test
+    func `Rejects non-gpt prefixes`() {
         #expect(Self.resolver.parse("claude-opus-4-7") == nil)
         #expect(Self.resolver.parse("opus-4-7") == nil)
         #expect(Self.resolver.parse("") == nil)
         #expect(Self.resolver.parse("gpt-") == nil)
     }
 
-    @Test("Rejects unparseable major")
-    func rejectsBadMajor() {
+    @Test
+    func `Rejects unparseable major`() {
         #expect(Self.resolver.parse("gpt-foo") == nil)
         #expect(Self.resolver.parse("gpt-foo.5") == nil)
     }
 
-    @Test("Rejects unparseable minor")
-    func rejectsBadMinor() {
+    @Test
+    func `Rejects unparseable minor`() {
         #expect(Self.resolver.parse("gpt-5.foo") == nil)
         #expect(Self.resolver.parse("gpt-5.5.5") == nil)
     }
 
     // MARK: - Fallback against the live table
 
-    @Test("Unknown `gpt-5.6` (base) falls back to `gpt-5.5` (Step 1)")
-    func fallbackGPT56Below() throws {
+    @Test
+    func `Unknown gpt-5.6 (base) falls back to gpt-5.5 (Step 1)`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.6"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -90,8 +90,8 @@ struct CodexFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Unknown `gpt-5.5-codex-spark` walks back to `gpt-5.3-codex-spark`")
-    func fallbackCodexSpark55() throws {
+    @Test
+    func `Unknown gpt-5.5-codex-spark walks back to gpt-5.3-codex-spark`() throws {
         // Spark is intentionally zero-priced upstream. Falling back from a
         // future 5.5-spark to the 5.3-spark row preserves the
         // "research-preview = free" behavior — strictly safer than $0
@@ -104,8 +104,8 @@ struct CodexFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Unknown `gpt-5.5-codex-mini` falls back to `gpt-5.1-codex-mini`")
-    func fallbackCodexMini55() throws {
+    @Test
+    func `Unknown gpt-5.5-codex-mini falls back to gpt-5.1-codex-mini`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.5-codex-mini"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -114,8 +114,8 @@ struct CodexFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Unknown family `gpt-5.5-turbo` falls through to provider default `gpt-5`")
-    func fallbackUnknownFamilyGoesToProviderDefault() throws {
+    @Test
+    func `Unknown family gpt-5.5-turbo falls through to provider default gpt-5`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-5.5-turbo"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -124,8 +124,8 @@ struct CodexFamilyResolverTests {
         #expect(fallback?.strategy == .providerDefault)
     }
 
-    @Test("Unknown major `gpt-6.0` falls back to highest GPT-5 of same family")
-    func fallbackMajor6() throws {
+    @Test
+    func `Unknown major gpt-6.0 falls back to highest GPT-5 of same family`() throws {
         let parsed = try #require(Self.resolver.parse("gpt-6.0"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -138,8 +138,8 @@ struct CodexFamilyResolverTests {
 
     // MARK: - End-to-end integration via CostUsagePricing
 
-    @Test("`codexCostUSD` returns non-nil for unknown gpt-5.6 (was $0 before)")
-    func endToEndGPT56() {
+    @Test
+    func `codexCostUSD returns non-nil for unknown gpt-5.6 (was $0 before)`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.6",
             inputTokens: 1000,
@@ -149,8 +149,8 @@ struct CodexFamilyResolverTests {
         #expect(cost == 0.008)
     }
 
-    @Test("`codexCostUSD` returns non-nil for new variant via provider default")
-    func endToEndUnknownVariant() throws {
+    @Test
+    func `codexCostUSD returns non-nil for new variant via provider default`() throws {
         let cost = try #require(CostUsagePricing.codexCostUSD(
             model: "gpt-5.5-turbo",
             inputTokens: 1000,
@@ -163,8 +163,8 @@ struct CodexFamilyResolverTests {
         #expect(cost == expected)
     }
 
-    @Test("`codexCostUSD` still returns nil for non-Codex prefix")
-    func endToEndNonCodex() {
+    @Test
+    func `codexCostUSD still returns nil for non-Codex prefix`() {
         // `claude-opus-4-7` doesn't match the gpt- grammar at all → resolver
         // returns nil → cost stays nil. Sanity guard so Claude traffic
         // never lands on Codex pricing.
@@ -176,8 +176,8 @@ struct CodexFamilyResolverTests {
         #expect(cost == nil)
     }
 
-    @Test("`isCodexModelKnown` reflects exact-vs-fallback lookup")
-    func isKnownDistinguishesExactFromFallback() {
+    @Test
+    func `isCodexModelKnown reflects exact-vs-fallback lookup`() {
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.4-mini"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.3-codex-spark"))

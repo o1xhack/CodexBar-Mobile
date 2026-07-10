@@ -24,8 +24,8 @@ struct MockProviderAdvancedScenariosTests {
 
     // MARK: - P3.1 Time travel: dated mock data
 
-    @Test("Codex Alice 55-day daily breakdown spans exactly 55 days back from now")
-    func aliceDailyBreakdownSpans55Days() {
+    @Test
+    func `Codex Alice 55-day daily breakdown spans exactly 55 days back from now`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -51,8 +51,8 @@ struct MockProviderAdvancedScenariosTests {
         #expect(newest <= now.addingTimeInterval(86400), "newest entry should not be future")
     }
 
-    @Test("Synthetic 3-lane utilization history dates strictly increase")
-    func syntheticHistoryDatesIncrease() {
+    @Test
+    func `Synthetic 3-lane utilization history dates strictly increase`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -65,8 +65,8 @@ struct MockProviderAdvancedScenariosTests {
         }
     }
 
-    @Test("Quota reset times are in the future for non-error mocks (where present)")
-    func quotaResetTimesInFutureForNonError() {
+    @Test
+    func `Quota reset times are in the future for non-error mocks (where present)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -82,8 +82,8 @@ struct MockProviderAdvancedScenariosTests {
         }
     }
 
-    @Test("Perplexity renewal date is in the future")
-    func perplexityRenewalInFuture() {
+    @Test
+    func `Perplexity renewal date is in the future`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -99,8 +99,8 @@ struct MockProviderAdvancedScenariosTests {
 
     // MARK: - P3.2 Error state library
 
-    @Test("Cursor fallback mock has cookie-expired error state with isError=true")
-    func cursorFallbackHasErrorState() {
+    @Test
+    func `Cursor fallback mock has cookie-expired error state with isError=true`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -109,8 +109,8 @@ struct MockProviderAdvancedScenariosTests {
         #expect(err?.statusMessage?.contains("Cookie") == true)
     }
 
-    @Test("Bob mock at 100% boundary represents quota-depleted state")
-    func bobMockRepresentsQuotaDepleted() {
+    @Test
+    func `Bob mock at 100% boundary represents quota-depleted state`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -123,8 +123,8 @@ struct MockProviderAdvancedScenariosTests {
         #expect(secondary?.usedPercent == 100, "Bob mock must hit 100% quota for depleted-state testing")
     }
 
-    @Test("Carol mock at 0% boundary represents fresh-quota state")
-    func carolMockRepresentsFreshQuota() {
+    @Test
+    func `Carol mock at 0% boundary represents fresh-quota state`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -136,8 +136,8 @@ struct MockProviderAdvancedScenariosTests {
         #expect(primary?.usedPercent == 0, "Carol mock must hit 0% quota for fresh-state testing")
     }
 
-    @Test("Mock error message text is clearly synthetic — contains 'Mock' substring")
-    func errorMessagesAreSynthetic() {
+    @Test
+    func `Mock error message text is clearly synthetic — contains 'Mock' substring`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -198,8 +198,8 @@ struct MockProviderAdvancedScenariosTests {
             ])
     }
 
-    @Test("Two Macs emitting same mock account share the accountIdentities key (cross-Mac merge)")
-    func crossMacAccountIdentityMatches() {
+    @Test
+    func `Two Macs emitting same mock account share the accountIdentities key (cross-Mac merge)`() {
         let m1 = self.mac1Codex()
         let m2 = self.mac2Codex()
         let m1Identities = Set(m1.accountIdentities ?? [])
@@ -213,8 +213,8 @@ struct MockProviderAdvancedScenariosTests {
         #expect(intersection.contains("codex:email:alice-mock%40codex.test"))
     }
 
-    @Test("Real codex providerID + .test TLD emails don't collide across Macs")
-    func mockEmailsAreStableAcrossMacs() {
+    @Test
+    func `Real codex providerID + .test TLD emails don't collide across Macs`() {
         let m1 = self.mac1Codex()
         let m2 = self.mac2Codex()
         // Both Macs use the exact same email — mock data is
@@ -226,8 +226,8 @@ struct MockProviderAdvancedScenariosTests {
 
     // MARK: - P3.4 Push notification path with mocks
 
-    @Test("Mock providers are subscribable for push: providerID is in QuotaProviderList")
-    func mockProvidersAreSubscribable() {
+    @Test
+    func `Mock providers are subscribable for push: providerID is in QuotaProviderList`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -254,8 +254,8 @@ struct MockProviderAdvancedScenariosTests {
         }
     }
 
-    @Test("Synthetic _mock_* providerIDs are NOT in QuotaProviderList — push won't fire (expected)")
-    func syntheticIDsAreNotSubscribable() {
+    @Test
+    func `Synthetic _mock_* providerIDs are NOT in QuotaProviderList — push won't fire (expected)`() {
         let realCatalog = Set(UsageProvider.allCases.map(\.rawValue))
         for syntheticID in MockProviderInjector.syntheticProviderIDs {
             #expect(
