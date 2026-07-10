@@ -1,7 +1,8 @@
 # v0.41.0 Upstream Sync Testing
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-09
+Completed: 2026-07-10
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 
 ## Release Targets
@@ -34,8 +35,10 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 | Signed/notarized artifacts | pass | notary `90287227-c47a-409d-96b4-91ca190b4be9` Accepted; stapled ZIP and matching universal dSYM verified |
 | Signed candidate safe regression | pass | extracted CLI reports `CodexBar 0.41.0.1`; top-level and new `cards --help` render; signed app stayed alive for 3s; no provider/Keychain probes used |
 | Candidate appcast | pass | XML/HTML valid; `mobile-dev` feed/changelog links; length `47418362`; EdDSA verified locally |
-| GitHub draft release | blocked-authority | accurate draft requires publishing the target tag/commit; branch/tag push is explicitly unauthorized |
-| Final review blockers | pass | 0 code, compatibility, evidence, or artifact blockers after fixes; remote draft authority remains external |
+| Remote branch and tag | pass | branch pushed at `81f43ecb`; annotated tag `v0.41.0.1-mobile.1.18.0` resolves to the same commit |
+| GitHub draft release | pass | `draft=true`; draft `untagged-14030a96acdd8839768b`; ZIP and dSYM uploaded with GitHub digests matching local SHA-256 |
+| iOS TestFlight upload | pass | Xcode 26.6 archive/export succeeded; app + both extensions are `1.18.0 (186)`; archive CloudKit entitlement is `Production`; ASC build `d2cb9121-ab21-4242-af36-660e55550308` is `VALID` |
+| Final review blockers | pass | 0 code, compatibility, evidence, artifact, draft, or TestFlight blockers; live Mac release and merge intentionally remain out of scope |
 
 ### Mac full-test concurrency note
 
@@ -171,7 +174,30 @@ this draft does not claim that happened here.
 | Shared/iOS round 1 | independent agent | Fresh old Mac could hide Kimi Code 7-day and replace Claude Max 5x/20x with generic Max; release notes too technical | Added rolling-upgrade merge policy, both freshness-order tests, real-plan-change guard, plain-language 4-locale notes |
 | Shared/iOS round 2 | independent agent | String-only Claude rule could keep a stale specific tier when a current Mac legitimately reports generic Max | Carried source `appVersion` into merge provenance; only pre-0.41 generic yields to a specific tier; added current-generic regression; focused 49/49, full 589 pass/0 fail, build+launch/lint pass |
 | Release/evidence round 1 | independent agent | Broad CloudKit grep false positive was recorded as empty; changelog link targeted `main`; historical issue review absent | Recorded/adjudicated false positive, added source-only command, changed link to `mobile-dev`, documented closed #39/#40/#41 + Research/037; lint/appcast audit pass |
-| Final re-review | three independent agents | No remaining code, compatibility, evidence, localization, version, signing, notarization, dSYM, or appcast blocker | Blocker count 0 within authorized scope; only accurate remote draft creation awaits explicit push/tag authorization |
+| Final re-review | three independent agents | No remaining code, compatibility, evidence, localization, version, signing, notarization, dSYM, or appcast blocker | Blocker count 0 before remote handoff; later branch/tag/draft and TestFlight evidence closed the remaining authorized gates |
+
+## Remote Draft and TestFlight Evidence
+
+```text
+branch: upstream-sync/v0.41.0-mobile.1.18.0
+tag: v0.41.0.1-mobile.1.18.0
+tag commit: 81f43ecb0d2019dcb68f2468a95507239fcada73
+draft URL: https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-14030a96acdd8839768b
+draft state: true
+Mac ZIP GitHub digest: sha256:1c97044fb52786998b1364d7a7180413cf37573d553c7d49441fb65d769193c3
+dSYM GitHub digest: sha256:300cb574d7854c3f87b57f60827fa22d639f346fff64f47f0047549f5853ed91
+iOS archive: /tmp/CodexBarMobile-20260710-112216.xcarchive
+ASC app: 6760216772 / com.o1xhack.codexbar.mobile
+ASC build: d2cb9121-ab21-4242-af36-660e55550308
+marketing/build: 1.18.0 (186)
+processingState: VALID
+uploadedDate: 2026-07-10T11:27:00-07:00
+```
+
+The draft asset URL uses GitHub's private `untagged-*` path until publication;
+the public tag-shaped Sparkle enclosure is therefore expected to stay
+unavailable while `draft=true`. Publishing/finalizing the Mac release was not
+authorized and was not performed.
 
 ## Signed Artifact Evidence
 

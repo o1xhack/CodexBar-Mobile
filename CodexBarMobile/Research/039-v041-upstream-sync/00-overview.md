@@ -1,7 +1,8 @@
 # v0.41.0 Upstream Sync + iOS 1.18.0 Overview
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-09
+Completed: 2026-07-10
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 Issues:
 - [#42](https://github.com/o1xhack/CodexBar-Mobile/issues/42) — upstream `v0.40.0`
@@ -25,8 +26,11 @@ git rev-parse origin/mobile-dev
 # 8248714e2ccd17014c43f29015589b658fa2bba8
 ```
 
-All work for this train stays on that branch. The Goal does not authorize a
-branch push, merge, live release, TestFlight upload, or published tag.
+All work for this train stayed on that branch. The initial Goal did not
+authorize a branch push, merge, live release, TestFlight upload, or published
+tag. On 2026-07-10 the user explicitly authorized the branch push, release tag,
+GitHub draft assets, and TestFlight upload. Merge and live Mac release remain
+outside the authorization boundary.
 
 ## Authoritative Baseline
 
@@ -183,18 +187,24 @@ planned iOS formatter/tests do not change payload shape. This is not final
 until the post-implementation audit against the latest published fork tag is
 recorded in `03-testing.md`.
 
-## Authorization Boundary
+## Authorization Boundary and Handoff
 
-Authorized by this Goal:
+Initially authorized by this Goal:
 
 - research, merge, implementation, tests, local commits, signed/notarized Mac
   artifacts, appcast/draft preparation, compatibility evidence, and review;
-- a GitHub **draft** release only if it can be created without branch push or
-  published tag.
+- local GitHub **draft** preparation without branch push or a published tag.
 
-Not authorized without a later explicit instruction:
+Explicitly authorized by the user on 2026-07-10 and completed:
+
+- pushed `upstream-sync/v0.41.0-mobile.1.18.0` to `origin`;
+- pushed annotated tag `v0.41.0.1-mobile.1.18.0`, targeting `81f43ecb`;
+- created the GitHub draft release and uploaded the notarized ZIP and dSYM;
+- archived and uploaded iOS `1.18.0 (186)` to TestFlight; ASC reports `VALID`.
+
+Still not authorized without a later explicit instruction:
 
 - live GitHub release;
-- TestFlight upload or App Store submission;
+- App Store submission;
 - CloudKit Dashboard Production deploy;
-- branch push, tag publication, merge, force operations, or destructive Git.
+- merge, force operations, or destructive Git.

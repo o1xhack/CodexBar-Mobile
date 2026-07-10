@@ -1,6 +1,6 @@
 # v0.41.0 Upstream Sync Design
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-09
 
 ## Design Principle
@@ -132,8 +132,12 @@ Dashboard deploy.
    and dSYM artifacts.
 3. Generate/validate a candidate appcast using the full future tag download
    prefix without pushing it to `mobile-dev`.
-4. Create a GitHub draft release only if GitHub accepts a draft targeting an
-   existing remote commit without pushing the branch or publishing the tag.
-   Otherwise record the exact blocker and stop for authorization.
-5. Do not run release finalize, publish appcast, upload TestFlight, push,
-   merge, or publish the tag.
+4. Under the original Goal boundary, create a GitHub draft release only if
+   GitHub accepts a draft targeting an existing remote commit without pushing
+   the branch or publishing the tag. Otherwise record the blocker and stop for
+   authorization.
+5. The user supplied that follow-up authorization on 2026-07-10. The branch,
+   annotated tag, GitHub draft assets, and TestFlight upload were then
+   completed. Release finalize/live appcast publication, merge, App Store
+   submission, and CloudKit deploy remain prohibited without another explicit
+   instruction.

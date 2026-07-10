@@ -1,6 +1,6 @@
 # v0.41.0 Upstream Sync Development Log
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-09
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 
@@ -104,8 +104,10 @@ and scope changes. Command outputs and final pass/fail results belong in
   top-level help, and the new `cards --help` contract rendered correctly; the
   signed app remained alive for three seconds without live provider probes.
 - Generated and locally verified the candidate appcast against the exact ZIP.
-- Remote draft creation is correctly blocked: creating an accurate draft
-  requires publishing the target commit/tag, which this Goal did not authorize.
+- Remote draft creation was initially blocked because an accurate draft
+  required publishing the target commit/tag. The user authorized that handoff
+  on 2026-07-10; the branch, annotated tag, draft, ZIP, and dSYM are now on the
+  fork while the release remains non-public.
 
 ### Round 5 — Review loop
 
@@ -115,4 +117,25 @@ and scope changes. Command outputs and final pass/fail results belong in
   release-branch changelog link, and missing historical prior-art ledger.
 - Reran focused/full iOS, build+launch, lint/i18n, source-only CloudKit audit,
   appcast validation, and Sparkle verification. Authorized-scope blocker count
-  is zero; only remote draft push/tag authority remains.
+  was zero before the remote handoff; the later branch/tag/draft authorization
+  completed that remaining gate.
+
+### Round 6 — Remote draft and TestFlight handoff
+
+- Committed the signed candidate appcast as `81f43ecb`, pushed the isolated
+  upstream-sync branch, and pushed annotated tag
+  `v0.41.0.1-mobile.1.18.0` at that commit.
+- Created GitHub draft `untagged-14030a96acdd8839768b`; it remains `draft=true`
+  and contains the notarized app ZIP plus matching universal dSYM. GitHub's
+  asset digests match the locally recorded SHA-256 values.
+- Regenerated the Xcode project from `project.yml`; generation produced no
+  tracked diff. The upload preflight passed full repo lint, SwiftFormat,
+  SwiftLint, iOS four-language/source-key audits, and parser-version audit.
+- Archived with Xcode 26.6 and uploaded iOS `1.18.0 (186)` through the logged-in
+  Xcode cloud-signing path. App Store Connect build
+  `d2cb9121-ab21-4242-af36-660e55550308` became `VALID` at the `1.18.0`
+  pre-release train. The archive app and both extensions all report
+  `1.18.0 (186)`, and the archived app entitlement explicitly keeps CloudKit
+  environment `Production`.
+- No merge, live Mac release, App Store submission, or CloudKit deploy was
+  performed.
