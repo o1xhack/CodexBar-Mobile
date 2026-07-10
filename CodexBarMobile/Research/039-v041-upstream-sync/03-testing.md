@@ -35,7 +35,7 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 | Signed/notarized artifacts | pass | notary `90287227-c47a-409d-96b4-91ca190b4be9` Accepted; stapled ZIP and matching universal dSYM verified |
 | Signed candidate safe regression | pass | extracted CLI reports `CodexBar 0.41.0.1`; top-level and new `cards --help` render; signed app stayed alive for 3s; no provider/Keychain probes used |
 | Candidate appcast | pass | XML/HTML valid; `mobile-dev` feed/changelog links; length `47418362`; EdDSA verified locally |
-| Remote branch and tag | pass | branch pushed at `81f43ecb`; annotated tag `v0.41.0.1-mobile.1.18.0` resolves to the same commit |
+| Remote branch and tag | pass | release handoff commit `81f43ecb` was pushed; annotated tag `v0.41.0.1-mobile.1.18.0` resolves to it; the branch subsequently advanced only with Research evidence commits |
 | GitHub draft release | pass | `draft=true`; draft `untagged-14030a96acdd8839768b`; ZIP and dSYM uploaded with GitHub digests matching local SHA-256 |
 | iOS TestFlight upload | pass | Xcode 26.6 archive/export succeeded; app + both extensions are `1.18.0 (186)`; archive CloudKit entitlement is `Production`; ASC build `d2cb9121-ab21-4242-af36-660e55550308` is `VALID` |
 | Final review blockers | pass | 0 code, compatibility, evidence, artifact, draft, or TestFlight blockers; live Mac release and merge intentionally remain out of scope |
