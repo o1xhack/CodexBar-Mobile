@@ -1,6 +1,15 @@
 import AppKit
 import CodexBarCore
 
+extension StatusItemController {
+    /// Identifies which manual refresh a task belongs to, so per-provider refreshes stay independent
+    /// of each other and of the all-providers refresh.
+    enum ManualRefreshScope: Hashable {
+        case global
+        case provider(UsageProvider)
+    }
+}
+
 enum LoginNotificationLogic {
     static func notificationCopy(providerName: String) -> (title: String, body: String) {
         (
@@ -30,7 +39,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         refreshOpenMenusWhenComplete: Bool,
         interaction: ProviderInteraction) async
     {
-        await ProviderInteractionContext.$current.withValue(interaction) {
+        await self.withProviderInteraction(interaction) {
             await self.store.refresh(forceTokenUsage: forceTokenUsage)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             self.store.scheduleStorageFootprintRefreshForOverview(force: true)
@@ -47,7 +56,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         refreshOpenMenusWhenComplete: Bool,
         interaction: ProviderInteraction) async
     {
-        await ProviderInteractionContext.$current.withValue(interaction) {
+        await self.withProviderInteraction(interaction) {
             let refreshStartedAt = Date()
             await self.store.refreshProvider(provider)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
@@ -75,6 +84,23 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                 self.refreshOpenMenusAfterExplicitStoreAction()
             } else {
                 self.invalidateMenus()
+            }
+        }
+    }
+
+    private func withProviderInteraction(
+        _ interaction: ProviderInteraction,
+        operation: () async -> Void) async
+    {
+        if interaction == .userInitiated {
+            await BrowserCookieAccessGate.withExplicitRetry {
+                await ProviderInteractionContext.$current.withValue(interaction) {
+                    await operation()
+                }
+            }
+        } else {
+            await ProviderInteractionContext.$current.withValue(interaction) {
+                await operation()
             }
         }
     }
@@ -114,10 +140,17 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     private func startManualRefresh(for provider: UsageProvider?) {
+        let scope: ManualRefreshScope = provider.map(ManualRefreshScope.provider) ?? .global
         let scopedRefreshInFlight = provider.map { self.store.refreshingProviders.contains($0) }
             ?? !self.store.refreshingProviders.isEmpty
+        // Two different providers may refresh concurrently, but an all-providers (.global) refresh must
+        // not overlap a per-provider one (or vice versa) — that would duplicate the shared fetch work.
+        let conflictsWithOtherScope = scope == .global
+            ? self.manualRefreshTasks.contains { $0.key != .global }
+            : self.manualRefreshTasks[.global] != nil
         guard !self.hasPreparedForAppShutdown,
-              self.manualRefreshTask == nil,
+              self.manualRefreshTasks[scope] == nil,
+              !conflictsWithOtherScope,
               !self.store.isRefreshing,
               !scopedRefreshInFlight
         else { return }
@@ -126,9 +159,8 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             defer {
-                self.manualRefreshTask = nil
-                self.manualRefreshProvider = nil
-                self.menuCardRefreshMonitor.endManualRefresh()
+                self.manualRefreshTasks[scope] = nil
+                self.menuCardRefreshMonitor.endManualRefresh(for: provider)
                 self.updatePersistentRefreshItemsEnabled()
                 self.prepareAttachedClosedMenusIfNeeded()
             }
@@ -152,8 +184,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                     interaction: .userInitiated)
             }
         }
-        self.manualRefreshProvider = provider
-        self.manualRefreshTask = task
+        self.manualRefreshTasks[scope] = task
         self.menuCardRefreshMonitor.beginManualRefresh(frozenModels: frozenModels, provider: provider)
         self.updatePersistentRefreshItemsEnabled()
     }
@@ -247,6 +278,11 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     {
         if provider == .alibaba {
             return self.settings.alibabaCodingPlanAPIRegion.dashboardURL
+        }
+        if provider == .alibabatokenplan {
+            return AlibabaTokenPlanUsageFetcher.dashboardURL(
+                region: self.settings.alibabaTokenPlanAPIRegion,
+                environment: environment)
         }
         if provider == .minimax {
             return self.settings.minimaxAPIRegion.dashboardURL

@@ -628,13 +628,13 @@ public struct ClaudeStatusProbe: Sendable {
         if let date = self.parseDate(raw, formats: Self.resetDateTimeWithMinutes, formatter: formatter) {
             var comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
             comps.second = 0
-            return calendar.date(from: comps)
+            return self.bumpYearIfNeeded(calendar.date(from: comps), now: now, calendar: calendar)
         }
         if let date = self.parseDate(raw, formats: Self.resetDateTimeHourOnly, formatter: formatter) {
             var comps = calendar.dateComponents([.year, .month, .day, .hour], from: date)
             comps.minute = 0
             comps.second = 0
-            return calendar.date(from: comps)
+            return self.bumpYearIfNeeded(calendar.date(from: comps), now: now, calendar: calendar)
         }
 
         if let time = self.parseDate(raw, formats: Self.resetTimeWithMinutes, formatter: formatter) {
@@ -657,6 +657,13 @@ public struct ClaudeStatusProbe: Sendable {
             of: now) else { return nil }
         if anchored >= now { return anchored }
         return calendar.date(byAdding: .day, value: 1, to: anchored)
+    }
+
+    /// Yearless dates parsed just before New Year's can otherwise land nearly a year in the past.
+    private static func bumpYearIfNeeded(_ date: Date?, now: Date, calendar: Calendar) -> Date? {
+        guard let date else { return nil }
+        if date >= now { return date }
+        return calendar.date(byAdding: .year, value: 1, to: date)
     }
 
     private static let resetTimeWithMinutes = ["h:mma", "h:mm a", "HH:mm", "H:mm"]

@@ -33,31 +33,44 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     }
 
     var label: String {
+        L(self.labelKey, language: self.labelLanguage)
+    }
+
+    private var labelLanguage: String {
         switch self {
-        case .system: L("language_system")
-        case .english: L("language_english")
-        case .chineseSimplified: L("language_chinese_simplified")
-        case .chineseTraditional: L("language_chinese_traditional")
-        case .japanese: L("language_japanese")
-        case .spanish: L("language_spanish")
-        case .portugueseBrazilian: L("language_portuguese_brazilian")
-        case .korean: L("language_korean")
-        case .german: L("language_german")
-        case .french: L("language_french")
-        case .arabic: L("language_arabic")
-        case .italian: L("language_italian")
-        case .vietnamese: L("language_vietnamese")
-        case .dutch: L("language_dutch")
-        case .turkish: L("language_turkish")
-        case .ukrainian: L("language_ukrainian")
-        case .russian: L("language_russian")
-        case .indonesian: L("language_indonesian")
-        case .polish: L("language_polish")
-        case .persian: L("language_persian")
-        case .thai: L("language_thai")
-        case .galician: L("language_galician")
-        case .catalan: L("language_catalan")
-        case .swedish: L("language_swedish")
+        case .system, .english:
+            "en"
+        default:
+            self.rawValue
+        }
+    }
+
+    private var labelKey: String {
+        switch self {
+        case .system: "language_system"
+        case .english: "language_english"
+        case .chineseSimplified: "language_chinese_simplified"
+        case .chineseTraditional: "language_chinese_traditional"
+        case .japanese: "language_japanese"
+        case .spanish: "language_spanish"
+        case .portugueseBrazilian: "language_portuguese_brazilian"
+        case .korean: "language_korean"
+        case .german: "language_german"
+        case .french: "language_french"
+        case .arabic: "language_arabic"
+        case .italian: "language_italian"
+        case .vietnamese: "language_vietnamese"
+        case .dutch: "language_dutch"
+        case .turkish: "language_turkish"
+        case .ukrainian: "language_ukrainian"
+        case .russian: "language_russian"
+        case .indonesian: "language_indonesian"
+        case .polish: "language_polish"
+        case .persian: "language_persian"
+        case .thai: "language_thai"
+        case .galician: "language_galician"
+        case .catalan: "language_catalan"
+        case .swedish: "language_swedish"
         }
     }
 }
@@ -69,27 +82,30 @@ struct GeneralPane: View {
     var body: some View {
         Form {
             Section {
-                Picker(selection: self.$settings.appLanguage) {
-                    ForEach(AppLanguage.allCases) { option in
-                        Text(option.label).tag(option.rawValue)
-                    }
-                } label: {
-                    SettingsRowLabel(L("language_title"), subtitle: L("language_subtitle"))
-                }
+                SettingsMenuPicker(
+                    selection: self.$settings.appLanguage,
+                    options: GeneralSettingsMenuOptions.languages,
+                    label: {
+                        SettingsRowLabel(L("language_title"), subtitle: L("language_subtitle"))
+                    },
+                    optionLabel: { rawValue in
+                        Text(verbatim: AppLanguage(rawValue: rawValue)?.label ?? rawValue)
+                    })
 
-                Picker(selection: self.$settings.terminalApp) {
-                    ForEach(TerminalApp.pickerOptions(selected: self.settings.terminalApp)) { option in
+                SettingsMenuPicker(
+                    selection: self.$settings.terminalApp,
+                    options: GeneralSettingsMenuOptions.terminalApps(selected: self.settings.terminalApp),
+                    label: {
+                        SettingsRowLabel(L("terminal_app_title"), subtitle: L("terminal_app_subtitle"))
+                    },
+                    optionLabel: { option in
                         HStack(spacing: 6) {
                             if let icon = option.pickerIcon {
                                 Image(nsImage: icon)
                             }
                             Text(option.label)
                         }
-                        .tag(option)
-                    }
-                } label: {
-                    SettingsRowLabel(L("terminal_app_title"), subtitle: L("terminal_app_subtitle"))
-                }
+                    })
 
                 Toggle(L("start_at_login_title"), isOn: self.$settings.launchAtLogin)
             } header: {
@@ -97,11 +113,11 @@ struct GeneralPane: View {
             }
 
             Section {
-                Picker(L("refresh_cadence_title"), selection: self.$settings.refreshFrequency) {
-                    ForEach(RefreshFrequency.allCases) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
+                SettingsMenuPicker(
+                    selection: self.$settings.refreshFrequency,
+                    options: GeneralSettingsMenuOptions.refreshFrequencies,
+                    label: { Text(L("refresh_cadence_title")) },
+                    optionLabel: { option in Text(option.label) })
 
                 Toggle(L("refresh_on_open_title"), isOn: self.$settings.refreshAllProvidersOnMenuOpen)
 
@@ -155,5 +171,6 @@ struct GeneralPane: View {
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)
+        .scrollContentBackground(.hidden)
     }
 }

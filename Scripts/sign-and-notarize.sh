@@ -16,6 +16,15 @@ DSYM_ZIP="${RELEASE_ASSET_BASENAME}.dSYM.zip"
 RELEASE_STAGE_DIR=$(mktemp -d /tmp/codexbar-release.XXXXXX)
 STAGED_APP_BUNDLE="${RELEASE_STAGE_DIR}/${APP_BUNDLE}"
 
+verify_distribution_policy() {
+  local app=$1
+  if command -v syspolicy_check >/dev/null 2>&1; then
+    syspolicy_check distribution "$app"
+  else
+    spctl -a -t exec -vv "$app"
+  fi
+}
+
 if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" ]]; then
   echo "Missing App Store Connect release settings (key id or issuer id)." >&2
   exit 1
@@ -114,7 +123,7 @@ find "$APP_BUNDLE" -name '._*' -delete
 
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
 
-spctl -a -t exec -vv "$APP_BUNDLE"
+verify_distribution_policy "$APP_BUNDLE"
 stapler validate "$APP_BUNDLE"
 
 # Launch verification — last gate before declaring the build good.

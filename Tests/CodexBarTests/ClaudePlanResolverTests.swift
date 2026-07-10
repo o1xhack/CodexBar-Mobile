@@ -5,10 +5,26 @@ import Testing
 struct ClaudePlanResolverTests {
     @Test
     func `oauth rate limit tier maps to branded plan`() {
-        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "default_claude_max_20x") == "Claude Max")
         #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "claude_pro") == "Claude Pro")
         #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "claude_team") == "Claude Team")
         #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "claude_enterprise") == "Claude Enterprise")
+    }
+
+    @Test
+    func `oauth rate limit tier preserves the Max usage multiplier`() {
+        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "default_claude_max_5x") == "Claude Max 5x")
+        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "default_claude_max_20x") == "Claude Max 20x")
+        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "v2_default_claude_max_20x") == "Claude Max 20x")
+        // A bare Max tier without a multiplier keeps the plain label.
+        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "claude_max") == "Claude Max")
+        #expect(ClaudePlan.oauthLoginMethod(rateLimitTier: "default_claude_team_5x") == "Claude Team")
+        // A resolved non-Max plan never inherits a Max multiplier from a disagreeing tier.
+        #expect(
+            ClaudePlan.oauthLoginMethod(subscriptionType: "team", rateLimitTier: "default_claude_max_5x")
+                == "Claude Team")
+        #expect(
+            ClaudePlan.webLoginMethod(rateLimitTier: "default_claude_max_20x", billingType: nil)
+                == "Claude Max 20x")
     }
 
     @Test

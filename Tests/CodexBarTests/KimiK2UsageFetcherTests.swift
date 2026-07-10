@@ -41,6 +41,34 @@ struct KimiK2UsageFetcherTests {
     }
 
     @Test
+    func `fetch ignores non-finite usage values`() async throws {
+        let json = """
+        {
+          "total_credits_consumed": "NaN",
+          "credits_remaining": "Infinity",
+          "average_tokens": "1e309"
+        }
+        """
+        let transport = ProviderHTTPTransportHandler { request in
+            let url = try #require(request.url)
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-key")
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["X-Credits-Remaining": "-Infinity"]))
+            return (Data(json.utf8), response)
+        }
+
+        let snapshot = try await KimiK2UsageFetcher.fetchUsage(apiKey: "test-key", transport: transport)
+        let summary = snapshot.summary
+
+        #expect(summary.consumed == 0)
+        #expect(summary.remaining == 0)
+        #expect(summary.averageTokens == nil)
+    }
+
+    @Test
     func `parses numeric timestamp seconds`() throws {
         let json = """
         {
@@ -70,6 +98,54 @@ struct KimiK2UsageFetcherTests {
         let expected = Date(timeIntervalSince1970: 1_700_000_000)
 
         #expect(abs(summary.updatedAt.timeIntervalSince1970 - expected.timeIntervalSince1970) < 0.5)
+    }
+
+    @Test
+    func `treats exact millisecond cutoff as milliseconds`() throws {
+        let json = """
+        {
+          "timestamp": 1000000000000,
+          "credits_remaining": 10,
+          "total_credits_consumed": 5
+        }
+        """
+
+        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8))
+
+        #expect(summary.updatedAt == Date(timeIntervalSince1970: 1_000_000_000))
+    }
+
+    @Test(arguments: ["NaN", "Infinity", "1e308", "0", "-1"])
+    func `ignores invalid numeric timestamps`(timestamp: String) throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let json = """
+        {
+          "timestamp": "\(timestamp)",
+          "credits_remaining": 10,
+          "total_credits_consumed": 5
+        }
+        """
+
+        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8), now: now)
+
+        #expect(summary.updatedAt == now)
+    }
+
+    @Test
+    func `ignores timestamps beyond distant future`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let timestamp = Date.distantFuture.timeIntervalSince1970 + 1
+        let json = """
+        {
+          "timestamp": "\(timestamp)",
+          "credits_remaining": 10,
+          "total_credits_consumed": 5
+        }
+        """
+
+        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8), now: now)
+
+        #expect(summary.updatedAt == now)
     }
 
     @Test

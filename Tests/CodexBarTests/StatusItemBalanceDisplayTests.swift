@@ -656,6 +656,22 @@ struct StatusItemBalanceDisplayTests {
         #expect(StatusItemController.buttonTitle("", hasImage: true).isEmpty)
     }
 
+    @Test
+    func `debug button title stays visible with or without a usage value`() {
+        #expect(StatusItemController.buttonTitle(nil, hasImage: true, isDebugApp: true) == " D")
+        #expect(StatusItemController.buttonTitle("42%", hasImage: true, isDebugApp: true) == " 42% D")
+        #expect(StatusItemController.buttonTitle("42%", hasImage: false, isDebugApp: true) == "42% D")
+    }
+
+    @Test
+    func `debug bundle identity updates status item accessibility`() {
+        #expect(StatusItemController.isDebugApp(bundleIdentifier: "com.steipete.codexbar.debug"))
+        #expect(!StatusItemController.isDebugApp(bundleIdentifier: "com.steipete.codexbar"))
+        #expect(!StatusItemController.isDebugApp(bundleIdentifier: nil))
+        #expect(StatusItemController.statusItemAccessibilityTitle(isDebugApp: true) == "CodexBar Debug")
+        #expect(StatusItemController.statusItemAccessibilityTitle(isDebugApp: false) == "CodexBar")
+    }
+
     private func makeSettings(suiteName: String, provider: UsageProvider) -> SettingsStore {
         let settings = testSettingsStore(suiteName: suiteName)
         settings.statusChecksEnabled = false

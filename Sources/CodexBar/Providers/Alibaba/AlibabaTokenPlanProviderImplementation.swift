@@ -17,6 +17,7 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
     func observeSettings(_ settings: SettingsStore) {
         _ = settings.alibabaTokenPlanCookieSource
         _ = settings.alibabaTokenPlanCookieHeader
+        _ = settings.alibabaTokenPlanAPIRegion
     }
 
     @MainActor
@@ -36,27 +37,47 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
             allowsOff: false,
             keychainDisabled: context.settings.debugDisableKeychainAccess)
         let cookieSubtitle: () -> String? = {
-            ProviderCookieSourceUI.subtitle(
+            let host = context.settings.alibabaTokenPlanAPIRegion.dashboardURL.host ?? "the selected console"
+            return ProviderCookieSourceUI.subtitle(
                 source: context.settings.alibabaTokenPlanCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from Bailian.",
-                manual: "Paste a Cookie header from bailian.console.aliyun.com.",
+                auto: "Automatic imports browser cookies from Model Studio/Bailian.",
+                manual: "Paste a Cookie header from \(host).",
                 off: "Alibaba Token Plan cookies are disabled.")
+        }
+
+        let regionBinding = Binding(
+            get: { context.settings.alibabaTokenPlanAPIRegion.rawValue },
+            set: { raw in
+                context.settings.alibabaTokenPlanAPIRegion = AlibabaTokenPlanAPIRegion(rawValue: raw) ?? .international
+            })
+        let regionOptions = AlibabaTokenPlanAPIRegion.allCases.map {
+            ProviderSettingsPickerOption(id: $0.rawValue, title: $0.displayName)
         }
 
         return [
             ProviderSettingsPickerDescriptor(
                 id: "alibaba-token-plan-cookie-source",
                 title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from Bailian.",
+                subtitle: "Automatic imports browser cookies from Model Studio/Bailian.",
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
                 onChange: nil,
                 trailingText: {
-                    ProviderCookieSourceUI.cachedTrailingText(provider: .alibabatokenplan)
+                    ProviderCookieSourceUI.cachedTrailingText(
+                        provider: .alibabatokenplan,
+                        scope: context.settings.alibabaTokenPlanAPIRegion.cookieCacheScope)
                 }),
+            ProviderSettingsPickerDescriptor(
+                id: "alibaba-token-plan-region",
+                title: "Gateway region",
+                subtitle: "Use international or China mainland console gateways for quota fetches.",
+                binding: regionBinding,
+                options: regionOptions,
+                isVisible: nil,
+                onChange: nil),
         ]
     }
 
@@ -77,7 +98,9 @@ struct AlibabaTokenPlanProviderImplementation: ProviderImplementation {
                         style: .link,
                         isVisible: nil,
                         perform: {
-                            NSWorkspace.shared.open(AlibabaTokenPlanUsageFetcher.dashboardURL)
+                            NSWorkspace.shared.open(
+                                AlibabaTokenPlanUsageFetcher.dashboardURL(
+                                    region: context.settings.alibabaTokenPlanAPIRegion))
                         }),
                 ],
                 isVisible: {

@@ -22,9 +22,22 @@ extension SettingsStore {
         }
     }
 
+    var alibabaTokenPlanAPIRegion: AlibabaTokenPlanAPIRegion {
+        get {
+            let raw = self.configSnapshot.providerConfig(for: .alibabatokenplan)?.sanitizedRegion
+            return AlibabaTokenPlanAPIRegion(rawValue: raw ?? "") ?? .chinaMainland
+        }
+        set {
+            self.updateProviderConfig(provider: .alibabatokenplan) { entry in
+                entry.region = newValue.rawValue
+            }
+        }
+    }
+
     func alibabaTokenPlanSettingsSnapshot() -> ProviderSettingsSnapshot.AlibabaTokenPlanProviderSettings {
         ProviderSettingsSnapshot.AlibabaTokenPlanProviderSettings(
             cookieSource: self.alibabaTokenPlanCookieSource,
-            manualCookieHeader: self.alibabaTokenPlanCookieHeader)
+            manualCookieHeader: self.alibabaTokenPlanCookieHeader,
+            apiRegion: self.alibabaTokenPlanAPIRegion)
     }
 }

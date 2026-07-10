@@ -81,7 +81,8 @@ Admin API key setup:
   - `extra_usage` → Extra usage cost (monthly spend/limit).
 - Successful OAuth login enables Claude and selects OAuth as the usage source.
 - Plan inference: `subscriptionType` is preferred when present; `rate_limit_tier` falls back to
-  Max/Pro/Team/Enterprise.
+  Max/Pro/Team/Enterprise. When a Max `rate_limit_tier` carries a usage multiplier
+  (`default_claude_max_5x` / `default_claude_max_20x`), it is surfaced in the label as "Max 5x" / "Max 20x".
 
 ## Web API (cookies)
 - Preferences → Providers → Claude → Cookie source (Automatic or Manual).
@@ -112,6 +113,37 @@ Admin API key setup:
   - Extra usage spend/limit (if enabled).
   - Account email + inferred plan.
 
+## claude-swap accounts (opt-in)
+
+The accepted multi-account design in
+[claude-multi-account-and-status-items.md](claude-multi-account-and-status-items.md).
+
+- Setup: Preferences → Providers → Claude → "Read accounts from claude-swap", then set the path to the
+  [`cswap`](https://github.com/realiti4/claude-swap) executable (for example `~/.local/bin/cswap`).
+- Behavior: on each Claude refresh, CodexBar runs `cswap --list --json` independently of the ambient Claude fetch (no
+  shell, fixed arguments, bounded runtime and output), requires `schemaVersion == 1`, and parses only slot number,
+  active state, usage status, email (display only), and the 5-hour/7-day windows.
+- Display: when claude-swap reports more than one account, the Claude menu shows one stacked card per
+  account (active account first) alongside nothing else changing; with zero or one account the menu is
+  unchanged. Account identity is `claude-swap:<slot>`.
+- Isolation: CodexBar never reads claude-swap or Claude Code credential storage for this feature; the
+  subprocess handles its own credential access. Adapter failures keep the last successful accounts as
+  stale data, surface the error in provider settings, and never affect the ambient Claude usage card.
+- Sentinel statuses (`token_expired`, `api_key`, `keychain_unavailable`, `no_credentials`,
+  `unavailable`) render as per-account notes instead of usage bars.
+- Switching: an inactive account with usable source credentials shows “Switch Account…”. Clicking it runs exactly
+  `cswap --switch-to <slot> --json`, validates the versioned result and requested slot, then refreshes both ambient
+  Claude usage and every claude-swap account card. Switches are serialized; no automatic switching occurs.
+- Expired, missing, unknown, or Keychain-inaccessible credentials stay non-actionable. A failed switch remains visible
+  on that account without discarding its last successful usage. A running Claude Code process can take up to the
+  claude-swap Keychain cache interval to observe the new account.
+- When multiple claude-swap accounts are available, they take explicit precedence over Claude
+  token-account presentation (stacked cards and the segmented switcher).
+
+Packaged synthetic proof (fake `cswap` executable, no real accounts or credentials):
+
+![Stacked claude-swap account cards](screenshots/claude-swap-accounts-synthetic-proof.png)
+
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
@@ -139,10 +171,16 @@ Admin API key setup:
     - `$CLAUDE_CONFIG_DIR` (comma-separated), each root uses `<root>/projects`.
     - Fallback roots:
       - `~/.config/claude/projects`
-      - `~/.claude/projects`
+      - `~/.claude/projects` (Claude Code and current Claude Desktop Code/Cowork CLI sessions)
+      - Additional embedded Claude Desktop project stores, when present:
+        - `~/Library/Application Support/Claude/local-agent-mode-sessions/**/.claude/projects`
+        - `~/Library/Application Support/Claude/claude-code-sessions/**/.claude/projects`
+    - Current Claude Desktop metadata under `claude-code-sessions` points to shared CLI session JSONL by
+      `cliSessionId`; metadata-only directories are not treated as usage sources.
   - Supported pi sessions:
     - `~/.pi/agent/sessions/**/*.jsonl`
-- Files: `**/*.jsonl` under the native project roots plus supported pi session files.
+- Files: `**/*.jsonl` under the native project roots, discovered Claude Desktop project roots,
+  plus supported pi session files.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).

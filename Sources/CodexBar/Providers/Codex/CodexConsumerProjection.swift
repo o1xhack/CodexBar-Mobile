@@ -238,6 +238,7 @@ struct CodexConsumerProjection {
     private let rateWindowsByLane: [RateLane: RateWindow]
     private let codeReviewRemainingPercent: Double?
     private let codeReviewLimit: RateWindow?
+    private let evaluationTime: Date
 
     static func make(surface: Surface, context: Context) -> CodexConsumerProjection {
         let allowsLiveAdjuncts = surface != .overrideCard
@@ -290,18 +291,62 @@ struct CodexConsumerProjection {
             credits: creditsProjection,
             menuBarFallback: self.menuBarFallback(
                 creditsRemaining: creditsProjection?.remaining,
-                rateWindowsByLane: rateWindowsByLane),
+                rateWindowsByLane: rateWindowsByLane,
+                evaluationTime: context.now),
             userFacingErrors: userFacingErrors,
             canShowBuyCredits: canShowBuyCredits,
             hasUsageBreakdown: hasUsageBreakdown,
             hasCreditsHistory: hasCreditsHistory,
             rateWindowsByLane: rateWindowsByLane,
             codeReviewRemainingPercent: dashboardVisibility == .attached ? dashboard?.codeReviewRemainingPercent : nil,
-            codeReviewLimit: dashboardVisibility == .attached ? dashboard?.codeReviewLimit : nil)
+            codeReviewLimit: dashboardVisibility == .attached ? dashboard?.codeReviewLimit : nil,
+            evaluationTime: context.now)
     }
 
     func rateWindow(for lane: RateLane) -> RateWindow? {
+        guard let window = self.rateWindowsByLane[lane] else { return nil }
+        switch lane {
+        case .session:
+            return Self.sessionDisplayWindow(
+                session: window,
+                weekly: self.rateWindowsByLane[.weekly],
+                evaluationTime: self.evaluationTime)
+        case .weekly:
+            return window
+        }
+    }
+
+    func sourceRateWindow(for lane: RateLane) -> RateWindow? {
         self.rateWindowsByLane[lane]
+    }
+
+    func menuBarSelectableRateWindow(for lane: RateLane) -> RateWindow? {
+        guard let window = self.rateWindow(for: lane) else { return nil }
+        guard window.remainingPercent <= 0,
+              let resetAt = window.resetsAt,
+              resetAt <= self.evaluationTime
+        else {
+            return window
+        }
+        return nil
+    }
+
+    var nextMenuBarStateChangeAt: Date? {
+        self.rateWindowsByLane.values.compactMap { window in
+            guard window.remainingPercent <= 0,
+                  let resetAt = window.resetsAt,
+                  resetAt > self.evaluationTime
+            else {
+                return nil
+            }
+            return resetAt
+        }.min()
+    }
+
+    var hasBindingWeeklyCap: Bool {
+        Self.weeklyCapsSession(
+            weekly: self.rateWindowsByLane[.weekly],
+            evaluationTime: self.evaluationTime)
     }
 
     func remainingPercent(for metric: SupplementalMetric) -> Double? {
@@ -399,18 +444,72 @@ struct CodexConsumerProjection {
         return (lane, window)
     }
 
+    /// When Codex's weekly lane is exhausted, it is the binding cap: session quota cannot be used until
+    /// the weekly window resets, even if the API still reports room in the 5-hour bucket.
+    private static func weeklyCapsSession(weekly: RateWindow?, evaluationTime: Date) -> Bool {
+        guard let weekly else { return false }
+        guard weekly.remainingPercent <= 0 else { return false }
+        return weekly.resetsAt.map { $0 > evaluationTime } ?? true
+    }
+
+    private static func sessionDisplayWindow(
+        session: RateWindow,
+        weekly: RateWindow?,
+        evaluationTime: Date) -> RateWindow
+    {
+        guard self.weeklyCapsSession(weekly: weekly, evaluationTime: evaluationTime) else {
+            return session
+        }
+        let reset = self.bindingReset(
+            session: session,
+            weekly: weekly,
+            evaluationTime: evaluationTime)
+        return RateWindow(
+            usedPercent: max(session.usedPercent, 100),
+            windowMinutes: session.windowMinutes,
+            resetsAt: reset.date,
+            resetDescription: reset.description,
+            nextRegenPercent: session.nextRegenPercent,
+            isSyntheticPlaceholder: session.isSyntheticPlaceholder)
+    }
+
+    private static func bindingReset(
+        session: RateWindow,
+        weekly: RateWindow?,
+        evaluationTime: Date) -> (date: Date?, description: String?)
+    {
+        guard let weekly else { return (nil, nil) }
+        let sessionIsExhausted = session.remainingPercent <= 0 &&
+            (session.resetsAt.map { $0 > evaluationTime } ?? true)
+        guard sessionIsExhausted else {
+            return (weekly.resetsAt, weekly.resetDescription)
+        }
+        guard let sessionReset = session.resetsAt, let weeklyReset = weekly.resetsAt else {
+            return (nil, nil)
+        }
+        if sessionReset > weeklyReset {
+            return (sessionReset, session.resetDescription)
+        }
+        return (weeklyReset, weekly.resetDescription)
+    }
+
     private static func menuBarFallback(
         creditsRemaining: Double?,
-        rateWindowsByLane: [RateLane: RateWindow]) -> MenuBarFallback
+        rateWindowsByLane: [RateLane: RateWindow],
+        evaluationTime: Date) -> MenuBarFallback
     {
         guard let creditsRemaining, creditsRemaining > 0 else { return .none }
-        let hasExhaustedLane = rateWindowsByLane.values.contains { $0.remainingPercent <= 0 }
+        let hasExhaustedLane = rateWindowsByLane.values.contains {
+            $0.remainingPercent <= 0 && ($0.resetsAt.map { $0 > evaluationTime } ?? true)
+        }
         let hasNoRateWindows = rateWindowsByLane.isEmpty
         return (hasExhaustedLane || hasNoRateWindows) ? .creditsBalance : .none
     }
 
     var hasExhaustedRateLane: Bool {
-        self.rateWindowsByLane.values.contains { $0.remainingPercent <= 0 }
+        self.rateWindowsByLane.values.contains {
+            $0.remainingPercent <= 0 && ($0.resetsAt.map { $0 > self.evaluationTime } ?? true)
+        }
     }
 }
 
@@ -458,5 +557,38 @@ extension UsageStore {
             now: now)
         guard projection.menuBarFallback == .creditsBalance else { return nil }
         return projection.credits?.remaining
+    }
+
+    func codexMenuBarMetricWindow(snapshot: UsageSnapshot, now: Date = Date()) -> RateWindow? {
+        let projection = self.codexConsumerProjection(
+            surface: .menuBar,
+            snapshotOverride: snapshot,
+            now: now)
+        let windows = projection.visibleRateLanes.compactMap {
+            projection.menuBarSelectableRateWindow(for: $0)
+        }
+        let first = windows.first
+        let second = windows.dropFirst().first
+
+        switch self.settings.menuBarMetricPreference(for: .codex, snapshot: snapshot) {
+        case .secondary, .tertiary:
+            return second ?? first
+        case .extraUsage:
+            return first
+        case .average:
+            guard self.settings.menuBarMetricSupportsAverage(for: .codex),
+                  let primary = first,
+                  let secondary = second
+            else {
+                return first
+            }
+            let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
+            return RateWindow(
+                usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+        case .primaryAndSecondary:
+            return windows.prefix(2).max(by: { $0.usedPercent < $1.usedPercent })
+        case .automatic, .primary, .monthlyPlan:
+            return first
+        }
     }
 }

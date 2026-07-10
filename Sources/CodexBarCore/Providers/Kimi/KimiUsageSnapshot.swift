@@ -5,23 +5,27 @@ public struct KimiUsageSnapshot: Sendable {
     public let rateLimit: KimiUsageDetail?
     public let updatedAt: Date
     let subscriptionBalance: KimiSubscriptionBalance?
+    let subscriptionCodeWeeklyLimit: KimiSubscriptionRateLimit?
 
     public init(weekly: KimiUsageDetail, rateLimit: KimiUsageDetail?, updatedAt: Date) {
         self.weekly = weekly
         self.rateLimit = rateLimit
         self.updatedAt = updatedAt
         self.subscriptionBalance = nil
+        self.subscriptionCodeWeeklyLimit = nil
     }
 
     init(
         weekly: KimiUsageDetail,
         rateLimit: KimiUsageDetail?,
         subscriptionBalance: KimiSubscriptionBalance?,
+        subscriptionCodeWeeklyLimit: KimiSubscriptionRateLimit? = nil,
         updatedAt: Date)
     {
         self.weekly = weekly
         self.rateLimit = rateLimit
         self.subscriptionBalance = subscriptionBalance
+        self.subscriptionCodeWeeklyLimit = subscriptionCodeWeeklyLimit
         self.updatedAt = updatedAt
     }
 
@@ -70,20 +74,20 @@ extension KimiUsageSnapshot {
         var rateLimitWindow: RateWindow?
         if let rateLimit = self.rateLimit {
             let rateLimitValue = Int(rateLimit.limit) ?? 0
-            let rateRemaining = Int(rateLimit.remaining ?? "")
-            let rateUsed = Int(rateLimit.used ?? "") ?? {
-                guard let remaining = rateRemaining else { return 0 }
-                return max(0, rateLimitValue - remaining)
-            }()
-            let ratePercent = rateLimitValue > 0
-                ? Self.clampedPercent(Double(rateUsed) / Double(rateLimitValue) * 100)
-                : 0
+            if rateLimitValue > 0 {
+                let rateRemaining = Int(rateLimit.remaining ?? "")
+                let rateUsed = Int(rateLimit.used ?? "") ?? {
+                    guard let remaining = rateRemaining else { return 0 }
+                    return max(0, rateLimitValue - remaining)
+                }()
+                let ratePercent = Self.clampedPercent(Double(rateUsed) / Double(rateLimitValue) * 100)
 
-            rateLimitWindow = RateWindow(
-                usedPercent: ratePercent,
-                windowMinutes: 300, // 300 minutes = 5 hours
-                resetsAt: Self.parseDate(rateLimit.resetTime),
-                resetDescription: "Rate: \(rateUsed)/\(rateLimitValue) per 5 hours")
+                rateLimitWindow = RateWindow(
+                    usedPercent: ratePercent,
+                    windowMinutes: 300, // 300 minutes = 5 hours
+                    resetsAt: Self.parseDate(rateLimit.resetTime),
+                    resetDescription: "Rate: \(rateUsed)/\(rateLimitValue) per 5 hours")
+            }
         }
 
         let monthlyWindow = self.subscriptionBalance.flatMap { balance -> NamedRateWindow? in
@@ -91,7 +95,7 @@ extension KimiUsageSnapshot {
             // the pool is shared across features, so amountUsedRatio is the real "subscription remaining".
             guard balance.feature == nil || balance.feature == "FEATURE_OMNI" else { return nil }
             guard balance.type == nil || balance.type == "SUBSCRIPTION" else { return nil }
-            guard let ratio = balance.amountUsedRatio else { return nil }
+            guard let ratio = balance.amountUsedRatio, ratio.isFinite else { return nil }
             let window = RateWindow(
                 usedPercent: Self.clampedPercent(ratio * 100),
                 windowMinutes: nil,
@@ -99,6 +103,19 @@ extension KimiUsageSnapshot {
                 resetDescription: nil)
             return NamedRateWindow(id: "kimi-monthly", title: "Monthly", window: window)
         }
+
+        let subscriptionCodeWeeklyWindow = self.subscriptionCodeWeeklyLimit.flatMap { limit -> NamedRateWindow? in
+            guard limit.enabled != false else { return nil }
+            guard let ratio = limit.ratio, ratio.isFinite else { return nil }
+            let window = RateWindow(
+                usedPercent: Self.clampedPercent(ratio * 100),
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: Self.parseDate(limit.resetTime),
+                resetDescription: nil)
+            return NamedRateWindow(id: "kimi-code-7d", title: "Code 7-day", window: window)
+        }
+
+        let extraRateWindows = [monthlyWindow, subscriptionCodeWeeklyWindow].compactMap(\.self)
 
         let identity = ProviderIdentitySnapshot(
             providerID: .kimi,
@@ -110,7 +127,7 @@ extension KimiUsageSnapshot {
             primary: weeklyWindow,
             secondary: rateLimitWindow,
             tertiary: nil,
-            extraRateWindows: monthlyWindow.map { [$0] },
+            extraRateWindows: extraRateWindows.isEmpty ? nil : extraRateWindows,
             providerCost: nil,
             updatedAt: self.updatedAt,
             identity: identity)

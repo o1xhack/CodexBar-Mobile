@@ -124,6 +124,29 @@ public enum SubprocessRunner {
 
     // MARK: - Public API
 
+    /// Runs a process to natural exit without letting caller cancellation or a
+    /// forced timeout interrupt an external mutation after launch.
+    public static func runToCompletion(
+        binary: String,
+        arguments: [String],
+        environment: [String: String],
+        currentDirectoryURL: URL? = nil,
+        acceptsNonZeroExit: Bool = false,
+        label: String) async throws -> SubprocessResult
+    {
+        let task = Task.detached(priority: .userInitiated) {
+            try await self.run(
+                binary: binary,
+                arguments: arguments,
+                environment: environment,
+                timeout: .infinity,
+                currentDirectoryURL: currentDirectoryURL,
+                acceptsNonZeroExit: acceptsNonZeroExit,
+                label: label)
+        }
+        return try await task.value
+    }
+
     public static func run(
         binary: String,
         arguments: [String],
@@ -131,6 +154,7 @@ public enum SubprocessRunner {
         timeout: TimeInterval,
         standardInput: Any? = nil,
         currentDirectoryURL: URL? = nil,
+        acceptsNonZeroExit: Bool = false,
         label: String) async throws -> SubprocessResult
     {
         guard FileManager.default.isExecutableFile(atPath: binary) else {
@@ -183,15 +207,22 @@ public enum SubprocessRunner {
         }
 
         let killedByTimeout = KillFlag()
-        let timeoutTimer = WallClockTimeout(
-            timeInterval: timeout,
-            threadName: "CodexBar subprocess timeout",
-            handler: {
-                guard process.isRunning else { return }
-                killedByTimeout.set()
-                self.terminateProcess(process, processGroup: processGroup)
-            })
-        timeoutTimer.start()
+        let timeoutTimer: WallClockTimeout? = if timeout.isFinite {
+            {
+                let timer = WallClockTimeout(
+                    timeInterval: timeout,
+                    threadName: "CodexBar subprocess timeout",
+                    handler: {
+                        guard process.isRunning else { return }
+                        killedByTimeout.set()
+                        self.terminateProcess(process, processGroup: processGroup)
+                    })
+                timer.start()
+                return timer
+            }()
+        } else {
+            nil
+        }
 
         do {
             let exitCode = try await withTaskCancellationHandler {
@@ -200,10 +231,10 @@ public enum SubprocessRunner {
                 try Task.checkCancellation()
                 return code
             } onCancel: {
-                timeoutTimer.cancel()
+                timeoutTimer?.cancel()
                 self.terminateProcess(process, processGroup: processGroup)
             }
-            timeoutTimer.cancel()
+            timeoutTimer?.cancel()
 
             let duration = Date().timeIntervalSince(start)
             // Race guard: the timeout timer may kill the process just before the
@@ -225,7 +256,7 @@ public enum SubprocessRunner {
             let stdout = await ProcessPipeCapture.decodeUTF8(stdoutData)
             let stderr = await ProcessPipeCapture.decodeUTF8(stderrData)
 
-            if exitCode != 0 {
+            if exitCode != 0, !acceptsNonZeroExit {
                 let duration = Date().timeIntervalSince(start)
                 self.log.warning(
                     "Subprocess failed",

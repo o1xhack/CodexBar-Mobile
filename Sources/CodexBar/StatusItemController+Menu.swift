@@ -607,6 +607,16 @@ extension StatusItemController {
             return false
         }
 
+        // Multiple claude-swap rows take precedence over Claude token-account cards; otherwise
+        // the stacked token-account branch below would return before rendering the adapter rows.
+        if ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+            provider: context.currentProvider,
+            accountCount: self.store.claudeSwapAccountSnapshots.count)
+        {
+            self.addClaudeSwapMenuCards(to: menu, context: context)
+            return false
+        }
+
         if let tokenAccountDisplay = context.tokenAccountDisplay, tokenAccountDisplay.showAll {
             let accountSnapshots = tokenAccountDisplay.snapshots
             let cards = accountSnapshots.isEmpty
@@ -669,10 +679,11 @@ extension StatusItemController {
         return false
     }
 
-    private func addStackedMenuCards(
+    func addStackedMenuCards(
         _ cards: [UsageMenuCardView.Model],
         to menu: NSMenu,
-        context: MenuCardContext)
+        context: MenuCardContext,
+        planAction: ((Int) -> (() -> Void)?)? = nil)
     {
         if cards.isEmpty, let model = self.menuCardModel(for: context.selectedProvider) {
             let renderedModel = self.menuCardRefreshMonitor.model(for: model.provider, fallback: model)
@@ -687,7 +698,10 @@ extension StatusItemController {
         } else {
             for (index, model) in cards.enumerated() {
                 menu.addItem(self.makeMenuCardItem(
-                    UsageMenuCardView(model: model, width: context.menuWidth),
+                    UsageMenuCardView(
+                        model: model,
+                        width: context.menuWidth,
+                        planAction: planAction?(index)),
                     id: "menuCard-\(index)",
                     width: context.menuWidth,
                     heightCacheScope: "\(context.currentProvider.rawValue)-\(index)",
@@ -1334,6 +1348,13 @@ extension StatusItemController {
                 submenu: costSubmenu,
                 width: width))
         }
+        if !hasCredits, webItems.hasCreditsHistory, self.settings.showOptionalCreditsAndExtraUsage {
+            addSectionSeparator()
+            _ = self.addCreditsHistorySubmenu(to: menu)
+        }
+        if !hasCredits, webItems.canShowBuyCredits {
+            menu.addItem(self.makeBuyCreditsItem())
+        }
     }
 
     private func switcherIcon(for provider: UsageProvider) -> NSImage {
@@ -1345,12 +1366,14 @@ extension StatusItemController {
         let snapshot = self.store.snapshot(for: provider)
         let showUsed = self.settings.usageBarsShowUsed
         let style = self.store.style(for: provider)
+        let now = Date()
         let resolved = snapshot.map {
             IconRemainingResolver.resolvedPercents(
                 snapshot: $0,
                 style: style,
                 showUsed: showUsed,
-                secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
+                secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0),
+                now: now)
         }
         let primary = resolved?.primary
         let weekly = resolved?.secondary
@@ -1358,11 +1381,11 @@ extension StatusItemController {
             for: provider,
             surface: .menuBar,
             snapshotOverride: snapshot,
-            now: snapshot?.updatedAt ?? Date())
+            now: now)
         let credits = creditsProjection?.menuBarFallback == .creditsBalance
             ? self.store.codexMenuBarCreditsRemaining(
                 snapshotOverride: snapshot,
-                now: snapshot?.updatedAt ?? Date())
+                now: now)
             : nil
         let stale = self.store.isStale(provider: provider)
         let indicator = self.store.statusIndicator(for: provider)

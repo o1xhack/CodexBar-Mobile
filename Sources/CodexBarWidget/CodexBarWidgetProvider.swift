@@ -12,10 +12,13 @@ enum ProviderChoice: String, AppEnum {
     case antigravity
     case zai
     case copilot
+    case devin
     case minimax
     case kilo
     case opencode
     case opencodego
+    case mistral
+    case kimi
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -28,10 +31,13 @@ enum ProviderChoice: String, AppEnum {
         .antigravity: DisplayRepresentation(title: "Antigravity"),
         .zai: DisplayRepresentation(title: "z.ai"),
         .copilot: DisplayRepresentation(title: "Copilot"),
+        .devin: DisplayRepresentation(title: "Devin"),
         .minimax: DisplayRepresentation(title: "MiniMax"),
         .kilo: DisplayRepresentation(title: "Kilo"),
         .opencode: DisplayRepresentation(title: "OpenCode"),
         .opencodego: DisplayRepresentation(title: "OpenCode Go"),
+        .mistral: DisplayRepresentation(title: "Mistral"),
+        .kimi: DisplayRepresentation(title: "Kimi"),
     ]
 
     var provider: UsageProvider {
@@ -44,10 +50,13 @@ enum ProviderChoice: String, AppEnum {
         case .antigravity: .antigravity
         case .zai: .zai
         case .copilot: .copilot
+        case .devin: .devin
         case .minimax: .minimax
         case .kilo: .kilo
         case .opencode: .opencode
         case .opencodego: .opencodego
+        case .mistral: .mistral
+        case .kimi: .kimi
         }
     }
 
@@ -68,7 +77,7 @@ enum ProviderChoice: String, AppEnum {
         case .zai: self = .zai
         case .factory: return nil // Factory not yet supported in widgets
         case .copilot: self = .copilot
-        case .devin: return nil // Devin not yet supported in widgets
+        case .devin: self = .devin
         case .minimax: self = .minimax
         case .manus: return nil // Manus not yet supported in widgets
         case .vertexai: return nil // Vertex AI not yet supported in widgets
@@ -76,7 +85,7 @@ enum ProviderChoice: String, AppEnum {
         case .kiro: return nil // Kiro not yet supported in widgets
         case .augment: return nil // Augment not yet supported in widgets
         case .jetbrains: return nil // JetBrains not yet supported in widgets
-        case .kimi: return nil // Kimi not yet supported in widgets
+        case .kimi: self = .kimi
         case .kimik2: return nil // Kimi K2 not yet supported in widgets
         case .moonshot: return nil // Moonshot not yet supported in widgets
         case .amp: return nil // Amp not yet supported in widgets
@@ -94,7 +103,7 @@ enum ProviderChoice: String, AppEnum {
         case .doubao: return nil // Doubao not yet supported in widgets
         case .sakana: return nil // Sakana AI not yet supported in widgets
         case .abacus: return nil // Abacus AI not yet supported in widgets
-        case .mistral: return nil // Mistral not yet supported in widgets
+        case .mistral: self = .mistral
         case .deepseek: return nil // DeepSeek not yet supported in widgets
         case .codebuff: return nil // Codebuff not yet supported in widgets
         case .crof: return nil // Crof not yet supported in widgets
@@ -219,8 +228,9 @@ struct CodexBarTimelineProvider: AppIntentTimelineProvider {
     {
         let provider = configuration.provider.provider
         let snapshot = WidgetSnapshotStore.load() ?? WidgetPreviewData.emptySnapshot()
-        let entry = CodexBarWidgetEntry(date: Date(), provider: provider, snapshot: snapshot)
-        let refresh = Date().addingTimeInterval(30 * 60)
+        let now = Date()
+        let entry = CodexBarWidgetEntry(date: now, provider: provider, snapshot: snapshot)
+        let refresh = BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: provider, now: now)
         return Timeline(entries: [entry], policy: .after(refresh))
     }
 }
@@ -242,7 +252,10 @@ struct CodexBarSwitcherTimelineProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CodexBarSwitcherEntry>) -> Void) {
         let entry = self.makeEntry()
-        let refresh = Date().addingTimeInterval(30 * 60)
+        let refresh = BurnDownRefreshSchedule.nextRefresh(
+            snapshot: entry.snapshot,
+            provider: entry.provider,
+            now: entry.date)
         completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
 

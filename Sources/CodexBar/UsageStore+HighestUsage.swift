@@ -5,7 +5,7 @@ import Foundation
 extension UsageStore {
     /// Returns the enabled candidate provider with the highest usage percentage (closest to rate limit).
     /// Excludes providers that are fully rate-limited.
-    func providerWithHighestUsage(candidateProviders: [UsageProvider]? = nil)
+    func providerWithHighestUsage(candidateProviders: [UsageProvider]? = nil, now: Date = Date())
         -> (provider: UsageProvider, usedPercent: Double)?
     {
         let candidateSet = candidateProviders.map(Set.init)
@@ -14,14 +14,19 @@ extension UsageStore {
             where candidateSet?.contains(provider) ?? true
         {
             guard let snapshot = self.snapshots[provider] else { continue }
-            guard let window = self.menuBarMetricWindowForHighestUsage(provider: provider, snapshot: snapshot) else {
+            guard let window = self.menuBarMetricWindowForHighestUsage(
+                provider: provider,
+                snapshot: snapshot,
+                now: now)
+            else {
                 continue
             }
             let percent = window.usedPercent
             guard !self.shouldExcludeFromHighestUsage(
                 provider: provider,
                 snapshot: snapshot,
-                metricPercent: percent)
+                metricPercent: percent,
+                now: now)
             else {
                 continue
             }
@@ -32,10 +37,17 @@ extension UsageStore {
         return highest
     }
 
-    private func menuBarMetricWindowForHighestUsage(provider: UsageProvider, snapshot: UsageSnapshot) -> RateWindow? {
+    private func menuBarMetricWindowForHighestUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        now: Date) -> RateWindow?
+    {
         let effectivePreference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
         if provider == .antigravity, effectivePreference == .automatic {
             return Self.mostConstrainedAntigravityQuotaSummaryWindow(snapshot: snapshot)
+        }
+        if provider == .codex {
+            return self.codexMenuBarMetricWindow(snapshot: snapshot, now: now)
         }
         return MenuBarMetricWindowResolver.rateWindow(
             preference: effectivePreference,
@@ -47,12 +59,21 @@ extension UsageStore {
     private func shouldExcludeFromHighestUsage(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
-        metricPercent: Double)
+        metricPercent: Double,
+        now: Date)
         -> Bool
     {
         let effectivePreference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
         guard metricPercent >= 100 else { return false }
         if provider == .codex || provider == .claude, effectivePreference == .primaryAndSecondary {
+            if provider == .codex,
+               self.codexConsumerProjection(
+                   surface: .menuBar,
+                   snapshotOverride: snapshot,
+                   now: now).hasBindingWeeklyCap
+            {
+                return true
+            }
             // A Claude spend-limit-only snapshot has no real session/weekly lanes; the metric resolves to
             // the spend-limit window, so reaching here (metricPercent >= 100) means the spend limit itself
             // is exhausted. Mirror that resolver fallback and exclude, instead of inspecting the raw 0%

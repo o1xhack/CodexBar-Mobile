@@ -111,7 +111,7 @@ extension StatusItemController {
 
     var isMenuDataRefreshInFlight: Bool {
         self.store.isRefreshing ||
-            self.manualRefreshTask != nil ||
+            !self.manualRefreshTasks.isEmpty ||
             !self.store.refreshingProviders.isEmpty ||
             UsageProvider.allCases.contains { self.store.isTokenRefreshInFlight(for: $0) }
     }
@@ -345,6 +345,15 @@ extension StatusItemController {
                 for scopeSnapshot in self.store.kiloScopeSnapshots {
                     parts.append(Self.menuIdentityField(scopeSnapshot.id))
                     parts.append(self.providerIdentitySignature(scopeSnapshot.snapshot?.identity(for: target)))
+                }
+            }
+
+            if target == .claude {
+                parts.append(Self.menuIdentityField(self.store.claudeSwapLastError ?? ""))
+                for accountSnapshot in self.store.claudeSwapAccountSnapshots {
+                    parts.append(Self.menuIdentityField(accountSnapshot.id.opaqueID))
+                    parts.append(accountSnapshot.isActive ? "active" : "inactive")
+                    parts.append(self.providerIdentitySignature(accountSnapshot.snapshot?.identity(for: target)))
                 }
             }
         }

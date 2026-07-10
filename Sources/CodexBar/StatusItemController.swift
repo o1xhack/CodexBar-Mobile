@@ -41,6 +41,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private(set) static var menuRefreshEnabled = !SettingsStore.isRunningTests
     static let quotaWarningFlashDuration: TimeInterval = 60
     private nonisolated static let statusItemAccessibilityTitle = "CodexBar"
+    private nonisolated static let debugStatusItemAccessibilityTitle = "CodexBar Debug"
     private nonisolated static let statusItemAccessibilityIdentifierPrefix = "CodexBar.StatusItem"
     private nonisolated static let mergedLegacyDefaultItemIndex = 0
 
@@ -65,6 +66,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 "\(StatusItemController.statusItemAccessibilityIdentifierPrefix).\(provider.rawValue)"
             }
         }
+    }
+
+    nonisolated static func isDebugApp(bundleIdentifier: String?) -> Bool {
+        bundleIdentifier?.contains(".debug") == true
+    }
+
+    nonisolated static func statusItemAccessibilityTitle(isDebugApp: Bool) -> String {
+        isDebugApp ? self.debugStatusItemAccessibilityTitle : self.statusItemAccessibilityTitle
     }
 
     #if DEBUG
@@ -121,6 +130,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     let menuRefreshEnabledForController: Bool
     var statusItem: NSStatusItem
     var statusItems: [UsageProvider: NSStatusItem] = [:]
+    /// App intent survives Tahoe changing `NSStatusItem.isVisible` after Control Center rejects its scene.
+    var expectedVisibleStatusItemAutosaveNames: Set<String> = []
     var lastMenuProvider: UsageProvider?
     var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     var menuSession = MenuSessionCoordinator<ObjectIdentifier>()
@@ -138,8 +149,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var fallbackMenu: NSMenu?
     var openMenus: [ObjectIdentifier: NSMenu] = [:]
     var menuRefreshTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
-    var manualRefreshTask: Task<Void, Never>?
-    var manualRefreshProvider: UsageProvider?
+    /// Manual refreshes tracked per scope so refreshing one provider neither greys out nor blocks
+    /// a manual refresh of another. `.global` covers the all-providers refresh (⌘R / merged overview).
+    var manualRefreshTasks: [ManualRefreshScope: Task<Void, Never>] = [:]
+
     var closedMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var closedMenuRebuildRequests = MenuRebuildRequestRegistry<ObjectIdentifier>()
     var openMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
@@ -290,11 +303,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         let item = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = identity.autosaveName
         if let button = item.button {
+            let title = self.statusItemAccessibilityTitle(
+                isDebugApp: self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier))
             // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
             button.imageScaling = .scaleNone
             button.setAccessibilityIdentifier(identity.accessibilityIdentifier)
-            button.setAccessibilityTitle(self.statusItemAccessibilityTitle)
-            button.toolTip = self.statusItemAccessibilityTitle
+            button.setAccessibilityTitle(title)
+            button.toolTip = title
         }
         return item
     }
@@ -322,9 +337,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case waitingBrowser
     }
 
-    func menuBarMetricWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
+    func menuBarMetricWindow(for provider: UsageProvider, snapshot: UsageSnapshot?, now: Date = Date()) -> RateWindow? {
         if provider == .codex {
-            return self.codexMenuBarMetricWindow(snapshot: snapshot)
+            return self.codexMenuBarMetricWindow(snapshot: snapshot, now: now)
         }
         return MenuBarMetricWindowResolver.rateWindow(
             preference: self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot),
@@ -333,45 +348,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider))
     }
 
-    private func codexMenuBarMetricWindow(snapshot: UsageSnapshot?) -> RateWindow? {
+    private func codexMenuBarMetricWindow(snapshot: UsageSnapshot?, now: Date) -> RateWindow? {
         guard let snapshot else { return nil }
-        let projection = CodexConsumerProjection.make(
-            surface: .menuBar,
-            context: CodexConsumerProjection.Context(
-                snapshot: snapshot,
-                rawUsageError: nil,
-                liveCredits: self.store.credits,
-                rawCreditsError: self.store.lastCreditsError,
-                liveDashboard: self.store.openAIDashboard,
-                rawDashboardError: self.store.lastOpenAIDashboardError,
-                dashboardAttachmentAuthorized: self.store.openAIDashboardAttachmentAuthorized,
-                dashboardRequiresLogin: self.store.openAIDashboardRequiresLogin,
-                now: snapshot.updatedAt))
-        let lanes = projection.visibleRateLanes
-        let first = lanes.first.flatMap { projection.rateWindow(for: $0) }
-        let second = lanes.dropFirst().first.flatMap { projection.rateWindow(for: $0) }
-        let preference = self.settings.menuBarMetricPreference(for: .codex, snapshot: snapshot)
-
-        switch preference {
-        case .secondary, .tertiary:
-            return second ?? first
-        case .extraUsage:
-            return first
-        case .average:
-            guard self.settings.menuBarMetricSupportsAverage(for: .codex),
-                  let primary = first,
-                  let secondary = second
-            else {
-                return first
-            }
-            let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
-            return RateWindow(
-                usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-        case .primaryAndSecondary:
-            return [first, second].compactMap(\.self).max(by: { $0.usedPercent < $1.usedPercent })
-        case .automatic, .primary, .monthlyPlan:
-            return first
-        }
+        return self.store.codexMenuBarMetricWindow(snapshot: snapshot, now: now)
     }
 
     init(
@@ -766,8 +745,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         let anyEnabled = !self.store.enabledProvidersForDisplay().isEmpty
         let force = self.store.debugForceAnimation
         let mergeIcons = self.shouldMergeIcons
+        var expectedVisibleAutosaveNames: Set<String> = []
         if mergeIcons {
-            self.statusItem.isVisible = anyEnabled || force
+            let shouldBeVisible = anyEnabled || force
+            self.statusItem.isVisible = shouldBeVisible
+            if shouldBeVisible {
+                expectedVisibleAutosaveNames.insert(self.statusItem.autosaveName)
+            }
             for provider in Array(self.statusItems.keys) {
                 self.removeProviderStatusItem(for: provider)
             }
@@ -781,12 +765,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 if shouldBeVisible {
                     let item = self.lazyStatusItem(for: provider)
                     item.isVisible = true
+                    expectedVisibleAutosaveNames.insert(item.autosaveName)
                 } else {
                     self.removeProviderStatusItem(for: provider)
                 }
             }
             self.attachMenus(fallback: fallback)
         }
+        self.expectedVisibleStatusItemAutosaveNames = expectedVisibleAutosaveNames
         self.updateAnimationState()
         self.updateBlinkingState()
     }

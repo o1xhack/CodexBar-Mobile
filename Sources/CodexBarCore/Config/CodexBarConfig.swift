@@ -15,9 +15,10 @@ public struct CodexBarConfig: Codable, Sendable {
         metadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata) -> CodexBarConfig
     {
         let providers = UsageProvider.allCases.map { provider in
-            ProviderConfig(
-                id: provider,
-                enabled: metadata[provider]?.defaultEnabled)
+            Self.defaultProviderConfig(
+                provider,
+                metadata: metadata,
+                alibabaTokenPlanRegion: .international)
         }
         return CodexBarConfig(version: Self.currentVersion, providers: providers)
     }
@@ -57,9 +58,10 @@ public struct CodexBarConfig: Codable, Sendable {
         }
 
         for provider in UsageProvider.allCases where !seen.contains(provider) {
-            normalized.append(ProviderConfig(
-                id: provider,
-                enabled: metadata[provider]?.defaultEnabled))
+            normalized.append(Self.defaultProviderConfig(
+                provider,
+                metadata: metadata,
+                alibabaTokenPlanRegion: .chinaMainland))
         }
 
         return CodexBarConfig(
@@ -91,6 +93,17 @@ public struct CodexBarConfig: Codable, Sendable {
             self.providers.append(config)
         }
     }
+
+    private static func defaultProviderConfig(
+        _ provider: UsageProvider,
+        metadata: [UsageProvider: ProviderMetadata],
+        alibabaTokenPlanRegion: AlibabaTokenPlanAPIRegion) -> ProviderConfig
+    {
+        ProviderConfig(
+            id: provider,
+            enabled: metadata[provider]?.defaultEnabled,
+            region: provider == .alibabatokenplan ? alibabaTokenPlanRegion.rawValue : nil)
+    }
 }
 
 public struct ProviderConfig: Codable, Sendable, Identifiable {
@@ -106,6 +119,8 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
     public var workspaceID: String?
     public var enterpriseHost: String?
     public var tokenAccounts: ProviderTokenAccountData?
+    public var claudeSwapEnabled: Bool?
+    public var claudeSwapExecutablePath: String?
     public var codexActiveSource: CodexActiveSource?
     public var codexProfileHomePaths: [String]?
     public var quotaWarnings: QuotaWarningConfig?
@@ -127,6 +142,8 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         workspaceID: String? = nil,
         enterpriseHost: String? = nil,
         tokenAccounts: ProviderTokenAccountData? = nil,
+        claudeSwapEnabled: Bool? = nil,
+        claudeSwapExecutablePath: String? = nil,
         codexActiveSource: CodexActiveSource? = nil,
         codexProfileHomePaths: [String]? = nil,
         quotaWarnings: QuotaWarningConfig? = nil,
@@ -147,6 +164,8 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         self.workspaceID = workspaceID
         self.enterpriseHost = enterpriseHost
         self.tokenAccounts = tokenAccounts
+        self.claudeSwapEnabled = claudeSwapEnabled
+        self.claudeSwapExecutablePath = claudeSwapExecutablePath
         self.codexActiveSource = codexActiveSource
         self.codexProfileHomePaths = codexProfileHomePaths
         self.quotaWarnings = quotaWarnings
@@ -178,6 +197,10 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
 
     public var sanitizedEnterpriseHost: String? {
         Self.clean(self.enterpriseHost)
+    }
+
+    public var sanitizedClaudeSwapExecutablePath: String? {
+        Self.clean(self.claudeSwapExecutablePath)
     }
 
     public var sanitizedAWSProfile: String? {
