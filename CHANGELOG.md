@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.41.0.1 (Mobile 1.18.0 · build 100.1) — 2026-07-09 — upstream v0.41.0 sync
+
+Syncs the Mac app from the fork baseline at upstream **v0.39.0** through
+**v0.40.0** and **v0.41.0** as one release, paired with iOS **1.18.0**.
+
+### Added / Improved
+
+- **Complete Mac upstream sync** — Includes Claude read-only `claude-swap`
+  account cards/switching, the responsive `codexbar cards` CLI, cost-chart
+  scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget
+  selection, Devin extra-usage balance, and the upstream Settings refinements.
+- **Provider correctness and safety** — Includes Kimi/Kimi K2 endpoint and
+  finite-value fixes, Claude fractional utilization and account-history
+  isolation, Gemini consumer-tier/Flash corrections, Alibaba international
+  region support, browser Safe Storage prompt suppression, Codex weekly-cap
+  presentation, and Tahoe menu-bar recovery.
+- **Cost and parser performance** — Reuses Codex pricing/catalog work, migrates
+  incomplete cached cost maps before reporting, discovers nested Claude
+  Desktop projects, bumps `parserLogicVersion` to 8, and regenerates the parser
+  hash.
+- **iOS 1.18 parity** — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes
+  and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive
+  values below 1% display as &lt;1% on iPhone.
+
+### Compatibility
+
+- No Shared payload key or CloudKit record schema field is added. Kimi uses
+  existing `rateWindows`; Claude uses existing `loginMethod`.
+- CloudKit remains Production. The final schema audit and 16-case 2 Mac x
+  2 iPhone compatibility evidence are recorded in
+  `CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md`.
+
+### 中文说明
+
+本次把 fork 从上游 **v0.39.0** 一次性同步到 **v0.41.0**，覆盖 v0.40.0 与
+v0.41.0，并配套 iOS **1.18.0**，不拆成多个用户可见版本。
+
+- Mac 端完整纳入 Claude 多账号、`codexbar cards` CLI、Kimi 多条订阅 quota、
+  Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。
+- iPhone 通过既有 `rateWindows` 显示 Kimi Weekly / Rate Limit / Monthly /
+  Code 7-day，通过既有 `loginMethod` 显示 Claude Max 5x/20x；正数且低于 1%
+  的用量显示为 &lt;1%。
+- 本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与
+  16 组合兼容矩阵记录在本轮 Research 测试文档中。
+
+---
+
 ## 0.41.0 — 2026-07-06
 
 ### Added

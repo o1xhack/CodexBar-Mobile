@@ -3516,8 +3516,27 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.17.0",
+            version: "1.18.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "iPhone 1.18 brings the CodexBar 0.41 sync: richer Kimi quotas, clearer Claude plans, precise small percentages, and the latest Mac provider fixes."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Kimi quotas — Weekly, five-hour Rate Limit, Monthly, and Code 7-day usage now arrive in a stable order from Mac and appear as normal iPhone usage cards."),
+                        String(localized: "Claude plans — Max accounts now keep the Max 5x or Max 20x label from Mac, so iPhone no longer flattens both plans to a generic Max badge."),
+                        String(localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
+                        String(localized: "Mac improvements included — CodexBar 0.41 adds safer browser-cookie retries, better provider detection and quota parsing, lower cost-history overhead, and more reliable menus and settings."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.41.0.1 (fork build 100.1 or later) for the full 1.18 experience. iPhone 1.18.0 still opens older Mac data; new Kimi and Claude details appear after Mac updates."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.17.0",
+            status: "",
             summary: String(localized: "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes."),
             sections: [
                 .init(

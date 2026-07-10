@@ -925,6 +925,94 @@ struct SyncCoordinatorTests {
         #expect(provider.rateWindows.count == 1) // just primary
     }
 
+    @Test("Kimi quota lanes preserve Weekly, Rate Limit, Monthly, Code 7-day order for iOS")
+    func kimiQuotaLaneOrderPassesThroughToMobile() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v041-kimi-order")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .kimi,
+            metadata: #require(ProviderDefaults.metadata[.kimi]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 25,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "kimi-monthly",
+                        title: "Monthly",
+                        window: RateWindow(
+                            usedPercent: 42,
+                            windowMinutes: nil,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: "kimi-code-7d",
+                        title: "Code 7-day",
+                        window: RateWindow(
+                            usedPercent: 17,
+                            windowMinutes: 7 * 24 * 60,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                ],
+                updatedAt: pinned),
+            provider: .kimi)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "kimi" })
+        #expect(provider.rateWindows.compactMap(\.label) == ["Weekly", "Rate Limit", "Monthly", "Code 7-day"])
+        #expect(provider.rateWindows.map(\.usedPercent) == [25, 40, 42, 17])
+    }
+
+    @Test("Claude Max multiplier label survives the Mac to iOS sync envelope")
+    func claudeMaxMultiplierPassesThroughToMobile() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v041-claude-plan")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: "max@example.com",
+                    accountOrganization: nil,
+                    loginMethod: "Claude Max 20x")),
+            provider: .claude)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "claude" })
+        #expect(provider.loginMethod == "Claude Max 20x")
+        let encoded = try JSONEncoder().encode(provider)
+        let decoded = try JSONDecoder().decode(ProviderUsageSnapshot.self, from: encoded)
+        #expect(decoded.loginMethod == "Claude Max 20x")
+    }
+
     @Test
     func ghostProviderNotPushedToPerProviderZone() async throws {
         // Provider enabled but has NO data yet (mimics early startup before

@@ -28,21 +28,49 @@ and scope changes. Command outputs and final pass/fail results belong in
 
 ### Round 1 — Upstream merge
 
-- Merge `refs/upstream-tags/v0.41.0`.
-- Resolve conflicts with fork constraints.
-- Regenerate parser hash/project files as appropriate.
-- Run Mac build and focused tests.
+- Merged `refs/upstream-tags/v0.41.0` as `00a13189`.
+- Resolved all ten forecast conflicts. Fork-owned release/appcast/monitor files
+  retained their fork targets; upstream CI toolchain pinning, Mac features,
+  security changes, and tests were preserved.
+- Combined `SubprocessRunner` semantics: fork wall-clock timeouts remain, while
+  upstream infinite-timeout `runToCompletion` no longer installs a timer.
+- Combined browser cookie semantics: explicit retry context now survives the
+  GCD hop while the fork's single-completion wall-clock timeout remains.
+- Bumped `parserLogicVersion` 7 → 8 and regenerated parser hash
+  `67c76db38c18af6a` because upstream changes persisted cost-cache completion
+  and Claude Desktop project discovery.
+- Stabilized the upstream Kimi total-budget timing test so a loaded shard still
+  distinguishes the 20 ms join grace from awaiting the full enrichment call.
+- `swift build` passed; the 241-test merge/conflict filter passed after the
+  timing-test stabilization; release secret-loader tests passed.
 
 ### Round 2 — Shared/iOS bridge and UX
 
-- Prove Kimi and Claude reuse existing wire fields.
-- Add/fix `<1%` mobile formatting.
-- Add mixed-version encode/decode, mapping, display, and widget snapshot tests.
+- Code audit proved no new Shared field is required:
+  - Kimi primary/secondary/extra windows map into existing `rateWindows`;
+  - Claude Max multiplier maps into existing optional `loginMethod`.
+- Added Mac-to-iOS tests for Kimi lane order and Claude Max 20x encode/decode.
+- Updated `UsagePercentDisplayMode` so positive displayed values below 1% use
+  `<1%` in both Used and Remaining modes; exact zero remains `0%`.
+- Added three focused iOS formatter tests.
+- XcodeBuildMCP build/run succeeded on booted iPhone 17 / iOS 26.4 and the app
+  launched into the Chinese onboarding UI.
+- Focused iOS formatting tests passed 10/10; the complete iOS unit target passed
+  582/582, including WidgetSnapshotBuilder and widget render-matrix suites.
 
 ### Round 3 — Version and release documentation
 
-- Update Mac/iOS version fields, root/iOS changelogs, in-app release notes,
-  four-language catalog, Research status, and CloudKit audit history.
+- Set Mac `0.41.0.1` / `100.1`, Mobile `1.18.0`, upstream bookmark `v0.41.0` /
+  `2026-07-06`, and iOS `1.18.0 (186)` across all targets.
+- Updated root/iOS changelogs and generated-project settings.
+- Added the 1.18 in-app release block and complete English, Simplified Chinese,
+  Traditional Chinese, and Japanese translations; 401/401 source keys pass the
+  catalog audit with no `state=new` entries.
+- `changelog-to-html.sh 0.41.0.1` selects the fork section and safely renders
+  the less-than-one-percent text.
+- CloudKit audit against `v0.39.0.1-mobile.1.17.0` found no schema keyword,
+  `CloudConstants.swift`, or `UsageSnapshot.swift` field diff. Mac/iOS
+  entitlements remain Production. Verdict: no Dashboard deploy required.
 
 ### Round 4 — Release artifacts and full gates
 

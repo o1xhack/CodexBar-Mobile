@@ -2,6 +2,38 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.18.0 (186)] — 2026-07-09 — CodexBar 0.41 upstream sync
+
+### Changed
+
+- **Kimi quota coverage** — Weekly, five-hour Rate Limit, Monthly, and Code
+  7-day windows now keep their upstream order through Mac sync and render with
+  the existing generic iPhone usage cards.
+- **Claude plan labels** — `Claude Max 5x` and `Claude Max 20x` now pass through
+  the existing account metadata field and remain visible on iPhone.
+- **Small usage percentages** — Every positive displayed value below 1% now
+  renders as `<1%` in both Used and Remaining modes instead of rounding to
+  `0%` or `1%`.
+
+### Fixed
+
+- **Upstream provider accuracy** — Includes the v0.40.0-v0.41.0 Kimi endpoint,
+  ordering, timestamp, and finite-value fixes; Claude fractional utilization
+  and reset-year fixes; Gemini Flash quota selection; Devin 1% handling; and
+  Codex weekly-cap availability corrections from the companion Mac app.
+- **Cross-version sync coverage** — Added focused Mac-to-iOS mapping and
+  encode/decode tests for Kimi quota order and Claude Max multipliers without
+  adding a Shared payload or CloudKit schema field.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.41.0.1` / build `100.1` and upstream
+  `steipete/CodexBar` `v0.41.0`.
+- iOS `MARKETING_VERSION`: `1.17.0` → `1.18.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `185` → `186`.
+
+---
+
 ## [1.17.0 (185)] — 2026-07-07 — Cost diagnostics and widget footer follow-up
 
 ### Added

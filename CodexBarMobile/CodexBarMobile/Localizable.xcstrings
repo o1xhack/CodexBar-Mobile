@@ -19254,6 +19254,60 @@
           }
         }
       }
+    },
+    "iPhone 1.18 brings the CodexBar 0.41 sync: richer Kimi quotas, clearer Claude plans, precise small percentages, and the latest Mac provider fixes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.18 brings the CodexBar 0.41 sync: richer Kimi quotas, clearer Claude plans, precise small percentages, and the latest Mac provider fixes." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.18 では CodexBar 0.41 同期に対応し、Kimi のクォータ表示、Claude プラン表示、小さい使用率の精度、および最新の Mac プロバイダー修正が加わります。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.18 带来 CodexBar 0.41 同步：更丰富的 Kimi 配额、更清晰的 Claude 套餐、精确的小比例显示，以及最新的 Mac provider 修复。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.18 帶來 CodexBar 0.41 同步：更豐富的 Kimi 配額、更清晰的 Claude 方案、精確的小比例顯示，以及最新的 Mac provider 修正。" } }
+      }
+    },
+    "Kimi quotas — Weekly, five-hour Rate Limit, Monthly, and Code 7-day usage now arrive in a stable order from Mac and appear as normal iPhone usage cards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Kimi quotas — Weekly, five-hour Rate Limit, Monthly, and Code 7-day usage now arrive in a stable order from Mac and appear as normal iPhone usage cards." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Kimi クォータ — Weekly、5 時間の Rate Limit、Monthly、Code 7-day が Mac から安定した順序で同期され、iPhone の通常の使用量カードに表示されます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Kimi 配额——Weekly、5 小时 Rate Limit、Monthly 和 Code 7-day 用量现在会按稳定顺序从 Mac 同步，并显示为普通的 iPhone 用量卡片。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Kimi 配額——Weekly、5 小時 Rate Limit、Monthly 和 Code 7-day 用量現在會按穩定順序從 Mac 同步，並顯示為一般的 iPhone 用量卡片。" } }
+      }
+    },
+    "Claude plans — Max accounts now keep the Max 5x or Max 20x label from Mac, so iPhone no longer flattens both plans to a generic Max badge.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Claude plans — Max accounts now keep the Max 5x or Max 20x label from Mac, so iPhone no longer flattens both plans to a generic Max badge." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Claude プラン — Max アカウントは Mac の Max 5x / Max 20x ラベルを保持するため、iPhone で両方が汎用の Max バッジにまとめられません。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Claude 套餐——Max 账号现在会保留 Mac 端的 Max 5x 或 Max 20x 标签，iPhone 不再把两种套餐都简化成通用的 Max 标记。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Claude 方案——Max 帳號現在會保留 Mac 端的 Max 5x 或 Max 20x 標籤，iPhone 不再把兩種方案都簡化成通用的 Max 標記。" } }
+      }
+    },
+    "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "小さい割合 — 0% や 1% に丸めず、0 より大きく 1% 未満の使用量をすべて <1% と表示します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "小比例——所有大于 0 且小于 1% 的用量都会显示为 <1%，而不是四舍五入为 0% 或 1%。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "小比例——所有大於 0 且小於 1% 的用量都會顯示為 <1%，而不是四捨五入為 0% 或 1%。" } }
+      }
+    },
+    "Mac improvements included — CodexBar 0.41 adds safer browser-cookie retries, better provider detection and quota parsing, lower cost-history overhead, and more reliable menus and settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Mac improvements included — CodexBar 0.41 adds safer browser-cookie retries, better provider detection and quota parsing, lower cost-history overhead, and more reliable menus and settings." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Mac の改善も含まれます — CodexBar 0.41 では、ブラウザ Cookie の再試行がより安全になり、プロバイダー検出とクォータ解析、コスト履歴の負荷、メニューと設定の信頼性が改善されました。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "本次包含的 Mac 改进——CodexBar 0.41 带来更安全的浏览器 Cookie 重试、更准确的 provider 检测和配额解析、更低的费用历史开销，以及更可靠的菜单和设置。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "本次包含的 Mac 改進——CodexBar 0.41 帶來更安全的瀏覽器 Cookie 重試、更準確的 provider 偵測和配額解析、更低的費用歷史開銷，以及更可靠的選單和設定。" } }
+      }
+    },
+    "Update Mac CodexBar to 0.41.0.1 (fork build 100.1 or later) for the full 1.18 experience. iPhone 1.18.0 still opens older Mac data; new Kimi and Claude details appear after Mac updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update Mac CodexBar to 0.41.0.1 (fork build 100.1 or later) for the full 1.18 experience. iPhone 1.18.0 still opens older Mac data; new Kimi and Claude details appear after Mac updates." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "1.18 の完全な体験には、Mac CodexBar を 0.41.0.1（fork build 100.1 以降）に更新してください。iPhone 1.18.0 は古い Mac データも開けますが、新しい Kimi と Claude の詳細は Mac 更新後に表示されます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请将 Mac CodexBar 更新到 0.41.0.1（fork build 100.1 或更高版本）以获得完整的 1.18 体验。iPhone 1.18.0 仍可打开旧版 Mac 数据；Kimi 和 Claude 新详情会在 Mac 更新后显示。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "請將 Mac CodexBar 更新到 0.41.0.1（fork build 100.1 或更高版本）以獲得完整的 1.18 體驗。iPhone 1.18.0 仍可開啟舊版 Mac 資料；Kimi 和 Claude 新詳情會在 Mac 更新後顯示。" } }
+      }
     }
   },
   "version": "1.0"

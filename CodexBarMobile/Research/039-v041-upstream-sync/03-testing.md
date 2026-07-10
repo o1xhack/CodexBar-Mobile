@@ -20,17 +20,17 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 |---|---|---|
 | Branch isolation | pass | branch and `origin/mobile-dev` both began at `8248714e`; work branch is `upstream-sync/v0.41.0-mobile.1.18.0` |
 | Upstream release facts | pass | GitHub Releases: v0.40.0 at `2026-07-05T23:10:19Z`; v0.41.0 at `2026-07-06T23:46:03Z` |
-| Upstream merge | pending | |
-| Mac build | pending | |
+| Upstream merge | pass | merge commit `00a13189`; all ten conflicts resolved; target tag is second parent |
+| Mac build | pass | `swift build` completed in 30.49s after conflict resolution |
 | Mac lint | pending | |
-| Mac focused tests | pending | |
+| Mac focused tests | pass | 241 tests across SubprocessRunner, browser-cookie deadline/context, Kimi, Claude plan, widget snapshots, and CostUsage passed; Kimi isolated rerun also passed |
 | Mac full tests | pending | |
 | Multi-account / multi-device tests | pending | |
-| Parser version/hash | pending | |
-| iOS xcodegen/build/tests | pending | |
-| Widget/provider display tests | pending | |
-| Four-language localization | pending | |
-| CloudKit Production audit | pending | |
+| Parser version/hash | pass | `parserLogicVersion=8`; generated hash `67c76db38c18af6a`; audit scripts pass |
+| iOS xcodegen/build/tests | pass | XcodeBuildMCP iPhone 17 / iOS 26.4: build+launch 28.8s; focused 10/10; full unit target 582/582 |
+| Widget/provider display tests | pass | full iOS unit run includes WidgetSnapshotBuilder and CodexBarWidgetRenderMatrix; Mac Kimi/Claude sync tests pass |
+| Four-language localization | pass | all locales translated; source-vs-catalog 401/401 |
+| CloudKit Production audit | pass | no schema keywords, CloudConstants diff, or UsageSnapshot field diff; Mac/iOS entitlements are Production; no deploy required |
 | Signed/notarized artifacts | pending | |
 | Candidate appcast | pending | |
 | GitHub draft release | pending | no push or published tag allowed |
@@ -57,8 +57,20 @@ git diff v0.39.0.1-mobile.1.17.0..HEAD -- Shared/Models/UsageSnapshot.swift | \
   grep -E '^\+.*public let|^-.*public let'
 ```
 
-Preliminary verdict: no deploy expected. Final verdict remains pending until
-post-implementation output is recorded.
+Recorded output on 2026-07-09:
+
+```text
+LAST_TAG=v0.39.0.1-mobile.1.17.0
+SCHEMA_KEYWORDS=(no output)
+CLOUD_CONSTANTS=(no output)
+USAGE_SNAPSHOT_FIELDS=(no output)
+iOS entitlement=Production
+Scripts/package_app.sh entitlement=Production
+```
+
+Final verdict: **no CloudKit Dashboard Production schema deploy is required**.
+Kimi and Claude reuse keys inside the existing opaque payload; the iOS
+formatter change is consumer-only.
 
 ## 2 Mac x 2 iPhone Compatibility Matrix
 
