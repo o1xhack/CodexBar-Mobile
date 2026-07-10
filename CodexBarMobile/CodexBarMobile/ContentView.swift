@@ -3518,20 +3518,20 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.18.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "iPhone 1.18 brings the CodexBar 0.41 sync: richer Kimi quotas, clearer Claude plans, precise small percentages, and the latest Mac provider fixes."),
+            summary: String(localized: "iPhone 1.18 shows more Kimi limits, distinguishes Claude Max plans, and keeps tiny percentages visible."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Kimi quotas — Weekly, five-hour Rate Limit, Monthly, and Code 7-day usage now arrive in a stable order from Mac and appear as normal iPhone usage cards."),
-                        String(localized: "Claude plans — Max accounts now keep the Max 5x or Max 20x label from Mac, so iPhone no longer flattens both plans to a generic Max badge."),
+                        String(localized: "Kimi at a glance — see Weekly, five-hour, Monthly, and Code 7-day limits in one consistent order."),
+                        String(localized: "Clearer Claude plans — Max 5x and Max 20x stay distinct, even while your Macs update at different times."),
                         String(localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
-                        String(localized: "Mac improvements included — CodexBar 0.41 adds safer browser-cookie retries, better provider detection and quota parsing, lower cost-history overhead, and more reliable menus and settings."),
+                        String(localized: "A smoother Mac companion — CodexBar for Mac now recovers sign-ins more safely, reports usage more accurately, and improves performance, menus, and settings."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.41.0.1 (fork build 100.1 or later) for the full 1.18 experience. iPhone 1.18.0 still opens older Mac data; new Kimi and Claude details appear after Mac updates."),
+                        String(localized: "For all new details, update CodexBar on Mac to version 0.41.0.1 or later. iPhone 1.18 still works with data from older Mac versions."),
                     ]),
             ]),
         ReleaseNotesVersion(

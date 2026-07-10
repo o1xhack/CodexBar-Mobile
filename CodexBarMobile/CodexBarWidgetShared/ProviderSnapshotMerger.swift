@@ -207,6 +207,71 @@ enum ProviderSnapshotMerger {
             .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
     }
 
+    /// A v0.39 Mac reports both Claude Max tiers as the generic
+    /// "Claude Max" label. During a rolling upgrade, keep the specific label
+    /// from a v0.41 Mac when the freshest writer only has that generic value.
+    /// A genuinely different fresh plan still wins.
+    private static func mergedLoginMethod(_ entries: [ProviderUsageSnapshot]) -> String? {
+        let latest = Self.latestNonNil(entries, \.loginMethod)
+        guard entries.first?.providerID == "claude",
+              latest == "Claude Max" || latest == "Max"
+        else {
+            return latest
+        }
+
+        let specificMaxLabels: Set = ["Claude Max 5x", "Claude Max 20x"]
+        return entries
+            .sorted(by: { $0.lastUpdated > $1.lastUpdated })
+            .compactMap(\.loginMethod)
+            .first(where: specificMaxLabels.contains) ?? latest
+    }
+
+    /// Kimi added named subscription lanes over several Mac releases. Preserve
+    /// a lane supplied by any active writer while taking overlapping values
+    /// from the freshest writer, then restore the canonical mobile order.
+    private static func mergedRateWindows(
+        _ entries: [ProviderUsageSnapshot],
+        base: ProviderUsageSnapshot
+    ) -> [SyncRateWindow] {
+        guard base.providerID == "kimi" else { return base.rateWindows }
+
+        var merged = base.rateWindows
+        var seenLabels = Set(merged.compactMap(Self.normalizedRateWindowLabel))
+        for entry in entries.sorted(by: { $0.lastUpdated > $1.lastUpdated }) {
+            for window in entry.rateWindows {
+                guard let label = Self.normalizedRateWindowLabel(window),
+                      seenLabels.insert(label).inserted
+                else {
+                    continue
+                }
+                merged.append(window)
+            }
+        }
+
+        let preferredOrder = [
+            "weekly": 0,
+            "rate limit": 1,
+            "monthly": 2,
+            "code 7-day": 3,
+        ]
+        return merged.enumerated().sorted { lhs, rhs in
+            let lhsRank = Self.normalizedRateWindowLabel(lhs.element)
+                .flatMap { preferredOrder[$0] } ?? Int.max
+            let rhsRank = Self.normalizedRateWindowLabel(rhs.element)
+                .flatMap { preferredOrder[$0] } ?? Int.max
+            return lhsRank == rhsRank ? lhs.offset < rhs.offset : lhsRank < rhsRank
+        }.map(\.element)
+    }
+
+    private static func normalizedRateWindowLabel(_ window: SyncRateWindow) -> String? {
+        guard let label = window.label?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !label.isEmpty
+        else {
+            return nil
+        }
+        return label.lowercased()
+    }
+
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
         sumLocalCosts: Bool = true
@@ -229,7 +294,7 @@ enum ProviderSnapshotMerger {
             primary: base.primary,
             secondary: base.secondary,
             accountEmail: base.accountEmail,
-            loginMethod: Self.latestNonNil(entries, \.loginMethod),
+            loginMethod: Self.mergedLoginMethod(entries),
             statusMessage: base.statusMessage,
             isError: base.isError,
             lastUpdated: base.lastUpdated,
@@ -237,7 +302,7 @@ enum ProviderSnapshotMerger {
             budget: Self.latestNonNil(entries, \.budget),
             subscriptionExpiresAt: Self.latestNonNil(entries, \.subscriptionExpiresAt),
             subscriptionRenewsAt: Self.latestNonNil(entries, \.subscriptionRenewsAt),
-            rateWindows: base.rateWindows,
+            rateWindows: Self.mergedRateWindows(entries, base: base),
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
             accountIdentities: Self.latestNonNil(entries, \.accountIdentities),
