@@ -60,6 +60,21 @@ The baseline upstream tag is
 `v0.39.0..v0.41.0` contains 59 non-merge commits and changes 235 files with
 14,277 insertions and 1,303 deletions.
 
+## Historical Upstream-sync Prior Art
+
+The historical review covered closed issues
+[#39](https://github.com/o1xhack/CodexBar-Mobile/issues/39) (`v0.38.0`),
+[#40](https://github.com/o1xhack/CodexBar-Mobile/issues/40) (`v0.38.1`), and
+[#41](https://github.com/o1xhack/CodexBar-Mobile/issues/41) (`v0.39.0`), plus
+`Research/037-v039-upstream-sync/`. Those issues closed together when the fork
+advanced to the current `v0.39.0` baseline. Carried-forward lessons for this
+train are: consolidate overlapping release issues into one user-visible
+version, branch before research or implementation, preserve both fork and raw
+upstream changelog sections, bump both parser version/hash when parser inputs
+move, audit opaque payload changes separately from CloudKit schema, and record
+all 16 compatibility rows without presenting substituted evidence as hardware
+QA.
+
 ## Release Scope
 
 ### v0.40.0

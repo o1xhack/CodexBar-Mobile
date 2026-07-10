@@ -7,43 +7,24 @@ Syncs the Mac app from the fork baseline at upstream **v0.39.0** through
 
 ### Added / Improved
 
-- **Complete Mac upstream sync** — Includes Claude read-only `claude-swap`
-  account cards/switching, the responsive `codexbar cards` CLI, cost-chart
-  scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget
-  selection, Devin extra-usage balance, and the upstream Settings refinements.
-- **Provider correctness and safety** — Includes Kimi/Kimi K2 endpoint and
-  finite-value fixes, Claude fractional utilization and account-history
-  isolation, Gemini consumer-tier/Flash corrections, Alibaba international
-  region support, browser Safe Storage prompt suppression, Codex weekly-cap
-  presentation, and Tahoe menu-bar recovery.
-- **Cost and parser performance** — Reuses Codex pricing/catalog work, migrates
-  incomplete cached cost maps before reporting, discovers nested Claude
-  Desktop projects, bumps `parserLogicVersion` to 8, and regenerates the parser
-  hash.
-- **iOS 1.18 parity** — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes
-  and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive
-  values below 1% display as &lt;1% on iPhone.
+- **Complete Mac upstream sync** — Includes Claude read-only `claude-swap` account cards/switching, the responsive `codexbar cards` CLI, cost-chart scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget selection, Devin extra-usage balance, and the upstream Settings refinements.
+- **Provider correctness and safety** — Includes Kimi/Kimi K2 endpoint and finite-value fixes, Claude fractional utilization and account-history isolation, Gemini consumer-tier/Flash corrections, Alibaba international region support, browser Safe Storage prompt suppression, Codex weekly-cap presentation, and Tahoe menu-bar recovery.
+- **Cost and parser performance** — Reuses Codex pricing/catalog work, migrates incomplete cached cost maps before reporting, discovers nested Claude Desktop projects, bumps `parserLogicVersion` to 8, and regenerates the parser hash.
+- **iOS 1.18 parity** — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive values below 1% display as &lt;1% on iPhone.
 
 ### Compatibility
 
-- No Shared payload key or CloudKit record schema field is added. Kimi uses
-  existing `rateWindows`; Claude uses existing `loginMethod`.
-- CloudKit remains Production. The final schema audit and 16-case 2 Mac x
-  2 iPhone compatibility evidence are recorded in
-  `CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md`.
+- No Shared payload key or CloudKit record schema field is added. Kimi uses existing `rateWindows`; Claude uses existing `loginMethod`.
+- CloudKit remains Production. The final schema audit and 16-case 2 Mac x 2 iPhone compatibility evidence are recorded in `CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md`.
 
 ### 中文说明
 
 本次把 fork 从上游 **v0.39.0** 一次性同步到 **v0.41.0**，覆盖 v0.40.0 与
 v0.41.0，并配套 iOS **1.18.0**，不拆成多个用户可见版本。
 
-- Mac 端完整纳入 Claude 多账号、`codexbar cards` CLI、Kimi 多条订阅 quota、
-  Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。
-- iPhone 通过既有 `rateWindows` 显示 Kimi Weekly / Rate Limit / Monthly /
-  Code 7-day，通过既有 `loginMethod` 显示 Claude Max 5x/20x；正数且低于 1%
-  的用量显示为 &lt;1%。
-- 本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与
-  16 组合兼容矩阵记录在本轮 Research 测试文档中。
+- Mac 端完整纳入 Claude 多账号、`codexbar cards` CLI、Kimi 多条订阅 quota、Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。
+- iPhone 通过既有 `rateWindows` 显示 Kimi Weekly / Rate Limit / Monthly / Code 7-day，通过既有 `loginMethod` 显示 Claude Max 5x/20x；正数且低于 1% 的用量显示为 &lt;1%。
+- 本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与 16 组合兼容矩阵记录在本轮 Research 测试文档中。
 
 ---
 
@@ -105,7 +86,7 @@ v0.41.0，并配套 iOS **1.18.0**，不拆成多个用户可见版本。
 - Reset times: preserve minute precision in long day-scale countdowns when there are no whole hours, while keeping countdowns compact to two units. Thanks @konon4!
 - Mistral: reject non-finite and overflowing credit balances before they can reach menu, CLI, or widget formatting. Thanks @joeVenner!
 
-## 0.39.0 — 2026-07-04
+## 0.39.0.1 (Mobile 1.17.0 · build 97.1) — 2026-07-04 — upstream v0.39.0 sync
 
 Syncs the Mac app to upstream CodexBar **v0.39.0** (spanning v0.38.0–v0.39.0)
 and pairs it with iOS **1.17.0**. This is one combined upstream-sync release
@@ -164,6 +145,31 @@ settings redesign, menu/provider fixes, and iOS compatibility work together.
   预期不需要 CloudKit Dashboard deploy。
 - 2 Mac x 2 iPhone 新旧版本兼容 gate 与替代证据记录在
   `CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md`。
+
+---
+
+## 0.39.0 — 2026-07-04
+
+### Added
+- Codex: show every available reset-credit expiry in menus and provider settings, including non-expiring credits, and summarize credits nearing expiry. Thanks @brahimhamichan!
+- Cost history: optionally show shorter 7, 30, and 90-day comparisons from the selected local history window (#1500). Thanks @jtl06!
+- Codex cost history: group local usage and costs by project and worktree in menus and CLI output. Thanks @clemenspeters!
+- Sakana AI: show best-effort pay-as-you-go credit balance and recent usage without delaying subscription quota refreshes. Thanks @ss251!
+- Kimi: show monthly subscription usage alongside weekly and five-hour limits with a short total budget for the optional membership request. Thanks @zhiyue!
+- Mistral: show available credit balance from the authenticated billing session while preserving API spend and Monthly Plan usage. Thanks @Zihao-Qi!
+
+### Changed
+- Codex: compact reset-credit expiry inventory into a single scannable timeline instead of one row per credit.
+- Repository: reject oversized tracked blobs and generated release/build artifacts during checks. Thanks @joeVenner!
+
+### Fixed
+- Alibaba: keep the browser Safe Storage keychain read non-interactive and honor the "Disable Keychain access" setting, so cookie import can never trigger a Keychain prompt.
+- Tests: block real Keychain and `security` CLI access by default so test runs cannot display password prompts.
+- Mistral: discard non-finite and overflowing billing costs so malformed price data cannot poison spend totals or charts. Thanks @joeVenner!
+- Claude: notify on model-scoped weekly and Daily Routines quota thresholds using independent warning state. Thanks @cleanerzkp!
+- Claude CLI: skip the identity probe after terminal usage errors or loading stalls, cutting failed refresh latency and subprocess churn.
+- OpenCode web: search Dia after Chrome for automatic cookie import, with Keychain preflight scoped to the candidate browser (fixes #1822). Thanks @zeajose!
+- Claude: make the "Avoid Keychain prompts" setting use the no-prompt policy instead of the experimental `security` CLI reader. Thanks @gmkbenjamin!
 
 ---
 

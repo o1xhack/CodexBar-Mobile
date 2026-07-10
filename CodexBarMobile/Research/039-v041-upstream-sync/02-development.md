@@ -57,6 +57,18 @@ and scope changes. Command outputs and final pass/fail results belong in
   launched into the Chinese onboarding UI.
 - Focused iOS formatting tests passed 10/10; the complete iOS unit target passed
   582/582, including WidgetSnapshotBuilder and widget render-matrix suites.
+- Independent review found that a fresher old Mac could hide the Kimi Code
+  7-day lane or replace Claude Max 5x/20x with a generic Max label. Added a
+  narrow rolling-upgrade merge policy: overlapping Kimi values still come from
+  the freshest writer while named missing lanes survive, and only generic
+  Claude Max yields to a specific 5x/20x label. A genuinely different fresh
+  plan still wins.
+- Rewrote the 1.18 release notes in plain user language across all four
+  locales. A second review made the Claude rule provenance-aware: only a
+  generic value from a source app older than 0.41 yields to 5x/20x; a current
+  generic value and genuinely different current plan remain authoritative.
+  Post-review focused merge tests passed 49/49; full iOS passed 589 with 0
+  failures and 4 skipped; build+launch passed on iPhone 17 / iOS 26.4.
 
 ### Round 3 — Version and release documentation
 
@@ -83,12 +95,21 @@ and scope changes. Command outputs and final pass/fail results belong in
 - The release-checklist multi-account filter passes 76/76. All suites exposed
   by high-core-count parallel timing flakes pass in focused runs, and the
   complete `swift test --no-parallel` gate passes 5,810/5,810.
-- Record 16-row compatibility evidence.
-- Sign, notarize, staple, package, and appcast-validate.
-- Create a remote draft only within the no-push/no-published-tag boundary.
+- Recorded all 16 compatibility rows with explicit substituted evidence and
+  real-hardware residual risk.
+- Signed, notarized, stapled, launch-verified, and packaged the universal Mac
+  app plus dSYM. Apple accepted submission
+  `90287227-c47a-409d-96b4-91ca190b4be9`.
+- Generated and locally verified the candidate appcast against the exact ZIP.
+- Remote draft creation is correctly blocked: creating an accurate draft
+  requires publishing the target commit/tag, which this Goal did not authorize.
 
 ### Round 5 — Review loop
 
-- Self-review complete diff.
-- Independent agent reviews.
-- Fix blocking findings and rerun affected gates until blocker count is zero.
+- Self-review and three independent agent reviews completed.
+- Fixed the mixed-writer compatibility blocker, technical iOS release notes,
+  historical changelog collision, CloudKit evidence false positive,
+  release-branch changelog link, and missing historical prior-art ledger.
+- Reran focused/full iOS, build+launch, lint/i18n, source-only CloudKit audit,
+  appcast validation, and Sparkle verification. Authorized-scope blocker count
+  is zero; only remote draft push/tag authority remains.
