@@ -35,13 +35,15 @@ struct CloudKitMergeTests {
         deviceName: String,
         deviceID: String,
         providers: [ProviderUsageSnapshot],
-        timestamp: Date? = nil
+        timestamp: Date? = nil,
+        appVersion: String? = nil
     ) -> SyncedUsageSnapshot {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp ?? providers.map(\.lastUpdated).max() ?? Date(),
             deviceName: deviceName,
-            deviceID: deviceID)
+            deviceID: deviceID,
+            appVersion: appVersion)
     }
 
     // MARK: - Single device (degenerate case)
@@ -260,9 +262,11 @@ struct CloudKitMergeTests {
             ])
 
         let oldMac = makeSnapshot(
-            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider])
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider],
+            appVersion: "0.39.0.1")
         let newMac = makeSnapshot(
-            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider])
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider],
+            appVersion: "0.41.0.1")
         let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
         let kimi = try #require(merged.providers.first)
 
@@ -291,9 +295,11 @@ struct CloudKitMergeTests {
             statusMessage: nil, isError: false, lastUpdated: newDate)
 
         let oldMac = makeSnapshot(
-            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider])
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider],
+            appVersion: "0.39.0.1")
         let newMac = makeSnapshot(
-            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider])
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider],
+            appVersion: "0.41.0.1")
         let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
 
         #expect(merged.providers.first?.loginMethod == "Claude Max 20x")
@@ -319,6 +325,30 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
 
         #expect(merged.providers.first?.loginMethod == "Claude Pro")
+    }
+
+    @Test
+    func `A current generic Claude Max value replaces an older specific tier`() throws {
+        let olderSpecific = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "current@example.com", loginMethod: "Claude Max 20x",
+            statusMessage: nil, isError: false, lastUpdated: olderDate)
+        let newerGeneric = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "current@example.com", loginMethod: "Claude Max",
+            statusMessage: nil, isError: false, lastUpdated: newerDate)
+
+        let olderMac = makeSnapshot(
+            deviceName: "Current Mac A", deviceID: "uuid-current-a",
+            providers: [olderSpecific], appVersion: "0.41.0.1")
+        let newerMac = makeSnapshot(
+            deviceName: "Current Mac B", deviceID: "uuid-current-b",
+            providers: [newerGeneric], appVersion: "0.41.0.1")
+        let merged = try #require(CloudSyncReader.mergeSnapshots([olderMac, newerMac]))
+
+        #expect(merged.providers.first?.loginMethod == "Claude Max")
     }
 
     // MARK: - Same provider, different accounts → keep both
