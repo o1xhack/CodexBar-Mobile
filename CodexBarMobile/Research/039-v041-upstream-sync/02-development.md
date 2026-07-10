@@ -100,6 +100,9 @@ and scope changes. Command outputs and final pass/fail results belong in
 - Signed, notarized, stapled, launch-verified, and packaged the universal Mac
   app plus dSYM. Apple accepted submission
   `90287227-c47a-409d-96b4-91ca190b4be9`.
+- Re-extracted the final ZIP for a no-credential regression: CLI version,
+  top-level help, and the new `cards --help` contract rendered correctly; the
+  signed app remained alive for three seconds without live provider probes.
 - Generated and locally verified the candidate appcast against the exact ZIP.
 - Remote draft creation is correctly blocked: creating an accurate draft
   requires publishing the target commit/tag, which this Goal did not authorize.

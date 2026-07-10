@@ -32,6 +32,7 @@ Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 | Four-language localization | pass | all locales translated; source-vs-catalog 401/401 |
 | CloudKit Production audit | pass | no runtime/source schema keywords, CloudConstants diff, or UsageSnapshot field diff; Mac/iOS entitlements are Production; no deploy required |
 | Signed/notarized artifacts | pass | notary `90287227-c47a-409d-96b4-91ca190b4be9` Accepted; stapled ZIP and matching universal dSYM verified |
+| Signed candidate safe regression | pass | extracted CLI reports `CodexBar 0.41.0.1`; top-level and new `cards --help` render; signed app stayed alive for 3s; no provider/Keychain probes used |
 | Candidate appcast | pass | XML/HTML valid; `mobile-dev` feed/changelog links; length `47418362`; EdDSA verified locally |
 | GitHub draft release | blocked-authority | accurate draft requires publishing the target tag/commit; branch/tag push is explicitly unauthorized |
 | Final review blockers | pass | 0 code, compatibility, evidence, or artifact blockers after fixes; remote draft authority remains external |
@@ -197,6 +198,12 @@ gate passed. App/dSYM UUID pairs match:
 x86_64 B1C9E041-CFB1-3222-8741-B89CC1883A1E
 arm64  B6E0658D-CF06-324B-86C0-9FA98F021BA8
 ```
+
+A second safe regression run extracted the authoritative ZIP, verified
+`CodexBarCLI --version`, rendered top-level help and the new responsive
+`cards --help`/`--brief` contract, and kept the signed main app alive for three
+seconds. It intentionally did not invoke live usage fetches, browser-cookie
+imports, or Keychain-backed providers.
 
 Later commits change only iOS merge/render tests, localized iOS notes, release
 documentation, and release-note generation; no Mac runtime, Shared payload,
