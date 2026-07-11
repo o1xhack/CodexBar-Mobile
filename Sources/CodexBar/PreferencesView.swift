@@ -136,7 +136,10 @@ struct PreferencesView: View {
         case .about:
             AboutPane(updater: self.updater)
         case .debug:
-            DebugPane(settings: self.settings, store: self.store)
+            DebugPane(
+                settings: self.settings,
+                store: self.store,
+                syncCoordinator: self.syncCoordinator)
         case let .provider(provider):
             ProvidersPane(
                 provider: provider,

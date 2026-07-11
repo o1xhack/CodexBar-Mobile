@@ -17,7 +17,7 @@ struct PreferencesPaneSmokeTests {
         _ = AdvancedPane(settings: settings, store: store).body
         _ = ProvidersPane(provider: .codex, settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
-        _ = DebugPane(settings: settings, store: store).body
+        _ = DebugPane(settings: settings, store: store, syncCoordinator: sync).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
         _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.general)).body
 
@@ -47,7 +47,7 @@ struct PreferencesPaneSmokeTests {
         _ = AdvancedPane(settings: settings, store: store).body
         _ = ProvidersPane(provider: .claude, settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
-        _ = DebugPane(settings: settings, store: store).body
+        _ = DebugPane(settings: settings, store: store, syncCoordinator: sync).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
         _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.provider(.codex))).body
     }

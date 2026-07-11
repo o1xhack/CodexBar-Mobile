@@ -1180,3 +1180,17 @@
 "section_diagnostics" = "การวินิจฉัย";
 "section_updates" = "อัปเดต";
 "section_links" = "ลิงก์";
+"mobile_sync_status_syncing_phase_format" = "กำลังซิงค์ — %@…";
+"icloud_diagnostics_title" = "การวินิจฉัยการซิงค์ iCloud";
+"icloud_diagnostics_read_only_caption" = "ตรวจสอบบัญชี โซน และช่องทางสำรอง KVS โดยไม่เขียนหรือลบข้อมูล iCloud";
+"icloud_diagnostics_run" = "เรียกใช้การตรวจสอบแบบอ่านอย่างเดียว";
+"icloud_diagnostics_running" = "กำลังตรวจสอบ iCloud แบบอ่านอย่างเดียว…";
+"mobile_sync_status_syncing_elapsed_format" = "กำลังซิงค์ — %@ · %d วินาที";
+"mobile_button_retry_sync" = "ลองซิงค์อีกครั้ง";
+"mobile_sync_status_failure_phase_format" = "การซิงค์ iCloud ล้มเหลวในขั้นตอน %@ เปิด ขั้นสูง → ดีบัก เพื่อดูรายละเอียด";
+"icloud_sync_phase_idle" = "ว่าง";
+"icloud_sync_phase_preparing" = "กำลังเตรียม";
+"icloud_sync_phase_legacy_upload" = "กำลังอัปโหลดสแนปช็อต";
+"icloud_sync_phase_provider_upload" = "กำลังอัปโหลดข้อมูลผู้ให้บริการ";
+"icloud_sync_phase_cleanup" = "กำลังล้างข้อมูล";
+"icloud_sync_phase_reconciling" = "กำลังตรวจสอบความสอดคล้อง";

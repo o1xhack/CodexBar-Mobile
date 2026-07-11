@@ -1154,3 +1154,4 @@
 "section_diagnostics" = "Diagnòstics";
 "section_updates" = "Actualitzacions";
 "section_links" = "Enllaços";
+"mobile_sync_status_failure_phase_format" = "La sincronització amb iCloud ha fallat durant %@. Obre Avançat → Depuració per veure'n els detalls.";

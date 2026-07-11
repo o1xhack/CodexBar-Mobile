@@ -1151,3 +1151,4 @@
 "section_diagnostics" = "Diagnostik";
 "section_updates" = "Uppdateringar";
 "section_links" = "Länkar";
+"mobile_sync_status_failure_phase_format" = "iCloud-synkroniseringen misslyckades under %@. Öppna Avancerat → Felsökning för detaljer.";

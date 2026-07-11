@@ -1179,3 +1179,17 @@
 "section_diagnostics" = "Diagnostica";
 "section_updates" = "Aggiornamenti";
 "section_links" = "Link";
+"mobile_sync_status_failure_phase_format" = "La sincronizzazione iCloud non è riuscita durante %@. Apri Avanzate → Debug per i dettagli.";
+"icloud_diagnostics_read_only_caption" = "Controlla lo stato dell'account, le zone esistenti e KVS senza modificare i dati iCloud.";
+"icloud_diagnostics_run" = "Esegui diagnostica di sola lettura";
+"icloud_diagnostics_running" = "Diagnostica iCloud in corso…";
+"icloud_diagnostics_title" = "Diagnostica sincronizzazione iCloud";
+"icloud_sync_phase_cleanup" = "Pulizia";
+"icloud_sync_phase_idle" = "Inattivo";
+"icloud_sync_phase_legacy_upload" = "Caricamento dispositivo";
+"icloud_sync_phase_preparing" = "Preparazione istantanea";
+"icloud_sync_phase_provider_upload" = "Caricamento provider";
+"icloud_sync_phase_reconciling" = "Riconciliazione";
+"mobile_button_retry_sync" = "Riprova sincronizzazione";
+"mobile_sync_status_syncing_elapsed_format" = "Sincronizzazione — %@ · %d s";
+"mobile_sync_status_syncing_phase_format" = "Sincronizzazione — %@";

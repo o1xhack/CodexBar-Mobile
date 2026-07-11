@@ -1179,3 +1179,17 @@
 "section_diagnostics" = "Tanılama";
 "section_updates" = "Güncellemeler";
 "section_links" = "Bağlantılar";
+"mobile_sync_status_failure_phase_format" = "iCloud eşzamanlama %@ aşamasında başarısız oldu. Ayrıntılar için Gelişmiş → Hata Ayıklama'yı açın.";
+"icloud_diagnostics_read_only_caption" = "iCloud verilerini değiştirmeden hesap durumunu, mevcut bölgeleri ve KVS'yi denetler.";
+"icloud_diagnostics_run" = "Salt Okunur Tanılamayı Çalıştır";
+"icloud_diagnostics_running" = "iCloud tanılaması çalışıyor…";
+"icloud_diagnostics_title" = "iCloud Eşzamanlama Tanılaması";
+"icloud_sync_phase_cleanup" = "Temizleme";
+"icloud_sync_phase_idle" = "Boşta";
+"icloud_sync_phase_legacy_upload" = "Aygıt yükleme";
+"icloud_sync_phase_preparing" = "Anlık görüntü hazırlanıyor";
+"icloud_sync_phase_provider_upload" = "Sağlayıcı yükleme";
+"icloud_sync_phase_reconciling" = "Uzlaştırılıyor";
+"mobile_button_retry_sync" = "Eşzamanlamayı Yeniden Dene";
+"mobile_sync_status_syncing_elapsed_format" = "Eşzamanlanıyor — %@ · %d sn";
+"mobile_sync_status_syncing_phase_format" = "Eşzamanlanıyor — %@";

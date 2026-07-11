@@ -38,7 +38,8 @@ struct ContentView: View {
 
     init(usageData: SyncedUsageData) {
         self.usageData = usageData
-        _selectedTab = State(initialValue: UserDefaults.standard.bool(forKey: MobileSettingsKeys.openCostByDefault) ? .cost : .usage)
+        _selectedTab = State(initialValue: UserDefaults.standard
+            .bool(forKey: MobileSettingsKeys.openCostByDefault) ? .cost : .usage)
     }
 
     private var currentVersion: String {
@@ -85,18 +86,18 @@ struct ContentView: View {
             })
         }
         .sheet(isPresented: self.$isWidgetSettingsPresented) {
-            NavigationStack {
-                WidgetSettingsView(usageData: self.usageData)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") {
-                                self.isWidgetSettingsPresented = false
+                NavigationStack {
+                    WidgetSettingsView(usageData: self.usageData)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    self.isWidgetSettingsPresented = false
+                                }
+                                .fontWeight(.semibold)
                             }
-                            .fontWeight(.semibold)
                         }
-                    }
+                }
             }
-        }
     }
 
     private func handleDeepLink(_ url: URL) {
@@ -452,32 +453,31 @@ enum CostTabInsightsResolver {
         localHistoryClearedAt: Date?,
         ledgerWindowDays: Int? = nil) -> CostDashboardInsights?
     {
-        let insights: CostDashboardInsights
-        if isLedgerEnabled, !isDemoMode {
+        let insights = if isLedgerEnabled, !isDemoMode {
             if let aggregation = ledgerAggregation {
                 if aggregation.hasDisplayData {
-                    insights = CostDashboardInsights.fromLedger(
+                    CostDashboardInsights.fromLedger(
                         aggregation: aggregation,
                         snapshot: snapshot,
                         snapshotFallbackCutoff: localHistoryClearedAt)
                 } else if localHistoryClearedAt != nil {
-                    insights = CostDashboardInsights.fromLedger(
+                    CostDashboardInsights.fromLedger(
                         aggregation: aggregation,
                         snapshot: snapshot,
                         snapshotFallbackCutoff: localHistoryClearedAt)
                 } else {
-                    insights = CostDashboardInsights(snapshot: snapshot)
+                    CostDashboardInsights(snapshot: snapshot)
                 }
             } else if localHistoryClearedAt != nil {
-                insights = CostDashboardInsights.fromLedger(
+                CostDashboardInsights.fromLedger(
                     aggregation: self.emptyAggregation(windowDays: ledgerWindowDays ?? 30),
                     snapshot: snapshot,
                     snapshotFallbackCutoff: localHistoryClearedAt)
             } else {
-                insights = CostDashboardInsights(snapshot: snapshot)
+                CostDashboardInsights(snapshot: snapshot)
             }
         } else {
-            insights = CostDashboardInsights(snapshot: snapshot)
+            CostDashboardInsights(snapshot: snapshot)
         }
         return insights.hasDisplayData ? insights : nil
     }
@@ -517,8 +517,7 @@ enum CostDiagnosticsReportResolver {
         }
 
         let reportsLocalLedger = cwlEnabled && (
-            ledgerAggregation?.hasDisplayData == true || localHistoryClearedAt != nil
-        )
+            ledgerAggregation?.hasDisplayData == true || localHistoryClearedAt != nil)
 
         return CostDiagnosticsReport.make(
             insights: insights,
@@ -662,7 +661,7 @@ private struct CostTab: View {
                     }
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
+            .sheet(isPresented: self.$showShareSheet) {
                 if let insights = self.currentInsights {
                     CostShareSheet(insights: insights)
                 }
@@ -1108,7 +1107,8 @@ private struct CostDashboardView: View {
         let today = row.todayCost > 0
             ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
             : String(localized: "No spend today")
-        let tokens = row.thirtyDayTokens > 0 ? Self.formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
+        let tokens = row.thirtyDayTokens > 0 ? Self
+            .formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
         return "\(today) · \(tokens)"
     }
 
@@ -1144,8 +1144,13 @@ private struct CostDashboardView: View {
         return String(format: "%.0f%%", (value / total) * 100)
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
 
     private static func shortDate(_ value: Date) -> String {
         value.formatted(.dateTime.month(.abbreviated).day())
@@ -1590,7 +1595,7 @@ struct CostDashboardInsights {
     }
 
     private static func dailyPoint(from point: SyncDailyPoint) -> DailyPoint? {
-        guard let date = Self.dayKeyFormatter.date(from: point.dayKey) else { return nil }
+        guard let date = dayKeyFormatter.date(from: point.dayKey) else { return nil }
         return DailyPoint(
             dayKey: point.dayKey,
             date: date,
@@ -1628,8 +1633,8 @@ struct CostDashboardInsights {
         }
 
         private static func sortedBreakdowns(
-            _ totals: [String: BreakdownAccumulator]
-        ) -> [SyncCostBreakdown] {
+            _ totals: [String: BreakdownAccumulator]) -> [SyncCostBreakdown]
+        {
             totals
                 .map { label, accumulator in accumulator.breakdown(label: label) }
                 .sorted { lhs, rhs in
@@ -1720,11 +1725,11 @@ private struct CostBreakdownRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Circle()
-                    .fill(row.color)
+                    .fill(self.row.color)
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(row.label)
+                    Text(self.row.label)
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     if let subtitle = row.subtitle {
@@ -1736,12 +1741,12 @@ private struct CostBreakdownRowView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 CostBreakdownMetricColumn(
-                    amountText: CostFormatting.usd(row.amountUSD),
-                    shareText: Self.shareText(row.amountUSD, total: total))
+                    amountText: CostFormatting.usd(self.row.amountUSD),
+                    shareText: Self.shareText(self.row.amountUSD, total: self.total))
             }
 
-            ProgressView(value: Self.ratio(row.amountUSD, total: total))
-                .tint(row.color)
+            ProgressView(value: Self.ratio(self.row.amountUSD, total: self.total))
+                .tint(self.row.color)
                 .scaleEffect(y: 1.8, anchor: .center)
         }
         .padding(14)
@@ -1779,22 +1784,22 @@ private struct OthersBreakdownRowView: View {
                     Text("Others")
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                    Text("+\(count) more")
+                    Text("+\(self.count) more")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 CostBreakdownMetricColumn(
-                    amountText: CostFormatting.usd(amountUSD),
-                    shareText: CostBreakdownRowView.shareText(amountUSD, total: total))
+                    amountText: CostFormatting.usd(self.amountUSD),
+                    shareText: CostBreakdownRowView.shareText(self.amountUSD, total: self.total))
 
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
 
-            ProgressView(value: CostBreakdownRowView.ratio(amountUSD, total: total))
+            ProgressView(value: CostBreakdownRowView.ratio(self.amountUSD, total: self.total))
                 .tint(Color.secondary.opacity(0.5))
                 .scaleEffect(y: 1.8, anchor: .center)
         }
@@ -1814,17 +1819,17 @@ private struct FullBreakdownListView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(rows) { row in
-                    CostBreakdownRowView(row: row, total: total)
+                ForEach(self.rows) { row in
+                    CostBreakdownRowView(row: row, total: self.total)
                 }
             }
             .padding()
         }
-        .navigationTitle(Text(title))
+        .navigationTitle(Text(self.title))
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(Color(.systemGroupedBackground))
+            .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -1837,7 +1842,7 @@ private struct BudgetRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(row.provider.providerName)
+                Text(self.row.provider.providerName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -1849,8 +1854,8 @@ private struct BudgetRowView: View {
             }
 
             BudgetProgressView(
-                budget: row.budget,
-                tintColor: providerTint(for: row.provider))
+                budget: self.row.budget,
+                tintColor: providerTint(for: self.row.provider))
         }
     }
 }
@@ -1868,7 +1873,7 @@ private struct OthersBudgetRowView: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
             Spacer()
-            Text("+\(count) more")
+            Text("+\(self.count) more")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Image(systemName: "chevron.right")
@@ -1887,7 +1892,7 @@ private struct FullBudgetListView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(rows) { row in
+                ForEach(self.rows) { row in
                     BudgetRowView(row: row)
                 }
             }
@@ -1897,7 +1902,7 @@ private struct FullBudgetListView: View {
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(Color(.systemGroupedBackground))
+            .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -2162,8 +2167,7 @@ private struct SettingsTab: View {
     }
 
     private var mobileVersionSummary: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
-        return version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
     private var macVersionSummary: String {
@@ -2242,6 +2246,7 @@ private struct AboutSyncDetailView: View {
             }
 
             // MARK: Mac Update Prompt
+
             if self.usageData.usingKVSFallback {
                 Section {
                     HStack(spacing: 12) {
@@ -2251,7 +2256,8 @@ private struct AboutSyncDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Mac Update Available")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync.")
+                            Text(
+                                "Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2263,6 +2269,7 @@ private struct AboutSyncDetailView: View {
             }
 
             // MARK: Sync Status
+
             Section {
                 HStack {
                     self.syncStatusIcon
@@ -2297,6 +2304,7 @@ private struct AboutSyncDetailView: View {
             }
 
             // MARK: Devices
+
             if self.usageData.deviceManagementItems.isEmpty {
                 Section {
                     Text("No devices synced yet")
@@ -2368,22 +2376,22 @@ private struct AboutSyncDetailView: View {
         .navigationTitle("About & Sync")
         .sheet(item: self.$deviceActionSheet) { sheet in
             switch sheet {
-            case .merge(let source):
+            case let .merge(source):
                 DeviceMergeSheet(
                     source: source,
                     targets: self.mergeTargets(for: source),
                     usageData: self.usageData)
-            case .archive(let item):
+            case let .archive(item):
                 DeviceLifecycleConfirmationSheet(
                     kind: .archive,
                     item: item,
                     usageData: self.usageData)
-            case .restore(let item):
+            case let .restore(item):
                 DeviceLifecycleConfirmationSheet(
                     kind: .restore,
                     item: item,
                     usageData: self.usageData)
-            case .unmerge(let item):
+            case let .unmerge(item):
                 DeviceLifecycleConfirmationSheet(
                     kind: .unmerge,
                     item: item,
@@ -2513,6 +2521,7 @@ private struct AboutSyncDetailView: View {
         }
         .font(.title2)
     }
+
     private var syncStatusTitle: String {
         switch self.usageData.syncStatus {
         case .synced: String(localized: "Synced")
@@ -2552,10 +2561,11 @@ private struct AboutSyncDetailView: View {
 
     private var syncStatusDetail: String? {
         switch self.usageData.syncStatus {
-        case .synced(let ago):
+        case let .synced(ago):
             if ago < 60 { return String(localized: "Last synced just now") }
             if let snapshot = self.usageData.snapshot {
-                return String(localized: "Last synced \(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))")
+                return String(
+                    localized: "Last synced \(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))")
             }
             return nil
         case .syncing: return nil
@@ -2574,13 +2584,13 @@ private enum DeviceActionSheet: Identifiable {
 
     var id: String {
         switch self {
-        case .merge(let item):
+        case let .merge(item):
             "merge-\(item.id)"
-        case .archive(let item):
+        case let .archive(item):
             "archive-\(item.id)"
-        case .restore(let item):
+        case let .restore(item):
             "restore-\(item.id)"
-        case .unmerge(let item):
+        case let .unmerge(item):
             "unmerge-\(item.id)"
         }
     }
@@ -2618,7 +2628,8 @@ private struct DeviceMergeSheet: View {
                         }
                     }
                 } footer: {
-                    Text("Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.")
+                    Text(
+                        "Use this only when both entries are the same physical Mac after reinstall. History is preserved and the merge can be undone.")
                 }
             }
             .navigationTitle("Merge with Another Mac")
@@ -2750,8 +2761,8 @@ private struct DeviceLifecycleConfirmationSheet: View {
     @MainActor
     private func perform(
         _ kind: DeviceLifecycleConfirmationKind,
-        item: SyncDeviceManagementItem
-    ) async {
+        item: SyncDeviceManagementItem) async
+    {
         switch kind {
         case .archive:
             await self.usageData.archiveDevices(item.sourceDeviceIDs)
@@ -2828,7 +2839,9 @@ private struct RawDeviceSection: View {
             LabeledContent("Device ID", value: self.device.deviceID ?? "N/A")
             LabeledContent("Device Name", value: self.device.deviceName)
             LabeledContent("App Version", value: self.device.appVersion ?? "Unknown")
-            LabeledContent("Sync Time", value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
+            LabeledContent(
+                "Sync Time",
+                value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
             LabeledContent("Providers", value: "\(self.device.providers.count)")
 
             // Use cardIdentityKey (providerID|accountEmail) so multi-account
@@ -2867,7 +2880,9 @@ private struct RawProviderRow: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     } else {
-                        Text("(no email)", comment: "Raw Sync Data row subtitle when provider has no account email (e.g. Claude / Ollama / Copilot)")
+                        Text(
+                            "(no email)",
+                            comment: "Raw Sync Data row subtitle when provider has no account email (e.g. Claude / Ollama / Copilot)")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -2880,12 +2895,16 @@ private struct RawProviderRow: View {
                         // bugs are visible at a glance instead of needing
                         // a tap into detail.
                         Text(String(
-                            format: String(localized: "$%.2f / 30d", comment: "Raw Sync Data row trailing label — 30-day cost"),
+                            format: String(
+                                localized: "$%.2f / 30d",
+                                comment: "Raw Sync Data row trailing label — 30-day cost"),
                             cost.last30DaysCostUSD ?? 0))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(String(
-                            format: String(localized: "$%.2f / today", comment: "Raw Sync Data row trailing label — today's cost"),
+                            format: String(
+                                localized: "$%.2f / today",
+                                comment: "Raw Sync Data row trailing label — today's cost"),
                             cost.sessionCostUSD ?? 0))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
@@ -2915,7 +2934,9 @@ private struct RawProviderDetailView: View {
                 if let login = self.provider.loginMethod {
                     LabeledContent("Login", value: login)
                 }
-                LabeledContent("Last Updated", value: self.provider.lastUpdated.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent(
+                    "Last Updated",
+                    value: self.provider.lastUpdated.formatted(date: .abbreviated, time: .shortened))
                 if self.provider.isError {
                     LabeledContent("Status", value: self.provider.statusMessage ?? "Error")
                         .foregroundStyle(.red)
@@ -2971,8 +2992,8 @@ private struct RawProviderDetailView: View {
         guard let value else { return "N/A" }
         if value >= 1_000_000 {
             return String(format: "%.1fM", Double(value) / 1_000_000)
-        } else if value >= 1_000 {
-            return String(format: "%.1fK", Double(value) / 1_000)
+        } else if value >= 1000 {
+            return String(format: "%.1fK", Double(value) / 1000)
         }
         return "\(value)"
     }
@@ -3047,7 +3068,9 @@ private struct RawDailyPointRow: View {
         }
     }
 
-    private func formatTokens(_ value: Int) -> String { CostFormatting.tokens(value) }
+    private func formatTokens(_ value: Int) -> String {
+        CostFormatting.tokens(value)
+    }
 }
 
 // MARK: - Developer Tools (container listing all dev tools)
@@ -3084,12 +3107,123 @@ private struct DeveloperToolsView: View {
                         symbolName: "bell.badge.waveform",
                         summary: "Alert push subscription state")
                 }
+
+                NavigationLink {
+                    ICloudSyncDiagnosticView(usageData: self.usageData)
+                } label: {
+                    SettingSummaryRow(
+                        title: "iCloud Sync Diagnostics",
+                        symbolName: "icloud.and.arrow.up",
+                        summary: "Read-only account, zone, fallback, and device checks")
+                }
             } footer: {
                 Text("These tools may show internal sync state, device identifiers, and account emails for debugging.")
                     .font(.caption2)
             }
         }
         .navigationTitle("Developer Tools")
+    }
+}
+
+// MARK: - iCloud Sync Diagnostics
+
+private struct ICloudSyncDiagnosticView: View {
+    let usageData: SyncedUsageData
+    @State private var reportText = String(localized: "No check run yet.")
+    @State private var isRunning = false
+
+    var body: some View {
+        List {
+            Section("Current Reader State") {
+                LabeledContent("Status", value: self.readerStatus)
+                LabeledContent(
+                    "Data source",
+                    value: self.usageData.usingKVSFallback
+                        ? String(localized: "KVS fallback")
+                        : String(localized: "CloudKit"))
+                LabeledContent("Mac devices", value: "\(self.usageData.deviceCount)")
+                if let error = self.usageData.lastSyncError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+            }
+
+            Section("Read-Only Check") {
+                Text("This check never creates, changes, or deletes iCloud records, zones, subscriptions, or schema.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(self.reportText)
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
+
+                Button("Run Read-Only Check") {
+                    self.runCheck()
+                }
+                .disabled(self.isRunning)
+
+                Button("Copy Diagnostic Report") {
+                    UIPasteboard.general.string = self.fullReport
+                }
+            }
+
+            Section("Actions") {
+                Button("Refresh Synced Data") {
+                    Task { await self.usageData.refresh() }
+                }
+                .disabled(self.usageData.syncStatus == .syncing)
+            }
+        }
+        .navigationTitle("iCloud Sync Diagnostics")
+        .task {
+            if self.reportText == String(localized: "No check run yet.") {
+                self.runCheck()
+            }
+        }
+    }
+
+    private var readerStatus: String {
+        switch self.usageData.syncStatus {
+        case let .synced(ago):
+            String(format: String(localized: "Synced %lld seconds ago"), Int64(ago))
+        case .syncing: String(localized: "Syncing")
+        case let .error(message): String(
+                format: String(localized: "Error: %@"),
+                message)
+        case .noData: String(localized: "No Mac data")
+        case .incompatibleData: String(localized: "Incompatible data")
+        }
+    }
+
+    private var fullReport: String {
+        let devices = self.usageData.deviceSnapshots
+            .sorted { $0.syncTimestamp > $1.syncTimestamp }
+            .map { snapshot in
+                "- \(snapshot.deviceName): \(snapshot.syncTimestamp.formatted(.iso8601)), "
+                    + "Mac \(snapshot.appVersion ?? "unknown")"
+            }
+            .joined(separator: "\n")
+        return """
+        \(self.reportText)
+
+        iPhone reader: \(self.readerStatus)
+        Data source: \(self.usageData
+            .usingKVSFallback ? String(localized: "KVS fallback") : String(localized: "CloudKit"))
+        Devices (\(self.usageData.deviceCount)):
+        \(devices.isEmpty ? "none" : devices)
+        """
+    }
+
+    private func runCheck() {
+        self.isRunning = true
+        self.reportText = String(localized: "Running read-only iCloud checks…")
+        Task {
+            let report = await CloudSyncManager.shared.runReadOnlyDiagnostic()
+            self.reportText = report.text
+            self.isRunning = false
+        }
     }
 }
 
@@ -3280,11 +3414,11 @@ private struct CostDiagnosticsView: View {
         switch detail {
         case .matchesOverviewTotal:
             String(localized: "Matches Overview total")
-        case .difference(let delta):
+        case let .difference(delta):
             String(
                 format: String(localized: "Difference %@"),
                 CostFormatting.usd(delta))
-        case .covers(let fraction):
+        case let .covers(fraction):
             String(
                 format: String(localized: "Covers %.0f%% of total"),
                 fraction * 100)
@@ -3294,7 +3428,7 @@ private struct CostDiagnosticsView: View {
             String(localized: "No breakdown data")
         case .usesExactProviderDailyPoints:
             String(localized: "Uses exact provider daily points")
-        case .sevenDayProviderDifference(let delta):
+        case let .sevenDayProviderDifference(delta):
             String(
                 format: String(localized: "7-day provider difference %@"),
                 CostFormatting.usd(delta))
@@ -3445,7 +3579,6 @@ private struct PushSetupDiagnosticView: View {
     }
 }
 
-
 /// Renders the NSE invocation log (newest first) so a developer can verify
 /// end-to-end the warning push pipeline without reading device logs in
 /// Console.app. Empty state hints the user how to populate it.
@@ -3453,12 +3586,12 @@ private struct NSEInvocationLogSection: View {
     let entries: [NSEInvocationEntry]
 
     var body: some View {
-        if entries.isEmpty {
+        if self.entries.isEmpty {
             Text("No NSE invocations recorded. Trigger a push from the Mac DEV menu, then tap Refresh.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         } else {
-            ForEach(Array(entries.reversed().enumerated()), id: \.offset) { _, entry in
+            ForEach(Array(self.entries.reversed().enumerated()), id: \.offset) { _, entry in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(entry.event.rawValue.uppercased())
@@ -3518,276 +3651,379 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.18.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "iPhone 1.18 shows more Kimi limits, distinguishes Claude Max plans, and keeps tiny percentages visible."),
+            summary: String(
+                localized: "iPhone 1.18 shows more Kimi limits, distinguishes Claude Max plans, and keeps tiny percentages visible."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Kimi at a glance — see Weekly, five-hour, Monthly, and Code 7-day limits in one consistent order."),
-                        String(localized: "Clearer Claude plans — Max 5x and Max 20x stay distinct, even while your Macs update at different times."),
-                        String(localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
-                        String(localized: "A smoother Mac companion — CodexBar for Mac now recovers sign-ins more safely, reports usage more accurately, and improves performance, menus, and settings."),
+                        String(
+                            localized: "Kimi at a glance — see Weekly, five-hour, Monthly, and Code 7-day limits in one consistent order."),
+                        String(
+                            localized: "Clearer Claude plans — Max 5x and Max 20x stay distinct, even while your Macs update at different times."),
+                        String(
+                            localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
+                        String(
+                            localized: "A smoother Mac companion — CodexBar for Mac now recovers sign-ins more safely, reports usage more accurately, and improves performance, menus, and settings."),
+                        String(
+                            localized: "Reliable iCloud sync — stalled Mac uploads now time out with a clear failure instead of spinning forever, and Developer Tools includes a read-only iCloud diagnostic report."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "For all new details, update CodexBar on Mac to version 0.41.0.1 or later. iPhone 1.18 still works with data from older Mac versions."),
+                        String(
+                            localized: "For all new details, update CodexBar on Mac to version 0.41.0.1 or later. iPhone 1.18 still works with data from older Mac versions."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.17.0",
             status: "",
-            summary: String(localized: "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes."),
+            summary: String(
+                localized: "iPhone 1.17 brings the CodexBar 0.39 sync: new provider cards, CrossModel wallet details, expanded quota alerts, and the latest Mac provider fixes."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
-                        String(localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
-                        String(localized: "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."),
-                        String(localized: "Cost history defaults — Local cost history now starts on with a 90-day window, and Cost Settings explains how it differs from the synced Mac snapshot path."),
-                        String(localized: "Cost diagnostics — Developer Tools can now show the source path, provider rules, and reconciliation checks behind the Cost totals."),
-                        String(localized: "Widget polish — updated timestamps are centered across every widget size and mode."),
-                        String(localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
+                        String(
+                            localized: "New providers — iPhone now recognizes Sakana AI, Qoder, CrossModel, and ClawRouter from Mac sync, with provider colors, quota alerts, mock data, and detail pages included."),
+                        String(
+                            localized: "CrossModel details — CrossModel now shows balance, uncollected spend, and daily, weekly, and monthly usage on iPhone instead of an empty provider page."),
+                        String(
+                            localized: "Cost data integrity — Overview, Provider Share, Daily Spend, Model Mix, Codex Service Mix, and share cards now use the same provider-aware cost reducer so local CLI spend is summed across active Macs without double-counting account-level providers."),
+                        String(
+                            localized: "Cost history defaults — Local cost history now starts on with a 90-day window, and Cost Settings explains how it differs from the synced Mac snapshot path."),
+                        String(
+                            localized: "Cost diagnostics — Developer Tools can now show the source path, provider rules, and reconciliation checks behind the Cost totals."),
+                        String(
+                            localized: "Widget polish — updated timestamps are centered across every widget size and mode."),
+                        String(
+                            localized: "Provider fixes included — the companion app understands the latest Mac data for Sakana AI quotas, Qoder credits, ClawRouter budget usage, CrossModel wallet usage, and upstream menu/provider reliability fixes."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.39.0.1 (fork build 97.1 or later) for the full 1.17 experience. iPhone 1.17.0 still opens older Mac data; new provider details appear after Mac updates."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.39.0.1 (fork build 97.1 or later) for the full 1.17 experience. iPhone 1.17.0 still opens older Mac data; new provider details appear after Mac updates."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.16.0",
             status: "",
-            summary: String(localized: "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."),
+            summary: String(
+                localized: "iPhone 1.16 adds Home Screen widgets for CodexBar usage, cost, and sync health."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
-                        String(localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
-                        String(localized: "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."),
-                        String(localized: "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."),
+                        String(
+                            localized: "Home Screen widgets — add CodexBar widgets in small, medium, large, or iPad extra-large sizes to see provider usage, today’s cost, and sync health at a glance, with layouts tested through SpringBoard on iPhone and iPad and tuned for Light, Dark, and tinted Home Screen appearances."),
+                        String(
+                            localized: "Widget previews — open Widget Setting in Settings to review every widget mode as individual framed Home Screen previews across small, medium, large, and iPad extra-large sizes, using the same native widget layout and spacing as the real widgets."),
+                        String(
+                            localized: "Widget appearance — choose Mono or Colorful for each Home Screen widget, and preview both styles in Widget Setting before adding or editing widgets."),
+                        String(
+                            localized: "Widget polish — Today Cost widgets now use the same merged cost totals as the Cost page, show token usage more clearly, center their updated timestamp, and keep provider rows focused on useful Provider labels instead of account-plan text."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
                     items: [
-                        String(localized: "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."),
-                        String(localized: "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete."),
+                        String(
+                            localized: "Widgets read synced CodexBar data from CloudKit and fall back to older iCloud snapshots when needed, with no App Group setup required."),
+                        String(
+                            localized: "Cost totals now cross-check the synced provider summary, so the Cost page no longer undercounts spend when daily history is incomplete."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.15.0",
             status: "",
-            summary: String(localized: "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
+            summary: String(
+                localized: "iPhone 1.15 brings the CodexBar 0.37 sync: Codex reset credits, clearer estimated-usage notices, safer provider endpoints, improved diagnostics, and the latest Mac provider fixes."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page."),
-                        String(localized: "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact."),
-                        String(localized: "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync."),
-                        String(localized: "Diagnostics and security — Mac 0.37 adds stronger provider endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads."),
+                        String(
+                            localized: "Codex reset credits — when Mac 0.37.2.1 syncs available manual resets, iPhone shows the count and next expiration on the Codex detail page."),
+                        String(
+                            localized: "Usage confidence — if Mac only has estimated or percentage-only usage, iPhone now calls that out instead of presenting the data as exact."),
+                        String(
+                            localized: "Provider updates included — Cursor personal on-demand usage, Mistral Vibe monthly limits, Bedrock CloudWatch activity, MiniMax model names, and CommandCode quota transitions benefit from the latest Mac sync."),
+                        String(
+                            localized: "Diagnostics and security — Mac 0.37 adds stronger provider endpoint validation, safer Codex OAuth credential permissions, improved CLI diagnostics, and more reliable Claude/Codex web reads."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.37.2.1 (fork build 92.1 or later) for the full 1.15 experience. iPhone 1.15.0 still opens older Mac data; new Codex reset-credit and confidence details appear after Mac updates."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.37.2.1 (fork build 92.1 or later) for the full 1.15 experience. iPhone 1.15.0 still opens older Mac data; new Codex reset-credit and confidence details appear after Mac updates."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.14.0",
             status: "",
-            summary: String(localized: "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls."),
+            summary: String(
+                localized: "iPhone 1.14 adds Sync Device Management for duplicate or retired Mac devices, with non-destructive merge, archive, restore, and unmerge controls."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history."),
-                        String(localized: "Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings."),
-                        String(localized: "Undo when needed — restore archived devices or unmerge device identities from Settings → About & Sync."),
-                        String(localized: "Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers."),
+                        String(
+                            localized: "Merge duplicate Macs — if reinstalling a Mac creates a second sync device, combine the old and new identities without deleting history."),
+                        String(
+                            localized: "Archive retired Macs — keep old device history while removing retired Macs from the active device count and stale sync warnings."),
+                        String(
+                            localized: "Undo when needed — restore archived devices or unmerge device identities from Settings → About & Sync."),
+                        String(
+                            localized: "Safer local cost totals — merged identities from the same physical Mac no longer count local CLI history as two separate computers."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "No Mac update is required for this iPhone feature. Existing Mac sync data is preserved; a CloudKit schema update may be required before release."),
+                        String(
+                            localized: "No Mac update is required for this iPhone feature. Existing Mac sync data is preserved; a CloudKit schema update may be required before release."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.13.0",
             status: "",
-            summary: String(localized: "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade."),
+            summary: String(
+                localized: "iPhone 1.13 is a larger Mac sync update: more provider coverage, richer quota and renewal details, and steadier Mac-to-iPhone data while you upgrade."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Provider coverage — Devin, LiteLLM, Poe, Chutes, and Zed can now appear on iPhone when your Mac syncs their usage, with quota notifications prepared for the new providers."),
-                        String(localized: "Richer cards — MiniMax renewal dates, Copilot budget windows, MiMo balance and token-plan updates, Kimi Code API usage, and Poe point history now travel through the shared sync data where iOS can show them."),
-                        String(localized: "Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still catching up, so cards should not flicker back to empty during a rolling upgrade."),
-                        String(localized: "Mac improvements included — this release carries the 0.35.0 through 0.36.1 provider accuracy, security, localization, and menu reliability fixes to the companion app."),
+                        String(
+                            localized: "Provider coverage — Devin, LiteLLM, Poe, Chutes, and Zed can now appear on iPhone when your Mac syncs their usage, with quota notifications prepared for the new providers."),
+                        String(
+                            localized: "Richer cards — MiniMax renewal dates, Copilot budget windows, MiMo balance and token-plan updates, Kimi Code API usage, and Poe point history now travel through the shared sync data where iOS can show them."),
+                        String(
+                            localized: "Smoother upgrades — iPhone keeps rich provider details when one Mac has updated and another is still catching up, so cards should not flicker back to empty during a rolling upgrade."),
+                        String(
+                            localized: "Mac improvements included — this release carries the 0.35.0 through 0.36.1 provider accuracy, security, localization, and menu reliability fixes to the companion app."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later) for the full 1.13 experience. iPhone 1.13.0 still opens older Mac data, but new provider details appear after Mac updates."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.36.1.1 (fork build 88.1 or later) for the full 1.13 experience. iPhone 1.13.0 still opens older Mac data, but new provider details appear after Mac updates."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.11.1",
             status: "",
-            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."),
+            summary: String(
+                localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
+                        String(
+                            localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.11.0",
             status: "",
-            summary: String(localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."),
+            summary: String(
+                localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Search — filter the Usage list by provider name; handy when many providers are synced."),
-                        String(localized: "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar."),
-                        String(localized: "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage."),
-                        String(localized: "Augment — usage parses correctly again after the upstream status-format change."),
-                        String(localized: "Claude — a brief sign-in hiccup no longer blanks your usage; the last good reading is kept."),
-                        String(localized: "Codex / Claude cost — refreshed by the v0.32 cost-scanner update; your cost cards re-scan to the corrected numbers."),
+                        String(
+                            localized: "Search — filter the Usage list by provider name; handy when many providers are synced."),
+                        String(
+                            localized: "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar."),
+                        String(
+                            localized: "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage."),
+                        String(
+                            localized: "Augment — usage parses correctly again after the upstream status-format change."),
+                        String(
+                            localized: "Claude — a brief sign-in hiccup no longer blanks your usage; the last good reading is kept."),
+                        String(
+                            localized: "Codex / Claude cost — refreshed by the v0.32 cost-scanner update; your cost cards re-scan to the corrected numbers."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.10.0",
             status: "",
-            summary: String(localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."),
+            summary: String(
+                localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "DeepSeek — usage card with web-session today / this-month tokens, spend, and request counts shown alongside your balance."),
-                        String(localized: "Codex Spark — 5-hour and weekly Spark model quota lanes now sync to your iPhone."),
-                        String(localized: "Antigravity — full per-model quota lanes now flow through, not just the three-family summary."),
-                        String(localized: "Cost cards — now show request counts and format amounts in the synced currency (e.g. EUR / CNY), not just USD."),
-                        String(localized: "Upstream fixes flow through automatically — the corrected Claude Enterprise extra-usage amount (no longer 100x too high), Grok / Ollama window labels and pace projection, and the Claude Design lane folded into the main Claude limit."),
+                        String(
+                            localized: "DeepSeek — usage card with web-session today / this-month tokens, spend, and request counts shown alongside your balance."),
+                        String(
+                            localized: "Codex Spark — 5-hour and weekly Spark model quota lanes now sync to your iPhone."),
+                        String(
+                            localized: "Antigravity — full per-model quota lanes now flow through, not just the three-family summary."),
+                        String(
+                            localized: "Cost cards — now show request counts and format amounts in the synced currency (e.g. EUR / CNY), not just USD."),
+                        String(
+                            localized: "Upstream fixes flow through automatically — the corrected Claude Enterprise extra-usage amount (no longer 100x too high), Grok / Ollama window labels and pace projection, and the Claude Design lane folded into the main Claude limit."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.9.0",
             status: "",
-            summary: String(localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
+            summary: String(
+                localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Azure OpenAI — usage card validating deployment status from your API key, endpoint, and deployment name."),
-                        String(localized: "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies."),
-                        String(localized: "T3 Chat — web-session usage card with a 4-hour base window plus a monthly overage window."),
-                        String(localized: "Richer detail elsewhere too — Codex standard/fast spend split per model, an OpenRouter balance & credits card, Mistral daily cost in the Cost dashboard, the Antigravity multi-account switcher, and cost summaries that show the real history window (not always 30 days)."),
+                        String(
+                            localized: "Azure OpenAI — usage card validating deployment status from your API key, endpoint, and deployment name."),
+                        String(
+                            localized: "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies."),
+                        String(
+                            localized: "T3 Chat — web-session usage card with a 4-hour base window plus a monthly overage window."),
+                        String(
+                            localized: "Richer detail elsewhere too — Codex standard/fast spend split per model, an OpenRouter balance & credits card, Mistral daily cost in the Cost dashboard, the Antigravity multi-account switcher, and cost summaries that show the real history window (not always 30 days)."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.8.0",
             status: "",
-            summary: String(localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace."),
+            summary: String(
+                localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Grok (xAI) — dedicated card showing monthly USD spend, plan tier badge, percent used, and the renewal date. Uses Grok CLI billing when available, falls back to grok.com web billing."),
-                        String(localized: "ElevenLabs — dedicated card with character credits primary bar, voice slots and professional voice slots rows when present, tier badge, and renewal date."),
-                        String(localized: "Deepgram — dedicated card with speech / agent / total hours breakdown, request count, agent tokens, optional TTS character count, and a project badge with '(of N)' hint when you have multiple projects."),
-                        String(localized: "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge."),
-                        String(localized: "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown."),
-                        String(localized: "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."),
-                        String(localized: "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac."),
-                        String(localized: "Claude Extra usage (spend-limit) card for Enterprise / Team plans — utilization gauge, monthly spend vs limit, and a plan-tier badge."),
-                        String(localized: "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched."),
-                        String(localized: "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars."),
-                        String(localized: "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns."),
-                        String(localized: "Quota notifications now include the triggering account on multi-account providers — e.g. 'Codex · admin@example.com' instead of bare 'Codex'. Honours the Mac Hide-personal-info toggle."),
-                        String(localized: "Codex workspace badge — when your active Codex account belongs to an OpenAI workspace, the workspace name shows as a caption under the account email plus a weekly pace arrow (up = ahead of pace, down = under pace)."),
-                        String(localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
+                        String(
+                            localized: "Grok (xAI) — dedicated card showing monthly USD spend, plan tier badge, percent used, and the renewal date. Uses Grok CLI billing when available, falls back to grok.com web billing."),
+                        String(
+                            localized: "ElevenLabs — dedicated card with character credits primary bar, voice slots and professional voice slots rows when present, tier badge, and renewal date."),
+                        String(
+                            localized: "Deepgram — dedicated card with speech / agent / total hours breakdown, request count, agent tokens, optional TTS character count, and a project badge with '(of N)' hint when you have multiple projects."),
+                        String(
+                            localized: "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge."),
+                        String(
+                            localized: "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown."),
+                        String(
+                            localized: "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."),
+                        String(
+                            localized: "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac."),
+                        String(
+                            localized: "Claude Extra usage (spend-limit) card for Enterprise / Team plans — utilization gauge, monthly spend vs limit, and a plan-tier badge."),
+                        String(
+                            localized: "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched."),
+                        String(
+                            localized: "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars."),
+                        String(
+                            localized: "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns."),
+                        String(
+                            localized: "Quota notifications now include the triggering account on multi-account providers — e.g. 'Codex · admin@example.com' instead of bare 'Codex'. Honours the Mac Hide-personal-info toggle."),
+                        String(
+                            localized: "Codex workspace badge — when your active Codex account belongs to an OpenAI workspace, the workspace name shows as a caption under the account email plus a weekly pace arrow (up = ahead of pace, down = under pace)."),
+                        String(
+                            localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.7.0",
             status: "",
-            summary: String(localized: "Six new dedicated provider cards (Kiro credits, AWS Bedrock cost, Moonshot / Kimi API balance, z.ai hourly chart, OpenAI API Dashboard, Antigravity multi-account) plus two new settings toggles."),
+            summary: String(
+                localized: "Six new dedicated provider cards (Kiro credits, AWS Bedrock cost, Moonshot / Kimi API balance, z.ai hourly chart, OpenAI API Dashboard, Antigravity multi-account) plus two new settings toggles."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "OpenAI Admin API Dashboard on the OpenAI provider page — Today / 7 days / 30 days summary cards, a 30-day spend chart, and top models / top line items lists. Requires Mac 0.26.2 with Admin API access."),
-                        String(localized: "Kiro: dedicated credits card with plan tag, primary credit usage progress, and an optional bonus pool with expiry countdown."),
-                        String(localized: "AWS Bedrock (NEW): monthly spend + budget card with the active AWS region. Color-coded as approach 75% / 90% of budget."),
-                        String(localized: "Moonshot / Kimi API (NEW): clean balance + currency + region card so you can see your top-up at a glance."),
-                        String(localized: "z.ai hourly chart: stacked per-model token usage for the last 24 hours, with model legend."),
-                        String(localized: "Antigravity multi-account switcher: when more than one Google account is wired on Mac, the iPhone shows the linked list with active-account marker."),
-                        String(localized: "Two new Settings toggles — Hide quota-warning markers (only the tick-marks; notifications still fire) and Show provider changelog links (companion section in Settings → About)."),
+                        String(
+                            localized: "OpenAI Admin API Dashboard on the OpenAI provider page — Today / 7 days / 30 days summary cards, a 30-day spend chart, and top models / top line items lists. Requires Mac 0.26.2 with Admin API access."),
+                        String(
+                            localized: "Kiro: dedicated credits card with plan tag, primary credit usage progress, and an optional bonus pool with expiry countdown."),
+                        String(
+                            localized: "AWS Bedrock (NEW): monthly spend + budget card with the active AWS region. Color-coded as approach 75% / 90% of budget."),
+                        String(
+                            localized: "Moonshot / Kimi API (NEW): clean balance + currency + region card so you can see your top-up at a glance."),
+                        String(
+                            localized: "z.ai hourly chart: stacked per-model token usage for the last 24 hours, with model legend."),
+                        String(
+                            localized: "Antigravity multi-account switcher: when more than one Google account is wired on Mac, the iPhone shows the linked list with active-account marker."),
+                        String(
+                            localized: "Two new Settings toggles — Hide quota-warning markers (only the tick-marks; notifications still fire) and Show provider changelog links (companion section in Settings → About)."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.6.0",
             status: "",
-            summary: String(localized: "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar."),
+            summary: String(
+                localized: "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
-                        String(localized: "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."),
-                        String(localized: "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."),
-                        String(localized: "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently."),
-                        String(localized: "Push notification when you cross a warning threshold (not just at full depletion) — your iPhone now buzzes the moment you hit 50%, 20%, or whatever you've configured."),
+                        String(
+                            localized: "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
+                        String(
+                            localized: "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."),
+                        String(
+                            localized: "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."),
+                        String(
+                            localized: "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently."),
+                        String(
+                            localized: "Push notification when you cross a warning threshold (not just at full depletion) — your iPhone now buzzes the moment you hit 50%, 20%, or whatever you've configured."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."),
+                        String(
+                            localized: "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.5.3",
             status: "",
-            summary: String(localized: "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix."),
+            summary: String(
+                localized: "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix."),
             sections: [
                 .init(
                     title: String(localized: "Recent updates"),
                     items: [
-                        String(localized: "Abacus AI and Mistral support — monthly usage and renewal countdown sync to your iPhone, with quota push notifications."),
-                        String(localized: "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page."),
-                        String(localized: "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks."),
-                        String(localized: "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *."),
-                        String(localized: "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."),
+                        String(
+                            localized: "Abacus AI and Mistral support — monthly usage and renewal countdown sync to your iPhone, with quota push notifications."),
+                        String(
+                            localized: "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page."),
+                        String(
+                            localized: "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks."),
+                        String(
+                            localized: "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *."),
+                        String(
+                            localized: "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
@@ -3798,18 +4034,22 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.5.2",
             status: "",
-            summary: String(localized: "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account."),
+            summary: String(
+                localized: "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account."),
             sections: [
                 .init(
                     title: String(localized: "Stability"),
                     items: [
-                        String(localized: "Added a real-data regression test suite covering all 27 providers to ensure sync stability across multi-account and multi-device scenarios."),
+                        String(
+                            localized: "Added a real-data regression test suite covering all 27 providers to ensure sync stability across multi-account and multi-device scenarios."),
                     ]),
                 .init(
                     title: String(localized: "Other fixes"),
                     items: [
-                        String(localized: "Some accounts (Claude / Ollama / Copilot etc.) being incorrectly hidden in specific scenarios."),
-                        String(localized: "Stale sync records left behind by previous Mac sessions persisting on iPhone."),
+                        String(
+                            localized: "Some accounts (Claude / Ollama / Copilot etc.) being incorrectly hidden in specific scenarios."),
+                        String(
+                            localized: "Stale sync records left behind by previous Mac sessions persisting on iPhone."),
                         String(localized: "Cards being merged or lost in multi-account scenarios."),
                     ]),
                 .init(
@@ -3821,91 +4061,130 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.5.1",
             status: "",
-            summary: String(localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
+            summary: String(
+                localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
             sections: [
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change."),
-                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
+                        String(
+                            localized: "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change."),
+                        String(
+                            localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."),
-                        String(localized: "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."),
-                        String(localized: "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."),
-                        String(localized: "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."),
-                        String(localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
-                        String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
-                        String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
-                        String(localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
-                        String(localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
+                        String(
+                            localized: "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."),
+                        String(
+                            localized: "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."),
+                        String(
+                            localized: "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."),
+                        String(
+                            localized: "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."),
+                        String(
+                            localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
+                        String(
+                            localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
+                        String(
+                            localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
+                        String(
+                            localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
+                        String(
+                            localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
                     items: [
-                        String(localized: "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."),
-                        String(localized: "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."),
-                        String(localized: "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."),
+                        String(
+                            localized: "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."),
+                        String(
+                            localized: "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."),
+                        String(
+                            localized: "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.5.0",
             status: "",
-            summary: String(localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
+            summary: String(
+                localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
             sections: [
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
+                        String(
+                            localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."),
-                        String(localized: "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."),
-                        String(localized: "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."),
-                        String(localized: "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."),
-                        String(localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
-                        String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
-                        String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
-                        String(localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
-                        String(localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
+                        String(
+                            localized: "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."),
+                        String(
+                            localized: "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."),
+                        String(
+                            localized: "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."),
+                        String(
+                            localized: "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."),
+                        String(
+                            localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
+                        String(
+                            localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
+                        String(
+                            localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
+                        String(
+                            localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
+                        String(
+                            localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
                     items: [
-                        String(localized: "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."),
-                        String(localized: "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."),
-                        String(localized: "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."),
+                        String(
+                            localized: "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."),
+                        String(
+                            localized: "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."),
+                        String(
+                            localized: "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.3.0",
             status: "",
-            summary: String(localized: "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app."),
+            summary: String(
+                localized: "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app."),
             sections: [
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
+                        String(
+                            localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Perplexity credit breakdown — when Mac 0.20.3+ is installed, the Perplexity detail page shows a stacked 3-segment bar for monthly / bonus / purchased credits, a Pro/Max plan badge, and a renewal-date countdown."),
-                        String(localized: "OpenCode Go support — separate provider from OpenCode Zen with its own tint (mint) and push subscriptions; cards are visually distinguishable at a glance even with both products enabled."),
-                        String(localized: "Codex multi-account cards — if you have 2+ Codex accounts (e.g. a personal Pro and a work Business account), each now renders as its own card with the email as the subtitle. Accounts without an email get a localized ordinal fallback (\"Codex 2\", etc.)."),
-                        String(localized: "Full push-notification coverage — quota depleted / restored pushes now work for Perplexity and OpenCode Go in addition to the 23 existing providers."),
-                        String(localized: "Provider color palette consolidated — every tab and card uses the same color for a given provider, so the Subscription Utilization chart, the provider list, the share card, and the detail page all agree."),
+                        String(
+                            localized: "Perplexity credit breakdown — when Mac 0.20.3+ is installed, the Perplexity detail page shows a stacked 3-segment bar for monthly / bonus / purchased credits, a Pro/Max plan badge, and a renewal-date countdown."),
+                        String(
+                            localized: "OpenCode Go support — separate provider from OpenCode Zen with its own tint (mint) and push subscriptions; cards are visually distinguishable at a glance even with both products enabled."),
+                        String(
+                            localized: "Codex multi-account cards — if you have 2+ Codex accounts (e.g. a personal Pro and a work Business account), each now renders as its own card with the email as the subtitle. Accounts without an email get a localized ordinal fallback (\"Codex 2\", etc.)."),
+                        String(
+                            localized: "Full push-notification coverage — quota depleted / restored pushes now work for Perplexity and OpenCode Go in addition to the 23 existing providers."),
+                        String(
+                            localized: "Provider color palette consolidated — every tab and card uses the same color for a given provider, so the Subscription Utilization chart, the provider list, the share card, and the detail page all agree."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
                     items: [
-                        String(localized: "SwiftData-backed local cache — cold start time for Usage / Cost tabs reduced from 2-5 seconds to under 200 ms. Data persists across app relaunches instead of re-fetching from CloudKit every time."),
-                        String(localized: "Per-provider CloudKit records with zlib compression — removes the 1 MB-per-record hard cap that long-term users were approaching as their utilization history grew."),
-                        String(localized: "Push-driven incremental sync — Mac changes now land on iPhone within ~500 ms via CloudKit silent pushes instead of waiting for the next manual refresh."),
+                        String(
+                            localized: "SwiftData-backed local cache — cold start time for Usage / Cost tabs reduced from 2-5 seconds to under 200 ms. Data persists across app relaunches instead of re-fetching from CloudKit every time."),
+                        String(
+                            localized: "Per-provider CloudKit records with zlib compression — removes the 1 MB-per-record hard cap that long-term users were approaching as their utilization history grew."),
+                        String(
+                            localized: "Push-driven incremental sync — Mac changes now land on iPhone within ~500 ms via CloudKit silent pushes instead of waiting for the next manual refresh."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -3916,19 +4195,24 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
+                        String(
+                            localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
-                        String(localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
-                        String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."),
+                        String(
+                            localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
+                        String(
+                            localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
+                        String(
+                            localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."),
                     ]),
                 .init(
                     title: String(localized: "Improvements"),
                     items: [
-                        String(localized: "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed."),
+                        String(
+                            localized: "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -3939,15 +4223,20 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"),
+                        String(
+                            localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "CloudKit multi-device sync — data from multiple Macs is now merged on iPhone instead of last-write-wins."),
-                        String(localized: "New Sync Detail page in Settings — view sync status, connected devices, and detailed error info."),
-                        String(localized: "Raw Sync Data inspector — per-device unmerged data with daily cost breakdowns for debugging."),
-                        String(localized: "Specific CloudKit error messages — network, auth, quota issues now show exact cause instead of generic errors."),
+                        String(
+                            localized: "CloudKit multi-device sync — data from multiple Macs is now merged on iPhone instead of last-write-wins."),
+                        String(
+                            localized: "New Sync Detail page in Settings — view sync status, connected devices, and detailed error info."),
+                        String(
+                            localized: "Raw Sync Data inspector — per-device unmerged data with daily cost breakdowns for debugging."),
+                        String(
+                            localized: "Specific CloudKit error messages — network, auth, quota issues now show exact cause instead of generic errors."),
                     ]),
                 .init(
                     title: String(localized: "Improvements"),
@@ -3965,13 +4254,17 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Share your AI spending as a beautiful image card — choose Classic or Vibe style, supports Today, 7 Days, and 30 Days, and adapts to dark mode."),
+                        String(
+                            localized: "Share your AI spending as a beautiful image card — choose Classic or Vibe style, supports Today, 7 Days, and 30 Days, and adapts to dark mode."),
                         String(localized: "Usage percentages now stay crisp without blur on provider cards."),
                         String(localized: "Cost summaries and breakdown amounts remain sharp in tighter layouts."),
                         String(localized: "View AI coding tool usage on iPhone, synced from Mac via iCloud."),
-                        String(localized: "Provider cards with real-time rate limits, budget progress, and daily cost breakdowns."),
-                        String(localized: "Cost dashboard with provider share, model and service mix, and 30-day spend analysis."),
-                        String(localized: "Interactive charts with Bar and Line styles, press-and-hold inspection, and horizontal scrolling for history."),
+                        String(
+                            localized: "Provider cards with real-time rate limits, budget progress, and daily cost breakdowns."),
+                        String(
+                            localized: "Cost dashboard with provider share, model and service mix, and 30-day spend analysis."),
+                        String(
+                            localized: "Interactive charts with Bar and Line styles, press-and-hold inspection, and horizontal scrolling for history."),
                         String(localized: "Supports English, Simplified Chinese, Traditional Chinese, and Japanese."),
                         String(localized: "Liquid Glass design, demo mode, onboarding guide, and pull-to-refresh."),
                     ]),
@@ -4019,7 +4312,7 @@ private struct ReleaseNotesView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
-                    Text("\(String(localized: "Version")) \(version.version)")
+                                    Text("\(String(localized: "Version")) \(version.version)")
                                         .fontWeight(.semibold)
                                     ReleaseNotesBadge(title: version.status)
                                 }
@@ -4118,7 +4411,8 @@ private struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.usageCostChartStyle) private var usageCostChartStyleRawValue = CostChartStyle.bars
         .rawValue
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode
+            .remaining.rawValue
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
@@ -4221,7 +4515,8 @@ private struct CostSettingsView: View {
                         Text("Off uses the latest synced Mac snapshots and the Mac history window.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("On keeps synced daily cost points on this iPhone for the selected window. It still requires Mac sync and never reads Mac logs directly.")
+                        Text(
+                            "On keeps synced daily cost points on this iPhone for the selected window. It still requires Mac sync and never reads Mac logs directly.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -4270,7 +4565,8 @@ private struct CostSettingsView: View {
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
+                        Text(
+                            "Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
                     }
                 }
             }
@@ -4373,7 +4669,8 @@ private struct WidgetSettingsView: View {
                 }
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
                 .animation(.snappy(duration: 0.22), value: self.selectedColorStyle)
-                .accessibilityIdentifier("widget-preview-gallery-\(self.selectedFamily.rawValue)-\(self.selectedColorStyle.rawValue)")
+                .accessibilityIdentifier(
+                    "widget-preview-gallery-\(self.selectedFamily.rawValue)-\(self.selectedColorStyle.rawValue)")
             } header: {
                 Text("Preview")
             }
@@ -4432,7 +4729,8 @@ private struct WidgetPreviewFrame: View {
                                 .stroke(.separator.opacity(0.42), lineWidth: 1)
                         }
                         .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
-                        .accessibilityIdentifier("widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)-\(self.colorStyle.rawValue)")
+                        .accessibilityIdentifier(
+                            "widget-preview-\(self.family.rawValue)-\(self.mode.rawValue)-\(self.colorStyle.rawValue)")
                 }
                 .frame(width: size.width, alignment: .leading)
                 Spacer(minLength: 0)
@@ -4449,7 +4747,9 @@ private enum CodexBarWidgetPreviewFamily: String, CaseIterable, Identifiable {
     case large
     case extraLarge
 
-    var id: String { self.rawValue }
+    var id: String {
+        self.rawValue
+    }
 
     var title: LocalizedStringResource {
         switch self {
@@ -4515,8 +4815,8 @@ private enum CodexBarWidgetPreviewFamily: String, CaseIterable, Identifiable {
     }
 }
 
-private extension CodexBarWidgetMode {
-    var previewTitle: LocalizedStringResource {
+extension CodexBarWidgetMode {
+    fileprivate var previewTitle: LocalizedStringResource {
         switch self {
         case .overview: "Overview"
         case .providerFocus: "Provider Focus"
@@ -4526,8 +4826,8 @@ private extension CodexBarWidgetMode {
     }
 }
 
-private extension CodexBarWidgetColorStyle {
-    var previewTitle: LocalizedStringResource {
+extension CodexBarWidgetColorStyle {
+    fileprivate var previewTitle: LocalizedStringResource {
         switch self {
         case .mono: "Mono"
         case .colorful: "Colorful"

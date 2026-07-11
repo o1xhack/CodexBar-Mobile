@@ -1179,3 +1179,17 @@
 "section_diagnostics" = "Diagnostik";
 "section_updates" = "Pembaruan";
 "section_links" = "Tautan";
+"mobile_sync_status_failure_phase_format" = "Sinkronisasi iCloud gagal saat %@. Buka Lanjutan → Debug untuk detail.";
+"icloud_diagnostics_read_only_caption" = "Periksa status akun, zona yang ada, dan KVS tanpa mengubah data iCloud.";
+"icloud_diagnostics_run" = "Jalankan Diagnostik Hanya Baca";
+"icloud_diagnostics_running" = "Menjalankan diagnostik iCloud…";
+"icloud_diagnostics_title" = "Diagnostik Sinkronisasi iCloud";
+"icloud_sync_phase_cleanup" = "Pembersihan";
+"icloud_sync_phase_idle" = "Siaga";
+"icloud_sync_phase_legacy_upload" = "Unggah perangkat";
+"icloud_sync_phase_preparing" = "Menyiapkan snapshot";
+"icloud_sync_phase_provider_upload" = "Unggah penyedia";
+"icloud_sync_phase_reconciling" = "Merekonsiliasi";
+"mobile_button_retry_sync" = "Coba Sinkronisasi Lagi";
+"mobile_sync_status_syncing_elapsed_format" = "Menyinkronkan — %@ · %d dtk";
+"mobile_sync_status_syncing_phase_format" = "Menyinkronkan — %@";

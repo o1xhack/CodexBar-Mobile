@@ -19308,6 +19308,183 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "若要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.41.0.1 或更高版本。iPhone 1.18 仍兼容旧版 Mac 的数据。" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "若要查看全部新詳細，請將 Mac 上的 CodexBar 更新到 0.41.0.1 或更高版本。iPhone 1.18 仍相容舊版 Mac 的資料。" } }
       }
+    },
+    "iCloud Sync Diagnostics": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "iCloud Sync Diagnostics" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iCloud 同期診断" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iCloud 同步诊断" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "iCloud 同步診斷" } }
+      }
+    },
+    "Read-only account, zone, fallback, and device checks": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Read-only account, zone, fallback, and device checks" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アカウント、ゾーン、フォールバック、デバイスを読み取り専用で確認" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "只读检查账户、记录区、备用通道和设备" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "唯讀檢查帳號、記錄區、備援通道與裝置" } }
+      }
+    },
+    "Current Reader State": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Current Reader State" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "現在の読み取り状態" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前读取状态" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "目前讀取狀態" } }
+      }
+    },
+    "Data source": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Data source" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "データソース" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "数据来源" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "資料來源" } }
+      }
+    },
+    "KVS fallback": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "KVS fallback" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "KVS フォールバック" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "KVS 备用通道" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "KVS 備援通道" } }
+      }
+    },
+    "CloudKit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "CloudKit" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "CloudKit" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "CloudKit" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "CloudKit" } }
+      }
+    },
+    "Mac devices": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Mac devices" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Mac デバイス" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Mac 设备" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Mac 裝置" } }
+      }
+    },
+    "Read-Only Check": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Read-Only Check" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "読み取り専用チェック" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "只读检查" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "唯讀檢查" } }
+      }
+    },
+    "This check never creates, changes, or deletes iCloud records, zones, subscriptions, or schema.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This check never creates, changes, or deletes iCloud records, zones, subscriptions, or schema." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このチェックは iCloud のレコード、ゾーン、サブスクリプション、スキーマを作成、変更、削除しません。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此检查不会创建、更改或删除任何 iCloud 记录、记录区、订阅或 schema。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "此檢查不會建立、更改或刪除任何 iCloud 記錄、記錄區、訂閱或 schema。" } }
+      }
+    },
+    "Run Read-Only Check": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Run Read-Only Check" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "読み取り専用チェックを実行" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "运行只读检查" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "執行唯讀檢查" } }
+      }
+    },
+    "Copy Diagnostic Report": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy Diagnostic Report" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "診断レポートをコピー" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "复制诊断报告" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "複製診斷報告" } }
+      }
+    },
+    "Refresh Synced Data": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Refresh Synced Data" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "同期データを更新" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "刷新同步数据" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "重新整理同步資料" } }
+      }
+    },
+    "No check run yet.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No check run yet." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "まだチェックを実行していません。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "尚未运行检查。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "尚未執行檢查。" } }
+      }
+    },
+    "Synced %lld seconds ago": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Synced %lld seconds ago" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld 秒前に同期" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 秒前已同步" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld 秒前已同步" } }
+      }
+    },
+    "Syncing": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Syncing" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "同期中" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "同步中" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "同步中" } }
+      }
+    },
+    "No Mac data": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No Mac data" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Mac データなし" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有 Mac 数据" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "沒有 Mac 資料" } }
+      }
+    },
+    "Incompatible data": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Incompatible data" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "互換性のないデータ" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "数据不兼容" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "資料不相容" } }
+      }
+    },
+    "Running read-only iCloud checks…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Running read-only iCloud checks…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iCloud の読み取り専用チェックを実行中…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在运行 iCloud 只读检查…" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "正在執行 iCloud 唯讀檢查…" } }
+      }
+    },
+    "Reliable iCloud sync — stalled Mac uploads now time out with a clear failure instead of spinning forever, and Developer Tools includes a read-only iCloud diagnostic report.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reliable iCloud sync — stalled Mac uploads now time out with a clear failure instead of spinning forever, and Developer Tools includes a read-only iCloud diagnostic report." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "信頼性の高い iCloud 同期 — Mac のアップロードが停止した場合は明確なエラーでタイムアウトし、Developer Tools から読み取り専用の iCloud 診断レポートを確認できます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更可靠的 iCloud 同步——Mac 上传卡住时会超时并显示明确错误，不再无限转圈；Developer Tools 也新增只读 iCloud 诊断报告。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更可靠的 iCloud 同步——Mac 上傳卡住時會逾時並顯示明確錯誤，不再無限轉圈；Developer Tools 也新增唯讀 iCloud 診斷報告。" } }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "状態" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "状态" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "狀態" } }
+      }
+    },
+    "Actions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Actions" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "操作" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "操作" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "操作" } }
+      }
+    },
+    "Error: %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Error: %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エラー: %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "错误：%@" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "錯誤：%@" } }
+      }
     }
   },
   "version": "1.0"

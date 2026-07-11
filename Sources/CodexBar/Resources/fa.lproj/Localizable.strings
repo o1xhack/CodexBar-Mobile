@@ -1180,3 +1180,17 @@
 "section_diagnostics" = "عیب‌یابی";
 "section_updates" = "به‌روزرسانی‌ها";
 "section_links" = "پیوندها";
+"mobile_sync_status_syncing_phase_format" = "در حال همگام‌سازی — %@…";
+"icloud_diagnostics_title" = "عیب‌یابی همگام‌سازی iCloud";
+"icloud_diagnostics_read_only_caption" = "حساب، ناحیه‌ها و مسیر پشتیبان KVS را بدون نوشتن یا حذف داده‌های iCloud بررسی می‌کند.";
+"icloud_diagnostics_run" = "اجرای بررسی فقط‌خواندنی";
+"icloud_diagnostics_running" = "در حال اجرای بررسی‌های فقط‌خواندنی iCloud…";
+"mobile_sync_status_syncing_elapsed_format" = "در حال همگام‌سازی — %@ · %d ثانیه";
+"mobile_button_retry_sync" = "تلاش دوباره برای همگام‌سازی";
+"mobile_sync_status_failure_phase_format" = "همگام‌سازی iCloud در مرحلهٔ %@ ناموفق بود. برای جزئیات «پیشرفته» ← «اشکال‌زدایی» را باز کنید.";
+"icloud_sync_phase_idle" = "بیکار";
+"icloud_sync_phase_preparing" = "در حال آماده‌سازی";
+"icloud_sync_phase_legacy_upload" = "در حال بارگذاری تصویر لحظه‌ای";
+"icloud_sync_phase_provider_upload" = "در حال بارگذاری داده ارائه‌دهنده";
+"icloud_sync_phase_cleanup" = "در حال پاک‌سازی";
+"icloud_sync_phase_reconciling" = "در حال تطبیق";

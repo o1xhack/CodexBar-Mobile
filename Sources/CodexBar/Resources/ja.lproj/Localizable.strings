@@ -1148,3 +1148,17 @@
 "section_diagnostics" = "診断";
 "section_updates" = "アップデート";
 "section_links" = "リンク";
+"mobile_sync_status_syncing_phase_format" = "同期中 — %@…";
+"icloud_diagnostics_title" = "iCloud 同期診断";
+"icloud_diagnostics_read_only_caption" = "iCloud データを書き込み・削除せずに、アカウント、ゾーン、KVS フォールバックを確認します。";
+"icloud_diagnostics_run" = "読み取り専用チェックを実行";
+"icloud_diagnostics_running" = "iCloud の読み取り専用チェックを実行中…";
+"mobile_sync_status_syncing_elapsed_format" = "同期中 — %@ · %d秒";
+"mobile_button_retry_sync" = "同期を再試行";
+"mobile_sync_status_failure_phase_format" = "iCloud同期は「%@」の段階で失敗しました。詳細は「詳細」→「デバッグ」を開いてください。";
+"icloud_sync_phase_idle" = "待機中";
+"icloud_sync_phase_preparing" = "準備中";
+"icloud_sync_phase_legacy_upload" = "スナップショットをアップロード中";
+"icloud_sync_phase_provider_upload" = "プロバイダーデータをアップロード中";
+"icloud_sync_phase_cleanup" = "クリーンアップ中";
+"icloud_sync_phase_reconciling" = "照合中";

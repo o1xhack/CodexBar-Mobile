@@ -1154,3 +1154,4 @@
 "section_diagnostics" = "Диагностика";
 "section_updates" = "Обновления";
 "section_links" = "Ссылки";
+"mobile_sync_status_failure_phase_format" = "Синхронизация iCloud завершилась с ошибкой на этапе %@. Откройте «Дополнительно» → «Отладка» для подробностей.";

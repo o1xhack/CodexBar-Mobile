@@ -1,11 +1,13 @@
 import AppKit
 import CodexBarCore
+import CodexBarSync
 import SwiftUI
 
 @MainActor
 struct DebugPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var store: UsageStore
+    let syncCoordinator: SyncCoordinator
     @AppStorage("debugFileLoggingEnabled") private var debugFileLoggingEnabled = false
     @State private var currentLogProvider: UsageProvider = .codex
     @State private var currentFetchProvider: UsageProvider = .codex
@@ -15,6 +17,8 @@ struct DebugPane: View {
     @State private var costCacheStatus: String?
     @State private var unknownModelEntries: [UnknownModelDiagnostics.Entry] = []
     @State private var cookieCacheStatus: String?
+    @State private var iCloudDiagnosticText: String?
+    @State private var isRunningICloudDiagnostic = false
     #if DEBUG
     @State private var currentErrorProvider: UsageProvider = .codex
     @State private var simulatedErrorText: String = """
@@ -64,6 +68,35 @@ struct DebugPane: View {
                         Label(L("open_log_file"), systemImage: "doc.text.magnifyingglass")
                     }
                     .controlSize(.small)
+                }
+
+                SettingsSection(
+                    title: L("icloud_diagnostics_title"),
+                    caption: L("icloud_diagnostics_read_only_caption"))
+                {
+                    HStack(spacing: 12) {
+                        Button {
+                            self.runICloudDiagnostic()
+                        } label: {
+                            Label(L("icloud_diagnostics_run"), systemImage: "stethoscope")
+                        }
+                        .disabled(self.isRunningICloudDiagnostic)
+
+                        Button {
+                            self.copyToPasteboard(self.iCloudDiagnosticText ?? "")
+                        } label: {
+                            Label(L("copy"), systemImage: "doc.on.doc")
+                        }
+                        .disabled(self.iCloudDiagnosticText == nil)
+                    }
+
+                    Text(self.iCloudDiagnosticText ?? self.syncCoordinator.syncDiagnosticText)
+                        .font(.system(.footnote, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(6)
                 }
 
                 SettingsSection {
@@ -608,6 +641,16 @@ struct DebugPane: View {
         case .apiToken: "api"
         case .localProbe: "local"
         case .webDashboard: "web"
+        }
+    }
+
+    private func runICloudDiagnostic() {
+        self.isRunningICloudDiagnostic = true
+        self.iCloudDiagnosticText = L("icloud_diagnostics_running")
+        Task {
+            let report = await CloudSyncManager.shared.runReadOnlyDiagnostic()
+            self.iCloudDiagnosticText = report.text + "\n\n" + self.syncCoordinator.syncDiagnosticText
+            self.isRunningICloudDiagnostic = false
         }
     }
 }

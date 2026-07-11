@@ -1152,3 +1152,4 @@
 "section_diagnostics" = "Diagnostiek";
 "section_updates" = "Updates";
 "section_links" = "Links";
+"mobile_sync_status_failure_phase_format" = "iCloud-synchronisatie is mislukt tijdens %@. Open Geavanceerd → Debug voor details.";

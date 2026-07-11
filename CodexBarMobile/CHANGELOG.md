@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.18.0 (186)] — 2026-07-09 — CodexBar 0.41 upstream sync
+## [1.18.0 (187)] — 2026-07-10 — CodexBar 0.41 upstream sync
 
 ### Changed
 
@@ -17,6 +17,13 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 ### Fixed
 
+- **Stalled iCloud sync recovery** — Mac uploads now use bounded cancellable
+  CloudKit operations, serialize overlapping refreshes, and report a phase and
+  concrete failure instead of displaying “Syncing” forever. The KVS fallback
+  is written before CloudKit waits begin.
+- **Read-only sync diagnostics** — Developer Tools now checks the iCloud
+  account, both sync zones, KVS fallback, current iPhone reader state, and
+  connected Mac timestamps without changing any CloudKit record or schema.
 - **Upstream provider accuracy** — Includes the v0.40.0-v0.41.0 Kimi endpoint,
   ordering, timestamp, and finite-value fixes; Claude fractional utilization
   and reset-year fixes; Gemini Flash quota selection; Devin 1% handling; and
@@ -30,7 +37,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Pairs with Mac CodexBar `0.41.0.1` / build `100.1` and upstream
   `steipete/CodexBar` `v0.41.0`.
 - iOS `MARKETING_VERSION`: `1.17.0` → `1.18.0`.
-- iOS `CURRENT_PROJECT_VERSION`: `185` → `186`.
+- iOS `CURRENT_PROJECT_VERSION`: `185` → `187`.
 
 ---
 

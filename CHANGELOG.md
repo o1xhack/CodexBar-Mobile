@@ -1,12 +1,18 @@
 # Changelog
 
-## 0.41.0.1 (Mobile 1.18.0 · build 100.1) — 2026-07-09 — upstream v0.41.0 sync
+## 0.41.0.1 (Mobile 1.18.0 · build 100.1) — 2026-07-10 — upstream v0.41.0 sync
 
 Syncs the Mac app from the fork baseline at upstream **v0.39.0** through
 **v0.40.0** and **v0.41.0** as one release, paired with iOS **1.18.0**.
 
 ### Added / Improved
 
+- **Reliable iCloud sync and diagnostics** — Mac uploads now use cancellable
+  CloudKit operations with a 45-second deadline, serialize overlapping pushes,
+  expose the active phase, and report failures instead of remaining on
+  “Syncing” indefinitely. The existing KVS fallback is written before CloudKit
+  waits, and Advanced → Debug plus Mobile developer tools now provide a
+  read-only account/zone/KVS diagnostic and copyable file-log evidence.
 - **Complete Mac upstream sync** — Includes Claude read-only `claude-swap` account cards/switching, the responsive `codexbar cards` CLI, cost-chart scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget selection, Devin extra-usage balance, and the upstream Settings refinements.
 - **Provider correctness and safety** — Includes Kimi/Kimi K2 endpoint and finite-value fixes, Claude fractional utilization and account-history isolation, Gemini consumer-tier/Flash corrections, Alibaba international region support, browser Safe Storage prompt suppression, Codex weekly-cap presentation, and Tahoe menu-bar recovery.
 - **Cost and parser performance** — Reuses Codex pricing/catalog work, migrates incomplete cached cost maps before reporting, discovers nested Claude Desktop projects, bumps `parserLogicVersion` to 8, and regenerates the parser hash.

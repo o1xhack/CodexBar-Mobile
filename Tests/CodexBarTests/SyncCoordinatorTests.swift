@@ -48,10 +48,36 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         return self.nextDeleteResult
     }
 
-    func fetchPerProviderRecordNames(forDeviceID deviceID: String) async -> [String] {
+    func fetchPerProviderRecordNames(
+        forDeviceID deviceID: String) async -> PerProviderRecordNameFetchResult
+    {
         self.fetchRecordNamesCallCount += 1
         self.fetchRecordNamesLastDeviceID = deviceID
-        return self.nextFetchRecordNamesResult
+        return .success(self.nextFetchRecordNamesResult)
+    }
+}
+
+private actor BlockingSyncPusher: SyncPushing {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var calls = 0
+
+    func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
+        self.calls += 1
+        if self.calls == 1 {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+        }
+        return .success
+    }
+
+    func releaseFirstPush() {
+        self.continuation?.resume()
+        self.continuation = nil
+    }
+
+    func callCount() -> Int {
+        self.calls
     }
 }
 
@@ -74,6 +100,28 @@ struct SyncCoordinatorTests {
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
+    }
+
+    @Test
+    func `overlapping requests coalesce into one newest follow-up push`() async {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-single-flight")
+        settings.iCloudSyncEnabled = true
+        let store = self.makeUsageStore(settings: settings)
+        let pusher = BlockingSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+
+        let first = Task { await coordinator.pushCurrentSnapshot() }
+        while await pusher.callCount() == 0 {
+            await Task.yield()
+        }
+        await coordinator.pushCurrentSnapshot()
+        #expect(coordinator.isSyncing)
+        await pusher.releaseFirstPush()
+        await first.value
+
+        #expect(await pusher.callCount() == 2)
+        #expect(!coordinator.isSyncing)
+        #expect(coordinator.lastSyncSucceeded)
     }
 
     @Test
@@ -124,6 +172,7 @@ struct SyncCoordinatorTests {
             #expect(coordinator.lastSyncTime != nil)
             #expect(coordinator.lastSyncSucceeded == false)
             #expect(coordinator.lastSyncMessage == "iCloud sync unavailable")
+            #expect(coordinator.lastFailedPhase == .legacyUpload)
         }
     }
 
@@ -387,6 +436,46 @@ struct SyncCoordinatorTests {
         // Second push skipped everything — either no call, or explicit empty.
         // Coordinator guards on `!envelopes.isEmpty` so it should be no call.
         #expect(mock.perProviderCallCount == 1)
+    }
+
+    @Test
+    func `per provider failure is visible and retries unchanged data`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-retry")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        mock.nextPerProviderResult = .failure("provider upload timed out")
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+        #expect(!coordinator.lastSyncSucceeded)
+        #expect(coordinator.lastSyncMessage == "provider upload timed out")
+        #expect(coordinator.lastFailedPhase == .providerUpload)
+
+        mock.nextPerProviderResult = .success
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.perProviderCallCount == 2)
+        #expect(coordinator.lastSyncSucceeded)
     }
 
     @Test

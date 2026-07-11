@@ -1175,3 +1175,17 @@
 "usage_percent_suffix_used" = "usado";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "Non se atopou o token da API de z.ai. Define apiKey en ~/.codexbar/config.json ou Z_AI_API_KEY.";
 "≈ %d%% run-out risk" = "≈ %d%% de risco de esgotamento";
+"mobile_sync_status_failure_phase_format" = "A sincronización con iCloud fallou durante %@. Abre Avanzado → Depuración para ver os detalles.";
+"icloud_diagnostics_read_only_caption" = "Comproba o estado da conta, as zonas existentes e KVS sen modificar datos de iCloud.";
+"icloud_diagnostics_run" = "Executar diagnóstico de só lectura";
+"icloud_diagnostics_running" = "Executando diagnóstico de iCloud…";
+"icloud_diagnostics_title" = "Diagnóstico de sincronización con iCloud";
+"icloud_sync_phase_cleanup" = "Limpeza";
+"icloud_sync_phase_idle" = "Inactivo";
+"icloud_sync_phase_legacy_upload" = "Carga do dispositivo";
+"icloud_sync_phase_preparing" = "Preparando a instantánea";
+"icloud_sync_phase_provider_upload" = "Carga dos provedores";
+"icloud_sync_phase_reconciling" = "Reconciliando";
+"mobile_button_retry_sync" = "Reintentar sincronización";
+"mobile_sync_status_syncing_elapsed_format" = "Sincronizando — %@ · %d s";
+"mobile_sync_status_syncing_phase_format" = "Sincronizando — %@";

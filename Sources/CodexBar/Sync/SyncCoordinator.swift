@@ -13,6 +13,26 @@ import CodexBarSync
 import Foundation
 import Observation
 
+enum SyncPhase: String, Sendable {
+    case idle
+    case preparing
+    case legacyUpload = "legacy upload"
+    case providerUpload = "provider upload"
+    case cleanup
+    case reconciling
+
+    var localizedLabel: String {
+        switch self {
+        case .idle: L("icloud_sync_phase_idle")
+        case .preparing: L("icloud_sync_phase_preparing")
+        case .legacyUpload: L("icloud_sync_phase_legacy_upload")
+        case .providerUpload: L("icloud_sync_phase_provider_upload")
+        case .cleanup: L("icloud_sync_phase_cleanup")
+        case .reconciling: L("icloud_sync_phase_reconciling")
+        }
+    }
+}
+
 /// Observes `UsageStore` changes and pushes usage snapshots to iCloud via `CloudSyncManager`.
 ///
 /// This class bridges the existing Mac app data to the shared iCloud layer without
@@ -20,6 +40,7 @@ import Observation
 @MainActor
 @Observable
 final class SyncCoordinator {
+    private static let logger = CodexBarLog.logger(LogCategories.iCloudSync)
     private let store: UsageStore
     private let settings: SettingsStore
     private let syncManager: any SyncPushing
@@ -29,7 +50,13 @@ final class SyncCoordinator {
     private(set) var lastSyncTime: Date?
     private(set) var lastSyncSucceeded: Bool = true
     private(set) var lastSyncMessage: String?
+    private(set) var lastFailedPhase: SyncPhase?
     private(set) var isSyncing: Bool = false
+    private(set) var syncPhase: SyncPhase = .idle
+    private(set) var syncStartedAt: Date?
+    private(set) var lastSyncDuration: TimeInterval?
+    private(set) var recentSyncEvents: [String] = []
+    private var syncRequestedWhileRunning = false
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
@@ -164,17 +191,26 @@ final class SyncCoordinator {
     /// surfaced on iOS forever. Discovered 2026-05-05 user QA.
     private func reconcileLastPushedRecordNamesWithCloudKit() async {
         guard self.settings.iCloudSyncEnabled else { return }
-        let recordNames = await self.syncManager
+        let ownsPhase = !self.isSyncing
+        if ownsPhase { self.syncPhase = .reconciling }
+        let result = await self.syncManager
             .fetchPerProviderRecordNames(forDeviceID: self.deviceID)
+        guard case let .success(recordNames) = result else {
+            if case let .failure(message) = result {
+                self.recordSyncEvent("Startup reconcile failed: \(message)", isError: true)
+            }
+            if ownsPhase, !self.isSyncing { self.syncPhase = .idle }
+            return
+        }
         // If the in-memory set has already been seeded by a push that
         // ran before the reconcile completed, merge rather than replace —
         // CloudKit's view of the world plus anything we've already pushed
         // this session covers all candidates the next L1 diff should see.
         self.lastPushedRecordNames = self.lastPushedRecordNames.union(recordNames)
         self.pushHistorySeeded = true
-        print(
-            "[CodexBar Sync] L1 reconcile: seeded lastPushedRecordNames " +
-                "with \(recordNames.count) record(s) from CloudKit")
+        self.recordSyncEvent(
+            "Startup reconcile found \(recordNames.count) provider record(s)")
+        if ownsPhase, !self.isSyncing { self.syncPhase = .idle }
     }
 
     private func observeLoop() {
@@ -191,8 +227,11 @@ final class SyncCoordinator {
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, self.isObserving else { return }
-                await self.pushCurrentSnapshot()
+                // Re-arm before awaiting CloudKit. Otherwise changes that
+                // arrive during a long write are invisible and cannot set the
+                // single-flight pending flag for one newest-state follow-up.
                 self.observeLoop()
+                await self.pushCurrentSnapshot()
             }
         }
     }
@@ -200,12 +239,39 @@ final class SyncCoordinator {
     /// Builds and pushes the current state to iCloud.
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
+        self.syncRequestedWhileRunning = true
+        guard !self.isSyncing else {
+            self.recordSyncEvent("Queued a newer snapshot while sync was running")
+            return
+        }
+
+        self.isSyncing = true
+        self.syncStartedAt = Date()
+        self.recordSyncEvent("Sync started")
+        defer {
+            if let started = self.syncStartedAt {
+                self.lastSyncDuration = Date().timeIntervalSince(started)
+                self.recordSyncEvent(
+                    "Sync attempt ended after "
+                        + String(format: "%.1f seconds", self.lastSyncDuration ?? 0))
+            }
+            self.syncStartedAt = nil
+            self.syncPhase = .idle
+            self.isSyncing = false
+        }
+
+        repeat {
+            self.syncRequestedWhileRunning = false
+            await self.performPushCurrentSnapshot()
+        } while self.syncRequestedWhileRunning && self.settings.iCloudSyncEnabled
+    }
+
+    private func performPushCurrentSnapshot() async {
+        guard self.settings.iCloudSyncEnabled else { return }
 
         let enabledProviders = self.store.enabledProviders()
         guard !enabledProviders.isEmpty else { return }
-
-        self.isSyncing = true
-        defer { self.isSyncing = false }
+        self.syncPhase = .preparing
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
@@ -271,18 +337,18 @@ final class SyncCoordinator {
             appVersion: appVersion,
             mobileVersion: mobileVersion)
 
-        let result = await self.syncManager.pushSnapshot(synced)
-        self.lastSyncTime = Date()
-        self.lastSyncSucceeded = result.succeeded
-        self.lastSyncMessage = result.message
+        self.syncPhase = .legacyUpload
+        let legacyResult = await self.syncManager.pushSnapshot(synced)
 
         // P4: additive per-provider write to DeviceProvidersZone. Diff against
         // the in-memory hash cache so unchanged providers are skipped. Failure
         // here is logged but does NOT override `lastSyncSucceeded` — the
         // legacy-zone write is still authoritative while iOS readers haven't
-        // migrated yet (see Research/010).
+        // migrated yet (see Research/010). A failure is now surfaced as the
+        // overall attempt result so Settings cannot show a false green state.
         let (envelopes, hashUpdates) = self.buildPerProviderDelta(
             from: providerSnapshots, synced: synced)
+        self.syncPhase = .providerUpload
         if !envelopes.isEmpty {
             let perProviderResult =
                 await self.syncManager.pushPerProviderRecords(envelopes)
@@ -291,9 +357,10 @@ final class SyncCoordinator {
                     self.lastProviderHashes[key] = hash
                 }
             } else {
-                print(
-                    "[CodexBar Sync] per-provider write failed: " +
-                        (perProviderResult.message ?? "unknown"))
+                let message = perProviderResult.message ?? "Unknown provider upload failure"
+                self.finishSyncAttempt(succeeded: false, message: message)
+                self.recordSyncEvent("Provider upload failed: \(message)", isError: true)
+                return
             }
         }
 
@@ -318,6 +385,7 @@ final class SyncCoordinator {
         // composites are truly current.
         let currentRecordNames = self.computeCurrentRecordNames(
             from: providerSnapshots)
+        self.syncPhase = .cleanup
         if self.pushHistorySeeded {
             let staleRecordNames = self.computeStaleRecordNames(
                 currentRecordNames: currentRecordNames)
@@ -332,9 +400,9 @@ final class SyncCoordinator {
                         "[CodexBar Sync] cleaned up \(staleRecordNames.count)" +
                             " stale per-provider record(s) from CloudKit")
                 } else {
-                    print(
-                        "[CodexBar Sync] per-provider delete failed: " +
-                            (deleteResult.message ?? "unknown"))
+                    let message = deleteResult.message ?? "Unknown stale-record cleanup failure"
+                    self.finishSyncAttempt(succeeded: false, message: message)
+                    self.recordSyncEvent("Cleanup failed: \(message)", isError: true)
                     // Don't update lastPushedRecordNames if delete failed —
                     // retry next cycle.
                     return
@@ -343,6 +411,61 @@ final class SyncCoordinator {
         }
         self.lastPushedRecordNames = currentRecordNames
         self.pushHistorySeeded = true
+        self.finishSyncAttempt(
+            succeeded: legacyResult.succeeded,
+            message: legacyResult.message,
+            failurePhase: .legacyUpload)
+        if legacyResult.succeeded {
+            self.recordSyncEvent("Sync completed")
+        } else {
+            self.recordSyncEvent(
+                "Legacy upload failed: \(legacyResult.message ?? "Unknown error")",
+                isError: true)
+        }
+    }
+
+    private func finishSyncAttempt(
+        succeeded: Bool,
+        message: String?,
+        failurePhase: SyncPhase? = nil)
+    {
+        self.lastSyncTime = Date()
+        self.lastSyncSucceeded = succeeded
+        self.lastSyncMessage = message
+        self.lastFailedPhase = succeeded ? nil : (failurePhase ?? self.syncPhase)
+    }
+
+    private func recordSyncEvent(_ message: String, isError: Bool = false) {
+        let line = "\(Date().formatted(.iso8601)) [\(self.syncPhase.rawValue)] \(message)"
+        self.recentSyncEvents.append(line)
+        if self.recentSyncEvents.count > 30 {
+            self.recentSyncEvents.removeFirst(self.recentSyncEvents.count - 30)
+        }
+        if isError {
+            Self.logger.error(message, metadata: ["phase": self.syncPhase.rawValue])
+        } else {
+            Self.logger.info(message, metadata: ["phase": self.syncPhase.rawValue])
+        }
+    }
+
+    var syncDiagnosticText: String {
+        let status = self.isSyncing ? "syncing" : (self.lastSyncSucceeded ? "success" : "failure")
+        let duration = self.lastSyncDuration.map { String(format: "%.1fs", $0) } ?? "n/a"
+        let lastSync = self.lastSyncTime?.formatted(.iso8601) ?? "never"
+        let message = self.lastSyncMessage ?? "none"
+        let events = self.recentSyncEvents.isEmpty ? "none" : self.recentSyncEvents.joined(separator: "\n")
+        return """
+        CodexBar iCloud Sync Diagnostics
+        Status: \(status)
+        Phase: \(self.syncPhase.rawValue)
+        Last sync: \(lastSync)
+        Last duration: \(duration)
+        Message: \(message)
+        File log: \(CodexBarLog.fileLogURL.path)
+
+        Recent events:
+        \(events)
+        """
     }
 
     /// Determine which records must be deleted from CloudKit this cycle.
