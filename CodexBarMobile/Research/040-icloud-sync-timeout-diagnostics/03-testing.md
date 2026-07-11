@@ -15,8 +15,9 @@ Date: 2026-07-10
 | iOS build/tests/localization | pass | clean signed simulator run: 549 tests in 40 suites passed, including KVS/CloudKit error fallbacks and Widget snapshot parity; source/catalog audit clean; `1.18.0 (187)` |
 | CloudKit Production schema audit | pass — no deploy | diff from prior draft tag adds no record type, field, zone, subscription, index, payload key, or encoding version; all Mac/iOS entitlements remain Production |
 | Compatibility matrix impact | substituted | behavior changes the Mac write transport only; wire payload/schema/readers remain unchanged; 16 cases listed below |
-| Signed/notarized Mac draft replacement | pending | |
-| TestFlight 1.18.0 (187) | pending | |
+| Signed/notarized Mac draft replacement | pass | notarization `fbe990bd-88a1-4589-9a5e-4a13e399a04a` Accepted; staple/validate and launch smoke pass; draft `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-4f828c9f179985a7fde9` contains the 47,517,361-byte ZIP and 36,747,485-byte dSYM |
+| Sparkle candidate appcast | pass (branch-only) | `100.1.1.18.0`, local archive length and EdDSA verification pass; entry remains only on the upstream-sync branch until user authorizes live publication/finalize |
+| TestFlight 1.18.0 (187) | uploaded — processing | archive and export succeeded; App Store Connect accepted the upload at 2026-07-10 18:33 PDT; processing-state verification pending |
 | Final review blockers | pass — 0 | two final review loops verified cancellation closure release, observation rearm, phase ownership, localized/live status, correct failure phase, versioning and release consistency |
 
 ## Production Safety
