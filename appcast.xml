@@ -30,8 +30,11 @@ Syncs the Mac app from the fork baseline at upstream <strong>v0.39.0</strong> th
 <h3>Compatibility</h3>
 <ul>
 <li>No Shared payload key or CloudKit record schema field is added. Kimi uses existing <code>rateWindows</code>; Claude uses existing <code>loginMethod</code>.</li>
-<li>CloudKit remains Production. The final schema audit and 16-case 2 Mac x 2 iPhone compatibility evidence are recorded in <code>CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md</code>.</li>
+<li>CloudKit remains Production. The upstream-sync audit is recorded in</li>
 </ul>
+  <code>CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md</code>; the bounded
+  writer, diagnostics, and updated 16-case evidence are in
+  <code>CodexBarMobile/Research/040-icloud-sync-timeout-diagnostics/03-testing.md</code>.
 <h3>中文说明</h3>
 本次把 fork 从上游 <strong>v0.39.0</strong> 一次性同步到 <strong>v0.41.0</strong>，覆盖 v0.40.0 与
 v0.41.0，并配套 iOS <strong>1.18.0</strong>，不拆成多个用户可见版本。

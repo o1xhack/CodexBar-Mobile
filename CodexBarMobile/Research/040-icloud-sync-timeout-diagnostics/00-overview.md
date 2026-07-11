@@ -1,6 +1,6 @@
 # iCloud Sync Timeout and Diagnostics
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-10
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 Release: Mac `0.41.0.1`; iOS `1.18.0 (187)`

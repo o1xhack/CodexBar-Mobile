@@ -1,6 +1,6 @@
 # iCloud Sync Timeout and Diagnostics Design
 
-Status: `ready`
+Status: `done`
 Date: 2026-07-10
 
 ## Safety Invariants
