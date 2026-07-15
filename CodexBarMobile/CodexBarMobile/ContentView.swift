@@ -3114,7 +3114,7 @@ private struct DeveloperToolsView: View {
                     SettingSummaryRow(
                         title: "iCloud Sync Diagnostics",
                         symbolName: "icloud.and.arrow.up",
-                        summary: "Read-only account, zone, fallback, and device checks")
+                        summary: String(localized: "Read-only account, zone, fallback, and device checks"))
                 }
             } footer: {
                 Text("These tools may show internal sync state, device identifiers, and account emails for debugging.")
