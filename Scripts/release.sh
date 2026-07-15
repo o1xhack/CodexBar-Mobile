@@ -31,6 +31,51 @@ RELEASE_BRANCH="${CODEXBAR_RELEASE_BRANCH:-mobile-dev}"
 FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"
 TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
+ARTIFACT_INPUTS=(
+  Package.swift
+  Package.resolved
+  Sources
+  Shared
+  WidgetExtension
+  Icon.icon
+  Scripts/package_app.sh
+  Scripts/sign-and-notarize.sh
+  version.env
+)
+
+artifact_git_commit() {
+  local zip=$1
+  unzip -p "$zip" CodexBar.app/Contents/Info.plist 2>/dev/null \
+    | plutil -extract CodexGitCommit raw -o - - 2>/dev/null
+}
+
+artifact_matches_current_inputs() {
+  local zip=$1 embedded_commit
+  embedded_commit=$(artifact_git_commit "$zip") || return 1
+  git rev-parse --verify "${embedded_commit}^{commit}" >/dev/null 2>&1 || return 1
+  git merge-base --is-ancestor "$embedded_commit" HEAD || return 1
+  git diff --quiet "$embedded_commit"..HEAD -- "${ARTIFACT_INPUTS[@]}"
+}
+
+require_finalize_checkout() {
+  require_clean_worktree
+
+  local current_branch local_head remote_head tag_commit
+  current_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  [[ "$current_branch" == "$RELEASE_BRANCH" ]] || \
+    err "Finalize must run from '$RELEASE_BRANCH' (current: '${current_branch:-detached}')."
+
+  git fetch --quiet origin "$RELEASE_BRANCH"
+  local_head=$(git rev-parse HEAD)
+  remote_head=$(git rev-parse "origin/${RELEASE_BRANCH}")
+  [[ "$local_head" == "$remote_head" ]] || \
+    err "Finalize checkout is not identical to origin/${RELEASE_BRANCH}; update it first."
+
+  tag_commit=$(git rev-parse "${TAG}^{commit}" 2>/dev/null) || \
+    err "Release tag $TAG is missing. Run phase 1 after PR approval."
+  git merge-base --is-ancestor "$tag_commit" HEAD || \
+    err "Release tag $TAG is not contained in $RELEASE_BRANCH. Merge/retag before finalize."
+}
 
 phase1() {
   require_clean_worktree
@@ -52,10 +97,18 @@ phase1() {
   fi
 
   if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
-     && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]]; then
+     && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]] \
+     && artifact_matches_current_inputs "${ROOT}/${RELEASE_ASSET_BASENAME}.zip"; then
     echo "Reusing existing notarized artifacts (delete them to force a fresh build):"
     ls -lh "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip"
   else
+    if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+       || -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]]; then
+      echo "Existing artifacts are stale or incomplete; rebuilding from the current Mac inputs."
+      rm -f \
+        "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+        "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip"
+    fi
     "$ROOT/Scripts/sign-and-notarize.sh"
   fi
 
@@ -126,9 +179,16 @@ EOF
 }
 
 phase2() {
+  require_finalize_checkout
+
   if [[ ! -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" ]]; then
     err "Release zip not found at ${RELEASE_ASSET_BASENAME}.zip. Did phase 1 run?"
   fi
+  if [[ ! -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]]; then
+    err "Release dSYM not found at ${RELEASE_ASSET_BASENAME}.dSYM.zip. Did phase 1 run?"
+  fi
+  artifact_matches_current_inputs "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" || \
+    err "Release zip does not match the Mac inputs in $RELEASE_BRANCH; rerun phase 1."
 
   local is_draft
   if ! is_draft=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json isDraft -q .isDraft 2>&1); then
