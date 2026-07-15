@@ -19,7 +19,7 @@ Updated: 2026-07-15
 | Signed/notarized Mac draft replacement | stale — rebuild required | notarization `fbe990bd-88a1-4589-9a5e-4a13e399a04a` and the 47,517,361-byte ZIP / 36,747,485-byte dSYM remain historical valid artifacts, but they predate the final bounded-flight fix and cannot be published; phase 1 must move the tag and replace both assets after PR approval |
 | Sparkle candidate appcast | pass as historical evidence; removed from PR | `100.1.1.18.0`, prior archive length and EdDSA verification passed; PR #49 restores `appcast.xml` to the `mobile-dev` baseline, and finalize must regenerate/push the entry only after the replacement release is live |
 | TestFlight 1.18.0 (187) | pass — VALID | archive/export/upload succeeded; App Store Connect build `c4922050-46d5-4ef7-8368-99a9a7302b2a`, uploaded 2026-07-10 18:34 PDT, `processingState=VALID`, `expired=false` |
-| Final review blockers | in progress | PR review found and fixed an unbounded failure retry, premature draft appcast, shallow-checkout lint gate, and unsafe finalize checkout/artifact reuse; refreshed CI and final re-review are still required |
+| Final review blockers | in progress | PR review found and fixed an unbounded failure retry, partial legacy cost-cache completion, premature draft appcast, shallow-checkout lint gate, and unsafe finalize checkout/artifact reuse; refreshed CI and final re-review are still required |
 
 ## PR-First Rollback and Review Evidence (2026-07-15)
 
@@ -41,8 +41,18 @@ Updated: 2026-07-15
   during catch-up as a separate bounded flight.
 - `Scripts/release.sh` now refuses finalize outside a clean checkout exactly
   matching `origin/mobile-dev`, requires the tag to be contained in that branch,
-  and rejects/rebuilds artifacts when Mac build inputs changed after the ZIP's
-  embedded `CodexGitCommit`.
+  rejects/rebuilds artifacts when any Mac packaging input changed after the
+  ZIP's embedded `CodexGitCommit`, verifies ZIP/dSYM UUID pairing, and compares
+  the exact local/remote asset sizes and SHA-256 digests before publication.
+- A PR review thread found that a narrow report window could mark a whole
+  legacy Codex cost cache complete while buffered/out-of-range rows were still
+  missing aggregate data. The completion marker now remains false until every
+  cached row is inside the migrated report range; the narrow-then-wide
+  regression suite passes 7/7.
+- Local post-fix gates pass: `SyncCoordinatorSingleFlightFailureTests` 2/2,
+  `CostUsagePerformanceGateTests` 7/7, release helper tests, ZIP/dSYM UUID
+  verification against the historical candidate, bash syntax, parser hash,
+  SwiftFormat, SwiftLint (0 violations), and localization audits.
 
 ## Production Safety
 

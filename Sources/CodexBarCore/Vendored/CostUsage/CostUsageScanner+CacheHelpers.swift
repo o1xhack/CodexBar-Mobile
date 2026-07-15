@@ -412,7 +412,12 @@ extension CostUsageScanner {
         updated.codexPriorityTokens = Self.mergeMissingIntMaps(
             usage.codexPriorityTokens,
             splitMaps.priorityTokens)
-        updated.codexCostCacheComplete = true
+        // A report request can cover only part of a legacy session file. Keep the
+        // file-wide marker incomplete until every cached row has been migrated so
+        // that widening the requested range backfills the remaining days.
+        updated.codexCostCacheComplete = rows.allSatisfy {
+            CostUsageDayRange.isInRange(dayKey: $0.day, since: range.sinceKey, until: range.untilKey)
+        }
         updated.codexTurnIDs = Self.mergeCodexTurnIDs(usage.codexTurnIDs, rows: migratedRows)
         updated.codexRows = rows
         return updated

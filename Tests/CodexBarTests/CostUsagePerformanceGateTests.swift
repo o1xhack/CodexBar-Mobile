@@ -251,6 +251,66 @@ struct CostUsagePerformanceGateTests {
     }
 
     @Test
+    func `narrow legacy cost backfill stays incomplete until all cached rows migrate`() throws {
+        let calendar = Calendar.current
+        let olderDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 9)))
+        let recentDay = try #require(calendar.date(from: DateComponents(year: 2026, month: 5, day: 10)))
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-05-09",
+                model: "gpt-5.5",
+                turnID: "older-turn",
+                eventIndex: 0,
+                input: 100,
+                cached: 0,
+                output: 10),
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-05-10",
+                model: "gpt-5.5",
+                turnID: "recent-turn",
+                eventIndex: 1,
+                input: 200,
+                cached: 0,
+                output: 20),
+        ]
+        let legacy = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: 0,
+            size: 1,
+            days: [:],
+            parsedBytes: 1,
+            codexCostCacheComplete: nil,
+            codexRows: rows)
+
+        let narrowRange = CostUsageScanner.CostUsageDayRange(since: recentDay, until: recentDay)
+        let narrow = CostUsageScanner.codexFileUsageWithCostCache(
+            legacy,
+            range: narrowRange,
+            priorityTurns: [:],
+            modelsDevCatalog: nil,
+            modelsDevCacheRoot: nil)
+
+        #expect(narrow.codexCostCacheComplete != true)
+        #expect(narrow.codexStandardTokens?["2026-05-10"]?["gpt-5.5"] == 220)
+        // May 9 is in the scanner's one-day lookback buffer, but not in the
+        // requested report range, so it must not make the file-wide cache complete.
+        #expect(narrow.codexStandardTokens?["2026-05-09"] == nil)
+
+        let wideRange = CostUsageScanner.CostUsageDayRange(since: olderDay, until: recentDay)
+        #expect(CostUsageScanner.needsCodexCostCache(narrow, range: wideRange))
+
+        let wide = CostUsageScanner.codexFileUsageWithCostCache(
+            narrow,
+            range: wideRange,
+            priorityTurns: [:],
+            modelsDevCatalog: nil,
+            modelsDevCacheRoot: nil)
+
+        #expect(wide.codexCostCacheComplete == true)
+        #expect(wide.codexStandardTokens?["2026-05-09"]?["gpt-5.5"] == 110)
+        #expect(!CostUsageScanner.needsCodexCostCache(wide, range: wideRange))
+    }
+
+    @Test
     func `project rollups resolve the pricing catalog once per build`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

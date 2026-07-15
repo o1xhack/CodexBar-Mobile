@@ -20,6 +20,7 @@ cd "$ROOT"
 
 source "$ROOT/version.env"
 source "$ROOT/Scripts/load-release-secrets.sh"
+source "$ROOT/Scripts/release_dsym_paths.sh"
 source "$ROOT/Scripts/sparkle_helpers.sh"
 
 APPCAST="$ROOT/appcast.xml"
@@ -27,7 +28,8 @@ APP_NAME="CodexBar"
 RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 ARTIFACT_PREFIX="CodexBar-"
 BUNDLE_ID="com.o1xhack.codexbar"
-RELEASE_BRANCH="${CODEXBAR_RELEASE_BRANCH:-mobile-dev}"
+RELEASE_BRANCH="mobile-dev"
+export CODEXBAR_RELEASE_BRANCH="$RELEASE_BRANCH"
 FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"
 TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
@@ -38,8 +40,12 @@ ARTIFACT_INPUTS=(
   Shared
   WidgetExtension
   Icon.icon
+  Icon.icns
   Scripts/package_app.sh
+  Scripts/package_product_paths.sh
+  Scripts/release_dsym_paths.sh
   Scripts/sign-and-notarize.sh
+  Scripts/sparkle_signing_paths.sh
   version.env
 )
 
@@ -55,6 +61,86 @@ artifact_matches_current_inputs() {
   git rev-parse --verify "${embedded_commit}^{commit}" >/dev/null 2>&1 || return 1
   git merge-base --is-ancestor "$embedded_commit" HEAD || return 1
   git diff --quiet "$embedded_commit"..HEAD -- "${ARTIFACT_INPUTS[@]}"
+}
+
+artifact_pair_matches() {
+  local zip=$1 dsym_zip=$2 temp_dir status=0
+  temp_dir=$(mktemp -d /tmp/codexbar-artifact-pair.XXXXXX)
+
+  unzip -q "$zip" "CodexBar.app/Contents/MacOS/CodexBar" -d "$temp_dir/app" || status=$?
+  if [[ "$status" -eq 0 ]]; then
+    unzip -q "$dsym_zip" "CodexBar.dSYM/Contents/Resources/DWARF/CodexBar" -d "$temp_dir/dsym" || status=$?
+  fi
+  if [[ "$status" -eq 0 ]]; then
+    codexbar_verify_dsym_matches_binary \
+      "$temp_dir/app/CodexBar.app/Contents/MacOS/CodexBar" \
+      "$temp_dir/dsym/CodexBar.dSYM/Contents/Resources/DWARF/CodexBar" \
+      arm64 x86_64 || status=$?
+  fi
+
+  rm -rf "$temp_dir"
+  return "$status"
+}
+
+require_remote_asset_matches_local() {
+  local local_path=$1 asset_name asset_record remote_size remote_digest local_size local_digest
+  asset_name=$(basename "$local_path")
+  asset_record=$(gh release view "$TAG" \
+    --repo o1xhack/CodexBar-Mobile \
+    --json assets \
+    --jq ".assets | map(select(.name == \"${asset_name}\")) | if length == 1 then .[0] | [.size, .digest] | @tsv else empty end")
+  [[ -n "$asset_record" ]] || err "Draft release must contain exactly one asset named ${asset_name}."
+
+  IFS=$'\t' read -r remote_size remote_digest <<<"$asset_record"
+  local_size=$(stat -f%z "$local_path")
+  local_digest="sha256:$(shasum -a 256 "$local_path" | awk '{print $1}')"
+  [[ "$remote_size" == "$local_size" ]] || \
+    err "Remote ${asset_name} size does not match the local release artifact; rerun phase 1."
+  [[ "$remote_digest" == "$local_digest" ]] || \
+    err "Remote ${asset_name} digest does not match the local release artifact; rerun phase 1."
+}
+
+verify_local_appcast_artifact() {
+  local zip=$1 key=$2 metadata expected_url signature expected_length actual_length
+  metadata=$(mktemp /tmp/codexbar-appcast-metadata.XXXXXX)
+  python3 - "$APPCAST" "$MARKETING_VERSION" >"$metadata" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+appcast, version = sys.argv[1:]
+ns = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
+root = ET.parse(appcast).getroot()
+for item in root.findall("./channel/item"):
+    if item.findtext("sparkle:shortVersionString", default="", namespaces=ns) != version:
+        continue
+    enclosure = item.find("enclosure")
+    if enclosure is None:
+        raise SystemExit(f"Missing enclosure for {version}")
+    values = (
+        enclosure.get("url"),
+        enclosure.get("{http://www.andymatuschak.org/xml-namespaces/sparkle}edSignature"),
+        enclosure.get("length"),
+    )
+    if not all(values):
+        raise SystemExit(f"Missing url/signature/length for {version}")
+    print(*values, sep="\n")
+    break
+else:
+    raise SystemExit(f"No appcast entry found for {version}")
+PY
+  expected_url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/${TAG}/$(basename "$zip")"
+  [[ "$(sed -n '1p' "$metadata")" == "$expected_url" ]] || {
+    rm -f "$metadata"
+    err "Generated appcast enclosure URL does not match the release asset."
+  }
+  signature=$(sed -n '2p' "$metadata")
+  expected_length=$(sed -n '3p' "$metadata")
+  actual_length=$(stat -f%z "$zip")
+  rm -f "$metadata"
+  [[ "$actual_length" == "$expected_length" ]] || \
+    err "Generated appcast length does not match the local release artifact."
+  sign_update --verify "$zip" "$signature" --ed-key-file "$key" >/dev/null || \
+    err "Generated appcast signature does not verify against the local release artifact."
 }
 
 require_finalize_checkout() {
@@ -98,7 +184,10 @@ phase1() {
 
   if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
      && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]] \
-     && artifact_matches_current_inputs "${ROOT}/${RELEASE_ASSET_BASENAME}.zip"; then
+     && artifact_matches_current_inputs "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+     && artifact_pair_matches \
+       "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+       "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip"; then
     echo "Reusing existing notarized artifacts (delete them to force a fresh build):"
     ls -lh "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip"
   else
@@ -189,17 +278,20 @@ phase2() {
   fi
   artifact_matches_current_inputs "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" || \
     err "Release zip does not match the Mac inputs in $RELEASE_BRANCH; rerun phase 1."
+  artifact_pair_matches \
+    "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+    "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" || \
+    err "Release dSYM does not match the app binary; rerun phase 1."
 
   local is_draft
   if ! is_draft=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json isDraft -q .isDraft 2>&1); then
     err "No release found for tag $TAG. Run phase 1 first (./Scripts/release.sh)."
   fi
-  if [[ "$is_draft" == "true" ]]; then
-    echo "Publishing draft release $TAG..."
-    gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --draft=false
-  else
-    echo "Release $TAG is already published; proceeding to appcast generation."
-  fi
+  [[ "$is_draft" == "true" ]] || \
+    err "Release $TAG is already public. Finalize only accepts a reviewed draft."
+
+  require_remote_asset_matches_local "${ROOT}/${RELEASE_ASSET_BASENAME}.zip"
+  require_remote_asset_matches_local "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip"
 
   local KEY_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
@@ -213,6 +305,13 @@ phase2() {
     "$ROOT/Scripts/make_appcast.sh" \
     "${RELEASE_ASSET_BASENAME}.zip" \
     "$FEED_URL"
+
+  verify_local_appcast_artifact \
+    "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+    "$KEY_FILE"
+
+  echo "Publishing reviewed draft release $TAG..."
+  gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --draft=false
 
   verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
 
