@@ -5,6 +5,11 @@ Date: 2026-07-09
 Completed: 2026-07-10
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 
+> Superseded for the final Mac sync fix and release candidate by
+> `Research/040-icloud-sync-timeout-diagnostics/03-testing.md`. The build 186,
+> original draft identifiers, digests, and blocker count below are historical
+> evidence and must not be used to publish the final candidate.
+
 ## Release Targets
 
 | Item | Expected |

@@ -1,7 +1,8 @@
 # iCloud Sync Timeout and Diagnostics
 
-Status: `done`
+Status: `in-progress`
 Date: 2026-07-10
+Updated: 2026-07-15
 Branch: `upstream-sync/v0.41.0-mobile.1.18.0`
 Release: Mac `0.41.0.1`; iOS `1.18.0 (187)`
 
@@ -40,9 +41,14 @@ release blocker before live publication.
 ## Release Handling
 
 Mac stays `0.41.0.1 / 100.1.1.18.0` because the existing GitHub release is
-still a draft. Its tag and assets will be replaced only after all gates pass.
+again a draft after the user restored the PR-first gate on 2026-07-15. The
+existing tag, ZIP, and dSYM predate the final bounded-flight review fix and are
+stale; they must be replaced by a newly signed/notarized candidate only after
+PR #49 has no blocking review or CI findings.
 iOS remains marketing version `1.18.0`, but build advances from 186 to 187
 because build 186 is already uploaded to App Store Connect.
 
+`mobile-dev` again serves the published `0.39.0.1` appcast. PR #49 intentionally
+contains no `0.41.0.1` appcast entry so merge cannot advertise a draft URL.
 Live Mac publication, merge, App Store submission, and CloudKit deploy remain
-out of scope.
+out of scope until the PR-first review gate is explicitly cleared.

@@ -1,7 +1,8 @@
 # iCloud Sync Timeout and Diagnostics Testing
 
-Status: `done`
+Status: `in-progress`
 Date: 2026-07-10
+Updated: 2026-07-15
 
 ## Gate Ledger
 
@@ -10,15 +11,38 @@ Date: 2026-07-10
 | Root-cause audit | pass | Mac CloudKit writes are unbounded; UI only reports returned failures; KVS is blocked behind legacy CloudKit await |
 | Safety design review | pass | three independent reviews require cancellable CKOperation deadlines, exactly-once completion, single-flight/coalescing, and no state advancement after uncertain writes |
 | Focused timeout/cancellation tests | pass | `swift test --filter CloudOperationDeadlineTests`: 6/6; covers synchronous success, underlying error, hard timeout/cancel, task cancellation, ignored late callback, and completion-gate release |
-| SyncCoordinator regression | pass | `swift test --filter SyncCoordinatorTests`: 26/26; added single-flight/coalescing, failure-phase, and provider-failure retry assertions |
-| Mac full build/lint/tests | pass | `swift build` pass; final `./Scripts/lint.sh` pass with 0 violations; all 52 isolated test groups passed. Group 27 initially caught missing catch-up-catalog keys, then passed after Galician/Indonesian/Italian/Polish/Turkish parity was completed |
+| SyncCoordinator regression | pass | post-review `swift test --filter SyncCoordinatorTests`: 29 tests in 2 suites passed; adds failure + queued-request termination and request-during-catch-up coverage while preserving successful coalescing |
+| Mac full build/lint/tests | in progress | the signed candidate baseline passed `swift build`, lint, and all 52 isolated groups; the final bounded-flight and release-guard changes pass focused tests and require the refreshed PR CI/full gate before a new artifact is built |
 | iOS build/tests/localization | pass | clean signed simulator run: 549 tests in 40 suites passed, including KVS/CloudKit error fallbacks and Widget snapshot parity; source/catalog audit clean; `1.18.0 (187)` |
 | CloudKit Production schema audit | pass — no deploy | diff from prior draft tag adds no record type, field, zone, subscription, index, payload key, or encoding version; all Mac/iOS entitlements remain Production |
 | Compatibility matrix impact | substituted | behavior changes the Mac write transport only; wire payload/schema/readers remain unchanged; 16 cases listed below |
-| Signed/notarized Mac draft replacement | pass | notarization `fbe990bd-88a1-4589-9a5e-4a13e399a04a` Accepted; `spctl`, staple/validate, deep codesign, launch smoke, version/build, and Production iCloud entitlement pass; GitHub draft release id `352395412` for tag `v0.41.0.1-mobile.1.18.0` contains the 47,517,361-byte ZIP and 36,747,485-byte dSYM |
-| Sparkle candidate appcast | pass (branch-only) | `100.1.1.18.0`, local archive length and EdDSA verification pass; entry remains only on the upstream-sync branch until user authorizes live publication/finalize |
+| Signed/notarized Mac draft replacement | stale — rebuild required | notarization `fbe990bd-88a1-4589-9a5e-4a13e399a04a` and the 47,517,361-byte ZIP / 36,747,485-byte dSYM remain historical valid artifacts, but they predate the final bounded-flight fix and cannot be published; phase 1 must move the tag and replace both assets after PR approval |
+| Sparkle candidate appcast | pass as historical evidence; removed from PR | `100.1.1.18.0`, prior archive length and EdDSA verification passed; PR #49 restores `appcast.xml` to the `mobile-dev` baseline, and finalize must regenerate/push the entry only after the replacement release is live |
 | TestFlight 1.18.0 (187) | pass — VALID | archive/export/upload succeeded; App Store Connect build `c4922050-46d5-4ef7-8368-99a9a7302b2a`, uploaded 2026-07-10 18:34 PDT, `processingState=VALID`, `expired=false` |
-| Final review blockers | pass — 0 | two final review loops verified cancellation closure release, observation rearm, phase ownership, localized/live status, correct failure phase, versioning and release consistency |
+| Final review blockers | in progress | PR review found and fixed an unbounded failure retry, premature draft appcast, shallow-checkout lint gate, and unsafe finalize checkout/artifact reuse; refreshed CI and final re-review are still required |
+
+## PR-First Rollback and Review Evidence (2026-07-15)
+
+- PR #49: `https://github.com/o1xhack/CodexBar-Mobile/pull/49`, base
+  `mobile-dev`, head `upstream-sync/v0.41.0-mobile.1.18.0`; no merge performed.
+- The GitHub Release was briefly changed from draft to live, then immediately
+  restored to `draft=true` when the user required PR review first. Release CLI
+  run `29449826232` was cancelled; its partial CLI assets are non-authoritative.
+- The temporary appcast-only commit `efc86247` was reverted on `mobile-dev` by
+  `a2fd82f1`. A cache-busted public feed read again reports `0.39.0.1` /
+  `97.1.1.17.0` as the top item.
+- First PR CI exposed missing checkout history in the parser-version audit even
+  though SwiftLint reported zero violations. Commit `a8b8117f` restored
+  `fetch-depth: 0`; the next lint job passed.
+- Independent review then found that a failed 45-second CloudKit operation
+  could consume an unlimited stream of pending refreshes and keep one flight
+  alive forever. The final implementation limits a flight to the initial write
+  plus one catch-up, ends immediately on failure, and schedules changes arriving
+  during catch-up as a separate bounded flight.
+- `Scripts/release.sh` now refuses finalize outside a clean checkout exactly
+  matching `origin/mobile-dev`, requires the tag to be contained in that branch,
+  and rejects/rebuilds artifacts when Mac build inputs changed after the ZIP's
+  embedded `CodexGitCommit`.
 
 ## Production Safety
 
