@@ -3,6 +3,52 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.41.0.1</title>
+            <pubDate>Fri, 10 Jul 2026 18:31:38 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>100.1.1.18.0</sparkle:version>
+            <sparkle:shortVersionString>0.41.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.41.0.1-Mobile 1.18.0</h2>
+Syncs the Mac app from the fork baseline at upstream <strong>v0.39.0</strong> through
+<strong>v0.40.0</strong> and <strong>v0.41.0</strong> as one release, paired with iOS <strong>1.18.0</strong>.
+<h3>Added / Improved</h3>
+<ul>
+<li><strong>Reliable iCloud sync and diagnostics</strong> — Mac uploads now use cancellable</li>
+</ul>
+  CloudKit operations with a 45-second deadline, serialize overlapping pushes,
+  expose the active phase, and report failures instead of remaining on
+  “Syncing” indefinitely. The existing KVS fallback is written before CloudKit
+  waits, and Advanced → Debug plus Mobile developer tools now provide a
+  read-only account/zone/KVS diagnostic and copyable file-log evidence.
+<ul>
+<li><strong>Complete Mac upstream sync</strong> — Includes Claude read-only <code>claude-swap</code> account cards/switching, the responsive <code>codexbar cards</code> CLI, cost-chart scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget selection, Devin extra-usage balance, and the upstream Settings refinements.</li>
+<li><strong>Provider correctness and safety</strong> — Includes Kimi/Kimi K2 endpoint and finite-value fixes, Claude fractional utilization and account-history isolation, Gemini consumer-tier/Flash corrections, Alibaba international region support, browser Safe Storage prompt suppression, Codex weekly-cap presentation, and Tahoe menu-bar recovery.</li>
+<li><strong>Cost and parser performance</strong> — Reuses Codex pricing/catalog work, migrates incomplete cached cost maps before reporting, discovers nested Claude Desktop projects, bumps <code>parserLogicVersion</code> to 8, and regenerates the parser hash.</li>
+<li><strong>iOS 1.18 parity</strong> — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive values below 1% display as &lt;1% on iPhone.</li>
+</ul>
+<h3>Compatibility</h3>
+<ul>
+<li>No Shared payload key or CloudKit record schema field is added. Kimi uses existing <code>rateWindows</code>; Claude uses existing <code>loginMethod</code>.</li>
+<li>CloudKit remains Production. The upstream-sync audit is recorded in</li>
+</ul>
+  <code>CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md</code>; the bounded
+  writer, diagnostics, and updated 16-case evidence are in
+  <code>CodexBarMobile/Research/040-icloud-sync-timeout-diagnostics/03-testing.md</code>.
+<h3>中文说明</h3>
+本次把 fork 从上游 <strong>v0.39.0</strong> 一次性同步到 <strong>v0.41.0</strong>，覆盖 v0.40.0 与
+v0.41.0，并配套 iOS <strong>1.18.0</strong>，不拆成多个用户可见版本。
+<ul>
+<li>Mac 端完整纳入 Claude 多账号、<code>codexbar cards</code> CLI、Kimi 多条订阅 quota、Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。</li>
+<li>iPhone 通过既有 <code>rateWindows</code> 显示 Kimi Weekly / Rate Limit / Monthly / Code 7-day，通过既有 <code>loginMethod</code> 显示 Claude Max 5x/20x；正数且低于 1% 的用量显示为 &lt;1%。</li>
+<li>本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与 16 组合兼容矩阵记录在本轮 Research 测试文档中。</li>
+</ul>
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.41.0.1-mobile.1.18.0/CodexBar-0.41.0.1-mobile.1.18.0.zip" length="47517361" type="application/octet-stream" sparkle:edSignature="BR+Q3thJaH6/loimGZXOrl9oezsyu3PcnkWcyvWEZVytyc5MDjRe5eS6DJIQY0NMna3BZbiqQckkaDuPUQC7Bg=="/>
+        </item>
+        <item>
             <title>0.39.0.1</title>
             <pubDate>Mon, 06 Jul 2026 17:14:41 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -191,117 +237,6 @@ iOS 发布线 <strong>1.15.0</strong>。本次把 issue #30、#32、#33 覆盖�
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.37.2.1-mobile.1.15.0/CodexBar-0.37.2.1-mobile.1.15.0.zip" length="43783785" type="application/octet-stream" sparkle:edSignature="VO7jBXJ4cnQamro5+aR9QBBFyudGSwi8Am7FoLqk4jxSkZNnVFovG6UlKPnjiV4xss6AQCwtGfalhsR0xc/0DA=="/>
-        </item>
-        <item>
-            <title>0.36.1.1</title>
-            <pubDate>Wed, 17 Jun 2026 14:13:24 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>88.1.1.13.0</sparkle:version>
-            <sparkle:shortVersionString>0.36.1.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.36.1.1-Mobile 1.13.0</h2>
-Syncs the Mac app to upstream CodexBar <strong>v0.36.1</strong> (spanning v0.36.0–v0.36.1)
-and pairs it with iOS <strong>1.13.0</strong>. This is one combined upstream-sync release
-for issue #28; it intentionally does not split LiteLLM, Poe, Chutes, Zed, and
-the Antigravity/provider reliability fixes into separate user-visible versions.
-<h3>Added / Improved</h3>
-<ul>
-<li><strong>New upstream providers</strong> — LiteLLM personal/team budget tracking, Poe point</li>
-</ul>
-  balance and recent history, Chutes subscription/quota/pay-as-you-go tracking,
-  and Zed editor-session plan/quota/billing-cycle tracking.
-<ul>
-<li><strong>iOS provider readiness</strong> — the mobile companion is prepared to recognize and</li>
-</ul>
-  render the new provider data that arrives through the existing Mac → CloudKit
-  sync payload. Provider credentials and live API/Keychain access remain Mac-only.
-<ul>
-<li><strong>iOS 1.13.0 direct train</strong> — the companion release folds in the unreleased</li>
-</ul>
-  1.12.0 sync work as well, including MiniMax renewal/expiration metadata,
-  Devin quotas, Copilot budget windows, MiMo balance/token-plan updates, Kimi
-  Code API usage, and rolling-upgrade preservation of rich provider details.
-<ul>
-<li><strong>Antigravity accuracy</strong> — quota summaries now prefer current local app/CLI</li>
-</ul>
-  sources, group Gemini and Claude + GPT session/weekly windows, and preserve
-  structured reset timestamps for localized display.
-<ul>
-<li><strong>Menu bar reliability</strong> — upstream fixes stale open-menu values, provider</li>
-</ul>
-  switcher background, hosted submenu refresh timing, subprocess pipe hangs, Kiro
-  helper cleanup, Gemini package discovery, and bounded optional provider work.
-<ul>
-<li><strong>Configuration and localization</strong> — Mac config resolution now honors absolute</li>
-</ul>
-  <code>XDG_CONFIG_HOME</code> while preserving legacy paths, and upstream Mac resources
-  expand to the 21-language catalog. iOS remains on this fork's required
-  English, Simplified Chinese, Traditional Chinese, and Japanese localizations.
-<ul>
-<li><strong>Provider polish</strong> — Ollama uses the official icon, Copilot exposes shared</li>
-</ul>
-  reset dates for limited windows, OpenCode Go handles Zen balances without a
-  subscription window, and the website/provider gallery gains LiteLLM, Poe,
-  Chutes, Zed, Devin, and T3 Chat assets.
-<h3>Compatibility</h3>
-<ul>
-<li>CloudKit stays in the Production environment. Schema deploy decisions and the</li>
-</ul>
-  2 Mac x 2 iPhone old/new compatibility gate are tracked in
-  <code>CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md</code>.
-<ul>
-<li>New provider values are expected to stay inside the existing compressed</li>
-</ul>
-  provider payload or existing quota-transition record path. Existing iOS builds
-  should ignore unrecognized optional payload fields.
-<h3>中文说明</h3>
-同步 Mac 端到上游 CodexBar <strong>v0.36.1</strong>（覆盖 v0.36.0–v0.36.1），并配套 iOS
-<strong>1.13.0</strong>。本次把 issue #28 覆盖的上游内容合并为一个用户可见版本，不把
-LiteLLM、Poe、Chutes、Zed 和 Antigravity/provider 稳定性修复拆成多次发布。
-<h3>新增 / 改进</h3>
-<ul>
-<li><strong>新增上游 provider</strong> —— LiteLLM 个人/团队 budget、Poe 积分余额和近期历史、Chutes</li>
-</ul>
-  订阅/quota/pay-as-you-go 用量，以及 Zed 编辑器 session 的套餐、quota、账期和逾期发票状态。
-<ul>
-<li><strong>iOS provider 准备</strong> —— mobile companion 会识别并渲染通过现有 Mac → CloudKit 同步</li>
-</ul>
-  payload 传来的新 provider 数据；provider 凭证、API 请求和 Keychain/editor session 仍只在 Mac 端处理。
-<ul>
-<li><strong>iOS 1.13.0 直接发布线</strong> —— companion release 同时合入未单独发布的 1.12.0 同步工作，</li>
-</ul>
-  包括 MiniMax 续费/到期元数据、Devin 配额、Copilot budget 窗口、MiMo 余额与 token-plan 更新、
-  Kimi Code API 用量，以及滚动升级时保留丰富 provider 详情。
-<ul>
-<li><strong>Antigravity 准确性</strong> —— quota summary 优先使用当前本地 app/CLI 来源，按 Gemini 与</li>
-</ul>
-  Claude + GPT 的 session/weekly 窗口分组，并保留结构化 reset timestamp 用于本地化显示。
-<ul>
-<li><strong>菜单栏可靠性</strong> —— 合入打开菜单时数值原地刷新、provider switcher 背景、submenu 刷新时序、</li>
-</ul>
-  子进程 pipe hang、Kiro helper 清理、Gemini package discovery 和可选 provider enrichment 超时边界修复。
-<ul>
-<li><strong>配置与本地化</strong> —— Mac config resolution 支持绝对 <code>XDG_CONFIG_HOME</code> 并保留 legacy 路径；</li>
-</ul>
-  上游 Mac 资源扩展到 21 语言。iOS 仍按本 fork 规则保持 English、简体中文、繁体中文、日文四语言。
-<ul>
-<li><strong>Provider polish</strong> —— Ollama 使用官方图标，Copilot 显示 limited window 的共享 reset date，</li>
-</ul>
-  OpenCode Go 在无订阅窗口时仍显示 Zen balance，网站/provider gallery 加入 LiteLLM、Poe、Chutes、
-  Zed、Devin 和 T3 Chat 资产。
-<h3>兼容性</h3>
-<ul>
-<li>CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate</li>
-</ul>
-  记录在 <code>CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md</code>。
-<ul>
-<li>新 provider 值预期保留在现有压缩 provider payload 或既有 quota-transition record 路径中；</li>
-</ul>
-  旧 iOS build 应安全忽略不认识的可选字段。
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.36.1.1-mobile.1.13.0/CodexBar-0.36.1.1-mobile.1.13.0.zip" length="53369849" type="application/octet-stream" sparkle:edSignature="fchPLzuhj9qvoQwpWlRR7lJQ89MzNBuOHWH5MyFJwKjjs5She8ImPpwIQ1u8rKDjQ0fFPqISrlxKS2PD/3zVAg=="/>
         </item>
         <item>
             <title>0.14.0</title>
