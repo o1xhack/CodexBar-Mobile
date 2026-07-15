@@ -258,19 +258,46 @@ final class SyncCoordinator {
             self.syncStartedAt = nil
             self.syncPhase = .idle
             self.isSyncing = false
+            self.syncRequestedWhileRunning = false
         }
 
-        repeat {
+        // Bound each flight to the initial write plus one newest-state catch-up.
+        // A failed write must end the flight immediately: otherwise periodic
+        // UsageStore changes can keep setting the pending flag while CloudKit
+        // repeatedly times out, leaving Settings stuck on "Syncing" forever.
+        var pushesRemaining = 2
+        while pushesRemaining > 0 {
             self.syncRequestedWhileRunning = false
-            await self.performPushCurrentSnapshot()
-        } while self.syncRequestedWhileRunning && self.settings.iCloudSyncEnabled
+            let succeeded = await self.performPushCurrentSnapshot()
+            pushesRemaining -= 1
+
+            guard succeeded else { return }
+            guard self.syncRequestedWhileRunning,
+                  self.settings.iCloudSyncEnabled
+            else { return }
+
+            if pushesRemaining > 0 {
+                self.recordSyncEvent("Running one coalesced newer snapshot")
+            }
+        }
+
+        if self.syncRequestedWhileRunning {
+            self.recordSyncEvent(
+                "A newer snapshot arrived during catch-up; scheduled as a new sync")
+            Task { @MainActor [weak self] in
+                // Let this bounded flight run its defer first so the next one
+                // starts with a fresh duration and visible idle transition.
+                await Task.yield()
+                await self?.pushCurrentSnapshot()
+            }
+        }
     }
 
-    private func performPushCurrentSnapshot() async {
-        guard self.settings.iCloudSyncEnabled else { return }
+    private func performPushCurrentSnapshot() async -> Bool {
+        guard self.settings.iCloudSyncEnabled else { return false }
 
         let enabledProviders = self.store.enabledProviders()
-        guard !enabledProviders.isEmpty else { return }
+        guard !enabledProviders.isEmpty else { return true }
         self.syncPhase = .preparing
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
@@ -360,7 +387,7 @@ final class SyncCoordinator {
                 let message = perProviderResult.message ?? "Unknown provider upload failure"
                 self.finishSyncAttempt(succeeded: false, message: message)
                 self.recordSyncEvent("Provider upload failed: \(message)", isError: true)
-                return
+                return false
             }
         }
 
@@ -405,7 +432,7 @@ final class SyncCoordinator {
                     self.recordSyncEvent("Cleanup failed: \(message)", isError: true)
                     // Don't update lastPushedRecordNames if delete failed —
                     // retry next cycle.
-                    return
+                    return false
                 }
             }
         }
@@ -422,6 +449,7 @@ final class SyncCoordinator {
                 "Legacy upload failed: \(legacyResult.message ?? "Unknown error")",
                 isError: true)
         }
+        return legacyResult.succeeded
     }
 
     private func finishSyncAttempt(
