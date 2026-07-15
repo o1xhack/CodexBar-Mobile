@@ -1,3 +1,4 @@
+import CloudKit
 import Foundation
 import Testing
 @testable import CodexBarSync
@@ -45,6 +46,18 @@ private final class RetainingDeadlineOperation: @unchecked Sendable {
 }
 
 struct CloudOperationDeadlineTests {
+    @Test
+    func `CloudKit operation receives an explicit deadline configuration`() throws {
+        let operation = CKFetchRecordZonesOperation(recordZoneIDs: [])
+
+        CloudSyncManager.configureOperation(operation, deadline: 17)
+
+        let configuration = try #require(operation.configuration)
+        #expect(configuration.timeoutIntervalForRequest == 17)
+        #expect(configuration.timeoutIntervalForResource == 17)
+        #expect(operation.qualityOfService == .utility)
+    }
+
     @Test
     func `synchronous success returns without cancelling the operation`() async throws {
         let cancelled = DeadlineTestFlag()

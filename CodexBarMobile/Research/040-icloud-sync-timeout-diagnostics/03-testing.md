@@ -10,7 +10,7 @@ Updated: 2026-07-15
 |---|---|---|
 | Root-cause audit | pass | Mac CloudKit writes are unbounded; UI only reports returned failures; KVS is blocked behind legacy CloudKit await |
 | Safety design review | pass | three independent reviews require cancellable CKOperation deadlines, exactly-once completion, single-flight/coalescing, and no state advancement after uncertain writes |
-| Focused timeout/cancellation tests | pass | `swift test --filter CloudOperationDeadlineTests`: 6/6; covers synchronous success, underlying error, hard timeout/cancel, task cancellation, ignored late callback, and completion-gate release |
+| Focused timeout/cancellation tests | pass | `swift test --filter CloudOperationDeadlineTests`: 7/7; covers explicit non-nil CKOperation configuration, synchronous success, underlying error, hard timeout/cancel, task cancellation, ignored late callback, and completion-gate release |
 | SyncCoordinator regression | pass | post-review `swift test --filter SyncCoordinatorTests`: 29 tests in 2 suites passed; adds failure + queued-request termination and request-during-catch-up coverage while preserving successful coalescing |
 | Mac full build/lint/tests | in progress | the signed candidate baseline passed `swift build`, lint, and all 52 isolated groups; the final bounded-flight and release-guard changes pass focused tests and require the refreshed PR CI/full gate before a new artifact is built |
 | iOS build/tests/localization | pass | clean signed simulator run: 549 tests in 40 suites passed, including KVS/CloudKit error fallbacks and Widget snapshot parity; source/catalog audit clean; `1.18.0 (187)` |
@@ -19,7 +19,7 @@ Updated: 2026-07-15
 | Signed/notarized Mac draft replacement | stale — rebuild required | notarization `fbe990bd-88a1-4589-9a5e-4a13e399a04a` and the 47,517,361-byte ZIP / 36,747,485-byte dSYM remain historical valid artifacts, but they predate the final bounded-flight fix and cannot be published; phase 1 must move the tag and replace both assets after PR approval |
 | Sparkle candidate appcast | pass as historical evidence; removed from PR | `100.1.1.18.0`, prior archive length and EdDSA verification passed; PR #49 restores `appcast.xml` to the `mobile-dev` baseline, and finalize must regenerate/push the entry only after the replacement release is live |
 | TestFlight 1.18.0 (187) | pass — VALID | archive/export/upload succeeded; App Store Connect build `c4922050-46d5-4ef7-8368-99a9a7302b2a`, uploaded 2026-07-10 18:34 PDT, `processingState=VALID`, `expired=false` |
-| Final review blockers | in progress | PR review found and fixed an unbounded failure retry, partial legacy cost-cache completion, premature draft appcast, shallow-checkout lint gate, and unsafe finalize checkout/artifact reuse; refreshed CI and final re-review are still required |
+| Final review blockers | in progress | PR review found and fixed an unbounded failure retry, explicit CKOperation configuration safety, partial legacy cost-cache completion, iOS diagnostic localization, premature draft appcast, shallow-checkout lint gate, and unsafe finalize checkout/artifact reuse; refreshed CI and final re-review are still required |
 
 ## PR-First Rollback and Review Evidence (2026-07-15)
 
@@ -53,6 +53,9 @@ Updated: 2026-07-15
   `CostUsagePerformanceGateTests` 7/7, release helper tests, ZIP/dSYM UUID
   verification against the historical candidate, bash syntax, parser hash,
   SwiftFormat, SwiftLint (0 violations), and localization audits.
+- Every bounded CloudKit operation now receives a newly assigned
+  `CKOperation.Configuration` before request/resource deadlines are written;
+  the configuration regression test and both Mac/iOS builds pass.
 
 ## Production Safety
 

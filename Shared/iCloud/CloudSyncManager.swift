@@ -405,10 +405,16 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         budget: CloudOperationBudget) throws -> TimeInterval
     {
         let remaining = try budget.remaining(for: stage)
-        operation.configuration.timeoutIntervalForRequest = remaining
-        operation.configuration.timeoutIntervalForResource = remaining
-        operation.qualityOfService = .utility
+        Self.configureOperation(operation, deadline: remaining)
         return remaining
+    }
+
+    static func configureOperation(_ operation: CKOperation, deadline: TimeInterval) {
+        let configuration = CKOperation.Configuration()
+        configuration.timeoutIntervalForRequest = deadline
+        configuration.timeoutIntervalForResource = deadline
+        operation.configuration = configuration
+        operation.qualityOfService = .utility
     }
 
     private static func pushFailureDescription(_ error: Error) -> String {
