@@ -427,6 +427,10 @@ enum CostUsagePricing {
     ///   invalidation axis for Claude, which has no producerKey — did not move.
     ///   This bump rolls the fingerprint so Claude caches written by the v0.29
     ///   parser are invalidated and re-scanned with the merged parser.
+    /// - `8` (0.41.0.1): upstream v0.40.0-v0.41.0 makes the persisted
+    ///   Codex cost cache completeness explicit, migrates incomplete cost
+    ///   maps before report generation, and expands Claude Desktop project
+    ///   discovery. These changes affect attribution and cached report output.
     /// - `3` (0.29.0): merged upstream v0.28.0+v0.29.0 Codex cost-scanner
     ///   changes — standard vs fast spend/token splits in model breakdowns
     ///   (#1070) and no-recount of repeated local token snapshots when total
@@ -441,7 +445,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 7
+    static let parserLogicVersion = 8
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored

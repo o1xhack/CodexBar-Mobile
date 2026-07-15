@@ -172,17 +172,17 @@ struct StatusMenuPersistentRefreshTests {
         let gate = ManualRefreshGate()
         controller._test_manualRefreshOperation = { await gate.wait() }
         #expect(try controller.handleMenuTrackingShortcutEvent(self.keyEvent("r", keyCode: 15), menu: menu))
-        for _ in 0..<20 where controller.manualRefreshTask == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.codex)] == nil {
             await Task.yield()
         }
 
-        let task = try #require(controller.manualRefreshTask)
+        let task = try #require(controller.manualRefreshTasks[.provider(.codex)])
         #expect(!refreshItem.isEnabled)
 
         gate.resume()
         await task.value
 
-        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshTasks[.provider(.codex)] == nil)
         #expect(refreshItem.isEnabled)
     }
 
@@ -260,22 +260,37 @@ struct StatusMenuPersistentRefreshTests {
         #expect(!refreshItem.isEnabled)
 
         controller.store.isRefreshing = false
-        controller.manualRefreshProvider = .claude
-        controller.manualRefreshTask = Task {}
+
+        // A manual refresh scoped to another provider must not grey out this provider's row.
+        controller.manualRefreshTasks[.provider(.claude)] = Task {}
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(refreshItem.isEnabled)
+
+        // This provider's own manual refresh does disable its row.
+        controller.manualRefreshTasks[.provider(.codex)] = Task {}
         controller.updatePersistentRefreshItemsEnabled()
         #expect(!refreshItem.isEnabled)
 
-        controller.manualRefreshTask = nil
-        controller.manualRefreshProvider = nil
+        controller.manualRefreshTasks[.provider(.codex)] = nil
+        controller.manualRefreshTasks[.provider(.claude)] = nil
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(refreshItem.isEnabled)
+
+        // An all-providers refresh greys every row.
+        controller.manualRefreshTasks[.global] = Task {}
+        controller.updatePersistentRefreshItemsEnabled()
+        #expect(!refreshItem.isEnabled)
+
+        controller.manualRefreshTasks[.global] = nil
         controller.updatePersistentRefreshItemsEnabled()
         #expect(refreshItem.isEnabled)
 
         refreshItem.representedObject = "notRefresh"
-        controller.manualRefreshTask = Task {}
+        controller.manualRefreshTasks[.global] = Task {}
         controller.updatePersistentRefreshItemsEnabled()
         #expect(refreshItem.isEnabled)
         #expect(!controller.persistentRefreshItems.allObjects.contains { $0 === refreshItem })
-        controller.manualRefreshTask = nil
+        controller.manualRefreshTasks[.global] = nil
     }
 
     @Test
@@ -291,9 +306,9 @@ struct StatusMenuPersistentRefreshTests {
         #expect(monitor.subtitle(for: .codex, fallback: fallback).style == .loading)
 
         controller.store.isRefreshing = false
-        monitor.isManualRefreshInFlight = true
+        monitor.beginManualRefresh(frozenModels: [:], provider: nil)
         #expect(monitor.subtitle(for: .codex, fallback: fallback).style == .loading)
-        monitor.isManualRefreshInFlight = false
+        monitor.endManualRefresh()
 
         controller.store.isRefreshing = false
         let now = Date()
@@ -314,7 +329,7 @@ struct StatusMenuPersistentRefreshTests {
         #expect(failure.style == .error)
         #expect(failure.text == "Refresh failed")
 
-        monitor.isManualRefreshInFlight = true
+        monitor.beginManualRefresh(frozenModels: [:], provider: nil)
         #expect(monitor.subtitle(for: .codex, fallback: fallback).style == .loading)
     }
 
@@ -328,7 +343,7 @@ struct StatusMenuPersistentRefreshTests {
         let expectedClaude = monitor.subtitle(for: .claude, fallback: fallback)
 
         monitor.beginManualRefresh(frozenModels: [.codex: codexModel], provider: .codex)
-        defer { monitor.endManualRefresh() }
+        defer { monitor.endManualRefresh(for: .codex) }
 
         #expect(monitor.isManualRefreshInFlight(for: .codex))
         #expect(!monitor.isManualRefreshInFlight(for: .claude))
@@ -356,7 +371,7 @@ struct StatusMenuPersistentRefreshTests {
                 resetDescription: nil),
             updatedAt: now)
         let fallback = try #require(controller.menuCardModel(for: .claude))
-        controller.menuCardRefreshMonitor.isManualRefreshInFlight = true
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [:], provider: .claude)
 
         controller.store.snapshots[.claude] = UsageSnapshot(
             primary: RateWindow(
@@ -374,7 +389,7 @@ struct StatusMenuPersistentRefreshTests {
         let inFlight = controller.menuCardRefreshMonitor.model(for: .claude, fallback: fallback)
         #expect(inFlight.metrics.map(\.percent) == fallback.metrics.map(\.percent))
 
-        controller.menuCardRefreshMonitor.isManualRefreshInFlight = false
+        controller.menuCardRefreshMonitor.endManualRefresh(for: .claude)
         let refreshed = controller.menuCardRefreshMonitor.model(for: .claude, fallback: fallback)
         let expected = try #require(controller.menuCardModel(for: .claude))
 
@@ -730,7 +745,7 @@ struct StatusMenuPersistentRefreshTests {
         controller.store.errors[.codex] =
             "Refresh failed with a much longer replacement message that must not resize the tracked menu"
         let replacementErrorHeight = fittingHeight(for: errorModel)
-        controller.menuCardRefreshMonitor.isManualRefreshInFlight = true
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [:], provider: nil)
         let retryHeight = fittingHeight(for: errorModel)
 
         #expect(replacementErrorHeight == errorHeight)
@@ -752,7 +767,7 @@ struct StatusMenuPersistentRefreshTests {
         controller.refreshNow()
 
         #expect(requestCount == 0)
-        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshTasks.isEmpty)
         #expect(!controller.menuCardRefreshMonitor.isManualRefreshInFlight)
     }
 
@@ -772,7 +787,7 @@ struct StatusMenuPersistentRefreshTests {
         }
 
         controller.refreshNow()
-        let task = try #require(controller.manualRefreshTask)
+        let task = try #require(controller.manualRefreshTasks[.global])
         controller.refreshNow()
         controller.refreshNow()
         await Task.yield()
@@ -783,7 +798,7 @@ struct StatusMenuPersistentRefreshTests {
         gate.resume()
         await task.value
 
-        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshTasks[.global] == nil)
         #expect(!controller.menuCardRefreshMonitor.isManualRefreshInFlight)
     }
 
@@ -805,37 +820,29 @@ struct StatusMenuPersistentRefreshTests {
         }
 
         let mouseGate = ManualRefreshGate()
-        var requestCount = 0
-        controller._test_manualRefreshOperation = {
-            requestCount += 1
-            await mouseGate.wait()
-        }
+        controller._test_manualRefreshOperation = { await mouseGate.wait() }
         let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
         #expect(controller.isPersistentRefreshItem(refreshItem))
         controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
-        for _ in 0..<20 where controller.manualRefreshTask == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.claude)] == nil {
             await Task.yield()
         }
-        let mouseTask = try #require(controller.manualRefreshTask)
-        #expect(controller.manualRefreshProvider == .claude)
-        #expect(controller.isRefreshActionInFlight(for: codexMenu))
-        #expect(controller.isRefreshActionInFlight(for: NSMenu()))
-        let codexRefreshItem = try #require(codexMenu.items.first { $0.title == "Refresh" })
-        #expect(controller.isPersistentRefreshItem(codexRefreshItem))
-        controller.performPersistentRefreshAction(in: ObjectIdentifier(codexMenu))
-        await Task.yield()
-        #expect(requestCount == 1)
+        let mouseTask = try #require(controller.manualRefreshTasks[.provider(.claude)])
+
+        // Refreshing Claude greys the Claude row but must leave the Codex row available.
+        #expect(controller.isRefreshActionInFlight(for: menu))
+        #expect(!controller.isRefreshActionInFlight(for: codexMenu))
+
         mouseGate.resume()
         await mouseTask.value
 
         let keyboardGate = ManualRefreshGate()
         controller._test_manualRefreshOperation = { await keyboardGate.wait() }
         #expect(try menu.performKeyEquivalent(with: self.keyEvent("r", keyCode: 15)))
-        for _ in 0..<20 where controller.manualRefreshTask == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.claude)] == nil {
             await Task.yield()
         }
-        let keyboardTask = try #require(controller.manualRefreshTask)
-        #expect(controller.manualRefreshProvider == .claude)
+        let keyboardTask = try #require(controller.manualRefreshTasks[.provider(.claude)])
         keyboardGate.resume()
         await keyboardTask.value
     }
@@ -865,8 +872,7 @@ struct StatusMenuPersistentRefreshTests {
         }
 
         #expect(requestCount == 0)
-        #expect(controller.manualRefreshTask == nil)
-        #expect(controller.manualRefreshProvider == nil)
+        #expect(controller.manualRefreshTasks.isEmpty)
     }
 
     @Test
@@ -888,11 +894,10 @@ struct StatusMenuPersistentRefreshTests {
         let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
         #expect(controller.isPersistentRefreshItem(refreshItem))
         controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
-        for _ in 0..<20 where controller.manualRefreshTask == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.global] == nil {
             await Task.yield()
         }
-        let overviewTask = try #require(controller.manualRefreshTask)
-        #expect(controller.manualRefreshProvider == nil)
+        let overviewTask = try #require(controller.manualRefreshTasks[.global])
         overviewGate.resume()
         await overviewTask.value
 
@@ -901,11 +906,10 @@ struct StatusMenuPersistentRefreshTests {
         let providerGate = ManualRefreshGate()
         controller._test_manualRefreshOperation = { await providerGate.wait() }
         #expect(try menu.performKeyEquivalent(with: self.keyEvent("r", keyCode: 15)))
-        for _ in 0..<20 where controller.manualRefreshTask == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.claude)] == nil {
             await Task.yield()
         }
-        let providerTask = try #require(controller.manualRefreshTask)
-        #expect(controller.manualRefreshProvider == .claude)
+        let providerTask = try #require(controller.manualRefreshTasks[.provider(.claude)])
         providerGate.resume()
         await providerTask.value
     }
@@ -956,13 +960,13 @@ struct StatusMenuPersistentRefreshTests {
         }
 
         controller.refreshNow()
-        let task = try #require(controller.manualRefreshTask)
+        let task = try #require(controller.manualRefreshTasks[.global])
         #expect(!refreshItem.isEnabled)
 
         gate.resume()
         await task.value
 
-        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshTasks[.global] == nil)
         #expect(refreshItem.isEnabled)
         let fallback = MenuCardLiveSubtitle(text: "Fallback", style: .info)
         #expect(controller.menuCardRefreshMonitor.subtitle(for: .codex, fallback: fallback).style == .error)
@@ -1090,5 +1094,127 @@ extension StatusMenuPersistentRefreshTests {
         #expect(abs(refreshView.frame.width - expectedWidth) <= 0.5)
         #expect(refreshView.frame.origin == .zero)
         #expect(refreshView.frame.height == metrics.rowHeight)
+    }
+}
+
+extension StatusMenuPersistentRefreshTests {
+    @Test
+    func `concurrent manual refreshes keep each provider's frozen card`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let monitor = controller.menuCardRefreshMonitor
+        let now = Date()
+
+        func quotaSnapshot(usedPercent: Double, updatedAt: Date) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: usedPercent,
+                    windowMinutes: 300,
+                    resetsAt: updatedAt.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: updatedAt)
+        }
+
+        // The snapshot helper supplies every enabled provider even for a provider-scoped refresh.
+        controller.store.snapshots[.claude] = quotaSnapshot(usedPercent: 21, updatedAt: now)
+        controller.store.snapshots[.codex] = quotaSnapshot(usedPercent: 15, updatedAt: now)
+        let claudeFrozen = try #require(controller.menuCardModel(for: .claude))
+        let codexBeforeItsRefresh = try #require(controller.menuCardModel(for: .codex))
+        monitor.beginManualRefresh(
+            frozenModels: [.claude: claudeFrozen, .codex: codexBeforeItsRefresh],
+            provider: .claude)
+
+        // Each provider must freeze the card visible when its own refresh starts.
+        controller.store.snapshots[.claude] = quotaSnapshot(usedPercent: 65, updatedAt: now.addingTimeInterval(1))
+        controller.store.snapshots[.codex] = quotaSnapshot(usedPercent: 42, updatedAt: now.addingTimeInterval(1))
+        let claudeMidRefresh = try #require(controller.menuCardModel(for: .claude))
+        let codexFrozen = try #require(controller.menuCardModel(for: .codex))
+        monitor.beginManualRefresh(
+            frozenModels: [.claude: claudeMidRefresh, .codex: codexFrozen],
+            provider: .codex)
+
+        let shownClaude = monitor.model(for: .claude, fallback: claudeMidRefresh)
+        let shownCodex = monitor.model(for: .codex, fallback: codexFrozen)
+        #expect(shownClaude.metrics.first?.percentLabel == "79% left")
+        #expect(shownCodex.metrics.first?.percentLabel == "58% left")
+
+        // Ending Codex leaves Claude frozen; ending Claude clears it.
+        monitor.endManualRefresh(for: .codex)
+        #expect(monitor.isManualRefreshInFlight(for: .claude))
+        #expect(!monitor.isManualRefreshInFlight(for: .codex))
+        monitor.endManualRefresh(for: .claude)
+        #expect(!monitor.isManualRefreshInFlight(for: .claude))
+    }
+
+    @Test
+    func `refreshing one provider does not block refreshing another`() async throws {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        self.enableOnly([.claude, .codex], settings: settings)
+
+        let controller = self.makeController(settings: settings)
+        let codexMenu = try #require(controller.makeMenu(for: .codex) as? StatusItemMenu)
+        controller.menuWillOpen(codexMenu)
+        defer { controller.menuDidClose(codexMenu) }
+
+        // Simulate a Claude manual refresh already in flight.
+        controller.manualRefreshTasks[.provider(.claude)] = Task {}
+        defer {
+            controller.manualRefreshTasks[.provider(.claude)]?.cancel()
+            controller.manualRefreshTasks[.provider(.claude)] = nil
+        }
+
+        let gate = ManualRefreshGate()
+        controller._test_manualRefreshOperation = { await gate.wait() }
+
+        // A Codex refresh must still start rather than being blocked by the in-flight Claude one.
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(codexMenu))
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.codex)] == nil {
+            await Task.yield()
+        }
+        let codexTask = try #require(controller.manualRefreshTasks[.provider(.codex)])
+        #expect(controller.isRefreshActionInFlight(for: codexMenu))
+
+        gate.resume()
+        await codexTask.value
+    }
+
+    @Test
+    func `overview stays busy through a provider refresh tail and blocks a global refresh`() async throws {
+        let settings = self.makeSettings()
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        self.enableOnly([.claude, .codex], settings: settings)
+        settings.mergedMenuLastSelectedWasOverview = true
+
+        let controller = self.makeController(settings: settings)
+        let menu = try #require(controller.makeMenu() as? StatusItemMenu)
+        controller.mergedMenu = menu
+        controller.menuWillOpen(menu)
+        defer { controller.menuDidClose(menu) }
+
+        // A per-provider Claude refresh whose task outlives the store's `refreshingProviders` window
+        // (the status/token/credits tail runs after the provider is removed from that set).
+        controller.manualRefreshTasks[.provider(.claude)] = Task {}
+        defer {
+            controller.manualRefreshTasks[.provider(.claude)]?.cancel()
+            controller.manualRefreshTasks[.provider(.claude)] = nil
+        }
+
+        // Overview stands for every provider, so its row stays greyed even with `refreshingProviders` empty.
+        #expect(controller.store.refreshingProviders.isEmpty)
+        #expect(controller.isRefreshActionInFlight(for: menu))
+
+        // And a global overview refresh must not start on top of the in-flight provider refresh.
+        var requestCount = 0
+        controller._test_manualRefreshOperation = { requestCount += 1 }
+        controller.performPersistentRefreshAction(in: ObjectIdentifier(menu))
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+        #expect(requestCount == 0)
+        #expect(controller.manualRefreshTasks[.global] == nil)
     }
 }

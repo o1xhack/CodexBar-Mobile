@@ -349,7 +349,7 @@ struct StatusMenuSwitcherRefreshTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: .system)
         defer {
-            controller.manualRefreshTask?.cancel()
+            controller.manualRefreshTasks.values.forEach { $0.cancel() }
             controller.releaseStatusItemsForTesting()
         }
 
@@ -401,7 +401,7 @@ struct StatusMenuSwitcherRefreshTests {
         #expect(inFlight.metrics.first?.percentLabel == "79% left")
 
         gate.resume()
-        await controller.manualRefreshTask?.value
+        await controller.manualRefreshTasks[.global]?.value
         #expect(!controller.menuCardRefreshMonitor.isManualRefreshInFlight)
         let completed = controller.menuCardRefreshMonitor.model(for: .codex, fallback: emptyFallback)
         #expect(completed.metrics.isEmpty)
@@ -435,7 +435,7 @@ struct StatusMenuSwitcherRefreshTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: .system)
         defer {
-            controller.manualRefreshTask?.cancel()
+            controller.manualRefreshTasks.values.forEach { $0.cancel() }
             controller.releaseStatusItemsForTesting()
         }
 
@@ -450,7 +450,7 @@ struct StatusMenuSwitcherRefreshTests {
         let initialRefreshItem = try #require(menu.items.first { $0.title == "Refresh" })
 
         controller.refreshNow()
-        let refreshTask = try #require(controller.manualRefreshTask)
+        let refreshTask = try #require(controller.manualRefreshTasks[.global])
         #expect(!initialRefreshItem.isEnabled)
 
         var rebuildCount = 0
@@ -463,7 +463,7 @@ struct StatusMenuSwitcherRefreshTests {
 
         gate.resume()
         await refreshTask.value
-        #expect(controller.manualRefreshTask == nil)
+        #expect(controller.manualRefreshTasks[.global] == nil)
 
         let alternateSwitcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
         #expect(alternateSwitcher._test_simulateRuntimeClick(buttonTag: selectedButton.tag))
@@ -497,7 +497,7 @@ struct StatusMenuSwitcherRefreshTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: .system)
         defer {
-            controller.manualRefreshTask?.cancel()
+            controller.manualRefreshTasks.values.forEach { $0.cancel() }
             controller.releaseStatusItemsForTesting()
         }
 
@@ -507,13 +507,13 @@ struct StatusMenuSwitcherRefreshTests {
             controller.mergedSwitcherContentCaches[ObjectIdentifier(menu)]?[.provider(.codex)])
         let refreshItem = try #require(cache.items.first { $0.title == "Refresh" })
 
-        controller.manualRefreshTask = Task {}
+        controller.manualRefreshTasks[.global] = Task {}
         controller.updatePersistentRefreshItemsEnabled()
         #expect(!refreshItem.isEnabled)
 
         menu.removeAllItems()
         #expect(refreshItem.menu == nil)
-        controller.manualRefreshTask = nil
+        controller.manualRefreshTasks[.global] = nil
         controller.updatePersistentRefreshItemsEnabled()
         #expect(!refreshItem.isEnabled)
 
@@ -525,6 +525,51 @@ struct StatusMenuSwitcherRefreshTests {
             tokenAccountDisplay: cache.tokenAccountDisplay))
         #expect(refreshItem.menu === menu)
         #expect(refreshItem.isEnabled)
+    }
+
+    @Test
+    func `a provider manual refresh only greys its own tab`() {
+        let settings = Self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        Self.enableCodexAndClaude(settings)
+        Self.disableOverview(settings)
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: .system)
+        defer {
+            controller.manualRefreshTasks.values.forEach { $0.cancel() }
+            controller.manualRefreshTasks.removeAll()
+            controller.releaseStatusItemsForTesting()
+        }
+
+        let menu = controller.makeMenu()
+        controller.mergedMenu = menu
+        controller.menuWillOpen(menu)
+        defer { controller.menuDidClose(menu) }
+
+        // A manual refresh of Claude must leave the Codex tab's Refresh row enabled.
+        controller.manualRefreshTasks[.provider(.claude)] = Task {}
+        #expect(!controller.isRefreshActionInFlight(for: menu))
+
+        // Switching to the Claude tab reflects Claude's own in-flight refresh.
+        settings.selectedMenuProvider = .claude
+        #expect(controller.isRefreshActionInFlight(for: menu))
+
+        // An all-providers refresh busies every tab regardless of the selected provider.
+        settings.selectedMenuProvider = .codex
+        controller.manualRefreshTasks[.provider(.claude)] = nil
+        controller.manualRefreshTasks[.global] = Task {}
+        #expect(controller.isRefreshActionInFlight(for: menu))
     }
 
     @Test

@@ -9,8 +9,8 @@ public struct KimiUsageFetcher: Sendable {
     private static let subscriptionGraceSeconds: TimeInterval = 2
     private static let usageURL =
         URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
-    private static let subscriptionStatURL =
-        URL(string: "https://www.kimi.com/apiv2/kimi.gateway.membership.v2.MembershipService/GetSubscriptionStat")!
+    private static let subscriptionStatsURL =
+        URL(string: "https://www.kimi.com/apiv2/kimi.gateway.membership.v2.MembershipService/GetSubscriptionStats")!
 
     public static func fetchCodeAPIUsage(
         apiKey: String,
@@ -83,8 +83,8 @@ public struct KimiUsageFetcher: Sendable {
     {
         let sessionInfo = self.decodeSessionInfo(from: authToken)
 
-        let subscriptionTask = Task<KimiSubscriptionStatResponse?, Error> {
-            try await self.fetchSubscriptionStat(
+        let subscriptionTask = Task<KimiSubscriptionStatsResponse?, Error> {
+            try await self.fetchSubscriptionStats(
                 authToken: authToken,
                 sessionInfo: sessionInfo,
                 transport: transport)
@@ -117,22 +117,23 @@ public struct KimiUsageFetcher: Sendable {
         }
         try Task.checkCancellation()
 
-        let subscriptionStat: KimiSubscriptionStatResponse?
+        let subscriptionStats: KimiSubscriptionStatsResponse?
         switch subscriptionOutcome {
         case let .value(response):
-            subscriptionStat = response
+            subscriptionStats = response
         case .timedOut:
-            Self.log.warning("Kimi subscription stat timed out")
-            subscriptionStat = nil
+            Self.log.warning("Kimi subscription stats timed out")
+            subscriptionStats = nil
         case let .failure(error):
-            Self.log.warning("Kimi subscription stat unavailable: \(error.localizedDescription)")
-            subscriptionStat = nil
+            Self.log.warning("Kimi subscription stats unavailable: \(error.localizedDescription)")
+            subscriptionStats = nil
         }
 
         return KimiUsageSnapshot(
             weekly: codingUsage.detail,
             rateLimit: codingUsage.limits?.first?.detail,
-            subscriptionBalance: subscriptionStat?.subscriptionBalance,
+            subscriptionBalance: subscriptionStats?.subscriptionBalance,
+            subscriptionCodeWeeklyLimit: subscriptionStats?.ratelimitCode7d,
             updatedAt: now)
     }
 
@@ -196,26 +197,26 @@ public struct KimiUsageFetcher: Sendable {
             .appendingPathComponent("usages")
     }
 
-    private static func fetchSubscriptionStat(
+    private static func fetchSubscriptionStats(
         authToken: String,
         sessionInfo: SessionInfo?,
-        transport: any ProviderHTTPTransport) async throws -> KimiSubscriptionStatResponse?
+        transport: any ProviderHTTPTransport) async throws -> KimiSubscriptionStatsResponse?
     {
-        var request = self.webRequest(url: self.subscriptionStatURL, authToken: authToken, sessionInfo: sessionInfo)
+        var request = self.webRequest(url: self.subscriptionStatsURL, authToken: authToken, sessionInfo: sessionInfo)
         request.httpBody = Data("{}".utf8)
 
         do {
             let response = try await transport.response(for: request)
             guard response.statusCode == 200 else {
-                Self.log.warning("Kimi subscription stat returned \(response.statusCode)")
+                Self.log.warning("Kimi subscription stats returned \(response.statusCode)")
                 return nil
             }
-            return try JSONDecoder().decode(KimiSubscriptionStatResponse.self, from: response.data)
+            return try JSONDecoder().decode(KimiSubscriptionStatsResponse.self, from: response.data)
         } catch {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            Self.log.warning("Kimi subscription stat unavailable: \(error.localizedDescription)")
+            Self.log.warning("Kimi subscription stats unavailable: \(error.localizedDescription)")
             return nil
         }
     }

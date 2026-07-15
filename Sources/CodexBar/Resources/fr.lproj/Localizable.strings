@@ -1152,3 +1152,4 @@
 "section_diagnostics" = "Diagnostics";
 "section_updates" = "Mises à jour";
 "section_links" = "Liens";
+"mobile_sync_status_failure_phase_format" = "La synchronisation iCloud a échoué pendant %@. Ouvrez Avancé → Débogage pour plus de détails.";

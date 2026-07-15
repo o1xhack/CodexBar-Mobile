@@ -5,11 +5,13 @@ public struct WidgetSnapshot: Codable, Sendable {
         public let id: String
         public let title: String
         public let percentLeft: Double?
+        public let window: RateWindow?
 
-        public init(id: String, title: String, percentLeft: Double?) {
+        public init(id: String, title: String, percentLeft: Double?, window: RateWindow? = nil) {
             self.id = id
             self.title = title
             self.percentLeft = percentLeft
+            self.window = window
         }
     }
 
@@ -24,6 +26,7 @@ public struct WidgetSnapshot: Codable, Sendable {
         public let codeReviewRemainingPercent: Double?
         public let tokenUsage: TokenUsageSummary?
         public let dailyUsage: [DailyUsagePoint]
+        public let providerCost: ProviderCostSnapshot?
 
         public init(
             provider: UsageProvider,
@@ -35,7 +38,8 @@ public struct WidgetSnapshot: Codable, Sendable {
             creditsRemaining: Double?,
             codeReviewRemainingPercent: Double?,
             tokenUsage: TokenUsageSummary?,
-            dailyUsage: [DailyUsagePoint])
+            dailyUsage: [DailyUsagePoint],
+            providerCost: ProviderCostSnapshot? = nil)
         {
             self.provider = provider
             self.updatedAt = updatedAt
@@ -47,6 +51,7 @@ public struct WidgetSnapshot: Codable, Sendable {
             self.codeReviewRemainingPercent = codeReviewRemainingPercent
             self.tokenUsage = tokenUsage
             self.dailyUsage = dailyUsage
+            self.providerCost = providerCost
         }
     }
 

@@ -24,18 +24,39 @@ struct UsageCommandContext {
     /// between fetches instead of resetting after each one-shot fetch.
     var persistCLISessions: Bool = false
     var persistentCLISessionIdleWindow: TimeInterval?
+    var cardsLayout: Bool = false
 }
 
 struct UsageCommandOutput {
     var sections: [String] = []
     var payload: [ProviderPayload] = []
+    var cards: [CLICardModel] = []
+    var cardFailures: [CLICardFailure] = []
     var exitCode: ExitCode = .success
+}
+
+private struct UsageSuccessRenderInput {
+    let provider: UsageProvider
+    let accountLabel: String?
+    let cacheAccountKey: String?
+    let version: String?
+    let source: String
+    let status: ProviderStatusPayload?
+    let usage: UsageSnapshot
+    let credits: CreditsSnapshot?
+    let antigravityPlanInfo: AntigravityPlanInfoSummary?
+    let dashboard: OpenAIDashboardSnapshot?
+    let effectiveSourceMode: ProviderSourceMode
+    let command: UsageCommandContext
+    let notes: [String]
 }
 
 extension UsageCommandOutput {
     mutating func merge(_ other: UsageCommandOutput) {
         self.sections.append(contentsOf: other.sections)
         self.payload.append(contentsOf: other.payload)
+        self.cards.append(contentsOf: other.cards)
+        self.cardFailures.append(contentsOf: other.cardFailures)
         if other.exitCode != .success {
             self.exitCode = other.exitCode
         }
@@ -243,6 +264,11 @@ extension CodexBarCLI {
                 status: status,
                 error: error,
                 kind: .provider))
+        } else if command.cardsLayout {
+            output.cardFailures.append(CLICardFailure(
+                provider: provider,
+                accountLabel: nil,
+                message: error.localizedDescription))
         } else if !command.jsonOnly {
             Self.writeStderr("Error: \(error.localizedDescription)\n")
         }
@@ -276,6 +302,60 @@ extension CodexBarCLI {
             openaiDashboard: dashboard,
             error: nil,
             pace: CLIRenderer.providerPacePayload(provider: provider, snapshot: usage, weeklyWorkDays: weeklyWorkDays))
+    }
+
+    private static func appendSuccessRenderOutput(
+        _ input: UsageSuccessRenderInput,
+        output: inout UsageCommandOutput)
+    {
+        switch input.command.format {
+        case .text:
+            if input.command.cardsLayout {
+                output.cards.append(CLICardsRenderer.makeCard(CLICardBuildInput(
+                    provider: input.provider,
+                    snapshot: input.usage,
+                    credits: input.credits,
+                    source: input.source,
+                    status: input.status,
+                    notes: input.notes,
+                    useColor: input.command.useColor,
+                    resetStyle: input.command.resetStyle,
+                    weeklyWorkDays: input.command.weeklyWorkDays,
+                    now: Date())))
+            } else {
+                var text = CLIRenderer.renderText(
+                    provider: input.provider,
+                    snapshot: input.usage,
+                    credits: input.credits,
+                    context: RenderContext(
+                        header: Self.makeHeader(
+                            provider: input.provider,
+                            version: input.version,
+                            source: input.source),
+                        status: input.status,
+                        useColor: input.command.useColor,
+                        resetStyle: input.command.resetStyle,
+                        weeklyWorkDays: input.command.weeklyWorkDays,
+                        notes: input.notes))
+                if let dashboard = input.dashboard, input.provider == .codex, input.effectiveSourceMode.usesWeb {
+                    text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
+                }
+                output.sections.append(text)
+            }
+        case .json:
+            output.payload.append(self.makeUsagePayload(
+                provider: input.provider,
+                accountLabel: input.accountLabel,
+                cacheAccountKey: input.cacheAccountKey,
+                version: input.version,
+                source: input.source,
+                status: input.status,
+                usage: input.usage,
+                credits: input.credits,
+                antigravityPlanInfo: input.antigravityPlanInfo,
+                dashboard: input.dashboard,
+                weeklyWorkDays: input.command.weeklyWorkDays))
+        }
     }
 
     private static func fetchUsageOutput(
@@ -375,31 +455,13 @@ extension CodexBarCLI {
                     ? Self.detectVersion(for: provider, browserDetection: command.browserDetection)
                     : nil)
             let source = result.sourceLabel
-            let header = Self.makeHeader(provider: provider, version: version, source: source)
             let notes = Self.usageTextNotes(
                 provider: provider,
                 sourceMode: effectiveSourceMode,
                 resolvedSourceLabel: source)
 
-            switch command.format {
-            case .text:
-                var text = CLIRenderer.renderText(
-                    provider: provider,
-                    snapshot: usage,
-                    credits: result.credits,
-                    context: RenderContext(
-                        header: header,
-                        status: status,
-                        useColor: command.useColor,
-                        resetStyle: command.resetStyle,
-                        weeklyWorkDays: command.weeklyWorkDays,
-                        notes: notes))
-                if let dashboard, provider == .codex, effectiveSourceMode.usesWeb {
-                    text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
-                }
-                output.sections.append(text)
-            case .json:
-                output.payload.append(Self.makeUsagePayload(
+            Self.appendSuccessRenderOutput(
+                UsageSuccessRenderInput(
                     provider: provider,
                     accountLabel: account?.label ?? codexVisibleAccount?.menuDisplayName,
                     cacheAccountKey: cacheAccountKey,
@@ -410,8 +472,10 @@ extension CodexBarCLI {
                     credits: result.credits,
                     antigravityPlanInfo: antigravityPlanInfo,
                     dashboard: dashboard,
-                    weeklyWorkDays: command.weeklyWorkDays))
-            }
+                    effectiveSourceMode: effectiveSourceMode,
+                    command: command,
+                    notes: notes),
+                output: &output)
         case let .failure(error):
             output.exitCode = Self.mapError(error)
             if command.format == .json {
@@ -423,6 +487,11 @@ extension CodexBarCLI {
                     status: status,
                     error: error,
                     kind: .provider))
+            } else if command.cardsLayout {
+                output.cardFailures.append(CLICardFailure(
+                    provider: provider,
+                    accountLabel: account?.label ?? codexVisibleAccount?.menuDisplayName,
+                    message: error.localizedDescription))
             } else if !command.jsonOnly {
                 if let accountLabel = account?.label ?? codexVisibleAccount?.menuDisplayName {
                     Self.writeStderr(
@@ -544,6 +613,11 @@ extension CodexBarCLI {
                 status: status,
                 error: error,
                 kind: .runtime))
+        } else if command.cardsLayout {
+            output.cardFailures.append(CLICardFailure(
+                provider: provider,
+                accountLabel: account.label,
+                message: error.localizedDescription))
         } else if !command.jsonOnly {
             Self.writeStderr("Error: \(error.localizedDescription)\n")
         }
@@ -606,6 +680,14 @@ extension CodexBarCLI {
         {
             return false
         }
+        #if os(Linux)
+        if provider == .cursor,
+           settings?.cursor?.cookieSource != .off
+        {
+            // Linux uses Cursor app auth and manual cookies; browser import remains macOS-only.
+            return false
+        }
+        #endif
         if provider == .sakana,
            sourceMode == .auto || sourceMode == .web,
            environment.map({ SakanaSettingsReader.cookieHeader(environment: $0) != nil }) == true

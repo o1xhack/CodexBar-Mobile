@@ -21,8 +21,8 @@ struct JSONCodecConsistencyTests {
 
     // MARK: - Factory baseline
 
-    @Test("Factory encoder and decoder agree on a Date")
-    func factoryAgreesOnDate() throws {
+    @Test
+    func `Factory encoder and decoder agree on a Date`() throws {
         struct Box: Codable, Equatable { let when: Date }
         let original = Box(when: date1)
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
@@ -30,8 +30,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("Default JSONDecoder cannot read what factory encoder produced — proves factory ISN'T the default")
-    func defaultDecoderRejectsFactoryOutput() throws {
+    @Test
+    func `Default JSONDecoder cannot read what factory encoder produced — proves factory ISN'T the default`() throws {
         struct Box: Codable, Equatable { let when: Date }
         let original = Box(when: date1)
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
@@ -41,8 +41,8 @@ struct JSONCodecConsistencyTests {
         #expect(defaultDecoded == nil) // proves the factory is NOT the default
     }
 
-    @Test("Default JSONEncoder produces output the factory decoder CANNOT read")
-    func factoryDecoderRejectsDefaultOutput() throws {
+    @Test
+    func `Default JSONEncoder produces output the factory decoder CANNOT read`() throws {
         // This is the literal Build 66 bug shape. If this test ever starts
         // succeeding, someone has changed the factory to default — investigate.
         struct Box: Codable, Equatable { let when: Date }
@@ -55,8 +55,8 @@ struct JSONCodecConsistencyTests {
 
     // MARK: - Per-type round-trip (every Sync* type with a Date field)
 
-    @Test("SyncRateWindow round-trips with non-nil resetsAt")
-    func syncRateWindowRoundTrip() throws {
+    @Test
+    func `SyncRateWindow round-trips with non-nil resetsAt`() throws {
         let original = SyncRateWindow(
             label: "Session",
             usedPercent: 42.0,
@@ -68,8 +68,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("SyncBudgetSnapshot round-trips with non-nil resetsAt (the field that broke Build 66)")
-    func syncBudgetRoundTrip() throws {
+    @Test
+    func `SyncBudgetSnapshot round-trips with non-nil resetsAt (the field that broke Build 66)`() throws {
         let original = SyncBudgetSnapshot(
             usedAmount: 12.34,
             limitAmount: 100,
@@ -81,8 +81,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("SyncUtilizationEntry round-trips with both Date fields")
-    func syncUtilizationEntryRoundTrip() throws {
+    @Test
+    func `SyncUtilizationEntry round-trips with both Date fields`() throws {
         let original = SyncUtilizationEntry(
             capturedAt: date1, usedPercent: 50, resetsAt: date2)
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
@@ -90,8 +90,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("ProviderUsageSnapshot round-trips with all Date-bearing children populated")
-    func providerUsageSnapshotRoundTrip() throws {
+    @Test
+    func `ProviderUsageSnapshot round-trips with all Date-bearing children populated`() throws {
         let window = SyncRateWindow(
             usedPercent: 30, windowMinutes: 300, resetsAt: date1, resetDescription: nil)
         let budget = SyncBudgetSnapshot(
@@ -125,8 +125,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.rateWindows.count == original.rateWindows.count)
     }
 
-    @Test("SyncedUsageSnapshot round-trips with syncTimestamp")
-    func syncedUsageSnapshotRoundTrip() throws {
+    @Test
+    func `SyncedUsageSnapshot round-trips with syncTimestamp`() throws {
         let original = SyncedUsageSnapshot(
             providers: [],
             syncTimestamp: date1,
@@ -140,8 +140,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.syncTimestamp == original.syncTimestamp)
     }
 
-    @Test("ProviderUsageEnvelope round-trips with syncTimestamp")
-    func providerUsageEnvelopeRoundTrip() throws {
+    @Test
+    func `ProviderUsageEnvelope round-trips with syncTimestamp`() throws {
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -168,8 +168,8 @@ struct JSONCodecConsistencyTests {
 
     // MARK: - Compressed round-trip (envelope → zlib → CKRecord-like blob → decode)
 
-    @Test("Envelope survives encode → zlib → decompress → decode pipeline (CloudKit-faithful)")
-    func envelopeCompressionRoundTrip() throws {
+    @Test
+    func `Envelope survives encode → zlib → decompress → decode pipeline (CloudKit-faithful)`() throws {
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -205,8 +205,8 @@ struct JSONCodecConsistencyTests {
 
     // MARK: - Perplexity credits (T3 · iOS 1.3.0)
 
-    @Test("SyncPerplexityCreditSummary round-trips fully populated (both Date fields)")
-    func syncPerplexityCreditSummaryRoundTripFullyPopulated() throws {
+    @Test
+    func `SyncPerplexityCreditSummary round-trips fully populated (both Date fields)`() throws {
         // Pins the ISO8601 date strategy for the two new Date fields
         // (`promoExpiresAt`, `renewalAt`) — the Build 66 bug shape. If the
         // factory codec ever drifts back to `.deferredToDate`, this test
@@ -229,8 +229,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("SyncPerplexityCreditSummary round-trips with every field nil (free-tier edge case)")
-    func syncPerplexityCreditSummaryRoundTripAllNil() throws {
+    @Test
+    func `SyncPerplexityCreditSummary round-trips with every field nil (free-tier edge case)`() throws {
         // Free-tier Perplexity account: no recurring, no promo, no purchased,
         // no renewal, no plan. Decoder must tolerate all-nil without
         // raising, and encoded output must not produce keys that break the
@@ -242,8 +242,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded == original)
     }
 
-    @Test("ProviderUsageSnapshot round-trips with perplexityCredits populated")
-    func providerUsageSnapshotWithPerplexityCreditsRoundTrip() throws {
+    @Test
+    func `ProviderUsageSnapshot round-trips with perplexityCredits populated`() throws {
         let credits = SyncPerplexityCreditSummary(
             recurringTotalCents: 5000,
             recurringUsedCents: 2500,
@@ -275,8 +275,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.perplexityCredits?.planName == "Pro")
     }
 
-    @Test("ProviderUsageSnapshot decodes old Mac payloads (no perplexityCredits key)")
-    func providerUsageSnapshotBackwardCompatDecodesWithoutPerplexityCredits() throws {
+    @Test
+    func `ProviderUsageSnapshot decodes old Mac payloads (no perplexityCredits key)`() throws {
         // Hand-roll the exact JSON shape Mac 0.20.2 produces (pre-T3) —
         // every known key present, no `perplexityCredits`. iOS 1.3.0
         // MUST decode this without error and surface `perplexityCredits ==
@@ -298,8 +298,8 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.perplexityCredits == nil)
     }
 
-    @Test("Envelope survives encode → zlib → decode with perplexityCredits populated")
-    func envelopeCompressionRoundTripWithPerplexityCredits() throws {
+    @Test
+    func `Envelope survives encode → zlib → decode with perplexityCredits populated`() throws {
         // Extends envelopeCompressionRoundTrip to cover the Perplexity
         // field under the compression path. `perplexityCredits` rides the
         // same ProviderUsageEnvelope → zlib → CKRecord pipeline as every

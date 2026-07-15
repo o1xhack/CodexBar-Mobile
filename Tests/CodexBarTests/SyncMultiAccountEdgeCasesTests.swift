@@ -85,8 +85,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E1: Provider toggle-off purges cache
 
-    @Test("R5 E1: Disabling a multi-account provider purges its cache entries")
-    func disablingProviderPurgesCache() async throws {
+    @Test
+    func `R5 E1: Disabling a multi-account provider purges its cache entries`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E1-Disable")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -129,8 +129,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E2: Re-enable after disable starts cold
 
-    @Test("R5 E2: Re-enabling provider after disable starts with empty cache (no zombie data)")
-    func reEnableProviderAfterDisableColdStart() async throws {
+    @Test
+    func `R5 E2: Re-enabling provider after disable starts with empty cache (no zombie data)`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E2-ReEnable")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -185,8 +185,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E3: Token-account error preserved per-record
 
-    @Test("R5 E3: Token-account with refresh error emits record with error, others unaffected")
-    func tokenAccountErrorPropagatesPerRecord() async throws {
+    @Test
+    func `R5 E3: Token-account with refresh error emits record with error, others unaffected`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E3-AcctError")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -226,8 +226,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E4: Multiple multi-account providers in same push
 
-    @Test("R5 E4: Codex 3 accounts + Claude 2 accounts + Cursor 2 accounts = 7 records in one push")
-    func multipleMultiAccountProvidersInOnePush() async throws {
+    @Test
+    func `R5 E4: Codex 3 accounts + Claude 2 accounts + Cursor 2 accounts = 7 records in one push`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E4-MultiProvMulti")
         settings.iCloudSyncEnabled = true
         for provider: UsageProvider in [.codex, .claude, .cursor] {
@@ -279,8 +279,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E5: All 11 token-based providers each multi-account
 
-    @Test("R5 E5: Token-based providers each with 2 accounts → expansion works for all enabled")
-    func tokenProvidersMultiAccountExpansion() async throws {
+    @Test
+    func `R5 E5: Token-based providers each with 2 accounts → expansion works for all enabled`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E5-AllToken")
         settings.iCloudSyncEnabled = true
         let providers: [UsageProvider] = [
@@ -330,8 +330,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E6: 27 providers all enabled (single-account stress)
 
-    @Test("R5 E6: All 27 providers enabled, single-account each → 27 records, no missing")
-    func all27ProvidersSingleAccount() async {
+    @Test
+    func `R5 E6: All 27 providers enabled, single-account each → 27 records, no missing`() async {
         let settings = self.makeSettingsStore(suite: "R5E6-All27")
         settings.iCloudSyncEnabled = true
         let allProviders = UsageProvider.allCases
@@ -374,8 +374,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E7: Token provider with empty account list does not crash
 
-    @Test("R5 E7: accountSnapshots[provider] = [] (empty) skips expansion safely")
-    func emptyAccountSnapshotsArraySkipsExpansion() async throws {
+    @Test
+    func `R5 E7: accountSnapshots[provider] = [] (empty) skips expansion safely`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E7-EmptyArr")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -401,8 +401,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E8: Push idempotency — repeated push without state change
 
-    @Test("R5 E8: Repeated push without state change doesn't grow record set")
-    func repeatedPushIsIdempotent() async throws {
+    @Test
+    func `R5 E8: Repeated push without state change doesn't grow record set`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E8-Idempotent")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -434,8 +434,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E9: Token provider with all-error accounts still emits correctly
 
-    @Test("R5 E9: All token accounts in error state still emit 2 error records")
-    func allTokenAccountsErrorStillEmit() async throws {
+    @Test
+    func `R5 E9: All token accounts in error state still emit 2 error records`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E9-AllErrors")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -473,8 +473,8 @@ struct SyncMultiAccountEdgeCasesTests {
 
     // MARK: - E10: Codex liveSystem + multi managed transition
 
-    @Test("R5 E10: Switching FROM .liveSystem TO .managedAccount emits correctly")
-    func switchFromLiveSystemToManagedAccount() async throws {
+    @Test
+    func `R5 E10: Switching FROM .liveSystem TO .managedAccount emits correctly`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E10-LiveToManaged")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(

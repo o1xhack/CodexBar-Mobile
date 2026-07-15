@@ -129,7 +129,8 @@ public enum ClaudeProviderDescriptor {
     }
 
     private static func noDataMessage() -> String {
-        "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects."
+        "No Claude usage logs found in ~/.config/claude/projects, ~/.claude/projects, " +
+            "or Claude Desktop sessions."
     }
 
     public static func resolveUsageStrategy(
@@ -381,7 +382,10 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: self.id,
             strategyKind: self.kind,
             claudeOAuthKeychainPersistentRefHash: usage.oauthKeychainPersistentRefHash,
-            claudeOAuthHistoryOwnerIdentifier: usage.oauthHistoryOwnerIdentifier)
+            claudeOAuthHistoryOwnerIdentifier: usage.oauthHistoryOwnerIdentifier,
+            claudeOAuthKeychainCredentialMismatch: usage.oauthKeychainCredentialMismatch,
+            claudeOAuthKeychainCredentialAbsent: usage.oauthKeychainCredentialAbsent,
+            claudeOAuthKeychainCredentialUnavailable: usage.oauthKeychainCredentialUnavailable)
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {

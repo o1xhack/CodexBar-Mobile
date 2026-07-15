@@ -73,7 +73,11 @@ enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {
     }
 
     func percentageValueText(for window: SyncRateWindow) -> String {
-        let roundedValue = Int(self.displayedPercent(for: window).rounded())
+        let displayedPercent = self.displayedPercent(for: window)
+        if displayedPercent > 0, displayedPercent < 1 {
+            return "<1%"
+        }
+        let roundedValue = Int(displayedPercent.rounded())
         return "\(roundedValue)%"
     }
 

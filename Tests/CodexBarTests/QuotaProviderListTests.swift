@@ -14,8 +14,8 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (57 after v0.39 catch-up)")
-    func providerCount() {
+    @Test
+    func `Provider list has expected count (57 after v0.39 catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -30,14 +30,14 @@ struct QuotaProviderListTests {
         #expect(QuotaProviderList.providers.count == 57)
     }
 
-    @Test("Perplexity is registered with the Mac-side displayName")
-    func perplexityRegistered() throws {
+    @Test
+    func `Perplexity is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "perplexity" })
         #expect(entry.displayName == "Perplexity")
     }
 
-    @Test("OpenCode Go is registered and distinct from OpenCode Zen")
-    func opencodeGoRegistered() throws {
+    @Test
+    func `OpenCode Go is registered and distinct from OpenCode Zen`() throws {
         let zen = try #require(QuotaProviderList.providers.first { $0.id == "opencode" })
         let go = try #require(QuotaProviderList.providers.first { $0.id == "opencodego" })
         #expect(zen.displayName == "OpenCode")
@@ -45,34 +45,34 @@ struct QuotaProviderListTests {
         #expect(zen.id != go.id)
     }
 
-    @Test("Abacus AI is registered with the Mac-side displayName")
-    func abacusRegistered() throws {
+    @Test
+    func `Abacus AI is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "abacus" })
         #expect(entry.displayName == "Abacus AI")
     }
 
-    @Test("Mistral is registered with the Mac-side displayName")
-    func mistralRegistered() throws {
+    @Test
+    func `Mistral is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "mistral" })
         #expect(entry.displayName == "Mistral")
     }
 
-    @Test("No duplicate provider IDs")
-    func noDuplicateIDs() {
+    @Test
+    func `No duplicate provider IDs`() {
         let ids = QuotaProviderList.providers.map(\.id)
         #expect(ids.count == Set(ids).count)
     }
 
-    @Test("No blank IDs or displayNames")
-    func noBlankEntries() {
+    @Test
+    func `No blank IDs or displayNames`() {
         for provider in QuotaProviderList.providers {
             #expect(!provider.id.isEmpty)
             #expect(!provider.displayName.isEmpty)
         }
     }
 
-    @Test("quotaZoneName composes (providerID, state) consistently for Mac + iOS")
-    func zoneNameContract() {
+    @Test
+    func `quotaZoneName composes (providerID, state) consistently for Mac + iOS`() {
         // Mac writes QuotaTransition records to this exact zone name; iOS
         // subscribes to this exact zone name. If the formula drifts the two
         // sides lose each other.
@@ -90,8 +90,8 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 57 × 3 = 171 (depleted + restored + warning)")
-    func subscriptionCountDerivation() {
+    @Test
+    func `iOS subscription count is 57 × 3 = 171 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -115,68 +115,68 @@ struct QuotaProviderListTests {
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up
 
-    @Test("Moonshot / Kimi API is registered with the Mac-side displayName")
-    func moonshotRegistered() throws {
+    @Test
+    func `Moonshot / Kimi API is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "moonshot" })
         #expect(entry.displayName == "Moonshot / Kimi API")
     }
 
-    @Test("AWS Bedrock is registered with the Mac-side displayName")
-    func bedrockRegistered() throws {
+    @Test
+    func `AWS Bedrock is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "bedrock" })
         #expect(entry.displayName == "AWS Bedrock")
     }
 
-    @Test("Devin is registered with the Mac-side displayName")
-    func devinRegistered() throws {
+    @Test
+    func `Devin is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "devin" })
         #expect(entry.displayName == "Devin")
     }
 
-    @Test("LiteLLM is registered with the Mac-side displayName")
-    func litellmRegistered() throws {
+    @Test
+    func `LiteLLM is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "litellm" })
         #expect(entry.displayName == "LiteLLM")
     }
 
-    @Test("Poe is registered with the Mac-side displayName")
-    func poeRegistered() throws {
+    @Test
+    func `Poe is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "poe" })
         #expect(entry.displayName == "Poe")
     }
 
-    @Test("Chutes is registered with the Mac-side displayName")
-    func chutesRegistered() throws {
+    @Test
+    func `Chutes is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "chutes" })
         #expect(entry.displayName == "Chutes")
     }
 
-    @Test("Zed is registered with the Mac-side displayName")
-    func zedRegistered() throws {
+    @Test
+    func `Zed is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "zed" })
         #expect(entry.displayName == "Zed")
     }
 
-    @Test("Sakana AI is registered with the Mac-side displayName")
-    func sakanaRegistered() throws {
+    @Test
+    func `Sakana AI is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "sakana" })
         #expect(entry.displayName == "Sakana AI")
     }
 
-    @Test("Qoder is registered with the Mac-side displayName")
-    func qoderRegistered() throws {
+    @Test
+    func `Qoder is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "qoder" })
         #expect(entry.displayName == "Qoder")
     }
 
-    @Test("CrossModel is registered with the Mac-side displayName")
-    func crossModelRegistered() throws {
+    @Test
+    func `CrossModel is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "crossmodel" })
         #expect(entry.displayName == "CrossModel")
     }
 
-    @Test("ClawRouter is registered with the Mac-side displayName")
-    func clawRouterRegistered() throws {
+    @Test
+    func `ClawRouter is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "clawrouter" })
         #expect(entry.displayName == "ClawRouter")
     }

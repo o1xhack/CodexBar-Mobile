@@ -77,6 +77,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         guard context.settings?.alibabaTokenPlan?.cookieSource != .off else { return false }
+        let region = context.settings?.alibabaTokenPlan?.apiRegion ?? .international
 
         if AlibabaTokenPlanSettingsReader.cookieHeader(environment: context.env) != nil {
             return true
@@ -89,7 +90,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
         }
 
         #if os(macOS)
-        if let cached = CookieHeaderCache.load(provider: .alibabatokenplan),
+        if let cached = Self.cachedCookieEntry(region: region),
            !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             return true
@@ -102,22 +103,25 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let cookieSource = context.settings?.alibabaTokenPlan?.cookieSource ?? .auto
-        let cookieHeaders = try Self.resolveCookieHeaders(context: context, allowCached: true)
+        let region = context.settings?.alibabaTokenPlan?.apiRegion ?? .international
+        let cookieHeaders = try Self.resolveCookieHeaders(context: context, allowCached: true, region: region)
         do {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: cookieHeaders.apiCookieHeader,
                 dashboardCookieHeader: cookieHeaders.dashboardCookieHeader,
+                region: region,
                 environment: context.env)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
         } catch let error as AlibabaTokenPlanUsageError
             where error.isCredentialFailure && cookieSource != .manual
         {
             #if os(macOS)
-            CookieHeaderCache.clear(provider: .alibabatokenplan)
-            let refreshedHeaders = try Self.resolveCookieHeaders(context: context, allowCached: false)
+            CookieHeaderCache.clear(provider: .alibabatokenplan, scope: region.cookieCacheScope)
+            let refreshedHeaders = try Self.resolveCookieHeaders(context: context, allowCached: false, region: region)
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: refreshedHeaders.apiCookieHeader,
                 dashboardCookieHeader: refreshedHeaders.dashboardCookieHeader,
+                region: region,
                 environment: context.env)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
             #else
@@ -131,12 +135,14 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
     }
 
     static func resolveCookieHeader(context: ProviderFetchContext, allowCached: Bool) throws -> String {
-        try self.resolveCookieHeaders(context: context, allowCached: allowCached).apiCookieHeader
+        try self.resolveCookieHeaders(context: context, allowCached: allowCached, region: .international)
+            .apiCookieHeader
     }
 
     static func resolveCookieHeaders(
         context: ProviderFetchContext,
-        allowCached: Bool) throws -> AlibabaTokenPlanCookieHeaders
+        allowCached: Bool,
+        region: AlibabaTokenPlanAPIRegion = .international) throws -> AlibabaTokenPlanCookieHeaders
     {
         if let settings = context.settings?.alibabaTokenPlan,
            settings.cookieSource == .manual
@@ -170,7 +176,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
 
         #if os(macOS)
         if allowCached,
-           let cached = CookieHeaderCache.load(provider: .alibabatokenplan),
+           let cached = Self.cachedCookieEntry(region: region),
            let headers = AlibabaTokenPlanCookieHeaders(cachedHeader: cached.cookieHeader)
         {
             Self.log.info(
@@ -192,6 +198,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
             let rawCookieNames = session.cookies.map(\.name).filter { !$0.isEmpty }.uniquedSorted()
             guard let headers = AlibabaTokenPlanCookieHeader.headers(
                 from: session.cookies,
+                region: region,
                 environment: context.env)
             else {
                 Self.log.warning(
@@ -205,6 +212,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
             }
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
+                scope: region.cookieCacheScope,
                 cookieHeader: headers.cacheCookieHeader,
                 sourceLabel: session.sourceLabel)
             Self.log.info(
@@ -228,6 +236,31 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
         throw AlibabaTokenPlanSettingsError.missingCookie()
         #endif
     }
+
+    #if os(macOS)
+    /// The former unscoped cache only ever represented the China gateway. Never expose it to
+    /// International requests; migrate it into the China scope after a successful scoped write.
+    private static func cachedCookieEntry(region: AlibabaTokenPlanAPIRegion) -> CookieHeaderCache.Entry? {
+        if let scoped = CookieHeaderCache.load(provider: .alibabatokenplan, scope: region.cookieCacheScope) {
+            return scoped
+        }
+        guard region == .chinaMainland,
+              let legacy = CookieHeaderCache.load(provider: .alibabatokenplan)
+        else { return nil }
+
+        CookieHeaderCache.store(
+            provider: .alibabatokenplan,
+            scope: region.cookieCacheScope,
+            cookieHeader: legacy.cookieHeader,
+            sourceLabel: legacy.sourceLabel,
+            now: legacy.storedAt)
+        if let migrated = CookieHeaderCache.load(provider: .alibabatokenplan, scope: region.cookieCacheScope) {
+            CookieHeaderCache.clear(provider: .alibabatokenplan)
+            return migrated
+        }
+        return legacy
+    }
+    #endif
 
     private static func missingCookieDetails(from error: Error) -> String? {
         if case let AlibabaCodingPlanSettingsError.missingCookie(details) = error {

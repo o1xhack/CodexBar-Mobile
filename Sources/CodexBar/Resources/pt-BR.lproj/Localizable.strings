@@ -1153,3 +1153,4 @@
 "section_diagnostics" = "Diagnósticos";
 "section_updates" = "Atualizações";
 "section_links" = "Links";
+"mobile_sync_status_failure_phase_format" = "A sincronização do iCloud falhou durante %@. Abra Avançado → Depuração para ver os detalhes.";

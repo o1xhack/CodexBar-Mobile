@@ -47,6 +47,7 @@ extension UsageMenuCardView.Model {
         error: String?) -> String?
     {
         guard metadata.supportsCredits else { return nil }
+        if metadata.id == .codex, credits == nil, error == nil { return nil }
         if metadata.id == .amp,
            let ampUsage = snapshot?.ampUsage,
            let ampCredits = self.ampCreditsLine(ampUsage)
@@ -283,7 +284,7 @@ extension UsageMenuCardView.Model {
         guard let cost else { return nil }
         guard provider != .synthetic else { return nil }
 
-        if provider == .factory, cost.period == "Extra usage balance" {
+        if provider == .factory || provider == .devin, cost.period == "Extra usage balance" {
             let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             return ProviderCostSection(
                 title: L("Extra usage"),

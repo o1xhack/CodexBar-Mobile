@@ -48,10 +48,36 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         return self.nextDeleteResult
     }
 
-    func fetchPerProviderRecordNames(forDeviceID deviceID: String) async -> [String] {
+    func fetchPerProviderRecordNames(
+        forDeviceID deviceID: String) async -> PerProviderRecordNameFetchResult
+    {
         self.fetchRecordNamesCallCount += 1
         self.fetchRecordNamesLastDeviceID = deviceID
-        return self.nextFetchRecordNamesResult
+        return .success(self.nextFetchRecordNamesResult)
+    }
+}
+
+private actor BlockingSyncPusher: SyncPushing {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var calls = 0
+
+    func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
+        self.calls += 1
+        if self.calls == 1 {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+        }
+        return .success
+    }
+
+    func releaseFirstPush() {
+        self.continuation?.resume()
+        self.continuation = nil
+    }
+
+    func callCount() -> Int {
+        self.calls
     }
 }
 
@@ -77,7 +103,29 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSkippedWhenSyncDisabled() async {
+    func `overlapping requests coalesce into one newest follow-up push`() async {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-single-flight")
+        settings.iCloudSyncEnabled = true
+        let store = self.makeUsageStore(settings: settings)
+        let pusher = BlockingSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+
+        let first = Task { await coordinator.pushCurrentSnapshot() }
+        while await pusher.callCount() == 0 {
+            await Task.yield()
+        }
+        await coordinator.pushCurrentSnapshot()
+        #expect(coordinator.isSyncing)
+        await pusher.releaseFirstPush()
+        await first.value
+
+        #expect(await pusher.callCount() == 2)
+        #expect(!coordinator.isSyncing)
+        #expect(coordinator.lastSyncSucceeded)
+    }
+
+    @Test
+    func `push skipped when sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
@@ -91,7 +139,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSucceedsWhenSyncEnabled() async {
+    func `push succeeds when sync enabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-enabled")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -110,7 +158,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushFailureTracksStatus() async {
+    func `push failure tracks status`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-failure")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -124,11 +172,12 @@ struct SyncCoordinatorTests {
             #expect(coordinator.lastSyncTime != nil)
             #expect(coordinator.lastSyncSucceeded == false)
             #expect(coordinator.lastSyncMessage == "iCloud sync unavailable")
+            #expect(coordinator.lastFailedPhase == .legacyUpload)
         }
     }
 
     @Test
-    func isSyncingIsFalseAfterPush() async {
+    func `is syncing is false after push`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-syncing")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -142,7 +191,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushIncludesModelAndServiceBreakdowns() async throws {
+    func `push includes model and service breakdowns`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-breakdowns")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -210,7 +259,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushBuildsCodexCostSummaryFromDashboardWhenTokenSnapshotMissing() async throws {
+    func `push builds codex cost summary from dashboard when token snapshot missing`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardFallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -252,7 +301,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func defaultSyncEnabledIsTrue() throws {
+    func `default sync enabled is true`() throws {
         let suite = "SyncCoord-defaultEnabled"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -267,7 +316,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func syncEnabledPersistsAcrossInstances() throws {
+    func `sync enabled persists across instances`() throws {
         let suite = "SyncCoord-persist"
         let defaultsA = try #require(UserDefaults(suiteName: suite))
         defaultsA.removePersistentDomain(forName: suite)
@@ -291,7 +340,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func togglingSettingUpdatesUserDefaults() throws {
+    func `toggling setting updates user defaults`() throws {
         let suite = "SyncCoord-toggle"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -312,7 +361,7 @@ struct SyncCoordinatorTests {
     // MARK: - P4 per-provider dual-write
 
     @Test
-    func perProviderWriteFiresAlongsideLegacyOnFirstPush() async throws {
+    func `per provider write fires alongside legacy on first push`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-first")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -344,7 +393,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func perProviderWriteSkippedWhenDataUnchanged() async throws {
+    func `per provider write skipped when data unchanged`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-unchanged")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -390,7 +439,47 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func perProviderWriteSendsOnlyChangedProviderOnIncrementalUpdate() async throws {
+    func `per provider failure is visible and retries unchanged data`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-retry")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        mock.nextPerProviderResult = .failure("provider upload timed out")
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+        #expect(!coordinator.lastSyncSucceeded)
+        #expect(coordinator.lastSyncMessage == "provider upload timed out")
+        #expect(coordinator.lastFailedPhase == .providerUpload)
+
+        mock.nextPerProviderResult = .success
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.perProviderCallCount == 2)
+        #expect(coordinator.lastSyncSucceeded)
+    }
+
+    @Test
+    func `per provider write sends only changed provider on incremental update`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-incr")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -472,8 +561,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - L1 ghost-records cleanup
 
-    @Test("L1: first push after restart does NOT emit deletes (pushHistorySeeded guard)")
-    func l1NoDeleteOnFirstPushAfterRestart() async throws {
+    @Test
+    func `L1: first push after restart does NOT emit deletes (pushHistorySeeded guard)`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-firstpush")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -503,8 +592,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0)
     }
 
-    @Test("L1: provider disabled between cycles emits delete for its CKRecord")
-    func l1DeleteFiresWhenProviderDisabled() async throws {
+    @Test
+    func `L1: provider disabled between cycles emits delete for its CKRecord`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-disable")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -555,8 +644,8 @@ struct SyncCoordinatorTests {
         #expect(deleted.first?.contains("claude") == true)
     }
 
-    @Test("L1: account-identity drift (composite key change) emits delete for old composite")
-    func l1DeleteFiresOnAccountIdentityDrift() async throws {
+    @Test
+    func `L1: account-identity drift (composite key change) emits delete for old composite`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-drift")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -616,8 +705,8 @@ struct SyncCoordinatorTests {
         #expect(deleted.first?.hasSuffix("|codex|_") == true)
     }
 
-    @Test("L1: no deletes when all providers stay enabled with stable identity")
-    func l1NoDeleteWhenSteadyState() async throws {
+    @Test
+    func `L1: no deletes when all providers stay enabled with stable identity`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-steady")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -654,8 +743,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0)
     }
 
-    @Test("L1: delete failure does NOT advance lastPushedRecordNames (retries next cycle)")
-    func l1DeleteFailurePreservesRetry() async throws {
+    @Test
+    func `L1: delete failure does NOT advance lastPushedRecordNames (retries next cycle)`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-retry")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -708,8 +797,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - L1 reconcile (startup CKQuery for stranded records)
 
-    @Test("L1 reconcile: startup fetch seeds lastPushedRecordNames so stranded mocks get cleaned next cycle")
-    func l1ReconcileSeedsFromCloudKitOnStartup() async throws {
+    @Test
+    func `L1 reconcile seeds stranded CloudKit records for the next cleanup cycle`() async throws {
         // Reproduces user-reported 2026-05-05 bug: stranded mock CKRecords
         // from a previous Mac process incarnation persisted on iOS forever.
         // Cause: lastPushedRecordNames was in-memory only; restart wiped
@@ -780,8 +869,8 @@ struct SyncCoordinatorTests {
         #expect(deletedNames.contains(strandedMockB))
     }
 
-    @Test("L1 reconcile: empty CloudKit result preserves first-push guard semantics")
-    func l1ReconcileEmptyDoesNotChangeBehavior() async throws {
+    @Test
+    func `L1 reconcile: empty CloudKit result preserves first-push guard semantics`() async throws {
         // Fresh device, never pushed before — CloudKit returns empty.
         // Reconcile should be a no-op; first push behavior unchanged
         // (no spurious deletes, lastPushedRecordNames seeds normally).
@@ -815,8 +904,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0) // no stranded records to clean
     }
 
-    @Test("L1 reconcile: skipped when iCloud sync disabled")
-    func l1ReconcileSkippedWhenSyncDisabled() async {
+    @Test
+    func `L1 reconcile: skipped when iCloud sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
@@ -833,8 +922,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - extraRateWindows passthrough (Claude Designs/Routines, Cursor Extra)
 
-    @Test("extraRateWindows: Claude Designs/Daily Routines/Web Sonnet appear in rateWindows")
-    func extraRateWindowsPassThroughForClaude() async throws {
+    @Test
+    func `extraRateWindows: Claude Designs/Daily Routines/Web Sonnet appear in rateWindows`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-extras-claude")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -894,8 +983,8 @@ struct SyncCoordinatorTests {
         #expect(labels.contains("Web Sonnet"))
     }
 
-    @Test("extraRateWindows: nil extras don't break legacy primary/secondary mapping")
-    func extraRateWindowsNilDoesNotBreak() async throws {
+    @Test
+    func `extraRateWindows: nil extras don't break legacy primary/secondary mapping`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-extras-nil")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -926,7 +1015,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func ghostProviderNotPushedToPerProviderZone() async throws {
+    func `ghost provider not pushed to per provider zone`() async throws {
         // Provider enabled but has NO data yet (mimics early startup before
         // OAuth / cookies populate rate windows / cost / budget). The
         // legacy-zone monolithic write still includes it, but per-provider
@@ -963,5 +1052,115 @@ struct SyncCoordinatorTests {
                 || e.provider.isError
                 || e.provider.statusMessage != nil
         })
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct SyncCoordinatorUpstreamV041Tests {
+    private func makeSettingsStore(suite: String) -> SettingsStore {
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        return SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+    }
+
+    private func makeUsageStore(settings: SettingsStore) -> UsageStore {
+        UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+    }
+
+    @Test
+    func `Kimi quota lanes preserve Weekly, Rate Limit, Monthly, Code 7-day order for iOS`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v041-kimi-order")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .kimi,
+            metadata: #require(ProviderDefaults.metadata[.kimi]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 25,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "kimi-monthly",
+                        title: "Monthly",
+                        window: RateWindow(
+                            usedPercent: 42,
+                            windowMinutes: nil,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: "kimi-code-7d",
+                        title: "Code 7-day",
+                        window: RateWindow(
+                            usedPercent: 17,
+                            windowMinutes: 7 * 24 * 60,
+                            resetsAt: nil,
+                            resetDescription: nil)),
+                ],
+                updatedAt: pinned),
+            provider: .kimi)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "kimi" })
+        #expect(provider.rateWindows.compactMap(\.label) == ["Weekly", "Rate Limit", "Monthly", "Code 7-day"])
+        #expect(provider.rateWindows.map(\.usedPercent) == [25, 40, 42, 17])
+    }
+
+    @Test
+    func `Claude Max multiplier label survives the Mac to iOS sync envelope`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v041-claude-plan")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: "max@example.com",
+                    accountOrganization: nil,
+                    loginMethod: "Claude Max 20x")),
+            provider: .claude)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "claude" })
+        #expect(provider.loginMethod == "Claude Max 20x")
+        let encoded = try JSONEncoder().encode(provider)
+        let decoded = try JSONDecoder().decode(ProviderUsageSnapshot.self, from: encoded)
+        #expect(decoded.loginMethod == "Claude Max 20x")
     }
 }

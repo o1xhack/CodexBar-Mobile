@@ -36,8 +36,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncOpenAIAPIDashboard
 
-    @Test("OpenAI dashboard: round-trips through JSON without loss")
-    func openAIDashboardRoundTrip() throws {
+    @Test
+    func `OpenAI dashboard: round-trips through JSON without loss`() throws {
         let source = SyncOpenAIAPIDashboard(
             last30Days: SyncOpenAISummary(totalCostUSD: 100.5, totalRequests: 1200, totalTokens: 500_000),
             last7Days: SyncOpenAISummary(totalCostUSD: 30.5, totalRequests: 250, totalTokens: 110_000),
@@ -63,8 +63,8 @@ struct V026SnapshotsCodableTests {
         #expect(decoded == source)
     }
 
-    @Test("OpenAI dashboard: latestDay optional decodes to nil when missing")
-    func openAIDashboardLatestDayOmitted() throws {
+    @Test
+    func `OpenAI dashboard: latestDay optional decodes to nil when missing`() throws {
         let json = """
         {
           "last30Days": {"totalCostUSD": 10, "totalRequests": 100, "totalTokens": 5000},
@@ -78,8 +78,8 @@ struct V026SnapshotsCodableTests {
         #expect(decoded.topLineItems.isEmpty)
     }
 
-    @Test("OpenAI dashboard: daily bucket token fields default to 0 when omitted")
-    func openAIDailyBucketTokenDefaults() throws {
+    @Test
+    func `OpenAI dashboard: daily bucket token fields default to 0 when omitted`() throws {
         let json = """
         {"dayKey":"2026-05-15","costUSD":4.2,"requests":41}
         """
@@ -92,8 +92,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncZaiHourlyUsage
 
-    @Test("z.ai hourly usage: round-trips with sparse (nil) token slots")
-    func zaiHourlyUsageRoundTrip() throws {
+    @Test
+    func `z.ai hourly usage: round-trips with sparse (nil) token slots`() throws {
         // Anchor on an integer timestamp so the ISO8601 encoder
         // (second-precision) round-trips losslessly.
         let anchor = Date(timeIntervalSince1970: 1_700_000_000)
@@ -113,8 +113,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncKiroCredits
 
-    @Test("Kiro credits: round-trips with both bonus pool present and absent")
-    func kiroCreditsRoundTrip() throws {
+    @Test
+    func `Kiro credits: round-trips with both bonus pool present and absent`() throws {
         let withBonus = SyncKiroCredits(
             planName: "Pro",
             creditsUsed: 320,
@@ -142,8 +142,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncBedrockCost
 
-    @Test("Bedrock cost: round-trips with budget present and absent")
-    func bedrockCostRoundTrip() throws {
+    @Test
+    func `Bedrock cost: round-trips with budget present and absent`() throws {
         let withBudget = SyncBedrockCost(
             monthlySpendUSD: 19.10,
             monthlyBudgetUSD: 50.0,
@@ -169,8 +169,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncMoonshotBalance
 
-    @Test("Moonshot balance: round-trips through JSON")
-    func moonshotBalanceRoundTrip() throws {
+    @Test
+    func `Moonshot balance: round-trips through JSON`() throws {
         let source = SyncMoonshotBalance(
             balanceAmount: 58.40,
             balanceCurrency: "CNY",
@@ -181,8 +181,8 @@ struct V026SnapshotsCodableTests {
         #expect(decoded == source)
     }
 
-    @Test("Moonshot balance: nil currency + region decode cleanly")
-    func moonshotBalanceNilOptionals() throws {
+    @Test
+    func `Moonshot balance: nil currency + region decode cleanly`() throws {
         let json = """
         {"balanceAmount": 12.5, "updatedAt": "2026-05-17T00:00:00Z"}
         """
@@ -194,8 +194,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - SyncMultiAccountList
 
-    @Test("Multi-account list: round-trips with active index pointing into accounts")
-    func multiAccountListRoundTrip() throws {
+    @Test
+    func `Multi-account list: round-trips with active index pointing into accounts`() throws {
         let source = SyncMultiAccountList(
             accounts: [
                 SyncMultiAccountEntry(
@@ -213,8 +213,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - ProviderUsageSnapshot — full envelope backward/forward compat
 
-    @Test("Snapshot decode: old payload (without v0.26 keys) → new fields land as nil")
-    func snapshotDecodesOldPayloadWithNilV026Fields() throws {
+    @Test
+    func `Snapshot decode: old payload (without v0.26 keys) → new fields land as nil`() throws {
         // Wire format from a Mac 0.25.x client — no v0.26 keys. The
         // 1.7.0 iOS decoder must NOT throw; all six new optional
         // fields land as nil; the rest of the snapshot is preserved.
@@ -242,8 +242,8 @@ struct V026SnapshotsCodableTests {
         #expect(decoded.antigravityAccounts == nil)
     }
 
-    @Test("Snapshot decode: payload WITH all v0.26 keys round-trips cleanly on 1.7 reader")
-    func snapshotRoundTripWithAllV026Fields() throws {
+    @Test
+    func `Snapshot decode: payload WITH all v0.26 keys round-trips cleanly on 1.7 reader`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = ProviderUsageSnapshot(
             providerID: "kiro",
@@ -286,8 +286,8 @@ struct V026SnapshotsCodableTests {
         #expect(decoded.antigravityAccounts?.accounts.first?.email == "a@b.test")
     }
 
-    @Test("Snapshot decode: payload with PARTIAL v0.26 keys (only kiroCredits) decodes the others as nil")
-    func snapshotPartialV026Decode() throws {
+    @Test
+    func `Snapshot decode: payload with PARTIAL v0.26 keys (only kiroCredits) decodes the others as nil`() throws {
         let json = """
         {
           "providerID": "kiro",
@@ -319,8 +319,8 @@ struct V026SnapshotsCodableTests {
 
     // MARK: - providerPayloadVersion contract pin
 
-    @Test("Wire contract: providerPayloadVersion has NOT been bumped for v0.26 fields")
-    func providerPayloadVersionStaysAtOne() {
+    @Test
+    func `Wire contract: providerPayloadVersion has NOT been bumped for v0.26 fields`() {
         // Pin the contract: adding optional `decodeIfPresent` fields
         // does NOT require a version bump. Bumping would force a full
         // rewrite cycle on every Mac and is reserved for incompatible

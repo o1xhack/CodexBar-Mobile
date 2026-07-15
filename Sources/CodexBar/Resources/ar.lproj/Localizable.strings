@@ -1180,3 +1180,17 @@
 "section_diagnostics" = "التشخيصات";
 "section_updates" = "التحديثات";
 "section_links" = "روابط";
+"mobile_sync_status_syncing_phase_format" = "جارٍ المزامنة — %@…";
+"icloud_diagnostics_title" = "تشخيص مزامنة iCloud";
+"icloud_diagnostics_read_only_caption" = "يفحص الحساب والمناطق وقناة KVS الاحتياطية دون كتابة بيانات iCloud أو حذفها.";
+"icloud_diagnostics_run" = "تشغيل فحص للقراءة فقط";
+"icloud_diagnostics_running" = "جارٍ تشغيل فحوصات iCloud للقراءة فقط…";
+"mobile_sync_status_syncing_elapsed_format" = "جارٍ المزامنة — %@ · %d ث";
+"mobile_button_retry_sync" = "إعادة محاولة المزامنة";
+"mobile_sync_status_failure_phase_format" = "فشلت مزامنة iCloud أثناء %@. افتح «متقدم» ← «تصحيح الأخطاء» للتفاصيل.";
+"icloud_sync_phase_idle" = "خامل";
+"icloud_sync_phase_preparing" = "جارٍ التحضير";
+"icloud_sync_phase_legacy_upload" = "جارٍ رفع اللقطة";
+"icloud_sync_phase_provider_upload" = "جارٍ رفع بيانات المزوّد";
+"icloud_sync_phase_cleanup" = "جارٍ التنظيف";
+"icloud_sync_phase_reconciling" = "جارٍ المطابقة";

@@ -89,7 +89,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func tokenProviderMultiAccountEmitsAllAccounts() async throws {
+    func `token provider multi account emits all accounts`() async throws {
         let settings = self.makeSettingsStore(
             suite: "TokenMulti-Claude-Emit")
         settings.iCloudSyncEnabled = true
@@ -125,7 +125,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func tokenProviderEmptyAccountSnapshotsKeepsActiveOnly() async throws {
+    func `token provider empty account snapshots keeps active only`() async throws {
         // accountSnapshots[.claude] not set → expansion skips → main loop's
         // single (active) snapshot is the only Claude record emitted.
         let settings = self.makeSettingsStore(suite: "TokenMulti-Claude-Empty")
@@ -154,7 +154,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func tokenProviderSingleEntryAccountSnapshotsKeepsActiveOnly() async throws {
+    func `token provider single entry account snapshots keeps active only`() async throws {
         // accountSnapshots[.claude] has only 1 entry → expansion skips
         // (count < 2) → main loop's single snapshot remains.
         let settings = self.makeSettingsStore(
@@ -185,7 +185,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func tokenProviderThreeAccountsAllEmitDistinctEmails() async throws {
+    func `token provider three accounts all emit distinct emails`() async throws {
         let settings = self.makeSettingsStore(suite: "TokenMulti-Claude-Three")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -229,7 +229,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func multipleTokenProvidersMultiAccountExpandIndependently() async throws {
+    func `multiple token providers multi account expand independently`() async throws {
         // Both Claude and Cursor have 2 token accounts each → expansion
         // produces 2+2 = 4 records total (no cross-provider mixing).
         let settings = self.makeSettingsStore(
@@ -287,7 +287,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func tokenProviderMultiAccountPreservesPerAccountIdentity() async throws {
+    func `token provider multi account preserves per account identity`() async throws {
         // Each emitted ProviderUsageSnapshot must carry the correct
         // accountIdentities for cross-Mac union-find merging on iOS.
         // Claude is a Tier-A provider, so accountIdentities should contain
@@ -335,7 +335,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func nonTokenProviderUnaffectedByMultiAccountChanges() async throws {
+    func `non token provider unaffected by multi account changes`() async throws {
         // .gemini is not in `tokenBasedMultiAccountProviders` — even if some
         // bug populates accountSnapshots[.gemini], expansion must skip it.
         let settings = self.makeSettingsStore(suite: "TokenMulti-Gemini")
@@ -375,7 +375,7 @@ struct SyncCoordinatorMultiAccountTests {
     }
 
     @Test
-    func compositeRecordNamesDistinctAcrossMultiAccount() async throws {
+    func `composite record names distinct across multi account`() async throws {
         // Per-provider zone CKRecords are keyed by
         // `{deviceID}|{providerID}|{accountEmail}`. With 2 emails, the 2
         // records must have distinct recordNames so CloudKit doesn't
@@ -421,8 +421,8 @@ struct SyncCoordinatorMultiAccountTests {
 
     // MARK: - R3 P1+P2 edge case tests
 
-    @Test("R3 P1: disabled provider + populated accountSnapshots does NOT leak records")
-    func disabledProviderWithStaleAccountSnapshotsDoesNotLeak() async throws {
+    @Test
+    func `R3 P1: disabled provider + populated accountSnapshots does NOT leak records`() async throws {
         // Reproduces Codex MCP review's P1: if a provider is DISABLED in
         // settings but `accountSnapshots[.claude]` still contains stale
         // entries (e.g., user just toggled it off but the dict hasn't been
@@ -465,8 +465,8 @@ struct SyncCoordinatorMultiAccountTests {
             "disabled provider must not emit ANY records, even with stale accountSnapshots data")
     }
 
-    @Test("R3 P1: partial shrink (cache temp empty) does NOT trigger spurious delete on cycle 2")
-    func partialShrinkDeferredOneCycle() async throws {
+    @Test
+    func `R3 P1: partial shrink (cache temp empty) does NOT trigger spurious delete on cycle 2`() async throws {
         // Cycle 1: emits Alice + Bob via accountSnapshots. lastPushedRecordNames seeded.
         // Cycle 2: accountSnapshots cleared (transient). Only Alice (active)
         //   emitted. The delete cycle MUST NOT fire for Bob because the
@@ -512,8 +512,8 @@ struct SyncCoordinatorMultiAccountTests {
             "partial shrink must NOT trigger delete on first missing cycle")
     }
 
-    @Test("R3 P1: partial shrink confirmed after 2 missing cycles emits delete")
-    func partialShrinkConfirmedAfterTwoCycles() async throws {
+    @Test
+    func `R3 P1: partial shrink confirmed after 2 missing cycles emits delete`() async throws {
         // Cycle 1: emits Alice + Bob.
         // Cycle 2: shrunk to Alice only — counter[Bob]=1, no delete.
         // Cycle 3: still Alice only — counter[Bob]=2, delete fires.

@@ -13,8 +13,8 @@ struct ClaudeFamilyResolverTests {
 
     // MARK: - Parser: happy path
 
-    @Test("Parses `claude-opus-4-7` into family/major/minor")
-    func parseOpus47() throws {
+    @Test
+    func `Parses claude-opus-4-7 into family/major/minor`() throws {
         let parsed = try #require(Self.resolver.parse("claude-opus-4-7"))
         #expect(parsed.family == "opus")
         #expect(parsed.majorVersion == 4)
@@ -23,30 +23,30 @@ struct ClaudeFamilyResolverTests {
         #expect(parsed.providerKey == "claude")
     }
 
-    @Test("Parses `claude-opus-4` (no minor — base of major)")
-    func parseOpus4Bare() throws {
+    @Test
+    func `Parses claude-opus-4 (no minor — base of major)`() throws {
         let parsed = try #require(Self.resolver.parse("claude-opus-4"))
         #expect(parsed.family == "opus")
         #expect(parsed.majorVersion == 4)
         #expect(parsed.minorVersion == nil)
     }
 
-    @Test("Parses dated form `claude-opus-4-7-20260101`")
-    func parseDatedFull() throws {
+    @Test
+    func `Parses dated form claude-opus-4-7-20260101`() throws {
         let parsed = try #require(Self.resolver.parse("claude-opus-4-7-20260101"))
         #expect(parsed.minorVersion == 7)
         #expect(parsed.dateSuffix == "20260101")
     }
 
-    @Test("Parses dated-no-minor form `claude-opus-4-20260101`")
-    func parseDatedNoMinor() throws {
+    @Test
+    func `Parses dated-no-minor form claude-opus-4-20260101`() throws {
         let parsed = try #require(Self.resolver.parse("claude-opus-4-20260101"))
         #expect(parsed.minorVersion == nil)
         #expect(parsed.dateSuffix == "20260101")
     }
 
-    @Test("Parses haiku and sonnet families")
-    func parseSiblingFamilies() throws {
+    @Test
+    func `Parses haiku and sonnet families`() throws {
         let haiku = try #require(Self.resolver.parse("claude-haiku-4-5"))
         let sonnet = try #require(Self.resolver.parse("claude-sonnet-4-6"))
         #expect(haiku.family == "haiku")
@@ -55,8 +55,8 @@ struct ClaudeFamilyResolverTests {
 
     // MARK: - Parser: rejection
 
-    @Test("Rejects gate IDs like `claude-design` and `claude-routines`")
-    func rejectsGateIDs() {
+    @Test
+    func `Rejects gate IDs like claude-design and claude-routines`() {
         // These appear as Anthropic feature gate identifiers in our codebase
         // and must NEVER fall back to opus pricing — that would silently
         // bill flag traffic at the highest model rate.
@@ -66,23 +66,23 @@ struct ClaudeFamilyResolverTests {
         #expect(Self.resolver.parse("claude-routines-2-0") == nil)
     }
 
-    @Test("Rejects non-claude prefixes")
-    func rejectsNonClaudePrefix() {
+    @Test
+    func `Rejects non-claude prefixes`() {
         #expect(Self.resolver.parse("gpt-5.5") == nil)
         #expect(Self.resolver.parse("opus-4-7") == nil)
         #expect(Self.resolver.parse("") == nil)
     }
 
-    @Test("Rejects unparseable major version")
-    func rejectsBadMajor() {
+    @Test
+    func `Rejects unparseable major version`() {
         #expect(Self.resolver.parse("claude-opus-foo") == nil)
         #expect(Self.resolver.parse("claude-opus-foo-bar") == nil)
     }
 
     // MARK: - Fallback against the live table
 
-    @Test("Unknown `claude-opus-4-8` falls back to `claude-opus-4-7` (Step 1)")
-    func fallbackOpus48Below47() throws {
+    @Test
+    func `Unknown claude-opus-4-8 falls back to claude-opus-4-7 (Step 1)`() throws {
         // The exact bug from Research/018: Mac 0.20.3 saw `claude-opus-4-7`
         // traffic, no row → $0. With the resolver, an unseen 4-8 walks
         // back to the highest known opus-4 row.
@@ -94,8 +94,8 @@ struct ClaudeFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Unknown `claude-opus-5-0` walks back to opus-4 (Step 3 — older major)")
-    func fallbackOpus50OlderMajor() throws {
+    @Test
+    func `Unknown claude-opus-5-0 walks back to opus-4 (Step 3 — older major)`() throws {
         let parsed = try #require(Self.resolver.parse("claude-opus-5-0"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -105,8 +105,8 @@ struct ClaudeFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyOlderMajor)
     }
 
-    @Test("Unknown `claude-haiku-5-0` falls back through haiku-4-5")
-    func fallbackHaiku50() throws {
+    @Test
+    func `Unknown claude-haiku-5-0 falls back through haiku-4-5`() throws {
         let parsed = try #require(Self.resolver.parse("claude-haiku-5-0"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -115,8 +115,8 @@ struct ClaudeFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyOlderMajor)
     }
 
-    @Test("Unknown `claude-sonnet-4-7` falls back to sonnet-4-6 (Step 1)")
-    func fallbackSonnet47() throws {
+    @Test
+    func `Unknown claude-sonnet-4-7 falls back to sonnet-4-6 (Step 1)`() throws {
         let parsed = try #require(Self.resolver.parse("claude-sonnet-4-7"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
@@ -125,8 +125,8 @@ struct ClaudeFamilyResolverTests {
         #expect(fallback?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Unknown `claude-opus-3-0` (older than table) → family default kicks in")
-    func fallbackOpusMuchOlder() throws {
+    @Test
+    func `Unknown claude-opus-3-0 (older than table) → family default kicks in`() throws {
         // No major=3 rows exist; lower-major lookup also empty (everything
         // in the table is major=4). Steps 1-3 all skip → Step 4 family
         // default for `opus` returns `claude-opus-4-7`.
@@ -140,8 +140,8 @@ struct ClaudeFamilyResolverTests {
 
     // MARK: - End-to-end integration via CostUsagePricing
 
-    @Test("`claudeCostUSD` returns non-nil for unknown opus minor (was $0 in Mac 0.20.3)")
-    func endToEndOpus48() {
+    @Test
+    func `claudeCostUSD returns non-nil for unknown opus minor (was $0 in Mac 0.20.3)`() {
         let cost = CostUsagePricing.claudeCostUSD(
             model: "claude-opus-4-99",
             inputTokens: 1000,
@@ -152,8 +152,8 @@ struct ClaudeFamilyResolverTests {
         #expect(cost == 0.0075)
     }
 
-    @Test("`claudeCostUSD` still returns nil for non-Claude prefix")
-    func endToEndNonClaude() {
+    @Test
+    func `claudeCostUSD still returns nil for non-Claude prefix`() {
         // Sanity: `glm-4.6` is not a Claude model — parser returns nil →
         // resolver returns nil → cost stays nil. Pinning so non-Claude
         // traffic doesn't accidentally start being priced as Claude.
@@ -166,8 +166,8 @@ struct ClaudeFamilyResolverTests {
         #expect(cost == nil)
     }
 
-    @Test("`isClaudeModelKnown` returns true for exact rows, false for fallback")
-    func isKnownDistinguishesExactFromFallback() {
+    @Test
+    func `isClaudeModelKnown returns true for exact rows, false for fallback`() {
         #expect(CostUsagePricing.isClaudeModelKnown("claude-opus-4-7"))
         #expect(CostUsagePricing.isClaudeModelKnown("claude-haiku-4-5"))
         // `claude-opus-4-99` flows through the fallback ladder — known

@@ -44,8 +44,10 @@ extension OpenAIDashboardBrowserCookieImporter {
         timeoutObserver: (@Sendable () -> Void)? = nil,
         operation: @escaping @Sendable () throws -> T) async throws -> T
     {
+        // The detached/GCD loader does not inherit TaskLocal prompt policy or retry selection.
+        let contextualOperation = BrowserCookieAccessGate.operationPreservingAccessContext(operation)
         guard let deadline else {
-            return try await Task.detached(priority: .userInitiated, operation: operation).value
+            return try await Task.detached(priority: .userInitiated, operation: contextualOperation).value
         }
         let timeout = try self.remainingTimeout(until: deadline)
         let completion = CookieLoadCompletion()
@@ -60,7 +62,7 @@ extension OpenAIDashboardBrowserCookieImporter {
                     }
                 })
             DispatchQueue.global(qos: .userInitiated).async {
-                let result = Result(catching: operation)
+                let result = Result(catching: contextualOperation)
                 completion.finish {
                     timeoutTimer.cancel()
                     continuation.resume(with: result)

@@ -88,8 +88,8 @@ struct ModelFamilyResolverTests {
 
     // MARK: - Parser
 
-    @Test("Parser extracts family + major + minor from `family-M-m`")
-    func parseFamilyMajorMinor() {
+    @Test
+    func `Parser extracts family + major + minor from family-M-m`() {
         let parsed = Self.makeResolver().parse("opus-4-7")
         #expect(parsed?.family == "opus")
         #expect(parsed?.majorVersion == 4)
@@ -98,30 +98,30 @@ struct ModelFamilyResolverTests {
         #expect(parsed?.raw == "opus-4-7")
     }
 
-    @Test("Parser handles `family-M` with no minor as minor=nil (base of major)")
-    func parseFamilyMajorNoMinor() {
+    @Test
+    func `Parser handles family-M with no minor as minor=nil (base of major)`() {
         let parsed = Self.makeResolver().parse("opus-4")
         #expect(parsed?.family == "opus")
         #expect(parsed?.majorVersion == 4)
         #expect(parsed?.minorVersion == nil)
     }
 
-    @Test("Parser captures 8-digit date suffix")
-    func parseDateSuffix() {
+    @Test
+    func `Parser captures 8-digit date suffix`() {
         let parsed = Self.makeResolver().parse("opus-4-7-20260101")
         #expect(parsed?.dateSuffix == "20260101")
         #expect(parsed?.minorVersion == 7)
     }
 
-    @Test("Parser distinguishes date-only `family-M-YYYYMMDD` from minor")
-    func parseDateOnlyNoMinor() {
+    @Test
+    func `Parser distinguishes date-only family-M-YYYYMMDD from minor`() {
         let parsed = Self.makeResolver().parse("opus-4-20260101")
         #expect(parsed?.dateSuffix == "20260101")
         #expect(parsed?.minorVersion == nil)
     }
 
-    @Test("Parser returns nil for unparseable input")
-    func parseGarbage() {
+    @Test
+    func `Parser returns nil for unparseable input`() {
         #expect(Self.makeResolver().parse("totally garbage") == nil)
         #expect(Self.makeResolver().parse("") == nil)
         #expect(Self.makeResolver().parse("opus") == nil)
@@ -130,8 +130,8 @@ struct ModelFamilyResolverTests {
 
     // MARK: - Fallback algorithm
 
-    @Test("Step 1: closest minor below requested, same family + major")
-    func step1MinorBelow() throws {
+    @Test
+    func `Step 1: closest minor below requested, same family + major`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-4-3": .init(value: 3),
@@ -145,8 +145,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Step 1: prefers closest minor, not just any below")
-    func step1PrefersClosest() throws {
+    @Test
+    func `Step 1: prefers closest minor, not just any below`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-4-3": .init(value: 3),
@@ -159,8 +159,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Step 2: closest minor above when nothing at-or-below exists")
-    func step2MinorAbove() throws {
+    @Test
+    func `Step 2: closest minor above when nothing at-or-below exists`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-4-5": .init(value: 5),
@@ -172,8 +172,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyMinorAbove)
     }
 
-    @Test("Step 3: same family, older major, top minor of newest available major")
-    func step3OlderMajor() throws {
+    @Test
+    func `Step 3: same family, older major, top minor of newest available major`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-3-1": .init(value: 31),
@@ -186,8 +186,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyOlderMajor)
     }
 
-    @Test("Step 4: family default activates when no family entries exist in table")
-    func step4FamilyDefault() throws {
+    @Test
+    func `Step 4: family default activates when no family entries exist in table`() throws {
         let resolver = Self.makeResolver(familyDefault: "sonnet-4-5")
         let table: [String: MockPricing] = [
             "sonnet-4-5": .init(value: 45),
@@ -198,8 +198,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .familyDefault)
     }
 
-    @Test("Step 5: provider default activates when family default is nil")
-    func step5ProviderDefault() throws {
+    @Test
+    func `Step 5: provider default activates when family default is nil`() throws {
         let resolver = Self.makeResolver(providerDefault: "anything-1-1")
         let table: [String: MockPricing] = [
             "anything-1-1": .init(value: 11),
@@ -210,16 +210,16 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .providerDefault)
     }
 
-    @Test("Returns nil when nothing matches and no defaults are set")
-    func emptyTableNoDefaults() throws {
+    @Test
+    func `Returns nil when nothing matches and no defaults are set`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [:]
         let parsed = try #require(resolver.parse("opus-4-7"))
         #expect(resolver.findFallback(for: parsed, in: table) == nil)
     }
 
-    @Test("Family default takes priority over provider default when both set")
-    func familyDefaultBeforeProvider() throws {
+    @Test
+    func `Family default takes priority over provider default when both set`() throws {
         let resolver = Self.makeResolver(
             familyDefault: "sonnet-4-5",
             providerDefault: "fallback-1-1")
@@ -233,8 +233,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .familyDefault)
     }
 
-    @Test("Step 1 satisfies on equal minor (same key as input — protects fast path)")
-    func step1ExactMinorMatch() throws {
+    @Test
+    func `Step 1 satisfies on equal minor (same key as input — protects fast path)`() throws {
         // findFallback is normally called only when the dictionary lookup
         // missed; pin behaviour for the boundary case where the key is
         // present but the caller still walks the ladder. The "≤ requested"
@@ -250,8 +250,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyMinorBelow)
     }
 
-    @Test("Requested has no minor (treated as 0): finds same-major minor=0 if present")
-    func requestedNoMinorTreatsAsZero() throws {
+    @Test
+    func `Requested has no minor (treated as 0): finds same-major minor=0 if present`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-4-5": .init(value: 5),
@@ -265,8 +265,8 @@ struct ModelFamilyResolverTests {
         #expect(result?.strategy == .sameFamilyMinorAbove)
     }
 
-    @Test("Step 3 prefers newest older major, not oldest")
-    func step3PrefersNewestOlderMajor() throws {
+    @Test
+    func `Step 3 prefers newest older major, not oldest`() throws {
         let resolver = Self.makeResolver()
         let table: [String: MockPricing] = [
             "opus-2-1": .init(value: 21),

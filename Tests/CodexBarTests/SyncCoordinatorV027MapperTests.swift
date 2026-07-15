@@ -19,8 +19,8 @@ struct SyncCoordinatorV027MapperTests {
 
     // MARK: - mapClaudeAdminUsage
 
-    @Test("Claude Admin mapper: returns nil when provider != .claude")
-    func claudeAdminWrongProviderReturnsNil() {
+    @Test
+    func `Claude Admin mapper: returns nil when provider != .claude`() {
         let admin = ClaudeAdminAPIUsageSnapshot(
             daily: [Self.adminBucket(day: "2026-05-01", cost: 1.0, total: 100)],
             updatedAt: Self.now)
@@ -30,16 +30,16 @@ struct SyncCoordinatorV027MapperTests {
             provider: .openai, snapshot: snapshot) == nil)
     }
 
-    @Test("Claude Admin mapper: returns nil when claudeAdminAPIUsage is missing")
-    func claudeAdminMissingPayloadReturnsNil() {
+    @Test
+    func `Claude Admin mapper: returns nil when claudeAdminAPIUsage is missing`() {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil, updatedAt: Self.now)
         #expect(SyncCoordinator.mapClaudeAdminUsage(
             provider: .claude, snapshot: snapshot) == nil)
     }
 
-    @Test("Claude Admin mapper: returns nil when last30Days has zero cost AND zero tokens")
-    func claudeAdminEmptyWindowReturnsNil() {
+    @Test
+    func `Claude Admin mapper: returns nil when last30Days has zero cost AND zero tokens`() {
         // Mapper SHOULD prune empty windows so iOS doesn't render a
         // "$0.00 / 0 tokens" section. Regression guard for that
         // nil-pruning behaviour.
@@ -50,8 +50,8 @@ struct SyncCoordinatorV027MapperTests {
             provider: .claude, snapshot: snapshot) == nil)
     }
 
-    @Test("Claude Admin mapper: emits envelope when last30Days has tokens")
-    func claudeAdminPopulatedWindowEmitsEnvelope() {
+    @Test
+    func `Claude Admin mapper: emits envelope when last30Days has tokens`() {
         let admin = ClaudeAdminAPIUsageSnapshot(
             daily: [Self.adminBucket(day: "2026-05-01", cost: 12.5, total: 500_000)],
             updatedAt: Self.now)
@@ -64,8 +64,8 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.last30Days.costUSD == 12.5)
     }
 
-    @Test("Claude Admin mapper: caps top-models + top-cost-items at 8")
-    func claudeAdminCapsTopLists() {
+    @Test
+    func `Claude Admin mapper: caps top-models + top-cost-items at 8`() {
         // Build a snapshot whose summary aggregation produces 10
         // models and 10 cost items, then assert the mapper truncates
         // to 8 entries each (wire-payload cap).
@@ -86,8 +86,8 @@ struct SyncCoordinatorV027MapperTests {
 
     // MARK: - mapMiniMaxBilling
 
-    @Test("MiniMax billing mapper: returns nil when provider != .minimax")
-    func minimaxBillingWrongProviderReturnsNil() {
+    @Test
+    func `MiniMax billing mapper: returns nil when provider != .minimax`() {
         let billing = MiniMaxBillingSummary(
             todayTokens: 1000, last30DaysTokens: 30000,
             todayCash: 1.5, last30DaysCash: 45.0,
@@ -104,8 +104,8 @@ struct SyncCoordinatorV027MapperTests {
             provider: .claude, snapshot: snapshot) == nil)
     }
 
-    @Test("MiniMax billing mapper: returns nil when billingSummary is missing")
-    func minimaxBillingMissingSummaryReturnsNil() {
+    @Test
+    func `MiniMax billing mapper: returns nil when billingSummary is missing`() {
         let mini = MiniMaxUsageSnapshot(
             planName: "Pro", availablePrompts: nil, currentPrompts: nil,
             remainingPrompts: nil, windowMinutes: nil, usedPercent: nil,
@@ -117,8 +117,8 @@ struct SyncCoordinatorV027MapperTests {
             provider: .minimax, snapshot: snapshot) == nil)
     }
 
-    @Test("MiniMax billing mapper: returns nil for empty 30-day window")
-    func minimaxBillingEmptyWindowReturnsNil() {
+    @Test
+    func `MiniMax billing mapper: returns nil for empty 30-day window`() {
         let billing = MiniMaxBillingSummary(
             todayTokens: 0, last30DaysTokens: 0,
             todayCash: nil, last30DaysCash: nil,
@@ -135,8 +135,8 @@ struct SyncCoordinatorV027MapperTests {
             provider: .minimax, snapshot: snapshot) == nil)
     }
 
-    @Test("MiniMax billing mapper: caps method+model lists at top-3")
-    func minimaxBillingCapsBreakdowns() {
+    @Test
+    func `MiniMax billing mapper: caps method+model lists at top-3`() {
         let methods = (0..<5).map {
             MiniMaxBillingBreakdown(name: "method-\($0)", tokens: 100 - $0, cash: nil)
         }
@@ -163,8 +163,8 @@ struct SyncCoordinatorV027MapperTests {
 
     // MARK: - mapOpenCodeGoZenBalance
 
-    @Test("OpenCodeGo Zen mapper: returns nil when provider != .opencodego")
-    func zenBalanceWrongProviderReturnsNil() {
+    @Test
+    func `OpenCodeGo Zen mapper: returns nil when provider != .opencodego`() {
         let cost = ProviderCostSnapshot(
             used: 42.5, limit: 0, currencyCode: "USD",
             period: "Zen balance", updatedAt: Self.now)
@@ -175,8 +175,8 @@ struct SyncCoordinatorV027MapperTests {
             providerCost: cost, workspaceID: nil) == nil)
     }
 
-    @Test("OpenCodeGo Zen mapper: returns nil when providerCost period is not 'Zen balance'")
-    func zenBalanceWrongPeriodReturnsNil() {
+    @Test
+    func `OpenCodeGo Zen mapper: returns nil when providerCost period is not 'Zen balance'`() {
         let cost = ProviderCostSnapshot(
             used: 42.5, limit: 100.0, currencyCode: "USD",
             period: "Monthly", updatedAt: Self.now)
@@ -187,8 +187,8 @@ struct SyncCoordinatorV027MapperTests {
             providerCost: cost, workspaceID: nil) == nil)
     }
 
-    @Test("OpenCodeGo Zen mapper: emits envelope when period matches + currency USD")
-    func zenBalanceMatchEmitsEnvelope() {
+    @Test
+    func `OpenCodeGo Zen mapper: emits envelope when period matches + currency USD`() {
         let cost = ProviderCostSnapshot(
             used: 42.5, limit: 0, currencyCode: "USD",
             period: "Zen balance", updatedAt: Self.now)
@@ -203,8 +203,8 @@ struct SyncCoordinatorV027MapperTests {
 
     // MARK: - buildCodexWorkspaceContext (mapCodexWorkspace pure core)
 
-    @Test("Codex workspace: returns nil when active account is nil AND snapshot has no weekly window")
-    func codexWorkspaceEmptyReturnsNil() {
+    @Test
+    func `Codex workspace: returns nil when active account is nil AND snapshot has no weekly window`() {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil, updatedAt: Self.now)
         let result = SyncCoordinator.buildCodexWorkspaceContext(
@@ -212,8 +212,8 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result == nil)
     }
 
-    @Test("Codex workspace: emits envelope when active account has workspace label")
-    func codexWorkspaceWithLabelEmits() {
+    @Test
+    func `Codex workspace: emits envelope when active account has workspace label`() {
         let account = Self.makeAccount(
             email: "test@example.com",
             workspaceLabel: "Acme",
@@ -227,8 +227,8 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.weeklyPaceDelta == nil)
     }
 
-    @Test("Codex workspace: emits pace when snapshot has weekly window (10080 minutes)")
-    func codexWorkspaceWithWeeklyPaceEmits() {
+    @Test
+    func `Codex workspace: emits pace when snapshot has weekly window (10080 minutes)`() {
         // Use an in-flight weekly window: started 3 days ago, ends in
         // 4 days. UsagePace.weekly expects timeUntilReset > 0 AND <= duration.
         let weekly = RateWindow(
@@ -245,8 +245,8 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.weeklyPaceLabel != nil)
     }
 
-    @Test("Codex workspace: anchors pace to secondary when BOTH secondary + primary are ≥ 1-day windows")
-    func codexWorkspaceWeeklyWindowSelection() {
+    @Test
+    func `Codex workspace: anchors pace to secondary when BOTH secondary + primary are ≥ 1-day windows`() {
         // Both primary AND secondary pass the `codexWeeklyWindow`
         // ≥ 1-day filter; the mapper must pick secondary (per the
         // `[secondary, tertiary, primary]` priority order in

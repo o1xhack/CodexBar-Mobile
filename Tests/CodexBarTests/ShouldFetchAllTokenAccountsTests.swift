@@ -56,24 +56,24 @@ struct ShouldFetchAllTokenAccountsTests {
 
     // MARK: - count guard (both branches respect it)
 
-    @Test("Single-account provider always returns false (no point fanning out 1)")
-    func singleAccountFalse() {
+    @Test
+    func `Single-account provider always returns false (no point fanning out 1)`() {
         let store = Self.makeStore(suite: "FetchAll-Single", iCloudSyncEnabled: true, layout: .stacked)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: Self.accounts(1))
         #expect(result == false)
     }
 
-    @Test("Zero accounts returns false")
-    func zeroAccountsFalse() {
+    @Test
+    func `Zero accounts returns false`() {
         let store = Self.makeStore(suite: "FetchAll-Zero", iCloudSyncEnabled: true, layout: .stacked)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: [])
         #expect(result == false)
     }
 
-    @Test("Non-token-account provider returns false even with multi accounts")
-    func nonTokenAccountProviderFalse() {
+    @Test
+    func `Non-token-account provider returns false even with multi accounts`() {
         // `.codex` is in catalog only via managed-accounts path, not
         // token-account catalog — verify the guard at top of fn fires.
         let store = Self.makeStore(suite: "FetchAll-NonToken", iCloudSyncEnabled: true, layout: .stacked)
@@ -86,8 +86,8 @@ struct ShouldFetchAllTokenAccountsTests {
 
     // MARK: - iCloud sync ON branch (Phase G hotfix)
 
-    @Test("iCloud sync ON + segmented + 2 accounts → true (the user-reported bug fixed)")
-    func iCloudSyncONSegmentedMultiAccountTrue() {
+    @Test
+    func `iCloud sync ON + segmented + 2 accounts → true (the user-reported bug fixed)`() {
         // This is the EXACT scenario the user hit:
         // - OpenAI admin keys: 2
         // - Mac menu layout: segmented (default)
@@ -100,16 +100,16 @@ struct ShouldFetchAllTokenAccountsTests {
         #expect(result == true)
     }
 
-    @Test("iCloud sync ON + stacked + 2 accounts → true (already true pre-fix)")
-    func iCloudSyncONStackedMultiAccountTrue() {
+    @Test
+    func `iCloud sync ON + stacked + 2 accounts → true (already true pre-fix)`() {
         let store = Self.makeStore(suite: "FetchAll-ICloudStack", iCloudSyncEnabled: true, layout: .stacked)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: Self.accounts(2))
         #expect(result == true)
     }
 
-    @Test("iCloud sync ON + 3 accounts → true (any count > 1)")
-    func iCloudSyncONThreeAccountsTrue() {
+    @Test
+    func `iCloud sync ON + 3 accounts → true (any count > 1)`() {
         let store = Self.makeStore(suite: "FetchAll-ICloudThree", iCloudSyncEnabled: true, layout: .segmented)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .deepseek, accounts: Self.accounts(3, provider: .deepseek))
@@ -118,8 +118,8 @@ struct ShouldFetchAllTokenAccountsTests {
 
     // MARK: - iCloud sync OFF branch (preserve upstream segmented = single-fetch behavior)
 
-    @Test("iCloud sync OFF + segmented + 2 accounts → false (upstream API-frugality preserved)")
-    func iCloudSyncOFFSegmentedFalse() {
+    @Test
+    func `iCloud sync OFF + segmented + 2 accounts → false (upstream API-frugality preserved)`() {
         // Mac-only user (no iPhone). Honor upstream's intent: segmented
         // layout displays one card with top-tab switcher; only active
         // account needs fetching. Saves N-1 API calls per refresh.
@@ -129,16 +129,16 @@ struct ShouldFetchAllTokenAccountsTests {
         #expect(result == false)
     }
 
-    @Test("iCloud sync OFF + stacked + 2 accounts → true (stacked layout shows all)")
-    func iCloudSyncOFFStackedTrue() {
+    @Test
+    func `iCloud sync OFF + stacked + 2 accounts → true (stacked layout shows all)`() {
         let store = Self.makeStore(suite: "FetchAll-NoSyncStack", iCloudSyncEnabled: false, layout: .stacked)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: Self.accounts(2))
         #expect(result == true)
     }
 
-    @Test("iCloud sync OFF + segmented + 1 account → false (count guard)")
-    func iCloudSyncOFFSegmentedSingleFalse() {
+    @Test
+    func `iCloud sync OFF + segmented + 1 account → false (count guard)`() {
         let store = Self.makeStore(suite: "FetchAll-NoSyncSegSingle", iCloudSyncEnabled: false, layout: .segmented)
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: Self.accounts(1))

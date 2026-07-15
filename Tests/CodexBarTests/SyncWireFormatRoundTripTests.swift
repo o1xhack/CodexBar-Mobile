@@ -24,7 +24,6 @@ import Testing
 /// matrix on real iCloud.
 ///
 /// See `Research/020-multi-account-comprehensive.md` R5 §B.
-@Suite
 struct SyncWireFormatRoundTripTests {
     private func makeRichSnapshot(
         providerID: String = "codex",
@@ -114,8 +113,8 @@ struct SyncWireFormatRoundTripTests {
 
     // MARK: - 1. Round-trip stability
 
-    @Test("R5 B1: ProviderUsageSnapshot round-trip is byte-stable for fully-populated snapshot")
-    func fullyPopulatedSnapshotRoundTripsByteStable() throws {
+    @Test
+    func `R5 B1: ProviderUsageSnapshot round-trip is byte-stable for fully-populated snapshot`() throws {
         let original = self.makeRichSnapshot()
         let firstPass = try self.encoder().encode(original)
         let decoded = try self.decoder().decode(
@@ -126,8 +125,8 @@ struct SyncWireFormatRoundTripTests {
             "encode → decode → re-encode must produce byte-identical output")
     }
 
-    @Test("R5 B2: minimal-fields snapshot round-trips")
-    func minimalSnapshotRoundTrips() throws {
+    @Test
+    func `R5 B2: minimal-fields snapshot round-trips`() throws {
         let minimal = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -147,8 +146,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.rateWindows.isEmpty)
     }
 
-    @Test("R5 B2b: CrossModel optional payload round-trips")
-    func crossModelPayloadRoundTrips() throws {
+    @Test
+    func `R5 B2b: CrossModel optional payload round-trips`() throws {
         let snapshot = ProviderUsageSnapshot(
             providerID: "crossmodel",
             providerName: "CrossModel",
@@ -185,8 +184,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.crossModelUsage?.monthly?.requestCount == 3166)
     }
 
-    @Test("R5 B3: SyncedUsageSnapshot with multiple multi-account providers round-trips")
-    func multiAccountFullyPopulatedSyncedSnapshotRoundTrips() throws {
+    @Test
+    func `R5 B3: SyncedUsageSnapshot with multiple multi-account providers round-trips`() throws {
         let alice = self.makeRichSnapshot(
             accountEmail: "alice@example.com",
             accountIdentities: ["codex:email:alice%40example.com"])
@@ -219,8 +218,8 @@ struct SyncWireFormatRoundTripTests {
 
     // MARK: - 2. Backward compatibility (old payload → current model)
 
-    @Test("R5 B4: pre-1.2.0 payload (no rateWindows / costSummary / budget / accountIdentities) decodes")
-    func legacyPayloadDecodesWithSensibleDefaults() throws {
+    @Test
+    func `R5 B4: pre-1.2.0 payload (no rateWindows / costSummary / budget / accountIdentities) decodes`() throws {
         // What a Mac on iOS 1.1.0 era would have written — only
         // primary/secondary, no extras.
         let legacyJSON = """
@@ -250,8 +249,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.utilizationHistory == nil)
     }
 
-    @Test("R5 B5: payload from 1.2.x with utilizationHistory but no perplexityCredits decodes")
-    func intermediate12XPayloadDecodesPartial() throws {
+    @Test
+    func `R5 B5: payload from 1.2.x with utilizationHistory but no perplexityCredits decodes`() throws {
         // 1.2.x added utilizationHistory but predates 1.3.0's
         // perplexityCredits field.
         let payload12X = """
@@ -287,8 +286,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.accountIdentities == nil)
     }
 
-    @Test("R5 B6: payload from pre-Mac-0.23 lacks accountIdentities (Tier-A providers)")
-    func preR0_23PayloadLacksAccountIdentities() throws {
+    @Test
+    func `R5 B6: payload from pre-Mac-0.23 lacks accountIdentities (Tier-A providers)`() throws {
         // Mac < 0.23 didn't write accountIdentities. iOS new should
         // gracefully decode with nil and fall back to per-device legacy
         // bucket (no cross-Mac merge).
@@ -311,8 +310,8 @@ struct SyncWireFormatRoundTripTests {
 
     // MARK: - 3. Forward compatibility (payload with future fields → current model)
 
-    @Test("R5 B7: payload with unknown future fields decodes (ignored)")
-    func unknownFieldsAreIgnored() throws {
+    @Test
+    func `R5 B7: payload with unknown future fields decodes (ignored)`() throws {
         // A future Mac version might add `tier` or `experimentalFeature`.
         // Current iOS must decode without error, ignoring unknowns.
         let payloadWithUnknowns = """
@@ -337,8 +336,8 @@ struct SyncWireFormatRoundTripTests {
 
     // MARK: - 4. Multi-account scenarios
 
-    @Test("R5 B8: distinct accountEmail produce distinct JSON")
-    func distinctEmailsProduceDistinctJSON() throws {
+    @Test
+    func `R5 B8: distinct accountEmail produce distinct JSON`() throws {
         let alice = self.makeRichSnapshot(accountEmail: "alice@x.com")
         let bob = self.makeRichSnapshot(accountEmail: "bob@x.com")
         let aliceJSON = try self.encoder().encode(alice)
@@ -346,8 +345,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(aliceJSON != bobJSON, "distinct accountEmail must distinguish snapshots in wire format")
     }
 
-    @Test("R5 B9: distinct accountIdentities produce distinct JSON")
-    func distinctAccountIdentitiesProduceDistinctJSON() throws {
+    @Test
+    func `R5 B9: distinct accountIdentities produce distinct JSON`() throws {
         let withOrgA = self.makeRichSnapshot(
             accountEmail: nil,
             accountIdentities: ["codex:account:org-a"])
@@ -359,8 +358,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(aJSON != bJSON)
     }
 
-    @Test("R5 B10: nil vs empty array accountIdentities are distinct after round-trip")
-    func nilVsEmptyArrayAccountIdentitiesPreserved() throws {
+    @Test
+    func `R5 B10: nil vs empty array accountIdentities are distinct after round-trip`() throws {
         let withNil = self.makeRichSnapshot(
             accountEmail: "user@x.com", accountIdentities: nil)
         let withEmpty = self.makeRichSnapshot(
@@ -379,8 +378,8 @@ struct SyncWireFormatRoundTripTests {
 
     // MARK: - Edge cases: non-ASCII, whitespace, empty
 
-    @Test("R5 B11: non-ASCII accountEmail (café@example.com) round-trips through UTF-8")
-    func nonASCIIEmailRoundTrips() throws {
+    @Test
+    func `R5 B11: non-ASCII accountEmail (café@example.com) round-trips through UTF-8`() throws {
         let cafe = self.makeRichSnapshot(
             accountEmail: "café@münich.example.com",
             accountIdentities: ["codex:email:caf%C3%A9%40m%C3%BCnich.example.com"])
@@ -391,8 +390,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.accountIdentities?.first?.contains("caf%C3%A9") == true)
     }
 
-    @Test("R5 B12: empty-string vs nil accountEmail are distinct")
-    func emptyStringVsNilEmailDistinct() throws {
+    @Test
+    func `R5 B12: empty-string vs nil accountEmail are distinct`() throws {
         let withNil = self.makeRichSnapshot(accountEmail: nil)
         let withEmpty = self.makeRichSnapshot(accountEmail: "")
         let nilJSON = try self.encoder().encode(withNil)

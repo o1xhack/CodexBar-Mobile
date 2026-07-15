@@ -3,6 +3,7 @@ set -euo pipefail
 
 VERSION=${1:-}
 CHANGELOG_FILE=${2:-}
+RELEASE_BRANCH=${CODEXBAR_RELEASE_BRANCH:-mobile-dev}
 
 if [[ -z "$VERSION" ]]; then
   echo "Usage: $0 <version> [changelog_file]" >&2
@@ -62,7 +63,7 @@ version_content=$(extract_version_section "$VERSION" "$CHANGELOG_FILE")
 if [[ -z "$version_content" ]]; then
   echo "<h2>CodexBar $VERSION</h2>"
   echo "<p>Latest CodexBar update.</p>"
-  echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md\">View full changelog</a></p>"
+  echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/${RELEASE_BRANCH}/CHANGELOG.md\">View full changelog</a></p>"
   exit 0
 fi
 
@@ -113,4 +114,4 @@ if [[ "$in_list" == true ]]; then
   echo "</ul>"
 fi
 
-echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md\">View full changelog</a></p>"
+echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/${RELEASE_BRANCH}/CHANGELOG.md\">View full changelog</a></p>"

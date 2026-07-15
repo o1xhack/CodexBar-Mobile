@@ -169,7 +169,7 @@ enum MockProviderInjector {
             return false
         }
         let normalized = raw.lowercased()
-        let truthy: Set<String> = ["1", "true", "yes"]
+        let truthy: Set = ["1", "true", "yes"]
         if truthy.contains(normalized) {
             return true
         }

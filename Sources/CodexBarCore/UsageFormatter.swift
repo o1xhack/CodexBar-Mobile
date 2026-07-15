@@ -82,9 +82,10 @@ public enum UsageFormatter {
 
     public static func percentText(_ percent: Double, suffix: String) -> String {
         let clamped = min(100, max(0, percent))
-        let text = self.localized("%.0f%% %@", clamped, suffix)
-        guard clamped > 0, clamped < 1 else { return text }
-        return text.replacingOccurrences(of: "0%", with: "<1%")
+        if clamped > 0, clamped < 1 {
+            return self.localized("<1%% %@", suffix)
+        }
+        return self.localized("%.0f%% %@", clamped, suffix)
     }
 
     public static func usageLine(remaining: Double, used: Double, showUsed: Bool) -> String {
@@ -112,6 +113,7 @@ public enum UsageFormatter {
 
         if days > 0 {
             if hours > 0 { return "in \(days)d \(hours)h" }
+            if minutes > 0 { return "in \(days)d \(minutes)m" }
             return "in \(days)d"
         }
         if hours > 0 {
@@ -241,6 +243,16 @@ public enum UsageFormatter {
     /// regardless of the user's system locale (e.g., pt-BR users see $54.72 not US$ 54,72).
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
         value.formatted(.currency(code: currencyCode).locale(Locale(identifier: "en_US")))
+    }
+
+    public static func compactCurrencyString(_ value: Double, currencyCode: String) -> String {
+        if value != 0, abs(value) < 1 {
+            return self.currencyString(value, currencyCode: currencyCode)
+        }
+        return value.formatted(
+            .currency(code: currencyCode)
+                .precision(.fractionLength(0))
+                .locale(Locale(identifier: "en_US")))
     }
 
     public static func tokenCountString(_ value: Int) -> String {

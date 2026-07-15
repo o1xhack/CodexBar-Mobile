@@ -35,8 +35,8 @@ struct V027SnapshotsCodableTests {
 
     // MARK: - Build 134 / 135 new types — individual round-trip
 
-    @Test("Claude Admin: round-trips with full top-models / top-cost lists")
-    func claudeAdminRoundTrip() throws {
+    @Test
+    func `Claude Admin: round-trips with full top-models / top-cost lists`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = SyncClaudeAdminUsage(
             last30Days: SyncClaudeAdminWindowSummary(
@@ -67,8 +67,8 @@ struct V027SnapshotsCodableTests {
         #expect(decoded.topCostItems.first?.costUSD == 60.0)
     }
 
-    @Test("Claude Extra usage: round-trips with disabled / enabled / nil-limit")
-    func claudeExtraUsageRoundTrip() throws {
+    @Test
+    func `Claude Extra usage: round-trips with disabled / enabled / nil-limit`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         // Enabled + capped (Enterprise)
         let enabled = SyncClaudeExtraUsage(
@@ -100,8 +100,8 @@ struct V027SnapshotsCodableTests {
         #expect(dDecoded.monthlyLimitUSD == nil)
     }
 
-    @Test("OpenCode Zen balance: round-trips with workspaceID present and absent")
-    func openCodeZenBalanceRoundTrip() throws {
+    @Test
+    func `OpenCode Zen balance: round-trips with workspaceID present and absent`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let withWS = SyncOpenCodeGoZenBalance(
             balanceUSD: 42.50, workspaceID: "ws-acme-prod", updatedAt: now)
@@ -118,8 +118,8 @@ struct V027SnapshotsCodableTests {
         #expect(dNo.balanceUSD == 0.0)
     }
 
-    @Test("MiniMax billing history: round-trips with daily list and breakdowns")
-    func miniMaxBillingRoundTrip() throws {
+    @Test
+    func `MiniMax billing history: round-trips with daily list and breakdowns`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = SyncMiniMaxBillingHistory(
             todayTokens: 1000,
@@ -145,8 +145,8 @@ struct V027SnapshotsCodableTests {
         #expect(decoded.topMethods.first?.name == "chat/completions")
     }
 
-    @Test("Codex workspace context: round-trips with pace delta + label")
-    func codexWorkspaceRoundTrip() throws {
+    @Test
+    func `Codex workspace context: round-trips with pace delta + label`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = SyncCodexWorkspaceContext(
             workspaceID: "ws-acme-prod",
@@ -163,8 +163,8 @@ struct V027SnapshotsCodableTests {
 
     // MARK: - Cross-version compat — old payload decoded by NEW reader
 
-    @Test("Snapshot decode: pre-build-134 payload → all 5 new fields land as nil")
-    func snapshotDecodesPreBuild134PayloadWithNilExtensionFields() throws {
+    @Test
+    func `Snapshot decode: pre-build-134 payload → all 5 new fields land as nil`() throws {
         // Wire format from a build-132 Mac (or older). Build 132
         // already had the 5 v0.27 dedicated card fields, so we keep
         // grokBilling here as a sanity check — the test pins that
@@ -204,8 +204,8 @@ struct V027SnapshotsCodableTests {
 
     // MARK: - Cross-version compat — new payload tolerated by OLD reader
 
-    @Test("Snapshot decode: build-135 payload with ALL fields round-trips on build-135 reader")
-    func snapshotRoundTripWithAllBuild135Fields() throws {
+    @Test
+    func `Snapshot decode: build-135 payload with ALL fields round-trips on build-135 reader`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = ProviderUsageSnapshot(
             providerID: "codex",
@@ -237,8 +237,8 @@ struct V027SnapshotsCodableTests {
 
     // MARK: - OpenAI history window — v0.26 extension verified compat
 
-    @Test("OpenAI dashboard: pre-build-134 payload (no historyDays) defaults to 30")
-    func openAIDashboardLegacyPayloadDefaults30() throws {
+    @Test
+    func `OpenAI dashboard: pre-build-134 payload (no historyDays) defaults to 30`() throws {
         let json = """
         {
           "last30Days": {"totalCostUSD": 0, "totalRequests": 0, "totalTokens": 0},
@@ -254,8 +254,8 @@ struct V027SnapshotsCodableTests {
         #expect(decoded.historyDays == 30)
     }
 
-    @Test("OpenAI dashboard: historyDays clamps out-of-range values to 1..365")
-    func openAIDashboardHistoryDaysClamps() {
+    @Test
+    func `OpenAI dashboard: historyDays clamps out-of-range values to 1..365`() {
         let dash0 = SyncOpenAIAPIDashboard(
             last30Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),
             last7Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),

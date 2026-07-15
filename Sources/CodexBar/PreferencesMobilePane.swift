@@ -1,3 +1,4 @@
+import AppKit
 import CloudKit
 import CodexBarCore
 import CodexBarSync
@@ -19,6 +20,8 @@ struct MobilePane: View {
     }
 
     @State private var lastTestResult: String?
+    @State private var iCloudDiagnosticText: String?
+    @State private var isRunningICloudDiagnostic = false
 
     /// Mock provider toggle. Bound to UserDefaults key
     /// `CodexBarMockProvidersEnabled` so the same flag toggles whether
@@ -214,6 +217,47 @@ struct MobilePane: View {
             Text(L("mobile_dev_test_intro"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("icloud_diagnostics_title")).font(.caption.bold())
+                Text(L("icloud_diagnostics_read_only_caption"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 12) {
+                    Button {
+                        self.runICloudDiagnostic()
+                    } label: {
+                        Label(L("icloud_diagnostics_run"), systemImage: "stethoscope")
+                    }
+                    .controlSize(.small)
+                    .disabled(self.isRunningICloudDiagnostic)
+
+                    Button {
+                        self.copyICloudDiagnostic()
+                    } label: {
+                        Label(L("copy"), systemImage: "doc.on.doc")
+                    }
+                    .controlSize(.small)
+                    .disabled(self.iCloudDiagnosticText == nil)
+
+                    Button {
+                        NSWorkspace.shared.open(CodexBarLog.fileLogURL)
+                    } label: {
+                        Label(L("open_log_file"), systemImage: "doc.text.magnifyingglass")
+                    }
+                    .controlSize(.small)
+                }
+
+                if let iCloudDiagnosticText {
+                    Text(iCloudDiagnosticText)
+                        .font(.caption2.monospaced())
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
 
             // Codex
             VStack(alignment: .leading, spacing: 4) {
@@ -614,9 +658,17 @@ struct MobilePane: View {
                 if self.syncCoordinator.isSyncing {
                     ProgressView()
                         .controlSize(.small)
-                    Text(L("mobile_sync_status_syncing"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let elapsed = Int(context.date.timeIntervalSince(
+                            self.syncCoordinator.syncStartedAt ?? context.date))
+                        Text(
+                            L(
+                                "mobile_sync_status_syncing_elapsed_format",
+                                self.syncCoordinator.syncPhase.localizedLabel,
+                                max(0, elapsed)))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } else if let lastSync = self.syncCoordinator.lastSyncTime {
                     Image(systemName: self.syncCoordinator.lastSyncSucceeded
                         ? "checkmark.icloud"
@@ -641,14 +693,23 @@ struct MobilePane: View {
                 }
             }
 
-            if let message = self.syncCoordinator.lastSyncMessage, !message.isEmpty {
-                Text(message)
+            if !self.syncCoordinator.lastSyncSucceeded,
+               self.syncCoordinator.lastSyncTime != nil
+            {
+                Text(
+                    L(
+                        "mobile_sync_status_failure_phase_format",
+                        (self.syncCoordinator.lastFailedPhase ?? .idle).localizedLabel))
                     .font(.footnote)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Button(L("mobile_button_sync_now")) {
+            Button(
+                self.syncCoordinator.lastSyncSucceeded
+                    ? L("mobile_button_sync_now")
+                    : L("mobile_button_retry_sync"))
+            {
                 Task {
                     await self.syncCoordinator.pushCurrentSnapshot()
                 }
@@ -662,5 +723,21 @@ struct MobilePane: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func runICloudDiagnostic() {
+        self.isRunningICloudDiagnostic = true
+        self.iCloudDiagnosticText = L("icloud_diagnostics_running")
+        Task {
+            let report = await CloudSyncManager.shared.runReadOnlyDiagnostic()
+            self.iCloudDiagnosticText = report.text + "\n\n" + self.syncCoordinator.syncDiagnosticText
+            self.isRunningICloudDiagnostic = false
+        }
+    }
+
+    private func copyICloudDiagnostic() {
+        guard let iCloudDiagnosticText else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(iCloudDiagnosticText, forType: .string)
     }
 }

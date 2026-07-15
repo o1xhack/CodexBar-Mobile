@@ -17,8 +17,8 @@ struct MockProviderV029ExtrasTests {
         MockProviderInjector.allMocks()
     }
 
-    @Test("OpenRouter mock carries openRouterStats (gap D)")
-    func openRouterMockHasStats() throws {
+    @Test
+    func `OpenRouter mock carries openRouterStats (gap D)`() throws {
         let mock = try #require(self.mocks().first { $0.providerID == "openrouter" })
         let stats = try #require(mock.openRouterStats)
         #expect(stats.balanceUSD == 7.50)
@@ -26,8 +26,8 @@ struct MockProviderV029ExtrasTests {
         #expect(stats.rateLimitInterval == "10s")
     }
 
-    @Test("Azure OpenAI mock carries azureOpenAIInfo (gap E)")
-    func azureMockHasInfo() throws {
+    @Test
+    func `Azure OpenAI mock carries azureOpenAIInfo (gap E)`() throws {
         let mock = try #require(self.mocks().first { $0.providerID == "azureopenai" })
         let info = try #require(mock.azureOpenAIInfo)
         #expect(info.deploymentName == "gpt-4o-prod")
@@ -35,8 +35,8 @@ struct MockProviderV029ExtrasTests {
         #expect(info.model == "gpt-4o")
     }
 
-    @Test("Alibaba Token Plan mock carries alibabaTokenPlan (gap G)")
-    func alibabaMockHasPlan() throws {
+    @Test
+    func `Alibaba Token Plan mock carries alibabaTokenPlan (gap G)`() throws {
         let mock = try #require(self.mocks().first { $0.providerID == "alibabatokenplan" })
         let plan = try #require(mock.alibabaTokenPlan)
         #expect(plan.totalCredits == 1_000_000)
@@ -44,8 +44,8 @@ struct MockProviderV029ExtrasTests {
         #expect(plan.planName == "Bailian Pro (Mock)")
     }
 
-    @Test("Codex mock carries the standard/fast split (gap A) + 90-day window (gap F)")
-    func codexMockHasSplitAndWindow() throws {
+    @Test
+    func `Codex mock carries the standard/fast split (gap A) + 90-day window (gap F)`() throws {
         // Alice is the only Codex mock with a daily breakdown.
         let alice = try #require(self.mocks().first {
             $0.providerID == "codex" && ($0.costSummary?.daily.isEmpty == false)
@@ -62,8 +62,8 @@ struct MockProviderV029ExtrasTests {
         #expect(abs(std + fast - breakdown.costUSD) < 0.0001)
     }
 
-    @Test("Antigravity mock carries the multi-account switcher (gap B)")
-    func antigravityMockHasAccounts() throws {
+    @Test
+    func `Antigravity mock carries the multi-account switcher (gap B)`() throws {
         let mock = try #require(self.mocks().first {
             $0.providerID == "antigravity" && $0.antigravityAccounts != nil
         })

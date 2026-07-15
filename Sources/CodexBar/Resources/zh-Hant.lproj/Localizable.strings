@@ -1020,6 +1020,7 @@
 "minimax_service_coding_plan_search" = "Coding Plan 搜尋";
 "Clearing removes old plan-mode files." = "會移除舊的 plan-mode 檔案。";
 "%.0f%% %@" = "%2$@ %1$.0f%%";
+"<1%% %@" = "%1$@ <1%%";
 "%@: %@%% used" = "%@：已使用 %@%%";
 "terminal_app_subtitle" = "「開啟終端」動作使用的終端";
 "Admin API key" = "Admin API 金鑰";
@@ -1187,3 +1188,17 @@
 "section_diagnostics" = "診斷";
 "section_updates" = "更新";
 "section_links" = "連結";
+"mobile_sync_status_syncing_phase_format" = "正在同步 — %@…";
+"icloud_diagnostics_title" = "iCloud 同步診斷";
+"icloud_diagnostics_read_only_caption" = "唯讀檢查帳號、記錄區與 KVS 備援通道，不會寫入或刪除 iCloud 資料。";
+"icloud_diagnostics_run" = "執行唯讀檢查";
+"icloud_diagnostics_running" = "正在執行 iCloud 唯讀檢查…";
+"mobile_sync_status_syncing_elapsed_format" = "正在同步 — %@ · %d 秒";
+"mobile_button_retry_sync" = "重試同步";
+"mobile_sync_status_failure_phase_format" = "iCloud 同步在「%@」階段失敗。請開啟「進階」→「除錯」查看詳情。";
+"icloud_sync_phase_idle" = "閒置";
+"icloud_sync_phase_preparing" = "正在準備";
+"icloud_sync_phase_legacy_upload" = "正在上傳快照";
+"icloud_sync_phase_provider_upload" = "正在上傳供應商資料";
+"icloud_sync_phase_cleanup" = "正在清理";
+"icloud_sync_phase_reconciling" = "正在核對";

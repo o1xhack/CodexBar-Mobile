@@ -35,13 +35,15 @@ struct CloudKitMergeTests {
         deviceName: String,
         deviceID: String,
         providers: [ProviderUsageSnapshot],
-        timestamp: Date? = nil
+        timestamp: Date? = nil,
+        appVersion: String? = nil
     ) -> SyncedUsageSnapshot {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp ?? providers.map(\.lastUpdated).max() ?? Date(),
             deviceName: deviceName,
-            deviceID: deviceID)
+            deviceID: deviceID,
+            appVersion: appVersion)
     }
 
     // MARK: - Single device (degenerate case)
@@ -215,6 +217,138 @@ struct CloudKitMergeTests {
         #expect(provider.crossModelUsage?.balance == 8.06)
         #expect(provider.crossModelUsage?.daily?.totalTokens == 12_467)
         #expect(provider.crossModelUsage?.monthly?.requestCount == 3_166)
+    }
+
+    @Test(arguments: [false, true])
+    func `Mixed Kimi writers preserve v0.41 lanes in both freshness orders`(
+        oldMacIsFresher: Bool
+    ) throws {
+        let oldDate = oldMacIsFresher ? newerDate : olderDate
+        let newDate = oldMacIsFresher ? olderDate : newerDate
+        let oldMacProvider = ProviderUsageSnapshot(
+            providerID: "kimi", providerName: "Kimi",
+            primary: nil, secondary: nil,
+            accountEmail: "kimi@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: oldDate,
+            rateWindows: [
+                SyncRateWindow(
+                    label: "Weekly", usedPercent: 70, windowMinutes: nil,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Rate Limit", usedPercent: 60, windowMinutes: 300,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Monthly", usedPercent: 50, windowMinutes: nil,
+                    resetsAt: nil, resetDescription: nil),
+            ])
+        let newMacProvider = ProviderUsageSnapshot(
+            providerID: "kimi", providerName: "Kimi",
+            primary: nil, secondary: nil,
+            accountEmail: "kimi@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: newDate,
+            rateWindows: [
+                SyncRateWindow(
+                    label: "Weekly", usedPercent: 20, windowMinutes: nil,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Rate Limit", usedPercent: 30, windowMinutes: 300,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Monthly", usedPercent: 40, windowMinutes: nil,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Code 7-day", usedPercent: 10, windowMinutes: 10080,
+                    resetsAt: nil, resetDescription: nil),
+            ])
+
+        let oldMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider],
+            appVersion: "0.39.0.1")
+        let newMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider],
+            appVersion: "0.41.0.1")
+        let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+        let kimi = try #require(merged.providers.first)
+
+        #expect(kimi.rateWindows.compactMap(\.label) == [
+            "Weekly", "Rate Limit", "Monthly", "Code 7-day",
+        ])
+        #expect(kimi.rateWindows.first?.usedPercent == (oldMacIsFresher ? 70 : 20))
+        #expect(kimi.rateWindows.last?.usedPercent == 10)
+    }
+
+    @Test(arguments: [false, true])
+    func `Mixed Claude writers preserve a specific Max tier in both freshness orders`(
+        oldMacIsFresher: Bool
+    ) throws {
+        let oldDate = oldMacIsFresher ? newerDate : olderDate
+        let newDate = oldMacIsFresher ? olderDate : newerDate
+        let oldMacProvider = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "max@example.com", loginMethod: "Claude Max",
+            statusMessage: nil, isError: false, lastUpdated: oldDate)
+        let newMacProvider = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "max@example.com", loginMethod: "Claude Max 20x",
+            statusMessage: nil, isError: false, lastUpdated: newDate)
+
+        let oldMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider],
+            appVersion: "0.39.0.1")
+        let newMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider],
+            appVersion: "0.41.0.1")
+        let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+
+        #expect(merged.providers.first?.loginMethod == "Claude Max 20x")
+    }
+
+    @Test
+    func `A genuinely different fresh Claude plan replaces an older specific Max tier`() throws {
+        let olderMax = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "plan@example.com", loginMethod: "Claude Max 20x",
+            statusMessage: nil, isError: false, lastUpdated: olderDate)
+        let newerPro = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "plan@example.com", loginMethod: "Claude Pro",
+            statusMessage: nil, isError: false, lastUpdated: newerDate)
+
+        let oldMac = makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [olderMax])
+        let newMac = makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newerPro])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+
+        #expect(merged.providers.first?.loginMethod == "Claude Pro")
+    }
+
+    @Test
+    func `A current generic Claude Max value replaces an older specific tier`() throws {
+        let olderSpecific = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "current@example.com", loginMethod: "Claude Max 20x",
+            statusMessage: nil, isError: false, lastUpdated: olderDate)
+        let newerGeneric = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: "current@example.com", loginMethod: "Claude Max",
+            statusMessage: nil, isError: false, lastUpdated: newerDate)
+
+        let olderMac = makeSnapshot(
+            deviceName: "Current Mac A", deviceID: "uuid-current-a",
+            providers: [olderSpecific], appVersion: "0.41.0.1")
+        let newerMac = makeSnapshot(
+            deviceName: "Current Mac B", deviceID: "uuid-current-b",
+            providers: [newerGeneric], appVersion: "0.41.0.1")
+        let merged = try #require(CloudSyncReader.mergeSnapshots([olderMac, newerMac]))
+
+        #expect(merged.providers.first?.loginMethod == "Claude Max")
     }
 
     // MARK: - Same provider, different accounts → keep both

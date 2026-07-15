@@ -107,7 +107,7 @@ struct CodexBarApp: App {
                 })
         }
         .defaultSize(width: SettingsPane.windowWidth, height: SettingsPane.windowHeight)
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
     }
 
     private func openSettings(pane: SettingsPane) {
@@ -117,12 +117,8 @@ struct CodexBarApp: App {
     }
 
     private static func applyLanguagePreference(from settings: SettingsStore) {
-        let language = settings.appLanguage
-        if language.isEmpty {
-            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        } else {
-            UserDefaults.standard.set([language], forKey: "AppleLanguages")
-        }
+        AppLanguagePreferenceMigration.clearLegacyOverrideIfOwned(storedAppLanguage: settings.appLanguage)
+        resetCodexBarLocalizationCache()
     }
 }
 

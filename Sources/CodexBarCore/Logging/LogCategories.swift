@@ -1,4 +1,5 @@
 public enum LogCategories {
+    public static let iCloudSync = "icloud-sync"
     public static let abacusCookie = "abacus-cookie"
     public static let abacusUsage = "abacus-usage"
     public static let adaptiveRefresh = "adaptive-refresh"

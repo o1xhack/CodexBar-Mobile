@@ -20,8 +20,8 @@ import Testing
 struct SyncCostIsEstimatedTests {
     // MARK: - SyncCostBreakdown wire format
 
-    @Test("SyncCostBreakdown decodes old payload (no isEstimated key) as nil")
-    func breakdownDecodesOldPayloadAsNil() throws {
+    @Test
+    func `SyncCostBreakdown decodes old payload (no isEstimated key) as nil`() throws {
         let json = Data("""
         { "label": "claude-opus-4-7", "costUSD": 0.0075 }
         """.utf8)
@@ -31,8 +31,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.isEstimated == nil)
     }
 
-    @Test("SyncCostBreakdown decodes new payload with isEstimated=true")
-    func breakdownDecodesNewPayloadEstimated() throws {
+    @Test
+    func `SyncCostBreakdown decodes new payload with isEstimated=true`() throws {
         let json = Data("""
         { "label": "claude-opus-4-99", "costUSD": 0.0075, "isEstimated": true }
         """.utf8)
@@ -40,8 +40,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.isEstimated == true)
     }
 
-    @Test("SyncCostBreakdown roundtrips isEstimated=true through encoder")
-    func breakdownRoundtripEstimated() throws {
+    @Test
+    func `SyncCostBreakdown roundtrips isEstimated=true through encoder`() throws {
         let original = SyncCostBreakdown(label: "x", costUSD: 1.0, isEstimated: true)
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(SyncCostBreakdown.self, from: data)
@@ -49,8 +49,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.isEstimated == true)
     }
 
-    @Test("SyncCostBreakdown roundtrips nil isEstimated as nil")
-    func breakdownRoundtripNil() throws {
+    @Test
+    func `SyncCostBreakdown roundtrips nil isEstimated as nil`() throws {
         let original = SyncCostBreakdown(label: "x", costUSD: 1.0)
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(SyncCostBreakdown.self, from: data)
@@ -59,8 +59,8 @@ struct SyncCostIsEstimatedTests {
 
     // MARK: - SyncDailyPoint wire format
 
-    @Test("SyncDailyPoint decodes old payload (no isEstimated key) as nil")
-    func dailyPointDecodesOldPayloadAsNil() throws {
+    @Test
+    func `SyncDailyPoint decodes old payload (no isEstimated key) as nil`() throws {
         let json = Data("""
         {
             "dayKey": "2026-04-27", "costUSD": 1.5, "totalTokens": 1000
@@ -73,8 +73,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.serviceBreakdowns.isEmpty)
     }
 
-    @Test("SyncDailyPoint decodes new payload with isEstimated=true")
-    func dailyPointDecodesNewPayloadEstimated() throws {
+    @Test
+    func `SyncDailyPoint decodes new payload with isEstimated=true`() throws {
         let json = Data("""
         {
             "dayKey": "2026-04-27", "costUSD": 1.5, "totalTokens": 1000,
@@ -88,8 +88,8 @@ struct SyncCostIsEstimatedTests {
 
     // MARK: - SyncCostSummary wire format
 
-    @Test("SyncCostSummary decodes old payload (no isEstimated key) as nil")
-    func summaryDecodesOldPayloadAsNil() throws {
+    @Test
+    func `SyncCostSummary decodes old payload (no isEstimated key) as nil`() throws {
         let json = Data("""
         {
             "sessionCostUSD": null, "sessionTokens": null,
@@ -102,8 +102,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.isEstimated == nil)
     }
 
-    @Test("SyncCostSummary roundtrips isEstimated=true")
-    func summaryRoundtripEstimated() throws {
+    @Test
+    func `SyncCostSummary roundtrips isEstimated=true`() throws {
         let original = SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -118,8 +118,8 @@ struct SyncCostIsEstimatedTests {
 
     // MARK: - SyncCostBreakdown standard/fast split (#1070)
 
-    @Test("SyncCostBreakdown decodes old payload (no split keys) as nil split")
-    func breakdownDecodesOldPayloadAsNilSplit() throws {
+    @Test
+    func `SyncCostBreakdown decodes old payload (no split keys) as nil split`() throws {
         let json = Data("""
         { "label": "gpt-5.5", "costUSD": 1.0 }
         """.utf8)
@@ -130,8 +130,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.priorityTokens == nil)
     }
 
-    @Test("SyncCostBreakdown roundtrips the Codex standard/fast split")
-    func breakdownRoundtripsSplit() throws {
+    @Test
+    func `SyncCostBreakdown roundtrips the Codex standard/fast split`() throws {
         let original = SyncCostBreakdown(
             label: "gpt-5.5",
             costUSD: 1.0,
@@ -149,8 +149,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.priorityTokens == 200)
     }
 
-    @Test("SyncCoordinator carries the Codex standard/fast split into the envelope (#1070)")
-    func coordinatorCarriesCodexSplit() async throws {
+    @Test
+    func `SyncCoordinator carries the Codex standard/fast split into the envelope (#1070)`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-codex-split")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -212,8 +212,8 @@ struct SyncCostIsEstimatedTests {
 
     // MARK: - SyncCoordinator aggregation
 
-    @Test("SyncCoordinator: unknown Claude model bubbles isEstimated up to summary")
-    func coordinatorBubblesEstimatedFromUnknownClaudeModel() async throws {
+    @Test
+    func `SyncCoordinator: unknown Claude model bubbles isEstimated up to summary`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-isEst-claude")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -285,8 +285,8 @@ struct SyncCostIsEstimatedTests {
             "Unknown model breakdown should BE flagged estimated.")
     }
 
-    @Test("SyncCoordinator: all-known Claude models keep isEstimated nil")
-    func coordinatorKeepsEstimatedNilWhenAllKnown() async throws {
+    @Test
+    func `SyncCoordinator: all-known Claude models keep isEstimated nil`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-isEst-allknown")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(

@@ -2,10 +2,9 @@ import CodexBarSync
 import Foundation
 import Testing
 
-@Suite
 struct PayloadCompressionTests {
     @Test
-    func roundTripsRealisticPayload() throws {
+    func `round trips realistic payload`() throws {
         // Simulate the shape of a real per-provider envelope: repeated Date
         // strings + repeated doubles, which is what zlib exploits.
         let entries = (0..<500).map { i -> String in
@@ -26,14 +25,14 @@ struct PayloadCompressionTests {
     }
 
     @Test
-    func roundTripsEmpty() throws {
+    func `round trips empty`() throws {
         let compressed = try PayloadCompression.compress(Data())
         let decompressed = try PayloadCompression.decompress(compressed)
         #expect(decompressed == Data())
     }
 
     @Test
-    func decompressRejectsMalformedHeader() {
+    func `decompress rejects malformed header`() {
         let bogus = Data([0x00, 0x01]) // <4 bytes = malformed
         #expect(throws: PayloadCompression.Error.self) {
             _ = try PayloadCompression.decompress(bogus)
@@ -41,7 +40,7 @@ struct PayloadCompressionTests {
     }
 
     @Test
-    func decompressRejectsHeaderWithoutBody() {
+    func `decompress rejects header without body`() {
         // Header says "10 bytes to follow" but nothing does.
         var header = UInt32(10).littleEndian
         let data = Data(bytes: &header, count: 4)
@@ -51,10 +50,9 @@ struct PayloadCompressionTests {
     }
 }
 
-@Suite
 struct ProviderUsageEnvelopeTests {
     @Test
-    func jsonRoundTrip() throws {
+    func `json round trip`() throws {
         let provider = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",

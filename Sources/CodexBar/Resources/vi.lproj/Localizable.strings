@@ -1153,3 +1153,4 @@
 "section_diagnostics" = "Chẩn đoán";
 "section_updates" = "Cập nhật";
 "section_links" = "Liên kết";
+"mobile_sync_status_failure_phase_format" = "Đồng bộ iCloud thất bại trong giai đoạn %@. Mở Nâng cao → Gỡ lỗi để xem chi tiết.";
