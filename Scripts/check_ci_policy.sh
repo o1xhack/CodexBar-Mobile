@@ -2,10 +2,12 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${CI_POLICY_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 workflow_dir="$ROOT_DIR/.github/workflows"
 pr_fast="$workflow_dir/pr-fast.yml"
 final_ci="$workflow_dir/ci.yml"
+workflow_trigger_parser="$SCRIPT_DIR/workflow_has_pr_trigger.rb"
 rc=0
 
 fail() {
@@ -13,8 +15,17 @@ fail() {
   rc=1
 }
 
+workflow_has_pr_trigger() {
+  local workflow="$1"
+  ruby "$workflow_trigger_parser" "$workflow"
+}
+
 [[ -f "$pr_fast" ]] || fail ".github/workflows/pr-fast.yml is missing"
 [[ -f "$final_ci" ]] || fail ".github/workflows/ci.yml is missing"
+[[ -f "$workflow_trigger_parser" ]] || fail "workflow trigger parser is missing"
+if [[ -f "$workflow_trigger_parser" ]] && ! ruby -c "$workflow_trigger_parser" >/dev/null; then
+  fail "workflow trigger parser has invalid Ruby syntax"
+fi
 
 if [[ -f "$pr_fast" ]]; then
   grep -Eq '^  pull_request:$' "$pr_fast" \
@@ -45,12 +56,21 @@ fi
 
 while IFS= read -r workflow; do
   [[ -f "$workflow" ]] || continue
-  if grep -Eq '^  pull_request(_target)?:|^on:[[:space:]]*\[[^]]*pull_request' "$workflow"; then
-    case "$workflow" in
-      "$pr_fast"|"$final_ci") ;;
-      *) fail "$(basename "$workflow") adds a PR trigger outside the two-layer CI policy" ;;
-    esac
+  if workflow_has_pr_trigger "$workflow"; then
+    trigger_status=0
+  else
+    trigger_status=$?
   fi
+  case "$trigger_status" in
+    0)
+      case "$workflow" in
+        "$pr_fast"|"$final_ci") ;;
+        *) fail "$(basename "$workflow") adds a PR trigger outside the two-layer CI policy" ;;
+      esac
+      ;;
+    1) ;;
+    *) fail "$(basename "$workflow") could not be inspected for PR triggers" ;;
+  esac
 done < <(find "$workflow_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 
 grep -Fq 'CI Policy — Fork Invariant' "$ROOT_DIR/AGENTS.md" \

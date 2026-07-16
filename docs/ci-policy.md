@@ -36,13 +36,14 @@ when automation verifies all of the following:
 1. `version.env` contains a valid `UPSTREAM_VERSION`.
 2. That tag is a published, non-prerelease `steipete/CodexBar` release.
 3. The upstream tag commit is an ancestor of the merged fork commit.
-4. The upstream commit has successful checks and no blocking check conclusion.
+4. Every reported upstream check run is completed with a `success` conclusion.
 
-If any evidence is missing or the GitHub API is unavailable, Final CI falls
-back to the normal path-selected matrices. Reusing upstream CI does not waive
-fork-specific local testing: conflict resolutions, Shared/Sync/CloudKit/iOS,
-versioning and release behavior still follow `AGENTS.md` and the release
-checklist before merge/release.
+Missing, pending, cancelled, neutral, skipped, or failing checks are not
+reusable evidence. If any evidence is missing or the GitHub API is unavailable,
+Final CI falls back to the normal path-selected matrices. Reusing upstream CI
+does not waive fork-specific local testing: conflict resolutions,
+Shared/Sync/CloudKit/iOS, versioning and release behavior still follow
+`AGENTS.md` and the release checklist before merge/release.
 
 ## Protection against regression
 
@@ -52,6 +53,10 @@ checklist before merge/release.
 - `ci.yml` listens only to PR `closed`, not `synchronize`;
 - the PR workflow contains no macOS runner, Swift build/test or Linux matrix;
 - this policy remains routed through `AGENTS.md` and the Git workflow skill.
+
+Its regression suite covers mapping, scalar, inline-list, and block-list forms
+of both `pull_request` and `pull_request_target`, so equivalent YAML syntax
+cannot bypass the fork policy.
 
 Because the guard runs on every PR update, an upstream workflow that introduces
 another PR trigger cannot silently restore the expensive per-commit behavior.
