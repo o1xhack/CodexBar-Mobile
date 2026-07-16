@@ -37,7 +37,7 @@ def pr_trigger_node?(node, anchors)
   when Psych::Nodes::Scalar
     PR_EVENTS.include?(node.value)
   when Psych::Nodes::Sequence
-    node.children.any? { |child| PR_EVENTS.include?(scalar_value(child, anchors)) }
+    node.children.any? { |child| pr_trigger_node?(child, anchors) }
   when Psych::Nodes::Mapping
     node.children.each_slice(2).any? do |key, value|
       key_value = scalar_value(key, anchors)
