@@ -147,6 +147,10 @@ check_release_secret_loading() {
   "${ROOT_DIR}/Scripts/test_load_release_secrets.sh"
 }
 
+check_release_cli_workflow() {
+  "${ROOT_DIR}/Scripts/test_release_cli_workflow.sh"
+}
+
 check_swift_test_sharding() {
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
@@ -197,6 +201,7 @@ run_portable_checks() {
   check_release_dsym_paths
   check_sparkle_signing_paths
   check_release_secret_loading
+  check_release_cli_workflow
   check_swift_test_sharding
   check_ci_path_gate
   check_repository_size
