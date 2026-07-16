@@ -7,18 +7,19 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
 assert_gate() {
-  local expected="$1"
-  local name="$2"
+  local expected_macos="$1"
+  local expected_linux="$2"
+  local name="$3"
   local paths_file="${tmp_dir}/${name}.paths"
   local output_file="${tmp_dir}/${name}.output"
-  shift 2
+  shift 3
 
   printf '%s\n' "$@" > "$paths_file"
   GITHUB_OUTPUT="$output_file" "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$paths_file" >/dev/null
   local actual
   actual="$(sed -n 's/^macos-tests=//p' "$output_file")"
-  if [[ "$actual" != "$expected" ]]; then
-    printf '%s: expected macos-tests=%s, got %s\n' "$name" "$expected" "${actual:-<empty>}" >&2
+  if [[ "$actual" != "$expected_macos" ]]; then
+    printf '%s: expected macos-tests=%s, got %s\n' "$name" "$expected_macos" "${actual:-<empty>}" >&2
     exit 1
   fi
 
@@ -37,30 +38,59 @@ assert_gate() {
     exit 1
   fi
 
-  if [[ "$expected" == false && "$reason" != "docs/site-only changes covered by portable checks" ]]; then
-    printf '%s: expected docs/site skip reason, got %s\n' "$name" "$reason" >&2
+  local actual_linux
+  actual_linux="$(sed -n 's/^linux-tests=//p' "$output_file")"
+  if [[ "$actual_linux" != "$expected_linux" ]]; then
+    printf '%s: expected linux-tests=%s, got %s\n' \
+      "$name" "$expected_linux" "${actual_linux:-<empty>}" >&2
+    exit 1
+  fi
+
+  local linux_reason
+  linux_reason="$(sed -n 's/^linux-tests-reason=//p' "$output_file")"
+  if [[ -z "$linux_reason" ]]; then
+    printf '%s: expected linux-tests-reason output\n' "$name" >&2
     exit 1
   fi
 }
 
-assert_gate false docs-only $'M\tdocs/providers.md' $'M\tREADME.md'
-assert_gate true configuration-doc $'M\tdocs/configuration.md'
-assert_gate true rename-to-configuration-doc $'R100\tdocs/old.md\tdocs/configuration.md'
-assert_gate true rename-from-configuration-doc $'R100\tdocs/configuration.md\tdocs/new.md'
-assert_gate true agents-contract $'M\tAGENTS.md'
-assert_gate true rename-to-agents-contract $'R100\tdocs/old.md\tAGENTS.md'
-assert_gate true rename-from-agents-contract $'R100\tAGENTS.md\tdocs/new.md'
-assert_gate true source $'M\tSources/CodexBar/App.swift'
-assert_gate false docs-site $'M\tdocs/index.html' $'M\tdocs/site.css' $'M\tdocs/site.js' \
+assert_gate false false docs-only $'M\tdocs/providers.md' $'M\tREADME.md'
+assert_gate false false configuration-doc $'M\tdocs/configuration.md'
+assert_gate false false agents-contract $'M\tAGENTS.md'
+assert_gate true false mac-source $'M\tSources/CodexBar/App.swift'
+assert_gate true true portable-source $'M\tSources/CodexBarCore/UsageFormatter.swift'
+assert_gate true true cli-source $'M\tSources/CodexBarCLI/CLIEntry.swift'
+assert_gate false true linux-test $'M\tTestsLinux/PlatformGatingTests.swift'
+assert_gate true false shared-sync $'M\tShared/iCloud/CloudSyncManager.swift'
+assert_gate false false ios-only $'M\tCodexBarMobile/CodexBarMobile/ContentView.swift'
+assert_gate false false appcast-only $'M\tappcast.xml'
+assert_gate false false workflow-only $'M\t.github/workflows/ci.yml'
+assert_gate true true unknown-root-path $'M\tNewBuildContract.json'
+assert_gate false false docs-site $'M\tdocs/index.html' $'M\tdocs/site.css' $'M\tdocs/site.js' \
   $'M\tdocs/site-locales.mjs' $'M\tdocs/social.html' $'M\tdocs/social.png' \
   $'M\tdocs/CNAME' $'M\tdocs/.nojekyll' $'M\tdocs/llms.txt'
-assert_gate false docs-site-assets $'M\tdocs/icon.png' $'M\tdocs/logos/provider-logo.svg'
-assert_gate true docs-unknown-code $'M\tdocs/custom-tool.js'
-assert_gate true docs-site-with-config $'M\tdocs/site.css' $'M\tdocs/configuration.md'
-assert_gate true empty
-assert_gate true source-to-docs $'R100\tSources/CodexBar/App.swift\tdocs/App.md'
-assert_gate true docs-to-source $'R100\tdocs/App.md\tSources/CodexBar/App.swift'
-assert_gate false docs-to-site $'R100\tdocs/old.md\tdocs/site.css'
+assert_gate false false docs-site-assets $'M\tdocs/icon.png' $'M\tdocs/logos/provider-logo.svg'
+assert_gate true true package-manifest $'M\tPackage.swift'
+assert_gate true true empty
+assert_gate true false source-to-docs $'R100\tSources/CodexBar/App.swift\tdocs/App.md'
+assert_gate true false docs-to-source $'R100\tdocs/App.md\tSources/CodexBar/App.swift'
+assert_gate false false docs-to-site $'R100\tdocs/old.md\tdocs/site.css'
+
+force_paths="${tmp_dir}/force.paths"
+force_output="${tmp_dir}/force.output"
+printf '%s\n' $'M\tREADME.md' > "$force_paths"
+CI_FORCE_FULL=true GITHUB_OUTPUT="$force_output" \
+  "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$force_paths" >/dev/null
+grep -Fxq 'macos-tests=true' "$force_output"
+grep -Fxq 'linux-tests=true' "$force_output"
+
+trusted_paths="${tmp_dir}/trusted.paths"
+trusted_output="${tmp_dir}/trusted.output"
+printf '%s\n' $'M\tSources/CodexBarCore/UsageFormatter.swift' > "$trusted_paths"
+CI_TRUSTED_UPSTREAM_SYNC=true GITHUB_OUTPUT="$trusted_output" \
+  "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$trusted_paths" >/dev/null
+grep -Fxq 'macos-tests=false' "$trusted_output"
+grep -Fxq 'linux-tests=false' "$trusted_output"
 
 assert_gate_fails() {
   local name="$1"
@@ -100,8 +130,9 @@ if [[ -s "$unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success >/dev/null
-"$verify" success success false skipped >/dev/null
+"$verify" success success true success true success >/dev/null
+"$verify" success success false skipped false skipped >/dev/null
+"$verify" success success true success false skipped >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -110,10 +141,12 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped
-assert_verify_fails success success false success
-assert_verify_fails success success "" skipped
-assert_verify_fails failure success true success
-assert_verify_fails success failure true success
+assert_verify_fails success success true skipped true success
+assert_verify_fails success success false success false skipped
+assert_verify_fails success success "" skipped false skipped
+assert_verify_fails failure success true success true success
+assert_verify_fails success failure true success true success
+assert_verify_fails success success true success true skipped
+assert_verify_fails success success false skipped false success
 
-printf 'CI macOS path gate tests passed.\n'
+printf 'CI final path gate tests passed.\n'

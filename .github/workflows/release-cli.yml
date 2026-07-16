@@ -420,7 +420,10 @@ jobs:
   update-homebrew-tap:
     runs-on: ubuntu-24.04
     needs: build-cli
-    if: github.event_name == 'release'
+    # The tap, release source, and token below are owned by the upstream repo.
+    # Fork releases must still build/upload every CLI asset, then skip only
+    # this upstream-only dispatch instead of failing after publication.
+    if: github.event_name == 'release' && github.repository == 'steipete/CodexBar'
     steps:
       - name: Resolve release tag
         id: release

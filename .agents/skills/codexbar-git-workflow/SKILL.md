@@ -130,6 +130,21 @@ Use draft PRs for long-running feature branches until local verification and the
 
 ## Review And CI Loop
 
+This repository deliberately separates review feedback from expensive CI. The
+fork-owned invariant is documented in `docs/ci-policy.md`:
+
+- Every PR push runs only `PR Fast Checks`; do not add macOS/Linux matrices to
+  `pull_request` synchronize events while addressing review feedback.
+- Merge to `mobile-dev` triggers one diff-selected Final CI run.
+- Verified `upstream-sync/*` merges reuse upstream release checks instead of
+  repeating the complete upstream matrix.
+- Use manual Final CI with `full=true` only for unresolved provenance, risky
+  conflict resolution, or an explicitly requested complete rerun.
+
+Code review may therefore finish before heavy CI exists on the PR. After merge,
+check Final CI before release; a failure is fixed forward and release remains
+blocked until the relevant final gate passes.
+
 After pushing or opening a PR, check status from GitHub, not memory:
 
 ```bash

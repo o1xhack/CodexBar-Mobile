@@ -17,6 +17,7 @@
 - ✅ Todoist 移到 Release，附 release URL。
 
 ## 1. 代码 & 测试闸门（`release.sh` phase1 会强制跑，先自己过一遍）
+- [ ] CI 触发符合 `docs/ci-policy.md`：PR review 轮次只跑 `PR Fast Checks`；普通改动 merge 后按最终 diff 跑一次 Final CI；不要为了远端重复验证而跳过本节要求的本地 release gate
 - [ ] `swift build` 干净
 - [ ] `bash Scripts/lint.sh lint` 全过 = swiftformat --lint + swiftlint --strict + `audit_xcstrings` + `audit_parser_version` + `check_codex_parser_hash`
 - [ ] 全量 `swift test` 绿。**已知 flake**：`SyncCoordinatorTests` 的「L1 retry test flake」在全套件并行下偶发（Todoist 有立项 P3），独立 / filter 运行能过 → **不算回归**，别为它阻塞
@@ -26,6 +27,8 @@
 - [ ] 如果本轮改动触及 Mac→CloudKit→iOS sync、Shared payload、CloudKit schema、provider 显示数据、缓存或跨版本渲染：按 `docs/ios-sync-compatibility-testing.md` 执行 2 Mac × 2 iPhone old/new 兼容矩阵，并把本轮证据写入 `CodexBarMobile/Research/NNN-*/03-testing.md`
 
 ## 2. 上游 merge 特有
+- [ ] 保留 fork CI 策略：`.github/workflows/pr-fast.yml`、`.github/workflows/ci.yml`、`Scripts/check_ci_policy.sh` 和 `docs/ci-policy.md` 不得被上游 workflow 覆盖；`bash Scripts/check_ci_policy.sh` 必须通过
+- [ ] `upstream-sync/*` 复用上游重型 CI 时，Final CI 必须记录 published upstream tag、tag ancestry 和 upstream checks 证据；验证失败时自动回退到本仓库按路径选择的重型矩阵
 - [ ] Codex/Claude parser 文件（`CostUsageScanner*.swift` / `CostUsageJsonl.swift`）只要动了 → **bump `parserLogicVersion`**（`CostUsagePricing.swift`）+ **重生成** `CodexParserHash`（`bash Scripts/regenerate-codex-parser-hash.sh`）。两个失效轴都要滚。
 - [ ] 新 `UsageProvider` case → 补齐 fork 端**所有** `switch`（`AccountIdentityComputer` / `SyncCoordinator.isModelEstimated` / `UsageStore` …）；`swift build` 的 non-exhaustive 报错会逐个点出来
 - [ ] 冲突解决里 fork 自定义的 release 脚本（`release.sh` / `make_appcast.sh` / `sign-and-notarize.sh` …）保 fork 版（上游把它们改成了 `exec mac-release` wrapper，会打断 fork pipeline）
