@@ -81,3 +81,6 @@ review identified two valid CI-policy defects, handled on
 
 Regression coverage is part of portable lint in
 `Scripts/test_ci_upstream_check_gate.sh` and `Scripts/test_ci_policy.sh`.
+Portable lint first runs `Scripts/check_ci_policy.sh` against the real repository
+workflows, then runs the isolated trigger-form fixtures; this preserves both the
+production guard and its syntax regression coverage.

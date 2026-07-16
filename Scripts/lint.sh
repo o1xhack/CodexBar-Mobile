@@ -164,6 +164,7 @@ check_ci_upstream_check_gate() {
 }
 
 check_ci_policy() {
+  "${ROOT_DIR}/Scripts/check_ci_policy.sh"
   "${ROOT_DIR}/Scripts/test_ci_policy.sh"
 }
 
