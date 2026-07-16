@@ -53,6 +53,20 @@ workflow_has_pr_trigger() {
       return opening - closing
     }
 
+    function only_node_properties(value, count, fields, field_index, token) {
+      count = split(value, fields, /[[:space:]]+/)
+      if (count == 0) {
+        return 0
+      }
+      for (field_index = 1; field_index <= count; field_index++) {
+        token = fields[field_index]
+        if (substr(token, 1, 1) != "&" && substr(token, 1, 1) != "!") {
+          return 0
+        }
+      }
+      return 1
+    }
+
     function contains_pr_event(value, normalized, count, fields, field_index, token) {
       normalized = without_comment(value)
       gsub(/\[/, " ", normalized)
@@ -109,18 +123,20 @@ workflow_has_pr_trigger() {
       }
       flow_kind = ""
       flow_depth = 0
-      if (substr(value, 1, 1) == "[") {
+      square_start = index(value, "[")
+      brace_start = index(value, "{")
+      if (square_start > 0 && (brace_start == 0 || square_start < brace_start)) {
         flow_depth = square_balance(value)
         if (flow_depth > 0) {
           flow_kind = "square"
         }
-      } else if (substr(value, 1, 1) == "{") {
+      } else if (brace_start > 0) {
         flow_depth = brace_balance(value)
         if (flow_depth > 0) {
           flow_kind = "brace"
         }
       }
-      in_on = value == "" || flow_kind != ""
+      in_on = value == "" || flow_kind != "" || only_node_properties(value)
       event_indent = -1
       next
     }

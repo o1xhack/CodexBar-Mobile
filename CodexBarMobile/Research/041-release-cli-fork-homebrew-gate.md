@@ -93,3 +93,5 @@ Inline YAML comments are stripped before event matching, with a negative fixture
 covering `pull_request` text that appears only in workflow comments.
 Multiline flow collections under `on:` retain parser state and delimiter depth,
 so a split `on: [` list cannot hide a PR trigger from the guard.
+YAML anchors and tags before a flow collection or block mapping are treated as
+node properties rather than event values, so anchored triggers remain visible.
