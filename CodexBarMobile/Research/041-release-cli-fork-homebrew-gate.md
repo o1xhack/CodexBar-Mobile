@@ -84,3 +84,5 @@ Regression coverage is part of portable lint in
 Portable lint first runs `Scripts/check_ci_policy.sh` against the real repository
 workflows, then runs the isolated trigger-form fixtures; this preserves both the
 production guard and its syntax regression coverage.
+The trigger-form fixtures also cover quoted event values and keys, which GitHub
+Actions accepts as equivalent YAML syntax.

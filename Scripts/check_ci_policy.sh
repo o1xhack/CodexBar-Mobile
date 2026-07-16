@@ -15,8 +15,10 @@ fail() {
 
 workflow_has_pr_trigger() {
   local workflow="$1"
+  local on_key="(on|\"on\"|'on')"
+  local pr_event="(pull_request(_target)?|\"pull_request(_target)?\"|'pull_request(_target)?')"
   grep -Eq \
-    '^(on|"on"|'"'"'on'"'"'):[[:space:]]*pull_request(_target)?[[:space:]]*$|^(on|"on"|'"'"'on'"'"'):[[:space:]]*\[[^]]*pull_request(_target)?[^]]*\][[:space:]]*$|^[[:space:]]+-[[:space:]]*pull_request(_target)?([[:space:]]|$)|^[[:space:]]+pull_request(_target)?:([[:space:]]|$)' \
+    "^${on_key}:[[:space:]]*${pr_event}[[:space:]]*$|^${on_key}:[[:space:]]*\\[[^]]*${pr_event}[^]]*\\][[:space:]]*$|^[[:space:]]+-[[:space:]]*${pr_event}([[:space:]]|$)|^[[:space:]]+${pr_event}:([[:space:]]|$)" \
     "$workflow"
 }
 
