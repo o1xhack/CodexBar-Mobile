@@ -89,3 +89,5 @@ Actions accepts as equivalent YAML syntax.
 Detection is scoped to the top-level `on:` value and its direct event children;
 the negative fixture verifies that a `pull_request` value inside a job matrix is
 not misclassified as a workflow trigger.
+Inline YAML comments are stripped before event matching, with a negative fixture
+covering `pull_request` text that appears only in workflow comments.

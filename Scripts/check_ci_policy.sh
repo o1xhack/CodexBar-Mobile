@@ -33,6 +33,8 @@ workflow_has_pr_trigger() {
 
     function contains_pr_event(value, normalized, count, fields, field_index, token) {
       normalized = value
+      sub(/[[:space:]]+#.*/, "", normalized)
+      sub(/^#.*/, "", normalized)
       gsub(/\[/, " ", normalized)
       gsub(/\]/, " ", normalized)
       gsub(/\{/, " ", normalized)
