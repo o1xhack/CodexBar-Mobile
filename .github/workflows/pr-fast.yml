@@ -1,0 +1,32 @@
+# FORK CI POLICY: preserve during upstream merges.
+# This is the only workflow allowed to run on PR synchronize events.
+name: PR Fast Checks
+
+on:
+  pull_request:
+    branches: [mobile-dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-fast-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fast-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Install lint tools
+        run: ./Scripts/install_lint_tools.sh swiftlint
+
+      - name: Portable lint and fork policy guards
+        env:
+          PARSER_LINT_BASE: origin/${{ github.base_ref }}
+        run: ./Scripts/lint.sh lint-linux

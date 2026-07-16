@@ -1,12 +1,29 @@
-name: CI
+# FORK CI POLICY: preserve during upstream merges.
+# See docs/ci-policy.md. PR synchronize events belong only in pr-fast.yml.
+name: Final CI
 
 on:
-  push:
-    branches: [mobile-dev, main]
   pull_request:
+    branches: [mobile-dev]
+    types: [closed]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run the complete macOS and Linux matrices
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  checks: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Each merge needs its own final evidence. Do not let a later merge cancel an
+  # earlier merge whose path-selected matrix may cover different code.
+  group: final-ci-${{ github.event.pull_request.merge_commit_sha || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -16,18 +33,33 @@ env:
 
 jobs:
   changes:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.merged == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       macos-tests: ${{ steps.macos-tests.outputs.macos-tests }}
       macos-tests-reason: ${{ steps.macos-tests.outputs.macos-tests-reason }}
+      linux-tests: ${{ steps.macos-tests.outputs.linux-tests }}
+      linux-tests-reason: ${{ steps.macos-tests.outputs.linux-tests-reason }}
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
-      - name: Detect macOS test impact
+      - name: Verify reusable upstream release checks
+        id: upstream-release
+        if: ${{ github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'upstream-sync/') }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./Scripts/ci_verify_upstream_release.sh \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.merge_commit_sha }}" \
+            "${{ github.event.pull_request.head.ref }}"
+
+      - name: Detect final CI test impact
         id: macos-tests
         shell: bash
         run: |
@@ -35,51 +67,72 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             base_sha="${{ github.event.pull_request.base.sha }}"
+            target_sha="${{ github.event.pull_request.merge_commit_sha }}"
           else
             base_sha="${{ github.event.before }}"
+            target_sha="$GITHUB_SHA"
           fi
 
           changed_paths="${RUNNER_TEMP}/changed-paths.txt"
           if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
             git ls-files | awk '{ print "A\t" $0 }' > "$changed_paths"
           elif ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
-            echo "Base commit ${base_sha} is unavailable; running macOS tests conservatively."
+            echo "Base commit ${base_sha} is unavailable; running final CI conservatively."
             git ls-files | awk '{ print "A\t" $0 }' > "$changed_paths"
           else
-            git diff --name-status "$base_sha" "$GITHUB_SHA" > "$changed_paths"
+            git diff --name-status "$base_sha" "$target_sha" > "$changed_paths"
           fi
 
           printf 'Changed paths:\n'
           sed 's/^/- /' "$changed_paths"
-          ./Scripts/ci_macos_test_gate.sh "$changed_paths"
+          CI_TRUSTED_UPSTREAM_SYNC="${TRUSTED_UPSTREAM_SYNC:-false}" \
+          CI_FORCE_FULL="${FORCE_FULL:-false}" \
+            ./Scripts/ci_macos_test_gate.sh "$changed_paths"
+        env:
+          TRUSTED_UPSTREAM_SYNC: ${{ steps.upstream-release.outputs.trusted-upstream-sync }}
+          FORCE_FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full }}
 
-      - name: Summarize macOS test gate
+      - name: Summarize final CI path gate
         if: ${{ always() }}
         shell: bash
         env:
           MACOS_TESTS: ${{ steps.macos-tests.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ steps.macos-tests.outputs.macos-tests-reason }}
+          LINUX_TESTS: ${{ steps.macos-tests.outputs.linux-tests }}
+          LINUX_TESTS_REASON: ${{ steps.macos-tests.outputs.linux-tests-reason }}
+          TRUSTED_UPSTREAM_SYNC: ${{ steps.upstream-release.outputs.trusted-upstream-sync }}
+          TRUSTED_UPSTREAM_REASON: ${{ steps.upstream-release.outputs.trusted-upstream-reason }}
           CHANGED_PATH_COUNT: ${{ steps.macos-tests.outputs.changed-path-count }}
         run: |
           set -euo pipefail
           reason="${MACOS_TESTS_REASON:-<unset>}"
           reason="${reason//|/\\|}"
+          linux_reason="${LINUX_TESTS_REASON:-<unset>}"
+          linux_reason="${linux_reason//|/\\|}"
+          upstream_reason="${TRUSTED_UPSTREAM_REASON:-not evaluated}"
+          upstream_reason="${upstream_reason//|/\\|}"
           {
-            printf '### macOS test gate\n\n'
+            printf '### Final CI path gate\n\n'
             printf '| Field | Value |\n'
             printf '| --- | --- |\n'
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
             printf '| Reason | %s |\n' "$reason"
+            printf '| Linux CLI tests required | `%s` |\n' "${LINUX_TESTS:-<unset>}"
+            printf '| Linux reason | %s |\n' "$linux_reason"
+            printf '| Trusted upstream sync | `%s` |\n' "${TRUSTED_UPSTREAM_SYNC:-false}"
+            printf '| Upstream evidence | %s |\n' "$upstream_reason"
             printf '| Changed path entries | `%s` |\n' "${CHANGED_PATH_COUNT:-<unset>}"
           } >> "$GITHUB_STEP_SUMMARY"
 
   lint:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.merged == true }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Install lint tools
         run: ./Scripts/install_lint_tools.sh swiftlint
@@ -99,6 +152,8 @@ jobs:
         shard-count: [6]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Select Xcode 26.3 or 26.2
         run: |
@@ -161,17 +216,22 @@ jobs:
       - changes
       - lint
       - swift-test-macos
-    if: ${{ always() && !cancelled() }}
+      - build-linux-cli
+    if: ${{ always() && !cancelled() && needs.changes.result != 'skipped' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
-      - name: Verify lint and macOS test jobs
+      - name: Verify final CI jobs
         run: |
           ./Scripts/ci_verify_test_jobs.sh \
             "${{ needs.lint.result }}" \
             "${{ needs.changes.result }}" \
             "${{ needs.changes.outputs.macos-tests }}" \
-            "${{ needs.swift-test-macos.result }}"
+            "${{ needs.swift-test-macos.result }}" \
+            "${{ needs.changes.outputs.linux-tests }}" \
+            "${{ needs.build-linux-cli.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -182,10 +242,15 @@ jobs:
           MACOS_TESTS: ${{ needs.changes.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ needs.changes.outputs.macos-tests-reason }}
           MACOS_RESULT: ${{ needs.swift-test-macos.result }}
+          LINUX_TESTS: ${{ needs.changes.outputs.linux-tests }}
+          LINUX_TESTS_REASON: ${{ needs.changes.outputs.linux-tests-reason }}
+          LINUX_RESULT: ${{ needs.build-linux-cli.result }}
         run: |
           set -euo pipefail
           reason="${MACOS_TESTS_REASON:-<unset>}"
           reason="${reason//|/\\|}"
+          linux_reason="${LINUX_TESTS_REASON:-<unset>}"
+          linux_reason="${linux_reason//|/\\|}"
           {
             printf '### Aggregate CI gate\n\n'
             printf '| Field | Value |\n'
@@ -195,9 +260,14 @@ jobs:
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
             printf '| macOS gate reason | %s |\n' "$reason"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
+            printf '| Linux CLI tests required | `%s` |\n' "${LINUX_TESTS:-<unset>}"
+            printf '| Linux gate reason | %s |\n' "$linux_reason"
+            printf '| build-linux-cli result | `%s` |\n' "$LINUX_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-linux-cli:
+    needs: changes
+    if: ${{ needs.changes.outputs.linux-tests == 'true' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -210,6 +280,8 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Runner info
         run: |

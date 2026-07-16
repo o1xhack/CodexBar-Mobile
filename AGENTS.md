@@ -140,6 +140,24 @@ Full status definitions and index are in `CodexBarMobile/Research/README.md`.
 
 When a release changes Mac→CloudKit→iOS sync, Shared payloads, CloudKit schema, provider display data, cache behavior, or cross-version rendering, testing must follow **[`docs/ios-sync-compatibility-testing.md`](docs/ios-sync-compatibility-testing.md)**. This is the canonical 2 Mac × 2 iPhone old/new compatibility gate. The release `Research/NNN-*/03-testing.md` records that release's actual pass/fail/substituted evidence; it is not the source of the reusable rule.
 
+### CI Policy — Fork Invariant
+
+CI uses the durable two-layer policy in **[`docs/ci-policy.md`](docs/ci-policy.md)**:
+
+- Every PR update runs only `PR Fast Checks` (portable lint and policy guards).
+- Expensive macOS/Linux matrices run once after merge, selected by the final diff,
+  or by explicit manual full-CI dispatch.
+- A verified `upstream-sync/*` merge reuses the published upstream release's
+  successful heavy checks; fork-specific local/release gates still apply.
+- During upstream merges, preserve `.github/workflows/pr-fast.yml`, the fork
+  trigger model in `.github/workflows/ci.yml`, and `Scripts/check_ci_policy.sh`.
+  Never resolve an upstream workflow conflict by restoring heavy CI on PR
+  `synchronize` events.
+
+`Scripts/check_ci_policy.sh` is part of portable lint and fails if another
+workflow adds a PR update trigger or the fast workflow gains heavy jobs. This
+policy is repository state, not agent memory.
+
 ## Step 5 — Documentation
 
 After code is complete:
@@ -250,6 +268,8 @@ belong in `$codexbar-git-workflow`, not in individual Goal prompts.
   generate`.
 - Do not skip build numbers, changelog, release notes, CloudKit audit, or
   localization checks when their step applies.
+- Do not add full build/test matrices to PR update events. Follow
+  `docs/ci-policy.md`; full CI belongs after merge or explicit manual dispatch.
 
 ### Localization — Mandatory 4-Language Rule
 
