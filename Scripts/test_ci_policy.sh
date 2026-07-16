@@ -52,6 +52,7 @@ expect_rejected single-quoted-scalar "on: 'pull_request'"
 expect_rejected quoted-inline-list 'on: [push, "pull_request"]'
 expect_rejected quoted-block-list 'on:\n  - push\n  - "pull_request"'
 expect_rejected quoted-event-key 'on:\n  "pull_request":'
+expect_rejected multiline-flow-list 'on: [\n  push,\n  pull_request\n]'
 expect_allowed non-trigger-matrix 'on: workflow_dispatch\njobs:\n  test:\n    strategy:\n      matrix:\n        mode:\n          - pull_request\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 expect_allowed nested-on-value 'on:\n  push:\n    branches:\n      - pull_request\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 expect_allowed trigger-name-in-comments 'on: # pull_request is handled by pr-fast\n  workflow_dispatch: # no pull_request trigger here\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'

@@ -91,3 +91,5 @@ the negative fixture verifies that a `pull_request` value inside a job matrix is
 not misclassified as a workflow trigger.
 Inline YAML comments are stripped before event matching, with a negative fixture
 covering `pull_request` text that appears only in workflow comments.
+Multiline flow collections under `on:` retain parser state and delimiter depth,
+so a split `on: [` list cannot hide a PR trigger from the guard.

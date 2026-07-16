@@ -31,10 +31,30 @@ workflow_has_pr_trigger() {
       return value
     }
 
+    function without_comment(value) {
+      sub(/[[:space:]]+#.*/, "", value)
+      sub(/^#.*/, "", value)
+      return value
+    }
+
+    function square_balance(value, copy, opening, closing) {
+      copy = value
+      opening = gsub(/\[/, "", copy)
+      copy = value
+      closing = gsub(/\]/, "", copy)
+      return opening - closing
+    }
+
+    function brace_balance(value, copy, opening, closing) {
+      copy = value
+      opening = gsub(/\{/, "", copy)
+      copy = value
+      closing = gsub(/\}/, "", copy)
+      return opening - closing
+    }
+
     function contains_pr_event(value, normalized, count, fields, field_index, token) {
-      normalized = value
-      sub(/[[:space:]]+#.*/, "", normalized)
-      sub(/^#.*/, "", normalized)
+      normalized = without_comment(value)
       gsub(/\[/, " ", normalized)
       gsub(/\]/, " ", normalized)
       gsub(/\{/, " ", normalized)
@@ -53,6 +73,23 @@ workflow_has_pr_trigger() {
       return 0
     }
 
+    flow_kind != "" {
+      flow_line = without_comment($0)
+      if (contains_pr_event(flow_line)) {
+        found = 1
+      }
+      if (flow_kind == "square") {
+        flow_depth += square_balance(flow_line)
+      } else {
+        flow_depth += brace_balance(flow_line)
+      }
+      if (flow_depth <= 0) {
+        flow_kind = ""
+        in_on = 0
+      }
+      next
+    }
+
     /^[^[:space:]#]/ {
       separator = index($0, ":")
       if (separator == 0) {
@@ -66,11 +103,24 @@ workflow_has_pr_trigger() {
         next
       }
 
-      value = trim(substr($0, separator + 1))
+      value = trim(without_comment(substr($0, separator + 1)))
       if (contains_pr_event(value)) {
         found = 1
       }
-      in_on = value == "" || substr(value, 1, 1) == "#"
+      flow_kind = ""
+      flow_depth = 0
+      if (substr(value, 1, 1) == "[") {
+        flow_depth = square_balance(value)
+        if (flow_depth > 0) {
+          flow_kind = "square"
+        }
+      } else if (substr(value, 1, 1) == "{") {
+        flow_depth = brace_balance(value)
+        if (flow_depth > 0) {
+          flow_kind = "brace"
+        }
+      }
+      in_on = value == "" || flow_kind != ""
       event_indent = -1
       next
     }
