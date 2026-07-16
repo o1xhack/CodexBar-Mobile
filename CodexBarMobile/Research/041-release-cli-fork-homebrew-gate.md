@@ -95,3 +95,8 @@ Multiline flow collections under `on:` retain parser state and delimiter depth,
 so a split `on: [` list cannot hide a PR trigger from the guard.
 YAML anchors and tags before a flow collection or block mapping are treated as
 node properties rather than event values, so anchored triggers remain visible.
+After flow-style nested values exposed the limits of token scanning, the guard
+was moved to Ruby Psych's YAML syntax tree. It inspects only the top-level `on`
+node and its direct event keys/items while resolving aliases and merge keys;
+comments, quotes, flow/block layout, anchors, and nested non-event values follow
+the YAML structure instead of regular-expression heuristics.

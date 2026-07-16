@@ -6,6 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture="$(mktemp -d)"
 trap 'rm -rf "$fixture"' EXIT
 
+ruby -c "$ROOT_DIR/Scripts/workflow_has_pr_trigger.rb" >/dev/null
+
 mkdir -p \
   "$fixture/.github/workflows" \
   "$fixture/.agents/skills/codexbar-git-workflow"
@@ -55,8 +57,10 @@ expect_rejected quoted-event-key 'on:\n  "pull_request":'
 expect_rejected multiline-flow-list 'on: [\n  push,\n  pull_request\n]'
 expect_rejected anchored-multiline-flow-list 'on: &events [\n  push,\n  pull_request\n]'
 expect_rejected anchored-block-mapping 'on: &events\n  push:\n  pull_request:'
+expect_rejected aliased-event-list 'x-events: &events [push, pull_request]\non: *events'
 expect_allowed non-trigger-matrix 'on: workflow_dispatch\njobs:\n  test:\n    strategy:\n      matrix:\n        mode:\n          - pull_request\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 expect_allowed nested-on-value 'on:\n  push:\n    branches:\n      - pull_request\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
+expect_allowed nested-flow-on-value 'on: { push: { branches: [pull_request] } }\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 expect_allowed trigger-name-in-comments 'on: # pull_request is handled by pr-fast\n  workflow_dispatch: # no pull_request trigger here\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 
 printf 'CI policy trigger-form tests passed\n'

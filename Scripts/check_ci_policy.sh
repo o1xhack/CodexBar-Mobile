@@ -2,10 +2,12 @@
 
 set -euo pipefail
 
-ROOT_DIR="${CI_POLICY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${CI_POLICY_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 workflow_dir="$ROOT_DIR/.github/workflows"
 pr_fast="$workflow_dir/pr-fast.yml"
 final_ci="$workflow_dir/ci.yml"
+workflow_trigger_parser="$SCRIPT_DIR/workflow_has_pr_trigger.rb"
 rc=0
 
 fail() {
@@ -15,148 +17,15 @@ fail() {
 
 workflow_has_pr_trigger() {
   local workflow="$1"
-  awk '
-    function trim(value) {
-      sub(/^[[:space:]]+/, "", value)
-      sub(/[[:space:]]+$/, "", value)
-      return value
-    }
-
-    function unquote(value, quote) {
-      value = trim(value)
-      quote = substr(value, 1, 1)
-      if ((quote == "\"" || quote == sprintf("%c", 39)) && substr(value, length(value), 1) == quote) {
-        return substr(value, 2, length(value) - 2)
-      }
-      return value
-    }
-
-    function without_comment(value) {
-      sub(/[[:space:]]+#.*/, "", value)
-      sub(/^#.*/, "", value)
-      return value
-    }
-
-    function square_balance(value, copy, opening, closing) {
-      copy = value
-      opening = gsub(/\[/, "", copy)
-      copy = value
-      closing = gsub(/\]/, "", copy)
-      return opening - closing
-    }
-
-    function brace_balance(value, copy, opening, closing) {
-      copy = value
-      opening = gsub(/\{/, "", copy)
-      copy = value
-      closing = gsub(/\}/, "", copy)
-      return opening - closing
-    }
-
-    function only_node_properties(value, count, fields, field_index, token) {
-      count = split(value, fields, /[[:space:]]+/)
-      if (count == 0) {
-        return 0
-      }
-      for (field_index = 1; field_index <= count; field_index++) {
-        token = fields[field_index]
-        if (substr(token, 1, 1) != "&" && substr(token, 1, 1) != "!") {
-          return 0
-        }
-      }
-      return 1
-    }
-
-    function contains_pr_event(value, normalized, count, fields, field_index, token) {
-      normalized = without_comment(value)
-      gsub(/\[/, " ", normalized)
-      gsub(/\]/, " ", normalized)
-      gsub(/\{/, " ", normalized)
-      gsub(/\}/, " ", normalized)
-      gsub(/,/, " ", normalized)
-      count = split(normalized, fields, /[[:space:]]+/)
-      for (field_index = 1; field_index <= count; field_index++) {
-        token = fields[field_index]
-        sub(/^-/, "", token)
-        sub(/:.*/, "", token)
-        token = unquote(token)
-        if (token == "pull_request" || token == "pull_request_target") {
-          return 1
-        }
-      }
-      return 0
-    }
-
-    flow_kind != "" {
-      flow_line = without_comment($0)
-      if (contains_pr_event(flow_line)) {
-        found = 1
-      }
-      if (flow_kind == "square") {
-        flow_depth += square_balance(flow_line)
-      } else {
-        flow_depth += brace_balance(flow_line)
-      }
-      if (flow_depth <= 0) {
-        flow_kind = ""
-        in_on = 0
-      }
-      next
-    }
-
-    /^[^[:space:]#]/ {
-      separator = index($0, ":")
-      if (separator == 0) {
-        in_on = 0
-        next
-      }
-
-      key = unquote(substr($0, 1, separator - 1))
-      if (key != "on") {
-        in_on = 0
-        next
-      }
-
-      value = trim(without_comment(substr($0, separator + 1)))
-      if (contains_pr_event(value)) {
-        found = 1
-      }
-      flow_kind = ""
-      flow_depth = 0
-      square_start = index(value, "[")
-      brace_start = index(value, "{")
-      if (square_start > 0 && (brace_start == 0 || square_start < brace_start)) {
-        flow_depth = square_balance(value)
-        if (flow_depth > 0) {
-          flow_kind = "square"
-        }
-      } else if (brace_start > 0) {
-        flow_depth = brace_balance(value)
-        if (flow_depth > 0) {
-          flow_kind = "brace"
-        }
-      }
-      in_on = value == "" || flow_kind != "" || only_node_properties(value)
-      event_indent = -1
-      next
-    }
-
-    in_on && $0 !~ /^[[:space:]]*(#|$)/ {
-      indent = match($0, /[^[:space:]]/) - 1
-      if (event_indent == -1) {
-        event_indent = indent
-      }
-      if (indent == event_indent && contains_pr_event(substr($0, indent + 1))) {
-        found = 1
-      }
-    }
-
-    END { exit(found ? 0 : 1) }
-  ' "$workflow"
+  ruby "$workflow_trigger_parser" "$workflow"
 }
 
 [[ -f "$pr_fast" ]] || fail ".github/workflows/pr-fast.yml is missing"
 [[ -f "$final_ci" ]] || fail ".github/workflows/ci.yml is missing"
+[[ -f "$workflow_trigger_parser" ]] || fail "workflow trigger parser is missing"
+if [[ -f "$workflow_trigger_parser" ]] && ! ruby -c "$workflow_trigger_parser" >/dev/null; then
+  fail "workflow trigger parser has invalid Ruby syntax"
+fi
 
 if [[ -f "$pr_fast" ]]; then
   grep -Eq '^  pull_request:$' "$pr_fast" \
