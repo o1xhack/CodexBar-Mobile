@@ -30,6 +30,16 @@ expect_rejected() {
   rm "$workflow"
 }
 
+expect_allowed() {
+  local name="$1"
+  local body="$2"
+  local workflow="$fixture/.github/workflows/review-regression.yml"
+  printf 'name: Review regression\n%b\n' "$body" > "$workflow"
+  CI_POLICY_ROOT="$fixture" "$ROOT_DIR/Scripts/check_ci_policy.sh" >/dev/null \
+    || { printf 'expected CI policy to allow %s\n' "$name" >&2; exit 1; }
+  rm "$workflow"
+}
+
 expect_rejected mapping 'on:\n  pull_request:'
 expect_rejected scalar 'on: pull_request'
 expect_rejected inline-list 'on: [push, pull_request]'
@@ -42,5 +52,7 @@ expect_rejected single-quoted-scalar "on: 'pull_request'"
 expect_rejected quoted-inline-list 'on: [push, "pull_request"]'
 expect_rejected quoted-block-list 'on:\n  - push\n  - "pull_request"'
 expect_rejected quoted-event-key 'on:\n  "pull_request":'
+expect_allowed non-trigger-matrix 'on: workflow_dispatch\njobs:\n  test:\n    strategy:\n      matrix:\n        mode:\n          - pull_request\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
+expect_allowed nested-on-value 'on:\n  push:\n    branches:\n      - pull_request\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: true'
 
 printf 'CI policy trigger-form tests passed\n'

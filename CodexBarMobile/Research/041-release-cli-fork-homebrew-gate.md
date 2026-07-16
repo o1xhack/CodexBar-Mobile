@@ -86,3 +86,6 @@ workflows, then runs the isolated trigger-form fixtures; this preserves both the
 production guard and its syntax regression coverage.
 The trigger-form fixtures also cover quoted event values and keys, which GitHub
 Actions accepts as equivalent YAML syntax.
+Detection is scoped to the top-level `on:` value and its direct event children;
+the negative fixture verifies that a `pull_request` value inside a job matrix is
+not misclassified as a workflow trigger.

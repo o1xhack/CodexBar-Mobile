@@ -15,11 +15,76 @@ fail() {
 
 workflow_has_pr_trigger() {
   local workflow="$1"
-  local on_key="(on|\"on\"|'on')"
-  local pr_event="(pull_request(_target)?|\"pull_request(_target)?\"|'pull_request(_target)?')"
-  grep -Eq \
-    "^${on_key}:[[:space:]]*${pr_event}[[:space:]]*$|^${on_key}:[[:space:]]*\\[[^]]*${pr_event}[^]]*\\][[:space:]]*$|^[[:space:]]+-[[:space:]]*${pr_event}([[:space:]]|$)|^[[:space:]]+${pr_event}:([[:space:]]|$)" \
-    "$workflow"
+  awk '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+
+    function unquote(value, quote) {
+      value = trim(value)
+      quote = substr(value, 1, 1)
+      if ((quote == "\"" || quote == sprintf("%c", 39)) && substr(value, length(value), 1) == quote) {
+        return substr(value, 2, length(value) - 2)
+      }
+      return value
+    }
+
+    function contains_pr_event(value, normalized, count, fields, field_index, token) {
+      normalized = value
+      gsub(/\[/, " ", normalized)
+      gsub(/\]/, " ", normalized)
+      gsub(/\{/, " ", normalized)
+      gsub(/\}/, " ", normalized)
+      gsub(/,/, " ", normalized)
+      count = split(normalized, fields, /[[:space:]]+/)
+      for (field_index = 1; field_index <= count; field_index++) {
+        token = fields[field_index]
+        sub(/^-/, "", token)
+        sub(/:.*/, "", token)
+        token = unquote(token)
+        if (token == "pull_request" || token == "pull_request_target") {
+          return 1
+        }
+      }
+      return 0
+    }
+
+    /^[^[:space:]#]/ {
+      separator = index($0, ":")
+      if (separator == 0) {
+        in_on = 0
+        next
+      }
+
+      key = unquote(substr($0, 1, separator - 1))
+      if (key != "on") {
+        in_on = 0
+        next
+      }
+
+      value = trim(substr($0, separator + 1))
+      if (contains_pr_event(value)) {
+        found = 1
+      }
+      in_on = value == "" || substr(value, 1, 1) == "#"
+      event_indent = -1
+      next
+    }
+
+    in_on && $0 !~ /^[[:space:]]*(#|$)/ {
+      indent = match($0, /[^[:space:]]/) - 1
+      if (event_indent == -1) {
+        event_indent = indent
+      }
+      if (indent == event_indent && contains_pr_event(substr($0, indent + 1))) {
+        found = 1
+      }
+    }
+
+    END { exit(found ? 0 : 1) }
+  ' "$workflow"
 }
 
 [[ -f "$pr_fast" ]] || fail ".github/workflows/pr-fast.yml is missing"
@@ -55,11 +120,20 @@ fi
 while IFS= read -r workflow; do
   [[ -f "$workflow" ]] || continue
   if workflow_has_pr_trigger "$workflow"; then
-    case "$workflow" in
-      "$pr_fast"|"$final_ci") ;;
-      *) fail "$(basename "$workflow") adds a PR trigger outside the two-layer CI policy" ;;
-    esac
+    trigger_status=0
+  else
+    trigger_status=$?
   fi
+  case "$trigger_status" in
+    0)
+      case "$workflow" in
+        "$pr_fast"|"$final_ci") ;;
+        *) fail "$(basename "$workflow") adds a PR trigger outside the two-layer CI policy" ;;
+      esac
+      ;;
+    1) ;;
+    *) fail "$(basename "$workflow") could not be inspected for PR triggers" ;;
+  esac
 done < <(find "$workflow_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort)
 
 grep -Fq 'CI Policy — Fork Invariant' "$ROOT_DIR/AGENTS.md" \
