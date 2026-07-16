@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="${CI_POLICY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 workflow_dir="$ROOT_DIR/.github/workflows"
 pr_fast="$workflow_dir/pr-fast.yml"
 final_ci="$workflow_dir/ci.yml"
@@ -11,6 +11,13 @@ rc=0
 fail() {
   printf 'CI policy error: %s\n' "$1" >&2
   rc=1
+}
+
+workflow_has_pr_trigger() {
+  local workflow="$1"
+  grep -Eq \
+    '^(on|"on"|'"'"'on'"'"'):[[:space:]]*pull_request(_target)?[[:space:]]*$|^(on|"on"|'"'"'on'"'"'):[[:space:]]*\[[^]]*pull_request(_target)?[^]]*\][[:space:]]*$|^[[:space:]]+-[[:space:]]*pull_request(_target)?([[:space:]]|$)|^[[:space:]]+pull_request(_target)?:([[:space:]]|$)' \
+    "$workflow"
 }
 
 [[ -f "$pr_fast" ]] || fail ".github/workflows/pr-fast.yml is missing"
@@ -45,7 +52,7 @@ fi
 
 while IFS= read -r workflow; do
   [[ -f "$workflow" ]] || continue
-  if grep -Eq '^  pull_request(_target)?:|^on:[[:space:]]*\[[^]]*pull_request' "$workflow"; then
+  if workflow_has_pr_trigger "$workflow"; then
     case "$workflow" in
       "$pr_fast"|"$final_ci") ;;
       *) fail "$(basename "$workflow") adds a PR trigger outside the two-layer CI policy" ;;

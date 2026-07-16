@@ -64,3 +64,20 @@ require withdrawing or rebuilding `0.41.0.1 / 1.18.0`.
 No runtime Swift, Mac app, Shared sync, iOS, CloudKit, version, appcast, or
 release artifact source changed. A remote Actions evaluation remains for the
 PR handoff because this task did not authorize pushing the branch.
+
+## Post-merge review follow-up
+
+PR #52 was merged before its asynchronous Codex review finished. The completed
+review identified two valid CI-policy defects, handled on
+`review/pr52-review-fixes`:
+
+- Upstream check reuse previously rejected only selected blocking conclusions,
+  so a `cancelled` check could be accepted alongside any successful check. The
+  gate now requires every reported check run to be completed successfully and
+  otherwise falls back to fork Final CI.
+- The workflow guard previously missed scalar and block-list PR trigger syntax.
+  It now rejects mapping, scalar, inline-list, and block-list forms for both
+  `pull_request` and `pull_request_target`, including quoted `on` keys.
+
+Regression coverage is part of portable lint in
+`Scripts/test_ci_upstream_check_gate.sh` and `Scripts/test_ci_policy.sh`.

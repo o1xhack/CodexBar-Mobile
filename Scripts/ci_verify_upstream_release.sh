@@ -95,12 +95,8 @@ checks_json="$(api_get "/repos/${upstream_repository}/commits/${upstream_sha}/ch
   emit_result
   exit 0
 }
-successful_checks="$(jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length' <<< "$checks_json")"
-blocking_checks="$(jq '[.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required" or .conclusion == "startup_failure" or .conclusion == "stale")] | length' <<< "$checks_json")"
-pending_checks="$(jq '[.check_runs[] | select(.status != "completed")] | length' <<< "$checks_json")"
-
-if [[ "$successful_checks" -eq 0 || "$blocking_checks" -ne 0 || "$pending_checks" -ne 0 ]]; then
-  reason="upstream checks are missing, pending, or contain a blocking conclusion; running final CI conservatively"
+if ! printf '%s\n' "$checks_json" | "$ROOT_DIR/Scripts/ci_check_runs_are_reusable.sh"; then
+  reason="upstream checks are missing or not all completed successfully; running final CI conservatively"
   emit_result
   exit 0
 fi

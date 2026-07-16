@@ -159,8 +159,12 @@ check_ci_path_gate() {
   "${ROOT_DIR}/Scripts/test_ci_path_gate.sh"
 }
 
+check_ci_upstream_check_gate() {
+  "${ROOT_DIR}/Scripts/test_ci_upstream_check_gate.sh"
+}
+
 check_ci_policy() {
-  "${ROOT_DIR}/Scripts/check_ci_policy.sh"
+  "${ROOT_DIR}/Scripts/test_ci_policy.sh"
 }
 
 check_repository_size() {
@@ -208,6 +212,7 @@ run_portable_checks() {
   check_release_cli_workflow
   check_swift_test_sharding
   check_ci_path_gate
+  check_ci_upstream_check_gate
   check_ci_policy
   check_repository_size
   check_shell_scripts
