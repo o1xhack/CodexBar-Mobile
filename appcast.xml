@@ -3,6 +3,32 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.45.2.1</title>
+            <pubDate>Mon, 20 Jul 2026 14:05:52 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>109.1.1.19.0</sparkle:version>
+            <sparkle:shortVersionString>0.45.2.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.45.2.1-Mobile 1.19.0</h2>
+<h3>Added</h3>
+<ul>
+<li>Mobile sync: bridge upstream v0.42.0-v0.45.2 providers to iPhone, including typed sub2api account totals and Wayfinder routing/savings payloads.</li>
+<li>Mobile: register ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& for quota notifications and mock QA.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Mobile sync: preserve third provider quota windows, while retaining legacy Kimi K2 and CrossModel payload decoding for mixed old/new Mac installations.</li>
+<li>Fork release: version the combined upstream range as Mac <code>0.45.2.1</code> (<code>109.1.1.19.0</code> Sparkle build) and iOS <code>1.19.0 (188)</code>.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Fork integration: preserve mobile/iCloud sync, Production CloudKit, collision-safe versioning, and fork CI/release policy while incorporating all upstream fixes through v0.45.2.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.45.2.1-mobile.1.19.0/CodexBar-0.45.2.1-mobile.1.19.0.zip" length="55674294" type="application/octet-stream" sparkle:edSignature="2iisGkBDN77ZbFDkDkJF2SVjEt5lTupzIWjSa/9BkiyFZpj1tG439g2g3aegs7CulcDPBpvirlhS/KPLuFlvAg=="/>
+        </item>
+        <item>
             <title>0.41.0.1</title>
             <pubDate>Wed, 15 Jul 2026 16:45:52 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -135,108 +161,6 @@ settings redesign, menu/provider fixes, and iOS compatibility work together.
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.39.0.1-mobile.1.17.0/CodexBar-0.39.0.1-mobile.1.17.0.zip" length="46309745" type="application/octet-stream" sparkle:edSignature="Z9EX4KkZRtJB+5I7C0dvRfzbZo6fsfyQj0DiZXQl7/R3bv2qIEHWhNKm/Y4BeEmI2otvRBz3oZ59NrcIUCvjCg=="/>
-        </item>
-        <item>
-            <title>0.37.2.1</title>
-            <pubDate>Wed, 24 Jun 2026 13:57:31 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>92.1.1.15.0</sparkle:version>
-            <sparkle:shortVersionString>0.37.2.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.37.2.1-Mobile 1.15.0</h2>
-Syncs the Mac app to upstream CodexBar <strong>v0.37.2</strong> (spanning v0.37.0–v0.37.2)
-and pairs it with the next iOS train, <strong>1.15.0</strong>. This is one combined
-upstream-sync release for issues #30, #32, and #33; it intentionally does not
-split the v0.37 provider, widget, security, diagnostics, and menu reliability
-work into separate user-visible versions.
-<h3>Added / Improved</h3>
-<ul>
-<li><strong>New Mac widgets</strong> — Codex and Claude burn-down widgets now include</li>
-</ul>
-  single-window and combined session/weekly views for faster quota planning.
-<ul>
-<li><strong>Provider data improvements</strong> — Bedrock can show rolling 14-day CloudWatch</li>
-</ul>
-  activity, Mistral adds Vibe monthly-plan usage, Cursor separates personal
-  on-demand spend from shared team pool, Codex can expose configured profile
-  homes as switchable accounts, and Codex OAuth accounts can show manual reset
-  credits with expiry.
-<ul>
-<li><strong>Diagnostics and CLI visibility</strong> — provider diagnostics can be exported as</li>
-</ul>
-  redacted reports with platform/app-version context, and the CLI server reports
-  its startup build version from <code>/health</code>.
-<ul>
-<li><strong>Security hardening</strong> — Codex OAuth credentials are refreshed with private</li>
-</ul>
-  file permissions, and unsafe endpoint overrides are rejected before attaching
-  credentials for Deepgram, z.ai, Xiaomi MiMo, and Azure OpenAI.
-<ul>
-<li><strong>Menu and performance fixes</strong> — refresh stays in-place while the menu remains</li>
-</ul>
-  open, provider cards align with the Overview layout, memory-pressure callbacks
-  avoid actor-isolation crashes, idle WebViews and rebuildable caches are trimmed
-  safely, and release packages are smaller.
-<ul>
-<li><strong>iOS 1.15 readiness</strong> — the companion app will use this release train for any</li>
-</ul>
-  new mobile-side rendering or compatibility support required by the v0.37 Mac
-  data. The already-reviewing iOS 1.14 release remains separate.
-<h3>Compatibility</h3>
-<ul>
-<li>CloudKit stays in the Production environment. Schema deploy decisions and the</li>
-</ul>
-  2 Mac x 2 iPhone old/new compatibility gate are tracked in
-  <code>CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md</code>.
-<ul>
-<li>Provider-display values are expected to stay inside the existing compressed</li>
-</ul>
-  provider payload or existing quota-transition record path unless the v0.37
-  payload audit records an explicit optional-field addition.
-<h3>中文说明</h3>
-同步 Mac 端到上游 CodexBar <strong>v0.37.2</strong>（覆盖 v0.37.0–v0.37.2），并配套下一条
-iOS 发布线 <strong>1.15.0</strong>。本次把 issue #30、#32、#33 覆盖的上游内容合并为一个用户可见版本，
-不把 v0.37 的 provider、widget、安全、诊断和菜单可靠性改动拆成多次发布。
-<h3>新增 / 改进</h3>
-<ul>
-<li><strong>新的 Mac widget</strong> —— Codex 与 Claude burn-down widget 支持单窗口和 session/weekly</li>
-</ul>
-  组合视图，方便判断 quota 消耗节奏。
-<ul>
-<li><strong>Provider 数据增强</strong> —— Bedrock 可显示 14 天 CloudWatch 活动，Mistral 增加 Vibe</li>
-</ul>
-  月度套餐用量，Cursor 区分个人按需消费和团队共享池，Codex 可把显式配置的 profile home
-  作为账号切换，并显示 OAuth 手动重置额度及到期时间。
-<ul>
-<li><strong>诊断与 CLI 可见性</strong> —— provider 诊断可导出带平台/app 版本上下文的脱敏报告；</li>
-</ul>
-  CLI server 的 <code>/health</code> 会报告启动时的 build version。
-<ul>
-<li><strong>安全加固</strong> —— Codex OAuth 凭据刷新后使用私有文件权限；Deepgram、z.ai、Xiaomi MiMo</li>
-</ul>
-  与 Azure OpenAI 的不安全 endpoint override 会在附加凭据前被拒绝。
-<ul>
-<li><strong>菜单与性能修复</strong> —— 刷新时菜单保持打开并原地显示进度，provider card 对齐 Overview</li>
-</ul>
-  布局，memory-pressure callback 避免 actor-isolation crash，空闲 WebView 和可重建缓存会安全释放，
-  release 包体积也更小。
-<ul>
-<li><strong>iOS 1.15 准备</strong> —— companion app 会用 1.15 发布线承接 v0.37 Mac 数据所需的新渲染或兼容支持；</li>
-</ul>
-  已在 review 的 iOS 1.14 保持独立。
-<h3>兼容性</h3>
-<ul>
-<li>CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate</li>
-</ul>
-  记录在 <code>CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md</code>。
-<ul>
-<li>Provider 展示值预期继续保留在现有压缩 provider payload 或既有 quota-transition record 路径中；</li>
-</ul>
-  如 v0.37 payload 审计需要新增可选字段，会在 Research 中单独记录。
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.37.2.1-mobile.1.15.0/CodexBar-0.37.2.1-mobile.1.15.0.zip" length="43783785" type="application/octet-stream" sparkle:edSignature="VO7jBXJ4cnQamro5+aR9QBBFyudGSwi8Am7FoLqk4jxSkZNnVFovG6UlKPnjiV4xss6AQCwtGfalhsR0xc/0DA=="/>
         </item>
         <item>
             <title>0.14.0</title>
