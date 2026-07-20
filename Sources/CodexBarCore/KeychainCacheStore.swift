@@ -41,8 +41,32 @@ public enum KeychainCacheStore {
     private static let log = CodexBarLog.logger(LogCategories.keychainCache)
     private static let cacheService = "com.steipete.codexbar.cache"
     private static let cacheLabel = "CodexBar Cache"
-    private nonisolated(unsafe) static var globalServiceOverride: String?
     @TaskLocal private static var serviceOverride: String?
+    @TaskLocal private static var forceImplicitTestStore = false
+    #if DEBUG
+    @TaskLocal private static var operationRecorder: OperationRecorder?
+
+    enum Operation: Equatable, Sendable {
+        case load
+        case store
+        case clear
+    }
+
+    final class OperationRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recordedOperations: [Operation] = []
+
+        var operations: [Operation] {
+            self.lock.withLock { self.recordedOperations }
+        }
+
+        func record(_ operation: Operation) {
+            self.lock.withLock {
+                self.recordedOperations.append(operation)
+            }
+        }
+    }
+    #endif
     #if DEBUG && os(macOS)
     @TaskLocal private static var loadFailureStatusOverride: OSStatus?
     @TaskLocal private static var storeFailureStatusOverride: OSStatus?
@@ -63,6 +87,9 @@ public enum KeychainCacheStore {
         key: Key,
         as type: Entry.Type = Entry.self) -> LoadResult<Entry>
     {
+        #if DEBUG
+        self.operationRecorder?.record(.load)
+        #endif
         #if DEBUG && os(macOS)
         if let status = self.loadFailureStatusOverride {
             return self.loadResultForKeychainReadFailure(status: status, key: key)
@@ -110,6 +137,9 @@ public enum KeychainCacheStore {
 
     @discardableResult
     public static func storeResult(key: Key, entry: some Codable) -> Bool {
+        #if DEBUG
+        self.operationRecorder?.record(.store)
+        #endif
         #if DEBUG && os(macOS)
         if let status = self.storeFailureStatusOverride {
             self.log.error("Keychain cache store failed (\(key.account)): \(status)")
@@ -169,6 +199,9 @@ public enum KeychainCacheStore {
     }
 
     public static func clearResult(key: Key) -> ClearResult {
+        #if DEBUG
+        self.operationRecorder?.record(.clear)
+        #endif
         #if DEBUG && os(macOS)
         if let status = self.clearFailureStatusOverride {
             return self.clearResultForKeychainDeleteStatus(status, key: key)
@@ -227,10 +260,6 @@ public enum KeychainCacheStore {
         #endif
     }
 
-    static func setServiceOverrideForTesting(_ service: String?) {
-        self.globalServiceOverride = service
-    }
-
     public static func withServiceOverrideForTesting<T>(
         _ service: String?,
         operation: () throws -> T) rethrows -> T
@@ -242,6 +271,7 @@ public enum KeychainCacheStore {
 
     public static func withServiceOverrideForTesting<T>(
         _ service: String?,
+        isolation _: isolated (any Actor)? = #isolation,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$serviceOverride.withValue(service) {
@@ -258,9 +288,50 @@ public enum KeychainCacheStore {
         }
     }
 
+    static func withImplicitTestStoreForTesting<T>(
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$forceImplicitTestStore.withValue(true) {
+            try operation()
+        }
+    }
+
+    static func withImplicitTestStoreForTesting<T>(
+        isolation _: isolated (any Actor)? = #isolation,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$forceImplicitTestStore.withValue(true) {
+            try await operation()
+        }
+    }
+
     public static var currentServiceOverrideForTesting: String? {
         self.serviceOverride
     }
+
+    #if DEBUG
+    static func withOperationRecorderForTesting<T>(
+        _ recorder: OperationRecorder?,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$operationRecorder.withValue(recorder) {
+            try operation()
+        }
+    }
+
+    static func withOperationRecorderForTesting<T>(
+        _ recorder: OperationRecorder?,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$operationRecorder.withValue(recorder) {
+            try await operation()
+        }
+    }
+
+    static var currentOperationRecorderForTesting: OperationRecorder? {
+        self.operationRecorder
+    }
+    #endif
 
     static var canUseRealKeychainForTesting: Bool {
         self.canUseRealKeychain
@@ -334,7 +405,7 @@ public enum KeychainCacheStore {
     }
 
     private static var serviceName: String {
-        serviceOverride ?? self.globalServiceOverride ?? self.cacheService
+        serviceOverride ?? self.cacheService
     }
 
     private static var canUseRealKeychain: Bool {
@@ -528,7 +599,9 @@ public enum KeychainCacheStore {
     {
         self.testStoreLock.lock()
         defer { self.testStoreLock.unlock() }
-        guard let store = self.testStore ?? (self.shouldUseImplicitTestStore ? self.implicitTestStore : nil)
+        guard let store = self.forceImplicitTestStore
+            ? self.implicitTestStore
+            : self.testStore ?? (self.shouldUseImplicitTestStore ? self.implicitTestStore : nil)
         else { return nil }
         let testKey = TestStoreKey(service: self.serviceName, account: key.account)
         guard let data = store[testKey] else { return .missing }
@@ -545,6 +618,10 @@ public enum KeychainCacheStore {
         let encoder = Self.makeEncoder()
         guard let data = try? encoder.encode(entry) else { return false }
         let testKey = TestStoreKey(service: self.serviceName, account: key.account)
+        if self.forceImplicitTestStore {
+            self.implicitTestStore[testKey] = data
+            return true
+        }
         if var store = self.testStore {
             store[testKey] = data
             self.testStore = store
@@ -561,6 +638,9 @@ public enum KeychainCacheStore {
         self.testStoreLock.lock()
         defer { self.testStoreLock.unlock() }
         let testKey = TestStoreKey(service: self.serviceName, account: key.account)
+        if self.forceImplicitTestStore {
+            return self.implicitTestStore.removeValue(forKey: testKey) != nil
+        }
         if var store = self.testStore {
             let removed = store.removeValue(forKey: testKey) != nil
             self.testStore = store
@@ -575,7 +655,9 @@ public enum KeychainCacheStore {
     private static func keysFromTestStore(category: String) -> [Key]? {
         self.testStoreLock.lock()
         defer { self.testStoreLock.unlock() }
-        guard let store = self.testStore ?? (self.shouldUseImplicitTestStore ? self.implicitTestStore : nil)
+        guard let store = self.forceImplicitTestStore
+            ? self.implicitTestStore
+            : self.testStore ?? (self.shouldUseImplicitTestStore ? self.implicitTestStore : nil)
         else { return nil }
         return store.keys
             .filter { $0.service == self.serviceName }

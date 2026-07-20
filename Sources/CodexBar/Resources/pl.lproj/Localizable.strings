@@ -1,8 +1,13 @@
 /* English localization for CodexBar (base/fallback) */
 
+"ollama_safari_cookie_access_hint" = "Pliki cookie Safari wymagają pełnego dostępu do dysku dla CodexBar (Ustawienia systemowe > Prywatność i ochrona).";
+"ollama_browser_cookie_decryption_denied" = "Odszyfrowanie plików cookie %@ zostało odrzucone w Pęku kluczy; spróbuj ponownie przez ręczne odświeżenie.";
+"ollama_browser_cookie_decryption_disabled" = "Odszyfrowanie plików cookie %@ jest wyłączone w CodexBar; włącz dostęp do Pęku kluczy i odśwież.";
+
 " providers" = " providers";
 "(System)" = "(System)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Trwa już zarządzane logowanie Codex. Poczekaj na jego zakończenie, zanim dodasz ";
 "API key" = "Klucz API";
 "API region" = "Region API";
@@ -58,13 +63,16 @@
 "Check for updates automatically" = "Sprawdzaj aktualizacje automatycznie";
 "Check if you like your agents having some fun up there." = "Sprawdź, czy lubisz, gdy twoi agenci trochę się tam bawią.";
 "Check provider status" = "Sprawdź status dostawcy";
+"Choose a supported browser so CodexBar can read the matching account." = "Wybierz obsługiwaną przeglądarkę, aby CodexBar mógł odczytać odpowiednie konto.";
 "Choose Codex workspace" = "Wybierz workspace Codex";
+"Choose Cursor account" = "Wybierz konto Cursor";
 "Choose the MiniMax host (global .io or China mainland .com)." = "Wybierz host MiniMax (.io globalny lub .com dla Chin kontynentalnych).";
 "Choose up to " = "Wybierz maksymalnie ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "Wybierz maksymalnie \\(Self.maxOverviewProviders) dostawców";
 "Choose up to \\(count) providers" = "Wybierz maksymalnie \\(count) dostawców";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "Wybierz, co pokazywać na pasku menu (Tempo pokazuje użycie względem oczekiwanego).";
 "Choose which Codex account CodexBar should follow." = "Wybierz, które konto Codex ma śledzić CodexBar.";
+"Choose which Cursor account CodexBar should use." = "Wybierz konto Cursor, którego CodexBar powinien używać.";
 "Choose which window drives the menu bar percent." = "Wybierz, które okno steruje procentem na pasku menu.";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "Nie znaleziono Claude CLI";
@@ -270,7 +278,8 @@
 "Select the IDE to monitor" = "Wybierz IDE do monitorowania";
 "Session quota notifications" = "Powiadomienia o limicie sesji";
 "Session tokens" = "Tokeny sesji";
-"Settings" = "Ustawienia";
+"provider_section_connection" = "Połączenie";
+"provider_section_menu_bar" = "Pasek menu";
 "Show Codex Credits and Claude Extra usage sections in the menu." = "Pokazuj w menu sekcje Codex Credits i Claude Extra usage.";
 "Show Debug Settings" = "Pokaż ustawienia debugowania";
 "Show all token accounts" = "Pokaż wszystkie konta tokenów";
@@ -299,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Przechowuj wiele nagłówków Cookie dla OpenCode Go.";
 "Stored in the CodexBar config file." = "Przechowywane w pliku konfiguracyjnym CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Przechowywane w ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Przechowywane w ~/.codexbar/config.json. Wygeneruj jeden na kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Przechowywane w ~/.codexbar/config.json. Wklej klucz z panelu Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Przechowywane w ~/.codexbar/config.json. Wklej klucz API Coding Plan z Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Przechowywane w ~/.codexbar/config.json. Wklej swój klucz API MiniMax.";
@@ -329,6 +337,7 @@
 "Usage breakdown" = "Podział użycia";
 "Usage history (30 days)" = "Historia użycia (30 dni)";
 "Usage source" = "Źródło użycia";
+"Use Account" = "Użyj konta";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Użyj BigModel dla punktów końcowych Chin kontynentalnych (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Używaj jednej ikony paska menu z przełącznikiem dostawcy.";
 "Use international or China mainland console gateways for quota fetches." = "Używaj międzynarodowych lub chińskich bram konsoli do pobierania limitów.";
@@ -396,7 +405,14 @@
 /* General Pane */
 "section_system" = "System";
 "section_usage" = "Zużycie";
-"section_automation" = "Automatyzacja";
+"section_refreshing" = "Odświeżanie";
+"section_alerts" = "Alerty";
+"section_celebrations" = "Świętowanie";
+"section_icon" = "Ikona";
+"section_combined_icon" = "Połączona ikona";
+"section_animation" = "Animacja";
+"section_content" = "Zawartość";
+"section_agent_sessions" = "Sesje agentów";
 "language_title" = "Język";
 "language_subtitle" = "Zmień język interfejsu. Aby zmiana zaczęła w pełni obowiązywać, uruchom aplikację ponownie.";
 "language_system" = "System";
@@ -421,7 +437,6 @@
 "language_turkish" = "Turecki";
 "start_at_login_title" = "Uruchamiaj przy logowaniu";
 "start_at_login_subtitle" = "Automatycznie uruchamia CodexBar podczas startu Maca.";
-"show_cost_summary" = "Pokaż podsumowanie kosztów";
 "show_cost_summary_subtitle" = "Odczytuje lokalne logi użycia. Pokazuje dziś + wybrany zakres historii w menu.";
 "cost_summary_style_title" = "Styl wyświetlania";
 "cost_summary_style_inline" = "Tylko wbudowane";
@@ -435,18 +450,17 @@
 "cost_history_days_title" = "Zakres historii: %d dni";
 "cost_comparison_periods_title" = "Pokaż krótsze okresy porównawcze";
 "cost_comparison_periods_subtitle" = "Dodaj sumy z 7, 30 i 90 dni, gdy mieszczą się w wybranym zakresie historii. Sumy te wykorzystują to samo skanowanie lokalne.";
-"cost_auto_refresh_info" = "Auto-odświeżanie: co godzinę · Limit czasu: 10 min";
-"refresh_cadence_title" = "Częstotliwość odświeżania";
-"refresh_cadence_subtitle" = "Jak często CodexBar odpyta dostawców w tle.";
+"cost_auto_refresh_info" = "Auto-odświeżanie: interwał globalny (minimum 5 min) · Limit czasu: 10 min";
+"refresh_interval_title" = "Częstotliwość odświeżania";
 "manual_refresh_hint" = "Auto-odświeżanie jest wyłączone; użyj polecenia Odśwież w menu.";
 "refresh_on_open_title" = "Odśwież po otwarciu menu";
 "refresh_on_open_subtitle" = "Pobiera najnowsze zużycie każdego dostawcy przy każdym otwarciu menu.";
 "check_provider_status_title" = "Sprawdzaj status dostawców";
 "check_provider_status_subtitle" = "Sprawdza status OpenAI/Claude oraz Google Workspace dla Gemini/Antigravity i pokazuje incydenty na ikonie i w menu.";
-"session_quota_notifications_title" = "Powiadomienia o limicie sesji";
 "session_quota_notifications_subtitle" = "Powiadamia, gdy limit 5-godzinnej sesji spadnie do 0% i gdy znów będzie dostępny.";
-"quota_warning_notifications_title" = "Powiadomienia o ostrzeżeniach limitu";
+"quota_depleted_title" = "Wyczerpanie i przywrócenie limitu";
 "quota_warning_notifications_subtitle" = "Ostrzega, gdy pozostały limit sesji lub tygodnia przekroczy skonfigurowane progi.";
+"threshold_warnings_title" = "Ostrzeżenia progowe";
 "quota_warnings_title" = "Ostrzeżenia limitu";
 "quota_warning_session" = "sesja";
 "quota_warning_session_capitalized" = "Sesja";
@@ -455,6 +469,17 @@
 "quota_warning_notification_title" = "Niski limit %1$@ (%2$@)";
 "quota_warning_notification_body" = "Pozostało %1$@. Osiągnięto próg ostrzeżenia %2$d%% dla %3$@.";
 "quota_warning_notification_body_with_account" = "Konto %1$@. Pozostało %2$@. Osiągnięto próg ostrzeżenia %3$d%% dla %4$@.";
+"predictive_pace_warnings_title" = "Predykcyjne ostrzeżenia tempa";
+"predictive_pace_warnings_subtitle" = "Ostrzega dla Codex i Claude, gdy tempo sesji lub tygodnia może wyczerpać limit przed resetem.";
+"confetti_on_reset_title" = "Konfetti po resecie";
+"confetti_on_reset_subtitle" = "Wyświetlaj pełnoekranowe konfetti po zresetowaniu użycia.";
+"confetti_option_off" = "Wyłączone";
+"confetti_option_session" = "Resety sesji";
+"confetti_option_weekly" = "Resety tygodniowe";
+"confetti_option_both" = "Oba";
+"predictive_pace_warning_notification_title" = "%1$@ ostrzeżenie tempa %2$@";
+"predictive_pace_warning_notification_body" = "Przy obecnym tempie ten limit może wyczerpać się za %1$@, przed resetem.";
+"predictive_pace_warning_notification_body_with_account" = "Konto %1$@. Przy obecnym tempie ten limit może wyczerpać się za %2$@, przed resetem.";
 "session_depleted_notification_title" = "Wyczerpano limit sesji (%@)";
 "session_depleted_notification_body" = "Pozostało 0%. Powiadomimy, gdy limit będzie ponownie dostępny.";
 "session_restored_notification_title" = "Przywrócono limit sesji (%@)";
@@ -464,22 +489,50 @@
 "quota_warning_sound" = "Odtwarzaj dźwięk powiadomienia";
 "quota_warning_onscreen_alert" = "Pokaż alert tekstowy na ekranie";
 "quota_warning_provider_inherits" = "Używa globalnych ustawień ostrzeżeń limitu, chyba że to okno jest tutaj dostosowane.";
+"quota_warning_provider_disabled" = "Powiadomienia o ostrzeżeniach limitu i znaczniki na paskach użycia są wyłączone. Włącz dowolną z tych funkcji, aby edytować zapisane ustawienia.";
+"quota_warning_provider_markers_only" = "Powiadomienia o ostrzeżeniach limitu są globalnie wyłączone. Te ustawienia nadal sterują znacznikami na paskach użycia.";
+"quota_warning_global" = "Globalne";
 "quota_warning_customize_thresholds" = "Dostosuj progi dla %@";
 "quota_warning_enable_warnings" = "Włącz ostrzeżenia dla %@";
 "quota_warning_window_warn_at" = "%@ — ostrzegaj przy";
 "quota_warning_off" = "Wyłączone";
 "quota_warning_inherited" = "Dziedziczone: %@";
 "quota_warning_depleted_only" = "tylko wyczerpanie";
-"quota_warning_upper" = "Górny";
+"quota_warning_upper" = "Wyższy";
 "quota_warning_lower" = "Dolny";
+"quota_warning_warning" = "Ostrzeżenie";
+"quota_warning_critical" = "Krytyczny";
 "apply" = "Zastosuj";
 "quit_app" = "Zakończ aplikację";
 
 /* Tab titles */
 "tab_general" = "Ogólne";
 "tab_providers" = "Dostawcy";
-"tab_display" = "Wygląd";
+"tab_notifications" = "Powiadomienia";
+"tab_menu_bar" = "Pasek menu";
+"tab_menu" = "Menu";
 "tab_advanced" = "Zaawansowane";
+"tab_hooks" = "Haki";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Włącz haki";
+"hooks_enable_subtitle" = "Uruchamiaj polecenia zewnętrzne, gdy wystąpią zdarzenia limitu lub dostawcy.";
+"hooks_trust_warning" = "Haki mogą uruchamiać lokalne polecenia na Twoim Macu. Konfiguruj tylko polecenia, którym ufasz.";
+"hooks_rules_header" = "Reguły";
+"hooks_empty" = "Nie skonfigurowano haków.";
+"hooks_add_rule" = "Dodaj regułę";
+"hooks_delete_rule" = "Usuń regułę";
+"hooks_rule_enabled" = "Włączone";
+"hooks_event" = "Zdarzenie";
+"hooks_provider" = "Dostawca";
+"hooks_any_provider" = "Dowolny dostawca";
+"hooks_threshold" = "Uruchom przy użyciu ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumenty";
+"hooks_argument_placeholder" = "Argument";
+"hooks_add_argument" = "Dodaj argument";
+"hooks_delete_argument" = "Usuń argument";
 "tab_about" = "O aplikacji";
 "tab_debug" = "Debugowanie";
 
@@ -504,39 +557,42 @@
 "menu_bar_metric_subtitle_deepseek" = "Pokazuje saldo DeepSeek na pasku menu.";
 "menu_bar_metric_subtitle_moonshot" = "Pokazuje saldo API Moonshot / Kimi na pasku menu.";
 "menu_bar_metric_subtitle_mistral" = "Pokazuje wydatki Mistral API z bieżącego miesiąca na pasku menu.";
-"menu_bar_metric_subtitle_kimik2" = "Pokazuje kredyty klucza API Kimi K2 na pasku menu.";
 "automatic" = "Automatycznie";
 "primary_api_key_limit" = "Główny (limit klucza API)";
 
 /* Display Pane */
-"section_menu_bar" = "Pasek menu";
+"menu_bar_style_title" = "Styl paska menu";
+"menu_bar_style_subtitle" = "Sposób rysowania elementu paska menu.";
+"menu_bar_inactive_display_contrast_title" = "Popraw widoczność na nieaktywnych ekranach";
+"menu_bar_inactive_display_contrast_subtitle" = "Używa renderowania o wysokim kontraście, aby ikona i wskaźnik pozostały czytelne na innych ekranach.";
+"menu_bar_style_critters" = "Stworki";
+"menu_bar_style_bars" = "Paski miernika";
+"menu_bar_style_icon_percent" = "Ikona i procent";
+"switcher_rows_title" = "Wiersze przełącznika";
+"switcher_rows_icons" = "Ikony dostawców";
+"switcher_rows_progress" = "Postęp tygodniowy";
+"usage_bars_fill_title" = "Wypełnienie pasków użycia";
+"usage_bars_fill_remaining" = "Pozostały limit";
+"usage_bars_fill_used" = "Wykorzystany limit";
+"reset_times_title" = "Czasy resetu";
+"reset_times_countdown" = "Odliczanie";
+"reset_times_clock" = "Godzina";
+"cost_summary_title" = "Podsumowanie kosztów";
+"cost_summary_off" = "Wyłączone";
 "merge_icons_title" = "Scal ikony";
 "merge_icons_subtitle" = "Używaj jednej ikony paska menu z przełącznikiem dostawcy.";
-"switcher_shows_icons_title" = "Przełącznik pokazuje ikony";
-"switcher_shows_icons_subtitle" = "Pokazuj ikony dostawców w przełączniku (w przeciwnym razie linię postępu tygodniowego).";
 "show_most_used_provider_title" = "Pokaż najczęściej używanego dostawcę";
 "show_most_used_provider_subtitle" = "Pasek menu automatycznie pokazuje dostawcę najbliżej limitu.";
-"menu_bar_shows_percent_title" = "Pokaż procent na pasku menu";
-"menu_bar_shows_percent_subtitle" = "Pokazuje procent zużycia/pozostałego limitu obok ikony.";
-"hide_critters_title" = "Ukryj stworki";
-"hide_critters_subtitle" = "Pokaż zwykłe paski miernika bez twarzy i ozdób.";
 "display_mode_title" = "Tryb wyświetlania";
 "display_mode_subtitle" = "Wybierz, co pokazywać na pasku menu (Tempo pokazuje użycie względem oczekiwanego).";
-"section_menu_content" = "Zawartość menu";
-"show_usage_as_used_title" = "Pokazuj zużycie jako wykorzystane";
-"show_usage_as_used_subtitle" = "Zamiast pozostałego limitu pokazuje wartość już wykorzystaną.";
 "show_quota_warning_markers_title" = "Pokaż znaczniki ostrzeżeń limitu";
 "show_quota_warning_markers_subtitle" = "Rysuje znaczniki progów na paskach użycia, gdy skonfigurowano ostrzeżenia limitu.";
 "weekly_progress_work_days_title" = "Dni robocze postępu tygodniowego";
 "weekly_progress_work_days_subtitle" = "Rysuje znaczniki granic dni na tygodniowych paskach użycia.";
-"show_reset_time_as_clock_title" = "Pokaż czas resetu jako godzinę";
-"show_reset_time_as_clock_subtitle" = "Pokazuje reset jako godzinę zegarową zamiast względnego czasu.";
 "show_provider_changelog_links_title" = "Pokaż linki do changelogów dostawców";
 "show_provider_changelog_links_subtitle" = "Dodaje linki do informacji o wydaniach dla obsługiwanych dostawców CLI w menu.";
 "show_credits_extra_usage_title" = "Pokaż kredyty + dodatkowe użycie";
 "show_credits_extra_usage_subtitle" = "Pokazuje sekcje Codex Credits i Claude Extra usage w menu.";
-"show_all_token_accounts_title" = "Pokaż wszystkie konta tokenów";
-"show_all_token_accounts_subtitle" = "Układa konta tokenów w stos w menu (w przeciwnym razie pokazuje pasek przełączania kont).";
 "multi_account_layout_title" = "Układ wielu kont";
 "multi_account_layout_subtitle" = "Wybierz przełączanie segmentowe kont lub ułożone karty kont.";
 "multi_account_layout_segmented" = "Segmentowy";
@@ -547,6 +603,16 @@
 "overview_no_providers_hint" = "Brak włączonych dostawców dla Przeglądu.";
 "overview_rows_follow_order" = "Wiersze Przeglądu zawsze podążają za kolejnością dostawców.";
 "overview_no_providers_selected" = "Nie wybrano dostawców";
+"agent_sessions_title" = "Sesje agentów";
+"agent_sessions_subtitle" = "Pokazuj w menu lokalne oraz wykryte przez SSH sesje Codex i Claude Code.";
+"agent_sessions_hosts_title" = "Dodatkowe hosty SSH";
+"agent_sessions_footer" = "Komputery Mac w twojej sieci tailnet są wykrywane automatycznie. Sesje lokalne są odświeżane co 30 sekund; hosty zdalne co 60 sekund i po otwarciu menu.";
+"agent_session_labels_title" = "Etykiety sesji";
+"agent_session_labels_subtitle" = "Wybierz sposób nazywania sesji agentów.";
+"agent_session_label_project" = "Projekt";
+"agent_session_label_descriptive" = "Opisowa";
+"agent_session_label_descriptive_and_project" = "Opisowa + projekt";
+"agent_session_unknown_project" = "Nieznany projekt";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Skrót klawiaturowy";
@@ -560,10 +626,6 @@
 "show_debug_settings_subtitle" = "Pokazuje dodatkowe ustawienia debugowania i diagnostyki.";
 "surprise_me_title" = "Zaskocz mnie";
 "surprise_me_subtitle" = "Sprawdź, czy lubisz, gdy twoi agenci trochę się tam bawią.";
-"session_limit_confetti_title" = "Konfetti limitu sesji";
-"session_limit_confetti_subtitle" = "Wyświetl konfetti na pełnym ekranie po zresetowaniu użycia sesji.";
-"weekly_limit_confetti_title" = "Konfetti limitu tygodniowego";
-"weekly_limit_confetti_subtitle" = "Odtwórz pełnoekranowe konfetti, gdy tygodniowe użycie się resetuje.";
 "hide_personal_info_title" = "Ukryj dane osobowe";
 "hide_personal_info_subtitle" = "Ukrywa adresy e-mail na pasku menu i w interfejsie menu.";
 "show_provider_storage_usage_title" = "Pokaż użycie dysku dostawców";
@@ -662,6 +724,8 @@
 "display_mode_pace_desc" = "Pokaż wskaźnik tempa (np. +5%)";
 "display_mode_both_desc" = "Pokaż jednocześnie procent i tempo (np. 45% · +5%)";
 "display_mode_reset_time_desc" = "Pokaż godzinę resetu dla wybranej metryki (np. ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Pokaż czas resetu, gdy limit się wyczerpie";
+"menu_bar_reset_when_exhausted_subtitle" = "Przy 0% pozostałych pokazuje czas do resetu zamiast wartości procentowej";
 
 /* Provider status */
 "status_operational" = "Operacyjne";
@@ -680,13 +744,19 @@
 "refresh_15min" = "Co 15 min";
 "refresh_30min" = "Co 30 min";
 "refresh_adaptive" = "Adaptacyjny";
+"refresh_adaptive_agent_aware" = "Adaptacyjny (aktywność agentów)";
+"adaptive_activity_consent_title" = "Zezwolić na odświeżanie uwzględniające aktywność?";
+"adaptive_activity_consent_message" = "Tryb adaptacyjny uwzględniający aktywność agentów może sprawdzać listę uruchomionych procesów lokalnych, w tym wiersze poleceń, aby rozpoznać Codex i Claude, a następnie podczas programowania co 30 sekund odczytywać metadane znanych sesji. Gdy Agent Sessions jest wyłączone, CodexBar używa w pamięci tylko czasu ostatniej aktywności i odrzuca ścieżki oraz tożsamości sesji. Te dane nie są nigdzie wysyłane, a wykrywanie zdalne i SSH pozostają wyłączone. Jeśli odmówisz, CodexBar wróci do zwykłego trybu adaptacyjnego bez skanowania aktywności lokalnej.";
+"adaptive_activity_consent_allow" = "Zezwól na lokalną aktywność";
+"adaptive_activity_consent_decline" = "Używaj zwykłego Adaptacyjnego";
 
 /* Additional keys */
 "not_found" = "Nie znaleziono";
 
 /* Cost estimation */
-"cost_header_estimated" = "Koszt (szacowany)";
 "cost_estimate_hint" = "Oszacowano na podstawie lokalnych logów · może różnić się od rachunku";
+"codex_api_estimate_hint" = "Oszacowano na podstawie użycia tokenów · to nie jest rachunek za subskrypcję";
+"cost_data_explanation" = "Koszty mogą być raportowane przez dostawcę lub szacowane na podstawie użycia tokenów według publicznych cen API. Szacunki nie są opłatami za subskrypcję.";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Nie wykryto IDE JetBrains z AI Assistant. Zainstaluj IDE JetBrains i włącz AI Assistant.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "Token API OpenRouter nie jest skonfigurowany. Ustaw zmienną środowiskową OPENROUTER_API_KEY albo skonfiguruj go w Ustawieniach.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "Nie znaleziono tokenu API z.ai. Ustaw `apiKey` w ~/.codexbar/config.json albo Z_AI_API_KEY.";
@@ -716,6 +786,7 @@
 "Today" = "Dziś";
 "Today tokens" = "Dzisiejsze tokeny";
 "30d cost" = "Koszt 30 dni";
+"%@ cost" = "Koszt %@";
 "30d tokens" = "Tokeny 30 dni";
 "Latest tokens" = "Najnowsze tokeny";
 "Top model" = "Najlepszy model";
@@ -806,6 +877,8 @@
 /* Popup panels */
 "No usage configured." = "Nie skonfigurowano użycia.";
 "Quota" = "Limit";
+"Daily quota" = "Limit dzienny";
+"Total" = "Łącznie";
 "tokens" = "tokeny";
 "requests" = "żądania";
 "Latest" = "Najnowsze";
@@ -859,7 +932,7 @@
 "Hourly Usage" = "Użycie godzinowe";
 "Usage remaining" = "Pozostałe użycie";
 "Usage used" = "Wykorzystane użycie";
-"API key verified. Ollama does not expose Cloud quota limits through the API." = "Klucz API został zweryfikowany. Ollama nie udostępnia limitów Cloud przez API.";
+"API key verified. Cloud quotas need browser cookies. Sign in to Ollama." = "Klucz API został zweryfikowany. Limity Cloud wymagają plików cookie przeglądarki. Zaloguj się do Ollama.";
 "Last 30 days: %@ tokens" = "Ostatnie 30 dni: %@ tokenów";
 "7d spend" = "Wydatki 7 dni";
 "30d spend" = "Wydatki 30 dni";
@@ -870,6 +943,13 @@
 "MiniMax 30 day token usage trend" = "Trend użycia tokenów MiniMax z 30 dni";
 "Today cash" = "Dzisiejsza gotówka";
 "DeepSeek 30 day token usage trend" = "Trend użycia tokenów DeepSeek z 30 dni";
+"DeepSeek this month token usage trend" = "Trend użycia tokenów DeepSeek w tym miesiącu";
+"Chrome profile" = "Profil Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Wybierz zalogowaną sesję DeepSeek Platform, która ma dostarczać szczegółowe dane użycia.";
+"Detailed usage unavailable." = "Szczegółowe dane użycia są niedostępne.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Zaloguj się do DeepSeek Platform w Chrome, aby uzyskać szczegółowe dane użycia.";
+"Select a DeepSeek Chrome profile in Settings." = "Wybierz profil Chrome DeepSeek w Ustawieniach.";
+"Select profile…" = "Wybierz profil…";
 "cache-hit input" = "wejście trafienia pamięci podręcznej";
 "cache-miss input" = "wejście chybienia pamięci podręcznej";
 "output" = "wynik";
@@ -993,7 +1073,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o nagłówek Cookie Cursor, aby pobrać użycie. Kliknij OK, aby kontynuować.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o nagłówek Cookie Factory, aby pobrać użycie. Kliknij OK, aby kontynuować.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o token GitHub Copilot, aby pobrać użycie. Kliknij OK, aby kontynuować.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o klucz API Kimi K2, aby pobrać użycie. Kliknij OK, aby kontynuować.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o token uwierzytelniania Kimi, aby pobrać użycie. Kliknij OK, aby kontynuować.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o token API MiniMax, aby pobrać użycie. Kliknij OK, aby kontynuować.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o nagłówek Cookie MiniMax, aby pobrać użycie. Kliknij OK, aby kontynuować.";
@@ -1141,8 +1220,155 @@
 "byte_unit_megabytes" = "megabajty";
 "byte_unit_gigabyte" = "gigabajt";
 "byte_unit_gigabytes" = "gigabajty";
+
+/* Settings sidebar redesign */
+"Enable" = "Włącz";
+"Disable" = "Wyłącz";
+"providers_on_count" = "%d wł.";
+"section_cost_summary" = "Podsumowanie kosztów";
+"section_command_line" = "Wiersz poleceń";
+"section_privacy" = "Prywatność";
+"section_diagnostics" = "Diagnostyka";
+"section_updates" = "Aktualizacje";
+"section_links" = "Linki";
+"Show Codex Spark usage" = "Pokaż użycie Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Pokazuje wiersze limitu Codex Spark w menu i podglądzie dostawcy. Wymaga włączenia opcji „Pokaż kredyty + dodatkowe użycie” w ustawieniach Wyświetlanie.";
+"Scroll to see more models" = "Przewiń, aby zobaczyć więcej modeli";
+
+/* Shareable usage card */
+"Copy Image" = "Kopiuj obraz";
+"Copy Stats" = "Kopiuj statystyki";
+"Could not copy image" = "Nie udało się skopiować obrazu";
+"Image copied" = "Obraz skopiowany";
+"Image saved" = "Obraz zapisany";
+"Nothing is uploaded. This image is created on your Mac." = "Nic nie jest przesyłane. Ten obraz jest tworzony na Twoim Macu.";
+"Save..." = "Zapisz...";
+"Share AI Usage" = "Udostępnij użycie AI";
+"Share Stats…" = "Udostępnij statystyki…";
+"Stats copied" = "Statystyki skopiowane";
+"Finish switching to a different Cursor account in your browser, then try again." = "Dokończ przełączanie na inne konto Cursor w przeglądarce, a następnie spróbuj ponownie.";
+"Timed out waiting for Cursor account switch. %@" = "Upłynął limit czasu oczekiwania na przełączenie konta Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Upłynął limit czasu oczekiwania na przełączenie konta Cursor. %@ Ostatni błąd: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Użycie i wydatki";
+"Usage & Spend" = "Użycie i wydatki";
+"Local estimated cost history across supported providers." = "Lokalna historia szacowanych kosztów u obsługiwanych dostawców.";
+"Time range" = "Zakres czasu";
+"Track costs" = "Śledź koszty";
+"Cost tracking is off" = "Śledzenie kosztów jest wyłączone";
+"Turn on Track costs to build local estimates." = "Włącz opcję „Śledź koszty”, aby tworzyć lokalne szacunki.";
+"No local cost history yet" = "Brak lokalnej historii kosztów";
+"Turn on cost tracking or refresh after using a supported provider." = "Włącz śledzenie kosztów lub odśwież po użyciu obsługiwanego dostawcy.";
+"Refresh failures" = "Błędy odświeżania";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Waluty źródłowe pozostają rozdzielone; wiersze kont Codex nie obejmują historii sesji Pi.";
+"Spend unavailable" = "Wydatki niedostępne";
+"Model breakdown unavailable" = "Podział według modeli jest niedostępny";
+"Local estimated history" = "Lokalna historia szacunkowa";
+"Coverage" = "Pokrycie";
+"Estimated spend" = "Szacowane wydatki";
+"Tracked tokens" = "Śledzone tokeny";
+"Subscriptions" = "Subskrypcje";
+"By subscription" = "Według subskrypcji";
+"No model-level history" = "Brak historii na poziomie modeli";
+"Daily estimated spend" = "Szacowane dzienne wydatki";
+"Weekly cannot run out before reset at this pace" = "Przy tym tempie limit tygodniowy nie może wyczerpać się przed resetem";
+"Estimated: %@" = "Szacunek: %@";
+"Coding Plan" = "Plan kodowania";
+"Agent Plan" = "Plan agenta";
+"Team" = "Zespół";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Układ";
+"menu_bar_layout_footer" = "Przeciągaj elementy, aby ułożyć pasek menu. Kliknij element, aby go dodać; zaznacz umieszczony element i naciśnij Delete, aby go usunąć.";
+"menu_bar_layout_group_identity" = "Tożsamość";
+"menu_bar_layout_group_usage" = "Zużycie";
+"menu_bar_layout_group_time" = "Czas";
+"menu_bar_layout_group_money" = "Koszt";
+"menu_bar_layout_group_structure" = "Struktura";
+"menu_bar_layout_scope_all" = "Wszyscy dostawcy";
+"menu_bar_layout_scope_help" = "Edytuj układ domyślny lub zastąp go dla jednego dostawcy.";
+"menu_bar_layout_use_all" = "Użyj układu wszystkich dostawców";
+"menu_bar_layout_preset" = "Ustawienie układu";
+"menu_bar_layout_preset_icon_percent" = "Ikona i procent";
+"menu_bar_layout_preset_icon_only" = "Tylko ikona";
+"menu_bar_layout_preset_percent_reset" = "Procent i reset";
+"menu_bar_layout_preset_compact_stacked" = "Kompaktowy stos";
+"menu_bar_layout_preset_custom" = "Niestandardowe";
+"menu_bar_layout_live_preview" = "Podgląd na żywo";
+"menu_bar_layout_strip" = "Pasek menu";
+"menu_bar_layout_remove_line_break" = "Usuń podział wiersza";
+"menu_bar_layout_chip_hint" = "Zaznacz, przeciągnij, aby zmienić kolejność, lub użyj akcji Usuń.";
+"menu_bar_layout_palette_hint" = "Kliknij, aby dodać, lub przeciągnij do układu.";
+"menu_bar_layout_empty_line" = "Upuść element tutaj";
+"menu_bar_layout_line" = "Wiersz %d";
+"menu_bar_layout_drag_remove" = "Przeciągnij tutaj, aby usunąć";
+"menu_bar_layout_size" = "Rozmiar";
+"menu_bar_layout_size_small" = "Mały";
+"menu_bar_layout_size_regular" = "Zwykły";
+"menu_bar_layout_gap" = "Odstęp";
+"menu_bar_layout_gap_tight" = "Wąski";
+"menu_bar_layout_gap_regular" = "Zwykły";
+"menu_bar_layout_keyboard_hint" = "Delete usuwa zaznaczony element";
+"menu_bar_layout_sample_account" = "konto";
+"menu_bar_layout_sample_runs_out" = "wyczerpie się pt.";
+"menu_bar_layout_token_icon" = "Ikona";
+"menu_bar_layout_token_provider" = "Nazwa dostawcy";
+"menu_bar_layout_token_account" = "Konto";
+"menu_bar_layout_token_session" = "Sesja %";
+"menu_bar_layout_token_weekly" = "Tydzień %";
+"menu_bar_layout_token_auto" = "Automatycznie %";
+"menu_bar_layout_token_bar" = "Pasek użycia";
+"menu_bar_layout_token_resets_in" = "Reset za";
+"menu_bar_layout_token_reset_at" = "Reset o";
+"menu_bar_layout_token_runs_out" = "Wyczerpie się";
+"menu_bar_layout_token_cost_today" = "Koszt dzisiaj";
+"menu_bar_layout_token_cost_30d" = "Koszt 30 dni";
+"menu_bar_layout_token_space" = "Odstęp";
+"menu_bar_layout_token_line_break" = "Podział wiersza";
+"menu_bar_layout_token_separator_accessibility" = "Kropka oddzielająca";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Ikona: Niedostępne";
+"%@ icon" = "%@: Ikona";
+"Provider name unavailable" = "Nazwa dostawcy: Niedostępne";
+"Account unavailable" = "Konto: Niedostępne";
+"%@ unavailable" = "%@: Niedostępne";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Pasek użycia: Niedostępne";
+"Usage bar, %d of 3 filled" = "Pasek użycia: %d/3 wypełnione";
+"Reset countdown unavailable" = "Reset za: Niedostępne";
+"Reset time unavailable" = "Reset o: Niedostępne";
+"Run-out estimate unavailable" = "Wyczerpie się: Niedostępne";
+"Cost today unavailable" = "Koszt dzisiaj: Niedostępne";
+"30-day cost unavailable" = "Koszt 30 dni: Niedostępne";
+"Resets" = "Resety";
+
+/* CodexBar Mobile fork compatibility strings. */
+"API key verified. Ollama does not expose Cloud quota limits through the API." = "Klucz API został zweryfikowany. Ollama nie udostępnia limitów Cloud przez API.";
+"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar poprosi pęk kluczy macOS o klucz API Kimi K2, aby pobrać użycie. Kliknij OK, aby kontynuować.";
+"CrossModel API spend trend" = "Trend wydatków API CrossModel";
 "Plan expires: %@" = "Plan wygasa: %@";
 "Renews: %@" = "Odnawia się: %@";
+"Settings" = "Ustawienia";
+"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Przechowywane w ~/.codexbar/config.json. Wygeneruj jeden na kimi-k2.ai.";
+"cost_header_estimated" = "Koszt (szacowany)";
+"hide_critters_subtitle" = "Pokaż zwykłe paski miernika bez twarzy i ozdób.";
+"hide_critters_title" = "Ukryj stworki";
+"icloud_diagnostics_read_only_caption" = "Sprawdza stan konta, istniejące strefy i KVS bez zmieniania danych iCloud.";
+"icloud_diagnostics_run" = "Uruchom diagnostykę tylko do odczytu";
+"icloud_diagnostics_running" = "Trwa diagnostyka iCloud…";
+"icloud_diagnostics_title" = "Diagnostyka synchronizacji iCloud";
+"icloud_sync_phase_cleanup" = "Czyszczenie";
+"icloud_sync_phase_idle" = "Bezczynne";
+"icloud_sync_phase_legacy_upload" = "Wysyłanie urządzenia";
+"icloud_sync_phase_preparing" = "Przygotowywanie migawki";
+"icloud_sync_phase_provider_upload" = "Wysyłanie dostawców";
+"icloud_sync_phase_reconciling" = "Uzgadnianie";
+"menu_bar_metric_subtitle_kimik2" = "Pokazuje kredyty klucza API Kimi K2 na pasku menu.";
+"menu_bar_shows_percent_subtitle" = "Pokazuje procent zużycia/pozostałego limitu obok ikony.";
+"menu_bar_shows_percent_title" = "Pokaż procent na pasku menu";
+"mobile_button_retry_sync" = "Ponów synchronizację";
 "mobile_button_sync_now" = "Synchronizuj teraz";
 "mobile_dev_depleted" = "Wyczerpano";
 "mobile_dev_restored" = "Przywrócono";
@@ -1155,41 +1381,39 @@
 "mobile_section_icloud_sync" = "Synchronizacja iCloud";
 "mobile_section_mock_data" = "Debug · Dane testowe dostawców";
 "mobile_section_push" = "Powiadomienia push iOS";
+"mobile_sync_status_failure_phase_format" = "Synchronizacja iCloud nie powiodła się podczas %@. Otwórz Zaawansowane → Debugowanie, aby zobaczyć szczegóły.";
 "mobile_sync_status_last_attempt_format" = "Ostatnia próba: %@";
 "mobile_sync_status_last_sync_format" = "Ostatnia synchronizacja: %@";
 "mobile_sync_status_no_sync" = "Brak synchronizacji";
 "mobile_sync_status_syncing" = "Synchronizowanie…";
-"mobile_toggle_mock_subtitle" = "Dodaje stabilne próbki testowe dla każdego synchronizowanego dostawcy, aby iOS mógł pokazać pełną siatkę do testów układu. Obejmuje użycie OpenAI/Codex, Claude, Cursor, Gemini, Grok, LLM Proxy, Bedrock, MiniMax i inne.";
+"mobile_sync_status_syncing_elapsed_format" = "Synchronizacja — %@ · %d s";
+"mobile_sync_status_syncing_phase_format" = "Synchronizacja — %@";
+"mobile_toggle_mock_subtitle" = "Przy każdej synchronizacji wysyła 77 stabilnych migawek testowych obejmujących 67 identyfikatorów dostawców, w tym wiele kont, sub2api, Wayfinder i scenariusze zastępcze dla nieznanych dostawców. Testowe adresy e-mail używają domeny TLD `.test`, dzięki czemu iPhone wyświetla oznaczenie MOCK. Wyłączenie pozwala CloudKit usunąć testowe rekordy w ciągu około jednego cyklu synchronizacji. Domyślnie wyłączone.";
 "mobile_toggle_mock_title" = "Wstrzyknij dane testowe dostawców";
 "mobile_toggle_push_subtitle" = "Gdy limit sesji zostanie wyczerpany lub przywrócony, wyślij widoczny alert push do aplikacji iOS companion przez iCloud. To niezależne od lokalnych powiadomień Maca — możesz wyciszyć Maca i nadal odbierać alerty na iPhonie.";
 "mobile_toggle_push_title" = "Powiadomienia push do iOS";
 "mobile_toggle_sync_subtitle" = "Wysyła dane użycia do iCloud, aby aplikacja iOS companion mogła je wyświetlać.";
 "mobile_toggle_sync_title" = "Synchronizuj użycie z iCloud";
+"quota_warning_notifications_title" = "Powiadomienia o ostrzeżeniach limitu";
+"refresh_cadence_subtitle" = "Jak często CodexBar odpyta dostawców w tle.";
+"refresh_cadence_title" = "Częstotliwość odświeżania";
+"section_automation" = "Automatyzacja";
+"section_menu_bar" = "Pasek menu";
+"section_menu_content" = "Zawartość menu";
+"session_limit_confetti_subtitle" = "Wyświetl konfetti na pełnym ekranie po zresetowaniu użycia sesji.";
+"session_limit_confetti_title" = "Konfetti limitu sesji";
+"session_quota_notifications_title" = "Powiadomienia o limicie sesji";
+"show_all_token_accounts_subtitle" = "Układa konta tokenów w stos w menu (w przeciwnym razie pokazuje pasek przełączania kont).";
+"show_all_token_accounts_title" = "Pokaż wszystkie konta tokenów";
+"show_cost_summary" = "Pokaż podsumowanie kosztów";
+"show_reset_time_as_clock_subtitle" = "Pokazuje reset jako godzinę zegarową zamiast względnego czasu.";
+"show_reset_time_as_clock_title" = "Pokaż czas resetu jako godzinę";
+"show_usage_as_used_subtitle" = "Zamiast pozostałego limitu pokazuje wartość już wykorzystaną.";
+"show_usage_as_used_title" = "Pokazuj zużycie jako wykorzystane";
+"switcher_shows_icons_subtitle" = "Pokazuj ikony dostawców w przełączniku (w przeciwnym razie linię postępu tygodniowego).";
+"switcher_shows_icons_title" = "Przełącznik pokazuje ikony";
+"tab_display" = "Wygląd";
 "tab_mobile" = "Mobile";
+"weekly_limit_confetti_subtitle" = "Odtwórz pełnoekranowe konfetti, gdy tygodniowe użycie się resetuje.";
+"weekly_limit_confetti_title" = "Konfetti limitu tygodniowego";
 "∞ Unlimited" = "∞ Bez limitu";
-"CrossModel API spend trend" = "Trend wydatków API CrossModel";
-
-/* Settings sidebar redesign */
-"Enable" = "Włącz";
-"Disable" = "Wyłącz";
-"providers_on_count" = "%d wł.";
-"section_cost_summary" = "Podsumowanie kosztów";
-"section_command_line" = "Wiersz poleceń";
-"section_privacy" = "Prywatność";
-"section_diagnostics" = "Diagnostyka";
-"section_updates" = "Aktualizacje";
-"section_links" = "Linki";
-"mobile_sync_status_failure_phase_format" = "Synchronizacja iCloud nie powiodła się podczas %@. Otwórz Zaawansowane → Debugowanie, aby zobaczyć szczegóły.";
-"icloud_diagnostics_read_only_caption" = "Sprawdza stan konta, istniejące strefy i KVS bez zmieniania danych iCloud.";
-"icloud_diagnostics_run" = "Uruchom diagnostykę tylko do odczytu";
-"icloud_diagnostics_running" = "Trwa diagnostyka iCloud…";
-"icloud_diagnostics_title" = "Diagnostyka synchronizacji iCloud";
-"icloud_sync_phase_cleanup" = "Czyszczenie";
-"icloud_sync_phase_idle" = "Bezczynne";
-"icloud_sync_phase_legacy_upload" = "Wysyłanie urządzenia";
-"icloud_sync_phase_preparing" = "Przygotowywanie migawki";
-"icloud_sync_phase_provider_upload" = "Wysyłanie dostawców";
-"icloud_sync_phase_reconciling" = "Uzgadnianie";
-"mobile_button_retry_sync" = "Ponów synchronizację";
-"mobile_sync_status_syncing_elapsed_format" = "Synchronizacja — %@ · %d s";
-"mobile_sync_status_syncing_phase_format" = "Synchronizacja — %@";

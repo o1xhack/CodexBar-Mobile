@@ -68,12 +68,17 @@ struct ProviderUsageView: View {
                 ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
                     let warning = self.provider.quotaWarning(forWindowIndex: index)
                     UsageCardView(
-                        label: window.label ?? self.defaultLabel(at: index),
+                        label: ProviderWindowLabel.localized(
+                            window.label,
+                            fallback: self.defaultLabel(at: index)),
                         window: window,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)",
                         quotaWarningThresholds: warning.thresholds,
                         quotaWarningsEnabled: warning.enabled)
+                }
+                if let amount = self.provider.providerAmount {
+                    ProviderAmountCard(amount: amount, tintColor: self.providerColor)
                 }
             }
             .padding(.horizontal, 16)

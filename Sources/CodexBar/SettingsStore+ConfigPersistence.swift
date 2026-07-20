@@ -4,48 +4,48 @@ import Foundation
 private enum ConfigChangeOrigin {
     case localUser
     case externalSync
-    case reload
 }
 
 private struct ConfigChangeContext {
     let origin: ConfigChangeOrigin
     let reason: String
+    let affectsBackgroundWork: Bool
 
-    static func local(reason: String) -> Self {
-        Self(origin: .localUser, reason: reason)
+    static func local(reason: String, affectsBackgroundWork: Bool) -> Self {
+        Self(origin: .localUser, reason: reason, affectsBackgroundWork: affectsBackgroundWork)
     }
 
-    static func external(reason: String) -> Self {
-        Self(origin: .externalSync, reason: reason)
-    }
-
-    static func reload(reason: String) -> Self {
-        Self(origin: .reload, reason: reason)
+    static func external(reason: String, affectsBackgroundWork: Bool) -> Self {
+        Self(origin: .externalSync, reason: reason, affectsBackgroundWork: affectsBackgroundWork)
     }
 
     var shouldBroadcast: Bool {
         switch self.origin {
         case .localUser:
             true
-        case .externalSync, .reload:
+        case .externalSync:
             false
         }
     }
 }
 
 extension SettingsStore {
-    private func updateConfig(reason: String, mutate: (inout CodexBarConfig) -> Void) {
+    private func updateConfig(
+        reason: String,
+        affectsBackgroundWork: Bool,
+        mutate: (inout CodexBarConfig) -> Void)
+    {
         guard !self.configLoading else { return }
         var config = self.config
         mutate(&config)
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
-        self.bumpConfigRevision(.local(reason: reason))
+        self.bumpConfigRevision(.local(reason: reason, affectsBackgroundWork: affectsBackgroundWork))
     }
 
     func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
-        self.updateConfig(reason: "provider-\(provider.rawValue)") { config in
+        self.updateConfig(reason: "provider-\(provider.rawValue)", affectsBackgroundWork: true) { config in
             if let index = config.providers.firstIndex(where: { $0.id == provider }) {
                 var entry = config.providers[index]
                 mutate(&entry)
@@ -56,6 +56,40 @@ extension SettingsStore {
                 config.providers.append(entry)
             }
         }
+    }
+
+    func updateHooks(_ mutate: (inout HooksConfig) -> Void) {
+        // Hooks never affect provider fetching, so mark the change as not affecting
+        // background work: the config persists and the pane re-renders (via
+        // configRevision), but no provider refresh is triggered.
+        self.updateConfig(reason: "hooks", affectsBackgroundWork: false) { config in
+            var hooks = config.hooks ?? HooksConfig()
+            mutate(&hooks)
+            config.hooks = (hooks.enabled || !hooks.events.isEmpty) ? hooks : nil
+        }
+    }
+
+    /// Persists provider settings that only affect an already-visible provider detail.
+    /// This avoids rebuilding status items and open menus for a local selection change.
+    func updateProviderDetailConfig(
+        provider: UsageProvider,
+        mutate: (inout ProviderConfig) -> Void)
+    {
+        guard !self.configLoading else { return }
+        var config = self.config
+        if let index = config.providers.firstIndex(where: { $0.id == provider }) {
+            var entry = config.providers[index]
+            mutate(&entry)
+            config.providers[index] = entry
+        } else {
+            var entry = ProviderConfig(id: provider)
+            mutate(&entry)
+            config.providers.append(entry)
+        }
+        self.config = config.normalized()
+        self.updateProviderState(config: self.config)
+        self.schedulePersistConfig()
+        self.providerDetailSettingsRevision &+= 1
     }
 
     func updateProviderTokenAccounts(_ accounts: [UsageProvider: ProviderTokenAccountData]) {
@@ -69,7 +103,7 @@ extension SettingsStore {
                 "providers": "\(accounts.count)",
                 "summary": summary,
             ])
-        self.updateConfig(reason: "token-accounts") { config in
+        self.updateConfig(reason: "token-accounts", affectsBackgroundWork: true) { config in
             var seen: Set<UsageProvider> = []
             for index in config.providers.indices {
                 let provider = config.providers[index].id
@@ -83,7 +117,7 @@ extension SettingsStore {
     }
 
     func setProviderOrder(_ order: [UsageProvider]) {
-        self.updateConfig(reason: "order") { config in
+        self.updateConfig(reason: "order", affectsBackgroundWork: false) { config in
             let configsByID = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
             var seen: Set<UsageProvider> = []
             var ordered: [ProviderConfig] = []
@@ -103,23 +137,57 @@ extension SettingsStore {
         }
     }
 
-    func reloadConfig(reason: String) {
+    func reloadConfig(reason: String, affectsBackgroundWork: Bool? = nil) {
         guard !self.configLoading else { return }
         do {
             guard let loaded = try self.configStore.load() else { return }
-            self.applyExternalConfig(loaded, reason: "reload-\(reason)")
+            self.applyExternalConfig(
+                loaded,
+                reason: "reload-\(reason)",
+                affectsBackgroundWork: affectsBackgroundWork)
         } catch {
             CodexBarLog.logger(LogCategories.configStore).error("Failed to reload config: \(error)")
         }
     }
 
-    func applyExternalConfig(_ config: CodexBarConfig, reason: String) {
+    func applyExternalConfig(
+        _ config: CodexBarConfig,
+        reason: String,
+        affectsBackgroundWork: Bool? = nil)
+    {
         guard !self.configLoading else { return }
+        let normalized = config.normalized()
+        let inferredBackgroundWorkChange = Self.configChangeAffectsBackgroundWork(
+            from: self.config,
+            to: normalized)
+        let resolvedBackgroundWorkChange = (affectsBackgroundWork ?? false) || inferredBackgroundWorkChange
         self.configLoading = true
-        self.config = config
-        self.updateProviderState(config: config)
+        self.config = normalized
+        self.updateProviderState(config: normalized)
         self.configLoading = false
-        self.bumpConfigRevision(.external(reason: "sync-\(reason)"))
+        self.bumpConfigRevision(.external(
+            reason: "sync-\(reason)",
+            affectsBackgroundWork: resolvedBackgroundWorkChange))
+    }
+
+    private static func configChangeAffectsBackgroundWork(
+        from previous: CodexBarConfig,
+        to current: CodexBarConfig) -> Bool
+    {
+        guard let previousData = orderIndependentConfigData(previous),
+              let currentData = orderIndependentConfigData(current)
+        else {
+            return true
+        }
+        return previousData != currentData
+    }
+
+    private static func orderIndependentConfigData(_ config: CodexBarConfig) -> Data? {
+        var canonical = config.normalized()
+        canonical.providers.sort { $0.id.rawValue < $1.id.rawValue }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try? encoder.encode(canonical)
     }
 
     private func bumpConfigRevision(_ context: ConfigChangeContext) {
@@ -128,8 +196,13 @@ extension SettingsStore {
         self.invalidateCodexAccountReconciliationSnapshotCache()
         self.cachedCodexAccountMenuProjection = nil
         self.configRevision &+= 1
+        if context.affectsBackgroundWork {
+            self.noteBackgroundWorkSettingsChanged()
+        }
         CodexBarLog.logger(LogCategories.settings)
-            .debug("Config revision bumped (\(context.reason)) -> \(self.configRevision)")
+            .debug(
+                "Config revision bumped (\(context.reason)) -> \(self.configRevision)",
+                metadata: ["backgroundWork": context.affectsBackgroundWork ? "1" : "0"])
         guard context.shouldBroadcast else { return }
         NotificationCenter.default.post(
             name: .codexbarProviderConfigDidChange,
@@ -138,6 +211,7 @@ extension SettingsStore {
                 "config": self.config,
                 "reason": context.reason,
                 "revision": self.configRevision,
+                "affectsBackgroundWork": context.affectsBackgroundWork,
             ])
     }
 

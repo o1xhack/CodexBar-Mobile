@@ -101,21 +101,24 @@ Upstream adds eight provider IDs and retires two:
 |---|---|---|
 | ClinePass | 5-hour, weekly, monthly quotas | Generic rate-window card; add subscription, mock, color and wire tests |
 | DeepInfra | balance, monthly spend/limit, suspension | Reuse existing budget/cost/credits fields where lossless; document any Mac-only detail |
-| Neuralwatt | subscription kWh and prepaid credits | Generic quota/credit rendering with first-class identity/color |
+| Neuralwatt | subscription kWh and prepaid credits | Generic quota plus a typed prepaid-balance amount; never model a zero limit as Budget |
 | LongCat | quota and fuel-pack tracking | Generic quota/credit rendering; credentials remain Mac-only |
-| sub2api | daily/weekly/monthly quotas, multi-account, wallet, expiry | Reuse rate windows, account identity, credits and plan metadata; add multi-account wire proof |
-| Wayfinder | gateway health, routing, savings and latency | Sync only the existing generic usage/cost values; local gateway operations remain Mac-only |
-| ZenMux | 5-hour/weekly quotas, expiry, PAYG balance | Reuse rate windows, plan/expiry text and credits/budget |
-| ai& | 30-day organization spend with partial-result label | Reuse existing cost summary and provider identity; preserve partial-result honesty if serialized |
+| sub2api | daily/weekly/monthly quotas, multi-account, wallet, expiry | Generic rate windows plus optional typed account mode/balance/request totals; add multi-account wire proof |
+| Wayfinder | gateway health, routing, savings and latency | Optional typed telemetry for status, savings, latency and route summary; local gateway operations remain Mac-only |
+| ZenMux | 5-hour/weekly quotas, expiry, PAYG balance | Reuse rate windows and plan/expiry; typed PAYG balance avoids `$X / $0` |
+| ai& | 30-day organization spend with partial-result label | Typed uncapped spend preserves partial/estimated status without inventing a budget |
 
 `kimik2` and `crossmodel` are removed from the new Mac provider registry. New
 iOS keeps their legacy rendering/subscriptions during this train so old Macs
 and cached records remain readable; new Mac code stops producing them.
 
-The preliminary source audit found no upstream changes under fork `Shared/`.
-The design therefore prefers the existing opaque payload fields rather than a
-new CloudKit record field. Final decisions depend on post-merge mapper audits
-and focused encode/decode tests.
+Upstream itself did not change fork `Shared/`, but the post-merge mapper audit
+proved four generic-contract gaps: sub2api account totals, Wayfinder's
+typed-only telemetry, zero-limit balance/spend semantics, and stable identity
+for editable token-account labels. The fork therefore adds optional JSON
+members inside the existing opaque payload. This is a wire addition but not a
+CloudKit schema change; old decoders ignore the keys and new decoders use
+`decodeIfPresent`.
 
 ## Target Version Plan
 

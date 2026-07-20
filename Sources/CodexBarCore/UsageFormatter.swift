@@ -50,12 +50,16 @@ public enum UsageFormatter {
         if let provider {
             return provider(key)
         }
+        #if canImport(ObjectiveC)
+        // Bundle(for:) requires Objective-C bundle introspection. Linux uses the English
+        // fallback below; app localization is injected through localizationProvider.
         let coreBundle = Bundle(for: BundleToken.self)
         let coreValue = NSLocalizedString(key, tableName: "Localizable", bundle: coreBundle, value: key, comment: "")
         if coreValue != key { return coreValue }
 
         let mainValue = NSLocalizedString(key, tableName: "Localizable", bundle: .main, value: key, comment: "")
         if mainValue != key { return mainValue }
+        #endif
 
         switch key {
         case "Updated relative %@": return "Updated %@"
@@ -233,6 +237,8 @@ public enum UsageFormatter {
         case .claude:
             "Estimated from local Claude logs at API rates; token totals include cache read/write tokens " +
                 "and may differ from Claude Code /status."
+        case .cursor:
+            "From Cursor's usage dashboard at vendor token rates; may differ from your invoice."
         default:
             self.costEstimateHint
         }
@@ -364,6 +370,7 @@ public enum UsageFormatter {
     public static func modelDisplayName(_ raw: String) -> String {
         var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return raw }
+        if CostUsagePricing.isCodexUnattributedModel(cleaned) { return "Unknown model" }
 
         let patterns = [
             #"(?:-|\s)\d{8}$"#,

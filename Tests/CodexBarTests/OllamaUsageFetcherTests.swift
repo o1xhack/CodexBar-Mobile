@@ -1,6 +1,9 @@
 import Foundation
 import Testing
 @testable import CodexBarCore
+#if os(macOS)
+import SweetCookieKit
+#endif
 
 struct OllamaUsageFetcherTests {
     @Test
@@ -29,6 +32,27 @@ struct OllamaUsageFetcherTests {
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://ollama.com/settings")))
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://www.ollama.com")))
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://app.ollama.com/path")))
+    }
+
+    @Test
+    func `recognizes current ollama sign in redirects`() {
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(string: "https://ollama.com/signin")))
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://api.workos.com/user_management/authorize?client_id=test")))
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://auth.workos.com/user_management/authorize?client_id=test")))
+        // The real unauthenticated chain lands on the WorkOS-hosted Ollama sign-in
+        // page on the `signin.ollama.com` subdomain (verified live); that terminal
+        // landing must also classify as a sign-in redirect.
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://signin.ollama.com/?client_id=test&authorization_session_id=x")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "https://ollama.com/settings")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "https://api.workos.com/other")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "http://ollama.com/signin")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "http://auth.workos.com/user_management/authorize?client_id=test")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://example.com/user_management/authorize?client_id=test")))
     }
 
     @Test
@@ -84,6 +108,14 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
+    func `manual mode accepts workos session cookie header`() throws {
+        let resolved = try OllamaUsageFetcher.resolveManualCookieHeader(
+            override: "wos-session=abc; theme=dark",
+            manualCookieMode: true)
+        #expect(resolved?.contains("wos-session=abc") == true)
+    }
+
+    @Test
     func `retry policy retries only for auth errors`() {
         #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.invalidCredentials))
         #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.notLoggedIn))
@@ -101,6 +133,84 @@ struct OllamaUsageFetcherTests {
     func `cookie importer defaults to chrome first`() {
         #expect(OllamaCookieImporter.defaultPreferredBrowsers == [.chrome])
         #expect(OllamaCookieImporter.defaultAllowFallbackBrowsers)
+    }
+
+    @Test
+    func `cookie access errors map only unambiguous recovery paths`() {
+        let safari = OllamaCookieImporter.accessError(from: BrowserCookieError.accessDenied(
+            browser: .safari,
+            details: "Enable Full Disk Access."))
+        guard case .safariCookieAccessDenied = safari else {
+            Issue.record("Expected Safari Full Disk Access error")
+            return
+        }
+
+        let brave = OllamaCookieImporter.accessError(from: BrowserCookieError.accessDenied(
+            browser: .brave,
+            details: "macOS Keychain denied access."))
+        guard case let .browserCookieDecryptionDenied(browserName) = brave else {
+            Issue.record("Expected Brave Keychain denial")
+            return
+        }
+        #expect(browserName == "Brave")
+
+        let ambiguous = OllamaCookieImporter.accessError(from: BrowserCookieError.loadFailed(
+            browser: .brave,
+            details: "SQLite failed"))
+        #expect(ambiguous == nil)
+    }
+
+    @Test
+    func `cookie cooldown maps only the browser that was denied`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+        let now = Date(timeIntervalSince1970: 1000)
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            BrowserCookieAccessGate.recordDenied(for: .brave, now: now)
+
+            let brave = OllamaCookieImporter.suppressedAccessError(
+                for: .brave,
+                now: now.addingTimeInterval(1))
+            guard case let .browserCookieDecryptionDenied(browserName) = brave else {
+                Issue.record("Expected stored Brave Keychain denial")
+                return
+            }
+            #expect(browserName == "Brave")
+            #expect(OllamaCookieImporter.suppressedAccessError(
+                for: .chrome,
+                now: now.addingTimeInterval(1)) == nil)
+        }
+    }
+
+    @Test
+    func `disabled Keychain access maps to browser recovery hint`() {
+        KeychainAccessGate.withTaskOverrideForTesting(true) {
+            let error = OllamaCookieImporter.suppressedAccessError(for: .brave)
+            guard case let .browserCookieDecryptionDisabled(browserName) = error else {
+                Issue.record("Expected disabled Brave Keychain error")
+                return
+            }
+            #expect(browserName == "Brave")
+        }
+    }
+
+    @Test
+    func `manual refresh bypasses browser denial cooldown`() async {
+        await BrowserCookieAccessGate.withDeniedBrowsersForTesting([.brave]) {
+            KeychainAccessGate.withTaskOverrideForTesting(false) {
+                BrowserCookieAccessGate.withExplicitRetry {
+                    ProviderInteractionContext.$current.withValue(.userInitiated) {
+                        var accessError: OllamaUsageError?
+                        let shouldAttempt = OllamaCookieImporter.shouldAttemptCookieSource(
+                            .brave,
+                            accessError: &accessError)
+                        #expect(shouldAttempt)
+                        #expect(accessError == nil)
+                    }
+                }
+            }
+        }
     }
 
     @Test
@@ -155,6 +265,16 @@ struct OllamaUsageFetcherTests {
 
         let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
         #expect(selected.sourceLabel == "Profile D")
+    }
+
+    @Test
+    func `cookie selector accepts workos session cookie`() throws {
+        let candidate = OllamaCookieImporter.SessionInfo(
+            cookies: [Self.makeCookie(name: "wos-session", value: "auth")],
+            sourceLabel: "WorkOS Profile")
+
+        let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
+        #expect(selected.sourceLabel == "WorkOS Profile")
     }
 
     @Test

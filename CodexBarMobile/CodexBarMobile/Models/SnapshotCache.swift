@@ -57,13 +57,7 @@ struct SnapshotCache: Sendable {
     /// when no data is ready), but this defense eliminates the ghost on
     /// existing installs without a Mac rebuild.
     private static func isGhost(_ provider: ProviderUsageSnapshot) -> Bool {
-        provider.primary == nil
-            && provider.secondary == nil
-            && provider.rateWindows.isEmpty
-            && provider.costSummary == nil
-            && provider.budget == nil
-            && !provider.isError
-            && provider.statusMessage == nil
+        !provider.hasUsableSignal
     }
 
     // MARK: - Mutations
@@ -81,8 +75,8 @@ struct SnapshotCache: Sendable {
     /// `legacySnapshots` = monolithic snapshots from the legacy zones.
     mutating func replaceFromFullFetch(
         perProviderSnapshots: [SyncedUsageSnapshot]?,
-        legacySnapshots: [SyncedUsageSnapshot]?
-    ) {
+        legacySnapshots: [SyncedUsageSnapshot]?)
+    {
         if let perProviderSnapshots {
             self.perProviderByDevice.removeAll(keepingCapacity: true)
 
@@ -132,8 +126,8 @@ struct SnapshotCache: Sendable {
     /// data is still as-of-last-full-fetch.
     mutating func applyDelta(
         upserted: [ProviderUsageEnvelope],
-        deletedRecordNames: [String]
-    ) {
+        deletedRecordNames: [String])
+    {
         for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
@@ -269,8 +263,8 @@ struct SnapshotCache: Sendable {
     /// the per-provider path uses. Returns a snapshot identical to the
     /// input except with orphan / stale providers removed.
     private static func filterSnapshotProviders(
-        _ snapshot: SyncedUsageSnapshot
-    ) -> SyncedUsageSnapshot {
+        _ snapshot: SyncedUsageSnapshot) -> SyncedUsageSnapshot
+    {
         guard !snapshot.providers.isEmpty else { return snapshot }
         var byComposite: [String: ProviderUsageSnapshot] = [:]
         for provider in snapshot.providers {
@@ -332,8 +326,8 @@ struct SnapshotCache: Sendable {
     /// - Toggling Mac on/off clears stale records as soon as Mac resumes
     ///   writing (deviceFreshest moves forward, stale cutoff slides up).
     static func dropOrphansAndStale(
-        _ byComposite: [String: ProviderUsageSnapshot]
-    ) -> [String: ProviderUsageSnapshot] {
+        _ byComposite: [String: ProviderUsageSnapshot]) -> [String: ProviderUsageSnapshot]
+    {
         guard !byComposite.isEmpty else { return [:] }
 
         // Rule 1: group by providerID; drop nil-email when a REAL (non-mock)
@@ -425,7 +419,7 @@ struct SnapshotCache: Sendable {
     /// in-function grouping key — that key never leaves the function and
     /// doesn't participate in this cross-layer contract.)
     static func compositeKey(for provider: ProviderUsageSnapshot) -> String {
-        "\(provider.providerID)|\(provider.accountEmail ?? "_")"
+        "\(provider.providerID)|\(provider.accountRecordKey ?? provider.accountEmail ?? "_")"
     }
 
     /// Parses a CloudKit recordName of the form
@@ -433,10 +427,11 @@ struct SnapshotCache: Sendable {
     /// Returns nil on malformed input — caller should skip such records.
     ///
     /// **Inverse of `CloudSyncManager.perProviderRecordName`.** Both must
-    /// use `|` as separator and expect exactly 3 components. Any layout
-    /// change on one side requires the symmetric change here.
+    /// use `|` as separator. Only the first two separators are structural:
+    /// legacy email/label identities could themselves contain `|`.
     static func splitRecordName(_ recordName: String) -> (deviceID: String, composite: String)? {
-        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        let parts = recordName.split(
+            separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
         let deviceID = String(parts[0])
         let composite = "\(parts[1])|\(parts[2])"

@@ -17,15 +17,15 @@ enum ProviderSnapshotMerger {
     private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
 
     static func usesLocalCostMerge(providerID: String) -> Bool {
-        localCostProviders.contains(providerID)
+        self.localCostProviders.contains(providerID)
     }
 
     static func mergeSnapshots(
         _ snapshots: [SyncedUsageSnapshot],
         linkages: [ProviderAccountLinkage] = [],
         sumLocalCostsAcrossDevices: Bool = true,
-        providerFilter: ProviderFilter? = nil
-    ) -> SyncedUsageSnapshot? {
+        providerFilter: ProviderFilter? = nil) -> SyncedUsageSnapshot?
+    {
         guard !snapshots.isEmpty else { return nil }
 
         let providersForSnapshot = providerFilter ?? { $0.providers }
@@ -88,7 +88,7 @@ enum ProviderSnapshotMerger {
             if group.count == 1 {
                 mergedProviders.append(group[0])
             } else {
-                mergedProviders.append(mergeProviderEntries(
+                mergedProviders.append(self.mergeProviderEntries(
                     group,
                     sourceAppVersions: indices.map { sourceAppVersions[$0] },
                     sumLocalCosts: sumLocalCostsAcrossDevices))
@@ -128,7 +128,17 @@ enum ProviderSnapshotMerger {
 
     static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {
         if let explicit = provider.accountIdentities, !explicit.isEmpty {
-            return explicit
+            // Real account/org/email identities merge the same account across
+            // Macs. A per-install token UUID remains available for record,
+            // cache and card uniqueness but must not split that stable group.
+            // When the Mac only had an editable label fallback it emits no
+            // email identity, so the record identity becomes authoritative.
+            let recordPrefix = "\(provider.providerID):record:"
+            let stable = explicit.filter { !$0.hasPrefix(recordPrefix) }
+            return stable.isEmpty ? explicit : stable
+        }
+        if let accountRecordKey = provider.accountRecordKey, !accountRecordKey.isEmpty {
+            return ["\(provider.providerID):record:\(accountRecordKey)"]
         }
         if let normalized = AccountIdentityNormalize.normalize(provider.accountEmail) {
             return ["\(provider.providerID):email:\(normalized)"]
@@ -153,8 +163,9 @@ enum ProviderSnapshotMerger {
     }
 
     static func partitionLinkages(
-        _ linkages: [ProviderAccountLinkage]
-    ) -> (merges: [ProviderAccountLinkage], unmerges: [ProviderAccountLinkage]) {
+        _ linkages: [ProviderAccountLinkage]) -> (merges: [ProviderAccountLinkage], unmerges: [
+        ProviderAccountLinkage
+    ]) {
         var merges: [ProviderAccountLinkage] = []
         var unmerges: [ProviderAccountLinkage] = []
         for linkage in linkages {
@@ -168,8 +179,8 @@ enum ProviderSnapshotMerger {
     }
 
     static func suppressedEdges(
-        unmergeLinkages: [ProviderAccountLinkage]
-    ) -> Set<String> {
+        unmergeLinkages: [ProviderAccountLinkage]) -> Set<String>
+    {
         var keys = Set<String>()
         for record in unmergeLinkages {
             keys.insert(Self.linkageKey(record))
@@ -179,15 +190,15 @@ enum ProviderSnapshotMerger {
 
     static func isLinkageSuppressed(
         _ linkage: ProviderAccountLinkage,
-        by suppressedKeys: Set<String>
-    ) -> Bool {
-        suppressedKeys.contains(Self.linkageKey(linkage))
+        by suppressedKeys: Set<String>) -> Bool
+    {
+        suppressedKeys.contains(self.linkageKey(linkage))
     }
 
     static func indices(
         forProviderID providerID: String,
-        in allProviders: [ProviderUsageSnapshot]
-    ) -> [Int] {
+        in allProviders: [ProviderUsageSnapshot]) -> [Int]
+    {
         var indices: [Int] = []
         for (idx, provider) in allProviders.enumerated()
             where provider.providerID == providerID
@@ -204,8 +215,8 @@ enum ProviderSnapshotMerger {
 
     private static func latestNonNil<T>(
         _ entries: [ProviderUsageSnapshot],
-        _ keyPath: KeyPath<ProviderUsageSnapshot, T?>
-    ) -> T? {
+        _ keyPath: KeyPath<ProviderUsageSnapshot, T?>) -> T?
+    {
         entries
             .sorted(by: { $0.lastUpdated > $1.lastUpdated })
             .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
@@ -217,8 +228,8 @@ enum ProviderSnapshotMerger {
     /// generic value remains authoritative so a real plan change cannot go stale.
     private static func mergedLoginMethod(
         _ entries: [ProviderUsageSnapshot],
-        sourceAppVersions: [String?]
-    ) -> String? {
+        sourceAppVersions: [String?]) -> String?
+    {
         let newestNonNilIndex = entries.indices
             .sorted(by: { entries[$0].lastUpdated > entries[$1].lastUpdated })
             .first(where: { entries[$0].loginMethod != nil })
@@ -240,14 +251,17 @@ enum ProviderSnapshotMerger {
             .first(where: specificMaxLabels.contains) ?? latest
     }
 
-    /// Kimi added named subscription lanes over several Mac releases. Preserve
-    /// a lane supplied by any active writer while taking overlapping values
-    /// from the freshest writer, then restore the canonical mobile order.
+    /// Kimi and Claude added named lanes over several Mac releases. Preserve a
+    /// lane supplied by any active writer while taking overlapping values from
+    /// the freshest writer. Kimi then restores its canonical mobile order;
+    /// Claude keeps freshest-writer order followed by missing lanes.
     private static func mergedRateWindows(
         _ entries: [ProviderUsageSnapshot],
-        base: ProviderUsageSnapshot
-    ) -> [SyncRateWindow] {
-        guard base.providerID == "kimi" else { return base.rateWindows }
+        base: ProviderUsageSnapshot) -> [SyncRateWindow]
+    {
+        guard base.providerID == "kimi" || base.providerID == "claude" else {
+            return base.rateWindows
+        }
 
         var merged = base.rateWindows
         var seenLabels = Set(merged.compactMap(Self.normalizedRateWindowLabel))
@@ -262,6 +276,7 @@ enum ProviderSnapshotMerger {
             }
         }
 
+        guard base.providerID == "kimi" else { return merged }
         let preferredOrder = [
             "weekly": 0,
             "rate limit": 1,
@@ -289,15 +304,14 @@ enum ProviderSnapshotMerger {
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
         sourceAppVersions: [String?],
-        sumLocalCosts: Bool = true
-    ) -> ProviderUsageSnapshot {
+        sumLocalCosts: Bool = true) -> ProviderUsageSnapshot
+    {
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
         let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
-        let mergedCost: SyncCostSummary?
-        if isLocalCost, sumLocalCosts {
-            mergedCost = mergeCostSummaries(entries.compactMap(\.costSummary))
+        let mergedCost: SyncCostSummary? = if isLocalCost, sumLocalCosts {
+            self.mergeCostSummaries(entries.compactMap(\.costSummary))
         } else {
-            mergedCost = Self.latestNonNil(entries, \.costSummary)
+            Self.latestNonNil(entries, \.costSummary)
         }
 
         let mergedUtilization = Self.mergeUtilizationHistories(
@@ -346,7 +360,11 @@ enum ProviderSnapshotMerger {
             deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage),
             codexResetCredits: Self.latestNonNil(entries, \.codexResetCredits),
             usageDataConfidence: Self.latestNonNil(entries, \.usageDataConfidence),
-            crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage))
+            crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage),
+            wayfinderUsage: Self.latestNonNil(entries, \.wayfinderUsage),
+            sub2APIUsage: Self.latestNonNil(entries, \.sub2APIUsage),
+            providerAmount: Self.latestNonNil(entries, \.providerAmount),
+            accountRecordKey: Self.latestNonNil(entries, \.accountRecordKey))
     }
 
     private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {
@@ -433,8 +451,8 @@ enum ProviderSnapshotMerger {
         }
 
         private static func sortedBreakdowns(
-            _ values: [String: CostBreakdownAccumulator]
-        ) -> [SyncCostBreakdown] {
+            _ values: [String: CostBreakdownAccumulator]) -> [SyncCostBreakdown]
+        {
             values
                 .map { label, accumulator in accumulator.toBreakdown(label: label) }
                 .sorted { lhs, rhs in
@@ -494,9 +512,9 @@ enum ProviderSnapshotMerger {
     }
 
     private static func mergeUtilizationHistories(
-        _ histories: [[SyncUtilizationSeries]]
-    ) -> [SyncUtilizationSeries]? {
-        let allSeries = histories.flatMap { $0 }
+        _ histories: [[SyncUtilizationSeries]]) -> [SyncUtilizationSeries]?
+    {
+        let allSeries = histories.flatMap(\.self)
         guard !allSeries.isEmpty else { return nil }
 
         var entriesByName: [String: [SyncUtilizationEntry]] = [:]

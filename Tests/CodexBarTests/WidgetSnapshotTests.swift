@@ -1,8 +1,29 @@
 import Foundation
 import Testing
+@testable import CodexBar
 @testable import CodexBarCore
 
 struct WidgetSnapshotTests {
+    @Test
+    func `Codex widget labels disclose API estimates`() {
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 1200,
+            sessionCostUSD: 1.25,
+            last30DaysTokens: 9000,
+            last30DaysCostUSD: 9.99,
+            historyDays: 30,
+            daily: [],
+            updatedAt: Date(timeIntervalSince1970: 0))
+
+        let codex = UsageStore.widgetTokenUsageSummary(from: snapshot, provider: .codex)
+        let claude = UsageStore.widgetTokenUsageSummary(from: snapshot, provider: .claude)
+
+        #expect(codex?.sessionLabel == "Today API est. · not billed")
+        #expect(codex?.last30DaysLabel == "30d API est. · not billed")
+        #expect(claude?.sessionLabel == "Today")
+        #expect(claude?.last30DaysLabel == "30d")
+    }
+
     @Test
     func `widget snapshot round trip`() throws {
         let entry = WidgetSnapshot.ProviderEntry(
@@ -205,5 +226,51 @@ struct WidgetSnapshotTests {
         #expect(decoded.entries.first?.tokenUsage?.sessionLabel == "Today")
         #expect(decoded.entries.first?.tokenUsage?.last30DaysLabel == "30d")
         #expect(decoded.enabledProviders == [.codex])
+    }
+
+    @Test
+    func `token usage summary round trips updatedAt and tolerates legacy payloads`() throws {
+        let updatedAt = Date(timeIntervalSince1970: 1_760_000_000)
+        let summary = WidgetSnapshot.TokenUsageSummary(
+            sessionCostUSD: 1.5,
+            sessionTokens: 100,
+            last30DaysCostUSD: 30,
+            last30DaysTokens: 2000,
+            updatedAt: updatedAt)
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let decoded = try decoder.decode(
+            WidgetSnapshot.TokenUsageSummary.self,
+            from: encoder.encode(summary))
+        #expect(decoded.updatedAt == updatedAt)
+
+        let legacy = try decoder.decode(
+            WidgetSnapshot.TokenUsageSummary.self,
+            from: Data(#"{"sessionCostUSD": 1.5, "sessionTokens": 100}"#.utf8))
+        #expect(legacy.updatedAt == nil)
+    }
+
+    @Test
+    func `token usage staleness discloses only meaningful lag`() {
+        let entryUpdatedAt = Date()
+
+        func summary(updatedAt: Date?) -> WidgetSnapshot.TokenUsageSummary {
+            WidgetSnapshot.TokenUsageSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: nil,
+                updatedAt: updatedAt)
+        }
+
+        #expect(!summary(updatedAt: entryUpdatedAt.addingTimeInterval(-5 * 60))
+            .isStale(comparedTo: entryUpdatedAt))
+        #expect(summary(updatedAt: entryUpdatedAt.addingTimeInterval(-61 * 60))
+            .isStale(comparedTo: entryUpdatedAt))
+        #expect(!summary(updatedAt: nil).isStale(comparedTo: entryUpdatedAt))
     }
 }

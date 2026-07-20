@@ -1,12 +1,8 @@
 import Foundation
 
 enum PiSessionCostCacheIO {
-    /// Artifact version 4 includes upstream cache layout fixes plus the
-    /// fork's pricing-fingerprint invalidation:
-    /// pi-session cache stores per-(day, provider, model) packed usage with
-    /// `costNanos` baked in at parse time. If either the layout version or
-    /// pricing fingerprint changes, old files are ignored and re-scanned.
-    private static let artifactVersion = 4
+    /// Artifact schema version. Pricing changes are tracked separately by `pricingKey`.
+    private static let artifactVersion = 7
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -22,18 +18,11 @@ enum PiSessionCostCacheIO {
 
     static func load(cacheRoot: URL? = nil) -> PiSessionCostCache {
         let url = self.cacheFileURL(cacheRoot: cacheRoot)
-        let expectedFingerprint = CostUsagePricing.pricingFingerprint
         guard let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode(PiSessionCostCache.self, from: data),
-              decoded.version == Self.artifactVersion,
-              // Same fingerprint-mismatch invalidation as CostUsageCacheIO.
-              // See `CostUsagePricing.pricingFingerprint` doc-comment for
-              // why baked-in costNanos can't be retroactively re-priced.
-              decoded.pricingFingerprint == expectedFingerprint
+              decoded.version == Self.artifactVersion
         else {
-            return PiSessionCostCache(
-                version: Self.artifactVersion,
-                pricingFingerprint: expectedFingerprint)
+            return PiSessionCostCache(version: Self.artifactVersion)
         }
         return decoded
     }
@@ -43,12 +32,8 @@ enum PiSessionCostCacheIO {
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        // Stamp the current fingerprint so a future launch can validate.
-        var stamped = cache
-        stamped.pricingFingerprint = CostUsagePricing.pricingFingerprint
-
         let tmp = dir.appendingPathComponent(".tmp-\(UUID().uuidString).json", isDirectory: false)
-        let data = (try? JSONEncoder().encode(stamped)) ?? Data()
+        let data = (try? JSONEncoder().encode(cache)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
             if FileManager.default.fileExists(atPath: url.path) {
@@ -67,16 +52,12 @@ struct PiSessionCostCache: Codable {
     var lastScanUnixMs: Int64 = 0
     var scanSinceKey: String?
     var scanUntilKey: String?
-    /// Pricing fingerprint at the moment this cache was written. Mismatches
-    /// trigger full re-scan in `load`. See
-    /// `CostUsagePricing.pricingFingerprint`.
-    var pricingFingerprint: String?
+    var pricingKey: String?
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 4, pricingFingerprint: String? = nil) {
+    init(version: Int = 7) {
         self.version = version
-        self.pricingFingerprint = pricingFingerprint
     }
 }
 
@@ -84,8 +65,38 @@ struct PiSessionFileUsage: Codable {
     var mtimeUnixMs: Int64
     var size: Int64
     var parsedBytes: Int64
+    var sessionID: String?
     var lastModelContext: PiModelContext?
     var contributions: [String: [String: [String: PiPackedUsage]]]
+    var unkeyedContributions: [String: [String: [String: PiPackedUsage]]]
+    var entryUsages: [String: PiSessionEntryUsage]
+
+    init(
+        mtimeUnixMs: Int64,
+        size: Int64,
+        parsedBytes: Int64,
+        sessionID: String? = nil,
+        lastModelContext: PiModelContext?,
+        contributions: [String: [String: [String: PiPackedUsage]]],
+        unkeyedContributions: [String: [String: [String: PiPackedUsage]]] = [:],
+        entryUsages: [String: PiSessionEntryUsage] = [:])
+    {
+        self.mtimeUnixMs = mtimeUnixMs
+        self.size = size
+        self.parsedBytes = parsedBytes
+        self.sessionID = sessionID
+        self.lastModelContext = lastModelContext
+        self.contributions = contributions
+        self.unkeyedContributions = unkeyedContributions
+        self.entryUsages = entryUsages
+    }
+}
+
+struct PiSessionEntryUsage: Codable, Equatable {
+    var providerRawValue: String
+    var dayKey: String
+    var modelName: String
+    var usage: PiPackedUsage
 }
 
 struct PiModelContext: Codable, Equatable {

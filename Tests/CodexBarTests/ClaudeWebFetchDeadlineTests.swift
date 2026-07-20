@@ -7,11 +7,13 @@ struct ClaudeWebFetchDeadlineTests {
     func `CLI auto descriptor defers browser probe and falls back after web deadline`() async throws {
         let planningProbe = ClaudeWebPlanningAvailabilityProbe()
         let webProbe = ClaudeWebDeadlineProbe()
+        let cliPath = try Self.makeLoggedInClaudeCLI()
+        defer { try? FileManager.default.removeItem(atPath: cliPath) }
         let context = Self.makeContext(
             sourceMode: .auto,
             webTimeout: 0.01,
             cookieSource: .auto,
-            env: ["CLAUDE_CLI_PATH": "/usr/bin/true"])
+            env: ["CLAUDE_CLI_PATH": cliPath])
         let availabilityOverride: @Sendable (ProviderFetchContext, BrowserDetection) -> Bool = { _, _ in
             planningProbe.stallAndReportUnavailable()
         }
@@ -47,6 +49,7 @@ struct ClaudeWebFetchDeadlineTests {
     func `stalled app auto browser probe does not delay CLI success`() async throws {
         let planningProbe = ClaudeWebPlanningAvailabilityProbe()
         let cliPath = try Self.makeLoggedInClaudeCLI()
+        defer { try? FileManager.default.removeItem(atPath: cliPath) }
         let context = Self.makeContext(
             runtime: .app,
             sourceMode: .auto,
@@ -68,14 +71,18 @@ struct ClaudeWebFetchDeadlineTests {
         let cliFetchOverride: @Sendable (String, TimeInterval, Bool) async throws -> ClaudeStatusSnapshot =
             { _, _, _ in Self.makeClaudeStatus() }
 
-        let outcome = await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue(
-            availabilityOverride)
-        {
-            await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(oauthLoadOverride) {
-                await ClaudeStatusProbe.$fetchOverride.withValue(cliFetchOverride) {
-                    await ClaudeProviderDescriptor.makeDescriptor().fetchPlan.fetchOutcome(
-                        context: context,
-                        provider: .claude)
+        let outcome = await KeychainAccessGate.withTaskOverrideForTesting(false) {
+            await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue(
+                    availabilityOverride)
+                {
+                    await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(oauthLoadOverride) {
+                        await ClaudeStatusProbe.$fetchOverride.withValue(cliFetchOverride) {
+                            await ClaudeProviderDescriptor.makeDescriptor().fetchPlan.fetchOutcome(
+                                context: context,
+                                provider: .claude)
+                        }
+                    }
                 }
             }
         }

@@ -66,6 +66,42 @@ struct StatusItemControllerSplitLifecycleTests {
     }
 
     @Test
+    func `provider config notifications relay background work impact between settings stores`() {
+        self.disableMenuCardsForTesting()
+        let sourceSettings = self.makeSettings()
+        let controllerSettings = self.makeSettings()
+        controllerSettings.statusChecksEnabled = false
+        controllerSettings.refreshFrequency = .manual
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(
+            fetcher: fetcher,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: controllerSettings)
+        let controller = StatusItemController(
+            store: store,
+            settings: controllerSettings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting(),
+            observeProviderConfigNotifications: true)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let initialBackgroundRevision = controllerSettings.backgroundWorkSettingsRevision
+        let reorderedProviders = Array(sourceSettings.orderedProviders().reversed())
+        sourceSettings.setProviderOrder(reorderedProviders)
+
+        #expect(controllerSettings.orderedProviders() == reorderedProviders)
+        #expect(controllerSettings.backgroundWorkSettingsRevision == initialBackgroundRevision)
+
+        sourceSettings.codexUsageDataSource = .cli
+
+        #expect(controllerSettings.codexUsageDataSource == .cli)
+        #expect(controllerSettings.backgroundWorkSettingsRevision == initialBackgroundRevision + 1)
+    }
+
+    @Test
     func `merged mode removes split provider status items`() throws {
         let (settings, controller) = try self.makeSplitController()
         defer { controller.releaseStatusItemsForTesting() }
@@ -112,6 +148,8 @@ struct StatusItemControllerSplitLifecycleTests {
             _ = controller.openMenuRebuildRequests.replaceRequest(for: key)
             controller.openMenuRebuildsClosingHostedSubviewMenus.insert(key)
             controller.highlightedMenuItems[key] = NSMenuItem(title: "Highlighted", action: nil, keyEquivalent: "")
+            controller.nativeHighlightDeferredMenuRebuilds[key] = .init(provider: .codex)
+            controller.pendingMenuBaselineResyncs.insert(key)
         }
 
         settings.mergeIcons = true
@@ -132,6 +170,8 @@ struct StatusItemControllerSplitLifecycleTests {
             #expect(controller.openMenuRebuildRequests.tokens[key] == nil)
             #expect(!controller.openMenuRebuildsClosingHostedSubviewMenus.contains(key))
             #expect(controller.highlightedMenuItems[key] == nil)
+            #expect(controller.nativeHighlightDeferredMenuRebuilds[key] == nil)
+            #expect(!controller.pendingMenuBaselineResyncs.contains(key))
         }
     }
 
@@ -169,6 +209,9 @@ struct StatusItemControllerSplitLifecycleTests {
         #expect(controller.statusItem.button?.accessibilityTitle() == "CodexBar")
         #expect(codexButton.accessibilityTitle() == "CodexBar")
         #expect(claudeButton.accessibilityTitle() == "CodexBar")
+        #expect(controller.statusItem.button?.toolTip == nil)
+        #expect(codexButton.toolTip == nil)
+        #expect(claudeButton.toolTip == nil)
     }
 
     @Test

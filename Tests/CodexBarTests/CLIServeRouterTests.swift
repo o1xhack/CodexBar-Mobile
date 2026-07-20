@@ -13,6 +13,37 @@ import Glibc
 // swiftlint:disable:next type_body_length
 struct CLIServeRouterTests {
     @Test
+    func `local HTTP connection gate caps pre-auth clients`() {
+        let gate = CLILocalHTTPConnectionGate(maximumConnections: 2)
+
+        #expect(gate.tryAcquire())
+        #expect(gate.tryAcquire())
+        #expect(!gate.tryAcquire())
+        #expect(gate.activeCount == 2)
+        gate.release()
+        #expect(gate.tryAcquire())
+        #expect(gate.activeCount == 2)
+        gate.release()
+        gate.release()
+        #expect(gate.activeCount == 0)
+    }
+
+    @Test
+    func `usage operation fingerprint separates dashboard account mode`() {
+        let allAccounts = CodexBarCLI.serveUsageOperationFingerprint(
+            configFingerprint: "config",
+            includeAllCodexAccounts: true)
+        let selectedAccount = CodexBarCLI.serveUsageOperationFingerprint(
+            configFingerprint: "config",
+            includeAllCodexAccounts: false)
+
+        #expect(allAccounts != selectedAccount)
+        #expect(allAccounts == CodexBarCLI.serveUsageOperationFingerprint(
+            configFingerprint: "config",
+            includeAllCodexAccounts: true))
+    }
+
+    @Test
     func `termination monitor handles interactive and hangup signals`() {
         #expect(CLITerminationSignalMonitor.signalNumbers == [SIGINT, SIGTERM, SIGHUP])
     }
@@ -48,6 +79,55 @@ struct CLIServeRouterTests {
     }
 
     @Test
+    func `local http parser captures a single authorization header`() throws {
+        let raw = [
+            "GET /usage HTTP/1.1",
+            "Host: localhost",
+            "authorization: Bearer token",
+            "",
+            "",
+        ].joined(separator: "\r\n")
+        let request = try CLILocalHTTPRequest.parse(Data(raw.utf8)).get()
+
+        #expect(request.authorization == "Bearer token")
+        #expect(try Self.parsedRequest(host: "localhost").authorization == nil)
+        Self.expectParseFailure(
+            raw: "GET /usage HTTP/1.1\r\nHost: localhost\r\nAuthorization: a\r\nAuthorization: b\r\n\r\n",
+            .duplicateAuthorization)
+    }
+
+    @Test
+    func `local http parser extends the allowed host set without replacing loopback`() throws {
+        let raw = "GET /usage HTTP/1.1\r\nHost: 192.168.1.10:8080\r\n\r\n"
+
+        Self.expectParseFailure(raw: raw, .disallowedHost)
+
+        let allowed = CLILocalHTTPAllowedHosts.loopbackAnd(["192.168.1.10"])
+        let request = try CLILocalHTTPRequest.parse(Data(raw.utf8), allowedHosts: allowed).get()
+        #expect(request.host == "192.168.1.10:8080")
+        #expect(request.path == "/usage")
+        let loopback = try CLILocalHTTPRequest.parse(
+            Data("GET /usage HTTP/1.1\r\nHost: localhost\r\n\r\n".utf8),
+            allowedHosts: allowed).get()
+        #expect(loopback.host == "localhost")
+        Self.expectParseFailure(
+            raw: "GET /usage HTTP/1.1\r\nHost: evil.test\r\n\r\n",
+            .disallowedHost,
+            allowedHosts: allowed)
+
+        let wildcard = try CLILocalHTTPRequest.parse(Data(raw.utf8), allowedHosts: .any).get()
+        #expect(wildcard.host == "192.168.1.10:8080")
+        let alternateLoopback = try CLILocalHTTPRequest.parse(
+            Data("GET /usage HTTP/1.1\r\nHost: 127.0.0.2\r\n\r\n".utf8),
+            allowedHosts: CLIServeSecurity.allowedHosts(forBindHost: "127.0.0.2")).get()
+        #expect(alternateLoopback.host == "127.0.0.2")
+        Self.expectParseFailure(
+            raw: "GET /usage HTTP/1.1\r\nHost: 192.168.1.10, evil.test\r\n\r\n",
+            .disallowedHost,
+            allowedHosts: .any)
+    }
+
+    @Test
     func `routes health usage and cost endpoints`() throws {
         #expect(try CLIServeRouter.route(method: "GET", path: "/health", queryItems: [:]) == .health)
         #expect(try CLIServeRouter.route(method: "GET", path: "/usage", queryItems: [:]) == .usage(provider: nil))
@@ -61,6 +141,11 @@ struct CLIServeRouterTests {
                 method: "GET",
                 path: "/cost",
                 queryItems: ["provider": "codex"]) == .cost(provider: "codex"))
+        #expect(
+            try CLIServeRouter.route(
+                method: "GET",
+                path: "/dashboard/v1/snapshot",
+                queryItems: [:]) == .dashboardSnapshot)
     }
 
     @Test
@@ -203,9 +288,11 @@ struct CLIServeRouterTests {
         #expect(!firstSnapshot.config.enabledProviders().contains(.opencodego))
         #expect(secondSnapshot.config.enabledProviders().contains(.opencodego))
         #expect(firstSnapshot.cacheToken != secondSnapshot.cacheToken)
+        let operationKey = try CodexBarCLI.serveOperationKey(kind: "usage", provider: nil)
+        #expect(try operationKey == (CodexBarCLI.serveOperationKey(kind: "usage", provider: nil)))
         #expect(
-            CodexBarCLI.serveCacheKey(kind: "usage", provider: nil, configToken: firstSnapshot.cacheToken) !=
-                CodexBarCLI.serveCacheKey(kind: "usage", provider: nil, configToken: secondSnapshot.cacheToken))
+            CodexBarCLI.serveCacheKey(operationKey: operationKey, configToken: firstSnapshot.cacheToken) !=
+                CodexBarCLI.serveCacheKey(operationKey: operationKey, configToken: secondSnapshot.cacheToken))
     }
 
     @Test
@@ -455,6 +542,16 @@ struct CLIServeRouterTests {
         #expect(timeout.status == .gatewayTimeout)
         #expect(Self.bodyString(timeout).contains("request timed out"))
 
+        // Timeout delivery can win the actor race just before the canceled
+        // source reports completion. A successor must not start in that gap.
+        for _ in 0..<1000 {
+            if await cache.operations.snapshot().operationCount == 0 {
+                break
+            }
+            await Task.yield()
+        }
+        #expect(await cache.operations.snapshot().operationCount == 0)
+
         let success = await CodexBarCLI.cachedServeResponse(
             key: "usage:",
             cache: cache,
@@ -567,6 +664,95 @@ struct CLIServeRouterTests {
 
         #expect(recovered.status == .ok)
         #expect(Self.bodyString(recovered).contains("\"call\":3"))
+    }
+
+    @Test
+    func `cost refresh timeout serves the last good payload`() async throws {
+        let cache = CLIServeResponseCache()
+        let counter = ServeTestCounter()
+
+        let first = await CodexBarCLI.cachedServeResponse(
+            key: "cost:",
+            cache: cache,
+            refreshInterval: 0.01,
+            requestTimeout: 1)
+        {
+            let call = await counter.increment()
+            return Self.response("[{\"provider\":\"codex\",\"call\":\(call)}]")
+        }
+        try? await Task.sleep(nanoseconds: 30_000_000)
+
+        let timedOut = await CodexBarCLI.cachedServeResponse(
+            key: "cost:",
+            cache: cache,
+            refreshInterval: 0.01,
+            requestTimeout: 0.01)
+        {
+            _ = await counter.increment()
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            return Self.response("[{\"provider\":\"codex\",\"call\":2}]")
+        }
+
+        #expect(timedOut.status == .ok)
+        let firstRows = try Self.jsonRows(first)
+        let timedOutRows = try Self.jsonRows(timedOut)
+        #expect(firstRows.first?["provider"] as? String == "codex")
+        #expect(timedOutRows.first?["provider"] as? String == "codex")
+        #expect(firstRows.first?["call"] as? Int == 1)
+        #expect(timedOutRows.first?["call"] as? Int == 1)
+        #expect(await counter.current() == 2)
+    }
+
+    @Test
+    func `cost refresh keeps fresh providers while replacing timed out rows`() async throws {
+        let cache = CLIServeResponseCache()
+
+        _ = await CodexBarCLI.cachedServeResponse(
+            key: "cost:",
+            cache: cache,
+            refreshInterval: 0.01,
+            requestTimeout: 1)
+        {
+            Self.response("""
+            [
+              {"provider":"codex","call":1},
+              {"provider":"claude","call":1}
+            ]
+            """)
+        }
+        try? await Task.sleep(nanoseconds: 30_000_000)
+
+        let partial = await CodexBarCLI.cachedServeResponse(
+            key: "cost:",
+            cache: cache,
+            refreshInterval: 0.01,
+            requestTimeout: 1)
+        {
+            Self.response("""
+            [
+              {"provider":"codex","call":2},
+              {"provider":"claude","error":{"message":"claude cost refresh timed out"}}
+            ]
+            """)
+        }
+        let partialRows = try Self.jsonRows(partial)
+        #expect(Self.row(partialRows, provider: "codex")?["call"] as? Int == 2)
+        #expect(Self.row(partialRows, provider: "claude")?["call"] as? Int == 1)
+        #expect(partialRows.allSatisfy { $0["error"] == nil })
+
+        try? await Task.sleep(nanoseconds: 30_000_000)
+        let timedOut = await CodexBarCLI.cachedServeResponse(
+            key: "cost:",
+            cache: cache,
+            refreshInterval: 0.01,
+            requestTimeout: 0.01)
+        {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            return Self.response(#"[{"provider":"codex","call":3}]"#)
+        }
+        let timeoutRows = try Self.jsonRows(timedOut)
+        #expect(Self.row(timeoutRows, provider: "codex")?["call"] as? Int == 2)
+        #expect(Self.row(timeoutRows, provider: "claude")?["call"] as? Int == 1)
     }
 
     @Test
@@ -762,7 +948,6 @@ struct CLIServeRouterTests {
         let policy = CLIServeResponseCache.CachePolicy(ttl: 0, staleTTL: 10)
         let startedAt = Date(timeIntervalSince1970: 1000)
 
-        _ = await cache.responseOrStartFetch(for: "usage:", now: startedAt)
         _ = await cache.completeFetch(
             Self.response(
                 """
@@ -777,7 +962,6 @@ struct CLIServeRouterTests {
             shouldCache: true)
 
         let partialAt = startedAt.addingTimeInterval(9)
-        _ = await cache.responseOrStartFetch(for: "usage:", now: partialAt)
         _ = await cache.completeFetch(
             Self.response("""
             [
@@ -791,7 +975,6 @@ struct CLIServeRouterTests {
             shouldCache: false)
 
         let timeoutAt = startedAt.addingTimeInterval(11)
-        _ = await cache.responseOrStartFetch(for: "usage:", now: timeoutAt)
         let timedOut = await cache.completeFetch(
             Self.response(#"{"error":"request timed out"}"#, status: .gatewayTimeout),
             for: "usage:",
@@ -1231,7 +1414,6 @@ struct CLIServeRouterTests {
             ttl: 0,
             staleTTL: CLIServeResponseCache.maximumStaleTTL)
 
-        _ = await cache.responseOrStartFetch(for: "config:old", now: startedAt)
         _ = await cache.completeFetch(
             Self.response(#"{"status":"ok"}"#),
             for: "config:old",
@@ -1239,7 +1421,6 @@ struct CLIServeRouterTests {
             now: startedAt,
             shouldCache: true)
 
-        _ = await cache.responseOrStartFetch(for: "usage:old", now: startedAt)
         _ = await cache.completeFetch(
             Self.response(
                 #"[{"provider":"codex","call":1}]"#,
@@ -1251,7 +1432,7 @@ struct CLIServeRouterTests {
         #expect(await cache.cachedStaleVariantCount() == 2)
 
         let expiredAt = startedAt.addingTimeInterval(CLIServeResponseCache.maximumStaleTTL + 1)
-        _ = await cache.responseOrStartFetch(for: "config:new", now: expiredAt)
+        _ = await cache.cachedResponse(for: "config:new", now: expiredAt)
         #expect(await cache.cachedStaleVariantCount() == 0)
         _ = await cache.completeFetch(
             Self.response(#"{"status":"ok"}"#),
@@ -1308,8 +1489,12 @@ struct CLIServeRouterTests {
         return try CLILocalHTTPRequest.parse(Data(raw.utf8)).get()
     }
 
-    private static func expectParseFailure(raw: String, _ expected: CLILocalHTTPRequestParseError) {
-        switch CLILocalHTTPRequest.parse(Data(raw.utf8)) {
+    private static func expectParseFailure(
+        raw: String,
+        _ expected: CLILocalHTTPRequestParseError,
+        allowedHosts: CLILocalHTTPAllowedHosts = .loopbackOnly)
+    {
+        switch CLILocalHTTPRequest.parse(Data(raw.utf8), allowedHosts: allowedHosts) {
         case .success:
             Issue.record("Expected \(expected)")
         case let .failure(error):

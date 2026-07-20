@@ -25,7 +25,9 @@ struct ShouldFetchAllTokenAccountsTests {
     private static func makeStore(
         suite: String,
         iCloudSyncEnabled: Bool,
-        layout: MultiAccountMenuLayout) -> UsageStore
+        layout: MultiAccountMenuLayout,
+        provider: UsageProvider? = .openai,
+        accounts: [ProviderTokenAccount] = []) -> UsageStore
     {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
@@ -37,6 +39,14 @@ struct ShouldFetchAllTokenAccountsTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.iCloudSyncEnabled = iCloudSyncEnabled
         settings.multiAccountMenuLayout = layout
+        if let provider, TokenAccountSupportCatalog.support(for: provider) != nil, !accounts.isEmpty {
+            settings.updateProviderConfig(provider: provider) { config in
+                config.tokenAccounts = ProviderTokenAccountData(
+                    version: 1,
+                    accounts: accounts,
+                    activeIndex: 0)
+            }
+        }
         return UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -58,15 +68,17 @@ struct ShouldFetchAllTokenAccountsTests {
 
     @Test
     func `Single-account provider always returns false (no point fanning out 1)`() {
-        let store = Self.makeStore(suite: "FetchAll-Single", iCloudSyncEnabled: true, layout: .stacked)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(1))
+        let accounts = Self.accounts(1)
+        let store = Self.makeStore(
+            suite: "FetchAll-Single", iCloudSyncEnabled: true, layout: .stacked, accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == false)
     }
 
     @Test
     func `Zero accounts returns false`() {
-        let store = Self.makeStore(suite: "FetchAll-Zero", iCloudSyncEnabled: true, layout: .stacked)
+        let store = Self.makeStore(
+            suite: "FetchAll-Zero", iCloudSyncEnabled: true, layout: .stacked, accounts: [])
         let result = store.shouldFetchAllTokenAccounts(
             provider: .openai, accounts: [])
         #expect(result == false)
@@ -94,25 +106,32 @@ struct ShouldFetchAllTokenAccountsTests {
         // - iCloud sync: enabled (= user has the iPhone app)
         // Pre-fix: false → only active synced → iPhone shows 1 card.
         // Post-fix: true → both synced → iPhone shows 2 tabs.
-        let store = Self.makeStore(suite: "FetchAll-ICloudSeg", iCloudSyncEnabled: true, layout: .segmented)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(2))
+        let accounts = Self.accounts(2)
+        let store = Self.makeStore(
+            suite: "FetchAll-ICloudSeg", iCloudSyncEnabled: true, layout: .segmented, accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == true)
     }
 
     @Test
     func `iCloud sync ON + stacked + 2 accounts → true (already true pre-fix)`() {
-        let store = Self.makeStore(suite: "FetchAll-ICloudStack", iCloudSyncEnabled: true, layout: .stacked)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(2))
+        let accounts = Self.accounts(2)
+        let store = Self.makeStore(
+            suite: "FetchAll-ICloudStack", iCloudSyncEnabled: true, layout: .stacked, accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == true)
     }
 
     @Test
     func `iCloud sync ON + 3 accounts → true (any count > 1)`() {
-        let store = Self.makeStore(suite: "FetchAll-ICloudThree", iCloudSyncEnabled: true, layout: .segmented)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .deepseek, accounts: Self.accounts(3, provider: .deepseek))
+        let accounts = Self.accounts(3, provider: .deepseek)
+        let store = Self.makeStore(
+            suite: "FetchAll-ICloudThree",
+            iCloudSyncEnabled: true,
+            layout: .segmented,
+            provider: .deepseek,
+            accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .deepseek, accounts: accounts)
         #expect(result == true)
     }
 
@@ -123,25 +142,31 @@ struct ShouldFetchAllTokenAccountsTests {
         // Mac-only user (no iPhone). Honor upstream's intent: segmented
         // layout displays one card with top-tab switcher; only active
         // account needs fetching. Saves N-1 API calls per refresh.
-        let store = Self.makeStore(suite: "FetchAll-NoSyncSeg", iCloudSyncEnabled: false, layout: .segmented)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(2))
+        let accounts = Self.accounts(2)
+        let store = Self.makeStore(
+            suite: "FetchAll-NoSyncSeg", iCloudSyncEnabled: false, layout: .segmented, accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == false)
     }
 
     @Test
     func `iCloud sync OFF + stacked + 2 accounts → true (stacked layout shows all)`() {
-        let store = Self.makeStore(suite: "FetchAll-NoSyncStack", iCloudSyncEnabled: false, layout: .stacked)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(2))
+        let accounts = Self.accounts(2)
+        let store = Self.makeStore(
+            suite: "FetchAll-NoSyncStack", iCloudSyncEnabled: false, layout: .stacked, accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == true)
     }
 
     @Test
     func `iCloud sync OFF + segmented + 1 account → false (count guard)`() {
-        let store = Self.makeStore(suite: "FetchAll-NoSyncSegSingle", iCloudSyncEnabled: false, layout: .segmented)
-        let result = store.shouldFetchAllTokenAccounts(
-            provider: .openai, accounts: Self.accounts(1))
+        let accounts = Self.accounts(1)
+        let store = Self.makeStore(
+            suite: "FetchAll-NoSyncSegSingle",
+            iCloudSyncEnabled: false,
+            layout: .segmented,
+            accounts: accounts)
+        let result = store.shouldFetchAllTokenAccounts(provider: .openai, accounts: accounts)
         #expect(result == false)
     }
 }

@@ -41,8 +41,8 @@ enum SwiftDataBridge {
     /// for a single device.
     static func upsert(
         deviceSnapshots: [SyncedUsageSnapshot],
-        into context: ModelContext
-    ) throws {
+        into context: ModelContext) throws
+    {
         // Build the set of deviceIDs that should exist after this upsert. Anything
         // currently in the store but NOT in this set has been removed upstream
         // (user disconnected a Mac, reset sync, etc.) and must be pruned. Without
@@ -78,41 +78,46 @@ enum SwiftDataBridge {
     static func upsertIncrementalCacheMirror(
         cacheDeviceSnapshots: [SyncedUsageSnapshot],
         deletedRecordNames: [String] = [],
-        into context: ModelContext
-    ) throws {
-        try Self.deleteProviderRecords(named: deletedRecordNames, from: context)
+        into context: ModelContext) throws
+    {
+        // Upsert first so an email-key → opaque-key identity upgrade can
+        // rekey its provider and long ledger history before the same delta's
+        // old-record deletion arrives. The subsequent delete then no-ops on
+        // the migrated key; pure deletions are still removed below.
         for snapshot in cacheDeviceSnapshots {
-            try Self.upsertSnapshot(snapshot, into: context)
+            try self.upsertSnapshot(snapshot, into: context)
         }
+        try self.deleteProviderRecords(named: deletedRecordNames, from: context)
         try context.save()
     }
 
     static func deleteProviderRecords(
         named recordNames: [String],
-        from context: ModelContext
-    ) throws {
+        from context: ModelContext) throws
+    {
         guard !recordNames.isEmpty else { return }
 
         for recordName in recordNames {
-            guard let parsed = Self.splitProviderRecordName(recordName) else {
+            guard let parsed = splitProviderRecordName(recordName) else {
                 continue
             }
 
             let compositeKey = ProviderSnapshotModel.makeCompositeKey(
                 deviceID: parsed.deviceID,
                 providerID: parsed.providerID,
-                accountEmail: parsed.accountEmail)
+                accountEmail: nil,
+                accountRecordKey: parsed.identityComponent)
             let providerDescriptor = FetchDescriptor<ProviderSnapshotModel>(
                 predicate: #Predicate { $0.compositeKey == compositeKey })
             for provider in try context.fetch(providerDescriptor) {
+                try CostLedgerService.deleteRows(
+                    deviceID: parsed.deviceID,
+                    providerID: parsed.providerID,
+                    accountEmail: provider.accountEmail,
+                    accountRecordKey: provider.accountRecordKey,
+                    in: context)
                 context.delete(provider)
             }
-
-            try CostLedgerService.deleteRows(
-                deviceID: parsed.deviceID,
-                providerID: parsed.providerID,
-                accountEmail: parsed.accountEmail,
-                in: context)
         }
 
         try context.save()
@@ -122,8 +127,8 @@ enum SwiftDataBridge {
 
     private static func upsertSnapshot(
         _ snapshot: SyncedUsageSnapshot,
-        into context: ModelContext
-    ) throws {
+        into context: ModelContext) throws
+    {
         let deviceID = snapshot.deviceID ?? Self.deviceIDFallback(for: snapshot)
         let device = try Self.fetchOrCreateDevice(
             deviceID: deviceID,
@@ -141,7 +146,8 @@ enum SwiftDataBridge {
             ProviderSnapshotModel.makeCompositeKey(
                 deviceID: deviceID,
                 providerID: provider.providerID,
-                accountEmail: provider.accountEmail)
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey)
         })
 
         for provider in snapshot.providers {
@@ -160,6 +166,7 @@ enum SwiftDataBridge {
                 deviceID: existing.deviceID,
                 providerID: existing.providerID,
                 accountEmail: existing.accountEmail,
+                accountRecordKey: existing.accountRecordKey,
                 in: context)
         }
 
@@ -173,8 +180,8 @@ enum SwiftDataBridge {
         deviceName: String,
         appVersion: String?,
         lastSyncAt: Date,
-        in context: ModelContext
-    ) throws -> DeviceRecord {
+        in context: ModelContext) throws -> DeviceRecord
+    {
         let descriptor = FetchDescriptor<DeviceRecord>(
             predicate: #Predicate { $0.deviceID == deviceID })
         if let existing = try context.fetch(descriptor).first {
@@ -196,14 +203,25 @@ enum SwiftDataBridge {
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
         device: DeviceRecord,
-        in context: ModelContext
-    ) throws {
+        in context: ModelContext) throws
+    {
         let compositeKey = ProviderSnapshotModel.makeCompositeKey(
             deviceID: deviceID,
             providerID: provider.providerID,
-            accountEmail: provider.accountEmail)
+            accountEmail: provider.accountEmail,
+            accountRecordKey: provider.accountRecordKey)
         let descriptor = FetchDescriptor<ProviderSnapshotModel>(
             predicate: #Predicate { $0.compositeKey == compositeKey })
+
+        if let accountRecordKey = provider.accountRecordKey {
+            try CostLedgerService.migrateLegacyAccountKey(
+                deviceID: deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
+                accountRecordKey: accountRecordKey,
+                accountIdentityKeys: CostLedgerService.accountIdentityKeys(for: provider),
+                in: context)
+        }
 
         // Encode opaque blobs via the project-wide factory so date strategy
         // stays in lockstep with the decoder in `readAllDeviceSnapshots` and
@@ -219,26 +237,34 @@ enum SwiftDataBridge {
 
         let model: ProviderSnapshotModel
         if let existing = try context.fetch(descriptor).first {
-            existing.providerName = provider.providerName
-            existing.loginMethod = provider.loginMethod
-            existing.statusMessage = provider.statusMessage
-            existing.isError = provider.isError
-            existing.lastUpdated = provider.lastUpdated
-            existing.subscriptionExpiresAt = provider.subscriptionExpiresAt
-            existing.subscriptionRenewsAt = provider.subscriptionRenewsAt
-            existing.providerPayloadData = providerPayloadData
-            existing.rateWindowsData = rateWindowsData
-            existing.costSummaryData = costSummaryData
-            existing.budgetData = budgetData
-            existing.perplexityCreditsData = perplexityCreditsData
-            existing.device = device
             model = existing
+        } else if provider.accountRecordKey != nil {
+            let legacyKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail)
+            let legacyDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+                predicate: #Predicate { $0.compositeKey == legacyKey })
+            if let legacy = try context.fetch(legacyDescriptor).first {
+                legacy.compositeKey = compositeKey
+                model = legacy
+            } else {
+                model = ProviderSnapshotModel(
+                    deviceID: deviceID,
+                    providerID: provider.providerID,
+                    providerName: provider.providerName,
+                    accountEmail: provider.accountEmail,
+                    accountRecordKey: provider.accountRecordKey,
+                    lastUpdated: provider.lastUpdated)
+                context.insert(model)
+            }
         } else {
             let created = ProviderSnapshotModel(
                 deviceID: deviceID,
                 providerID: provider.providerID,
                 providerName: provider.providerName,
                 accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey,
                 loginMethod: provider.loginMethod,
                 statusMessage: provider.statusMessage,
                 isError: provider.isError,
@@ -254,6 +280,22 @@ enum SwiftDataBridge {
             context.insert(created)
             model = created
         }
+
+        model.providerName = provider.providerName
+        model.accountEmail = provider.accountEmail
+        model.accountRecordKey = provider.accountRecordKey
+        model.loginMethod = provider.loginMethod
+        model.statusMessage = provider.statusMessage
+        model.isError = provider.isError
+        model.lastUpdated = provider.lastUpdated
+        model.subscriptionExpiresAt = provider.subscriptionExpiresAt
+        model.subscriptionRenewsAt = provider.subscriptionRenewsAt
+        model.providerPayloadData = providerPayloadData
+        model.rateWindowsData = rateWindowsData
+        model.costSummaryData = costSummaryData
+        model.budgetData = budgetData
+        model.perplexityCreditsData = perplexityCreditsData
+        model.device = device
 
         try Self.upsertUtilization(
             history: provider.utilizationHistory ?? [],
@@ -274,8 +316,8 @@ enum SwiftDataBridge {
     private static func upsertUtilization(
         history: [SyncUtilizationSeries],
         into provider: ProviderSnapshotModel,
-        context: ModelContext
-    ) throws {
+        context: ModelContext) throws
+    {
         // Upstream utilization history is a rolling window on Mac (session cap 730 entries).
         // Entries that age out upstream must also be pruned locally, otherwise the mirror
         // grows forever and P2b @Query charts would show stale buckets. If the incoming
@@ -440,15 +482,16 @@ enum SwiftDataBridge {
     private static func splitProviderRecordName(_ recordName: String) -> (
         deviceID: String,
         providerID: String,
-        accountEmail: String?
-    )? {
-        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
+        identityComponent: String?)?
+    {
+        let parts = recordName.split(
+            separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
-        let rawEmail = String(parts[2])
+        let rawIdentity = String(parts[2])
         return (
             deviceID: String(parts[0]),
             providerID: String(parts[1]),
-            accountEmail: rawEmail == "_" ? nil : rawEmail)
+            identityComponent: rawIdentity == "_" ? nil : rawIdentity)
     }
 
     // MARK: - Fallbacks
@@ -462,6 +505,7 @@ enum SwiftDataBridge {
     }
 
     // MARK: - Change-token persistence (v2 P6 re-introduction)
+
     //
     // v1 P6 (Build 59) stored the token here AND also wrote incremental
     // per-provider rows here via applyPerProviderDelta. The delta writer was
@@ -473,8 +517,8 @@ enum SwiftDataBridge {
     /// Returns `nil` on first-ever sync or after a token-expiry reset.
     static func loadChangeToken(
         forZone zoneName: String,
-        from context: ModelContext
-    ) throws -> Data? {
+        from context: ModelContext) throws -> Data?
+    {
         let descriptor = FetchDescriptor<SyncStateRecord>(
             predicate: #Predicate { $0.zoneName == zoneName })
         return try context.fetch(descriptor).first?.changeTokenData
@@ -486,8 +530,8 @@ enum SwiftDataBridge {
     static func saveChangeToken(
         forZone zoneName: String,
         tokenData: Data?,
-        context: ModelContext
-    ) throws {
+        context: ModelContext) throws
+    {
         let descriptor = FetchDescriptor<SyncStateRecord>(
             predicate: #Predicate { $0.zoneName == zoneName })
         if let existing = try context.fetch(descriptor).first {

@@ -124,6 +124,20 @@ public enum QuotaProviderList {
         Provider(id: "qoder", displayName: "Qoder"),
         Provider(id: "crossmodel", displayName: "CrossModel"),
         Provider(id: "clawrouter", displayName: "ClawRouter"),
+        // iOS 1.19.0 catch-up — upstream v0.42.0-v0.45.2 new providers.
+        // APPENDED at the tail so every existing per-provider CloudKit zone
+        // and subscription identifier stays stable. Kimi K2 and CrossModel
+        // remain above for mixed-version Macs even though upstream removed
+        // them from the v0.42+ Mac registry. 57 → 65 providers × 3 states
+        // = 195 subscriptions.
+        Provider(id: "clinepass", displayName: "ClinePass"),
+        Provider(id: "deepinfra", displayName: "DeepInfra"),
+        Provider(id: "neuralwatt", displayName: "Neuralwatt"),
+        Provider(id: "longcat", displayName: "LongCat"),
+        Provider(id: "sub2api", displayName: "sub2api"),
+        Provider(id: "wayfinder", displayName: "Wayfinder"),
+        Provider(id: "zenmux", displayName: "ZenMux"),
+        Provider(id: "aiand", displayName: "ai&"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

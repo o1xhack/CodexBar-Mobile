@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 // MARK: - DailyCostPoint (Cost Window Ledger · research doc 024)
+
 //
 // Per-device, per-provider, per-day cost ledger entry. Together these rows
 // form the iOS-side append + dedupe ledger that lets the Cost dashboard show
@@ -39,6 +40,16 @@ final class DailyCostPoint {
     /// Without this, the two accounts collide on `(deviceID, providerID,
     /// dayKey)` and one silently overwrites the other.
     var accountEmail: String?
+    /// Opaque record identity. It owns per-device row uniqueness when present,
+    /// so editable account-label changes do not create a new history bucket.
+    var accountRecordKey: String?
+    /// Stable cross-Mac merge identity selected from the wire identity set.
+    /// This differs from `accountRecordKey` when two Macs know the same real
+    /// account by authenticated email/org but use different local token UUIDs.
+    var accountIdentityKey: String?
+    /// Encoded `[String]` identity set used for the same overlap/union
+    /// semantics as `ProviderSnapshotMerger` across mixed Mac writers.
+    var accountIdentitiesData: Data?
     /// `YYYY-MM-DD` UTC, matches `SyncDailyPoint.dayKey` on the wire.
     var dayKey: String
 
@@ -67,6 +78,9 @@ final class DailyCostPoint {
         deviceID: String,
         providerID: String,
         accountEmail: String?,
+        accountRecordKey: String? = nil,
+        accountIdentityKey: String? = nil,
+        accountIdentitiesData: Data? = nil,
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
@@ -79,10 +93,14 @@ final class DailyCostPoint {
             deviceID: deviceID,
             providerID: providerID,
             accountEmail: accountEmail,
+            accountRecordKey: accountRecordKey,
             dayKey: dayKey)
         self.deviceID = deviceID
         self.providerID = providerID
         self.accountEmail = accountEmail
+        self.accountRecordKey = accountRecordKey
+        self.accountIdentityKey = accountIdentityKey
+        self.accountIdentitiesData = accountIdentitiesData
         self.dayKey = dayKey
         self.costUSD = costUSD
         self.totalTokens = totalTokens
@@ -101,8 +119,9 @@ final class DailyCostPoint {
         deviceID: String,
         providerID: String,
         accountEmail: String?,
+        accountRecordKey: String? = nil,
         dayKey: String) -> String
     {
-        "\(deviceID)|\(providerID)|\(accountEmail ?? "_")|\(dayKey)"
+        "\(deviceID)|\(providerID)|\(accountRecordKey ?? accountEmail ?? "_")|\(dayKey)"
     }
 }

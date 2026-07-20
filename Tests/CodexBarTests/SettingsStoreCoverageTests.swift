@@ -25,11 +25,17 @@ struct SettingsStoreCoverageTests {
         #expect(ordered.first == .zai)
         #expect(ordered.contains(.minimax))
 
+        let configRevisionBeforeOrder = settings.configRevision
+        let backgroundRevisionBeforeOrder = settings.backgroundWorkSettingsRevision
         settings.moveProvider(fromOffsets: IndexSet(integer: 0), toOffset: 2)
         #expect(settings.orderedProviders() != ordered)
+        #expect(settings.configRevision == configRevisionBeforeOrder + 1)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevisionBeforeOrder)
 
         let metadata = ProviderRegistry.shared.metadata
+        let backgroundRevisionBeforeEnablement = settings.backgroundWorkSettingsRevision
         try settings.setProviderEnabled(provider: .codex, metadata: #require(metadata[.codex]), enabled: true)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevisionBeforeEnablement + 1)
         try settings.setProviderEnabled(provider: .claude, metadata: #require(metadata[.claude]), enabled: false)
         let enabled = settings.enabledProvidersOrdered(metadataByProvider: metadata)
         #expect(enabled.contains(.codex))
@@ -115,6 +121,29 @@ struct SettingsStoreCoverageTests {
         let reloaded = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
         #expect(reloaded.copilotBudgetExtrasEnabled)
         #expect(reloaded.copilotSettingsSnapshot(tokenOverride: nil).budgetExtrasEnabled)
+    }
+
+    @Test
+    func `agent sessions default off and persist explicit opt in`() throws {
+        let suite = "SettingsStoreCoverageTests-agent-sessions"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let initial = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(initial.agentSessionsEnabled == false)
+        #expect(initial.agentSessionLabelStyle == .project)
+        #expect(defaults.object(forKey: "agentSessionsEnabled") == nil)
+        #expect(defaults.object(forKey: "agentSessionLabelStyle") == nil)
+
+        initial.agentSessionsEnabled = true
+        initial.agentSessionLabelStyle = .descriptiveAndProject
+        #expect(defaults.object(forKey: "agentSessionsEnabled") as? Bool == true)
+        #expect(defaults.string(forKey: "agentSessionLabelStyle") == "descriptiveAndProject")
+
+        let reloaded = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(reloaded.agentSessionsEnabled)
+        #expect(reloaded.agentSessionLabelStyle == .descriptiveAndProject)
     }
 
     @Test
@@ -462,7 +491,6 @@ struct SettingsStoreCoverageTests {
         settings.ensureMiniMaxCookieLoaded()
         settings.ensureMiniMaxAPITokenLoaded()
         settings.ensureKimiAuthTokenLoaded()
-        settings.ensureKimiK2APITokenLoaded()
         settings.ensureAugmentCookieLoaded()
         settings.ensureAmpCookieLoaded()
         settings.ensureOllamaCookieLoaded()
@@ -826,7 +854,6 @@ struct SettingsStoreCoverageTests {
             minimaxCookieStore: InMemoryMiniMaxCookieStore(),
             minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
             kimiTokenStore: InMemoryKimiTokenStore(),
-            kimiK2TokenStore: InMemoryKimiK2TokenStore(),
             augmentCookieStore: InMemoryCookieHeaderStore(),
             ampCookieStore: InMemoryCookieHeaderStore(),
             copilotTokenStore: InMemoryCopilotTokenStore(),

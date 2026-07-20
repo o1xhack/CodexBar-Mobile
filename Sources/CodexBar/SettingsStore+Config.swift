@@ -16,6 +16,12 @@ extension SettingsStore {
             global: self.quotaWarningThresholds(window))
     }
 
+    func explicitQuotaWarningThresholds(provider: UsageProvider, window: QuotaWarningWindow) -> [Int]? {
+        self.quotaWarningWindowConfig(provider: provider, window: window)?
+            .thresholds
+            .map(QuotaWarningThresholds.sanitized)
+    }
+
     func quotaWarningEnabled(provider: UsageProvider, window: QuotaWarningWindow) -> Bool {
         self.quotaWarningConfig(for: provider).isEnabled(
             for: window,
@@ -27,20 +33,45 @@ extension SettingsStore {
     }
 
     func setQuotaWarningThresholds(provider: UsageProvider, window: QuotaWarningWindow, thresholds: [Int]?) {
+        let sanitizedThresholds = thresholds.map(QuotaWarningThresholds.sanitized)
+        let currentThresholds = self.quotaWarningWindowConfig(provider: provider, window: window)?
+            .thresholds
+            .map(QuotaWarningThresholds.sanitized)
+        guard currentThresholds != sanitizedThresholds else { return }
+
         self.updateProviderConfig(provider: provider) { entry in
             var config = entry.quotaWarnings ?? QuotaWarningConfig()
             switch window {
             case .session:
                 var windowConfig = config.session ?? QuotaWarningWindowConfig()
-                windowConfig.thresholds = thresholds.map(QuotaWarningThresholds.sanitized)
+                windowConfig.thresholds = sanitizedThresholds
                 config.session = windowConfig.hasOverride ? windowConfig : nil
             case .weekly:
                 var windowConfig = config.weekly ?? QuotaWarningWindowConfig()
-                windowConfig.thresholds = thresholds.map(QuotaWarningThresholds.sanitized)
+                windowConfig.thresholds = sanitizedThresholds
                 config.weekly = windowConfig.hasOverride ? windowConfig : nil
             }
             entry.quotaWarnings = config.isEmpty ? nil : config
         }
+    }
+
+    func setQuotaWarningThresholdsIfOverridden(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        thresholds: [Int]?)
+    {
+        guard let windowConfig = self.quotaWarningWindowConfig(provider: provider, window: window),
+              windowConfig.hasOverride
+        else { return }
+
+        let sanitizedThresholds = thresholds.map(QuotaWarningThresholds.sanitized)
+        let currentThresholds = windowConfig.thresholds.map(QuotaWarningThresholds.sanitized)
+        let inheritedThresholds = QuotaWarningThresholds.sanitized(self.quotaWarningThresholds(window))
+        if currentThresholds == nil, sanitizedThresholds == inheritedThresholds {
+            return
+        }
+
+        self.setQuotaWarningThresholds(provider: provider, window: window, thresholds: thresholds)
     }
 
     func setQuotaWarningOverride(
@@ -84,6 +115,42 @@ extension SettingsStore {
         }
     }
 
+    // MARK: - Hooks
+
+    var hooksConfig: HooksConfig {
+        self.configSnapshot.hooks ?? HooksConfig()
+    }
+
+    var hooksEnabled: Bool {
+        self.hooksConfig.enabled
+    }
+
+    var hookRules: [HookRule] {
+        self.hooksConfig.events
+    }
+
+    func setHooksEnabled(_ enabled: Bool) {
+        self.updateHooks { $0.enabled = enabled }
+    }
+
+    func addHookRule(_ rule: HookRule) {
+        self.updateHooks { $0.events.append(rule) }
+    }
+
+    func updateHookRule(_ rule: HookRule) {
+        self.updateHooks { config in
+            if let index = config.events.firstIndex(where: { $0.id == rule.id }) {
+                config.events[index] = rule
+            }
+        }
+    }
+
+    func removeHookRule(id: String) {
+        self.updateHooks { config in
+            config.events.removeAll { $0.id == id }
+        }
+    }
+
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         get {
             Dictionary(uniqueKeysWithValues: self.configSnapshot.providers.compactMap { entry in
@@ -93,6 +160,21 @@ extension SettingsStore {
         }
         set {
             self.updateProviderTokenAccounts(newValue)
+        }
+    }
+}
+
+extension SettingsStore {
+    private func quotaWarningWindowConfig(
+        provider: UsageProvider,
+        window: QuotaWarningWindow) -> QuotaWarningWindowConfig?
+    {
+        let config = self.quotaWarningConfig(for: provider)
+        switch window {
+        case .session:
+            return config.session
+        case .weekly:
+            return config.weekly
         }
     }
 }

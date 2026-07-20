@@ -328,7 +328,9 @@ final class SyncCoordinator {
                 error: error,
                 metadata: meta,
                 sharedCostSummary: sharedCostSummary,
-                sharedUtilizationHistory: sharedUtilizationHistory)
+                sharedUtilizationHistory: sharedUtilizationHistory,
+                accountRecordKey: self.settings.effectiveSelectedTokenAccount(for: provider)
+                    .map(Self.tokenAccountRecordKey))
 
             providerSnapshots.append(providerSnapshot)
         }
@@ -690,42 +692,15 @@ final class SyncCoordinator {
         return confidence.rawValue
     }
 
-    static func mapCrossModelUsage(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot?) -> SyncCrossModelUsage?
-    {
-        guard provider == .crossmodel,
-              let usage = snapshot?.crossModelUsage
-        else { return nil }
-
-        func mapWindow(_ window: CrossModelUsageWindow?) -> SyncCrossModelUsage.Window? {
-            guard let window else { return nil }
-            return SyncCrossModelUsage.Window(
-                cost: window.cost,
-                promptTokens: window.promptTokens,
-                completionTokens: window.completionTokens,
-                totalTokens: window.totalTokens,
-                requestCount: window.requestCount,
-                successCount: window.successCount)
-        }
-
-        return SyncCrossModelUsage(
-            currency: usage.currency,
-            balance: usage.balance,
-            uncollected: usage.uncollected,
-            daily: mapWindow(usage.daily),
-            weekly: mapWindow(usage.weekly),
-            monthly: mapWindow(usage.monthly),
-            updatedAt: usage.updatedAt)
-    }
-
+    // swiftlint:disable:next function_body_length
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
         error: String?,
         metadata: ProviderMetadata?,
         sharedCostSummary: SyncCostSummary?,
-        sharedUtilizationHistory: [SyncUtilizationSeries]?) -> ProviderUsageSnapshot
+        sharedUtilizationHistory: [SyncUtilizationSeries]?,
+        accountRecordKey requestedAccountRecordKey: String? = nil) -> ProviderUsageSnapshot
     {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
@@ -745,9 +720,14 @@ final class SyncCoordinator {
                 resetsAt: s.resetsAt,
                 resetDescription: s.resetDescription))
         }
-        if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
+        if let t = snapshot?.tertiary {
+            let label: String? = if let metadata, metadata.supportsOpus {
+                metadata.opusLabel ?? "Sonnet"
+            } else {
+                Self.additionalWindowLabel(windowMinutes: t.windowMinutes)
+            }
             rateWindows.append(SyncRateWindow(
-                label: metadata.opusLabel ?? "Sonnet",
+                label: label,
                 usedPercent: t.usedPercent,
                 windowMinutes: t.windowMinutes,
                 resetsAt: t.resetsAt,
@@ -771,8 +751,9 @@ final class SyncCoordinator {
         // Provider budget / spend (per-account when snapshot.providerCost is
         // set per-account by upstream; otherwise shared with active).
         let providerCost = snapshot?.providerCost
-        let budgetSnap: SyncBudgetSnapshot? = providerCost.map { pc in
-            SyncBudgetSnapshot(
+        let budgetSnap: SyncBudgetSnapshot? = providerCost.flatMap { pc in
+            guard pc.limit > 0 else { return nil }
+            return SyncBudgetSnapshot(
                 usedAmount: pc.used,
                 limitAmount: pc.limit,
                 currencyCode: pc.currencyCode,
@@ -800,9 +781,13 @@ final class SyncCoordinator {
 
         // Per-account stable identifier set for cross-Mac union-find merging.
         // See `Research/019-account-identity-multi-version-merge.md`.
-        let accountIdentities = AccountIdentityComputer.compute(
+        let accountRecordKey = provider == .wayfinder
+            ? "device-\(self.deviceID.lowercased())"
+            : requestedAccountRecordKey
+        let accountIdentities = Self.syncAccountIdentities(
             provider: provider,
-            identity: snapshot?.identity)
+            identity: snapshot?.identity,
+            accountRecordKey: accountRecordKey)
 
         // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. Populated
         // only for the relevant providerID so iOS can dispatch via
@@ -865,9 +850,12 @@ final class SyncCoordinator {
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
-        let crossModelUsage = Self.mapCrossModelUsage(provider: provider, snapshot: snapshot)
-        let crossModelCostSummary = Self.mapCrossModelCostSummary(provider: provider, snapshot: snapshot)
-
+        let wayfinderUsage = Self.mapWayfinderUsage(provider: provider, snapshot: snapshot)
+        let sub2APIUsage = Self.mapSub2APIUsage(provider: provider, snapshot: snapshot)
+        let providerAmount = Self.mapProviderAmount(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost)
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
@@ -879,8 +867,7 @@ final class SyncCoordinator {
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: sharedCostSummary
-                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
-                ?? crossModelCostSummary,
+                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
@@ -913,7 +900,128 @@ final class SyncCoordinator {
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             codexResetCredits: codexResetCredits,
             usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot),
-            crossModelUsage: crossModelUsage)
+            // Retained in the shared envelope for old-Mac/new-iOS compatibility.
+            // Upstream removed the CrossModel provider in v0.42.0, so new Mac
+            // builds no longer have a native snapshot to populate here.
+            crossModelUsage: nil,
+            wayfinderUsage: wayfinderUsage,
+            sub2APIUsage: sub2APIUsage,
+            providerAmount: providerAmount,
+            accountRecordKey: accountRecordKey)
+    }
+
+    static func syncAccountIdentities(
+        provider: UsageProvider,
+        identity: ProviderIdentitySnapshot?,
+        accountRecordKey: String?) -> [String]?
+    {
+        var values = AccountIdentityComputer.compute(provider: provider, identity: identity)
+        if accountRecordKey != nil,
+           values == nil,
+           identity?.accountEmailIsFallbackLabel != true,
+           let normalizedEmail = AccountIdentityComputer.normalize(identity?.accountEmail)
+        {
+            // Preserve the pre-1.19 real-email cross-Mac merge behavior for
+            // non-Tier-A token providers. Editable label fallbacks are marked
+            // at their source and deliberately excluded.
+            values = ["\(provider.rawValue):email:\(normalizedEmail)"]
+        }
+        if let accountRecordKey {
+            let recordIdentity = "\(provider.rawValue):record:\(accountRecordKey)"
+            var resolved = values ?? []
+            if !resolved.contains(recordIdentity) {
+                resolved.append(recordIdentity)
+            }
+            values = resolved
+        }
+        return values
+    }
+
+    static func additionalWindowLabel(windowMinutes: Int?) -> String {
+        switch windowMinutes {
+        case 1440: "Daily"
+        case 10080: "Weekly"
+        case 43200: "Monthly"
+        default: "Additional"
+        }
+    }
+
+    static func tokenAccountRecordKey(_ account: ProviderTokenAccount) -> String {
+        "token-\(account.id.uuidString.lowercased())"
+    }
+
+    static func mapProviderAmount(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?) -> SyncProviderAmount?
+    {
+        guard let providerCost, providerCost.limit <= 0 else { return nil }
+        let kind: String
+        switch provider {
+        case .neuralwatt, .zenmux:
+            kind = "balance"
+        case .aiand:
+            kind = "spend"
+        default:
+            return nil
+        }
+        let confidence = snapshot?.dataConfidence ?? .unknown
+        return SyncProviderAmount(
+            kind: kind,
+            amount: providerCost.used,
+            currencyCode: providerCost.currencyCode,
+            period: providerCost.period,
+            isEstimated: confidence == .estimated || confidence == .percentOnly)
+    }
+
+    static func mapSub2APIUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncSub2APIUsage?
+    {
+        guard provider == .sub2api, let usage = snapshot?.sub2APIUsage else { return nil }
+        func mapTotals(_ totals: Sub2APIUsageDetails.Totals?) -> SyncSub2APIUsage.Totals? {
+            totals.map {
+                SyncSub2APIUsage.Totals(
+                    requests: $0.requests,
+                    totalTokens: $0.totalTokens,
+                    actualCostUSD: $0.actualCostUSD)
+            }
+        }
+        return SyncSub2APIUsage(
+            kind: usage.kind.rawValue,
+            balance: usage.balance,
+            unit: usage.unit,
+            today: mapTotals(usage.today),
+            total: mapTotals(usage.total))
+    }
+
+    static func mapWayfinderUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncWayfinderUsage?
+    {
+        guard provider == .wayfinder, let usage = snapshot?.wayfinderUsage else { return nil }
+        return SyncWayfinderUsage(
+            gatewayStatus: usage.gatewayStatus,
+            offline: usage.offline,
+            dryRun: usage.dryRun,
+            missingKeyCount: usage.missingKeys.count,
+            modelCount: usage.modelCount,
+            requests: usage.requests,
+            tokens: usage.tokens,
+            realized: usage.realized,
+            baseline: usage.baseline,
+            saved: usage.saved,
+            savedPercent: usage.savedPct,
+            priced: usage.priced,
+            routes: usage.routes.map {
+                SyncWayfinderUsage.Route(
+                    name: $0.name,
+                    requests: $0.requests,
+                    saved: $0.saved,
+                    tokens: $0.tokens)
+            },
+            averageDecisionMilliseconds: usage.avgDecisionMs,
+            updatedAt: usage.updatedAt)
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1514,7 +1622,8 @@ final class SyncCoordinator {
                     error: entry.error,
                     metadata: meta,
                     sharedCostSummary: sharedCostSummary,
-                    sharedUtilizationHistory: sharedUtilizationHistory)
+                    sharedUtilizationHistory: sharedUtilizationHistory,
+                    accountRecordKey: Self.tokenAccountRecordKey(entry.account))
                 self.multiAccountCache.record(
                     perAccount,
                     providerID: providerID,
@@ -1611,7 +1720,8 @@ final class SyncCoordinator {
             result.insert(CloudSyncManager.perProviderRecordName(
                 deviceID: self.deviceID,
                 providerID: provider.providerID,
-                accountEmail: provider.accountEmail))
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey))
         }
         return result
     }
@@ -1642,7 +1752,8 @@ final class SyncCoordinator {
             }
             let key = Self.perProviderHashKey(
                 providerID: provider.providerID,
-                accountEmail: provider.accountEmail)
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey)
             // iOS 1.6.0 / Mac 0.25.2 — resolve per-provider quota warning
             // config and inject it into the snapshot so iOS renders the
             // same warning markers Mac shows in its menu bar. nil when
@@ -1714,13 +1825,7 @@ final class SyncCoordinator {
     /// usable signal in any field. Mac filter prevents ghost records from
     /// being created in `DeviceProvidersZone` in the first place.
     private static func isGhostProvider(_ provider: ProviderUsageSnapshot) -> Bool {
-        provider.primary == nil
-            && provider.secondary == nil
-            && provider.rateWindows.isEmpty
-            && provider.costSummary == nil
-            && provider.budget == nil
-            && !provider.isError
-            && provider.statusMessage == nil
+        !provider.hasUsableSignal
     }
 
     /// Key used by the in-memory diff cache — same (providerID, accountEmail)
@@ -1734,8 +1839,12 @@ final class SyncCoordinator {
     /// used `""` at one of those four sites, silently breaking delete
     /// cascades. If you change the sentinel, change **all four sites**
     /// in the same commit.
-    private static func perProviderHashKey(providerID: String, accountEmail: String?) -> String {
-        "\(providerID)|\(accountEmail ?? "_")"
+    private static func perProviderHashKey(
+        providerID: String,
+        accountEmail: String?,
+        accountRecordKey: String?) -> String
+    {
+        "\(providerID)|\(accountRecordKey ?? accountEmail ?? "_")"
     }
 
     /// Deterministic hash of a provider's encoded JSON. Uses FNV-1a (64-bit)
@@ -1846,46 +1955,6 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: nil,
             currencyCode: m.currency)
-    }
-
-    /// Builds a cost summary for CrossModel from its native wallet/usage
-    /// windows. CrossModel does not write token-DB entries, but it does expose
-    /// current daily and monthly spend. Feeding that into `SyncCostSummary`
-    /// lets the iOS Cost tab include it while the dedicated card renders the
-    /// richer wallet details.
-    static func mapCrossModelCostSummary(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot?) -> SyncCostSummary?
-    {
-        guard provider == .crossmodel, let usage = snapshot?.crossModelUsage else {
-            return nil
-        }
-
-        let dailyPoints: [SyncDailyPoint] = usage.daily.map { window in
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.timeZone = TimeZone(identifier: "UTC")
-            formatter.dateFormat = "yyyy-MM-dd"
-            return SyncDailyPoint(
-                dayKey: formatter.string(from: usage.updatedAt),
-                costUSD: window.cost,
-                totalTokens: window.totalTokens,
-                modelBreakdowns: [],
-                serviceBreakdowns: [],
-                isEstimated: nil)
-        }.map { [$0] } ?? []
-
-        return SyncCostSummary(
-            sessionCostUSD: usage.daily?.cost,
-            sessionTokens: usage.daily?.totalTokens,
-            last30DaysCostUSD: usage.monthly?.cost,
-            last30DaysTokens: usage.monthly?.totalTokens,
-            daily: dailyPoints,
-            isEstimated: nil,
-            sessionRequests: usage.daily?.requestCount,
-            last30DaysRequests: usage.monthly?.requestCount,
-            currencyCode: usage.currency)
     }
 
     /// Maps OpenRouter's native balance/credits + per-key usage windows into
@@ -2015,7 +2084,7 @@ final class SyncCoordinator {
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
-             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers — pre-computed costs from
              // their own APIs, never go through the local Codex/Claude
@@ -2043,10 +2112,13 @@ final class SyncCoordinator {
              // pricing table estimates.
              .litellm, .poe, .chutes, .zed,
              // Upstream v0.38.0–v0.39.0 new providers. Sakana, Qoder,
-             // CrossModel, and ClawRouter surface provider-computed
+             // and ClawRouter surface provider-computed
              // values (or no USD cost), not local Codex/Claude model
              // pricing table estimates.
-             .sakana, .qoder, .crossmodel, .clawrouter:
+             .sakana, .qoder, .clawrouter,
+             // Upstream v0.42.0–v0.45.2 providers likewise expose
+             // provider-computed quota, balance, or spend values.
+             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

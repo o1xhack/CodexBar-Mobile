@@ -1,8 +1,33 @@
 /* English localization for CodexBar (base/fallback) */
 
+"tab_hooks" = "Hook";
+"hooks_enable_title" = "Bật hook";
+"hooks_enable_subtitle" = "Chạy lệnh bên ngoài khi có sự kiện hạn mức hoặc nhà cung cấp.";
+"hooks_trust_warning" = "Hook có thể chạy lệnh cục bộ trên máy Mac. Chỉ cấu hình các lệnh bạn tin cậy.";
+"hooks_rules_header" = "Quy tắc";
+"hooks_empty" = "Chưa cấu hình hook.";
+"hooks_add_rule" = "Thêm quy tắc";
+"hooks_delete_rule" = "Xóa quy tắc";
+"hooks_rule_enabled" = "Đã bật";
+"hooks_event" = "Sự kiện";
+"hooks_provider" = "Nhà cung cấp";
+"hooks_any_provider" = "Nhà cung cấp bất kỳ";
+"hooks_threshold" = "Chạy khi mức sử dụng ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Đối số";
+"hooks_argument_placeholder" = "Đối số";
+"hooks_add_argument" = "Thêm đối số";
+"hooks_delete_argument" = "Xóa đối số";
+
+"ollama_safari_cookie_access_hint" = "Cookie Safari cần Quyền truy cập toàn bộ ổ đĩa cho CodexBar (Cài đặt hệ thống > Quyền riêng tư & Bảo mật).";
+"ollama_browser_cookie_decryption_denied" = "Việc giải mã cookie %@ đã bị từ chối trong Chuỗi khóa; hãy thử lại bằng cách làm mới thủ công.";
+"ollama_browser_cookie_decryption_disabled" = "Việc giải mã cookie %@ bị tắt trong CodexBar; hãy bật quyền truy cập Chuỗi khóa rồi làm mới.";
+
 " providers" = "nhà cung cấp";
 "(System)" = "(Hệ thống)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Đăng nhập Codex được quản lý đã chạy. Đợi quá trình này hoàn tất trước khi thêm";
 "API key" = "API khóa";
 "API region" = "API khu vực";
@@ -268,7 +293,8 @@
 "Select the IDE to monitor" = "Chọn IDE để giám sát";
 "Session quota notifications" = "Thông báo phiên Hạn mức";
 "Session tokens" = "Mã thông báo phiên";
-"Settings" = "Cài đặt";
+"provider_section_connection" = "Kết nối";
+"provider_section_menu_bar" = "Thanh menu";
 "Show Codex Credits and Claude Extra usage sections in the menu." = "Hiển thị Tín dụng Codex và Claude Các phần Mức sử dụng bổ sung trong menu.";
 "Show Debug Settings" = "Hiển thị gỡ lỗi Cài đặt";
 "Show all token accounts" = "Hiển thị tất cả token tài khoản";
@@ -296,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Lưu trữ nhiều tiêu đề Cookie OpenCode Go.";
 "Stored in the CodexBar config file." = "Được lưu trữ trong tệp cấu hình CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Được lưu trữ trong ~/.codexbar/config.json.";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Được lưu trữ trong ~/.codexbar/config.json. Tạo một cái tại kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa từ bảng điều khiển Tổng hợp.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa Kế hoạch mã hóa API của bạn từ Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa MiniMax API của bạn.";
@@ -393,7 +418,14 @@
 /* General Pane */
 "section_system" = "Hệ thống";
 "section_usage" = "Mức sử dụng";
-"section_automation" = "Tự động hóa";
+"section_refreshing" = "Làm mới";
+"section_alerts" = "Cảnh báo";
+"section_celebrations" = "Ăn mừng";
+"section_icon" = "Biểu tượng";
+"section_combined_icon" = "Biểu tượng kết hợp";
+"section_animation" = "Hoạt ảnh";
+"section_content" = "Nội dung";
+"section_agent_sessions" = "Phiên tác nhân";
 "language_title" = "Ngôn ngữ";
 "language_subtitle" = "Thay đổi ngôn ngữ hiển thị. Yêu cầu khởi động lại ứng dụng để có hiệu lực đầy đủ.";
 "language_system" = "Hệ thống";
@@ -411,9 +443,9 @@
 "language_russian" = "Русский";
 "language_japanese" = "Tiếng Nhật";
 "language_korean" = "Tiếng Hàn";
+"language_italian" = "Italiano";
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 "start_at_login_subtitle" = "Tự động mở CodexBar khi bạn khởi động máy Mac.";
-"show_cost_summary" = "Hiển thị tóm tắt chi phí";
 "show_cost_summary_subtitle" = "Đọc nhật ký Mức sử dụng cục bộ. Hiển thị hôm nay + cửa sổ lịch sử đã chọn trong menu.";
 "cost_summary_style_title" = "Kiểu hiển thị";
 "cost_summary_style_inline" = "Chỉ nội tuyến";
@@ -425,20 +457,19 @@
 "cost_history_window_title" = "Cửa sổ lịch sử";
 "cost_history_window_help" = "Đặt số ngày nhật ký sử dụng cục bộ xuất hiện trong menu.";
 "cost_history_days_title" = "Cửa sổ lịch sử: %d ngày";
-"cost_auto_refresh_info" = "Tự động làm mới: hàng giờ · Thời gian chờ: 10 phút";
+"cost_auto_refresh_info" = "Tự động làm mới: khoảng thời gian chung (tối thiểu 5 phút) · Thời gian chờ: 10 phút";
 "cost_comparison_periods_title" = "Hiển thị các khoảng so sánh ngắn hơn";
 "cost_comparison_periods_subtitle" = "Thêm tổng 7, 30 và 90 ngày khi nằm trong cửa sổ lịch sử đã chọn. Các tổng này dùng lại cùng một lần quét cục bộ.";
-"refresh_cadence_title" = "Nhịp làm mới";
-"refresh_cadence_subtitle" = "Tần suất CodexBar thăm dò ý kiến ​​các nhà cung cấp trong nền.";
+"refresh_interval_title" = "Khoảng thời gian làm mới";
 "manual_refresh_hint" = "Tính năng tự động làm mới bị tắt; sử dụng lệnh Làm mới của menu.";
 "refresh_on_open_title" = "Làm mới khi mở menu";
 "refresh_on_open_subtitle" = "Tải mức sử dụng mới nhất của mọi nhà cung cấp mỗi khi bạn mở menu.";
 "check_provider_status_title" = "Kiểm tra Nhà cung cấp trạng thái";
 "check_provider_status_subtitle" = "Thăm dò ý kiến ​​OpenAI / Claude các trang trạng thái và Google Không gian làm việc dành cho Gemini /AntiGravity, phát hiện các sự cố trong biểu tượng và menu.";
-"session_quota_notifications_title" = "Thông báo về phiên Hạn mức";
 "session_quota_notifications_subtitle" = "Thông báo khi phiên 5 giờ Hạn mức đạt 0% và khi phiên này khả dụng trở lại.";
-"quota_warning_notifications_title" = "Hạn mức thông báo cảnh báo";
+"quota_depleted_title" = "Hạn mức đã cạn & được khôi phục";
 "quota_warning_notifications_subtitle" = "Cảnh báo khi phiên hoặc Hạn mức còn lại hàng tuần vượt qua ngưỡng được định cấu hình.";
+"threshold_warnings_title" = "Cảnh báo ngưỡng";
 "quota_warnings_title" = "Hạn mức cảnh báo";
 "quota_warning_session" = "phiên";
 "quota_warning_session_capitalized" = "Phiên";
@@ -447,6 +478,17 @@
 "quota_warning_notification_title" = "%1$@ %2$@ Hạn mức thấp";
 "quota_warning_notification_body" = "%1$@ left. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Tài khoản %1$@ . Còn lại %2$@. Đã đạt đến ngưỡng cảnh báo %3$d %% %4$@ của bạn.";
+"predictive_pace_warnings_title" = "Cảnh báo nhịp dùng dự đoán";
+"predictive_pace_warnings_subtitle" = "Cảnh báo cho Codex và Claude khi nhịp dùng phiên hoặc hằng tuần có thể làm hết hạn mức trước khi đặt lại.";
+"confetti_on_reset_title" = "Pháo giấy khi đặt lại";
+"confetti_on_reset_subtitle" = "Hiển thị hiệu ứng pháo giấy toàn màn hình khi mức sử dụng được đặt lại.";
+"confetti_option_off" = "Tắt";
+"confetti_option_session" = "Lần đặt lại phiên";
+"confetti_option_weekly" = "Lần đặt lại hằng tuần";
+"confetti_option_both" = "Cả hai";
+"predictive_pace_warning_notification_title" = "%1$@ cảnh báo nhịp dùng %2$@";
+"predictive_pace_warning_notification_body" = "Với nhịp dùng hiện tại, hạn mức này có thể hết trong %1$@, trước khi đặt lại.";
+"predictive_pace_warning_notification_body_with_account" = "Tài khoản %1$@. Với nhịp dùng hiện tại, hạn mức này có thể hết trong %2$@, trước khi đặt lại.";
 "session_depleted_notification_title" = "%@ phiên đã hết";
 "session_depleted_notification_body" = "còn lại 0%. Sẽ thông báo khi có lại.";
 "session_restored_notification_title" = "%@ phiên đã được khôi phục";
@@ -456,21 +498,28 @@
 "quota_warning_sound" = "Phát âm thanh thông báo";
 "quota_warning_onscreen_alert" = "Hiển thị cảnh báo văn bản trên màn hình";
 "quota_warning_provider_inherits" = "Sử dụng cảnh báo Hạn mức toàn cầu Cài đặt trừ khi một cửa sổ được tùy chỉnh tại đây.";
+"quota_warning_provider_disabled" = "Thông báo cảnh báo hạn mức và các dấu trên thanh mức sử dụng đều đang tắt. Bật một trong hai để chỉnh sửa các cài đặt đã lưu này.";
+"quota_warning_provider_markers_only" = "Thông báo cảnh báo hạn mức đã bị tắt trên toàn ứng dụng. Các cài đặt này vẫn kiểm soát dấu trên thanh mức sử dụng.";
+"quota_warning_global" = "Toàn cục";
 "quota_warning_customize_thresholds" = "Tùy chỉnh %@ ngưỡng";
 "quota_warning_enable_warnings" = "Bật %@ cảnh báo";
 "quota_warning_window_warn_at" = "%@ cảnh báo lúc";
 "quota_warning_off" = "Tắt";
 "quota_warning_inherited" = "Đã kế thừa: %@";
 "quota_warning_depleted_only" = "chỉ đã cạn";
-"quota_warning_upper" = "Thượng";
+"quota_warning_upper" = "Cao hơn";
 "quota_warning_lower" = "Hạ";
+"quota_warning_warning" = "Cảnh báo";
+"quota_warning_critical" = "Nghiêm trọng";
 "apply" = "Áp dụng";
 "quit_app" = "Thoát CodexBar";
 
 /* Tab titles */
 "tab_general" = "Chung";
 "tab_providers" = "Nhà cung cấp";
-"tab_display" = "Hiển thị";
+"tab_notifications" = "Thông báo";
+"tab_menu_bar" = "Thanh menu";
+"tab_menu" = "Menu";
 "tab_advanced" = "Nâng cao";
 "tab_about" = "Giới thiệu về";
 "tab_debug" = "Gỡ lỗi";
@@ -496,39 +545,42 @@
 "menu_bar_metric_subtitle_deepseek" = "Hiển thị số dư DeepSeek trong thanh menu .";
 "menu_bar_metric_subtitle_moonshot" = "Hiển thị số dư Moonshot / Kimi API trong thanh menu .";
 "menu_bar_metric_subtitle_mistral" = "Hiển thị mức chi tiêu API của Mistral trong tháng hiện tại trong thanh menu .";
-"menu_bar_metric_subtitle_kimik2" = "Hiển thị Kimi K2 API -các khoản tín dụng chính trong thanh menu .";
 "automatic" = "Tự động";
 "primary_api_key_limit" = "Chính ( API giới hạn khóa)";
 
 /* Display Pane */
-"section_menu_bar" = "thanh menu";
+"menu_bar_style_title" = "Kiểu thanh menu";
+"menu_bar_style_subtitle" = "Cách hiển thị mục trên thanh menu.";
+"menu_bar_inactive_display_contrast_title" = "Cải thiện khả năng hiển thị trên màn hình không hoạt động";
+"menu_bar_inactive_display_contrast_subtitle" = "Sử dụng hiển thị tương phản cao để biểu tượng và chỉ số vẫn dễ đọc trên các màn hình khác.";
+"menu_bar_style_critters" = "Sinh vật";
+"menu_bar_style_bars" = "Thanh đo";
+"menu_bar_style_icon_percent" = "Biểu tượng & phần trăm";
+"switcher_rows_title" = "Các hàng của trình chuyển đổi";
+"switcher_rows_icons" = "Biểu tượng nhà cung cấp";
+"switcher_rows_progress" = "Tiến độ hằng tuần";
+"usage_bars_fill_title" = "Cách lấp đầy thanh sử dụng";
+"usage_bars_fill_remaining" = "Theo mức còn lại";
+"usage_bars_fill_used" = "Theo mức đã sử dụng";
+"reset_times_title" = "Thời gian đặt lại";
+"reset_times_countdown" = "Đếm ngược";
+"reset_times_clock" = "Mốc giờ";
+"cost_summary_title" = "Tóm tắt chi phí";
+"cost_summary_off" = "Tắt";
 "merge_icons_title" = "Hợp nhất các biểu tượng";
 "merge_icons_subtitle" = "Sử dụng một biểu tượng thanh menu duy nhất với trình chuyển đổi Nhà cung cấp.";
-"switcher_shows_icons_title" = "Trình chuyển đổi hiển thị các biểu tượng";
-"switcher_shows_icons_subtitle" = "Hiển thị các biểu tượng Nhà cung cấp trong trình chuyển đổi (nếu không thì hiển thị dòng tiến trình hàng tuần).";
 "show_most_used_provider_title" = "Hiển thị Nhà cung cấp";
 "show_most_used_provider_subtitle" = "thanh menu được sử dụng nhiều nhất tự động hiển thị Nhà cung cấp gần nhất với giới hạn tốc độ của nó.";
-"menu_bar_shows_percent_title" = "thanh menu hiển thị phần trăm";
-"menu_bar_shows_percent_subtitle" = "Thay thế thanh sinh vật bằng Nhà cung cấp biểu tượng thương hiệu và tỷ lệ phần trăm.";
-"hide_critters_title" = "Ẩn sinh vật";
-"hide_critters_subtitle" = "Hiển thị thanh đo đơn giản không có khuôn mặt và trang trí.";
 "display_mode_title" = "Chế độ hiển thị";
 "display_mode_subtitle" = "Chọn nội dung sẽ hiển thị trong thanh menu (Tốc độ hiển thị Mức sử dụng so với dự kiến).";
-"section_menu_content" = "Nội dung menu";
-"show_usage_as_used_title" = "Hiển thị Mức sử dụng dưới dạng đã sử dụng";
-"show_usage_as_used_subtitle" = "Thanh tiến trình sẽ lấp đầy khi bạn sử dụng Hạn mức (thay vì hiển thị phần còn lại).";
 "show_quota_warning_markers_title" = "Hiển thị Hạn mức dấu cảnh báo";
 "show_quota_warning_markers_subtitle" = "Vẽ dấu kiểm ngưỡng trên thanh Mức sử dụng khi cảnh báo Hạn mức được định cấu hình.";
 "weekly_progress_work_days_title" = "Tiến độ ngày làm việc hàng tuần";
 "weekly_progress_work_days_subtitle" = "Đặt ngày làm việc cho các vạch trên thanh sử dụng hằng tuần và phép tính nhịp độ.";
-"show_reset_time_as_clock_title" = "Hiển thị Đặt lại thời gian dưới dạng đồng hồ";
-"show_reset_time_as_clock_subtitle" = "Hiển thị Đặt lại thời gian dưới dạng giá trị đồng hồ tuyệt đối thay vì đếm ngược.";
 "show_provider_changelog_links_title" = "Hiển thị Nhà cung cấp liên kết nhật ký thay đổi";
 "show_provider_changelog_links_subtitle" = "Thêm liên kết ghi chú phát hành cho các nhà cung cấp được hỗ trợ CLI vào menu.";
 "show_credits_extra_usage_title" = "Hiển thị tín dụng + phần Mức sử dụng";
 "show_credits_extra_usage_subtitle" = "Hiển thị tín dụng Codex và Claude Các phần Mức sử dụng bổ sung trong menu.";
-"show_all_token_accounts_title" = "Hiển thị tất cả các tài khoản token";
-"show_all_token_accounts_subtitle" = "Xếp chồng các tài khoản token trong menu (nếu không thì hiển thị thanh trình chuyển đổi tài khoản).";
 "multi_account_layout_title" = "Bố cục nhiều tài khoản";
 "multi_account_layout_subtitle" = "Chọn thẻ tài khoản chuyển đổi phân đoạn hoặc thẻ tài khoản xếp chồng.";
 "multi_account_layout_segmented" = "Được phân đoạn";
@@ -539,6 +591,16 @@
 "overview_no_providers_hint" = "Không có nhà cung cấp nào được bật cho phần Tổng quan.";
 "overview_rows_follow_order" = "Các hàng tổng quan luôn tuân theo thứ tự Nhà cung cấp.";
 "overview_no_providers_selected" = "Không có nhà cung cấp nào được chọn";
+"agent_sessions_title" = "Phiên tác nhân";
+"agent_sessions_subtitle" = "Hiển thị các phiên Codex và Claude Code cục bộ cùng các phiên được phát hiện qua SSH trong menu.";
+"agent_sessions_hosts_title" = "Máy chủ SSH bổ sung";
+"agent_sessions_footer" = "Các máy Mac trên tailnet của bạn được tự động phát hiện. Các phiên cục bộ được làm mới 30 giây một lần; các máy chủ từ xa được làm mới 60 giây một lần và khi menu mở.";
+"agent_session_labels_title" = "Nhãn phiên";
+"agent_session_labels_subtitle" = "Chọn cách đặt tên cho các phiên tác nhân.";
+"agent_session_label_project" = "Dự án";
+"agent_session_label_descriptive" = "Mô tả";
+"agent_session_label_descriptive_and_project" = "Mô tả + dự án";
+"agent_session_unknown_project" = "Dự án không xác định";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Phím tắt";
@@ -552,10 +614,6 @@
 "show_debug_settings_subtitle" = "Hiển thị các công cụ khắc phục sự cố trong tab Gỡ lỗi.";
 "surprise_me_title" = "Làm tôi ngạc nhiên";
 "surprise_me_subtitle" = "Kiểm tra xem bạn có thích các đại lý của mình vui vẻ ở đó không.";
-"session_limit_confetti_title" = "Pháo giấy giới hạn phiên";
-"session_limit_confetti_subtitle" = "Hiển thị pháo giấy toàn màn hình khi mức sử dụng phiên được đặt lại.";
-"weekly_limit_confetti_title" = "Hoa giấy giới hạn hàng tuần";
-"weekly_limit_confetti_subtitle" = "Phát hoa giấy toàn màn hình khi đặt lại Mức sử dụng hàng tuần.";
 "hide_personal_info_title" = "Ẩn thông tin cá nhân";
 "hide_personal_info_subtitle" = "Địa chỉ email tối nghĩa trong thanh menu và giao diện người dùng menu.";
 "show_provider_storage_usage_title" = "Hiển thị Nhà cung cấp bộ nhớ Mức sử dụng";
@@ -654,6 +712,8 @@
 "display_mode_pace_desc" = "Hiển thị chỉ báo tốc độ (ví dụ: +5%)";
 "display_mode_both_desc" = "Hiển thị cả phần trăm và tốc độ (ví dụ: 45% · +5%)";
 "display_mode_reset_time_desc" = "Hiển thị thời gian đặt lại của chỉ số đã chọn (ví dụ: ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Hiển thị thời gian đặt lại khi hết hạn mức";
+"menu_bar_reset_when_exhausted_subtitle" = "Khi còn 0%, hiển thị thời gian đến lúc đặt lại thay vì phần trăm";
 
 /* Provider status */
 "status_operational" = "Hoạt động";
@@ -672,13 +732,19 @@
 "refresh_15min" = "15 phút";
 "refresh_30min" = "30 phút";
 "refresh_adaptive" = "Thích ứng";
+"refresh_adaptive_agent_aware" = "Thích ứng (nhận biết tác nhân)";
+"adaptive_activity_consent_title" = "Cho phép làm mới theo hoạt động?";
+"adaptive_activity_consent_message" = "Chế độ Thích ứng nhận biết tác nhân có thể kiểm tra danh sách tiến trình cục bộ đang chạy, bao gồm cả dòng lệnh, để nhận diện Codex và Claude, sau đó đọc siêu dữ liệu của các phiên đã biết mỗi 30 giây trong khi bạn viết mã. Khi tắt Agent Sessions, CodexBar chỉ dùng thời điểm hoạt động gần nhất trong bộ nhớ và loại bỏ đường dẫn cùng danh tính phiên. Dữ liệu này không được gửi đi đâu, còn tính năng phát hiện từ xa và SSH vẫn tắt. Nếu bạn từ chối, CodexBar trở về chế độ Thích ứng thông thường mà không quét hoạt động cục bộ.";
+"adaptive_activity_consent_allow" = "Cho phép hoạt động cục bộ";
+"adaptive_activity_consent_decline" = "Dùng Thích ứng thông thường";
 
 /* Additional keys */
 "not_found" = "Không tìm thấy";
 
 /* Cost estimation */
-"cost_header_estimated" = "Chi phí (ước tính)";
 "cost_estimate_hint" = "Ước tính từ nhật ký cục bộ · có thể khác với hóa đơn của bạn";
+"codex_api_estimate_hint" = "Ước tính từ mức sử dụng token · không phải hóa đơn đăng ký";
+"cost_data_explanation" = "Chi phí có thể do nhà cung cấp báo cáo hoặc được ước tính từ mức sử dụng token theo giá API công khai. Các ước tính không phải phí đăng ký.";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Không phát hiện thấy IDE JetBrains nào có Trợ lý AI. Cài đặt JetBrains IDE và bật Trợ lý AI.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "OpenRouter API token chưa được định cấu hình. Đặt biến môi trường OPENROUTER_API_KEY hoặc định cấu hình trong Cài đặt .";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "không tìm thấy z.ai API token. Đặt apiKey trong ~/.codexbar/config.json hoặc Z_AI_API_KEY.";
@@ -708,6 +774,7 @@
 "Today" = "Hôm nay";
 "Today tokens" = "Mã thông báo hôm nay";
 "30d cost" = "giá 30d";
+"%@ cost" = "giá %@";
 "30d tokens" = "mã thông báo 30d";
 "Latest tokens" = "Mã thông báo mới nhất";
 "Top model" = "Mô hình hàng đầu";
@@ -797,6 +864,8 @@
 /* Popup panels */
 "No usage configured." = "Chưa định cấu hình Mức sử dụng.";
 "Quota" = "Hạn mức";
+"Daily quota" = "Hạn mức hằng ngày";
+"Total" = "Tổng";
 "tokens" = "mã thông báo";
 "requests" = "yêu cầu";
 "Latest" = "Mới nhất";
@@ -850,7 +919,7 @@
 "Hourly Usage" = "Hàng giờ Mức sử dụng";
 "Usage remaining" = "Mức sử dụng";
 "Usage used" = "Mức sử dụng đã sử dụng khóa";
-"API key verified. Ollama does not expose Cloud quota limits through the API." = "API đã được xác minh. Ollama không đưa ra các giới hạn Hạn mức của Đám mây thông qua API .";
+"API key verified. Cloud quotas need browser cookies. Sign in to Ollama." = "Đã xác minh khóa API. Hạn mức Cloud yêu cầu cookie trình duyệt. Hãy đăng nhập vào Ollama.";
 "Last 30 days: %@ tokens" = "30 ngày qua: %@ mã thông báo";
 "7d spend" = "chi tiêu 7 ngày";
 "30d spend" = "chi tiêu 30 ngày";
@@ -981,7 +1050,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie Con trỏ của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie Factory của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho GitHub Copilot token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp khóa Kimi K2 API của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho Kimi auth token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp MiniMax API token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie MiniMax của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
@@ -1112,14 +1180,8 @@
 
 "language_vietnamese" = "Tiếng Việt";
 "language_turkish" = "Türkçe";
-"Renews: %@" = "Gia hạn: %@";
-"Plan expires: %@" = "Gói hết hạn: %@";
-"∞ Unlimited" = "∞ Không giới hạn";
-
-/* Upstream v0.36 locale catch-up fallbacks */
-"language_indonesian" = "Bahasa Indonesia";
-"language_italian" = "Italiano";
-"language_polish" = "Polski";
+"language_indonesian" = "Tiếng Indonesia";
+"language_polish" = "Tiếng Ba Lan";
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
@@ -1141,7 +1203,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Bật";
@@ -1153,4 +1214,205 @@
 "section_diagnostics" = "Chẩn đoán";
 "section_updates" = "Cập nhật";
 "section_links" = "Liên kết";
+"Show Codex Spark usage" = "Hiển thị mức sử dụng Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị các hàng hạn mức Codex Spark trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
+"Scroll to see more models" = "Cuộn để xem thêm mô hình";
+"Copy Image" = "Sao chép hình ảnh";
+"Copy Stats" = "Sao chép số liệu";
+"Could not copy image" = "Không thể sao chép hình ảnh";
+"Image copied" = "Đã sao chép hình ảnh";
+"Image saved" = "Đã lưu hình ảnh";
+"Nothing is uploaded. This image is created on your Mac." = "Không có dữ liệu nào được tải lên. Hình ảnh này được tạo trên máy Mac của bạn.";
+"Save..." = "Lưu...";
+"Share AI Usage" = "Chia sẻ mức sử dụng AI";
+"Share Stats…" = "Chia sẻ số liệu…";
+"Stats copied" = "Đã sao chép số liệu";
+"DeepSeek this month token usage trend" = "Xu hướng sử dụng token DeepSeek trong tháng này";
+"Chrome profile" = "Hồ sơ Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Chọn phiên DeepSeek Platform đã đăng nhập để cung cấp thông tin sử dụng chi tiết.";
+"Detailed usage unavailable." = "Không có thông tin sử dụng chi tiết.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Đăng nhập vào DeepSeek Platform trong Chrome để xem thông tin sử dụng chi tiết.";
+"Select a DeepSeek Chrome profile in Settings." = "Chọn một hồ sơ Chrome cho DeepSeek trong Cài đặt.";
+"Select profile…" = "Chọn hồ sơ…";
+
+"%@: %@" = "%@: %@";
+"Alternatively, set a custom path in Settings." = "Ngoài ra, hãy đặt đường dẫn tùy chỉnh trong Cài đặt.";
+"Choose a supported browser so CodexBar can read the matching account." = "Chọn một trình duyệt được hỗ trợ để CodexBar có thể đọc tài khoản phù hợp.";
+"Choose Cursor account" = "Chọn tài khoản Cursor";
+"Choose which Cursor account CodexBar should use." = "Chọn tài khoản Cursor mà CodexBar nên sử dụng.";
+"Finish switching to a different Cursor account in your browser, then try again." = "Hoàn tất việc chuyển sang tài khoản Cursor khác trong trình duyệt, sau đó thử lại.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Cài đặt JetBrains IDE có bật AI Assistant, sau đó làm mới CodexBar.";
+"Request quota: %@ / %@" = "Hạn mức yêu cầu: %@ / %@";
+"Sign in with Claude Code..." = "Đăng nhập bằng Claude Code...";
+"Timed out waiting for Cursor account switch. %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@ Lỗi gần nhất: %@";
+"Use Account" = "Sử dụng tài khoản";
+/* Spend dashboard */
+"tab_usage_spend" = "Sử dụng & Chi tiêu";
+"Usage & Spend" = "Sử dụng & Chi tiêu";
+"Local estimated cost history across supported providers." = "Lịch sử chi phí ước tính cục bộ trên các nhà cung cấp được hỗ trợ.";
+"Time range" = "Khoảng thời gian";
+"Track costs" = "Theo dõi chi phí";
+"Cost tracking is off" = "Đang tắt tính năng theo dõi chi phí";
+"Turn on Track costs to build local estimates." = "Bật “Theo dõi chi phí” để tạo ước tính cục bộ.";
+"No local cost history yet" = "Chưa có lịch sử chi phí cục bộ";
+"Turn on cost tracking or refresh after using a supported provider." = "Bật tính năng theo dõi chi phí hoặc làm mới sau khi sử dụng nhà cung cấp được hỗ trợ.";
+"Refresh failures" = "Lần làm mới thất bại";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Đơn vị tiền tệ gốc được giữ riêng biệt; các hàng tài khoản Codex không bao gồm lịch sử phiên Pi.";
+"Spend unavailable" = "Không có dữ liệu chi tiêu";
+"Model breakdown unavailable" = "Phân tích theo mô hình không khả dụng";
+"Local estimated history" = "Lịch sử ước tính cục bộ";
+"Coverage" = "Phạm vi";
+"Estimated spend" = "Chi tiêu ước tính";
+"Tracked tokens" = "Token được theo dõi";
+"Subscriptions" = "Gói đăng ký";
+"By subscription" = "Theo gói đăng ký";
+"No model-level history" = "Không có lịch sử theo mô hình";
+"Daily estimated spend" = "Chi tiêu ước tính hằng ngày";
+"Weekly cannot run out before reset at this pace" = "Với tốc độ này, hạn mức tuần không thể hết trước khi đặt lại";
+"Estimated: %@" = "Ước tính: %@";
+"Coding Plan" = "Gói lập trình";
+"Agent Plan" = "Gói tác nhân";
+"Team" = "Nhóm";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Bố cục";
+"menu_bar_layout_footer" = "Kéo các thẻ để sắp xếp thanh menu. Bấm vào thẻ để thêm; chọn thẻ đã đặt rồi nhấn Delete để xóa.";
+"menu_bar_layout_group_identity" = "Danh tính";
+"menu_bar_layout_group_usage" = "Mức sử dụng";
+"menu_bar_layout_group_time" = "Thời gian";
+"menu_bar_layout_group_money" = "Chi phí";
+"menu_bar_layout_group_structure" = "Cấu trúc";
+"menu_bar_layout_scope_all" = "Tất cả nhà cung cấp";
+"menu_bar_layout_scope_help" = "Chỉnh sửa bố cục mặc định hoặc ghi đè cho một nhà cung cấp.";
+"menu_bar_layout_use_all" = "Dùng bố cục của mọi nhà cung cấp";
+"menu_bar_layout_preset" = "Mẫu bố cục";
+"menu_bar_layout_preset_icon_percent" = "Biểu tượng và phần trăm";
+"menu_bar_layout_preset_icon_only" = "Chỉ biểu tượng";
+"menu_bar_layout_preset_percent_reset" = "Phần trăm và đặt lại";
+"menu_bar_layout_preset_compact_stacked" = "Xếp chồng gọn";
+"menu_bar_layout_preset_custom" = "Tùy chỉnh";
+"menu_bar_layout_live_preview" = "Xem trước trực tiếp";
+"menu_bar_layout_strip" = "Dải thanh menu";
+"menu_bar_layout_remove_line_break" = "Xóa ngắt dòng";
+"menu_bar_layout_chip_hint" = "Chọn, kéo để sắp xếp lại hoặc dùng thao tác Xóa.";
+"menu_bar_layout_palette_hint" = "Bấm để thêm hoặc kéo vào bố cục.";
+"menu_bar_layout_empty_line" = "Thả một thẻ vào đây";
+"menu_bar_layout_line" = "Dòng %d";
+"menu_bar_layout_drag_remove" = "Kéo vào đây để xóa";
+"menu_bar_layout_size" = "Kích thước";
+"menu_bar_layout_size_small" = "Nhỏ";
+"menu_bar_layout_size_regular" = "Thường";
+"menu_bar_layout_gap" = "Khoảng cách";
+"menu_bar_layout_gap_tight" = "Hẹp";
+"menu_bar_layout_gap_regular" = "Thường";
+"menu_bar_layout_keyboard_hint" = "Delete xóa thẻ đã chọn";
+"menu_bar_layout_sample_account" = "tài khoản";
+"menu_bar_layout_sample_runs_out" = "hết vào T6";
+"menu_bar_layout_token_icon" = "Biểu tượng";
+"menu_bar_layout_token_provider" = "Tên nhà cung cấp";
+"menu_bar_layout_token_account" = "Tài khoản";
+"menu_bar_layout_token_session" = "Phiên %";
+"menu_bar_layout_token_weekly" = "Hàng tuần %";
+"menu_bar_layout_token_auto" = "% tự động";
+"menu_bar_layout_token_bar" = "Thanh sử dụng";
+"menu_bar_layout_token_resets_in" = "Đặt lại sau";
+"menu_bar_layout_token_reset_at" = "Đặt lại lúc";
+"menu_bar_layout_token_runs_out" = "Sắp hết";
+"menu_bar_layout_token_cost_today" = "Chi phí hôm nay";
+"menu_bar_layout_token_cost_30d" = "Chi phí 30 ngày";
+"menu_bar_layout_token_space" = "Khoảng trắng";
+"menu_bar_layout_token_line_break" = "Ngắt dòng";
+"menu_bar_layout_token_separator_accessibility" = "Dấu chấm phân cách";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Biểu tượng: Không có sẵn";
+"%@ icon" = "%@: Biểu tượng";
+"Provider name unavailable" = "Tên nhà cung cấp: Không có sẵn";
+"Account unavailable" = "Tài khoản: Không có sẵn";
+"%@ unavailable" = "%@: Không có sẵn";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Thanh sử dụng: Không có sẵn";
+"Usage bar, %d of 3 filled" = "Thanh sử dụng: %d/3 đã tô";
+"Reset countdown unavailable" = "Đặt lại sau: Không có sẵn";
+"Reset time unavailable" = "Đặt lại lúc: Không có sẵn";
+"Run-out estimate unavailable" = "Sắp hết: Không có sẵn";
+"Cost today unavailable" = "Chi phí hôm nay: Không có sẵn";
+"30-day cost unavailable" = "Chi phí 30 ngày: Không có sẵn";
+"Resets" = "Lần đặt lại";
+
+/* CodexBar Mobile fork compatibility strings. */
+"API key verified. Ollama does not expose Cloud quota limits through the API." = "API đã được xác minh. Ollama không đưa ra các giới hạn Hạn mức của Đám mây thông qua API .";
+"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp khóa Kimi K2 API của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
+"CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
+"Plan expires: %@" = "Gói hết hạn: %@";
+"Renews: %@" = "Gia hạn: %@";
+"Settings" = "Cài đặt";
+"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Được lưu trữ trong ~/.codexbar/config.json. Tạo một cái tại kimi-k2.ai.";
+"cost_header_estimated" = "Chi phí (ước tính)";
+"hide_critters_subtitle" = "Hiển thị thanh đo đơn giản không có khuôn mặt và trang trí.";
+"hide_critters_title" = "Ẩn sinh vật";
+"menu_bar_metric_subtitle_kimik2" = "Hiển thị Kimi K2 API -các khoản tín dụng chính trong thanh menu .";
+"menu_bar_shows_percent_subtitle" = "Thay thế thanh sinh vật bằng Nhà cung cấp biểu tượng thương hiệu và tỷ lệ phần trăm.";
+"menu_bar_shows_percent_title" = "thanh menu hiển thị phần trăm";
 "mobile_sync_status_failure_phase_format" = "Đồng bộ iCloud thất bại trong giai đoạn %@. Mở Nâng cao → Gỡ lỗi để xem chi tiết.";
+"quota_warning_notifications_title" = "Hạn mức thông báo cảnh báo";
+"refresh_cadence_subtitle" = "Tần suất CodexBar thăm dò ý kiến ​​các nhà cung cấp trong nền.";
+"refresh_cadence_title" = "Nhịp làm mới";
+"section_automation" = "Tự động hóa";
+"section_menu_bar" = "thanh menu";
+"section_menu_content" = "Nội dung menu";
+"session_limit_confetti_subtitle" = "Hiển thị pháo giấy toàn màn hình khi mức sử dụng phiên được đặt lại.";
+"session_limit_confetti_title" = "Pháo giấy giới hạn phiên";
+"session_quota_notifications_title" = "Thông báo về phiên Hạn mức";
+"show_all_token_accounts_subtitle" = "Xếp chồng các tài khoản token trong menu (nếu không thì hiển thị thanh trình chuyển đổi tài khoản).";
+"show_all_token_accounts_title" = "Hiển thị tất cả các tài khoản token";
+"show_cost_summary" = "Hiển thị tóm tắt chi phí";
+"show_reset_time_as_clock_subtitle" = "Hiển thị Đặt lại thời gian dưới dạng giá trị đồng hồ tuyệt đối thay vì đếm ngược.";
+"show_reset_time_as_clock_title" = "Hiển thị Đặt lại thời gian dưới dạng đồng hồ";
+"show_usage_as_used_subtitle" = "Thanh tiến trình sẽ lấp đầy khi bạn sử dụng Hạn mức (thay vì hiển thị phần còn lại).";
+"show_usage_as_used_title" = "Hiển thị Mức sử dụng dưới dạng đã sử dụng";
+"switcher_shows_icons_subtitle" = "Hiển thị các biểu tượng Nhà cung cấp trong trình chuyển đổi (nếu không thì hiển thị dòng tiến trình hàng tuần).";
+"switcher_shows_icons_title" = "Trình chuyển đổi hiển thị các biểu tượng";
+"tab_display" = "Hiển thị";
+"weekly_limit_confetti_subtitle" = "Phát hoa giấy toàn màn hình khi đặt lại Mức sử dụng hàng tuần.";
+"weekly_limit_confetti_title" = "Hoa giấy giới hạn hàng tuần";
+"∞ Unlimited" = "∞ Không giới hạn";
+
+/* Fork sync keys retained after the upstream locale completeness gate. */
+"mobile_sync_status_last_sync_format" = "Last sync: %@";
+"icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
+"mobile_sync_status_syncing" = "Syncing…";
+"mobile_sync_status_syncing_elapsed_format" = "Syncing — %@ · %ds";
+"mobile_toggle_sync_title" = "Sync usage to iCloud";
+"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
+"icloud_diagnostics_title" = "iCloud Sync Diagnostics";
+"mobile_section_mock_data" = "Debug · Mock Provider Data";
+"icloud_sync_phase_legacy_upload" = "Snapshot upload";
+"mobile_toggle_mock_title" = "Inject mock provider data";
+"mobile_sync_status_no_sync" = "No sync yet";
+"icloud_diagnostics_running" = "Running read-only iCloud checks…";
+"mobile_toggle_push_title" = "Push notifications to iOS";
+"mobile_dev_warning" = "Warning";
+"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
+"mobile_sync_status_syncing_phase_format" = "Syncing — %@…";
+"mobile_button_retry_sync" = "Retry Sync";
+"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (57 additional mocks omitted for brevity):";
+"tab_mobile" = "Mobile";
+"mobile_dev_verify_push" = "Verify Push Setup";
+"icloud_sync_phase_preparing" = "Preparing";
+"mobile_section_push" = "iOS Push Notifications";
+"icloud_sync_phase_cleanup" = "Cleanup";
+"mobile_button_sync_now" = "Sync Now";
+"mobile_dev_restored" = "Restored";
+"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
+"icloud_sync_phase_idle" = "Idle";
+"mobile_section_dev_test" = "DEV — iOS Push Test";
+"icloud_sync_phase_provider_upload" = "Provider upload";
+"mobile_toggle_mock_subtitle" = "Mỗi lần đồng bộ sẽ đẩy 77 ảnh chụp giả lập ổn định cho 67 ID nhà cung cấp, bao gồm các trường hợp nhiều tài khoản, sub2api, Wayfinder và dự phòng cho nhà cung cấp không xác định. Email giả lập dùng TLD `.test` nên iPhone hiển thị huy hiệu MOCK. Khi tắt, CloudKit sẽ xóa các bản ghi giả lập trong khoảng một chu kỳ đồng bộ. Mặc định tắt.";
+"mobile_dev_depleted" = "Depleted";
+"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
+"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
+"icloud_sync_phase_reconciling" = "Reconciling";
+"mobile_section_icloud_sync" = "iCloud Sync";
+"icloud_diagnostics_run" = "Run Read-Only Check";

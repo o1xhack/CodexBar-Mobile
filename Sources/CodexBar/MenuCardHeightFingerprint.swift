@@ -86,6 +86,12 @@ extension UsageMenuCardView.Model.Metric {
             MenuCardHeightFingerprint.field("detail", self.detailText),
             MenuCardHeightFingerprint.field("detailLeft", self.detailLeftText),
             MenuCardHeightFingerprint.field("detailRight", self.detailRightText),
+            MenuCardHeightFingerprint.field(
+                "sessionEquivalentVerdict",
+                self.sessionEquivalentDetail?.verdictText),
+            MenuCardHeightFingerprint.field(
+                "sessionEquivalentNumber",
+                self.sessionEquivalentDetail?.numberText),
             self.pacePercent == nil ? "pace=0" : "pace=1",
             self.paceOnTop ? "paceTop=1" : "paceTop=0",
             self.cardStyle ? "card=1" : "card=0",
@@ -112,6 +118,7 @@ extension UsageMenuCardView.Model.TokenUsageSection {
         MenuCardHeightFingerprint.join([
             MenuCardHeightFingerprint.field("session", self.sessionLine),
             MenuCardHeightFingerprint.field("month", self.monthLine),
+            MenuCardHeightFingerprint.field("metered", self.meteredLine),
             MenuCardHeightFingerprint.field("comparisons", self.comparisonLines.joined(separator: "|")),
             MenuCardHeightFingerprint.field("hint", self.hintLine),
             MenuCardHeightFingerprint.field("error", self.errorLine),

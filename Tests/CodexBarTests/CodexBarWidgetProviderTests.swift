@@ -5,6 +5,14 @@ import Testing
 
 struct CodexBarWidgetProviderTests {
     @Test
+    func `widget token counts use compact shared formatting`() {
+        #expect(WidgetFormat.tokenCount(999) == "999 tokens")
+        #expect(WidgetFormat.tokenCount(9_400_000) == "9.4M tokens")
+        #expect(WidgetFormat.tokenCount(94_500_000) == "94M tokens")
+        #expect(WidgetFormat.tokenCount(10_600_000_000) == "11B tokens")
+    }
+
+    @Test
     func `usage display follows remaining and used preference`() {
         #expect(WidgetUsageDisplay.percent(fromRemaining: 48, showUsed: false) == 48)
         #expect(WidgetUsageDisplay.percent(fromRemaining: 48, showUsed: true) == 52)
@@ -413,6 +421,7 @@ struct CodexBarWidgetProviderTests {
     @Test
     func `provider choice excludes unsupported Chutes widgets`() {
         #expect(ProviderChoice(provider: .chutes) == nil)
+        #expect(ProviderChoice(provider: .sub2api) == nil)
     }
 
     @Test
@@ -875,6 +884,86 @@ struct CodexBarWidgetProviderTests {
 }
 
 extension CodexBarWidgetProviderTests {
+    @Test
+    func `provider choice supports Cursor`() {
+        #expect(ProviderChoice(provider: .cursor) == .cursor)
+        #expect(ProviderChoice.cursor.provider == .cursor)
+    }
+
+    @Test
+    func `supported providers keep Cursor when it is the only enabled provider`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .cursor,
+            updatedAt: now,
+            primary: RateWindow(usedPercent: 25, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+        let snapshot = WidgetSnapshot(entries: [entry], enabledProviders: [.cursor], generatedAt: now)
+
+        #expect(CodexBarSwitcherTimelineProvider.supportedProviders(from: snapshot) == [.cursor])
+    }
+
+    @Test
+    func `widget token titles disclose stale age for today and history rows`() {
+        let entryUpdatedAt = Date()
+        let staleToken = WidgetSnapshot.TokenUsageSummary(
+            sessionCostUSD: 1.25,
+            sessionTokens: 4200,
+            last30DaysCostUSD: 12.50,
+            last30DaysTokens: 42000,
+            updatedAt: entryUpdatedAt.addingTimeInterval(-45 * 60))
+        let freshToken = WidgetSnapshot.TokenUsageSummary(
+            sessionCostUSD: 1.25,
+            sessionTokens: 4200,
+            last30DaysCostUSD: 12.50,
+            last30DaysTokens: 42000,
+            updatedAt: entryUpdatedAt.addingTimeInterval(-5 * 60))
+
+        let todayTitle = WidgetFormat.tokenRowTitle(
+            staleToken.sessionLabel,
+            summary: staleToken,
+            entryUpdatedAt: entryUpdatedAt)
+        let historyTitle = WidgetFormat.tokenRowTitle(
+            staleToken.last30DaysLabel,
+            summary: staleToken,
+            entryUpdatedAt: entryUpdatedAt)
+
+        #expect(todayTitle.hasPrefix("Today · "))
+        #expect(historyTitle.hasPrefix("30d · "))
+        #expect(WidgetFormat.tokenRowTitle(
+            freshToken.sessionLabel,
+            summary: freshToken,
+            entryUpdatedAt: entryUpdatedAt) == "Today")
+
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .codex,
+            updatedAt: entryUpdatedAt,
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: staleToken,
+            dailyUsage: [])
+        let todayMetric = CompactMetricFormatter.display(for: entry, metric: .todayCost)
+        let historyMetric = CompactMetricFormatter.display(for: entry, metric: .last30DaysCost)
+
+        #expect(todayMetric.label.hasPrefix("Today API est. · not billed · "))
+        #expect(historyMetric.label.hasPrefix("30d API est. · not billed · "))
+        #expect(CompactMetricFormatter.costMetricLabel("7d", provider: .codex) == "7d API est. · not billed")
+        #expect(CompactMetricFormatter.costMetricLabel("90d", provider: .codex) == "90d API est. · not billed")
+        #expect(CompactMetricFormatter.costMetricLabel("This month", provider: .codex) ==
+            "This month API est. · not billed")
+        #expect(CompactMetricFormatter.costMetricLabel(
+            "This month API est. · not billed",
+            provider: .codex) == "This month API est. · not billed")
+    }
+
     @Test
     func `usage history chart mode requires every point to expose cost`() {
         let costPoints = [

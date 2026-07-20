@@ -18,26 +18,139 @@ Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
 - Audited upstream commits, provider registry, Shared paths, release notes,
   parser surfaces and a merge-tree conflict forecast.
 
-### Planned Round 1 — Upstream merge
+### Round 1 — Provenance-preserving upstream merge
 
-- Merge `refs/upstream-tags/v0.45.2` with provenance.
-- Resolve fork CI, Mobile Settings, locale, parser, changelog, appcast and
-  version conflicts under `01-design.md`.
-- Record the merge commit and conflict decisions here.
+- Merged collision-safe `refs/upstream-tags/v0.45.2`; the tag object is
+  `64495789` and the released commit is `91560ca9`.
+- Resolved 42 conflicted paths. Fork-owned PR Fast/Final CI triggers,
+  CloudKit/mobile release scripts, appcast, Mobile Settings, composite
+  versioning and Production entitlements were preserved.
+- Integrated upstream implementation/security improvements into the fork
+  policy rather than restoring upstream's heavy PR-update CI.
+- Unioned upstream locale additions with Mobile/iCloud strings. The complete
+  catalog gate now validates all 22 non-English Mac catalogs.
+- Combined upstream cost/parser changes with the fork's pricing fingerprint
+  and fallback logic; advanced `parserLogicVersion` to 9 and regenerated
+  `CodexParserHash` to `5b23d719648d20de` after the final pricing fix.
+- Kept upstream removal of `kimik2` and `crossmodel` from the Mac provider
+  registry while preserving their Shared/iOS decoding, colors, cards and
+  notification IDs for rolling-upgrade compatibility.
 
-### Planned Round 2 — Shared/iOS bridge
+### Round 2 — Shared wire and iOS bridge
 
-- Prove or amend lossless mapping for eight new providers.
-- Preserve old-provider decode/subscription compatibility.
-- Add iOS provider metadata, colors, mocks, localized release notes and tests.
+- Added optional `SyncSub2APIUsage`, `SyncWayfinderUsage` and
+  `SyncProviderAmount` typed payloads. All decode with `decodeIfPresent`;
+  `providerPayloadVersion` remains 1. `SyncProviderAmount` keeps
+  Neuralwatt/ZenMux balances and ai& uncapped spend out of the budget lane, so
+  iOS never renders `$X / $0`.
+- Mapped all generic third-and-later quota lanes into named `rateWindows`, so
+  ClinePass, LongCat, Neuralwatt, ZenMux and future providers do not lose
+  Daily/Weekly/Monthly/Additional windows.
+- Added a single Shared `hasUsableSignal` contract used by both the Mac
+  per-provider writer and iOS `SnapshotCache`. This fixed a review-discovered
+  bug where typed-only Wayfinder telemetry was misclassified as a ghost and
+  only 76 of 77 QA envelopes reached CloudKit.
+- Tail-appended eight new notification provider IDs. The list now covers 65
+  current-plus-legacy providers and 195 deterministic subscriptions; old IDs
+  were not reordered or removed.
+- Added first-class provider colors, 77 QA snapshots across 67 IDs, typed
+  sub2api/Wayfinder detail cards, merger preservation, wire round trips and
+  cache tests. New Mac debug data distinguishes 63 current IDs, two legacy
+  compatibility IDs and two synthetic fallback IDs.
+- Added iOS 1.19.0 release notes in all four required languages, technical
+  CHANGELOG entries and version/build updates for every target.
 
-### Planned Round 3 — Version/release preparation
+### Round 3 — One-version and release preparation
 
-- Apply the one-version plan, build/test both platforms, audit CloudKit,
-  complete the 16-case matrix, sign/notarize local artifacts, validate the
-  candidate appcast and record the draft boundary.
+- Applied Mac `0.45.2.1 (109.1)`, iOS `1.19.0 (188)`, composite Sparkle build
+  `109.1.1.19.0`, and candidate tag
+  `v0.45.2.1-mobile.1.19.0`.
+- Updated `UPSTREAM_VERSION=v0.45.2` and
+  `UPSTREAM_SYNC_DATE=2026-07-19`.
+- Regenerated the Xcode project from `project.yml`; no `.xcodeproj` field was
+  hand-edited.
+- CloudKit diff audit against the last live fork tag returned `NO_DEPLOY`:
+  only optional JSON members inside the existing compressed provider payload
+  changed. CKRecord types/fields/indexes/predicates did not. The eight appended
+  warning providers do create 24 new per-user runtime custom-zone/subscription
+  instances, but all reuse the existing `QuotaTransition` schema and therefore
+  require no Dashboard deploy.
 
-### Planned Round 4 — Review and closeout
+### Round 4 — Test/review fixes found during integration
 
-- Review final diff and evidence, fix/retest all blocking findings, set all
-  Research files to `done`, and leave the branch local and unpushed.
+- Fixed upstream v0.45.2's exact built-in Codex pricing path, which accepted
+  `cacheWriteInputTokens` but failed to pass it to the calculator. GPT-5.6 and
+  Pi cache invalidation tests now exercise the corrected cost.
+- Fixed upstream plural rendering on systems whose current locale differs
+  from the selected app language. Duplicate `.strings` entries no longer
+  mask `.stringsdict`, and formatting now uses the app-selected locale, so
+  English correctly renders `1 window`.
+- Adapted one upstream segmented-cache test to explicitly exercise Mac-only
+  behavior with iCloud disabled. Separate fork tests keep iCloud-on
+  multi-account fan-out mandatory.
+- Applied the same isolation to the ordinary selected-account quota-warning
+  test; the iCloud-on fan-out contract remains pinned by sync-specific suites.
+- Made subscription expiry and plural formatting use the app-selected locale,
+  then corrected the MiniMax fixture helper so tests assert the same contract.
+- Replaced an invalid escaped-quote Swift backticked iOS test identifier that
+  the Mac-only build could not compile; the final iOS gate then passed all 553
+  tests.
+- The pre-review automated gates passed before the identity/CWL hardening
+  below; the final post-review counts are recorded in Round 6 and
+  `03-testing.md`.
+
+### Round 5 — Independent review blockers
+
+- Restored 32 existing Simplified Chinese Mac strings that an upstream merge
+  fallback had replaced with English, and corrected the 77-snapshot/67-ID mock
+  subtitle across every Mac locale.
+- Added `accountRecordKey` so token account CloudKit IDs use persisted UUIDs,
+  not duplicate/renameable labels or strings containing `|`. Record, cache,
+  SwiftData and SwiftUI identity paths prefer the opaque key while retaining
+  the label for display. Wayfinder uses the same lane with a stable device key.
+- Extended mixed-version lane merging to Claude: overlapping lanes take the
+  freshest writer while scoped lanes from a new Mac survive when an old Mac is
+  slightly fresher.
+- Localized canonical Daily/Weekly/Monthly/Additional wire labels at the iOS
+  rendering boundary; provider-specific names such as Web Sonnet remain
+  untouched. Added presentation-level assertions for sub2api amount/mode and
+  Wayfinder status.
+- Documented the unavoidable forward-rendering limit: iOS 1.18 decodes new
+  payloads without crashing, but its old ghost filter can hide typed-only
+  Wayfinder and wallet-only sub2api. iOS 1.19 fixes that via `hasUsableSignal`.
+- Review-fix gate passed focused mapper/wire and iOS identity/CWL/presentation
+  suites. Full final gates were rerun after the final review.
+
+### Round 6 — Final identity, ledger and review closeout
+
+- Marked synthesized editable token-account labels explicitly so Mac identity
+  mapping never treats a user-editable label as an authenticated email.
+  Authenticated email/org identities still merge one account across Macs;
+  persisted opaque UUID record keys keep equal-label accounts distinct.
+- Extended iOS Cost Window Ledger rows and rollups with the opaque record key
+  plus the complete account identity set. Overlap-union now joins mixed
+  email-only, org+email and org-only writers without collapsing record-only
+  accounts that happen to share a label.
+- Added an in-place legacy ledger rekey before incremental CloudKit deletes,
+  including same-delta upsert/migrate/delete ordering and record-name parsing
+  that preserves legacy labels containing `|`. Long history therefore survives
+  the 1.18-to-1.19 identity-key transition.
+- Localized all canonical generic quota-window and provider-amount period
+  labels in English, Simplified Chinese, Traditional Chinese and Japanese;
+  unknown provider-defined values intentionally remain verbatim.
+- The first final Mac run exposed one stale test fixture: it expected an email
+  record name after the production contract had moved token accounts to opaque
+  keys. The fixture now uses real Settings account IDs and verifies Bob's
+  opaque record is the sole two-cycle deletion. Its suite passed 11/11 before
+  the full rerun.
+- Final gates: lint and release-policy checks passed with 0 SwiftLint findings,
+  22 Mac catalogs / 1,369 keys and 303 iOS source keys; Mac passed 7,531 tests /
+  732 suites; iOS passed 566 tests / 41 suites; compatibility focus passed 81
+  Swift Testing tests / 11 suites plus 1 XCTest; iOS Release simulator build
+  succeeded.
+- Two independent final review tracks reported **0 blockers**: Shared/iOS sync,
+  identity, ledger, old-reader and localization; and Mac merge, versioning,
+  CI/release/appcast/draft-only boundaries.
+
+- Remaining work: commit the provenance-preserving merge, sign/notarize
+  artifacts, create and verify the remote draft release, and close Research.

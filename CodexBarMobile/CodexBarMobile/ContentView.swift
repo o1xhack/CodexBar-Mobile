@@ -1300,7 +1300,7 @@ struct CostDashboardInsights {
         // `MockProviderDetector.extinctMockProviderIDs`.
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
         for provider in liveProviders {
-            if let budget = provider.budget {
+            if let budget = provider.budget, budget.limitAmount > 0 {
                 budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
             }
 
@@ -1427,12 +1427,14 @@ struct CostDashboardInsights {
             uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
 
         for rollup in aggregation.providerRollups.values {
-            // Match on the actual (providerID, accountEmail) tuple — avoids the
-            // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
-            // and `cardIdentityKey`.
             guard let provider = liveProviders.first(where: {
-                $0.providerID == rollup.providerID
-                    && $0.accountEmail == rollup.accountEmail
+                guard $0.providerID == rollup.providerID else { return false }
+                if rollup.accountIdentityKey != nil {
+                    let liveKeys = Set(CostLedgerService.accountIdentityKeys(for: $0))
+                    return !liveKeys.isDisjoint(with: rollup.accountIdentityKeys)
+                }
+                // Pre-1.19 ledger rows have no opaque identity metadata.
+                return $0.accountEmail == rollup.accountEmail
             }) else { continue }
             let totals = Self.ledgerDisplayTotals(
                 rollup: rollup,
@@ -1464,6 +1466,7 @@ struct CostDashboardInsights {
             let emptyRollup = CostLedgerProviderRollup(
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail,
+                accountIdentityKey: CostLedgerService.accountIdentityKey(for: provider),
                 totalCostUSD: 0,
                 totalTokens: 0,
                 dailyPoints: [],
@@ -1512,7 +1515,7 @@ struct CostDashboardInsights {
 
         var budgetRows: [CostBudgetRow] = []
         for provider in liveProviders {
-            if let budget = provider.budget {
+            if let budget = provider.budget, budget.limitAmount > 0 {
                 budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
             }
         }
@@ -3649,8 +3652,33 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.18.0",
+            version: "1.19.0",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available."),
+                        String(
+                            localized: "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings."),
+                        String(
+                            localized: "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them."),
+                        String(
+                            localized: "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(
+                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.18.0",
+            status: "",
             summary: String(
                 localized: "iPhone 1.18 shows more Kimi limits, distinguishes Claude Max plans, and keeps tiny percentages visible."),
             sections: [

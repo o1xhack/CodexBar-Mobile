@@ -25,17 +25,172 @@ struct SyncProviderMapperTests {
         openRouter: OpenRouterUsageSnapshot? = nil,
         azure: AzureOpenAIUsageSnapshot? = nil,
         alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
-        crossModel: CrossModelUsageSnapshot? = nil) -> UsageSnapshot
+        sub2API: Sub2APIUsageDetails? = nil,
+        wayfinder: WayfinderUsageSnapshot? = nil,
+        providerCost: ProviderCostSnapshot? = nil,
+        dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
     {
         UsageSnapshot(
             primary: nil,
             secondary: nil,
+            providerCost: providerCost,
             openRouterUsage: openRouter,
-            crossModelUsage: crossModel,
+            sub2APIUsage: sub2API,
+            wayfinderUsage: wayfinder,
             mistralUsage: mistral,
             azureOpenAIUsage: azure,
             alibabaTokenPlanUsage: alibaba,
+            updatedAt: Self.now,
+            dataConfidence: dataConfidence)
+    }
+
+    // MARK: - v0.42-v0.45: new provider bridge
+
+    @Test
+    func `additional rate-window labels preserve new provider tertiary windows`() {
+        #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: 1440) == "Daily")
+        #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: 10080) == "Weekly")
+        #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: 43200) == "Monthly")
+        #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: nil) == "Additional")
+    }
+
+    @Test
+    func `mapSub2APIUsage preserves wallet and request totals`() throws {
+        let native = Sub2APIUsageDetails(
+            kind: .subscription,
+            balance: 61.6,
+            unit: "USD",
+            today: .init(requests: 84, totalTokens: 12467, actualCostUSD: 0.27),
+            total: .init(requests: 3166, totalTokens: 260_000, actualCostUSD: 5.37))
+        let mapped = try #require(SyncCoordinator.mapSub2APIUsage(
+            provider: .sub2api,
+            snapshot: self.snapshot(sub2API: native)))
+        #expect(mapped.kind == "subscription")
+        #expect(mapped.balance == 61.6)
+        #expect(mapped.today?.requests == 84)
+        #expect(mapped.total?.totalTokens == 260_000)
+        #expect(SyncCoordinator.mapSub2APIUsage(
+            provider: .codex,
+            snapshot: self.snapshot(sub2API: native)) == nil)
+    }
+
+    @Test
+    func `mapWayfinderUsage preserves routing and savings evidence`() throws {
+        let native = WayfinderUsageSnapshot(
+            gatewayStatus: "healthy",
+            offline: false,
+            dryRun: false,
+            missingKeys: [],
+            modelCount: 6,
+            requests: 1420,
+            tokens: 8_600_000,
+            realized: 7.84,
+            baseline: 12.68,
+            saved: 4.84,
+            savedPct: 38.2,
+            priced: true,
+            routes: [.init(name: "local", requests: 960, saved: 3.61, tokens: 5_900_000)],
+            avgDecisionMs: 7.4,
             updatedAt: Self.now)
+        let mapped = try #require(SyncCoordinator.mapWayfinderUsage(
+            provider: .wayfinder,
+            snapshot: self.snapshot(wayfinder: native)))
+        #expect(mapped.modelCount == 6)
+        #expect(mapped.savedPercent == 38.2)
+        #expect(mapped.routes.first?.name == "local")
+        #expect(mapped.averageDecisionMilliseconds == 7.4)
+        #expect(SyncCoordinator.mapWayfinderUsage(
+            provider: .codex,
+            snapshot: self.snapshot(wayfinder: native)) == nil)
+    }
+
+    @Test(arguments: [UsageProvider.neuralwatt, .zenmux])
+    func `zero-limit balances use amount lane`(_ provider: UsageProvider) throws {
+        let cost = ProviderCostSnapshot(
+            used: 32.67,
+            limit: 0,
+            currencyCode: "USD",
+            period: "Prepaid balance",
+            updatedAt: Self.now)
+        let mapped = try #require(SyncCoordinator.mapProviderAmount(
+            provider: provider,
+            snapshot: self.snapshot(providerCost: cost, dataConfidence: .exact),
+            providerCost: cost))
+        #expect(mapped.kind == "balance")
+        #expect(mapped.amount == 32.67)
+        #expect(mapped.isEstimated == false)
+    }
+
+    @Test
+    func `aiand partial spend remains uncapped and estimated`() throws {
+        let cost = ProviderCostSnapshot(
+            used: 840,
+            limit: 0,
+            currencyCode: "JPY",
+            period: "Last 30 days (partial)",
+            updatedAt: Self.now)
+        let mapped = try #require(SyncCoordinator.mapProviderAmount(
+            provider: .aiand,
+            snapshot: self.snapshot(providerCost: cost, dataConfidence: .estimated),
+            providerCost: cost))
+        #expect(mapped.kind == "spend")
+        #expect(mapped.currencyCode == "JPY")
+        #expect(mapped.period == "Last 30 days (partial)")
+        #expect(mapped.isEstimated)
+        #expect(SyncCoordinator.mapProviderAmount(
+            provider: .claude,
+            snapshot: self.snapshot(providerCost: cost),
+            providerCost: cost) == nil)
+    }
+
+    @Test
+    func `token account record key is stable delimiter-safe and label independent`() throws {
+        let id = try #require(UUID(uuidString: "C86A7C42-BF93-4B15-AC95-0B917DBDDA1D"))
+        let first = ProviderTokenAccount(
+            id: id, label: "Same | label", token: "secret-a",
+            addedAt: 1, lastUsed: nil)
+        let renamed = ProviderTokenAccount(
+            id: id, label: "Renamed", token: "secret-b",
+            addedAt: 1, lastUsed: nil)
+        let firstKey = SyncCoordinator.tokenAccountRecordKey(first)
+        #expect(firstKey == SyncCoordinator.tokenAccountRecordKey(renamed))
+        #expect(!firstKey.contains("|"))
+        #expect(!firstKey.contains("secret"))
+    }
+
+    @Test
+    func `mapper uses opaque identity when account email is an editable label`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: "Shared production",
+            accountOrganization: nil,
+            loginMethod: "Token",
+            accountEmailIsFallbackLabel: true)
+        #expect(SyncCoordinator.syncAccountIdentities(
+            provider: .claude,
+            identity: identity,
+            accountRecordKey: "token-a") == ["claude:record:token-a"])
+        #expect(SyncCoordinator.syncAccountIdentities(
+            provider: .claude,
+            identity: identity,
+            accountRecordKey: "token-b") == ["claude:record:token-b"])
+    }
+
+    @Test
+    func `mapper keeps real email identity ahead of per-Mac opaque key`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .cursor,
+            accountEmail: "same@example.com",
+            accountOrganization: nil,
+            loginMethod: "Token")
+        let identities = SyncCoordinator.syncAccountIdentities(
+            provider: .cursor,
+            identity: identity,
+            accountRecordKey: "token-a")
+        #expect(identities == [
+            "cursor:email:same@example.com",
+            "cursor:record:token-a",
+        ])
     }
 
     // MARK: - C: Mistral cost summary
@@ -98,69 +253,6 @@ struct SyncProviderMapperTests {
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
-    }
-
-    // MARK: - v0.39: CrossModel wallet + cost bridge
-
-    private func crossModelFixture() -> CrossModelUsageSnapshot {
-        CrossModelUsageSnapshot(
-            currency: "USD",
-            balance: 8.06,
-            uncollected: 0.42,
-            daily: CrossModelUsageWindow(
-                cost: 0.27,
-                promptTokens: 5200,
-                completionTokens: 7267,
-                totalTokens: 12467,
-                requestCount: 84,
-                successCount: 83),
-            weekly: CrossModelUsageWindow(
-                cost: 1.92,
-                promptTokens: 41000,
-                completionTokens: 52000,
-                totalTokens: 93000,
-                requestCount: 526,
-                successCount: 520),
-            monthly: CrossModelUsageWindow(
-                cost: 5.37,
-                promptTokens: 110_000,
-                completionTokens: 150_000,
-                totalTokens: 260_000,
-                requestCount: 3166,
-                successCount: 3140),
-            updatedAt: Self.now)
-    }
-
-    @Test
-    func `mapCrossModelUsage: nil for a non-crossmodel provider`() {
-        #expect(SyncCoordinator.mapCrossModelUsage(
-            provider: .codex, snapshot: self.snapshot(crossModel: self.crossModelFixture())) == nil)
-    }
-
-    @Test
-    func `mapCrossModelUsage: maps wallet and usage windows`() throws {
-        let usage = try #require(SyncCoordinator.mapCrossModelUsage(
-            provider: .crossmodel, snapshot: self.snapshot(crossModel: self.crossModelFixture())))
-        #expect(usage.balance == 8.06)
-        #expect(usage.uncollected == 0.42)
-        #expect(usage.monthly?.cost == 5.37)
-        #expect(usage.monthly?.requestCount == 3166)
-    }
-
-    @Test
-    func `mapCrossModelCostSummary: maps daily and monthly spend into the cost dashboard shape`() throws {
-        let summary = try #require(SyncCoordinator.mapCrossModelCostSummary(
-            provider: .crossmodel, snapshot: self.snapshot(crossModel: self.crossModelFixture())))
-        #expect(summary.sessionCostUSD == 0.27)
-        #expect(summary.sessionTokens == 12467)
-        #expect(summary.sessionRequests == 84)
-        #expect(summary.last30DaysCostUSD == 5.37)
-        #expect(summary.last30DaysTokens == 260_000)
-        #expect(summary.last30DaysRequests == 3166)
-        #expect(summary.currencyCode == "USD")
-        #expect(summary.daily.count == 1)
-        #expect(summary.daily.first?.costUSD == 0.27)
-        #expect(summary.daily.first?.totalTokens == 12467)
     }
 
     // MARK: - D: OpenRouter stats

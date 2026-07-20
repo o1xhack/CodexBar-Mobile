@@ -321,9 +321,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// §6.
     ///
     /// **`nil`** (decode default for old Mac payloads, e.g. ≤ 0.20.3) →
-    /// iOS buckets the snapshot under a per-device legacy key, never
-    /// auto-merging it with other Macs. The user sees a "data not
-    /// aligned" hint on the affected card.
+    /// iOS falls back to the legacy provider/email identity rules. A nil
+    /// email therefore shares the provider's legacy anonymous bucket across
+    /// Macs. New accountless providers that must remain device-scoped (for
+    /// example Wayfinder) must emit an explicit device identity.
     ///
     /// **`[]`** (empty array) → treated identically to nil. Mac wrote
     /// the field but couldn't compute any identifier (transient signin
@@ -346,6 +347,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let quotaWarnings: SyncQuotaWarningConfig?
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions
+
     //
     // All six fields are optional + `decodeIfPresent` so pre-1.7.0 iOS
     // clients (and the inverse — Mac builds that don't have the upstream
@@ -389,6 +391,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let antigravityAccounts: SyncMultiAccountList?
 
     // MARK: - iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions
+
     //
     // All five fields are optional + `decodeIfPresent` so pre-1.8.0
     // iOS clients keep decoding payloads without errors. Wire schema
@@ -428,6 +431,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let llmProxyStats: SyncLLMProxyStats?
 
     // MARK: - iOS 1.8.0 build 134 / Mac 0.27.0 — existing-provider extensions
+
     //
     // Added after the initial 1.8.0 ship to bring v0.27.0 parity for
     // Anthropic Admin API, Enterprise spend-limit, MiniMax 30-day
@@ -465,6 +469,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let codexWorkspace: SyncCodexWorkspaceContext?
 
     // MARK: - iOS 1.9.0 / Mac 0.29.0 — parity-gap envelope extensions
+
     // Additive optionals (decodeIfPresent); no wire-schema bump.
 
     /// OpenRouter balance + credits + per-key usage windows (gap D).
@@ -480,6 +485,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let alibabaTokenPlan: SyncAlibabaTokenPlan?
 
     // MARK: - iOS 1.10.0 / Mac 0.31.0 — v0.30/v0.31 sync (025)
+
     // Additive optional (decodeIfPresent); no wire-schema bump.
 
     /// DeepSeek web-session usage + cost summary + balance (upstream v0.30.0
@@ -488,6 +494,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let deepSeekUsage: SyncDeepSeekUsage?
 
     // MARK: - iOS 1.15.0 / Mac 0.37.2.1 — v0.37 sync (033)
+
     // Additive optionals (decodeIfPresent); no wire-schema bump.
 
     /// Codex manual rate-limit reset credits (upstream v0.37.0). Populated only
@@ -500,6 +507,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let usageDataConfidence: String?
 
     // MARK: - iOS 1.17.0 / Mac 0.39.0.1 — v0.39 sync
+
     // Additive optional (decodeIfPresent); no wire-schema bump.
 
     /// CrossModel wallet balance plus day/week/month usage windows. Populated
@@ -507,10 +515,77 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// rate window, so iOS needs this typed payload to render anything useful.
     public let crossModelUsage: SyncCrossModelUsage?
 
+    // MARK: - iOS 1.19.0 / Mac 0.45.2.1 — v0.42-v0.45 sync
+
+    /// Wayfinder has routing/savings telemetry but deliberately has no quota
+    /// or billing window. This optional payload prevents that useful state
+    /// from collapsing into an empty generic provider card on iOS.
+    public let wayfinderUsage: SyncWayfinderUsage?
+
+    /// sub2api wallet/account mode plus today and cumulative request totals.
+    /// Rate windows continue to travel through `rateWindows`.
+    public let sub2APIUsage: SyncSub2APIUsage?
+
+    /// Prepaid balance or uncapped spend for providers whose upstream
+    /// `ProviderCostSnapshot` has no positive limit. This must stay separate
+    /// from `budget`, because a zero limit is not a budget ceiling.
+    public let providerAmount: SyncProviderAmount?
+
+    /// Opaque, non-secret, delimiter-safe key for record/card identity when a
+    /// human-editable account label is not a stable identifier. Token-account
+    /// writers use their persisted UUID; readers fall back to accountEmail for
+    /// payloads written before iOS 1.19 / Mac 0.45.2.1.
+    public let accountRecordKey: String?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
         return [self.primary, self.secondary].compactMap(\.self)
+    }
+
+    /// Whether the snapshot carries data that can render a meaningful card.
+    ///
+    /// Mac and iOS both use this as the canonical inverse of their CloudKit
+    /// "ghost" filter. Keep every typed usage payload here: providers such as
+    /// Wayfinder deliberately have no quota window, so checking only the
+    /// generic rate/cost fields would silently discard valid provider data.
+    public var hasUsableSignal: Bool {
+        self.primary != nil
+            || self.secondary != nil
+            || !self.rateWindows.isEmpty
+            || self.costSummary != nil
+            || self.budget != nil
+            || self.subscriptionExpiresAt != nil
+            || self.subscriptionRenewsAt != nil
+            || self.utilizationHistory?.isEmpty == false
+            || self.perplexityCredits != nil
+            || self.openAIAPIDashboard != nil
+            || self.zaiHourlyUsage != nil
+            || self.kiroCredits != nil
+            || self.bedrockCost != nil
+            || self.moonshotBalance != nil
+            || self.antigravityAccounts != nil
+            || self.grokBilling != nil
+            || self.elevenLabsCredits != nil
+            || self.deepgramUsage != nil
+            || self.groqMetrics != nil
+            || self.llmProxyStats != nil
+            || self.claudeAdminUsage != nil
+            || self.claudeExtraUsage != nil
+            || self.openCodeGoZenBalance != nil
+            || self.minimaxBilling != nil
+            || self.codexWorkspace != nil
+            || self.openRouterStats != nil
+            || self.azureOpenAIInfo != nil
+            || self.alibabaTokenPlan != nil
+            || self.deepSeekUsage != nil
+            || self.codexResetCredits != nil
+            || self.crossModelUsage != nil
+            || self.wayfinderUsage != nil
+            || self.sub2APIUsage != nil
+            || self.providerAmount != nil
+            || self.isError
+            || self.statusMessage != nil
     }
 
     public init(
@@ -554,7 +629,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         deepSeekUsage: SyncDeepSeekUsage? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil,
         usageDataConfidence: String? = nil,
-        crossModelUsage: SyncCrossModelUsage? = nil)
+        crossModelUsage: SyncCrossModelUsage? = nil,
+        wayfinderUsage: SyncWayfinderUsage? = nil,
+        sub2APIUsage: SyncSub2APIUsage? = nil,
+        providerAmount: SyncProviderAmount? = nil,
+        accountRecordKey: String? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -597,6 +676,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.codexResetCredits = codexResetCredits
         self.usageDataConfidence = usageDataConfidence
         self.crossModelUsage = crossModelUsage
+        self.wayfinderUsage = wayfinderUsage
+        self.sub2APIUsage = sub2APIUsage
+        self.providerAmount = providerAmount
+        self.accountRecordKey = accountRecordKey
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -645,10 +728,15 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             deepSeekUsage: self.deepSeekUsage,
             codexResetCredits: self.codexResetCredits,
             usageDataConfidence: self.usageDataConfidence,
-            crossModelUsage: self.crossModelUsage)
+            crossModelUsage: self.crossModelUsage,
+            wayfinderUsage: self.wayfinderUsage,
+            sub2APIUsage: self.sub2APIUsage,
+            providerAmount: self.providerAmount,
+            accountRecordKey: self.accountRecordKey)
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
+    /// Backward-compatible decoder: old payloads without
+    /// `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -665,19 +753,27 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
         self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
         self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
-        self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
-        self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
+        self.utilizationHistory = try container.decodeIfPresent(
+            [SyncUtilizationSeries].self,
+            forKey: .utilizationHistory)
+        self.perplexityCredits = try container.decodeIfPresent(
+            SyncPerplexityCreditSummary.self,
+            forKey: .perplexityCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
         self.quotaWarnings = try container.decodeIfPresent(SyncQuotaWarningConfig.self, forKey: .quotaWarnings)
         // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. All
         // `decodeIfPresent` so old Mac payloads (without these keys)
         // decode cleanly into `nil`.
-        self.openAIAPIDashboard = try container.decodeIfPresent(SyncOpenAIAPIDashboard.self, forKey: .openAIAPIDashboard)
+        self.openAIAPIDashboard = try container.decodeIfPresent(
+            SyncOpenAIAPIDashboard.self,
+            forKey: .openAIAPIDashboard)
         self.zaiHourlyUsage = try container.decodeIfPresent(SyncZaiHourlyUsage.self, forKey: .zaiHourlyUsage)
         self.kiroCredits = try container.decodeIfPresent(SyncKiroCredits.self, forKey: .kiroCredits)
         self.bedrockCost = try container.decodeIfPresent(SyncBedrockCost.self, forKey: .bedrockCost)
         self.moonshotBalance = try container.decodeIfPresent(SyncMoonshotBalance.self, forKey: .moonshotBalance)
-        self.antigravityAccounts = try container.decodeIfPresent(SyncMultiAccountList.self, forKey: .antigravityAccounts)
+        self.antigravityAccounts = try container.decodeIfPresent(
+            SyncMultiAccountList.self,
+            forKey: .antigravityAccounts)
         // iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions.
         self.grokBilling = try container.decodeIfPresent(SyncGrokBilling.self, forKey: .grokBilling)
         self.elevenLabsCredits = try container.decodeIfPresent(SyncElevenLabsCredits.self, forKey: .elevenLabsCredits)
@@ -687,7 +783,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         // iOS 1.8.0 build 134 — existing-provider extensions.
         self.claudeAdminUsage = try container.decodeIfPresent(SyncClaudeAdminUsage.self, forKey: .claudeAdminUsage)
         self.claudeExtraUsage = try container.decodeIfPresent(SyncClaudeExtraUsage.self, forKey: .claudeExtraUsage)
-        self.openCodeGoZenBalance = try container.decodeIfPresent(SyncOpenCodeGoZenBalance.self, forKey: .openCodeGoZenBalance)
+        self.openCodeGoZenBalance = try container.decodeIfPresent(
+            SyncOpenCodeGoZenBalance.self,
+            forKey: .openCodeGoZenBalance)
         self.minimaxBilling = try container.decodeIfPresent(SyncMiniMaxBillingHistory.self, forKey: .minimaxBilling)
         self.codexWorkspace = try container.decodeIfPresent(SyncCodexWorkspaceContext.self, forKey: .codexWorkspace)
         // iOS 1.9.0 / Mac 0.29.0 — parity-gap extensions.
@@ -700,6 +798,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.usageDataConfidence = try container.decodeIfPresent(String.self, forKey: .usageDataConfidence)
         // iOS 1.17.0 / Mac 0.39.0.1 — v0.39 CrossModel wallet/usage payload.
         self.crossModelUsage = try container.decodeIfPresent(SyncCrossModelUsage.self, forKey: .crossModelUsage)
+        // iOS 1.19.0 / Mac 0.45.2.1 — Wayfinder routing/savings payload.
+        self.wayfinderUsage = try container.decodeIfPresent(SyncWayfinderUsage.self, forKey: .wayfinderUsage)
+        self.sub2APIUsage = try container.decodeIfPresent(SyncSub2APIUsage.self, forKey: .sub2APIUsage)
+        self.providerAmount = try container.decodeIfPresent(SyncProviderAmount.self, forKey: .providerAmount)
+        self.accountRecordKey = try container.decodeIfPresent(String.self, forKey: .accountRecordKey)
     }
 }
 

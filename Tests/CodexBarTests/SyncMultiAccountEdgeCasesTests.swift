@@ -80,7 +80,8 @@ struct SyncMultiAccountEdgeCasesTests {
                     provider: provider, accountEmail: accountEmail, usedPercent: usedPercent)
                 : nil,
             error: error,
-            sourceLabel: nil)
+            sourceLabel: nil,
+            cacheKey: "test-\(provider.rawValue)-\(label)")
     }
 
     // MARK: - E1: Provider toggle-off purges cache

@@ -696,8 +696,8 @@ struct MenuCardModelCodexProjectionTests {
         #expect(sparkWeekly.percent == 0)
         #expect(sparkWeekly.percentLabel == "0% left")
         #expect(sparkWeekly.resetText != nil)
-        #expect(sparkWeekly.detailLeftText == "86% in deficit")
-        #expect(sparkWeekly.detailRightText == "Runs out now")
+        #expect(sparkWeekly.detailLeftText == nil)
+        #expect(sparkWeekly.detailRightText == nil)
         // Spark trails the core session/weekly lanes rather than replacing them.
         let sparkIndex = try #require(model.metrics.firstIndex { $0.id == "codex-spark" })
         let sparkWeeklyIndex = try #require(model.metrics.firstIndex { $0.id == "codex-spark-weekly" })
@@ -757,9 +757,11 @@ struct MenuCardModelCodexProjectionTests {
 
         #expect(model.creditsText == nil)
     }
+}
 
+struct MenuCardModelCodexSparkVisibilityTests {
     @Test
-    func `hides codex spark extra metric when showOptionalCreditsAndExtraUsage is false`() throws {
+    func `codex spark visibility hides only spark metrics`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let metadata = try #require(ProviderDefaults.metadata[.codex])
         let identity = ProviderIdentitySnapshot(
@@ -796,6 +798,14 @@ struct MenuCardModelCodexProjectionTests {
                         windowMinutes: 10080,
                         resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
                         resetDescription: nil)),
+                NamedRateWindow(
+                    id: "codex-other-limit",
+                    title: "Other Codex limit",
+                    window: RateWindow(
+                        usedPercent: 25,
+                        windowMinutes: 1440,
+                        resetsAt: now.addingTimeInterval(12 * 60 * 60),
+                        resetDescription: nil)),
             ],
             updatedAt: now,
             identity: identity)
@@ -804,7 +814,7 @@ struct MenuCardModelCodexProjectionTests {
             context: CodexConsumerProjection.Context(
                 snapshot: snapshot,
                 rawUsageError: nil,
-                liveCredits: nil,
+                liveCredits: CreditsSnapshot(remaining: 12, events: [], updatedAt: now),
                 rawCreditsError: nil,
                 liveDashboard: nil,
                 rawDashboardError: nil,
@@ -817,7 +827,36 @@ struct MenuCardModelCodexProjectionTests {
             metadata: metadata,
             snapshot: snapshot,
             codexProjection: projection,
-            credits: nil,
+            credits: CreditsSnapshot(remaining: 12, events: [], updatedAt: now),
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: "user@example.com", plan: "Pro"),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            codexSparkUsageVisible: false,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(!model.metrics.contains { $0.id == "codex-spark" })
+        #expect(!model.metrics.contains { $0.id == "codex-spark-weekly" })
+        #expect(model.metrics.contains { $0.id == "primary" })
+        #expect(model.metrics.contains { $0.id == "secondary" })
+        #expect(model.metrics.contains { $0.id == "codex-other-limit" })
+        #expect(model.creditsText != nil)
+
+        let globalOffModel = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: snapshot,
+            codexProjection: projection,
+            credits: CreditsSnapshot(remaining: 12, events: [], updatedAt: now),
             creditsError: nil,
             dashboard: nil,
             dashboardError: nil,
@@ -830,12 +869,13 @@ struct MenuCardModelCodexProjectionTests {
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: false,
+            codexSparkUsageVisible: true,
             hidePersonalInfo: false,
             now: now))
 
-        #expect(!model.metrics.contains { $0.id == "codex-spark" })
-        #expect(!model.metrics.contains { $0.id == "codex-spark-weekly" })
-        #expect(model.metrics.contains { $0.id == "primary" })
-        #expect(model.metrics.contains { $0.id == "secondary" })
+        #expect(!globalOffModel.metrics.contains { $0.id == "codex-spark" })
+        #expect(!globalOffModel.metrics.contains { $0.id == "codex-spark-weekly" })
+        #expect(!globalOffModel.metrics.contains { $0.id == "codex-other-limit" })
+        #expect(globalOffModel.creditsText == nil)
     }
 }

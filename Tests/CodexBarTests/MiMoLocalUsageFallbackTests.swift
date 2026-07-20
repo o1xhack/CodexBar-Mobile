@@ -119,4 +119,74 @@ struct MiMoLocalUsageFallbackTests {
         #expect(plan.contains("total"))
         #expect(plan.contains("100 sessions"))
     }
+
+    @Test
+    func `stale summary preserves compact casing through usage projection`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-07-07T10:00:00Z"))
+        let snap = try self.makeSnapshot(updatedAt: "2026-06-03T10:00:00.000000+00:00", now: now)
+        let plan = try #require(snap.planCode)
+
+        #expect(plan == "Local · 1.5k total · 42 sessions · stale 34d")
+        #expect(snap.toUsageSnapshot(includeBalance: false).loginMethod(for: .mimo) == plan)
+    }
+
+    @Test
+    func `stale boundary is exclusive and future timestamps stay fresh`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-07-07T10:00:00Z"))
+        let base = "Local · 1.5k total · 42 sessions"
+        let cases = [
+            ("2026-07-06T22:00:00.000000+00:00", base),
+            ("2026-07-06T21:59:59.000000+00:00", "\(base) · stale 12h"),
+            ("2026-07-07T10:01:00.000000+00:00", base),
+        ]
+
+        for (updatedAt, expectedPlan) in cases {
+            let snap = try self.makeSnapshot(updatedAt: updatedAt, now: now)
+            #expect(snap.planCode == expectedPlan)
+        }
+    }
+
+    @Test
+    func `missing or invalid timestamp uses stale file modification date`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-07-07T10:00:00Z"))
+        let oldModificationDate = now.addingTimeInterval(-2 * 24 * 60 * 60)
+
+        for updatedAt: String? in [nil, "not-a-timestamp"] {
+            let snap = try self.makeSnapshot(
+                updatedAt: updatedAt,
+                fileModificationDate: oldModificationDate,
+                now: now)
+            #expect(snap.planCode == "Local · 1.5k total · 42 sessions · stale 2d")
+            #expect(snap.updatedAt == oldModificationDate)
+        }
+    }
+
+    private func makeSnapshot(
+        updatedAt: String?,
+        fileModificationDate: Date? = nil,
+        now: Date) throws -> MiMoUsageSnapshot
+    {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mimo-fallback-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("usage.json")
+        var payload: [String: Any] = [
+            "sessions_scanned": 42,
+            "windows": [
+                "today": ["input": 0, "output": 0, "cache_read": 0],
+                "week": ["input": 0, "output": 0, "cache_read": 0],
+                "all_time": ["input": 1000, "output": 500, "cache_read": 0],
+            ],
+        ]
+        if let updatedAt {
+            payload["updated_at"] = updatedAt
+        }
+        try JSONSerialization.data(withJSONObject: payload).write(to: file)
+        if let fileModificationDate {
+            try FileManager.default.setAttributes([.modificationDate: fileModificationDate], ofItemAtPath: file.path)
+        }
+
+        return try #require(MiMoLocalUsageFallback.snapshot(cachePath: file.path, now: now))
+    }
 }

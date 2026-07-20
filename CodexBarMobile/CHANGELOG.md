@@ -2,6 +2,47 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.19.0 (188)] — 2026-07-19 — CodexBar 0.45 upstream sync
+
+### Added
+
+- **Eight provider catch-up** — Added ClinePass, DeepInfra, Neuralwatt,
+  LongCat, sub2api, Wayfinder, ZenMux, and ai& to provider colors,
+  quota-transition subscriptions, mock data, and iPhone detail routing.
+- **sub2api account details** — Added an optional Shared payload for account
+  mode, balance, today usage, and cumulative requests/tokens/cost.
+- **Wayfinder routing details** — Added an optional Shared payload and iPhone
+  card for gateway state, models, requests, tokens, routing savings, decision
+  time, and top routes.
+
+### Changed
+
+- **Complete rate-window bridge** — Generic Mac→iOS mapping now preserves
+  provider tertiary windows such as ClinePass/sub2api monthly quota instead of
+  limiting the third window to Claude-specific models.
+- **Mixed-version provider compatibility** — Kimi K2 and CrossModel remain in
+  the Shared/iOS provider catalog so older Macs continue to decode and render,
+  even though upstream removed them from the new Mac provider registry.
+- **Mock provider matrix** — Expanded synthetic sync coverage to 77 snapshots
+  across 67 provider IDs, including typed sub2api and Wayfinder examples.
+
+### Fixed
+
+- **Upstream reliability and accuracy** — Includes Mac provider, refresh,
+  menu-bar, cost, performance, and macOS 14 launch-crash fixes from upstream
+  `v0.42.0` through `v0.45.2`.
+- **Cross-version sync safety** — New fields are additive optionals with
+  tolerant decoding and latest-non-nil multi-Mac merge behavior.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.45.2.1` / build `109.1` and upstream
+  `steipete/CodexBar` `v0.45.2`.
+- iOS `MARKETING_VERSION`: `1.18.0` → `1.19.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `187` → `188`.
+
+---
+
 ## [1.18.0 (187)] — 2026-07-10 — CodexBar 0.41 upstream sync
 
 ### Changed

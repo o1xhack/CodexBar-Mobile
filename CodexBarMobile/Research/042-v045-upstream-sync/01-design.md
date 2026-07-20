@@ -46,6 +46,25 @@ value cannot be represented losslessly, first classify whether it is a local
 Mac-only operation (credentials, gateway control, hooks, menu actions) or a
 user-visible synced value. Only the latter can justify a new optional field.
 
+Post-merge decision: generic fields cover six providers losslessly. sub2api
+account totals and Wayfinder routing/savings do not fit the generic contract,
+so `SyncSub2APIUsage` and `SyncWayfinderUsage` are additive optional fields.
+Neuralwatt/ZenMux balances and ai& uncapped spend also cannot be represented
+as a zero-limit budget without producing an impossible `$X / $0` UI, so they
+use additive `SyncProviderAmount`. Token accounts receive an opaque,
+non-secret UUID-derived `accountRecordKey`; the editable display label remains
+in `accountEmail`. Wayfinder uses a device-scoped record key so two local
+gateways never collapse into one card. None of these changes bumps either
+payload version or adds a required CloudKit field.
+
+Storage identity and cross-device merge identity are deliberately separate.
+SwiftData/CWL uniqueness prefers `accountRecordKey`, while a stored complete
+identity set lets rollups union mixed-version writers when any authenticated
+email/org identity overlaps. Legacy rows are rekeyed before applying an
+incremental delete from the same CloudKit delta, so an iOS 1.18 email-keyed
+history is not lost when iOS 1.19 first observes the UUID-keyed record. A
+record-only account never unions on its editable label.
+
 ## iOS Provider Coverage
 
 For the eight new provider IDs:
@@ -81,8 +100,12 @@ continue fetching them.
 
 Expected verdict: no Production schema deploy.
 
-- no planned record type, field, zone, subscription predicate or index change;
-- provider IDs change only record contents and existing per-provider zones;
+- no planned record type, CKRecord field, subscription predicate or index
+  change;
+- the eight provider IDs add 24 runtime private custom zone/subscription
+  instances (provider × warning state), all reusing the existing
+  `QuotaTransition` record contract; this is per-user runtime data, not a
+  Dashboard schema deployment;
 - Shared JSON remains inside the existing compressed opaque payload;
 - retained legacy subscriptions avoid a destructive mixed-version cleanup.
 

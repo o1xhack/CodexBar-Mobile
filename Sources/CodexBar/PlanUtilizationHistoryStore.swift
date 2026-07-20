@@ -1,7 +1,7 @@
 import CodexBarCore
 import Foundation
 
-struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, ExpressibleByStringLiteral {
+struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, ExpressibleByStringLiteral, Sendable {
     let rawValue: String
 
     init(rawValue: String) {
@@ -14,6 +14,7 @@ struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, Expressib
 
     static let session: Self = "session"
     static let weekly: Self = "weekly"
+    static let monthly: Self = "monthly"
     static let opus: Self = "opus"
 
     func canonicalWindowMinutes(_ windowMinutes: Int) -> Int {
@@ -28,13 +29,13 @@ struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, Expressib
     }
 }
 
-struct PlanUtilizationHistoryEntry: Codable, Equatable, Hashable {
+struct PlanUtilizationHistoryEntry: Codable, Equatable, Hashable, Sendable {
     let capturedAt: Date
     let usedPercent: Double
     let resetsAt: Date?
 }
 
-struct PlanUtilizationSeriesHistory: Codable, Equatable {
+struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
     let name: PlanUtilizationSeriesName
     let windowMinutes: Int
     let entries: [PlanUtilizationHistoryEntry]
@@ -60,10 +61,34 @@ struct PlanUtilizationSeriesHistory: Codable, Equatable {
     }
 }
 
-struct PlanUtilizationHistoryBuckets: Equatable {
+struct PlanUtilizationHistorySelection {
+    let accountKey: String?
+    let histories: [PlanUtilizationSeriesHistory]
+    let cacheIdentity: String
+
+    init(accountKey: String?, histories: [PlanUtilizationSeriesHistory]) {
+        self.accountKey = accountKey
+        self.histories = histories
+        self.cacheIdentity = "account:\(accountKey ?? UsageStore.planUtilizationUnscopedPreferredKey)"
+    }
+
+    private init(accountKey: String?, histories: [PlanUtilizationSeriesHistory], cacheIdentity: String) {
+        self.accountKey = accountKey
+        self.histories = histories
+        self.cacheIdentity = cacheIdentity
+    }
+
+    static let unavailable = Self(accountKey: nil, histories: [], cacheIdentity: "unavailable")
+}
+
+struct PlanUtilizationHistoryBuckets: Equatable, Sendable {
     var preferredAccountKey: String?
     var unscoped: [PlanUtilizationSeriesHistory] = []
     var accounts: [String: [PlanUtilizationSeriesHistory]] = [:]
+    var sessionEquivalentWindowPairIdentities: [String: String] = [:]
+
+    private static let unscopedIdentityKey = "__codexbar_unscoped__"
+    private static let invalidatedIdentity = "__codexbar_invalidated__"
 
     func histories(for accountKey: String?) -> [PlanUtilizationSeriesHistory] {
         guard let accountKey, !accountKey.isEmpty else { return self.unscoped }
@@ -83,6 +108,45 @@ struct PlanUtilizationHistoryBuckets: Equatable {
         }
     }
 
+    func sessionEquivalentWindowPairIdentity(for accountKey: String?) -> String? {
+        self.sessionEquivalentWindowPairIdentities[Self.identityKey(for: accountKey)]
+    }
+
+    mutating func setSessionEquivalentWindowPairIdentity(_ identity: String?, for accountKey: String?) {
+        let key = Self.identityKey(for: accountKey)
+        if let identity {
+            self.sessionEquivalentWindowPairIdentities[key] = identity
+        } else {
+            self.sessionEquivalentWindowPairIdentities.removeValue(forKey: key)
+        }
+    }
+
+    mutating func invalidateSessionEquivalentWindowPairIdentity(for accountKey: String?) {
+        self.sessionEquivalentWindowPairIdentities[Self.identityKey(for: accountKey)] = Self.invalidatedIdentity
+    }
+
+    mutating func moveSessionEquivalentWindowPairIdentity(
+        from sourceAccountKey: String?,
+        to targetAccountKey: String?)
+    {
+        let sourceKey = Self.identityKey(for: sourceAccountKey)
+        let targetKey = Self.identityKey(for: targetAccountKey)
+        guard sourceKey != targetKey,
+              let sourceIdentity = self.sessionEquivalentWindowPairIdentities[sourceKey]
+        else {
+            return
+        }
+
+        if let targetIdentity = self.sessionEquivalentWindowPairIdentities[targetKey],
+           targetIdentity != sourceIdentity
+        {
+            self.sessionEquivalentWindowPairIdentities[targetKey] = Self.invalidatedIdentity
+        } else {
+            self.sessionEquivalentWindowPairIdentities[targetKey] = sourceIdentity
+        }
+        self.sessionEquivalentWindowPairIdentities.removeValue(forKey: sourceKey)
+    }
+
     var isEmpty: Bool {
         self.unscoped.isEmpty && self.accounts.values.allSatisfy(\.isEmpty)
     }
@@ -95,22 +159,41 @@ struct PlanUtilizationHistoryBuckets: Equatable {
             return lhs.name.rawValue < rhs.name.rawValue
         }
     }
+
+    private static func identityKey(for accountKey: String?) -> String {
+        guard let accountKey, !accountKey.isEmpty else { return self.unscopedIdentityKey }
+        return accountKey
+    }
 }
 
-private struct ProviderHistoryFile: Codable {
+private struct ProviderHistoryFile: Codable, Sendable {
     let preferredAccountKey: String?
     let unscoped: [PlanUtilizationSeriesHistory]
     let accounts: [String: [PlanUtilizationSeriesHistory]]
+    let sessionEquivalentWindowPairIdentities: [String: String]
 }
 
-private struct ProviderHistoryDocument: Codable {
+private struct ProviderHistoryDocument: Codable, Sendable {
     let version: Int
     let preferredAccountKey: String?
     let unscoped: [PlanUtilizationSeriesHistory]
     let accounts: [String: [PlanUtilizationSeriesHistory]]
+    let sessionEquivalentWindowPairIdentities: [String: String]
 }
 
-struct PlanUtilizationHistoryStore {
+extension ProviderHistoryFile {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.preferredAccountKey = try container.decodeIfPresent(String.self, forKey: .preferredAccountKey)
+        self.unscoped = try container.decode([PlanUtilizationSeriesHistory].self, forKey: .unscoped)
+        self.accounts = try container.decode([String: [PlanUtilizationSeriesHistory]].self, forKey: .accounts)
+        self.sessionEquivalentWindowPairIdentities = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .sessionEquivalentWindowPairIdentities) ?? [:]
+    }
+}
+
+struct PlanUtilizationHistoryStore: Sendable {
     fileprivate static let providerSchemaVersion = 1
 
     let directoryURL: URL?
@@ -125,6 +208,16 @@ struct PlanUtilizationHistoryStore {
 
     func load() -> [UsageProvider: PlanUtilizationHistoryBuckets] {
         self.loadProviderFiles()
+    }
+
+    /// Loads the persisted histories on a utility-priority detached task.
+    ///
+    /// The on-disk decode is synchronous I/O + JSON parsing that can take
+    /// ~150 ms for mature two-year histories and must not run on the app
+    /// startup main thread. The returned dictionary is safe to apply on the
+    /// main actor once decoding completes.
+    func loadAsync() async -> [UsageProvider: PlanUtilizationHistoryBuckets] {
+        await Task.detached(priority: .utility) { self.load() }.value
     }
 
     func save(_ providers: [UsageProvider: PlanUtilizationHistoryBuckets]) {
@@ -142,7 +235,8 @@ struct PlanUtilizationHistoryStore {
                 let buckets = providers[provider] ?? PlanUtilizationHistoryBuckets()
                 let unscoped = Self.sortedHistories(buckets.unscoped)
                 let accounts = Self.sortedAccounts(buckets.accounts)
-                guard !unscoped.isEmpty || !accounts.isEmpty else {
+                guard !unscoped.isEmpty || !accounts.isEmpty || !buckets.sessionEquivalentWindowPairIdentities.isEmpty
+                else {
                     try? FileManager.default.removeItem(at: fileURL)
                     continue
                 }
@@ -151,7 +245,8 @@ struct PlanUtilizationHistoryStore {
                     version: Self.providerSchemaVersion,
                     preferredAccountKey: buckets.preferredAccountKey,
                     unscoped: unscoped,
-                    accounts: accounts)
+                    accounts: accounts,
+                    sessionEquivalentWindowPairIdentities: buckets.sessionEquivalentWindowPairIdentities)
                 let data = try encoder.encode(payload)
                 try data.write(to: fileURL, options: Data.WritingOptions.atomic)
             }
@@ -180,7 +275,8 @@ struct PlanUtilizationHistoryStore {
             let history = ProviderHistoryFile(
                 preferredAccountKey: decoded.preferredAccountKey,
                 unscoped: decoded.unscoped,
-                accounts: decoded.accounts)
+                accounts: decoded.accounts,
+                sessionEquivalentWindowPairIdentities: decoded.sessionEquivalentWindowPairIdentities)
             output[provider] = Self.decodeProvider(history)
         }
 
@@ -207,7 +303,8 @@ struct PlanUtilizationHistoryStore {
                     let sorted = Self.sortedHistories(histories)
                     guard !sorted.isEmpty else { return nil }
                     return (accountKey, sorted)
-                }))
+                }),
+            sessionEquivalentWindowPairIdentities: providerHistory.sessionEquivalentWindowPairIdentities)
     }
 
     private static func sortedAccounts(
@@ -265,5 +362,90 @@ extension ProviderHistoryDocument {
         self.preferredAccountKey = try container.decodeIfPresent(String.self, forKey: .preferredAccountKey)
         self.unscoped = try container.decode([PlanUtilizationSeriesHistory].self, forKey: .unscoped)
         self.accounts = try container.decode([String: [PlanUtilizationSeriesHistory]].self, forKey: .accounts)
+        self.sessionEquivalentWindowPairIdentities = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .sessionEquivalentWindowPairIdentities) ?? [:]
+    }
+}
+
+/// One-shot synchronization primitive used by `UsageStore.init` to defer the
+/// utility-priority plan-utilization history load until a test chooses to
+/// release it. The default `nil` gate is open and the load proceeds immediately.
+///
+/// Used to verify that `UsageStore.init` returns before disk I/O completes and
+/// that the history is applied exactly once after the gate opens.
+final class PlanUtilizationHistoryLoadGate: @unchecked Sendable {
+    private enum State {
+        case closed
+        case open
+        case cancelled
+    }
+
+    private let lock = NSLock()
+    private var continuations: [CheckedContinuation<Bool, Never>] = []
+    private var state: State = .closed
+
+    init() {}
+
+    var isOpen: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.state == .open
+    }
+
+    var isCancelled: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.state == .cancelled
+    }
+
+    func wait() async -> Bool {
+        await withCheckedContinuation { continuation in
+            self.lock.lock()
+            switch self.state {
+            case .open:
+                self.lock.unlock()
+                continuation.resume(returning: true)
+            case .cancelled:
+                self.lock.unlock()
+                continuation.resume(returning: false)
+            case .closed:
+                self.continuations.append(continuation)
+                self.lock.unlock()
+            }
+        }
+    }
+
+    func open() {
+        self.lock.lock()
+        guard self.state == .closed else {
+            self.lock.unlock()
+            return
+        }
+        self.state = .open
+        let pending = self.continuations
+        self.continuations.removeAll()
+        self.lock.unlock()
+        for continuation in pending {
+            continuation.resume(returning: true)
+        }
+    }
+
+    /// Cancels this one-shot gate and resumes pending or future waiters with
+    /// `false`. Cancellation is sticky so it cannot race ahead of `wait()` and
+    /// lose the wakeup that drains the load task.
+    func cancel() {
+        self.lock.lock()
+        guard self.state == .closed else {
+            self.lock.unlock()
+            return
+        }
+        self.state = .cancelled
+        let pending = self.continuations
+        self.continuations.removeAll()
+        self.lock.unlock()
+        for continuation in pending {
+            continuation.resume(returning: false)
+        }
     }
 }

@@ -51,7 +51,7 @@ public enum AccountIdentityComputer {
         case .vertexai:
             self.vertexAI(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
-             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
              // iOS falls back to per-device legacy bucket. Promote to a
@@ -79,7 +79,13 @@ public enum AccountIdentityComputer {
              // Upstream v0.38.0–v0.39.0 new providers. iOS 1.17 surfaces
              // these via generic single-account cards and push subscriptions;
              // promote only when cross-Mac merging has a stable account ID.
-             .sakana, .qoder, .crossmodel, .clawrouter:
+             .sakana, .qoder, .clawrouter,
+             // Upstream v0.42.0-v0.45.2 providers. Their generic identity,
+             // quota, balance and cost data can sync without promoting a
+             // provider to Tier-A. Keep per-device fallback until a stable
+             // cross-Mac account identifier is available.
+             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api,
+             .wayfinder, .zenmux, .aiand:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
@@ -99,7 +105,9 @@ public enum AccountIdentityComputer {
         }
         // Secondary: email. Less stable but useful for transitional
         // grouping (Mac without org-id can still merge via email).
-        if let normalized = Self.normalize(identity.accountEmail) {
+        if identity.accountEmailIsFallbackLabel != true,
+           let normalized = Self.normalize(identity.accountEmail)
+        {
             ids.append("codex:email:\(normalized)")
         }
         return ids
@@ -116,7 +124,9 @@ public enum AccountIdentityComputer {
         // Secondary: email. For consumer Claude OAuth this is the only
         // stable handle we have today. Future work may add the OAuth
         // `sub` claim as a third identifier (Research/019 §4.2).
-        if let normalized = Self.normalize(identity.accountEmail) {
+        if identity.accountEmailIsFallbackLabel != true,
+           let normalized = Self.normalize(identity.accountEmail)
+        {
             ids.append("claude:email:\(normalized)")
         }
         return ids
@@ -130,7 +140,9 @@ public enum AccountIdentityComputer {
             ids.append("vertexai:project:\(normalized)")
         }
         // Secondary: GCP user account email.
-        if let normalized = Self.normalize(identity.accountEmail) {
+        if identity.accountEmailIsFallbackLabel != true,
+           let normalized = Self.normalize(identity.accountEmail)
+        {
             ids.append("vertexai:email:\(normalized)")
         }
         return ids
@@ -150,7 +162,7 @@ public enum AccountIdentityComputer {
     /// iOS uses that copy to synthesize the legacy-email fallback so
     /// it lands on the SAME bytes Mac writes for `codex:email:...` etc.
     /// If you change this, change Shared/ too. A unit test pins them.
-    static func normalize(_ raw: String?) -> String? {
+    public static func normalize(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }

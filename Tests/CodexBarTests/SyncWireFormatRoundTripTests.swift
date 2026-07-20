@@ -185,6 +185,48 @@ struct SyncWireFormatRoundTripTests {
     }
 
     @Test
+    func `R5 B2c: v0.45 provider optional payloads round-trip`() throws {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "wayfinder",
+            providerName: "Wayfinder",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "Local gateway",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            wayfinderUsage: SyncWayfinderUsage(
+                gatewayStatus: "healthy",
+                offline: false,
+                dryRun: false,
+                missingKeyCount: 0,
+                modelCount: 6,
+                requests: 1420,
+                tokens: 8_600_000,
+                realized: 7.84,
+                baseline: 12.68,
+                saved: 4.84,
+                savedPercent: 38.2,
+                priced: true,
+                routes: [.init(name: "local", requests: 960, saved: 3.61, tokens: 5_900_000)],
+                averageDecisionMilliseconds: 7.4,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            sub2APIUsage: SyncSub2APIUsage(
+                kind: "subscription",
+                balance: 61.6,
+                unit: "USD",
+                today: .init(requests: 84, totalTokens: 12467, actualCostUSD: 0.27),
+                total: .init(requests: 3166, totalTokens: 260_000, actualCostUSD: 5.37)))
+        let data = try self.encoder().encode(snapshot)
+        let decoded = try self.decoder().decode(ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.wayfinderUsage?.routes.first?.name == "local")
+        #expect(decoded.wayfinderUsage?.savedPercent == 38.2)
+        #expect(decoded.sub2APIUsage?.today?.requests == 84)
+        #expect(decoded.sub2APIUsage?.balance == 61.6)
+    }
+
+    @Test
     func `R5 B3: SyncedUsageSnapshot with multiple multi-account providers round-trips`() throws {
         let alice = self.makeRichSnapshot(
             accountEmail: "alice@example.com",
@@ -397,6 +439,26 @@ struct SyncWireFormatRoundTripTests {
         let nilJSON = try self.encoder().encode(withNil)
         let emptyJSON = try self.encoder().encode(withEmpty)
         #expect(nilJSON != emptyJSON, "nil and empty-string accountEmail must serialize distinguishably")
+    }
+
+    @Test
+    func `v045 opaque account key and uncapped amount round-trip additively`() throws {
+        let source = ProviderUsageSnapshot(
+            providerID: "neuralwatt", providerName: "Neuralwatt",
+            primary: nil, secondary: nil,
+            accountEmail: "Duplicate | label", loginMethod: nil,
+            statusMessage: nil, isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            providerAmount: SyncProviderAmount(
+                kind: "balance", amount: 12.5, currencyCode: "USD",
+                period: "Prepaid balance", isEstimated: false),
+            accountRecordKey: "token-1234")
+        let data = try self.encoder().encode(source)
+        let decoded = try self.decoder().decode(ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.providerAmount?.kind == "balance")
+        #expect(decoded.providerAmount?.amount == 12.5)
+        #expect(decoded.accountRecordKey == "token-1234")
+        #expect(decoded.hasUsableSignal)
     }
 }
 
