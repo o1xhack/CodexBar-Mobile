@@ -1,6 +1,6 @@
 # v0.45.2 Upstream Sync + iOS 1.19.0 Overview
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-19
 Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
 Open issues:
@@ -138,6 +138,17 @@ Upstream v0.45.2 declares `MARKETING_VERSION=0.45.2` and `BUILD_NUMBER=109`.
 Upstream movement resets the fork patch to `.1`; iOS advances one feature
 minor because provider-visible identities, quota windows, costs and
 cross-version rendering change.
+
+## Outcome
+
+The train closed on merge commit `e1f1b346` with upstream release commit
+`91560ca9` as its second parent. Signed, notarized and stapled Mac ZIP/dSYM
+artifacts are attached to a verified GitHub **draft** release:
+
+<https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-25ceca7188ab7ee13644>
+
+No branch push, merge to `mobile-dev`, local/remote tag, live release,
+TestFlight upload, appcast update or CloudKit Production deploy was performed.
 
 ## Gates and Risks
 

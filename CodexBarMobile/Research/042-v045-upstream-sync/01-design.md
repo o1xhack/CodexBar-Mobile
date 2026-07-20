@@ -1,6 +1,6 @@
 # v0.45.2 Upstream Sync Design
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-19
 
 ## Design Principle

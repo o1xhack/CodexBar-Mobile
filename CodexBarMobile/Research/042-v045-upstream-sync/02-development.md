@@ -1,6 +1,6 @@
 # v0.45.2 Upstream Sync Development Log
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-19
 Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
 
@@ -152,5 +152,34 @@ Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
   identity, ledger, old-reader and localization; and Mac merge, versioning,
   CI/release/appcast/draft-only boundaries.
 
-- Remaining work: commit the provenance-preserving merge, sign/notarize
-  artifacts, create and verify the remote draft release, and close Research.
+### Round 7 — Merge commit, notarization and draft release
+
+- Created provenance-preserving merge commit `e1f1b346`; its parents are fork
+  research commit `bc45da1d` and upstream v0.45.2 commit `91560ca9`. The
+  artifact embeds `CodexGitCommit=e1f1b346`.
+- The first package attempt found a stale Xcode-derived Commander repository
+  missing the v0.2.3 tree. The cache was repaired by fetching the exact locked
+  tag. A later widget resolve waited in SwiftPM Keychain authorization while
+  downloading Sparkle; the locked Sparkle 2.9.4 archive was instead downloaded
+  directly, verified against checksum
+  `cb6fdbdc8884f15d62a616e79face92b08322410fd2d425edc6596ccbf4ba3b0`,
+  and registered only in the ignored derived workspace. The independent
+  universal widget Release build then succeeded.
+- Signed every nested component with `Developer ID Application: Yuxiao Wang
+  (3TUERHN53E)`. Apple notarization submission
+  `3464f526-9ace-47c8-ba77-51af175200ed` returned `Accepted`; staple validation,
+  Gatekeeper assessment and the two-second direct launch gate all passed.
+- Packaged `CodexBar-0.45.2.1-mobile.1.19.0.zip` and matching dSYM. The app is
+  universal `x86_64 arm64`; both app UUIDs match the dSYM; the Production
+  CloudKit entitlement is present.
+- Created GitHub release ID `356471765` as `draft=true`, target `mobile-dev`,
+  with both assets uploaded and server digests matching local SHA-256 values:
+  <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-25ceca7188ab7ee13644>.
+- Confirmed the candidate tag is absent locally and on `origin`; `appcast.xml`
+  remains byte-identical to `origin/mobile-dev`. Candidate Sparkle version
+  `109.1.1.19.0` matches the packaged plist and is monotonic over published
+  `100.1.1.18.0`.
+
+The authorized draft-only train is complete. Push, merge, tag publication,
+live release, appcast publication, TestFlight upload and CloudKit deploy remain
+intentionally unperformed.

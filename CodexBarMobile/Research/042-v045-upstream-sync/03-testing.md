@@ -1,6 +1,6 @@
 # v0.45.2 Upstream Sync Test Evidence
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-19
 
 ## Environment
@@ -31,6 +31,21 @@ excluded unless separately authorized.
 | Full Mac tests | `swift test --no-parallel` | pass; 7,531 tests / 732 suites, 0 failures, 281.346 s |
 | Sync compatibility focus | `swift test --no-parallel --filter 'AccountIdentity|MultiAccount|DualZoneReader'` | pass; 81 Swift Testing tests / 11 suites plus 1 XCTest, 0 failures |
 | Working-tree integrity | `git diff --check`; `git diff --cached --check`; unresolved-path query | pass; no whitespace errors and no unresolved merge paths |
+
+## Release Artifact Evidence
+
+| Check | Result |
+|---|---|
+| Merge commit | `e1f1b346e1c6b7cef0e9cbe772e20105877e8c72`; parents `bc45da1d` + `91560ca9` |
+| Notarization | submission `3464f526-9ace-47c8-ba77-51af175200ed`; `Accepted`; staple validate pass |
+| Signing / Gatekeeper | Developer ID `3TUERHN53E`; deep strict codesign pass; `source=Notarized Developer ID` |
+| Packaged plist | Mac `0.45.2.1`; Sparkle `109.1.1.19.0`; Mobile `1.19.0`; commit `e1f1b346` |
+| App archive | 55,674,294 bytes; SHA-256 `ee7760516aafbcf331b3927188fc0d2f64206379634b469c06c1181f01ff6700` |
+| dSYM archive | 42,783,846 bytes; SHA-256 `d3a5c465da4953f435530a8eaf4a1e5913ac698b3ff37ff003ab2dfdc3a7606f` |
+| Architectures / UUIDs | `x86_64` `A51C5DA5-7B5C-3C2A-B9BF-7A35CF67ADAD`; `arm64` `1A49E406-1FBE-3551-827A-B5856E9870D3`; both match dSYM |
+| CloudKit entitlement | packaged app contains `com.apple.developer.icloud-container-environment=Production` |
+| Draft release | release ID `356471765`; `draft=true`; two uploaded assets and server digests match local hashes |
+| Publication boundary | no local/remote tag; no push/merge/live publish/TestFlight; appcast unchanged |
 
 ## 2 Mac x 2 iPhone Compatibility Matrix
 
