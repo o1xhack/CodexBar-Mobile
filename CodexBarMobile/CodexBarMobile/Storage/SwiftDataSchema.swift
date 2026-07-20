@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 // MARK: - SwiftData Schema (Contract C1 · research doc 009)
+
 //
 // P2a scope: introduce SwiftData as the iOS local persistent store.
 // Views still read from the legacy `@Observable SyncedUsageData` path;
@@ -42,8 +43,8 @@ final class DeviceRecord {
         deviceID: String,
         deviceName: String,
         appVersion: String? = nil,
-        lastSyncAt: Date = .now
-    ) {
+        lastSyncAt: Date = .now)
+    {
         self.deviceID = deviceID
         self.deviceName = deviceName
         self.appVersion = appVersion
@@ -64,6 +65,9 @@ final class ProviderSnapshotModel {
     var providerID: String
     var providerName: String
     var accountEmail: String?
+    /// Opaque token/device identity used in CloudKit record names. Optional
+    /// keeps existing SwiftData stores lightweight-migratable.
+    var accountRecordKey: String?
     var loginMethod: String?
     var statusMessage: String?
     var isError: Bool
@@ -97,6 +101,7 @@ final class ProviderSnapshotModel {
         providerID: String,
         providerName: String,
         accountEmail: String? = nil,
+        accountRecordKey: String? = nil,
         loginMethod: String? = nil,
         statusMessage: String? = nil,
         isError: Bool = false,
@@ -108,16 +113,18 @@ final class ProviderSnapshotModel {
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
         perplexityCreditsData: Data? = nil,
-        device: DeviceRecord? = nil
-    ) {
+        device: DeviceRecord? = nil)
+    {
         self.compositeKey = Self.makeCompositeKey(
             deviceID: deviceID,
             providerID: providerID,
-            accountEmail: accountEmail)
+            accountEmail: accountEmail,
+            accountRecordKey: accountRecordKey)
         self.deviceID = deviceID
         self.providerID = providerID
         self.providerName = providerName
         self.accountEmail = accountEmail
+        self.accountRecordKey = accountRecordKey
         self.loginMethod = loginMethod
         self.statusMessage = statusMessage
         self.isError = isError
@@ -143,9 +150,10 @@ final class ProviderSnapshotModel {
     static func makeCompositeKey(
         deviceID: String,
         providerID: String,
-        accountEmail: String?
-    ) -> String {
-        "\(deviceID)|\(providerID)|\(accountEmail ?? "_")"
+        accountEmail: String?,
+        accountRecordKey: String? = nil) -> String
+    {
+        "\(deviceID)|\(providerID)|\(accountRecordKey ?? accountEmail ?? "_")"
     }
 }
 
@@ -170,8 +178,8 @@ final class UtilizationEntryModel {
         usedPercent: Double,
         resetsAt: Date? = nil,
         windowMinutes: Int = 0,
-        provider: ProviderSnapshotModel? = nil
-    ) {
+        provider: ProviderSnapshotModel? = nil)
+    {
         self.seriesName = seriesName
         self.capturedAt = capturedAt
         self.usedPercent = usedPercent
@@ -233,16 +241,11 @@ struct SnapshotIdentityKey: Hashable, Sendable {
     let providerIDs: String
     let lastUpdated: Date
 
-    init(providerIDs: String, lastUpdated: Date) {
-        self.providerIDs = providerIDs
-        self.lastUpdated = lastUpdated
-    }
-
     /// Build from an arbitrary collection of providers.
-    static func make<S: Sequence>(
-        providerIDs: S,
-        lastUpdated: Date
-    ) -> SnapshotIdentityKey where S.Element == String {
+    static func make(
+        providerIDs: some Sequence<String>,
+        lastUpdated: Date) -> SnapshotIdentityKey
+    {
         SnapshotIdentityKey(
             providerIDs: providerIDs.sorted().joined(separator: ","),
             lastUpdated: lastUpdated)

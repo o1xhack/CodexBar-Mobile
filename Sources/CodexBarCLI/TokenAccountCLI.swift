@@ -95,6 +95,10 @@ struct TokenAccountCLIContext {
             let settings = self.cookieSettings(provider: provider, account: account, config: config)
             return self.makeSnapshot(qoder: self.makeProviderCookieSettings(settings))
         }
+        if provider == .longcat {
+            let settings = self.cookieSettings(provider: provider, account: account, config: config)
+            return self.makeSnapshot(longcat: self.makeProviderCookieSettings(settings))
+        }
         if let snapshot = self.makeCookieBackedSnapshot(provider: provider, account: account, config: config) {
             return snapshot
         }
@@ -243,6 +247,7 @@ struct TokenAccountCLIContext {
         moonshot: ProviderSettingsSnapshot.MoonshotProviderSettings? = nil,
         kilo: ProviderSettingsSnapshot.KiloProviderSettings? = nil,
         kimi: ProviderSettingsSnapshot.KimiProviderSettings? = nil,
+        longcat: ProviderSettingsSnapshot.LongCatProviderSettings? = nil,
         augment: ProviderSettingsSnapshot.AugmentProviderSettings? = nil,
         amp: ProviderSettingsSnapshot.AmpProviderSettings? = nil,
         commandcode: ProviderSettingsSnapshot.CommandCodeProviderSettings? = nil,
@@ -269,6 +274,7 @@ struct TokenAccountCLIContext {
             zai: zai,
             kilo: kilo,
             kimi: kimi,
+            longcat: longcat,
             augment: augment,
             moonshot: moonshot,
             amp: amp,
@@ -402,12 +408,15 @@ struct TokenAccountCLIContext {
         guard !label.isEmpty else { return snapshot }
         let existing = snapshot.identity(for: provider)
         let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? label : email
+        let usesLabelFallback = email?.isEmpty ?? true
+        let resolvedEmail = usesLabelFallback ? label : email
         let identity = ProviderIdentitySnapshot(
             providerID: provider,
             accountEmail: resolvedEmail,
             accountOrganization: existing?.accountOrganization,
-            loginMethod: existing?.loginMethod)
+            loginMethod: existing?.loginMethod,
+            accountID: existing?.accountID,
+            accountEmailIsFallbackLabel: usesLabelFallback ? true : existing?.accountEmailIsFallbackLabel)
         return snapshot.withIdentity(identity)
     }
 
@@ -433,7 +442,9 @@ struct TokenAccountCLIContext {
         let routing = self.claudeCredentialRouting(account: account, config: config)
 
         if base == .auto {
-            if routing.adminAPIKey != nil { return .api }
+            if routing.adminAPIKey != nil {
+                return .api
+            }
             return routing.isOAuth ? .oauth : base
         }
 

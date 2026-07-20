@@ -6,6 +6,36 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CLISnapshotTests {
     @Test
+    func `renders Gemini paid plan without changing acronym casing`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .gemini,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "Gemini Code Assist in Google One AI Pro")
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 0),
+            identity: identity)
+
+        let output = CLIRenderer.renderText(
+            provider: .gemini,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Gemini",
+                status: nil,
+                useColor: false,
+                resetStyle: .absolute))
+
+        #expect(CLIRenderer.planBadgeText(provider: .gemini, snapshot: snapshot) ==
+            "Gemini Code Assist in Google One AI Pro")
+        #expect(output.contains("Plan: Gemini Code Assist in Google One AI Pro"))
+        #expect(!output.contains("Google One Ai Pro"))
+    }
+
+    @Test
     func `renders Factory token rate billing with time window labels`() {
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 12, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
@@ -790,7 +820,8 @@ struct CLISnapshotTests {
             credits: nil,
             antigravityPlanInfo: nil,
             openaiDashboard: nil,
-            error: nil)
+            error: nil,
+            diagnostic: "Grok team usage is unavailable from the current billing surface.")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         let data = try encoder.encode(payload)
@@ -803,6 +834,7 @@ struct CLISnapshotTests {
         #expect(json.contains("\"version\":\"1.2.3\""))
         #expect(json.contains("\"status\""))
         #expect(json.contains("status.example.com"))
+        #expect(json.contains("Grok team usage is unavailable from the current billing surface."))
         #expect(json.contains("\"primary\""))
         #expect(json.contains("\"windowMinutes\":300"))
         #expect(json.contains("1700000000"))

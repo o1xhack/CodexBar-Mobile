@@ -1,4 +1,4 @@
-// swiftlint:disable multiline_arguments type_body_length
+// swiftlint:disable file_length multiline_arguments type_body_length
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.6.0 when
 // 11 simple-mock entries were appended for the v0.24+v0.25 providers
@@ -109,19 +109,17 @@ enum MockProviderInjector {
     /// `isEnabled` state, which doesn't isolate cleanly across
     /// parallel `@MainActor` test suites.
     ///
-    /// **Composition** (Mac 0.23.6+):
+    /// **Composition** (Mac 0.45.2.1+):
     /// - 8 rich mocks (codex × 3 multi-account + claude × 2 multi-account
     ///   + perplexity 3-credit-segment + 2 synthetic `_mock_*` fallback
     ///   error/rich) — exercise the high-traffic UI paths.
-    /// - 35 simple single-account mocks (cursor, opencode, opencodego,
-    ///   alibaba, factory, gemini, antigravity, copilot, zai, minimax,
-    ///   kimi, kilo, kiro, vertexai, augment, jetbrains, kimik2, amp,
-    ///   ollama, synthetic, warp, openrouter, abacus, mistral) — exercise
-    ///   each provider's first-class card on iPhone, plus 30-day
-    ///   aggregate cost dashboard contribution.
+    /// - 69 simple snapshots cover all real-borrowed provider IDs and the
+    ///   seven extra multi-account tabs, including the eight v0.42-v0.45
+    ///   providers added for iOS 1.19.0.
     ///
-    /// Total: **45 ProviderUsageSnapshot entries across 42 distinct
-    /// providerIDs** (40 real-borrowed + 2 synthetic). iOS 1.9.0 bumps a few
+    /// Total: **77 ProviderUsageSnapshot entries across 67 distinct
+    /// providerIDs** (63 current + 2 legacy-compatibility + 2 synthetic).
+    /// iOS 1.9.0 bumps a few
     /// headline providers to realistic heavy spend + synthesizes ~55-day daily
     /// histories so the CWL ledger / Cost dashboard are testable at scale; the
     /// aggregate 30-day cost is now several thousand USD, not ~$100.
@@ -210,7 +208,7 @@ enum MockProviderInjector {
         "codex", "claude", "cursor", "opencode", "opencodego",
         "alibaba", "factory", "gemini", "antigravity", "copilot",
         "zai", "minimax", "kimi", "kilo", "kiro",
-        "vertexai", "augment", "jetbrains", "kimik2", "amp",
+        "vertexai", "augment", "jetbrains", "amp",
         "ollama", "synthetic", "warp", "openrouter", "perplexity",
         "abacus", "mistral",
         // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
@@ -230,7 +228,10 @@ enum MockProviderInjector {
         // iOS 1.13.0 catch-up (upstream v0.36.0+v0.36.1 new providers).
         "litellm", "poe", "chutes", "zed",
         // iOS 1.17.0 catch-up (upstream v0.38.0-v0.39.0 new providers).
-        "sakana", "qoder", "crossmodel", "clawrouter",
+        "sakana", "qoder", "clawrouter",
+        // iOS 1.19.0 catch-up (upstream v0.42.0-v0.45.2 new providers).
+        "clinepass", "deepinfra", "neuralwatt", "longcat",
+        "sub2api", "wayfinder", "zenmux", "aiand",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -239,11 +240,19 @@ enum MockProviderInjector {
         "_mock_cursor_unknown", "_mock_synthetic_unknown",
     ]
 
+    /// Provider IDs removed upstream but retained by Shared/iOS so an older
+    /// Mac can still exercise mixed-version decoding and first-class cards.
+    static let legacyCompatibilityProviderIDs: Set<String> = [
+        "kimik2", "crossmodel",
+    ]
+
     /// All mock providerIDs (real-borrowed ∪ synthetic). Convenience
     /// for tests that need to gate "is this a mock provider?" without
     /// caring about which subset.
     static var allMockProviderIDs: Set<String> {
-        realProviderIDsBorrowedByMocks.union(syntheticProviderIDs)
+        realProviderIDsBorrowedByMocks
+            .union(legacyCompatibilityProviderIDs)
+            .union(syntheticProviderIDs)
     }
 
     /// Universal mock-account email TLD. iOS 1.5.2+ inspects this to
@@ -1411,6 +1420,99 @@ enum MockProviderInjector {
                 resetsInSeconds: 19 * 86400,
                 resetDescription: "Requests · 21% used"),
             thirtyDayCostUSD: 3.70, sessionCostUSD: 0.14),
+        // iOS 1.19.0 — upstream v0.42.0-v0.45.2 new providers.
+        .init(
+            providerID: "clinepass", providerName: "ClinePass",
+            accountLocal: "api", loginMethod: "API key",
+            primaryUsage: 36, primaryLabel: "5-hour",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 2 * 3600,
+            primaryResetDescription: "5-hour · 36% used",
+            secondary: .init(
+                label: "Weekly", usedPercent: 54,
+                windowMinutes: 10080,
+                resetsInSeconds: 3 * 86400,
+                resetDescription: "Weekly · 54% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "deepinfra", providerName: "DeepInfra",
+            accountLocal: "api", loginMethod: "API key",
+            primaryUsage: 0, primaryLabel: "Account",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "$21.40 available · $8.60 spent this month",
+            secondary: nil,
+            thirtyDayCostUSD: 8.60, sessionCostUSD: 0.31),
+        .init(
+            providerID: "neuralwatt", providerName: "Neuralwatt",
+            accountLocal: "prepaid", loginMethod: "Pro plan",
+            primaryUsage: 42, primaryLabel: "Subscription",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 16 * 86400,
+            primaryResetDescription: "42 / 100 kWh",
+            secondary: .init(
+                label: "Key allowance", usedPercent: 18,
+                windowMinutes: 43200,
+                resetsInSeconds: 16 * 86400,
+                resetDescription: "Key allowance · 18% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "longcat", providerName: "LongCat",
+            accountLocal: "team", loginMethod: "Team",
+            primaryUsage: 48, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "480000/1000000",
+            secondary: .init(
+                label: "Fuel pack", usedPercent: 27,
+                windowMinutes: 43200,
+                resetsInSeconds: 8 * 86400,
+                resetDescription: "Fuel pack: 73000/100000"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "sub2api", providerName: "sub2api",
+            accountLocal: "group", loginMethod: "Subscription",
+            primaryUsage: 22, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 8 * 3600,
+            primaryResetDescription: "$2.20 / $10.00",
+            secondary: .init(
+                label: "Weekly", usedPercent: 37,
+                windowMinutes: 10080,
+                resetsInSeconds: 4 * 86400,
+                resetDescription: "$18.50 / $50.00"),
+            thirtyDayCostUSD: 38.40, sessionCostUSD: 2.20),
+        .init(
+            providerID: "wayfinder", providerName: "Wayfinder",
+            accountLocal: "gateway", loginMethod: "Local gateway",
+            primaryUsage: nil, primaryLabel: "Routing",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "zenmux", providerName: "ZenMux",
+            accountLocal: "pro", loginMethod: "Pro plan",
+            primaryUsage: 31, primaryLabel: "5-hour",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 90 * 60,
+            primaryResetDescription: "5-hour · 31% used",
+            secondary: .init(
+                label: "Weekly", usedPercent: 46,
+                windowMinutes: 10080,
+                resetsInSeconds: 3 * 86400,
+                resetDescription: "Weekly · 46% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "aiand", providerName: "ai&",
+            accountLocal: "prepaid", loginMethod: "Prepaid",
+            primaryUsage: nil, primaryLabel: "Spend",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 12.75, sessionCostUSD: 0.44),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1495,12 +1597,13 @@ enum MockProviderInjector {
             thirtyDayCostUSD: 1.85, sessionCostUSD: 0.07),
     ]
 
-    /// Returns the v0.26 typed-envelope extras for a given providerID,
-    /// or nil. Used by `makeSimpleProviderMock` so the simple-profile
-    /// mocks exercise the new iOS detail cards (Kiro / Bedrock /
-    /// Moonshot / z.ai hourly / OpenAI Dashboard / Antigravity).
-    /// Without this, mock injection mode would silently hide every new
-    /// v0.26 card — a real regression vector.
+    // Returns the v0.26 typed-envelope extras for a given providerID,
+    // or nil. Used by `makeSimpleProviderMock` so the simple-profile
+    // mocks exercise the new iOS detail cards (Kiro / Bedrock /
+    // Moonshot / z.ai hourly / OpenAI Dashboard / Antigravity).
+    // Without this, mock injection mode would silently hide every new
+    // v0.26 card — a real regression vector.
+    // swiftlint:disable:next function_body_length
     private static func v026ExtrasFor(providerID: String) -> V026MockExtras? {
         let now = Self.nowReference
         switch providerID {
@@ -1632,6 +1735,33 @@ enum MockProviderInjector {
                 toppedUpBalanceUSD: nil,
                 daily: [],
                 updatedAt: now))
+        case "sub2api":
+            return V026MockExtras(sub2APIUsage: SyncSub2APIUsage(
+                kind: "subscription",
+                balance: 61.60,
+                unit: "USD",
+                today: .init(requests: 284, totalTokens: 1_240_000, actualCostUSD: 2.20),
+                total: .init(requests: 6240, totalTokens: 28_400_000, actualCostUSD: 38.40)))
+        case "wayfinder":
+            return V026MockExtras(wayfinderUsage: SyncWayfinderUsage(
+                gatewayStatus: "healthy",
+                offline: false,
+                dryRun: false,
+                missingKeyCount: 0,
+                modelCount: 6,
+                requests: 1420,
+                tokens: 8_600_000,
+                realized: 7.84,
+                baseline: 12.68,
+                saved: 4.84,
+                savedPercent: 38.2,
+                priced: true,
+                routes: [
+                    .init(name: "local", requests: 960, saved: 3.61, tokens: 5_900_000),
+                    .init(name: "cloud", requests: 460, saved: 1.23, tokens: 2_700_000),
+                ],
+                averageDecisionMilliseconds: 7.4,
+                updatedAt: now))
         default:
             return nil
         }
@@ -1655,6 +1785,9 @@ enum MockProviderInjector {
         var alibabaTokenPlan: SyncAlibabaTokenPlan?
         /// iOS 1.10.0 / Mac 0.31.0 sync 025.
         var deepSeekUsage: SyncDeepSeekUsage?
+        /// iOS 1.19.0 / Mac 0.45.2.1 sync.
+        var wayfinderUsage: SyncWayfinderUsage?
+        var sub2APIUsage: SyncSub2APIUsage?
 
         init(
             openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -1666,7 +1799,9 @@ enum MockProviderInjector {
             openRouterStats: SyncOpenRouterStats? = nil,
             azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
             alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
-            deepSeekUsage: SyncDeepSeekUsage? = nil)
+            deepSeekUsage: SyncDeepSeekUsage? = nil,
+            wayfinderUsage: SyncWayfinderUsage? = nil,
+            sub2APIUsage: SyncSub2APIUsage? = nil)
         {
             self.openAIAPIDashboard = openAIAPIDashboard
             self.zaiHourlyUsage = zaiHourlyUsage
@@ -1678,6 +1813,8 @@ enum MockProviderInjector {
             self.azureOpenAIInfo = azureOpenAIInfo
             self.alibabaTokenPlan = alibabaTokenPlan
             self.deepSeekUsage = deepSeekUsage
+            self.wayfinderUsage = wayfinderUsage
+            self.sub2APIUsage = sub2APIUsage
         }
     }
 
@@ -1803,8 +1940,10 @@ enum MockProviderInjector {
             azureOpenAIInfo: extras?.azureOpenAIInfo,
             alibabaTokenPlan: extras?.alibabaTokenPlan,
             deepSeekUsage: extras?.deepSeekUsage,
-            crossModelUsage: crossModelUsage)
+            crossModelUsage: crossModelUsage,
+            wayfinderUsage: extras?.wayfinderUsage,
+            sub2APIUsage: extras?.sub2APIUsage)
     }
 }
 
-// swiftlint:enable multiline_arguments type_body_length
+// swiftlint:enable file_length multiline_arguments type_body_length

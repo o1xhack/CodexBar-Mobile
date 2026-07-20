@@ -15,7 +15,6 @@ public struct KeychainPromptContext: Sendable {
         case syntheticToken
         case copilotToken
         case kimiToken
-        case kimiK2Token
         case minimaxCookie
         case minimaxToken
         case augmentCookie
@@ -46,11 +45,18 @@ public enum KeychainPromptHandler {
     public nonisolated(unsafe) static var handler: ((KeychainPromptContext) -> Void)?
 
     public static func notify(_ context: KeychainPromptContext) {
+        _ = self.notifyIfHandled(context)
+    }
+
+    @discardableResult
+    static func notifyIfHandled(_ context: KeychainPromptContext) -> Bool {
         if let taskHandlerStore {
             taskHandlerStore.handler(context)
-            return
+            return true
         }
-        self.handler?(context)
+        guard let handler else { return false }
+        handler(context)
+        return true
     }
 
     #if DEBUG
@@ -94,14 +100,9 @@ public enum KeychainAccessPreflight {
     }
 
     @TaskLocal private static var taskCheckGenericPasswordOverrideStore: CheckGenericPasswordOverrideStore?
-    private nonisolated(unsafe) static var checkGenericPasswordOverride: ((String, String?) -> Outcome)?
-
-    static func setCheckGenericPasswordOverrideForTesting(_ override: ((String, String?) -> Outcome)?) {
-        self.checkGenericPasswordOverride = override
-    }
 
     static var hasCheckGenericPasswordOverrideForTesting: Bool {
-        self.taskCheckGenericPasswordOverrideStore != nil || self.checkGenericPasswordOverride != nil
+        self.taskCheckGenericPasswordOverrideStore != nil
     }
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
@@ -117,6 +118,7 @@ public enum KeychainAccessPreflight {
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
         _ override: ((String, String?) -> Outcome)?,
+        isolation _: isolated (any Actor)? = #isolation,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
@@ -132,9 +134,6 @@ public enum KeychainAccessPreflight {
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
             return override.check(service, account)
-        }
-        if let override = self.checkGenericPasswordOverride {
-            return override(service, account)
         }
         #endif
         guard !KeychainAccessGate.isDisabled else { return .notFound }

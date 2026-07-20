@@ -243,6 +243,31 @@ enum ProviderColorPalette {
             // ClawRouter — periwinkle from upstream provider branding.
             return Color(red: 89.0 / 255.0, green: 110.0 / 255.0, blue: 246.0 / 255.0)
         }
+        // iOS 1.19.0 — upstream v0.42.0-v0.45.2 new providers.
+        if normalized.contains("clinepass") || normalized.contains("cline-pass") {
+            return Color(red: 0.17, green: 0.66, blue: 0.54)
+        }
+        if normalized.contains("deepinfra") || normalized.contains("deep-infra") {
+            return Color(red: 0.15, green: 0.45, blue: 0.78)
+        }
+        if normalized.contains("neuralwatt") || normalized.contains("neural-watt") {
+            return Color(red: 0.91, green: 0.48, blue: 0.12)
+        }
+        if normalized.contains("longcat") || normalized.contains("long-cat") {
+            return Color(red: 0.82, green: 0.34, blue: 0.42)
+        }
+        if normalized.contains("sub2api") || normalized.contains("sub-2-api") {
+            return Color(red: 0.10, green: 0.58, blue: 0.72)
+        }
+        if normalized.contains("wayfinder") || normalized.contains("way-finder") {
+            return Color(red: 0.34, green: 0.39, blue: 0.82)
+        }
+        if normalized.contains("zenmux") || normalized.contains("zen-mux") {
+            return Color(red: 0.54, green: 0.31, blue: 0.81)
+        }
+        if normalized.contains("aiand") || normalized.contains("ai&") {
+            return Color(red: 0.88, green: 0.26, blue: 0.33)
+        }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {

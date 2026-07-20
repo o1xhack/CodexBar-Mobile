@@ -208,16 +208,34 @@ enum CompactMetricFormatter {
                 token.sessionCostUSD.map { WidgetFormat.currency($0, code: token.currencyCode) } ?? "—"
             } ?? "—"
             let detail = entry.tokenUsage?.sessionTokens.map(WidgetFormat.tokenCount)
-            let label = entry.tokenUsage.map { "\($0.sessionLabel) cost" } ?? "Today cost"
+            let label = entry.tokenUsage.map {
+                WidgetFormat.tokenRowTitle(
+                    Self.costMetricLabel($0.sessionLabel, provider: entry.provider),
+                    summary: $0,
+                    entryUpdatedAt: entry.updatedAt)
+            } ?? "Today cost"
             return CompactMetricDisplay(value: value, label: label, detail: detail)
         case .last30DaysCost:
             let value = entry.tokenUsage.map { token in
                 token.last30DaysCostUSD.map { WidgetFormat.currency($0, code: token.currencyCode) } ?? "—"
             } ?? "—"
             let detail = entry.tokenUsage?.last30DaysTokens.map(WidgetFormat.tokenCount)
-            let label = entry.tokenUsage.map { "\($0.last30DaysLabel) cost" } ?? "30d cost"
+            let label = entry.tokenUsage.map {
+                WidgetFormat.tokenRowTitle(
+                    Self.costMetricLabel($0.last30DaysLabel, provider: entry.provider),
+                    summary: $0,
+                    entryUpdatedAt: entry.updatedAt)
+            } ?? "30d cost"
             return CompactMetricDisplay(value: value, label: label, detail: detail)
         }
+    }
+
+    static func costMetricLabel(_ label: String, provider: UsageProvider) -> String {
+        guard provider == .codex else { return "\(label) cost" }
+        // Existing widget timelines may predate the estimate labels. Do not leave a bare
+        // dollar value until the app next republishes it.
+        guard !label.contains("API est.") else { return label }
+        return "\(label) API est. · not billed"
     }
 }
 
@@ -287,6 +305,7 @@ private struct ProviderSwitchChip: View {
         case .openai: "OpenAI"
         case .azureopenai: "Azure OpenAI"
         case .claude: "Claude"
+        case .clinepass: "ClinePass"
         case .gemini: "Gemini"
         case .antigravity: "Anti"
         case .cursor: "Cursor"
@@ -306,15 +325,15 @@ private struct ProviderSwitchChip: View {
         case .augment: "Augment"
         case .jetbrains: "JetBrains"
         case .kimi: "Kimi"
-        case .kimik2: "Kimi K2"
         case .moonshot: "Moonshot"
         case .amp: "Amp"
         case .t3chat: "T3 Chat"
         case .ollama: "Ollama"
         case .synthetic: "Synthetic"
         case .openrouter: "OpenRouter"
-        case .crossmodel: "CrossModel"
         case .clawrouter: "ClawRouter"
+        case .sub2api: "sub2api"
+        case .wayfinder: "Wayfinder"
         case .elevenlabs: "ElevenLabs"
         case .warp: "Warp"
         case .windsurf: "Windsurf"
@@ -325,6 +344,7 @@ private struct ProviderSwitchChip: View {
         case .abacus: "Abacus"
         case .mistral: "Mistral"
         case .deepseek: "DeepSeek"
+        case .deepinfra: "DeepInfra"
         case .codebuff: "Codebuff"
         case .crof: "Crof"
         case .venice: "Venice"
@@ -339,7 +359,11 @@ private struct ProviderSwitchChip: View {
         case .deepgram: "Deepgram"
         case .poe: "Poe"
         case .chutes: "Chutes"
+        case .longcat: "LongCat"
         case .zed: "Zed"
+        case .neuralwatt: "Neuralwatt"
+        case .zenmux: "ZenMux"
+        case .aiand: "ai&"
         }
     }
 }
@@ -366,7 +390,10 @@ private struct SwitcherSmallUsageView: View {
             }
             if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -398,7 +425,10 @@ private struct SwitcherMediumUsageView: View {
             }
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -434,13 +464,19 @@ private struct SwitcherLargeUsageView: View {
             if let token = entry.tokenUsage {
                 VStack(alignment: .leading, spacing: 4) {
                     ValueLine(
-                        title: token.sessionLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.sessionLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.sessionCostUSD,
                             tokens: token.sessionTokens,
                             currencyCode: token.currencyCode))
                     ValueLine(
-                        title: token.last30DaysLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.last30DaysLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.last30DaysCostUSD,
                             tokens: token.last30DaysTokens,
@@ -482,7 +518,10 @@ private struct SmallUsageView: View {
             }
             if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -516,7 +555,10 @@ private struct MediumUsageView: View {
             }
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -554,13 +596,19 @@ private struct LargeUsageView: View {
             if let token = entry.tokenUsage {
                 VStack(alignment: .leading, spacing: 4) {
                     ValueLine(
-                        title: token.sessionLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.sessionLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.sessionCostUSD,
                             tokens: token.sessionTokens,
                             currencyCode: token.currencyCode))
                     ValueLine(
-                        title: token.last30DaysLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.last30DaysLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.last30DaysCostUSD,
                             tokens: token.last30DaysTokens,
@@ -802,13 +850,19 @@ private struct HistoryView: View {
                 .frame(height: self.isLarge ? 90 : 60)
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
                 ValueLine(
-                    title: token.last30DaysLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.last30DaysLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.last30DaysCostUSD,
                         tokens: token.last30DaysTokens,
@@ -874,8 +928,16 @@ private struct ValueLine: View {
             Text(self.title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             Text(self.value)
                 .font(.caption)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .allowsTightening(true)
+                .layoutPriority(1)
         }
     }
 }
@@ -939,6 +1001,11 @@ enum WidgetColors {
             Color(red: 0, green: 120 / 255, blue: 212 / 255)
         case .claude:
             Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
+        case .clinepass:
+            Color(
+                red: ClinePassProviderDescriptor.descriptor.branding.color.red,
+                green: ClinePassProviderDescriptor.descriptor.branding.color.green,
+                blue: ClinePassProviderDescriptor.descriptor.branding.color.blue)
         case .gemini:
             Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255)
         case .antigravity:
@@ -975,8 +1042,6 @@ enum WidgetColors {
             Color(red: 255 / 255, green: 51 / 255, blue: 153 / 255) // JetBrains pink
         case .kimi:
             Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255) // Kimi orange
-        case .kimik2:
-            Color(red: 76 / 255, green: 0 / 255, blue: 255 / 255) // Kimi K2 purple
         case .moonshot:
             Color(red: 32 / 255, green: 93 / 255, blue: 235 / 255)
         case .amp:
@@ -989,10 +1054,12 @@ enum WidgetColors {
             Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255) // Synthetic charcoal
         case .openrouter:
             Color(red: 111 / 255, green: 66 / 255, blue: 193 / 255) // OpenRouter purple
-        case .crossmodel:
-            Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255) // CrossModel purple
         case .clawrouter:
             Color(red: 89 / 255, green: 110 / 255, blue: 246 / 255)
+        case .sub2api:
+            Color(red: 45 / 255, green: 198 / 255, blue: 216 / 255)
+        case .wayfinder:
+            Color(red: 16 / 255, green: 163 / 255, blue: 127 / 255)
         case .elevenlabs:
             Color(red: 235 / 255, green: 235 / 255, blue: 230 / 255)
         case .warp:
@@ -1013,6 +1080,8 @@ enum WidgetColors {
             Color(red: 255 / 255, green: 80 / 255, blue: 15 / 255) // Mistral orange
         case .deepseek:
             Color(red: 82 / 255, green: 125 / 255, blue: 240 / 255)
+        case .deepinfra:
+            Color(red: 42 / 255, green: 50 / 255, blue: 117 / 255)
         case .codebuff:
             Color(red: 68 / 255, green: 255 / 255, blue: 0 / 255) // Codebuff lime
         case .crof:
@@ -1041,8 +1110,16 @@ enum WidgetColors {
             Color(red: 93 / 255, green: 92 / 255, blue: 222 / 255) // Poe purple
         case .chutes:
             Color(red: 24 / 255, green: 160 / 255, blue: 88 / 255)
+        case .longcat:
+            Color(red: 255 / 255, green: 209 / 255, blue: 0 / 255)
         case .zed:
             Color(red: 64 / 255, green: 156 / 255, blue: 255 / 255)
+        case .neuralwatt:
+            Color(red: 56 / 255, green: 217 / 255, blue: 140 / 255)
+        case .zenmux:
+            Color(red: 108 / 255, green: 92 / 255, blue: 231 / 255)
+        case .aiand:
+            Color(red: 226 / 255, green: 92 / 255, blue: 43 / 255)
         }
     }
 }
@@ -1106,11 +1183,7 @@ enum WidgetFormat {
     }
 
     static func tokenCount(_ value: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-        let raw = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-        return "\(raw) tokens"
+        "\(UsageFormatter.tokenCountString(value)) tokens"
     }
 
     static func relativeDate(_ date: Date) -> String {
@@ -1118,5 +1191,16 @@ enum WidgetFormat {
         formatter.locale = Locale(identifier: "en_US")
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Suffixes the title with the token snapshot's own age once it lags the entry's
+    /// freshness signal past `TokenUsageSummary.staleLagThreshold`.
+    static func tokenRowTitle(
+        _ base: String,
+        summary: WidgetSnapshot.TokenUsageSummary,
+        entryUpdatedAt: Date) -> String
+    {
+        guard summary.isStale(comparedTo: entryUpdatedAt), let updatedAt = summary.updatedAt else { return base }
+        return "\(base) · \(self.relativeDate(updatedAt))"
     }
 }

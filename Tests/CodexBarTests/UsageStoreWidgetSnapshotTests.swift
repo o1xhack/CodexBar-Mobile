@@ -416,4 +416,131 @@ struct UsageStoreWidgetSnapshotTests {
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .devin })
         #expect((entry.providerCost != nil) == showsExtraUsage)
     }
+
+    @Test
+    func `widget snapshot carries token usage age separately from entry freshness`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-token-usage-age"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let entryUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenUpdatedAt = entryUpdatedAt.addingTimeInterval(-45 * 60)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 30, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: entryUpdatedAt,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: nil)),
+            provider: .claude)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 4200,
+                sessionCostUSD: 1.25,
+                last30DaysTokens: 42000,
+                last30DaysCostUSD: 12.50,
+                daily: [],
+                updatedAt: tokenUpdatedAt),
+            provider: .claude)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "token-usage-age-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(entry.updatedAt == entryUpdatedAt)
+        #expect(entry.tokenUsage?.updatedAt == tokenUpdatedAt)
+        #expect(entry.tokenUsage?.isStale(comparedTo: entry.updatedAt) == true)
+    }
+
+    @Test
+    func `widget snapshot labels legacy Cursor request quota as Requests`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-cursor-requests-label"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 40, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                tertiary: nil,
+                cursorRequests: CursorRequestUsage(used: 200, limit: 500),
+                updatedAt: Date()),
+            provider: .cursor)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "cursor-requests-label-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
+        #expect(entry.usageRows?.map(\.id) == ["primary"])
+        #expect(entry.usageRows?.map(\.title) == ["Requests"])
+    }
+
+    @Test
+    func `widget snapshot keeps Cursor Total label for token based plans`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-cursor-total-label"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 10, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(usedPercent: 20, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+                tertiary: RateWindow(usedPercent: 0, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+                updatedAt: Date()),
+            provider: .cursor)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "cursor-total-label-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
+        #expect(entry.usageRows?.map(\.title) == ["Total", "Auto", "API"])
+    }
 }

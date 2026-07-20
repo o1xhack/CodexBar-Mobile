@@ -78,6 +78,18 @@ struct AccountIdentityComputerTests {
     }
 
     @Test
+    func `editable token label fallback is not a stable Claude email identity`() throws {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: "Shared production",
+            accountOrganization: nil,
+            loginMethod: "Token",
+            accountEmailIsFallbackLabel: true)
+        let ids = try #require(AccountIdentityComputer.compute(provider: .claude, identity: identity))
+        #expect(ids.isEmpty)
+    }
+
+    @Test
     func `VertexAI uses project: prefix for the org identifier`() throws {
         let identity = ProviderIdentitySnapshot(
             providerID: .vertexai,
@@ -95,9 +107,10 @@ struct AccountIdentityComputerTests {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
             .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
-            .alibaba, .factory, .minimax, .kimi, .kimik2, .augment, .jetbrains,
+            .alibaba, .factory, .minimax, .kimi, .augment, .jetbrains,
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
-            .zai, .antigravity, .kilo, .kiro, .sakana, .qoder, .crossmodel, .clawrouter,
+            .zai, .antigravity, .kilo, .kiro, .sakana, .qoder, .clawrouter,
+            .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

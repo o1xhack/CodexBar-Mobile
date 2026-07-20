@@ -43,7 +43,11 @@ extension StatusItemController {
             managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator,
             updateReady: self.updater.updateStatus.isUpdateReady,
-            includeContextualActions: includeContextualActions)
+            includeContextualActions: includeContextualActions,
+            agentSessionsEnabled: self.settings.agentSessionsEnabled,
+            agentSessionLabelStyle: self.settings.agentSessionLabelStyle,
+            localAgentSessions: self.agentSessions.localSessions,
+            remoteAgentHosts: self.agentSessions.remoteHosts)
     }
 
     func measuredStandardMenuWidth(for sections: [MenuDescriptor.Section], baseWidth: CGFloat) -> CGFloat {
@@ -88,6 +92,8 @@ extension StatusItemController {
             "text:\(style):\(text)"
         case let .action(title, action):
             "action:\(title):\(self.measuredStandardMenuWidthCacheToken(for: action))"
+        case let .unavailable(title, tooltip):
+            "unavailable:\(title):\(tooltip ?? "")"
         case let .submenu(title, systemImageName, submenuItems):
             "submenu:\(title):\(systemImageName ?? ""):" + submenuItems.map { item in
                 [
@@ -136,6 +142,8 @@ extension StatusItemController {
             "quit"
         case let .copyError(message):
             "copyError:\(message)"
+        case let .focusAgentSession(session, remoteHost):
+            "focusAgentSession:\(remoteHost ?? "local"):\(session.id)"
         }
     }
 }

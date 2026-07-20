@@ -62,3 +62,32 @@ enum GeneralSettingsMenuOptions {
         TerminalApp.pickerOptions(selected: selected, applicationURL: applicationURL)
     }
 }
+
+enum MenuBarSettingsMenuOptions {
+    static let displayModes = MenuBarDisplayMode.allCases
+    static let iconStyles = MenuBarIconStyle.allCases
+    static let switcherRows = SwitcherRowsOption.allCases
+}
+
+enum MenuSettingsMenuOptions {
+    static let weeklyProgressWorkDays: [Int?] = [nil, 4, 5, 7]
+    static let multiAccountLayouts = MultiAccountMenuLayout.allCases
+    static let usageBarsFill = UsageBarsFillOption.allCases
+    static let resetTimes = ResetTimesOption.allCases
+    static let costSummaries = CostSummaryOption.allCases
+    static let agentSessionLabelStyles = AgentSessionLabelStyle.allCases
+
+    static func weeklyProgressWorkDaysLabel(_ workDays: Int?) -> String {
+        switch workDays {
+        case nil: L("Automatic")
+        case 4: L("4 days")
+        case 5: L("5 days")
+        case 7: L("7 days")
+        case let workDays?: L("%d days", workDays)
+        }
+    }
+}
+
+enum NotificationsSettingsMenuOptions {
+    static let confettiCelebrations = ConfettiCelebrationOption.allCases
+}

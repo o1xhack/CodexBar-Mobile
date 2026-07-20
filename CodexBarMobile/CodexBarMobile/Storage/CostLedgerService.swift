@@ -3,6 +3,7 @@ import Foundation
 import SwiftData
 
 // MARK: - CostLedgerService (Cost Window Ledger · research doc 024)
+
 //
 // Round 2 / P2: writer half of the ledger. Reader (`aggregate(...)`),
 // diagnostics, clear, seed-from-existing-blobs come in later rounds.
@@ -72,6 +73,12 @@ struct CostLedgerProviderRollup: Equatable {
     /// Account email (nil for single-account). Together with `providerID`
     /// forms the `cardIdentityKey` the Cost dashboard renders rows by.
     let accountEmail: String?
+    /// Opaque/stable identity used to match this rollup to a live card.
+    /// Falls back to account email for rows written before iOS 1.19.
+    let accountIdentityKey: String?
+    /// Full effective identity component, preserving merger overlap semantics
+    /// for mixed writers that expose org+email, email-only or org-only sets.
+    let accountIdentityKeys: [String]
     let totalCostUSD: Double
     let totalTokens: Int
     /// Daily points just for this provider, sorted oldest → newest.
@@ -80,6 +87,28 @@ struct CostLedgerProviderRollup: Equatable {
     let modelBreakdowns: [SyncCostBreakdown]
     /// Service mix just for this provider. Sorted by `costUSD` descending.
     let serviceBreakdowns: [SyncCostBreakdown]
+
+    init(
+        providerID: String,
+        accountEmail: String?,
+        accountIdentityKey: String? = nil,
+        accountIdentityKeys: [String] = [],
+        totalCostUSD: Double,
+        totalTokens: Int,
+        dailyPoints: [SyncDailyPoint],
+        modelBreakdowns: [SyncCostBreakdown],
+        serviceBreakdowns: [SyncCostBreakdown])
+    {
+        self.providerID = providerID
+        self.accountEmail = accountEmail
+        self.accountIdentityKey = accountIdentityKey
+        self.accountIdentityKeys = accountIdentityKeys
+        self.totalCostUSD = totalCostUSD
+        self.totalTokens = totalTokens
+        self.dailyPoints = dailyPoints
+        self.modelBreakdowns = modelBreakdowns
+        self.serviceBreakdowns = serviceBreakdowns
+    }
 }
 
 /// Lightweight ledger diagnostics for the Settings panel (P4). All fields
@@ -98,6 +127,22 @@ struct CostLedgerDiagnostics: Equatable {
 // MARK: - CostLedgerService
 
 enum CostLedgerService {
+    static func accountIdentityKey(for provider: ProviderUsageSnapshot) -> String {
+        ProviderSnapshotMerger.effectiveIdentifiers(for: provider).first
+            ?? "\(provider.providerID):legacy-no-identity"
+    }
+
+    static func accountIdentityKeys(for provider: ProviderUsageSnapshot) -> [String] {
+        ProviderSnapshotMerger.effectiveIdentifiers(for: provider)
+    }
+
+    static func rollupKey(
+        providerID: String,
+        accountIdentityKey: String?,
+        accountEmail: String?) -> String
+    {
+        "\(providerID)|\(accountIdentityKey ?? accountEmail ?? "_")"
+    }
 
     /// `YYYY-MM-DD` UTC formatter retained for deterministic historical test
     /// fixtures. Production window cutoffs use `SyncCostSummary`'s local
@@ -151,11 +196,16 @@ enum CostLedgerService {
         }
 
         let encoder = CloudSyncConstants.makeJSONEncoder()
+        let accountIdentityKeys = Self.accountIdentityKeys(for: provider)
+        let accountIdentityKey = accountIdentityKeys.first
         for point in summary.daily {
             try Self.upsertDayPoint(
                 deviceID: deviceID,
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey,
+                accountIdentityKey: accountIdentityKey,
+                accountIdentityKeys: accountIdentityKeys,
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
@@ -181,6 +231,9 @@ enum CostLedgerService {
         deviceID: String,
         providerID: String,
         accountEmail: String? = nil,
+        accountRecordKey: String? = nil,
+        accountIdentityKey: String? = nil,
+        accountIdentityKeys: [String]? = nil,
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
@@ -195,6 +248,7 @@ enum CostLedgerService {
             deviceID: deviceID,
             providerID: providerID,
             accountEmail: accountEmail,
+            accountRecordKey: accountRecordKey,
             dayKey: dayKey)
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate { $0.compositeKey == key })
@@ -206,8 +260,16 @@ enum CostLedgerService {
         let serviceData: Data? = serviceBreakdowns.isEmpty
             ? nil
             : try? enc.encode(serviceBreakdowns)
+        let identityData = accountIdentityKeys.flatMap { try? enc.encode($0) }
 
         if let existing = try context.fetch(descriptor).first {
+            // Identity metadata may be newly available on an otherwise equal
+            // payload. Backfill it before the freshness early-return so an
+            // upgrade never strands a legacy email-key row.
+            existing.accountEmail = accountEmail
+            existing.accountRecordKey = accountRecordKey
+            existing.accountIdentityKey = accountIdentityKey
+            existing.accountIdentitiesData = identityData
             // Dedup. Skip if we already have data at least as fresh for
             // this exact (deviceID, providerID, dayKey). Same `lastUpdated`
             // = same Mac, same cycle = redundant write; older = stale.
@@ -225,6 +287,9 @@ enum CostLedgerService {
                 deviceID: deviceID,
                 providerID: providerID,
                 accountEmail: accountEmail,
+                accountRecordKey: accountRecordKey,
+                accountIdentityKey: accountIdentityKey,
+                accountIdentitiesData: identityData,
                 dayKey: dayKey,
                 costUSD: costUSD,
                 totalTokens: totalTokens,
@@ -233,6 +298,59 @@ enum CostLedgerService {
                 serviceBreakdownsData: serviceData,
                 lastUpdated: lastUpdated)
             context.insert(point)
+        }
+    }
+
+    /// Rekey pre-1.19 email-key ledger rows before the matching provider row
+    /// moves to an opaque CloudKit record key. This preserves days older than
+    /// the current Mac blob window instead of letting stale-provider pruning
+    /// discard them during the identity upgrade.
+    static func migrateLegacyAccountKey(
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?,
+        accountRecordKey: String,
+        accountIdentityKeys: [String],
+        in context: ModelContext) throws
+    {
+        let identityData = try? CloudSyncConstants.makeJSONEncoder().encode(accountIdentityKeys)
+        let accountIdentityKey = accountIdentityKeys.first
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        let legacyRows = try context.fetch(descriptor).filter {
+            $0.accountRecordKey == nil && $0.accountEmail == accountEmail
+        }
+        for legacy in legacyRows {
+            let newKey = DailyCostPoint.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: providerID,
+                accountEmail: accountEmail,
+                accountRecordKey: accountRecordKey,
+                dayKey: legacy.dayKey)
+            let existingDescriptor = FetchDescriptor<DailyCostPoint>(
+                predicate: #Predicate { $0.compositeKey == newKey })
+            if let existing = try context.fetch(existingDescriptor).first,
+               existing !== legacy
+            {
+                if legacy.lastUpdated > existing.lastUpdated {
+                    existing.costUSD = legacy.costUSD
+                    existing.totalTokens = legacy.totalTokens
+                    existing.isEstimated = legacy.isEstimated
+                    existing.modelBreakdownsData = legacy.modelBreakdownsData
+                    existing.serviceBreakdownsData = legacy.serviceBreakdownsData
+                    existing.lastUpdated = legacy.lastUpdated
+                }
+                existing.accountIdentityKey = accountIdentityKey
+                existing.accountIdentitiesData = identityData
+                context.delete(legacy)
+            } else {
+                legacy.compositeKey = newKey
+                legacy.accountRecordKey = accountRecordKey
+                legacy.accountIdentityKey = accountIdentityKey
+                legacy.accountIdentitiesData = identityData
+            }
         }
     }
 
@@ -264,32 +382,46 @@ enum CostLedgerService {
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate { $0.dayKey >= cutoffKey })
         let fetchedRows = try context.fetch(descriptor)
-        let rows: [DailyCostPoint]
-        if let activeDeviceIDs {
-            rows = fetchedRows.filter { activeDeviceIDs.contains($0.deviceID) }
+        let rows: [DailyCostPoint] = if let activeDeviceIDs {
+            fetchedRows.filter { activeDeviceIDs.contains($0.deviceID) }
         } else {
-            rows = fetchedRows
+            fetchedRows
         }
 
         let decoder = CloudSyncConstants.makeJSONDecoder()
+        let accountGrouping = Self.makeAccountGrouping(rows: rows, decoder: decoder)
         var groupedRows: [LedgerGroupKey: [DailyCostPoint]] = [:]
-        for row in rows {
-            groupedRows[LedgerGroupKey(row: row), default: []].append(row)
+        for (index, row) in rows.enumerated() {
+            let root = accountGrouping.roots[index]
+            groupedRows[LedgerGroupKey(
+                providerID: row.providerID,
+                accountGroup: root,
+                dayKey: row.dayKey), default: []].append(row)
         }
 
-        let mergedPoints: [AggregatedDailyCostPoint] = groupedRows.values.compactMap { group in
+        let mergedPoints: [AggregatedDailyCostPoint] = groupedRows.compactMap { key, group in
             guard let first = group.first else { return nil }
+            let identityKeys = accountGrouping.identityKeysByRoot[key.accountGroup] ?? []
+            let preferredIdentityKey = accountGrouping.preferredKeyByRoot[key.accountGroup]
             if ProviderSnapshotMerger.usesLocalCostMerge(providerID: first.providerID) {
-                return AggregatedDailyCostPoint.mergingLocalCostRows(group, decoder: decoder)
+                return AggregatedDailyCostPoint.mergingLocalCostRows(
+                    group,
+                    accountIdentityKey: preferredIdentityKey,
+                    accountIdentityKeys: identityKeys,
+                    decoder: decoder)
             }
             guard let latest = group.max(by: { $0.lastUpdated < $1.lastUpdated }) else {
                 return nil
             }
-            return AggregatedDailyCostPoint(row: latest, decoder: decoder)
+            return AggregatedDailyCostPoint(
+                row: latest,
+                accountIdentityKey: preferredIdentityKey,
+                accountIdentityKeys: identityKeys,
+                decoder: decoder)
         }
 
-        // Per-account-provider accumulators, keyed by cardIdentityKey
-        // (providerID|accountEmail) so the dashboard can match rows per account.
+        // Per-account-provider accumulators, keyed by the stable wire identity
+        // when present and legacy accountEmail otherwise.
         var perProvider: [String: ProviderAccumulator] = [:]
         // Per-day + per-model aggregate ACROSS all providers/accounts (these
         // intentionally collapse account distinction — they're cross-cutting).
@@ -301,10 +433,15 @@ enum CostLedgerService {
         var perService: [String: CostBreakdownAccumulator] = [:]
 
         for point in mergedPoints {
-            let rollupKey = "\(point.providerID)|\(point.accountEmail ?? "_")"
+            let rollupKey = Self.rollupKey(
+                providerID: point.providerID,
+                accountIdentityKey: point.accountIdentityKey,
+                accountEmail: point.accountEmail)
             var acc = perProvider[rollupKey] ?? ProviderAccumulator(
                 providerID: point.providerID,
-                accountEmail: point.accountEmail)
+                accountEmail: point.accountEmail,
+                accountIdentityKey: point.accountIdentityKey,
+                accountIdentityKeys: point.accountIdentityKeys)
             acc.ingest(point)
             perProvider[rollupKey] = acc
 
@@ -360,7 +497,7 @@ enum CostLedgerService {
         activeDeviceIDs: Set<String>? = nil,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
-        try Self.pruneLedgerRowsMissingProviderSnapshots(in: context)
+        try self.pruneLedgerRowsMissingProviderSnapshots(in: context)
 
         let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
         if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
@@ -379,6 +516,7 @@ enum CostLedgerService {
     static func aggregateProvider(
         providerID: String,
         accountEmail: String?,
+        accountIdentityKey: String? = nil,
         windowDays: Int,
         in context: ModelContext,
         asOf: Date = Date(),
@@ -389,10 +527,14 @@ enum CostLedgerService {
             in: context,
             asOf: asOf,
             activeDeviceIDs: activeDeviceIDs)
-        let rollupKey = "\(providerID)|\(accountEmail ?? "_")"
+        let rollupKey = Self.rollupKey(
+            providerID: providerID,
+            accountIdentityKey: accountIdentityKey,
+            accountEmail: accountEmail)
         return full.providerRollups[rollupKey] ?? CostLedgerProviderRollup(
             providerID: providerID,
             accountEmail: accountEmail,
+            accountIdentityKey: accountIdentityKey,
             totalCostUSD: 0,
             totalTokens: 0,
             dailyPoints: [],
@@ -446,26 +588,31 @@ enum CostLedgerService {
     }
 
     static func hasBlobSeedClearTombstone(userDefaults: UserDefaults = .standard) -> Bool {
-        Self.blobSeedClearedAt(userDefaults: userDefaults) != nil
+        self.blobSeedClearedAt(userDefaults: userDefaults) != nil
     }
 
     static func blobSeedClearTombstoneDate(userDefaults: UserDefaults = .standard) -> Date? {
-        Self.blobSeedClearedAt(userDefaults: userDefaults)
+        self.blobSeedClearedAt(userDefaults: userDefaults)
     }
 
     static func deleteRows(
         deviceID: String,
         providerID: String,
         accountEmail: String?,
-        in context: ModelContext
-    ) throws {
+        accountRecordKey: String? = nil,
+        in context: ModelContext) throws
+    {
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate {
                 $0.deviceID == deviceID && $0.providerID == providerID
             })
         let rows = try context.fetch(descriptor)
         var didDelete = false
-        for row in rows where row.accountEmail == accountEmail {
+        for row in rows where Self.rowMatchesAccount(
+            row,
+            accountEmail: accountEmail,
+            accountRecordKey: accountRecordKey)
+        {
             context.delete(row)
             didDelete = true
         }
@@ -497,11 +644,20 @@ enum CostLedgerService {
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
+            let payload = row.providerPayloadData.flatMap {
+                try? decoder.decode(ProviderUsageSnapshot.self, from: $0)
+            }
+            let accountRecordKey = row.accountRecordKey ?? payload?.accountRecordKey
+            let accountIdentityKeys = payload.map(Self.accountIdentityKeys(for:))
+            let accountIdentityKey = accountIdentityKeys?.first
             for point in summary.daily {
                 try Self.upsertDayPoint(
                     deviceID: row.deviceID,
                     providerID: row.providerID,
                     accountEmail: row.accountEmail,
+                    accountRecordKey: accountRecordKey,
+                    accountIdentityKey: accountIdentityKey,
+                    accountIdentityKeys: accountIdentityKeys,
                     dayKey: point.dayKey,
                     costUSD: point.costUSD,
                     totalTokens: point.totalTokens,
@@ -523,9 +679,9 @@ enum CostLedgerService {
         in context: ModelContext,
         userDefaults: UserDefaults = .standard) throws
     {
-        try Self.seedFromExistingBlobs(
+        try self.seedFromExistingBlobs(
             in: context,
-            newerThan: Self.blobSeedClearedAt(userDefaults: userDefaults))
+            newerThan: self.blobSeedClearedAt(userDefaults: userDefaults))
     }
 
     private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
@@ -536,11 +692,16 @@ enum CostLedgerService {
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
+            let payload = row.providerPayloadData.flatMap {
+                try? decoder.decode(ProviderUsageSnapshot.self, from: $0)
+            }
+            let accountRecordKey = row.accountRecordKey ?? payload?.accountRecordKey
             for point in summary.daily {
                 let key = DailyCostPoint.makeCompositeKey(
                     deviceID: row.deviceID,
                     providerID: row.providerID,
                     accountEmail: row.accountEmail,
+                    accountRecordKey: accountRecordKey,
                     dayKey: point.dayKey)
                 let descriptor = FetchDescriptor<DailyCostPoint>(
                     predicate: #Predicate { $0.compositeKey == key })
@@ -555,8 +716,8 @@ enum CostLedgerService {
     }
 
     private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
-        let providerKeys = Set(
-            try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        let providerKeys = try Set(
+            context.fetch(FetchDescriptor<ProviderSnapshotModel>())
                 .map(\.compositeKey))
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
@@ -565,7 +726,8 @@ enum CostLedgerService {
             let providerKey = ProviderSnapshotModel.makeCompositeKey(
                 deviceID: row.deviceID,
                 providerID: row.providerID,
-                accountEmail: row.accountEmail)
+                accountEmail: row.accountEmail,
+                accountRecordKey: row.accountRecordKey)
             if !providerKeys.contains(providerKey) {
                 context.delete(row)
                 didDelete = true
@@ -583,6 +745,17 @@ enum CostLedgerService {
             return nil
         }
         return Date(timeIntervalSince1970: rawValue)
+    }
+
+    private static func rowMatchesAccount(
+        _ row: DailyCostPoint,
+        accountEmail: String?,
+        accountRecordKey: String?) -> Bool
+    {
+        if let accountRecordKey {
+            return row.accountRecordKey == accountRecordKey
+        }
+        return row.accountRecordKey == nil && row.accountEmail == accountEmail
     }
 
     // MARK: - Helpers
@@ -603,21 +776,104 @@ enum CostLedgerService {
 
     // MARK: - Private accumulators
 
+    private struct AccountGrouping {
+        let roots: [Int]
+        let identityKeysByRoot: [Int: [String]]
+        let preferredKeyByRoot: [Int: String]
+    }
+
+    private static func makeAccountGrouping(
+        rows: [DailyCostPoint],
+        decoder: JSONDecoder) -> AccountGrouping
+    {
+        var unionFind = LedgerUnionFind(count: rows.count)
+        var firstSeen: [String: Int] = [:]
+        let identities = rows.map { Self.accountIdentityKeys(for: $0, decoder: decoder) }
+        for (index, rowIdentities) in identities.enumerated() {
+            for identity in rowIdentities {
+                let scoped = "\(rows[index].providerID)|\(identity)"
+                if let prior = firstSeen[scoped] {
+                    unionFind.union(index, prior)
+                } else {
+                    firstSeen[scoped] = index
+                }
+            }
+        }
+
+        let roots = rows.indices.map { unionFind.find($0) }
+        var identitySets: [Int: Set<String>] = [:]
+        var preferredRows: [Int: DailyCostPoint] = [:]
+        for index in rows.indices {
+            let root = roots[index]
+            identitySets[root, default: []].formUnion(identities[index])
+            if rows[index].accountIdentityKey != nil,
+               preferredRows[root].map({ $0.lastUpdated < rows[index].lastUpdated }) ?? true
+            {
+                preferredRows[root] = rows[index]
+            }
+        }
+        return AccountGrouping(
+            roots: roots,
+            identityKeysByRoot: identitySets.mapValues { $0.sorted() },
+            preferredKeyByRoot: preferredRows.compactMapValues(\.accountIdentityKey))
+    }
+
+    private static func accountIdentityKeys(
+        for row: DailyCostPoint,
+        decoder: JSONDecoder) -> [String]
+    {
+        if let data = row.accountIdentitiesData,
+           let decoded = try? decoder.decode([String].self, from: data),
+           !decoded.isEmpty
+        {
+            return decoded
+        }
+        if let key = row.accountIdentityKey, !key.isEmpty {
+            return [key]
+        }
+        if let normalized = AccountIdentityNormalize.normalize(row.accountEmail) {
+            return ["\(row.providerID):email:\(normalized)"]
+        }
+        if let recordKey = row.accountRecordKey, !recordKey.isEmpty {
+            return ["\(row.providerID):record:\(recordKey)"]
+        }
+        return ["\(row.providerID):legacy-no-identity"]
+    }
+
+    private struct LedgerUnionFind {
+        var parent: [Int]
+
+        init(count: Int) {
+            self.parent = Array(0..<count)
+        }
+
+        mutating func find(_ value: Int) -> Int {
+            if self.parent[value] != value {
+                self.parent[value] = self.find(self.parent[value])
+            }
+            return self.parent[value]
+        }
+
+        mutating func union(_ lhs: Int, _ rhs: Int) {
+            let leftRoot = self.find(lhs)
+            let rightRoot = self.find(rhs)
+            if leftRoot != rightRoot {
+                self.parent[rightRoot] = leftRoot
+            }
+        }
+    }
+
     private struct LedgerGroupKey: Hashable {
         let providerID: String
-        let accountEmail: String?
+        let accountGroup: Int
         let dayKey: String
-
-        init(row: DailyCostPoint) {
-            self.providerID = row.providerID
-            self.accountEmail = row.accountEmail
-            self.dayKey = row.dayKey
-        }
     }
 
     private struct AggregatedDailyCostPoint {
         let providerID: String
         let accountEmail: String?
+        let accountIdentityKey: String?
+        let accountIdentityKeys: [String]
         let dayKey: String
         let costUSD: Double
         let totalTokens: Int
@@ -625,9 +881,16 @@ enum CostLedgerService {
         let modelBreakdowns: [SyncCostBreakdown]
         let serviceBreakdowns: [SyncCostBreakdown]
 
-        init(row: DailyCostPoint, decoder: JSONDecoder) {
+        init(
+            row: DailyCostPoint,
+            accountIdentityKey: String?,
+            accountIdentityKeys: [String],
+            decoder: JSONDecoder)
+        {
             self.providerID = row.providerID
             self.accountEmail = row.accountEmail
+            self.accountIdentityKey = accountIdentityKey
+            self.accountIdentityKeys = accountIdentityKeys
             self.dayKey = row.dayKey
             self.costUSD = row.costUSD
             self.totalTokens = row.totalTokens
@@ -638,16 +901,24 @@ enum CostLedgerService {
 
         static func mergingLocalCostRows(
             _ rows: [DailyCostPoint],
-            decoder: JSONDecoder
-        ) -> AggregatedDailyCostPoint? {
+            accountIdentityKey: String?,
+            accountIdentityKeys: [String],
+            decoder: JSONDecoder) -> AggregatedDailyCostPoint?
+        {
             guard let first = rows.first else { return nil }
             var dayAccumulator = DayAccumulator(dayKey: first.dayKey)
             for row in rows {
-                dayAccumulator.ingest(AggregatedDailyCostPoint(row: row, decoder: decoder))
+                dayAccumulator.ingest(AggregatedDailyCostPoint(
+                    row: row,
+                    accountIdentityKey: accountIdentityKey,
+                    accountIdentityKeys: accountIdentityKeys,
+                    decoder: decoder))
             }
             return AggregatedDailyCostPoint(
                 providerID: first.providerID,
                 accountEmail: first.accountEmail,
+                accountIdentityKey: accountIdentityKey,
+                accountIdentityKeys: accountIdentityKeys,
                 dayKey: first.dayKey,
                 costUSD: dayAccumulator.costUSD,
                 totalTokens: dayAccumulator.totalTokens,
@@ -659,6 +930,8 @@ enum CostLedgerService {
         private init(
             providerID: String,
             accountEmail: String?,
+            accountIdentityKey: String?,
+            accountIdentityKeys: [String],
             dayKey: String,
             costUSD: Double,
             totalTokens: Int,
@@ -668,6 +941,8 @@ enum CostLedgerService {
         {
             self.providerID = providerID
             self.accountEmail = accountEmail
+            self.accountIdentityKey = accountIdentityKey
+            self.accountIdentityKeys = accountIdentityKeys
             self.dayKey = dayKey
             self.costUSD = costUSD
             self.totalTokens = totalTokens
@@ -732,15 +1007,24 @@ enum CostLedgerService {
     private struct ProviderAccumulator {
         let providerID: String
         let accountEmail: String?
+        let accountIdentityKey: String?
+        let accountIdentityKeys: [String]
         var costUSD: Double = 0
         var totalTokens: Int = 0
         var perDay: [String: DayAccumulator] = [:]
         var perModel: [String: CostBreakdownAccumulator] = [:]
         var perService: [String: CostBreakdownAccumulator] = [:]
 
-        init(providerID: String, accountEmail: String?) {
+        init(
+            providerID: String,
+            accountEmail: String?,
+            accountIdentityKey: String?,
+            accountIdentityKeys: [String])
+        {
             self.providerID = providerID
             self.accountEmail = accountEmail
+            self.accountIdentityKey = accountIdentityKey
+            self.accountIdentityKeys = accountIdentityKeys
         }
 
         mutating func ingest(_ point: AggregatedDailyCostPoint) {
@@ -759,6 +1043,8 @@ enum CostLedgerService {
             CostLedgerProviderRollup(
                 providerID: self.providerID,
                 accountEmail: self.accountEmail,
+                accountIdentityKey: self.accountIdentityKey,
+                accountIdentityKeys: self.accountIdentityKeys,
                 totalCostUSD: self.costUSD,
                 totalTokens: self.totalTokens,
                 dailyPoints: self.perDay
@@ -821,8 +1107,8 @@ enum CostLedgerService {
     }
 }
 
-private extension Array where Element == SyncCostBreakdown {
-    func sortedByCostThenName() -> [SyncCostBreakdown] {
+extension [SyncCostBreakdown] {
+    fileprivate func sortedByCostThenName() -> [SyncCostBreakdown] {
         self.sorted { lhs, rhs in
             if lhs.costUSD == rhs.costUSD {
                 return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending

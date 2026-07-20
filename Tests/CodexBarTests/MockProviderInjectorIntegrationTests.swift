@@ -74,7 +74,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR2 Extensibility / determinism
 
     @Test
-    func `MR2.1: enabled count is exactly 69 (59 IDs, 6 rich + 61 simple + 2 fallback entries)`() {
+    func `MR2.1: enabled count is exactly 77 (67 IDs, 6 rich + 69 simple + 2 fallback entries)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
@@ -86,7 +86,8 @@ struct MockProviderInjectorIntegrationTests {
         // alibabatokenplan, t3chat) → 60. iOS 1.12.0 adds Devin → 61.
         // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed → 65.
         // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter → 69.
-        #expect(MockProviderInjector.allMocks().count == 69)
+        // iOS 1.19.0 adds eight v0.42-v0.45 provider snapshots → 77.
+        #expect(MockProviderInjector.allMocks().count == 77)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
@@ -94,7 +95,7 @@ struct MockProviderInjectorIntegrationTests {
     /// entry), so unique providerID count only changes when a new real
     /// provider is appended.
     @Test
-    func `MR2.2: 59 distinct providerIDs match the published allowlists (57 real + 2 synthetic)`() {
+    func `MR2.2: 67 distinct providerIDs match the published allowlists`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -109,9 +110,10 @@ struct MockProviderInjectorIntegrationTests {
         // then v0.36 added four more first-class provider IDs, and
         // v0.38/v0.39 added four more.
         #expect(
-            uniqueIDs.count == 59,
-            "should be 59 distinct mock provider IDs (57 real + 2 synthetic; v0.39 added four)")
+            uniqueIDs.count == 67,
+            "should be 67 distinct mock provider IDs (63 current + 2 legacy + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
+            .union(MockProviderInjector.legacyCompatibilityProviderIDs)
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
         #expect(uniqueIDs == MockProviderInjector.allMockProviderIDs)
@@ -159,7 +161,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR3 SyncCoordinator integration
 
     @Test
-    func `MR3.1: enabled mock causes 52 mock providers in lastSnapshot`() async throws {
+    func `MR3.1: enabled mock causes 77 mock providers in lastSnapshot`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-1-Enable")
@@ -183,7 +185,8 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.12.0: +1 v0.34.0 → 61.
         // iOS 1.13.0: +4 v0.36.0/v0.36.1 → 65.
         // iOS 1.17.0: +4 v0.38/v0.39 → 69.
-        #expect(mockProviders.count == 69)
+        // iOS 1.19.0: +8 v0.42-v0.45 providers → 77.
+        #expect(mockProviders.count == 77)
     }
 
     @Test
@@ -226,17 +229,17 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        // All 69 mocks must reach the per-provider write path. Ollama
+        // All 77 mocks must reach the per-provider write path. Ollama
         // gets a synthetic 0% "Local inference" rate window (despite
         // having no real quota in production) specifically to avoid
         // ghost-filter drop. Per Codex MCP review feedback (R2 audit):
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        // iOS 1.8/1.9/1.12/1.13/1.17: 45 → 57 → 60 → 61 → 65 → 69.
+        // iOS 1.8/1.9/1.12/1.13/1.17/1.19: 45 → 57 → 60 → 61 → 65 → 69 → 77.
         #expect(
-            mockEnvelopes.count == 69,
-            "iOS 1.17.0 expects 69 mock envelopes, including four v0.38/v0.39 providers.")
+            mockEnvelopes.count == 77,
+            "iOS 1.19.0 expects all 77 mock envelopes, including typed-only Wayfinder usage.")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -350,7 +353,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 69, "69 mock providers also emit")
+        #expect(mockProviders.count == 77, "77 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -361,18 +364,19 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR4 Mock + real coexistence
 
     @Test
-    func `MR4.1: every mock providerID is in either real-borrowed or synthetic allowlist`() {
+    func `MR4.1: every mock providerID is in a current, legacy, or synthetic allowlist`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
+        let legacy = MockProviderInjector.legacyCompatibilityProviderIDs
         let synthetic = MockProviderInjector.syntheticProviderIDs
-        let allowed = realBorrowed.union(synthetic)
+        let allowed = realBorrowed.union(legacy).union(synthetic)
         let mockIDs = Set(snapshots.map(\.providerID))
         let unexpected = mockIDs.subtracting(allowed)
         #expect(
             mockIDs.isSubset(of: allowed),
-            "mock providerIDs must be within real-borrowed ∪ synthetic; unexpected: \(unexpected)")
+            "mock providerIDs must be within current, legacy, or synthetic allowlists; unexpected: \(unexpected)")
         // Real-borrowed IDs MUST also be valid UsageProvider entries —
         // otherwise we'd "borrow" a real ID that doesn't exist in the
         // provider catalog and iOS would still fall back to unknown
@@ -707,7 +711,7 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 69 mocks total; 12 intentionally have nil costSummary:
+        // 77 mocks total; 17 intentionally have nil costSummary:
         // _mock_cursor_unknown (error), _mock_synthetic_unknown (budget-
         // only), antigravity-balance (preview), antigravity-team (Phase G,
         // also preview/no-billing → thirtyDayCostUSD: 0 deliberately;
@@ -716,9 +720,10 @@ struct MockProviderInjectorIntegrationTests {
         // $0/$0 cost — usage is character count, not USD spend), and the
         // 3 v0.28+v0.29 providers azureopenai / alibabatokenplan / t3chat
         // (quota/subscription based, no USD spend), Poe (points-based),
-        // and Sakana/Qoder (quota/credit based, no USD spend).
-        // Remaining 57 carry cost data.
-        #expect(withCost.count == 57, "expected 57 mocks with cost data; got \(withCost.count)")
+        // Sakana/Qoder (quota/credit based, no USD spend), and five
+        // v0.42-v0.45 providers: ClinePass, Neuralwatt, LongCat,
+        // Wayfinder, and ZenMux. Remaining 60 carry cost data.
+        #expect(withCost.count == 60, "expected 60 mocks with cost data; got \(withCost.count)")
     }
 
     @Test

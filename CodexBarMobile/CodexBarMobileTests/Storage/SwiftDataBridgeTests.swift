@@ -6,7 +6,6 @@ import Testing
 
 @Suite("SwiftDataBridge Tests")
 struct SwiftDataBridgeTests {
-
     // MARK: - Fixtures
 
     private func makeContainer() -> ModelContainer {
@@ -32,8 +31,9 @@ struct SwiftDataBridgeTests {
         subscriptionExpiresAt: Date? = nil,
         subscriptionRenewsAt: Date? = nil,
         accountIdentities: [String]? = nil,
-        quotaWarnings: SyncQuotaWarningConfig? = nil
-    ) -> ProviderUsageSnapshot {
+        accountRecordKey: String? = nil,
+        quotaWarnings: SyncQuotaWarningConfig? = nil) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -50,15 +50,16 @@ struct SwiftDataBridgeTests {
             rateWindows: [],
             utilizationHistory: utilization,
             accountIdentities: accountIdentities,
-            quotaWarnings: quotaWarnings)
+            quotaWarnings: quotaWarnings,
+            accountRecordKey: accountRecordKey)
     }
 
     private func makeSnapshot(
         deviceID: String?,
         deviceName: String = "Mac",
         providers: [ProviderUsageSnapshot],
-        timestamp: Date
-    ) -> SyncedUsageSnapshot {
+        timestamp: Date) -> SyncedUsageSnapshot
+    {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp,
@@ -69,8 +70,8 @@ struct SwiftDataBridgeTests {
 
     // MARK: - Tests
 
-    @Test("Upserting the same snapshot twice does not duplicate rows")
-    func testUpsertIdempotency() throws {
+    @Test
+    func `Upserting the same snapshot twice does not duplicate rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -88,8 +89,8 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
     }
 
-    @Test("Two devices with the same provider produce two distinct rows")
-    func testMultiDeviceInsert() throws {
+    @Test
+    func `Two devices with the same provider produce two distinct rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -114,8 +115,8 @@ struct SwiftDataBridgeTests {
         #expect(deviceIDs == Set(["device-A", "device-B"]))
     }
 
-    @Test("Utilization entries dedup on (seriesName, capturedAt)")
-    func testUtilizationEntryDedup() throws {
+    @Test
+    func `Utilization entries dedup on (seriesName, capturedAt)`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -141,8 +142,8 @@ struct SwiftDataBridgeTests {
         #expect(entries.first?.usedPercent == 42.0)
     }
 
-    @Test("Updating a provider field is reflected on the existing row")
-    func testUpsertUpdatesInPlace() throws {
+    @Test
+    func `Updating a provider field is reflected on the existing row`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -164,8 +165,8 @@ struct SwiftDataBridgeTests {
         #expect(providers.first?.lastUpdated == self.ts2)
     }
 
-    @Test("Incremental cache mirror prunes filtered providers and their ledger rows")
-    func testIncrementalCacheMirrorPrunesMissingProvidersAndLedgerRows() throws {
+    @Test
+    func `Incremental cache mirror prunes filtered providers and their ledger rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -231,8 +232,8 @@ struct SwiftDataBridgeTests {
         #expect(ledgerRows.first?.providerID == "codex")
     }
 
-    @Test("Incremental cache mirror preserves devices absent from the refresh")
-    func testIncrementalCacheMirrorDoesNotPruneMissingDevices() throws {
+    @Test
+    func `Incremental cache mirror preserves devices absent from the refresh`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -260,8 +261,8 @@ struct SwiftDataBridgeTests {
         #expect(Set(providers.map(\.deviceID)) == ["device-A", "device-B"])
     }
 
-    @Test("Incremental cache mirror applies explicit deletes outside included devices")
-    func testIncrementalUpsertDeletesExplicitProviderRecords() throws {
+    @Test
+    func `Incremental cache mirror applies explicit deletes outside included devices`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -323,8 +324,85 @@ struct SwiftDataBridgeTests {
         #expect(ledgerRows.first?.providerID == "codex")
     }
 
-    @Test("Full upsert prunes missing providers and their ledger rows")
-    func testFullUpsertPrunesMissingProvidersAndLedgerRows() throws {
+    @Test
+    func `Identity upgrade rekeys long ledger history before same-delta legacy delete`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let emailLabel = "Duplicate | label"
+        let recordKey = "token-1234"
+        let currentDay = SyncDailyPoint(
+            dayKey: "2026-05-28", costUSD: 2, totalTokens: 200,
+            modelBreakdowns: [], serviceBreakdowns: [], isEstimated: false)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil, sessionTokens: nil,
+            last30DaysCostUSD: 2, last30DaysTokens: 200,
+            daily: [currentDay], isEstimated: false)
+
+        let legacy = self.makeProvider(
+            id: "claude", name: "Claude", email: emailLabel,
+            lastUpdated: self.ts1, costSummary: summary)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-A", providers: [legacy], timestamp: self.ts1)],
+            into: context)
+        try CostLedgerService.upsertFromSnapshot(legacy, deviceID: "device-A", in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "device-A", providerID: "claude", accountEmail: emailLabel,
+            dayKey: "2026-01-01", costUSD: 9, totalTokens: 900,
+            isEstimated: false, modelBreakdowns: [], serviceBreakdowns: [],
+            lastUpdated: self.ts1, in: context)
+        try context.save()
+
+        let upgraded = self.makeProvider(
+            id: "claude", name: "Claude", email: emailLabel,
+            lastUpdated: self.ts2, costSummary: summary,
+            accountIdentities: ["claude:record:\(recordKey)"],
+            accountRecordKey: recordKey)
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-A", providers: [upgraded], timestamp: self.ts2)],
+            deletedRecordNames: ["device-A|claude|\(emailLabel)"],
+            into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 1)
+        #expect(providers.first?.accountRecordKey == recordKey)
+        #expect(providers.first?.compositeKey == "device-A|claude|\(recordKey)")
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        #expect(rows.allSatisfy { $0.accountRecordKey == recordKey })
+        #expect(rows.contains { $0.dayKey == "2026-01-01" && $0.costUSD == 9 })
+    }
+
+    @Test
+    func `Legacy record deletion accepts an identity containing delimiters`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let emailLabel = "Duplicate | label"
+        let legacy = self.makeProvider(
+            id: "claude", name: "Claude", email: emailLabel,
+            lastUpdated: self.ts1)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-A", providers: [legacy], timestamp: self.ts1)],
+            into: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "device-A", providerID: "claude", accountEmail: emailLabel,
+            dayKey: "2026-01-01", costUSD: 1, totalTokens: 10,
+            isEstimated: false, modelBreakdowns: [], serviceBreakdowns: [],
+            lastUpdated: self.ts1, in: context)
+        try context.save()
+
+        try SwiftDataBridge.deleteProviderRecords(
+            named: ["device-A|claude|\(emailLabel)"], from: context)
+
+        #expect(try context.fetch(FetchDescriptor<ProviderSnapshotModel>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+    }
+
+    @Test
+    func `Full upsert prunes missing providers and their ledger rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -384,8 +462,8 @@ struct SwiftDataBridgeTests {
         #expect(ledgerRows.first?.providerID == "codex")
     }
 
-    @Test("Subscription metadata survives SwiftData bridge round-trip")
-    func testSubscriptionMetadataRoundTrip() throws {
+    @Test
+    func `Subscription metadata survives SwiftData bridge round-trip`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
         let expiresAt = Date(timeIntervalSince1970: 1_801_000_000)
@@ -408,8 +486,8 @@ struct SwiftDataBridgeTests {
         #expect(decodedProvider.subscriptionRenewsAt == renewsAt)
     }
 
-    @Test("Rich provider payload survives SwiftData bridge round-trip")
-    func testRichProviderPayloadRoundTrip() throws {
+    @Test
+    func `Rich provider payload survives SwiftData bridge round-trip`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
         let quotaWarnings = SyncQuotaWarningConfig(
@@ -435,8 +513,8 @@ struct SwiftDataBridgeTests {
         #expect(decodedProvider.quotaWarnings == quotaWarnings)
     }
 
-    @Test("Snapshots without deviceID map to a deterministic fallback row")
-    func testLegacySnapshotFallbackDeviceID() throws {
+    @Test
+    func `Snapshots without deviceID map to a deterministic fallback row`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -455,8 +533,8 @@ struct SwiftDataBridgeTests {
         #expect(devices.first?.deviceID.hasPrefix("legacy:") == true)
     }
 
-    @Test("Utilization entries aged out upstream are pruned locally")
-    func testUtilizationEntriesPruned() throws {
+    @Test
+    func `Utilization entries aged out upstream are pruned locally`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -488,6 +566,7 @@ struct SwiftDataBridgeTests {
     }
 
     // MARK: - Realistic-distribution fixtures (Build 83 · Agent C)
+
     //
     // Round 3 of the 5-round audit flagged SwiftDataBridge's Storage layer
     // as under-tested on production-shaped data. These 3 tests exercise
@@ -495,8 +574,8 @@ struct SwiftDataBridgeTests {
     // (2) two entries straddling a session reset in the same clock hour,
     // (3) multi-account same provider.
 
-    @Test("Upsert survives all-zero 720-entry utilization roundtrip without dropping entries")
-    func realisticAllZeroUtilizationRoundtrip() throws {
+    @Test
+    func `Upsert survives all-zero 720-entry utilization roundtrip without dropping entries`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -517,8 +596,8 @@ struct SwiftDataBridgeTests {
         #expect(entries.allSatisfy { $0.usedPercent == 0 })
     }
 
-    @Test("Cross-reset boundary entries in same clock hour don't collide in SwiftData")
-    func realisticCrossResetBoundaryPreservedInStorage() throws {
+    @Test
+    func `Cross-reset boundary entries in same clock hour don't collide in SwiftData`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -544,8 +623,8 @@ struct SwiftDataBridgeTests {
         #expect(percents == [90, 5])
     }
 
-    @Test("Multi-account same provider persists as two distinct rows")
-    func realisticMultiAccountSameProviderPreserved() throws {
+    @Test
+    func `Multi-account same provider persists as two distinct rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 

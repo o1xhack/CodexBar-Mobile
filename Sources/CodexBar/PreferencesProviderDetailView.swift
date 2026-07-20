@@ -104,6 +104,14 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         return (label: L("Balance"), value: rawPlan)
     }
 
+    private var menuBarSettingsPickers: [ProviderSettingsPickerDescriptor] {
+        self.settingsPickers.filter { $0.placement == .menuBar }
+    }
+
+    private var connectionSettingsPickers: [ProviderSettingsPickerDescriptor] {
+        self.settingsPickers.filter { $0.placement == .connection }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -126,7 +134,8 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                     provider: self.provider,
                     model: self.model,
                     openAIWebDiagnostic: self.openAIWebDiagnostic,
-                    isEnabled: self.isEnabled)
+                    isEnabled: self.isEnabled,
+                    isRefreshing: self.store.refreshingProviders.contains(self.provider))
             } header: {
                 Text(L("Usage"))
             }
@@ -143,16 +152,26 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                 }
             }
 
-            if !self.settingsPickers.isEmpty || !self.settingsActions.isEmpty {
+            if !self.menuBarSettingsPickers.isEmpty {
                 Section {
-                    ForEach(self.settingsPickers) { picker in
+                    ForEach(self.menuBarSettingsPickers) { picker in
+                        ProviderSettingsPickerRowView(picker: picker)
+                    }
+                } header: {
+                    Text(L("provider_section_menu_bar"))
+                }
+            }
+
+            if !self.connectionSettingsPickers.isEmpty || !self.settingsActions.isEmpty {
+                Section {
+                    ForEach(self.connectionSettingsPickers) { picker in
                         ProviderSettingsPickerRowView(picker: picker)
                     }
                     ForEach(self.settingsActions) { descriptor in
                         ProviderSettingsActionsRowView(descriptor: descriptor)
                     }
                 } header: {
-                    Text(L("Settings"))
+                    Text(L("provider_section_connection"))
                 }
             }
 
@@ -332,6 +351,7 @@ struct ProviderMetricsInlineView: View {
     let model: UsageMenuCardView.Model
     let openAIWebDiagnostic: String?
     let isEnabled: Bool
+    let isRefreshing: Bool
 
     struct InfoRow: Identifiable, Equatable {
         enum ID: Hashable {
@@ -405,17 +425,36 @@ struct ProviderMetricsInlineView: View {
             }
 
             if let tokenUsage = self.model.tokenUsage {
-                ProviderMetricInlineTextRow(title: L("Cost"), value: tokenUsage.sessionLine)
+                ProviderMetricInlineTextRow(
+                    title: L("Cost"),
+                    value: tokenUsage.sessionLine)
                 ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
+                if self.model.provider == .codex, let hint = tokenUsage.hintLine, !hint.isEmpty {
+                    ProviderMetricInlineTextRow(title: "", value: hint)
+                }
             }
         }
     }
 
     private var placeholderText: String {
-        if !self.isEnabled {
+        Self.placeholderText(
+            isEnabled: self.isEnabled,
+            isRefreshing: self.isRefreshing,
+            modelPlaceholder: self.model.placeholder)
+    }
+
+    static func placeholderText(
+        isEnabled: Bool,
+        isRefreshing: Bool,
+        modelPlaceholder: String?) -> String
+    {
+        if !isEnabled {
             return L("Disabled — no recent data")
         }
-        return self.model.placeholder.map(L) ?? L("No usage yet")
+        if isRefreshing {
+            return L("Refreshing")
+        }
+        return modelPlaceholder.map(L) ?? L("No usage yet")
     }
 }
 

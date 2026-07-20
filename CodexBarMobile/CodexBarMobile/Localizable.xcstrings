@@ -19485,7 +19485,169 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "错误：%@" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "錯誤：%@" } }
       }
-    }
+    },
+    "v045_account_summary_title": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Account summary" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "アカウント概要" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户概览" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "帳戶概覽" } }
+    } },
+    "v045_balance_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "餘額" } }
+    } },
+    "v045_today_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Today" } }, "ja": { "stringUnit": { "state": "translated", "value": "今日" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "今天" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "今天" } }
+    } },
+    "v045_total_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Total" } }, "ja": { "stringUnit": { "state": "translated", "value": "合計" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "累计" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "累計" } }
+    } },
+    "v045_mode_subscription": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Subscription" } }, "ja": { "stringUnit": { "state": "translated", "value": "サブスクリプション" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "订阅" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "訂閱" } }
+    } },
+    "v045_mode_key_quota": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Key quota" } }, "ja": { "stringUnit": { "state": "translated", "value": "キー上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "密钥额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "金鑰額度" } }
+    } },
+    "v045_mode_wallet": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Wallet" } }, "ja": { "stringUnit": { "state": "translated", "value": "ウォレット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "钱包" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "錢包" } }
+    } },
+    "v045_mode_account": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Account" } }, "ja": { "stringUnit": { "state": "translated", "value": "アカウント" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "账户" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "帳戶" } }
+    } },
+    "v045_usage_totals_format": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "%1$lld requests · %2$@ tokens · %3$@" } }, "ja": { "stringUnit": { "state": "translated", "value": "%1$lld リクエスト · %2$@ トークン · %3$@" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld 次请求 · %2$@ 个令牌 · %3$@" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld 次請求 · %2$@ 個權杖 · %3$@" } }
+    } },
+    "v045_routing_summary_title": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Routing summary" } }, "ja": { "stringUnit": { "state": "translated", "value": "ルーティング概要" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "路由概览" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "路由概覽" } }
+    } },
+    "v045_models_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Models" } }, "ja": { "stringUnit": { "state": "translated", "value": "モデル" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "模型" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "模型" } }
+    } },
+    "v045_requests_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Requests" } }, "ja": { "stringUnit": { "state": "translated", "value": "リクエスト" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "请求" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "請求" } }
+    } },
+    "v045_tokens_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Tokens" } }, "ja": { "stringUnit": { "state": "translated", "value": "トークン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "令牌" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "權杖" } }
+    } },
+    "v045_saved_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Saved" } }, "ja": { "stringUnit": { "state": "translated", "value": "節約" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已节省" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "已節省" } }
+    } },
+    "v045_average_decision_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Average decision" } }, "ja": { "stringUnit": { "state": "translated", "value": "平均判定時間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "平均决策时间" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "平均決策時間" } }
+    } },
+    "v045_routes_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Routes" } }, "ja": { "stringUnit": { "state": "translated", "value": "ルート" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "路由" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "路由" } }
+    } },
+    "v045_route_totals_format": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "%1$lld requests · %2$@ tokens" } }, "ja": { "stringUnit": { "state": "translated", "value": "%1$lld リクエスト · %2$@ トークン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld 次请求 · %2$@ 个令牌" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld 次請求 · %2$@ 個權杖" } }
+    } },
+    "v045_status_offline": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Offline" } }, "ja": { "stringUnit": { "state": "translated", "value": "オフライン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "离线" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "離線" } }
+    } },
+    "v045_status_dry_run": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Dry run" } }, "ja": { "stringUnit": { "state": "translated", "value": "試行モード" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "试运行" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "試執行" } }
+    } },
+    "v045_status_attention": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Attention" } }, "ja": { "stringUnit": { "state": "translated", "value": "要確認" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要注意" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "需要注意" } }
+    } },
+    "v045_status_active": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Active" } }, "ja": { "stringUnit": { "state": "translated", "value": "稼働中" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "运行中" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "執行中" } }
+    } },
+    "v045_amount_balance_title": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "餘額" } }
+    } },
+    "v045_amount_spend_title": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "API 利用額" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 支出" } }
+    } },
+    "v045_estimated_label": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Estimated" } }, "ja": { "stringUnit": { "state": "translated", "value": "推定値" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "估算值" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "估算值" } }
+    } },
+    "v045_window_daily": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily" } }, "ja": { "stringUnit": { "state": "translated", "value": "日次" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日" } }
+    } },
+    "v045_window_weekly": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Weekly" } }, "ja": { "stringUnit": { "state": "translated", "value": "週次" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每周" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每週" } }
+    } },
+    "v045_window_monthly": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Monthly" } }, "ja": { "stringUnit": { "state": "translated", "value": "月次" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每月" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每月" } }
+    } },
+    "v045_window_additional": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Additional" } }, "ja": { "stringUnit": { "state": "translated", "value": "追加" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "其他" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "其他" } }
+    } },
+    "v045_window_5_hour_limit": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "5-hour limit" } }, "ja": { "stringUnit": { "state": "translated", "value": "5時間上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "5 小时额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "5 小時額度" } }
+    } },
+    "v045_window_daily_limit": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily limit" } }, "ja": { "stringUnit": { "state": "translated", "value": "1日上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日額度" } }
+    } },
+    "v045_window_7_day_limit": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "7-day limit" } }, "ja": { "stringUnit": { "state": "translated", "value": "7日間上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "7 天额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "7 天額度" } }
+    } },
+    "v045_window_designs": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Designs" } }, "ja": { "stringUnit": { "state": "translated", "value": "デザイン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "设计" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "設計" } }
+    } },
+    "v045_window_daily_routines": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily routines" } }, "ja": { "stringUnit": { "state": "translated", "value": "デイリールーチン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日例程" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日例程" } }
+    } },
+    "v045_window_web_sonnet": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Web Sonnet" } }, "ja": { "stringUnit": { "state": "translated", "value": "Web Sonnet" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "网页端 Sonnet" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "網頁端 Sonnet" } }
+    } },
+    "v045_window_extra_usage": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Extra usage" } }, "ja": { "stringUnit": { "state": "translated", "value": "追加使用量" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额外用量" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額外用量" } }
+    } },
+    "v045_window_model_only_format": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "%@ only" } }, "ja": { "stringUnit": { "state": "translated", "value": "%@ のみ" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅 %@" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "僅 %@" } }
+    } },
+    "v045_period_last_30_days": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Last 30 days" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "过去 30 天" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "過去 30 天" } }
+    } },
+    "v045_period_last_30_days_partial": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Last 30 days (partial)" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間（一部）" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "过去 30 天（部分数据）" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "過去 30 天（部分資料）" } }
+    } },
+    "v045_period_neuralwatt_prepaid": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Neuralwatt prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "Neuralwatt プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Neuralwatt 预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "Neuralwatt 預付餘額" } }
+    } },
+    "v045_period_zenmux_payg": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "ZenMux PAYG balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "ZenMux PAYG 残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "ZenMux PAYG 余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "ZenMux PAYG 餘額" } }
+    } },
+    "v045_period_prepaid_balance": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
+    } },
+    "iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 は 8 つのプロバイダー、より詳しいアカウント情報、最新の CodexBar Mac 改善を追加します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 个提供商、更丰富的账户详情，以及最新版 CodexBar Mac 改进。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 個提供者、更豐富的帳戶詳情，以及最新版 CodexBar Mac 改進。" } }
+    } },
+    "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "8 つのプロバイダーを追加 — ClinePass、DeepInfra、Neuralwatt、LongCat、sub2api、Wayfinder、ZenMux、ai& が専用カラーと詳細ページに対応し、利用可能な場合は上限通知も表示されます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "新增 8 个提供商——ClinePass、DeepInfra、Neuralwatt、LongCat、sub2api、Wayfinder、ZenMux 和 ai& 现在拥有各自的颜色和详情页，并在支持时提供额度提醒。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "新增 8 個提供者——ClinePass、DeepInfra、Neuralwatt、LongCat、sub2api、Wayfinder、ZenMux 和 ai& 現在擁有各自的顏色和詳情頁，並在支援時提供額度提醒。" } }
+    } },
+    "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より詳しい情報 — sub2api はアカウント残高とリクエスト集計を、Wayfinder はルーティング状況と節約額を表示します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的详情——sub2api 显示账户余额和请求总计，Wayfinder 显示路由活动与节省金额。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的詳情——sub2api 顯示帳戶餘額和請求總計，Wayfinder 顯示路由活動與節省金額。" } }
+    } },
+    "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "上限表示を拡充 — プロバイダーが提供する月間および追加の上限も、日次・週次の上限と並んで表示されます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的额度展示——提供商支持时，月度和其他额度现在会与每日、每周额度一同保留显示。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的額度顯示——提供者支援時，月度和其他額度現在會與每日、每週額度一同保留顯示。" } }
+    } },
+    "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より高機能な Mac 版 — メニューバーのレイアウト編集、使用量予測、安全な更新操作に加え、プロバイダー、性能、セキュリティの最新修正を利用できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "功能更强的 Mac 端——可自定义菜单栏布局、查看用量预测、使用更安全的刷新控制，并获得最新的提供商、性能与安全修复。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "功能更強的 Mac 端——可自訂選單列佈局、查看用量預測、使用更安全的重新整理控制，並獲得最新的提供者、效能與安全修正。" } }
+    } },
+    "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.1 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
+    } }
   },
   "version": "1.0"
 }

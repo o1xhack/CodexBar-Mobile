@@ -1,0 +1,10 @@
+iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements.
+
+What's New
+* Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available.
+* More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings.
+* Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them.
+* A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes.
+
+Required Mac version
+For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions.

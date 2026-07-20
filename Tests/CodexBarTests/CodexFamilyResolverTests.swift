@@ -81,8 +81,8 @@ struct CodexFamilyResolverTests {
     // MARK: - Fallback against the live table
 
     @Test
-    func `Unknown gpt-5.6 (base) falls back to gpt-5.5 (Step 1)`() throws {
-        let parsed = try #require(Self.resolver.parse("gpt-5.6"))
+    func `Unknown gpt-5.7 (base) falls back to gpt-5.5 (Step 1)`() throws {
+        let parsed = try #require(Self.resolver.parse("gpt-5.7"))
         let fallback = Self.resolver.findFallback(
             for: parsed,
             in: CodexFamilyResolverTests.liveCodexTable())
@@ -139,9 +139,9 @@ struct CodexFamilyResolverTests {
     // MARK: - End-to-end integration via CostUsagePricing
 
     @Test
-    func `codexCostUSD returns non-nil for unknown gpt-5.6 (was $0 before)`() {
+    func `codexCostUSD returns non-nil for unknown gpt-5.7 (was $0 before)`() {
         let cost = CostUsagePricing.codexCostUSD(
-            model: "gpt-5.6",
+            model: "gpt-5.7",
             inputTokens: 1000,
             cachedInputTokens: 0,
             outputTokens: 100)
@@ -181,7 +181,8 @@ struct CodexFamilyResolverTests {
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.4-mini"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.3-codex-spark"))
-        #expect(!CostUsagePricing.isCodexModelKnown("gpt-5.6"))
+        #expect(CostUsagePricing.isCodexModelKnown("gpt-5.6"))
+        #expect(!CostUsagePricing.isCodexModelKnown("gpt-5.7"))
         #expect(!CostUsagePricing.isCodexModelKnown("gpt-5.5-turbo"))
         #expect(!CostUsagePricing.isCodexModelKnown("claude-opus-4-7"))
     }
@@ -218,6 +219,9 @@ struct CodexFamilyResolverTests {
             "gpt-5.4-pro": placeholder,
             "gpt-5.5": placeholder,
             "gpt-5.5-pro": placeholder,
+            "gpt-5.6-sol": placeholder,
+            "gpt-5.6-terra": placeholder,
+            "gpt-5.6-luna": placeholder,
         ]
     }
 }

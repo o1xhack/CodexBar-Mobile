@@ -68,7 +68,9 @@ extension MiMoUsageSnapshot {
 
         let planLabel: String? = {
             guard let planCode = self.planCode else { return nil }
-            return planCode.capitalized
+            // Local fallback summaries are already display-formatted; title-casing them corrupts compact units
+            // such as `1.5k` and `stale 34d`. API plan codes still use the normal title-cased presentation.
+            return includeBalance ? planCode.capitalized : planCode
         }()
 
         let identity = ProviderIdentitySnapshot(

@@ -50,12 +50,24 @@ public enum MiMoLocalUsageFallback {
         let weekTotal = Self.total(for: week)
         let todayTotal = Self.total(for: today)
         let allTotal = Self.total(for: allTime)
+        let updatedAt = Self.updatedAt(json: json, url: url, fallback: now)
 
         var parts = ["Local"]
-        if todayTotal > 0 { parts.append("\(Self.fmtTokens(todayTotal)) today") }
-        if weekTotal > 0 { parts.append("\(Self.fmtTokens(weekTotal)) week") }
-        if allTotal > 0 { parts.append("\(Self.fmtTokens(allTotal)) total") }
+        if todayTotal > 0 {
+            parts.append("\(Self.fmtTokens(todayTotal)) today")
+        }
+        if weekTotal > 0 {
+            parts.append("\(Self.fmtTokens(weekTotal)) week")
+        }
+        if allTotal > 0 {
+            parts.append("\(Self.fmtTokens(allTotal)) total")
+        }
         parts.append("\(sessionsScanned) sessions")
+        // The cache is only as fresh as the last `Scripts/mimo-usage.py` run; flag a
+        // frozen cache so the row is not misread as live accounting.
+        if let stale = Self.staleSuffix(updatedAt: updatedAt, now: now) {
+            parts.append(stale)
+        }
         let planCode = parts.joined(separator: " · ")
 
         return MiMoUsageSnapshot(
@@ -67,13 +79,38 @@ public enum MiMoLocalUsageFallback {
             tokenUsed: 0,
             tokenLimit: 0,
             tokenPercent: 0,
-            updatedAt: Self.updatedAt(json: json, url: url, fallback: now))
+            updatedAt: updatedAt)
     }
 
     private static func fmtTokens(_ n: Int) -> String {
-        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
-        if n >= 1000 { return String(format: "%.1fk", Double(n) / 1000) }
+        if n >= 1_000_000 {
+            return String(format: "%.1fM", Double(n) / 1_000_000)
+        }
+        if n >= 1000 {
+            return String(format: "%.1fk", Double(n) / 1000)
+        }
         return "\(n)"
+    }
+
+    /// Local usage is only as fresh as the last `Scripts/mimo-usage.py` run (typically a
+    /// LaunchAgent). If the cache has not refreshed within this window its numbers are
+    /// effectively frozen and should be labelled stale.
+    static let staleThreshold: TimeInterval = 12 * 60 * 60
+
+    /// Returns e.g. `stale 34d` when the cache is older than `staleThreshold`, else nil.
+    private static func staleSuffix(updatedAt: Date, now: Date) -> String? {
+        let age = now.timeIntervalSince(updatedAt)
+        guard age > Self.staleThreshold else { return nil }
+        return "stale \(Self.fmtAge(age))"
+    }
+
+    private static func fmtAge(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        let day = 86400, hour = 3600
+        if total >= day {
+            return "\(total / day)d"
+        }
+        return "\(max(1, total / hour))h"
     }
 
     private static func total(for window: [String: Any]) -> Int {
@@ -84,7 +121,9 @@ public enum MiMoLocalUsageFallback {
     }
 
     private static func intValue(_ raw: Any?) -> Int {
-        if let i = raw as? Int { return max(0, i) }
+        if let i = raw as? Int {
+            return max(0, i)
+        }
         if let d = raw as? Double,
            d.isFinite,
            d >= 0,
@@ -92,7 +131,9 @@ public enum MiMoLocalUsageFallback {
         {
             return Int(d)
         }
-        if let s = raw as? String, let i = Int(s) { return max(0, i) }
+        if let s = raw as? String, let i = Int(s) {
+            return max(0, i)
+        }
         return 0
     }
 

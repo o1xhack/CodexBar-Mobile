@@ -75,17 +75,19 @@ struct SyncCoordinatorMultiAccountTests {
         provider: UsageProvider,
         accountLabel: String,
         accountEmail: String,
+        account: ProviderTokenAccount? = nil,
         usedPercent: Double = 25.0) -> TokenAccountUsageSnapshot
     {
         TokenAccountUsageSnapshot(
-            account: self.makeTokenAccount(
+            account: account ?? self.makeTokenAccount(
                 label: accountLabel, token: "tok-\(accountLabel)"),
             snapshot: self.makeUsageSnapshot(
                 provider: provider,
                 accountEmail: accountEmail,
                 usedPercent: usedPercent),
             error: nil,
-            sourceLabel: nil)
+            sourceLabel: nil,
+            cacheKey: "test-\(provider.rawValue)-\(accountLabel)")
     }
 
     @Test
@@ -480,12 +482,22 @@ struct SyncCoordinatorMultiAccountTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        settings.addTokenAccount(
+            provider: .claude, label: "alice", token: "tok-alice")
+        settings.addTokenAccount(
+            provider: .claude, label: "bob", token: "tok-bob")
+        settings.setActiveTokenAccountIndex(0, for: .claude)
+        let configuredAccounts = settings.tokenAccounts(for: .claude)
+        let aliceAccount = try #require(configuredAccounts.first)
+        let bobAccount = try #require(configuredAccounts.last)
         let alice = self.makeTokenAccountUsageSnapshot(
             provider: .claude,
-            accountLabel: "alice", accountEmail: "alice@anthropic.com")
+            accountLabel: "alice", accountEmail: "alice@anthropic.com",
+            account: aliceAccount)
         let bob = self.makeTokenAccountUsageSnapshot(
             provider: .claude,
-            accountLabel: "bob", accountEmail: "bob@anthropic.com")
+            accountLabel: "bob", accountEmail: "bob@anthropic.com",
+            account: bobAccount)
         store._setSnapshotForTesting(alice.snapshot, provider: .claude)
         store.accountSnapshots[.claude] = [alice, bob]
 
@@ -525,12 +537,22 @@ struct SyncCoordinatorMultiAccountTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        settings.addTokenAccount(
+            provider: .claude, label: "alice", token: "tok-alice")
+        settings.addTokenAccount(
+            provider: .claude, label: "bob", token: "tok-bob")
+        settings.setActiveTokenAccountIndex(0, for: .claude)
+        let configuredAccounts = settings.tokenAccounts(for: .claude)
+        let aliceAccount = try #require(configuredAccounts.first)
+        let bobAccount = try #require(configuredAccounts.last)
         let alice = self.makeTokenAccountUsageSnapshot(
             provider: .claude,
-            accountLabel: "alice", accountEmail: "alice@anthropic.com")
+            accountLabel: "alice", accountEmail: "alice@anthropic.com",
+            account: aliceAccount)
         let bob = self.makeTokenAccountUsageSnapshot(
             provider: .claude,
-            accountLabel: "bob", accountEmail: "bob@anthropic.com")
+            accountLabel: "bob", accountEmail: "bob@anthropic.com",
+            account: bobAccount)
         store._setSnapshotForTesting(alice.snapshot, provider: .claude)
         store.accountSnapshots[.claude] = [alice, bob]
 
@@ -553,8 +575,9 @@ struct SyncCoordinatorMultiAccountTests {
         let deleted = mock.deletedRecordNamesAcrossCalls.last ?? []
         #expect(deleted.count == 1)
         #expect(
-            deleted.first?.contains("bob@anthropic.com") == true,
-            "Bob's record should be the one deleted")
+            deleted.first?.contains(
+                SyncCoordinator.tokenAccountRecordKey(bobAccount)) == true,
+            "Bob's opaque account record should be the one deleted")
     }
 }
 

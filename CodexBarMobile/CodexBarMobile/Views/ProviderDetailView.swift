@@ -165,6 +165,21 @@ struct ProviderDetailView: View {
                 {
                     CrossModelUsageCard(usage: crossModelUsage, tintColor: self.providerColor)
                 }
+                // iOS 1.19.0 — v0.42-v0.45 providers whose useful data
+                // does not fit entirely in generic quota/cost cards.
+                if self.provider.providerID == "sub2api",
+                   let sub2APIUsage = self.provider.sub2APIUsage
+                {
+                    Sub2APIUsageCard(usage: sub2APIUsage, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "wayfinder",
+                   let wayfinderUsage = self.provider.wayfinderUsage
+                {
+                    WayfinderUsageCard(usage: wayfinderUsage, tintColor: self.providerColor)
+                }
+                if let providerAmount = self.provider.providerAmount {
+                    ProviderAmountCard(amount: providerAmount, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID
@@ -223,7 +238,7 @@ struct ProviderDetailView: View {
                 }
 
                 // Budget progress
-                if let budget = self.provider.budget {
+                if let budget = self.provider.budget, budget.limitAmount > 0 {
                     BudgetProgressView(budget: budget, tintColor: self.providerColor)
                 }
 
@@ -383,7 +398,9 @@ struct ProviderDetailView: View {
                 ForEach(Array(windows.enumerated()), id: \.offset) { index, window in
                     let warning = self.provider.quotaWarning(forWindowIndex: index)
                     UsageCardView(
-                        label: window.label ?? self.defaultLabel(at: index),
+                        label: ProviderWindowLabel.localized(
+                            window.label,
+                            fallback: self.defaultLabel(at: index)),
                         window: window,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "provider-detail-percent-\(self.provider.providerID)-\(index)",

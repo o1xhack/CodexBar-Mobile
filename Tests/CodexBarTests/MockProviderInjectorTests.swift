@@ -56,9 +56,10 @@ struct MockProviderInjectorTests {
         // iOS 1.12.0 adds Devin. 60 → 61.
         // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed. 61 → 65.
         // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter. 65 → 69.
+        // iOS 1.19.0 adds 8 v0.42-v0.45 provider mocks. 69 → 77.
         #expect(
-            MockProviderInjector.allMocks().count == 69,
-            "iOS 1.17.0: 65 → 69 (+Sakana/Qoder/CrossModel/ClawRouter simple mocks).")
+            MockProviderInjector.allMocks().count == 77,
+            "iOS 1.19.0: 69 → 77 (+8 v0.42-v0.45 simple mocks).")
     }
 
     @Test
@@ -77,7 +78,7 @@ struct MockProviderInjectorTests {
     }
 
     @Test
-    func `Mock providerIDs are split: real-borrowed (for first-class iOS UI) + _mock_* (for fallback test)`() {
+    func `Mock providerIDs are split across current, legacy, and fallback allowlists`() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
@@ -85,11 +86,12 @@ struct MockProviderInjectorTests {
         let snapshots = MockProviderInjector.allMocks()
         #expect(!snapshots.isEmpty)
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
+        let legacy = MockProviderInjector.legacyCompatibilityProviderIDs
         let synthetic = MockProviderInjector.syntheticProviderIDs
         for snap in snapshots {
             let id = snap.providerID
-            let isAllowed = realBorrowed.contains(id) || synthetic.contains(id)
-            #expect(isAllowed, "mock providerID must be in real-borrowed or synthetic allowlist; got \(id)")
+            let isAllowed = realBorrowed.contains(id) || legacy.contains(id) || synthetic.contains(id)
+            #expect(isAllowed, "mock providerID must be in a current, legacy, or synthetic allowlist; got \(id)")
         }
     }
 
@@ -272,6 +274,9 @@ struct MockProviderInjectorTests {
         //   - t3chat (v0.28.0, web-session subscription %, no USD)
         //   - poe (v0.36.1, points/subscription usage, no USD)
         //   - sakana/qoder (v0.38/v0.39, quota/credit usage, no USD)
+        //   - clinepass/neuralwatt/longcat/zenmux (v0.42-v0.45 quota
+        //     or prepaid-balance providers, not USD-spend histories)
+        //   - wayfinder (local routing/savings telemetry, no billing)
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
@@ -279,7 +284,8 @@ struct MockProviderInjectorTests {
             Set(costLessIDs).isSubset(of: [
                 "antigravity", "ollama", "elevenlabs",
                 "azureopenai", "alibabatokenplan", "t3chat",
-                "poe", "sakana", "qoder",
+                "poe", "sakana", "qoder", "clinepass", "neuralwatt",
+                "longcat", "wayfinder", "zenmux",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

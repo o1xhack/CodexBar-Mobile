@@ -19,7 +19,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 57 (25 base + historical catch-up providers + v0.39 providers)")
+    @Test("Total count is 65 after the v0.45 catch-up")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -32,14 +32,15 @@ struct QuotaProviderListTests {
         // 53 in iOS 1.13.0 (LiteLLM, Poe, Chutes, Zed from upstream
         // v0.36.0+v0.36.1) →
         // 57 in iOS 1.17.0 (Sakana AI, Qoder, CrossModel, ClawRouter
-        // from upstream v0.38.0-v0.39.0).
+        // from upstream v0.38.0-v0.39.0) → 65 in iOS 1.19.0
+        // (8 new providers from upstream v0.42.0-v0.45.2).
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 57)
+        #expect(QuotaProviderList.providers.count == 65)
     }
 
-    @Test("Subscription zone count is 171 (57 providers × 3 states)")
+    @Test("Subscription zone count is 195 (65 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -53,10 +54,13 @@ struct QuotaProviderListTests {
         // +poe, +chutes, +zed).
         // iOS 1.17.0 / Mac 0.39.0.1: 57 × 3 = 171 zones (+sakana,
         // +qoder, +crossmodel, +clawrouter).
+        // iOS 1.19.0 / Mac 0.45.2.1: 65 × 3 = 195 zones
+        // (+clinepass, +deepinfra, +neuralwatt, +longcat, +sub2api,
+        // +wayfinder, +zenmux, +aiand).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 171)
+        #expect(QuotaProviderList.providers.count * 3 == 195)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -129,7 +133,7 @@ struct QuotaProviderListTests {
     /// previously-existing ones would shift CK subscription IDs and
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
-    @Test("Cause: new providers (v0.27 + v0.28/v0.29 + v0.34 + v0.36 + v0.39) are appended at the tail")
+    @Test("Cause: new providers through v0.45 are appended at the tail")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
@@ -141,13 +145,16 @@ struct QuotaProviderListTests {
         //  - iOS 1.12.0 appended Devin from v0.34.0 (position [48]).
         //  - iOS 1.13.0 appended 4 v0.36 providers (positions [49..52]).
         //  - iOS 1.17.0 appended 4 v0.38/v0.39 providers (positions [53..56]).
-        let tail = providers.suffix(17).map(\.id)
+        //  - iOS 1.19.0 appended 8 v0.42-v0.45 providers (positions [57..64]).
+        let tail = providers.suffix(25).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "devin",
             "litellm", "poe", "chutes", "zed",
             "sakana", "qoder", "crossmodel", "clawrouter",
-        ], "v0.27 + v0.28/v0.29 + v0.34 + v0.36 + v0.39 catch-up additions must stay at the tail in this order")
+            "clinepass", "deepinfra", "neuralwatt", "longcat",
+            "sub2api", "wayfinder", "zenmux", "aiand",
+        ], "provider catch-up additions through v0.45 must stay at the tail in this order")
     }
 
     @Test("Sakana AI present (v0.38)")
@@ -176,6 +183,20 @@ struct QuotaProviderListTests {
         let provider = QuotaProviderList.providers.first(where: { $0.id == "clawrouter" })
         #expect(provider != nil)
         #expect(provider?.displayName == "ClawRouter")
+    }
+
+    @Test("v0.42-v0.45 providers use upstream-canonical display names")
+    func v045ProvidersPresent() {
+        let expected = [
+            "clinepass": "ClinePass", "deepinfra": "DeepInfra",
+            "neuralwatt": "Neuralwatt", "longcat": "LongCat",
+            "sub2api": "sub2api", "wayfinder": "Wayfinder",
+            "zenmux": "ZenMux", "aiand": "ai&",
+        ]
+        let actual = Dictionary(uniqueKeysWithValues: QuotaProviderList.providers.map { ($0.id, $0.displayName) })
+        for (id, displayName) in expected {
+            #expect(actual[id] == displayName)
+        }
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -273,10 +294,10 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 57/171 numbers match the actual list")
+    @Test("Cause: catalog 65/195 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 57)
-        #expect(QuotaProviderList.providers.count * 3 == 171)
+        #expect(QuotaProviderList.providers.count == 65)
+        #expect(QuotaProviderList.providers.count * 3 == 195)
     }
 
     @Test("Devin present (v0.34.0)")

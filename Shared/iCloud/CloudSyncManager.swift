@@ -943,7 +943,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let recordName = Self.perProviderRecordName(
             deviceID: envelope.deviceID,
             providerID: envelope.provider.providerID,
-            accountEmail: envelope.provider.accountEmail)
+            accountEmail: envelope.provider.accountEmail,
+            accountRecordKey: envelope.provider.accountRecordKey)
         let recordID = CKRecord.ID(recordName: recordName, zoneID: self.providerZone.zoneID)
         let record = CKRecord(
             recordType: CloudSyncConstants.providerRecordType, recordID: recordID)
@@ -964,7 +965,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Composite record name matching iOS `ProviderSnapshotModel.makeCompositeKey`.
     /// Stable across pushes so repeated saves overwrite in place.
     ///
-    /// **WIRE CONTRACT.** Format: `"{deviceID}|{providerID}|{accountEmail ?? "_"}"`.
+    /// **WIRE CONTRACT.** Format: `"{deviceID}|{providerID}|{identity}"`, where
+    /// identity is `accountRecordKey`, then legacy `accountEmail`, then `"_"`.
     /// - The pipe `|` separator was chosen because provider IDs never contain it
     ///   (they're kebab-case ASCII) and neither do email addresses.
     /// - The `"_"` sentinel for nil `accountEmail` must exactly match the four
@@ -980,9 +982,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static func perProviderRecordName(
         deviceID: String,
         providerID: String,
-        accountEmail: String?) -> String
+        accountEmail: String?,
+        accountRecordKey: String? = nil) -> String
     {
-        "\(deviceID)|\(providerID)|\(accountEmail ?? "_")"
+        "\(deviceID)|\(providerID)|\(accountRecordKey ?? accountEmail ?? "_")"
     }
 
     /// Sends one batch of provider records via `CKModifyRecordsOperation`. On

@@ -322,7 +322,6 @@ struct CodexAccountsSettingsSectionTests {
             minimaxCookieStore: InMemoryMiniMaxCookieStore(),
             minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
             kimiTokenStore: InMemoryKimiTokenStore(),
-            kimiK2TokenStore: InMemoryKimiK2TokenStore(),
             augmentCookieStore: InMemoryCookieHeaderStore(),
             ampCookieStore: InMemoryCookieHeaderStore(),
             copilotTokenStore: InMemoryCopilotTokenStore(),
@@ -330,11 +329,15 @@ struct CodexAccountsSettingsSectionTests {
     }
 
     private static func makeUsageStore(settings: SettingsStore) -> UsageStore {
-        UsageStore(
+        let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing)
+        // Account-selection tests must never trigger a real provider refresh.
+        store._test_providerRefreshOverride = { _ in }
+        store._test_codexCreditsLoaderOverride = { throw UsageError.noRateLimitsFound }
+        return store
     }
 }
 

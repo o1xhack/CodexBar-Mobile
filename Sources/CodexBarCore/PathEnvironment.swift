@@ -6,6 +6,14 @@ import Glibc
 #elseif canImport(Musl)
 import Musl
 #endif
+#if os(macOS)
+import Security
+#endif
+
+#if os(Linux)
+@_silgen_name("pipe2")
+private func linuxPipe2(_ pipeDescriptors: UnsafeMutablePointer<Int32>, _ flags: Int32) -> Int32
+#endif
 
 public enum PathPurpose: Hashable, Sendable {
     case rpc
@@ -43,6 +51,10 @@ public struct PathDebugSnapshot: Equatable, Sendable {
 }
 
 public enum BinaryLocator {
+    /// Test-only override so parallel Gemini suites can point at fake binaries
+    /// without mutating process-wide `GEMINI_CLI_PATH`.
+    @TaskLocal public static var geminiBinaryPathOverrideForTesting: String?
+
     public static func resolveClaudeBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
@@ -60,6 +72,31 @@ public enum BinaryLocator {
             commandV: commandV,
             aliasResolver: aliasResolver,
             wellKnownPaths: self.claudeWellKnownPaths(home: home),
+            fileManager: fileManager,
+            home: home)
+    }
+
+    public static func resolveArkcliBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "arkcli",
+            overrideKey: "ARKCLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: [
+                "\(home)/.local/bin/arkcli",
+                "/opt/homebrew/bin/arkcli",
+                "/usr/local/bin/arkcli",
+            ],
             fileManager: fileManager,
             home: home)
     }
@@ -127,12 +164,14 @@ public enum BinaryLocator {
             home: home)
     }
 
-    /// Well-known installation paths for the signed Codex desktop app CLI.
+    /// Well-known installation paths for the signed Codex CLI bundled with current and legacy desktop apps.
     /// Keep these after PATH lookups, but use them as a safe fallback when a PATH shim is blocked.
     static func codexWellKnownPaths(home: String) -> [String] {
         #if os(macOS)
         [
+            "\(home)/Applications/ChatGPT.app/Contents/Resources/codex",
             "\(home)/Applications/Codex.app/Contents/Resources/codex",
+            "/Applications/ChatGPT.app/Contents/Resources/codex",
             "/Applications/Codex.app/Contents/Resources/codex",
         ]
         #else
@@ -149,7 +188,12 @@ public enum BinaryLocator {
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
-        self.resolveBinary(
+        if let override = self.geminiBinaryPathOverrideForTesting,
+           fileManager.isExecutableFile(atPath: override)
+        {
+            return override
+        }
+        return self.resolveBinary(
             name: "gemini",
             overrideKey: "GEMINI_CLI_PATH",
             env: env,
@@ -370,6 +414,11 @@ public enum BinaryLocator {
 }
 
 public enum CodexLaunchPreflight {
+    struct GatekeeperAssessment {
+        let output: String
+        let exitStatus: Int32
+    }
+
     public static func isLaunchCandidateAllowed(path: String, fileManager: FileManager = .default) -> Bool {
         #if os(macOS)
         self.isLaunchCandidateAllowed(
@@ -377,6 +426,7 @@ public enum CodexLaunchPreflight {
             fileManager: fileManager,
             hasExtendedAttribute: self.hasExtendedAttribute,
             spctlAssessment: { self.spctlAssessment(path: $0) },
+            appSignatureIsTrusted: self.isExpectedOpenAIAppSignature,
             isMachOExecutable: self.isMachOExecutable)
         #else
         _ = path
@@ -386,23 +436,50 @@ public enum CodexLaunchPreflight {
     }
 
     #if os(macOS)
+    // Keep each security boundary injectable so preflight tests never inspect or launch host binaries.
+    // swiftlint:disable:next function_parameter_count
     static func isLaunchCandidateAllowed(
         path: String,
         fileManager: FileManager,
         hasExtendedAttribute: (String, String) -> Bool,
-        spctlAssessment: (String) -> String?,
+        spctlAssessment: (String) -> GatekeeperAssessment?,
+        appSignatureIsTrusted: (String) -> Bool,
         isMachOExecutable: (String) -> Bool) -> Bool
     {
         let realPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-        let pathsToCheck = [path, realPath] + self.nativeCodexExecutableCandidates(
-            for: realPath,
-            fileManager: fileManager)
+        let sourceAppBundlePath = self.containingAppBundlePath(for: path)
+        let resolvedAppBundlePath = self.containingAppBundlePath(for: realPath)
+        let appBundlePath: String?
+        if let sourceAppBundlePath {
+            let resolvedSourceBundle = URL(fileURLWithPath: sourceAppBundlePath).resolvingSymlinksInPath().path
+            guard resolvedAppBundlePath == resolvedSourceBundle else { return false }
+            appBundlePath = resolvedSourceBundle
+        } else {
+            appBundlePath = resolvedAppBundlePath
+        }
+        let appBundlePaths = [sourceAppBundlePath, appBundlePath].compactMap(\.self)
+        let pathsToCheck = [path, realPath] + appBundlePaths + self
+            .nativeCodexExecutableCandidates(
+                for: realPath,
+                fileManager: fileManager)
 
         for candidate in Set(pathsToCheck) where hasExtendedAttribute(candidate, "com.apple.malware") {
             return false
         }
 
         let hasQuarantine = Set(pathsToCheck).contains { hasExtendedAttribute($0, "com.apple.quarantine") }
+        if let appBundlePath {
+            guard appSignatureIsTrusted(appBundlePath),
+                  let assessment = spctlAssessment(appBundlePath),
+                  assessment.exitStatus == 0,
+                  self.isAcceptedAssessment(assessment.output, path: appBundlePath),
+                  !self.isExplicitlyBlockedAssessment(assessment.output, path: appBundlePath)
+            else {
+                return false
+            }
+            return true
+        }
+
         guard let native = pathsToCheck.first(where: isMachOExecutable) else {
             return !hasQuarantine
         }
@@ -412,7 +489,20 @@ public enum CodexLaunchPreflight {
             return !hasQuarantine
         }
 
-        return !self.isExplicitlyBlockedAssessment(assessment, path: native)
+        return !self.isExplicitlyBlockedAssessment(assessment.output, path: native)
+    }
+
+    private static func containingAppBundlePath(for path: String) -> String? {
+        var candidate = URL(fileURLWithPath: path).standardizedFileURL
+        while candidate.path != "/" {
+            if candidate.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
+                return candidate.path
+            }
+            let parent = candidate.deletingLastPathComponent()
+            guard parent.path != candidate.path else { return nil }
+            candidate = parent
+        }
+        return nil
     }
 
     private static func nativeCodexExecutableCandidates(for path: String, fileManager: FileManager) -> [String] {
@@ -475,7 +565,7 @@ public enum CodexLaunchPreflight {
             bytes == [0xCA, 0xFE, 0xBA, 0xBF]
     }
 
-    private static func spctlAssessment(path: String, timeout: TimeInterval = 2.0) -> String? {
+    private static func spctlAssessment(path: String, timeout: TimeInterval = 2.0) -> GatekeeperAssessment? {
         let spctlPath = "/usr/sbin/spctl"
         guard FileManager.default.isExecutableFile(atPath: spctlPath) else { return nil }
 
@@ -502,7 +592,44 @@ public enum CodexLaunchPreflight {
         }
 
         let data = output.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8)
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        return GatekeeperAssessment(output: text, exitStatus: process.terminationStatus)
+    }
+
+    private static func isExpectedOpenAIAppSignature(path: String) -> Bool {
+        let requirementText =
+            "identifier \"com.openai.codex\" and anchor apple generic " +
+            "and certificate leaf[subject.OU] = \"2DC432GLL2\""
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(
+            URL(fileURLWithPath: path) as CFURL,
+            SecCSFlags(),
+            &staticCode) == errSecSuccess,
+            let staticCode
+        else {
+            return false
+        }
+
+        var requirement: SecRequirement?
+        guard SecRequirementCreateWithString(
+            requirementText as CFString,
+            SecCSFlags(),
+            &requirement) == errSecSuccess
+        else {
+            return false
+        }
+
+        // Pin the publisher and bundle identity here; the Gatekeeper assessment below performs full bundle validation.
+        let validationFlags = SecCSFlags(rawValue: kSecCSBasicValidateOnly)
+        return SecStaticCodeCheckValidity(staticCode, validationFlags, requirement) == errSecSuccess
+    }
+
+    private static func isAcceptedAssessment(_ assessment: String, path: String) -> Bool {
+        self.assessmentDiagnosticText(assessment, path: path)
+            .split(whereSeparator: \.isNewline)
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .localizedCaseInsensitiveCompare("accepted") == .orderedSame
     }
 
     private static func isExplicitlyBlockedAssessment(_ assessment: String, path: String) -> Bool {
@@ -543,12 +670,27 @@ public enum CodexLaunchPreflight {
 }
 
 public enum ShellCommandLocator {
+    #if canImport(Darwin)
+    private static let shellSpawnFlags = Int16(POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT)
+    #else
+    private static let shellSpawnFlags: Int16 = 0x80 // glibc/musl POSIX_SPAWN_SETSID.
+    #endif
+    private static let shellSpawnLock = NSLock()
+
     static func test_runShellCommand(
         shell: String,
         arguments: [String],
         timeout: TimeInterval) -> Data?
     {
         self.runShellCommand(shell: shell, arguments: arguments, timeout: timeout)
+    }
+
+    static func test_makeCloseOnExecPipe() -> (read: Int32, write: Int32)? {
+        self.makeCloseOnExecPipe()
+    }
+
+    static var test_shellSpawnFlags: Int16 {
+        self.shellSpawnFlags
     }
 
     public static func commandV(
@@ -626,35 +768,66 @@ public enum ShellCommandLocator {
         func fire() -> Bool {
             self.lock.lock()
             defer { self.lock.unlock() }
-            if self.fired { return false }
+            if self.fired {
+                return false
+            }
             self.fired = true
             return true
         }
+    }
+
+    private static func makeCloseOnExecPipe() -> (read: Int32, write: Int32)? {
+        var fds: (read: Int32, write: Int32) = (-1, -1)
+        #if os(Linux)
+        // Glibc and Musl export pipe2, but their Swift modules do not consistently declare it.
+        guard withUnsafeMutablePointer(to: &fds, {
+            $0.withMemoryRebound(to: Int32.self, capacity: 2) { linuxPipe2($0, O_CLOEXEC) == 0 }
+        }) else { return nil }
+        #else
+        guard withUnsafeMutablePointer(to: &fds, {
+            $0.withMemoryRebound(to: Int32.self, capacity: 2) { pipe($0) == 0 }
+        }) else { return nil }
+
+        for fd in [fds.read, fds.write] {
+            let flags = fcntl(fd, F_GETFD)
+            guard flags >= 0, fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == 0 else {
+                close(fds.read)
+                close(fds.write)
+                return nil
+            }
+        }
+        #endif
+        return fds
     }
 
     // swiftlint:disable cyclomatic_complexity
     /// Runs a shell command, draining both stdout and stderr concurrently so that
     /// verbose shell init scripts (oh-my-zsh, nvm, pyenv, etc.) cannot deadlock on
     /// a full pipe buffer.  The child is launched via `posix_spawn` with
-    /// `POSIX_SPAWN_SETPGROUP` so it becomes its own process-group leader *before*
-    /// `exec`, which guarantees that subsequent `kill(-pgid, ...)` calls reach any
-    /// background helpers spawned by shell init, on both the timeout-kill path and
-    /// after normal completion.
+    /// `POSIX_SPAWN_SETSID` so it cannot take ownership of the caller's controlling
+    /// terminal. The new session also makes the child its own process-group leader;
+    /// cleanup tracks both that group and helpers retaining the command's output pipes.
     fileprivate static func runShellCommand(
         shell: String,
         arguments: [String],
         timeout: TimeInterval) -> Data?
     {
+        // Darwin needs a lock around raw descriptor creation, close-on-exec flagging,
+        // and spawn. Linux creates close-on-exec descriptors atomically with pipe2.
+        self.shellSpawnLock.lock()
+        var shellSpawnLockHeld = true
+        defer {
+            if shellSpawnLockHeld {
+                self.shellSpawnLock.unlock()
+            }
+        }
+
         // Pipes for stdout/stderr.  stdin is redirected from /dev/null in the child
-        // via posix_spawn_file_actions_addopen below.
-        var stdoutFds: (read: Int32, write: Int32) = (-1, -1)
-        var stderrFds: (read: Int32, write: Int32) = (-1, -1)
-        guard withUnsafeMutablePointer(to: &stdoutFds, {
-            $0.withMemoryRebound(to: Int32.self, capacity: 2) { pipe($0) == 0 }
-        }) else { return nil }
-        guard withUnsafeMutablePointer(to: &stderrFds, {
-            $0.withMemoryRebound(to: Int32.self, capacity: 2) { pipe($0) == 0 }
-        }) else {
+        // via posix_spawn_file_actions_addopen below. Close-on-exec prevents a
+        // concurrently spawned probe from retaining these descriptors and being
+        // mistaken for one of this probe's output holders during cleanup.
+        guard let stdoutFds = self.makeCloseOnExecPipe() else { return nil }
+        guard let stderrFds = self.makeCloseOnExecPipe() else {
             close(stdoutFds.read); close(stdoutFds.write)
             return nil
         }
@@ -682,8 +855,9 @@ public enum ShellCommandLocator {
         posix_spawn_file_actions_addclose(&fileActions, stderrFds.read)
         posix_spawn_file_actions_addclose(&fileActions, stderrFds.write)
 
-        // Build attributes: set the child's process group to itself in the child,
-        // before exec, eliminating the race that an after-launch setpgid(2) has.
+        // Build attributes: detach the child into a new session before exec. This
+        // prevents interactive shell startup from changing the caller's foreground
+        // process group while retaining a stable process group for cleanup.
         #if canImport(Darwin)
         var attr: posix_spawnattr_t?
         #else
@@ -695,8 +869,11 @@ public enum ShellCommandLocator {
             return nil
         }
         defer { posix_spawnattr_destroy(&attr) }
-        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETPGROUP))
-        posix_spawnattr_setpgroup(&attr, 0) // 0 = child becomes its own pgid leader
+        guard posix_spawnattr_setflags(&attr, self.shellSpawnFlags) == 0 else {
+            close(stdoutFds.read); close(stdoutFds.write)
+            close(stderrFds.read); close(stderrFds.write)
+            return nil
+        }
 
         // Build argv (argv[0] is conventionally the executable path).
         var cArgs: [UnsafeMutablePointer<CChar>?] = []
@@ -737,14 +914,13 @@ public enum ShellCommandLocator {
         // once every descendant in the process group also closes them.
         close(stdoutFds.write)
         close(stderrFds.write)
+        self.shellSpawnLock.unlock()
+        shellSpawnLockHeld = false
 
         guard spawnResult == 0 else {
             close(stdoutFds.read); close(stderrFds.read)
             return nil
         }
-
-        // POSIX_SPAWN_SETPGROUP with pgroup=0 guarantees the child's pgid == its pid.
-        let pgid: pid_t = pid
 
         // Track EOF on each pipe so we can wait for full drain instead of sleeping.
         // The readability handler fires with empty data when every writer end is
@@ -761,7 +937,9 @@ public enum ShellCommandLocator {
             let data = handle.availableData
             if data.isEmpty {
                 handle.readabilityHandler = nil
-                if stdoutDone.fire() { drainGroup.leave() }
+                if stdoutDone.fire() {
+                    drainGroup.leave()
+                }
             } else {
                 stdoutCollector.append(data)
             }
@@ -772,53 +950,53 @@ public enum ShellCommandLocator {
             let data = handle.availableData
             if data.isEmpty {
                 handle.readabilityHandler = nil
-                if stderrDone.fire() { drainGroup.leave() }
+                if stderrDone.fire() {
+                    drainGroup.leave()
+                }
             }
         }
 
-        // Reap the child on a background queue and signal a semaphore on exit.
-        let exitSemaphore = DispatchSemaphore(value: 0)
-        let waitPid = pid
-        DispatchQueue.global(qos: .userInitiated).async {
-            var status: Int32 = 0
-            while waitpid(waitPid, &status, 0) == -1, errno == EINTR {
-                // retry
-            }
-            exitSemaphore.signal()
+        // Adopt the already-spawned session so cleanup can also discover helpers
+        // that escape into a new process group while retaining our output pipes.
+        let process = SpawnedProcessGroup.adopt(
+            pid: pid,
+            outputFileDescriptors: [stdoutFds.read, stderrFds.read])
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            usleep(10000)
         }
 
-        let finishedInTime = exitSemaphore.wait(timeout: .now() + timeout) == .success
-
-        if !finishedInTime {
-            kill(-pgid, SIGTERM)
-            kill(pid, SIGTERM)
-            if exitSemaphore.wait(timeout: .now() + 0.4) != .success {
-                kill(-pgid, SIGKILL)
-                kill(pid, SIGKILL)
-                _ = exitSemaphore.wait(timeout: .now() + 1.0)
-            }
+        if process.isRunning {
+            process.terminateSynchronously()
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
-            if stdoutDone.fire() { drainGroup.leave() }
-            if stderrDone.fire() { drainGroup.leave() }
+            if stdoutDone.fire() {
+                drainGroup.leave()
+            }
+            if stderrDone.fire() {
+                drainGroup.leave()
+            }
             return nil
         }
 
-        // Normal completion — clean up any background children spawned by shell init.
-        // Without this, helpers that inherited stdout/stderr keep the pipe write ends
-        // open and we never see EOF on the read ends.
-        kill(-pgid, SIGTERM)
+        // Normal completion — clean up background children spawned by shell init,
+        // including session-escaped helpers that still hold our output pipes open.
+        process.terminateSynchronously()
 
         // Wait for both pipes to deliver EOF so no buffered bytes are lost.
         // Bounded so a stuck handler can't hang the caller indefinitely.
         if drainGroup.wait(timeout: .now() + 0.4) != .success {
-            kill(-pgid, SIGKILL)
+            process.terminateSynchronously(grace: 0)
         }
         if drainGroup.wait(timeout: .now() + 0.6) != .success {
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
-            if stdoutDone.fire() { drainGroup.leave() }
-            if stderrDone.fire() { drainGroup.leave() }
+            if stdoutDone.fire() {
+                drainGroup.leave()
+            }
+            if stderrDone.fire() {
+                drainGroup.leave()
+            }
         }
         return stdoutCollector.drain()
     }
@@ -888,8 +1066,12 @@ public enum ShellCommandLocator {
     }
 
     private static func expandPath(_ raw: String, home: String) -> String {
-        if raw == "~" { return home }
-        if raw.hasPrefix("~/") { return home + String(raw.dropFirst()) }
+        if raw == "~" {
+            return home
+        }
+        if raw.hasPrefix("~/") {
+            return home + String(raw.dropFirst())
+        }
         return raw
     }
 }

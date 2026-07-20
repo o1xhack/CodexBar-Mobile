@@ -32,8 +32,8 @@ struct CWLWriterTests {
 
     // MARK: - T2
 
-    @Test("T2: same (deviceID, providerID, dayKey) written twice → 1 row")
-    func testCompositeKeyDedupe() throws {
+    @Test
+    func `T2: same (deviceID, providerID, dayKey) written twice → 1 row`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -65,8 +65,8 @@ struct CWLWriterTests {
         #expect(row.lastUpdated == t.addingTimeInterval(60))
     }
 
-    @Test("T2: different (providerID, dayKey) under same device → separate rows")
-    func testDistinctKeysAreSeparateRows() throws {
+    @Test
+    func `T2: different (providerID, dayKey) under same device → separate rows`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -99,8 +99,8 @@ struct CWLWriterTests {
         #expect(rows.count == 4, "4 distinct composite keys must yield 4 rows")
     }
 
-    @Test("T2 (multi-account): two accounts, same providerID + dayKey → separate rows (no collide)")
-    func testMultiAccountDoesNotCollide() throws {
+    @Test
+    func `T2 (multi-account): two accounts, same providerID + dayKey → separate rows (no collide)`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -125,10 +125,45 @@ struct CWLWriterTests {
         #expect(byEmail["bob@codex.test"]?.first?.costUSD == 2.0)
     }
 
+    @Test
+    func `Opaque keys separate duplicate labels and keep history across rename`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "sub2api", accountEmail: "Shared",
+            accountRecordKey: "token-a", accountIdentityKey: "sub2api:record:token-a",
+            accountIdentityKeys: ["sub2api:record:token-a"],
+            dayKey: "2026-05-28", costUSD: 1, totalTokens: 100, isEstimated: false,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "sub2api", accountEmail: "Shared",
+            accountRecordKey: "token-b", accountIdentityKey: "sub2api:record:token-b",
+            accountIdentityKeys: ["sub2api:record:token-b"],
+            dayKey: "2026-05-28", costUSD: 2, totalTokens: 200, isEstimated: false,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "sub2api", accountEmail: "Renamed",
+            accountRecordKey: "token-a", accountIdentityKey: "sub2api:record:token-a",
+            accountIdentityKeys: ["sub2api:record:token-a"],
+            dayKey: "2026-05-28", costUSD: 3, totalTokens: 300, isEstimated: false,
+            modelBreakdowns: [], serviceBreakdowns: [],
+            lastUpdated: t.addingTimeInterval(60), in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        #expect(rows.first { $0.accountRecordKey == "token-a" }?.accountEmail == "Renamed")
+        #expect(rows.first { $0.accountRecordKey == "token-a" }?.costUSD == 3)
+        #expect(rows.first { $0.accountRecordKey == "token-b" }?.costUSD == 2)
+    }
+
     // MARK: - T3
 
-    @Test("T3: incoming with strictly newer lastUpdated → overwrites")
-    func testNewerWins() throws {
+    @Test
+    func `T3: incoming with strictly newer lastUpdated → overwrites`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -155,8 +190,8 @@ struct CWLWriterTests {
         #expect(row.lastUpdated == t.addingTimeInterval(3600))
     }
 
-    @Test("T3: incoming with older lastUpdated → skipped (existing kept)")
-    func testOlderSkipped() throws {
+    @Test
+    func `T3: incoming with older lastUpdated → skipped (existing kept)`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -182,8 +217,8 @@ struct CWLWriterTests {
         #expect(row.lastUpdated == t, "Existing lastUpdated must be preserved")
     }
 
-    @Test("T3: incoming with equal lastUpdated → skipped (existing kept, no churn)")
-    func testEqualLastUpdatedSkipped() throws {
+    @Test
+    func `T3: incoming with equal lastUpdated → skipped (existing kept, no churn)`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -210,8 +245,8 @@ struct CWLWriterTests {
 
     // MARK: - Gate (`isEnabled`)
 
-    @Test("Gate: isEnabled defaults to product default when flag is absent")
-    func testGateUsesProductDefaultWhenAbsent() throws {
+    @Test
+    func `Gate: isEnabled defaults to product default when flag is absent`() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -219,8 +254,8 @@ struct CWLWriterTests {
         #expect(CostLedgerService.isEnabled(userDefaults: defaults) == MobileSettingsDefaults.cwlEnabled)
     }
 
-    @Test("Gate: isEnabled returns true when flag set")
-    func testGateRespectsFlag() throws {
+    @Test
+    func `Gate: isEnabled returns true when flag set`() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -234,8 +269,8 @@ struct CWLWriterTests {
 
     // MARK: - `upsertFromSnapshot` wrapper
 
-    @Test("upsertFromSnapshot: iterates daily[] and writes one row per day")
-    func testUpsertFromSnapshotIterates() throws {
+    @Test
+    func `upsertFromSnapshot: iterates daily[] and writes one row per day`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -286,8 +321,8 @@ struct CWLWriterTests {
         }
     }
 
-    @Test("upsertFromSnapshot: clear tombstone skips old snapshots and allows newer sync")
-    func testUpsertFromSnapshotHonorsClearTombstone() throws {
+    @Test
+    func `upsertFromSnapshot: clear tombstone skips old snapshots and allows newer sync`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -354,8 +389,8 @@ struct CWLWriterTests {
         #expect(rows.first?.lastUpdated == newerUpdate)
     }
 
-    @Test("upsertFromSnapshot: nil costSummary → no rows written")
-    func testNoSummaryNoRows() throws {
+    @Test
+    func `upsertFromSnapshot: nil costSummary → no rows written`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)

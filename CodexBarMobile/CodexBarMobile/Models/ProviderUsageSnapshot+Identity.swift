@@ -19,6 +19,6 @@ extension ProviderUsageSnapshot {
     /// when `accountEmail == nil` — consistent with the merger's own
     /// fallback.
     var cardIdentityKey: String {
-        "\(self.providerID)|\(self.accountEmail ?? "")"
+        "\(self.providerID)|\(self.accountRecordKey ?? self.accountEmail ?? "")"
     }
 }

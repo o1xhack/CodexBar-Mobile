@@ -780,7 +780,7 @@ final class SyncedUsageData {
     }
 
     private nonisolated static func providerCompositeKey(_ provider: ProviderUsageSnapshot) -> String {
-        "\(provider.providerID)|\(provider.accountEmail ?? "_")"
+        "\(provider.providerID)|\(provider.accountRecordKey ?? provider.accountEmail ?? "_")"
     }
 
     // MARK: - Public API

@@ -17,7 +17,14 @@ struct UsagePaceTextTests {
         "Runs out in %@",
         "1.5× headroom",
         "≈ %d%% run-out risk",
+        "Weekly cannot run out before reset at this pace",
+        "Estimated: %@",
         "%@ · %@",
+    ]
+
+    private static let pluralLocalizedKeys: [String] = [
+        "≈%d full 5h windows of weekly left · %d windows until reset",
+        "Weekly can run out ≈%d windows early",
     ]
 
     @Test
@@ -390,6 +397,33 @@ struct UsagePaceTextTests {
                 Self.placeholderTokens(in: enValue) == Self.placeholderTokens(in: zhValue),
                 "Placeholder mismatch for key '\(key)': en='\(enValue)' zh='\(zhValue)'")
         }
+
+        let enStringsDict = try Self.readStringsDict(
+            at: root.appendingPathComponent("Sources/CodexBar/Resources/en.lproj/Localizable.stringsdict"))
+        let zhStringsDict = try Self.readStringsDict(
+            at: root.appendingPathComponent("Sources/CodexBar/Resources/zh-Hans.lproj/Localizable.stringsdict"))
+        for key in Self.pluralLocalizedKeys {
+            let enEntry = try #require(enStringsDict[key] as? [String: Any], "Missing en plural key: \(key)")
+            let zhEntry = try #require(zhStringsDict[key] as? [String: Any], "Missing zh-Hans plural key: \(key)")
+            let enFormat = try #require(enEntry["NSStringLocalizedFormatKey"] as? String)
+            let zhFormat = try #require(zhEntry["NSStringLocalizedFormatKey"] as? String)
+            #expect(enFormat == zhFormat, "Plural variable mismatch for key '\(key)'")
+
+            for variable in Self.pluralVariables(in: enFormat) {
+                let enRule = try #require(enEntry[variable] as? [String: String])
+                let zhRule = try #require(zhEntry[variable] as? [String: String])
+                #expect(enRule["NSStringFormatSpecTypeKey"] == "NSStringPluralRuleType")
+                #expect(zhRule["NSStringFormatSpecTypeKey"] == "NSStringPluralRuleType")
+                #expect(enRule["NSStringFormatValueTypeKey"] == "d")
+                #expect(zhRule["NSStringFormatValueTypeKey"] == "d")
+                for category in ["one", "other"] {
+                    let enValue = try #require(enRule[category])
+                    let zhValue = try #require(zhRule[category])
+                    #expect(Self.placeholderTokens(in: enValue) == ["%d"])
+                    #expect(Self.placeholderTokens(in: zhValue) == ["%d"])
+                }
+            }
+        }
     }
 
     private static func readStringsTable(at url: URL) throws -> [String: String] {
@@ -400,6 +434,29 @@ struct UsagePaceTextTests {
                 userInfo: [NSLocalizedDescriptionKey: "Failed to parse strings file at \(url.path)"])
         }
         return dict
+    }
+
+    private static func readStringsDict(at url: URL) throws -> [String: Any] {
+        guard let dict = NSDictionary(contentsOf: url) as? [String: Any] else {
+            throw NSError(
+                domain: "UsagePaceTextTests",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to parse stringsdict file at \(url.path)"])
+        }
+        return dict
+    }
+
+    private static func pluralVariables(in value: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: "%#@([^@]+)@") else {
+            return []
+        }
+        let nsRange = NSRange(value.startIndex..<value.endIndex, in: value)
+        return regex
+            .matches(in: value, options: [], range: nsRange)
+            .compactMap { match in
+                guard let range = Range(match.range(at: 1), in: value) else { return nil }
+                return String(value[range])
+            }
     }
 
     private static func placeholderTokens(in value: String) -> [String] {

@@ -82,6 +82,17 @@ struct ProviderSettingsPickerRowView: View {
                         .truncationMode(.tail)
                 }
 
+                let visibleActions = self.picker.trailingActions.filter { $0.isVisible?() ?? true }
+                ForEach(visibleActions) { action in
+                    Button(L(action.title)) {
+                        Task { @MainActor in
+                            await action.perform()
+                        }
+                    }
+                    .applyProviderSettingsButtonStyle(action.style)
+                    .controlSize(.small)
+                }
+
                 Picker("", selection: self.picker.binding) {
                     ForEach(self.picker.options) { option in
                         Text(L(option.title)).tag(option.id)
@@ -165,12 +176,14 @@ struct ProviderSettingsFieldRowView: View {
         let trimmedSubtitle = self.field.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let footer = (self.field.footerText?.isEmpty == false) ? self.field.footerText : nil
         if !trimmedSubtitle.isEmpty || footer != nil {
-            VStack(alignment: .leading, spacing: 3) {
-                if !trimmedSubtitle.isEmpty {
-                    Text(L(trimmedSubtitle))
-                }
-                if let footer {
-                    Text(L(footer))
+            SettingsSectionFooter {
+                VStack(alignment: .leading, spacing: 3) {
+                    if !trimmedSubtitle.isEmpty {
+                        Text(L(trimmedSubtitle))
+                    }
+                    if let footer {
+                        Text(L(footer))
+                    }
                 }
             }
         }
@@ -401,7 +414,7 @@ struct ProviderSettingsTokenAccountsRowView: View {
             Text(L(self.descriptor.title))
         } footer: {
             if !self.descriptor.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(L(self.descriptor.subtitle))
+                SettingsSectionFooter(L(self.descriptor.subtitle))
             }
         }
     }
@@ -612,7 +625,7 @@ struct ProviderSettingsOrganizationsRowView: View {
             if let subtitle = self.descriptor.subtitle,
                !subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                Text(L(subtitle))
+                SettingsSectionFooter(L(subtitle))
             }
         }
     }

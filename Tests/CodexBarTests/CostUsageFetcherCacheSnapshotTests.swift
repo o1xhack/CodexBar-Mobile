@@ -36,6 +36,178 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `cached codex token snapshot keeps the cache scan time as updatedAt`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        try Self.writeCodexSessionFile(
+            homeRoot: env.codexHomeRoot,
+            env: env,
+            day: day,
+            filename: "cached.jsonl",
+            tokens: 42)
+
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        _ = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            scannerOptions: options)
+
+        let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        #expect(cache.lastScanUnixMs > 0)
+        let scanTime = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
+
+        let hydratedAt = day.addingTimeInterval(50 * 60)
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: hydratedAt,
+            historyDays: 1,
+            scannerOptions: options)
+
+        #expect(cached?.snapshot.updatedAt == scanTime)
+        #expect(cached?.snapshot.updatedAt != hydratedAt)
+        #expect(cached?.lastRefreshAt == scanTime)
+    }
+
+    @Test
+    func `cached codex token snapshot keeps the oldest scan time when pi sessions merge`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        try Self.writeCodexSessionFile(
+            homeRoot: env.codexHomeRoot,
+            env: env,
+            day: day,
+            filename: "cached.jsonl",
+            tokens: 42)
+        try Self.writePiCodexSessionFile(env: env, day: day, tokens: 165)
+
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let piOptions = PiSessionCostScanner.Options(
+            piSessionsRoot: env.piSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            refreshMinIntervalSeconds: 0)
+        _ = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            refreshPricingInBackground: false,
+            scannerOptions: options,
+            piScannerOptions: piOptions)
+
+        let nativeCache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        var piCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
+        #expect(nativeCache.lastScanUnixMs > 0)
+        #expect(piCache.lastScanUnixMs > 0)
+        piCache.lastScanUnixMs = nativeCache.lastScanUnixMs - 30 * 60 * 1000
+        PiSessionCostCacheIO.save(cache: piCache, cacheRoot: env.cacheRoot)
+        let oldestScanTime = Date(timeIntervalSince1970: TimeInterval(piCache.lastScanUnixMs) / 1000)
+
+        let hydratedAt = day.addingTimeInterval(50 * 60)
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: hydratedAt,
+            historyDays: 1,
+            scannerOptions: options)
+
+        #expect(cached?.snapshot.sessionTokens == 207)
+        #expect(cached?.snapshot.updatedAt == oldestScanTime)
+        #expect(cached?.snapshot.updatedAt != hydratedAt)
+        #expect(cached?.lastRefreshAt == nil)
+    }
+
+    @Test
+    func `cached codex token snapshot keeps pi scan time when only pi sessions exist`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        try Self.writePiCodexSessionFile(env: env, day: day, tokens: 165)
+
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let piOptions = PiSessionCostScanner.Options(
+            piSessionsRoot: env.piSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            refreshMinIntervalSeconds: 0)
+        _ = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            refreshPricingInBackground: false,
+            scannerOptions: options,
+            piScannerOptions: piOptions)
+
+        let piCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
+        #expect(piCache.lastScanUnixMs > 0)
+        let piScanTime = Date(timeIntervalSince1970: TimeInterval(piCache.lastScanUnixMs) / 1000)
+
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: day.addingTimeInterval(50 * 60),
+            historyDays: 1,
+            scannerOptions: options)
+
+        #expect(cached?.snapshot.sessionTokens == 165)
+        #expect(cached?.snapshot.updatedAt == piScanTime)
+        #expect(cached?.lastRefreshAt == nil)
+    }
+
+    @Test
+    func `cached codex token snapshot keeps native scan time when pi cache lacks one`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        try Self.writeCodexSessionFile(
+            homeRoot: env.codexHomeRoot,
+            env: env,
+            day: day,
+            filename: "cached.jsonl",
+            tokens: 42)
+        try Self.writePiCodexSessionFile(env: env, day: day, tokens: 165)
+
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let piOptions = PiSessionCostScanner.Options(
+            piSessionsRoot: env.piSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            refreshMinIntervalSeconds: 0)
+        _ = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            refreshPricingInBackground: false,
+            scannerOptions: options,
+            piScannerOptions: piOptions)
+
+        var piCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
+        piCache.lastScanUnixMs = 0
+        PiSessionCostCacheIO.save(cache: piCache, cacheRoot: env.cacheRoot)
+
+        let nativeCache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        #expect(nativeCache.lastScanUnixMs > 0)
+        let nativeScanTime = Date(
+            timeIntervalSince1970: TimeInterval(nativeCache.lastScanUnixMs) / 1000)
+
+        let hydratedAt = day.addingTimeInterval(50 * 60)
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
+            now: hydratedAt,
+            historyDays: 1,
+            scannerOptions: options)
+
+        #expect(cached?.sessionTokens == 207)
+        #expect(cached?.updatedAt == nativeScanTime)
+        #expect(cached?.updatedAt != hydratedAt)
+    }
+
+    @Test
     func `cached codex token snapshot refuses expanded or managed scopes`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -181,6 +353,7 @@ struct CostUsageFetcherCacheSnapshotTests {
 
         #expect(cached?.sessionTokens == 207)
         #expect(cached?.last30DaysTokens == 207)
+        #expect(cached?.sessions.isEmpty == true)
     }
 
     @Test

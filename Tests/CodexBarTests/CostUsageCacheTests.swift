@@ -11,12 +11,75 @@ struct CostUsageCacheTests {
         let claudeURL = CostUsageCacheIO.cacheFileURL(provider: .claude, cacheRoot: root)
         let vertexURL = CostUsageCacheIO.cacheFileURL(provider: .vertexai, cacheRoot: root)
 
-        // Codex: upstream bumped to 8 for scanner/parser changes. Claude
-        // / Vertex: upstream bumped to 4; the fork's pricing fingerprint
-        // guard still invalidates same-version caches when pricing changes.
-        #expect(codexURL.lastPathComponent == "codex-v8.json")
-        #expect(claudeURL.lastPathComponent == "claude-v4.json")
-        #expect(vertexURL.lastPathComponent == "vertexai-v4.json")
+        #expect(codexURL.lastPathComponent == "codex-v10.json")
+        #expect(claudeURL.lastPathComponent == "claude-v5.json")
+        #expect(vertexURL.lastPathComponent == "vertexai-v5.json")
+    }
+
+    @Test
+    func `cost cache ignores predecessor artifact with persisted offset`() throws {
+        let root = try self.makeTemporaryCacheRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let legacyURL = root
+            .appendingPathComponent("cost-usage", isDirectory: true)
+            .appendingPathComponent("codex-v9.json", isDirectory: false)
+        try FileManager.default.createDirectory(
+            at: legacyURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        let producerKey = try #require(CostUsageCacheIO.currentProducerKey(provider: .codex))
+        let legacy = """
+        {
+          "version": 1,
+          "producerKey": "\(producerKey)",
+          "lastScanUnixMs": 999,
+          "files": {
+            "/tmp/session.jsonl": {
+              "mtimeUnixMs": 1,
+              "size": 100,
+              "days": {},
+              "parsedBytes": 100
+            }
+          },
+          "days": {}
+        }
+        """
+        try legacy.write(to: legacyURL, atomically: false, encoding: .utf8)
+
+        let loaded = CostUsageCacheIO.load(provider: .codex, cacheRoot: root)
+
+        #expect(loaded.lastScanUnixMs == 0)
+        #expect(loaded.files.isEmpty)
+    }
+
+    @Test
+    func `Pi session cache ignores predecessor artifact with persisted offset`() throws {
+        let root = try self.makeTemporaryCacheRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let legacyURL = root
+            .appendingPathComponent("cost-usage", isDirectory: true)
+            .appendingPathComponent("pi-sessions-v6.json", isDirectory: false)
+        try FileManager.default.createDirectory(
+            at: legacyURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        var legacy = PiSessionCostCache(version: 6)
+        legacy.lastScanUnixMs = 999
+        legacy.files = [
+            "/tmp/session.jsonl": PiSessionFileUsage(
+                mtimeUnixMs: 1,
+                size: 100,
+                parsedBytes: 100,
+                lastModelContext: nil,
+                contributions: [:]),
+        ]
+        try JSONEncoder().encode(legacy).write(to: legacyURL)
+
+        let loaded = PiSessionCostCacheIO.load(cacheRoot: root)
+
+        #expect(loaded.version == 7)
+        #expect(loaded.lastScanUnixMs == 0)
+        #expect(loaded.files.isEmpty)
     }
 
     // MARK: - Pricing fingerprint mechanism
@@ -230,43 +293,27 @@ struct CostUsageCacheTests {
     }
 
     @Test
-    func `current codex cache accepts parser compatible 0_33 producer`() throws {
+    func `current codex cache rejects pre interleave containment producers`() throws {
+        // Interleave containment (#2037) changed cumulative delta semantics, so caches from
+        // previously compatible parser hashes must be rebuilt instead of reused.
         let root = try self.makeTemporaryCacheRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        var cache = CostUsageCache()
-        cache.lastScanUnixMs = 123
-        cache.days = ["2026-05-18": ["gpt-5.5": [1, 2, 3]]]
-        CostUsageCacheIO.save(
-            provider: .codex,
-            cache: cache,
-            cacheRoot: root,
-            producerKey: "codex:cu:p3c27f997569eb3c5")
+        for legacyProducerKey in ["codex:cu:p3c27f997569eb3c5", "codex:cu:pc54070a94f6419ea"] {
+            var cache = CostUsageCache()
+            cache.lastScanUnixMs = 123
+            cache.days = ["2026-05-18": ["gpt-5.5": [1, 2, 3]]]
+            CostUsageCacheIO.save(
+                provider: .codex,
+                cache: cache,
+                cacheRoot: root,
+                producerKey: legacyProducerKey)
 
-        let loaded = CostUsageCacheIO.load(provider: .codex, cacheRoot: root)
+            let loaded = CostUsageCacheIO.load(provider: .codex, cacheRoot: root)
 
-        #expect(loaded.lastScanUnixMs == 123)
-        #expect(loaded.days["2026-05-18"]?["gpt-5.5"] == [1, 2, 3])
-    }
-
-    @Test
-    func `current codex cache accepts project metadata migration producer`() throws {
-        let root = try self.makeTemporaryCacheRoot()
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        var cache = CostUsageCache()
-        cache.lastScanUnixMs = 123
-        cache.days = ["2026-05-18": ["gpt-5.5": [1, 2, 3]]]
-        CostUsageCacheIO.save(
-            provider: .codex,
-            cache: cache,
-            cacheRoot: root,
-            producerKey: "codex:cu:pc54070a94f6419ea")
-
-        let loaded = CostUsageCacheIO.load(provider: .codex, cacheRoot: root)
-
-        #expect(loaded.lastScanUnixMs == 123)
-        #expect(loaded.days["2026-05-18"]?["gpt-5.5"] == [1, 2, 3])
+            #expect(loaded.lastScanUnixMs == 0)
+            #expect(loaded.days.isEmpty)
+        }
     }
 
     @Test

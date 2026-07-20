@@ -17,16 +17,6 @@ struct ClaudeUsageTests {
         }
     }
 
-    private static func makeOAuthUsageResponse() throws -> OAuthUsageResponse {
-        let json = """
-        {
-          "five_hour": { "utilization": 7, "resets_at": "2025-12-23T16:00:00.000Z" },
-          "seven_day": { "utilization": 21, "resets_at": "2025-12-29T23:00:00.000Z" }
-        }
-        """
-        return try ClaudeOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
-    }
-
     @Test
     func `parses usage JSON with sonnet limit`() {
         let json = """
@@ -327,6 +317,8 @@ struct ClaudeUsageTests {
                 return
             }
             #expect(message.contains("background repair is suppressed"))
+            #expect(message.contains("Click Refresh in the CodexBar menu"))
+            #expect(!message.contains("Open the CodexBar menu or"))
         } catch {
             Issue.record("Expected ClaudeUsageError, got \(error)")
         }
@@ -396,10 +388,9 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func `oauth bootstrap only on user action background startup allows interactive read when no cache`() async throws {
+    func `oauth bootstrap only on user action background startup does not allow interactive read`() async throws {
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
-            var allowBackgroundPromptBootstrapFlags: [Bool] = []
         }
 
         let flags = FlagBox()
@@ -408,8 +399,7 @@ struct ClaudeUsageTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             environment: [:],
             dataSource: .oauth,
-            oauthKeychainPromptCooldownEnabled: true,
-            allowStartupBootstrapPrompt: true)
+            oauthKeychainPromptCooldownEnabled: true)
 
         let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let loadCredsOverride: (@Sendable (
@@ -417,7 +407,6 @@ struct ClaudeUsageTests {
             Bool,
             Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
             flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
-            flags.allowBackgroundPromptBootstrapFlags.append(ClaudeOAuthCredentialsStore.allowBackgroundPromptBootstrap)
             return ClaudeOAuthCredentials(
                 accessToken: "fresh-token",
                 refreshToken: "refresh-token",
@@ -440,8 +429,7 @@ struct ClaudeUsageTests {
             }
         }
 
-        #expect(flags.allowKeychainPromptFlags == [true])
-        #expect(flags.allowBackgroundPromptBootstrapFlags == [true])
+        #expect(flags.allowKeychainPromptFlags == [false])
         #expect(snapshot.primary.usedPercent == 7)
     }
 
@@ -573,8 +561,12 @@ struct ClaudeUsageTests {
                 "session_5h": ["pct_used": 0, "resets": ""],
                 "week_all_models": ["pct_used": 0, "resets": ""],
             ] as [String: Any]
-            if let email = entry["email"] { payload["account_email"] = email }
-            if let org = entry["org"] { payload["account_org"] = org }
+            if let email = entry["email"] {
+                payload["account_email"] = email
+            }
+            if let org = entry["org"] {
+                payload["account_org"] = org
+            }
             let data = try JSONSerialization.data(withJSONObject: payload)
             let snap = ClaudeUsageFetcher.parse(json: data)
             let emailRaw: String? = entry["email"] ?? String?.none
@@ -635,7 +627,9 @@ struct ClaudeUsageTests {
 
         try process.run()
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-            if process.isRunning { process.terminate() }
+            if process.isRunning {
+                process.terminate()
+            }
         }
         process.waitUntilExit()
 
@@ -879,6 +873,18 @@ struct ClaudeUsageTests {
         #expect(defaultVersion?.isEmpty != true)
         #expect(webVersion?.isEmpty != true)
         #expect(cliVersion?.isEmpty != true)
+    }
+}
+
+extension ClaudeUsageTests {
+    private static func makeOAuthUsageResponse() throws -> OAuthUsageResponse {
+        let json = """
+        {
+          "five_hour": { "utilization": 7, "resets_at": "2025-12-23T16:00:00.000Z" },
+          "seven_day": { "utilization": 21, "resets_at": "2025-12-29T23:00:00.000Z" }
+        }
+        """
+        return try ClaudeOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
     }
 }
 
@@ -1291,7 +1297,11 @@ struct ClaudeAutoFetcherCharacterizationTests {
 }
 
 final class ClaudeAutoFetcherStubURLProtocol: URLProtocol {
-    nonisolated(unsafe) static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+    private static let _handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
+    static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
+        get { Self._handlerBox.value }
+        set { Self._handlerBox.setValue(newValue) }
+    }
 
     override static func canInit(with request: URLRequest) -> Bool {
         request.url?.host == "claude.ai"

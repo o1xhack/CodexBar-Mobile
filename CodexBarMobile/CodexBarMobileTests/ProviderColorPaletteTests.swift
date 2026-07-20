@@ -462,6 +462,40 @@ struct ProviderColorPaletteTests {
         let byHyphen = UIColor(ProviderColorPalette.color(for: "claw-router"))
         #expect(byID.isApproximately(byHyphen))
     }
+
+    // MARK: - iOS 1.19.0 · v0.42-v0.45 provider catch-up
+
+    @Test("v0.42-v0.45 provider colors are distinct from the generic blue fallback")
+    func v045ProviderColorsAreExplicit() {
+        let fallback = UIColor(ProviderColorPalette.color(for: "unknown-provider"))
+        let ids = [
+            "clinepass", "deepinfra", "neuralwatt", "longcat",
+            "sub2api", "wayfinder", "zenmux", "aiand",
+        ]
+        for id in ids {
+            let color = UIColor(ProviderColorPalette.color(for: id))
+            #expect(!color.isApproximately(fallback), "\(id) must not use the generic fallback color")
+        }
+    }
+
+    @Test("v0.42-v0.45 provider color normalization accepts display-name variants")
+    func v045ProviderColorNormalization() {
+        let pairs = [
+            ("clinepass", "Cline-Pass"),
+            ("deepinfra", "Deep-Infra"),
+            ("neuralwatt", "Neural-Watt"),
+            ("longcat", "Long-Cat"),
+            ("sub2api", "Sub-2-API"),
+            ("wayfinder", "Way-Finder"),
+            ("zenmux", "Zen-Mux"),
+            ("aiand", "ai&"),
+        ]
+        for (id, name) in pairs {
+            #expect(
+                UIColor(ProviderColorPalette.color(for: id))
+                    .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
+        }
+    }
 }
 
 // MARK: - Test helpers

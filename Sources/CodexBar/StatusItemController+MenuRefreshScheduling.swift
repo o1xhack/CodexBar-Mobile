@@ -8,7 +8,6 @@ extension StatusItemController {
     private struct ScheduledOpenMenuRebuild {
         let provider: UsageProvider?
         let shouldCloseHostedSubviewMenus: Bool
-        let resyncReadinessBaselineAfterRebuild: Bool
         let beforeRebuild: (@MainActor () -> Bool)?
     }
 
@@ -111,6 +110,7 @@ extension StatusItemController {
             from: dashboard?.usageBreakdown ?? [])
         var parts = [
             "costEnabled=\(self.settings.costUsageEnabled ? "1" : "0")",
+            "codexLocalCost=\(self.settings.codexLocalSessionCostLedgerEnabled ? "1" : "0")",
             "costStyle=\(self.settings.costSummaryDisplayStyle.rawValue)",
             "openAIAttached=\(self.store.openAIDashboardAttachmentAuthorized ? "1" : "0")",
             "openAILogin=\(self.store.openAIDashboardRequiresLogin ? "1" : "0")",
@@ -279,7 +279,6 @@ extension StatusItemController {
                 request: ScheduledOpenMenuRebuild(
                     provider: provider,
                     shouldCloseHostedSubviewMenus: true,
-                    resyncReadinessBaselineAfterRebuild: false,
                     beforeRebuild: beforeRebuild))
         }
     }
@@ -293,6 +292,9 @@ extension StatusItemController {
         beforeRebuild: (@MainActor () -> Bool)? = nil)
     {
         let key = ObjectIdentifier(menu)
+        if resyncReadinessBaselineAfterRebuild {
+            self.pendingMenuBaselineResyncs.insert(key)
+        }
         if closeHostedSubviewMenusBeforeRebuild {
             self.openMenuRebuildsClosingHostedSubviewMenus.insert(key)
         }
@@ -321,7 +323,6 @@ extension StatusItemController {
                 request: ScheduledOpenMenuRebuild(
                     provider: provider,
                     shouldCloseHostedSubviewMenus: shouldCloseHostedSubviewMenus,
-                    resyncReadinessBaselineAfterRebuild: resyncReadinessBaselineAfterRebuild,
                     beforeRebuild: beforeRebuild))
         }
     }
@@ -345,7 +346,8 @@ extension StatusItemController {
             self.closeHostedSubviewMenusForParentSwitch()
         }
         self.rebuildOpenMenuIfStillVisible(menu, provider: request.provider)
-        if request.resyncReadinessBaselineAfterRebuild, !self.menuNeedsRefresh(menu) {
+        if self.pendingMenuBaselineResyncs.contains(key), !self.menuNeedsRefresh(menu) {
+            self.pendingMenuBaselineResyncs.remove(key)
             self.resyncMenuAdjunctReadinessBaseline()
         }
     }

@@ -77,6 +77,56 @@ struct AdaptiveRefreshTimerTests {
     }
 
     @Test
+    func `coding activity advances a long idle timer without postponing an earlier tick`() async throws {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-activity-advance",
+            frequency: .adaptiveAgentAware)
+        settings.adaptiveActivityScanConsent = .allowed
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+        store.restartTimerWithSleepOverrideForTesting(.seconds(10))
+        try await Self.waitUntil { store.adaptiveRefreshScheduledAt != nil }
+
+        let longIdleSchedule = try #require(store.adaptiveRefreshScheduledAt)
+        let observedAt = Date()
+        store.noteCodingActivityObserved(at: observedAt, now: observedAt)
+        try await Self.waitUntil {
+            guard let scheduledAt = store.adaptiveRefreshScheduledAt else { return false }
+            return scheduledAt < longIdleSchedule
+        }
+        let activitySchedule = try #require(store.adaptiveRefreshScheduledAt)
+        #expect(store.lastCodingActivityAt == observedAt)
+
+        // An older observation is ignored. A newer observation is retained, but cannot push an
+        // already earlier provider refresh later.
+        store.noteCodingActivityObserved(
+            at: observedAt.addingTimeInterval(-1),
+            now: observedAt.addingTimeInterval(30))
+        #expect(store.lastCodingActivityAt == observedAt)
+        store.noteCodingActivityObserved(
+            at: observedAt.addingTimeInterval(1),
+            now: observedAt.addingTimeInterval(30))
+        #expect(store.lastCodingActivityAt == observedAt.addingTimeInterval(1))
+        #expect(store.adaptiveRefreshScheduledAt == activitySchedule)
+    }
+
+    @Test
+    func `plain adaptive ignores coding activity`() async throws {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-plain-adaptive-activity",
+            frequency: .adaptive)
+        settings.adaptiveActivityScanConsent = .allowed
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+        store.restartTimerWithSleepOverrideForTesting(.seconds(10))
+        try await Self.waitUntil { store.adaptiveRefreshScheduledAt != nil }
+        let scheduledAt = try #require(store.adaptiveRefreshScheduledAt)
+
+        store.noteCodingActivityObserved(at: Date())
+
+        #expect(store.adaptiveRefreshScheduledAt == scheduledAt)
+        #expect(store.lastCodingActivityAt == nil)
+    }
+
+    @Test
     func `noting a menu open records the signal without starting a refresh`() {
         let settings = Self.makeSettingsStore(suite: "AdaptiveRefreshTimerTests-noteMenuOpened", frequency: .manual)
         let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
@@ -92,12 +142,42 @@ struct AdaptiveRefreshTimerTests {
     }
 
     @Test
-    func `refresh call is a no-op while another refresh is already in flight`() async {
+    func `noting coding activity outside agent aware mode is a no-op`() {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-noteCodingActivity",
+            frequency: .fiveMinutes)
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+        let observedAt = Date()
+
+        store.noteCodingActivityObserved(at: observedAt)
+
+        #expect(store.lastCodingActivityAt == nil)
+        #expect(store.adaptiveRefreshScheduledAt == nil)
+        #expect(store.completedRefreshCountForTesting == 0)
+    }
+
+    @Test
+    func `clearing coding activity removes the adaptive input`() {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-clearCodingActivity",
+            frequency: .adaptiveAgentAware)
+        settings.adaptiveActivityScanConsent = .allowed
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+        store.noteCodingActivityObserved(at: Date(timeIntervalSinceReferenceDate: 100))
+        #expect(store.lastCodingActivityAt != nil)
+
+        store.clearCodingActivityObservation()
+
+        #expect(store.lastCodingActivityAt == nil)
+    }
+
+    @Test
+    func `opportunistic timer refresh is a no-op while another refresh is already in flight`() async {
         let settings = Self.makeSettingsStore(suite: "AdaptiveRefreshTimerTests-coalesce", frequency: .manual)
         let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
 
         store.isRefreshing = true
-        await store.refresh()
+        await store.refresh(enrichmentMode: .automatic)
 
         // The guard at the top of runRefresh() returned immediately: no completion was recorded and the
         // flag was left untouched by this call. This is the invariant every timer tick (fixed or
@@ -129,6 +209,57 @@ struct AdaptiveRefreshTimerTests {
         // seconds of wall time even with every provider disabled, so the timeout is generous.
         try await Self.waitUntil(timeout: .seconds(45)) { store.completedRefreshCountForTesting >= 2 }
         #expect(store.completedRefreshCountForTesting >= 2)
+    }
+
+    @Test
+    func `fixed cadence advances from scheduled tick instead of refresh completion`() {
+        let interval = Duration.milliseconds(100)
+        let start = ContinuousClock.now
+        let firstScheduledAt = start + interval
+
+        let nextAfterExactTick = UsageStore.nextFixedTimerScheduledAt(
+            previousScheduledAt: firstScheduledAt,
+            completedAt: firstScheduledAt,
+            interval: interval)
+        #expect(nextAfterExactTick == start + .milliseconds(200))
+
+        let nextJustBeforeFollowingTick = UsageStore.nextFixedTimerScheduledAt(
+            previousScheduledAt: firstScheduledAt,
+            completedAt: firstScheduledAt + .milliseconds(100) - .nanoseconds(1),
+            interval: interval)
+        #expect(nextJustBeforeFollowingTick == start + .milliseconds(200))
+
+        let nextAtFollowingTick = UsageStore.nextFixedTimerScheduledAt(
+            previousScheduledAt: firstScheduledAt,
+            completedAt: firstScheduledAt + .milliseconds(100),
+            interval: interval)
+        #expect(nextAtFollowingTick == start + .milliseconds(300))
+
+        let nextAfterSlowRefresh = UsageStore.nextFixedTimerScheduledAt(
+            previousScheduledAt: firstScheduledAt,
+            completedAt: firstScheduledAt + .milliseconds(60),
+            interval: interval)
+        #expect(nextAfterSlowRefresh == start + .milliseconds(200))
+
+        let nextAfterMissedTicks = UsageStore.nextFixedTimerScheduledAt(
+            previousScheduledAt: firstScheduledAt,
+            completedAt: firstScheduledAt + .milliseconds(260),
+            interval: interval)
+        #expect(nextAfterMissedTicks == start + .milliseconds(400))
+    }
+
+    @Test
+    func `fixed timer loop stays interval aligned after a slow refresh`() async {
+        let harness = FixedTimerLoopHarness()
+
+        await UsageStore.runFixedRefreshTimer(
+            interval: .milliseconds(100),
+            now: { await harness.now() },
+            sleep: { duration in await harness.sleep(for: duration) },
+            refresh: { await harness.refresh() })
+
+        #expect(await harness.recordedStarts() == [.milliseconds(100), .milliseconds(300)])
+        #expect(await harness.maximumConcurrentRefreshes() == 1)
     }
 
     @Test
@@ -285,7 +416,6 @@ struct AdaptiveRefreshTimerTests {
             minimaxCookieStore: InMemoryMiniMaxCookieStore(),
             minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
             kimiTokenStore: InMemoryKimiTokenStore(),
-            kimiK2TokenStore: InMemoryKimiK2TokenStore(),
             augmentCookieStore: InMemoryCookieHeaderStore(),
             ampCookieStore: InMemoryCookieHeaderStore(),
             copilotTokenStore: InMemoryCopilotTokenStore(),
@@ -316,5 +446,42 @@ struct AdaptiveRefreshTimerTests {
             settings: settings,
             startupBehavior: startupBehavior,
             environmentBase: [:])
+    }
+}
+
+private actor FixedTimerLoopHarness {
+    private let origin = ContinuousClock.now
+    private var elapsed = Duration.zero
+    private var starts: [Duration] = []
+    private var activeRefreshes = 0
+    private var maximumActiveRefreshes = 0
+
+    func now() -> ContinuousClock.Instant {
+        self.origin + self.elapsed
+    }
+
+    func sleep(for duration: Duration) {
+        self.elapsed += duration
+    }
+
+    func refresh() {
+        self.activeRefreshes += 1
+        self.maximumActiveRefreshes = max(self.maximumActiveRefreshes, self.activeRefreshes)
+        self.starts.append(self.elapsed)
+        if self.starts.count == 1 {
+            self.elapsed += .milliseconds(160)
+        }
+        self.activeRefreshes -= 1
+        if self.starts.count == 2 {
+            withUnsafeCurrentTask { $0?.cancel() }
+        }
+    }
+
+    func recordedStarts() -> [Duration] {
+        self.starts
+    }
+
+    func maximumConcurrentRefreshes() -> Int {
+        self.maximumActiveRefreshes
     }
 }
