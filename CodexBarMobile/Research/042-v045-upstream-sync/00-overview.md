@@ -1,7 +1,7 @@
 # v0.45.2 Upstream Sync + iOS 1.19.0 Overview
 
 Status: `done`
-Date: 2026-07-19
+Date: 2026-07-19 to 2026-07-20
 Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
 Open issues:
 - [#48](https://github.com/o1xhack/CodexBar-Mobile/issues/48) — upstream `v0.42.1`
@@ -20,9 +20,12 @@ git switch -c upstream-sync/v0.45.2-mobile.1.19.0
 ```
 
 All research, merge, implementation, versioning, testing, packaging, and
-review work for this train stays on that branch. Push, merge, a published tag,
-live release, TestFlight upload, and CloudKit Production deploy remain outside
-the authorization boundary.
+review work for this train stays on that branch. At Goal start, push, merge, a
+published tag, live release, TestFlight upload, App Store submission and
+CloudKit Production deploy were outside the authorization boundary. On
+2026-07-20 the user explicitly expanded the scope to TestFlight upload and App
+Store 1.19 draft preparation, while keeping live publication and review
+submission prohibited.
 
 ## Authoritative Baseline
 
@@ -36,8 +39,8 @@ the authorization boundary.
 | `UPSTREAM_VERSION` | `v0.41.0` |
 | `UPSTREAM_SYNC_DATE` | `2026-07-06` |
 
-All four iOS targets are currently `1.18.0 (187)`. The latest published fork
-release is `v0.41.0.1-mobile.1.18.0`, published on 2026-07-15.
+At Goal start, all four iOS targets were `1.18.0 (187)`. The latest published
+fork release was `v0.41.0.1-mobile.1.18.0`, published on 2026-07-15.
 
 ## Upstream Facts and One-Version Scope
 
@@ -147,8 +150,15 @@ artifacts are attached to a verified GitHub **draft** release:
 
 <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-25ceca7188ab7ee13644>
 
-No branch push, merge to `mobile-dev`, local/remote tag, live release,
-TestFlight upload, appcast update or CloudKit Production deploy was performed.
+The follow-up release scope uploaded iOS `1.19.0 (188)` to TestFlight; build
+`0a5ee6bf-45be-4789-b7c3-fff3b33d0fde` reached `VALID` and was bound to App
+Store version 1.19.0. All six version-localized text fields are populated in
+`en-US`, `ja`, `zh-Hans` and `zh-Hant`, and the version remains
+`PREPARE_FOR_SUBMISSION` with manual release.
+
+No branch push, merge to `mobile-dev`, local/remote tag, Mac live release,
+appcast update, App Store review submission, App Store publication or CloudKit
+Production deploy was performed.
 
 ## Gates and Risks
 

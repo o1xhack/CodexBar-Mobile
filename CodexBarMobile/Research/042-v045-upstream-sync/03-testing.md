@@ -1,7 +1,7 @@
 # v0.45.2 Upstream Sync Test Evidence
 
 Status: `done`
-Date: 2026-07-19
+Date: 2026-07-19 to 2026-07-20
 
 ## Environment
 
@@ -45,7 +45,12 @@ excluded unless separately authorized.
 | Architectures / UUIDs | `x86_64` `A51C5DA5-7B5C-3C2A-B9BF-7A35CF67ADAD`; `arm64` `1A49E406-1FBE-3551-827A-B5856E9870D3`; both match dSYM |
 | CloudKit entitlement | packaged app contains `com.apple.developer.icloud-container-environment=Production` |
 | Draft release | release ID `356471765`; `draft=true`; two uploaded assets and server digests match local hashes |
-| Publication boundary | no local/remote tag; no push/merge/live publish/TestFlight; appcast unchanged |
+| TestFlight upload | `1.19.0 (188)`; archive `/tmp/CodexBarMobile-20260720-105734.xcarchive`; upload and export succeeded |
+| TestFlight processing | build ID `0a5ee6bf-45be-4789-b7c3-fff3b33d0fde`; `VALID`; not expired |
+| App Store version | version ID `5b87c615-2c45-48a7-9d7e-836f15e3ed2b`; `1.19.0`; `PREPARE_FOR_SUBMISSION`; manual release |
+| Version localization | `en-US`, `ja`, `zh-Hans`, `zh-Hant`; description, keywords, marketing URL, promotional text, support URL and What's New all present; copyright present; What's New exact-match readback pass |
+| Build binding | App Store version relationship points to build 188; build reads back `VALID` |
+| Publication boundary | Mac release remains draft with `published_at=null`; no local/remote tag, push, merge, live release, appcast publication, review submission or App Store publication |
 
 ## 2 Mac x 2 iPhone Compatibility Matrix
 

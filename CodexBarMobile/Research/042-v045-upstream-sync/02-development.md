@@ -1,7 +1,7 @@
 # v0.45.2 Upstream Sync Development Log
 
 Status: `done`
-Date: 2026-07-19
+Date: 2026-07-19 to 2026-07-20
 Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
 
 ## Evidence Ledger
@@ -180,6 +180,35 @@ Branch: `upstream-sync/v0.45.2-mobile.1.19.0`
   `109.1.1.19.0` matches the packaged plist and is monotonic over published
   `100.1.1.18.0`.
 
-The authorized draft-only train is complete. Push, merge, tag publication,
-live release, appcast publication, TestFlight upload and CloudKit deploy remain
-intentionally unperformed.
+### Round 8 — TestFlight and App Store Connect preparation
+
+- Added App Store source metadata under `AppStoreMetadata/1.19.0` for
+  `en-US`, `ja`, `zh-Hans` and `zh-Hant`: full What's New text plus promotional
+  text. The What's New body is sourced from the same four-language in-app
+  release-notes content.
+- `Scripts/upload_ios_testflight.sh` reran portable/release lint, archived the
+  three iOS targets and uploaded `1.19.0 (188)` through the logged-in Xcode
+  cloud-signing session. Archive:
+  `/tmp/CodexBarMobile-20260720-105734.xcarchive`.
+- App Store Connect accepted the upload and build
+  `0a5ee6bf-45be-4789-b7c3-fff3b33d0fde` reached `VALID`; uploaded date is
+  `2026-07-20T11:00:48-07:00`.
+- App Store Connect permits only one editable iOS version. The existing,
+  unsubmitted `1.18.0` `PREPARE_FOR_SUBMISSION` draft was therefore updated in
+  place to `1.19.0`, preserving its version-page assets and existing complete
+  metadata. Version ID: `5b87c615-2c45-48a7-9d7e-836f15e3ed2b`.
+- All six version-localized text fields are populated for all four locales:
+  description, keywords, marketing URL, promotional text, support URL and
+  What's New. Copyright is present. API readback matched every local What's
+  New file exactly.
+- Bound build 188 to App Store version 1.19.0 and read it back as
+  `VALID`. The version remains `PREPARE_FOR_SUBMISSION` with manual release;
+  it was not submitted for review or published.
+- Re-read Mac GitHub release ID `356471765` after the iOS work: it remains
+  `draft=true`, `published_at=null`, target `mobile-dev`, with the same two
+  digest-matching assets. The candidate tag remains absent locally and on
+  `origin`.
+
+The authorized preparation train is complete. Push, merge, tag publication,
+Mac live release, appcast publication, App Store review submission, App Store
+publication and CloudKit deploy remain intentionally unperformed.

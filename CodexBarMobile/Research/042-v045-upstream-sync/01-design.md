@@ -1,7 +1,7 @@
 # v0.45.2 Upstream Sync Design
 
 Status: `done`
-Date: 2026-07-19
+Date: 2026-07-19 to 2026-07-20
 
 ## Design Principle
 
@@ -135,6 +135,9 @@ Goal before Dashboard deploy.
 
 ## Authorization Boundary
 
-Local commits, tests, signed/notarized artifacts, a candidate appcast and draft
-release metadata are authorized. Do not push, merge, publish a tag, publish a
-live release, upload TestFlight, submit to the App Store or deploy CloudKit.
+At design time, local commits, tests, signed/notarized artifacts, a candidate
+appcast and draft release metadata were authorized; TestFlight upload and App
+Store submission were outside scope. On 2026-07-20 the user explicitly added
+TestFlight upload and complete App Store 1.19 draft preparation. Push, merge,
+tag publication, Mac live release, appcast publication, App Store review
+submission/publication and CloudKit deploy remain outside scope.
