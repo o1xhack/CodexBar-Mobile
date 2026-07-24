@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.45.2.2 — 2026-07-24
+
+### Fixed
+- Alibaba Token Plan: restore the authenticated 5-hour and weekly rate windows, keep the legacy monthly credit response as a fallback, and label each restored window by its actual duration. Thanks @rohitsabu!
+
 ## 0.45.2.1 — 2026-07-19
 
 ### Added
