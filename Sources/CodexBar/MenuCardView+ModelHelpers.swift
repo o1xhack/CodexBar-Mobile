@@ -286,12 +286,19 @@ extension UsageMenuCardView.Model {
             DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else if input.provider == .sub2api {
             Sub2APIProviderDescriptor.primaryLabel(details: snapshot.sub2APIUsage) ?? input.metadata.sessionLabel
+        } else if input.provider == .alibabatokenplan {
+            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
         } else {
             input.metadata.sessionLabel
         }
+        let secondaryLabel = if input.provider == .alibabatokenplan {
+            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary)
+        } else {
+            input.metadata.weeklyLabel
+        }
         return (
             L(primaryLabel),
-            L(input.metadata.weeklyLabel),
+            L(secondaryLabel),
             input.metadata.opusLabel.map(L) ?? L("Sonnet"),
             input.metadata.supportsOpus)
     }

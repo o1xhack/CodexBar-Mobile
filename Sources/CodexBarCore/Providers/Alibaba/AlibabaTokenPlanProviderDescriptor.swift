@@ -7,6 +7,14 @@ import SweetCookieKit
 public enum AlibabaTokenPlanProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
+    public static func primaryLabel(window: RateWindow?) -> String {
+        window?.windowMinutes == 5 * 60 ? "5-hour" : "Credits"
+    }
+
+    public static func secondaryLabel(window: RateWindow?) -> String {
+        window?.windowMinutes == 7 * 24 * 60 ? "Weekly" : "Usage"
+    }
+
     static func makeDescriptor() -> ProviderDescriptor {
         #if os(macOS)
         let browserOrder: BrowserCookieImportOrder = [
