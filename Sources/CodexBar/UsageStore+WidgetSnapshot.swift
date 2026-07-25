@@ -171,9 +171,9 @@ extension UsageStore {
                 guard let window = candidate.window else { return nil }
                 return WidgetSnapshot.WidgetUsageRowSnapshot(
                     id: candidate.id,
-                    title: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    title: L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
                         window: window,
-                        fallback: candidate.fallback),
+                        fallback: candidate.fallback)),
                     percentLeft: window.remainingPercent,
                     window: window)
             }

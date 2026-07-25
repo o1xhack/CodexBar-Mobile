@@ -94,6 +94,16 @@ struct UsageStoreWidgetSnapshotTests {
         #expect(entry.usageRows?.map(\.title) == ["5-hour", "Weekly", "Credits"])
         #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 50, 90])
         #expect(entry.usageRows?.compactMap { $0.window?.windowMinutes } == [300, 10080, 43200])
+
+        let japaneseTitles = CodexBarLocalizationOverride.$appLanguage.withValue("ja") {
+            store.persistWidgetSnapshot(reason: "alibaba-rate-windows-ja-test")
+            return store.widgetSnapshotPersistTask
+        }
+        await japaneseTitles?.value
+        #expect(widgetSnapshots.last?.entries
+            .first(where: { $0.provider == .alibabatokenplan })?
+            .usageRows?
+            .map(\.title) == ["5時間", "週間", "クレジット"])
     }
 
     @Test

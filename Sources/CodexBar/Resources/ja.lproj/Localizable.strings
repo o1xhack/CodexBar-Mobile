@@ -124,6 +124,7 @@
 "Could not start codex login" = "codex login を開始できませんでした";
 "Could not switch system account" = "システムアカウントを切り替えられませんでした";
 "Credits" = "クレジット";
+"5-hour" = "5時間";
 "Individual credits" = "個人クレジット";
 "Workspace" = "ワークスペース";
 "Credits history" = "クレジット履歴";

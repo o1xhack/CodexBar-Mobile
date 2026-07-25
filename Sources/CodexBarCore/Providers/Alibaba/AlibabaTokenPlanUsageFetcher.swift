@@ -78,6 +78,24 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return region.dashboardURL
     }
 
+    static func personalDashboardURL(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        guard let override = self.rateLimitOverrideBaseURL(environment: environment),
+              var components = URLComponents(url: override, resolvingAgainstBaseURL: false),
+              let personalComponents = URLComponents(
+                  url: region.personalDashboardURL,
+                  resolvingAgainstBaseURL: false)
+        else {
+            return region.personalDashboardURL
+        }
+        components.path = personalComponents.path
+        components.percentEncodedQuery = personalComponents.percentEncodedQuery
+        components.fragment = personalComponents.fragment
+        return components.url ?? region.personalDashboardURL
+    }
+
     public static func fetchUsage(
         cookieHeader: String,
         region: AlibabaTokenPlanAPIRegion = .international,
@@ -355,7 +373,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 environment: context.environment),
             forHTTPHeaderField: "Origin")
         request.setValue(
-            self.dashboardURL(
+            self.personalDashboardURL(
                 region: context.region,
                 environment: context.environment).absoluteString,
             forHTTPHeaderField: "Referer")
@@ -388,7 +406,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let traceID = UUID().uuidString.lowercased()
         var cornerstoneParam: [String: Any] = [
             "feTraceId": traceID,
-            "feURL": self.dashboardURL(region: region, environment: environment).absoluteString,
+            "feURL": self.personalDashboardURL(region: region, environment: environment).absoluteString,
             "protocol": "V2",
             "console": "ONE_CONSOLE",
             "productCode": "p_efm",

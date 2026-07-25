@@ -121,6 +121,28 @@ struct AlibabaTokenPlanSettingsReaderTests {
             region: .chinaMainland,
             environment: [:]) == AlibabaTokenPlanAPIRegion.chinaMainland.dashboardOriginURLString)
     }
+
+    @Test
+    func `rate limit metadata uses personal dashboard page`() {
+        #expect(AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .international,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.international.personalDashboardURL)
+        #expect(AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .chinaMainland,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.chinaMainland.personalDashboardURL)
+
+        let override = AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .international,
+            environment: [
+                AlibabaTokenPlanSettingsReader.quotaURLKey: "https://quota.token-plan.test:8443/custom/summary",
+                AlibabaTokenPlanSettingsReader.hostKey: "https://dashboard.token-plan.test",
+            ])
+        #expect(override.host == "quota.token-plan.test")
+        #expect(override.port == 8443)
+        #expect(override.path == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.path)
+        #expect(override.query == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.query)
+        #expect(override.fragment == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.fragment)
+    }
 }
 
 struct AlibabaTokenPlanCookieHeaderTests {
@@ -631,7 +653,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         let environment = [
             AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test",
         ]
-        let expectedReferer = AlibabaTokenPlanUsageFetcher.dashboardURL(
+        let expectedReferer = AlibabaTokenPlanUsageFetcher.personalDashboardURL(
             region: .international,
             environment: environment).absoluteString
 
@@ -660,6 +682,10 @@ struct AlibabaTokenPlanUsageParsingTests {
                 #expect(body.contains("sec_token=session-token"))
                 #expect(body.contains("params="))
                 #expect(body.contains("region=ap-southeast-1"))
+                let params = try #require(Self.requestParamsDictionary(from: body))
+                let data = try #require(params["Data"] as? [String: Any])
+                let cornerstone = try #require(data["cornerstoneParam"] as? [String: Any])
+                #expect(cornerstone["feURL"] as? String == expectedReferer)
                 let json = """
                 {
                   "code": "200",
@@ -967,6 +993,18 @@ struct AlibabaTokenPlanUsageParsingTests {
             return String(data: data, encoding: .utf8) ?? ""
         }
         return ""
+    }
+
+    private static func requestParamsDictionary(from body: String) -> [String: Any]? {
+        guard let components = URLComponents(string: "https://example.invalid/?\(body)"),
+              let params = components.queryItems?.first(where: { $0.name == "params" })?.value,
+              let data = params.data(using: .utf8)
+        else {
+            return nil
+        }
+
+        let object = try? JSONSerialization.jsonObject(with: data, options: [])
+        return object as? [String: Any]
     }
 }
 
