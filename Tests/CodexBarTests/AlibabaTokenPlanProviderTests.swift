@@ -66,6 +66,20 @@ struct AlibabaTokenPlanSettingsReaderTests {
         #expect(url.absoluteString.contains("GetSubscriptionSummary"))
         #expect(url.absoluteString.contains("BssOpenAPI-V3"))
     }
+
+    @Test
+    func `host override also routes rate limit requests`() {
+        let url = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: [
+                AlibabaTokenPlanSettingsReader.hostKey: "https://token-plan.test:9443",
+            ])
+
+        #expect(url.host == "token-plan.test")
+        #expect(url.port == 9443)
+        #expect(url.path == AlibabaTokenPlanAPIRegion.international.rateLimitURL.path)
+        #expect(url.query == AlibabaTokenPlanAPIRegion.international.rateLimitURL.query)
+    }
 }
 
 struct AlibabaTokenPlanCookieHeaderTests {
@@ -484,6 +498,16 @@ struct AlibabaTokenPlanUsageParsingTests {
                 return Self.makeResponse(url: url, body: json, statusCode: 200)
             }
 
+            if url.host == "alibaba-token-plan.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
+                #expect(url.port == 9443)
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
+            }
+
             if url.host == "alibaba-token-plan.test", request.httpMethod == "POST" {
                 #expect(request.value(forHTTPHeaderField: "Cookie") == "login_aliyunid_ticket=ticket; raw_only=keep")
                 #expect(request.value(forHTTPHeaderField: "Origin") == "https://modelstudio.console.alibabacloud.com")
@@ -527,6 +551,12 @@ struct AlibabaTokenPlanUsageParsingTests {
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
+        let environment = [
+            AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test",
+        ]
+        let expectedReferer = AlibabaTokenPlanUsageFetcher.dashboardURL(
+            region: .international,
+            environment: environment).absoluteString
 
         AlibabaTokenPlanStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
@@ -538,7 +568,7 @@ struct AlibabaTokenPlanUsageParsingTests {
                     statusCode: 200)
             }
 
-            if url.host == "bailian-singapore-cs.alibabacloud.com",
+            if url.host == "rate-limit.test",
                request.httpMethod == "POST",
                URLComponents(url: url, resolvingAgainstBaseURL: false)?
                    .queryItems?
@@ -546,7 +576,9 @@ struct AlibabaTokenPlanUsageParsingTests {
                    .value == "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage"
             {
                 #expect(request.value(forHTTPHeaderField: "Origin") ==
-                    "https://modelstudio.console.alibabacloud.com")
+                    "https://rate-limit.test")
+                #expect(request.value(forHTTPHeaderField: "Referer") ==
+                    expectedReferer)
                 let body = Self.requestBodyString(from: request)
                 #expect(body.contains("sec_token=session-token"))
                 #expect(body.contains("params="))
@@ -600,7 +632,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
             apiCookieHeader: "login_aliyunid_ticket=ticket",
             dashboardCookieHeader: "login_aliyunid_ticket=ticket",
-            environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+            environment: environment,
             session: session)
         let usage = snapshot.toUsageSnapshot()
 
@@ -628,7 +660,12 @@ struct AlibabaTokenPlanUsageParsingTests {
                     statusCode: 200)
             }
 
-            if url.host == "bailian-singapore-cs.alibabacloud.com", request.httpMethod == "POST" {
+            if url.host == "rate-limit.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
                 let json = """
                 {
                   "code": "200",
@@ -683,6 +720,15 @@ struct AlibabaTokenPlanUsageParsingTests {
                     url: url,
                     body: "<html><script>sec_token = \"session-html-token\";</script></html>",
                     statusCode: 200)
+            }
+
+            if url.host == "session-token.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
             }
 
             if url.host == "session-token.test", request.httpMethod == "POST" {

@@ -195,6 +195,18 @@ enum DashboardSnapshotBuilder {
         if provider == .factory, usage.tertiary != nil {
             return RateWindowLabels(primary: "5-hour", secondary: "Weekly", tertiary: "Monthly")
         }
+        if provider == .alibabatokenplan {
+            return RateWindowLabels(
+                primary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: usage.primary,
+                    fallback: metadata?.sessionLabel ?? "Credits"),
+                secondary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: usage.secondary,
+                    fallback: metadata?.weeklyLabel ?? "Usage"),
+                tertiary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: usage.tertiary,
+                    fallback: "Credits"))
+        }
 
         return RateWindowLabels(
             primary: metadata?.sessionLabel ?? "Session",

@@ -705,23 +705,37 @@ final class SyncCoordinator {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
         if let p = snapshot?.primary {
+            let label = provider == .alibabatokenplan
+                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: p,
+                    fallback: metadata?.sessionLabel ?? "Credits")
+                : metadata?.sessionLabel
             rateWindows.append(SyncRateWindow(
-                label: metadata?.sessionLabel,
+                label: label,
                 usedPercent: p.usedPercent,
                 windowMinutes: p.windowMinutes,
                 resetsAt: p.resetsAt,
                 resetDescription: p.resetDescription))
         }
         if let s = snapshot?.secondary {
+            let label = provider == .alibabatokenplan
+                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: s,
+                    fallback: metadata?.weeklyLabel ?? "Usage")
+                : metadata?.weeklyLabel
             rateWindows.append(SyncRateWindow(
-                label: metadata?.weeklyLabel,
+                label: label,
                 usedPercent: s.usedPercent,
                 windowMinutes: s.windowMinutes,
                 resetsAt: s.resetsAt,
                 resetDescription: s.resetDescription))
         }
         if let t = snapshot?.tertiary {
-            let label: String? = if let metadata, metadata.supportsOpus {
+            let label: String? = if provider == .alibabatokenplan {
+                AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: t,
+                    fallback: "Credits")
+            } else if let metadata, metadata.supportsOpus {
                 metadata.opusLabel ?? "Sonnet"
             } else {
                 Self.additionalWindowLabel(windowMinutes: t.windowMinutes)

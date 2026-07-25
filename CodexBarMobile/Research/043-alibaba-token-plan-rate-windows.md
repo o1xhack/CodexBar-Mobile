@@ -67,6 +67,13 @@ our exact baseline while preserving the fork-only
   dropping monthly credits, and keeps the rate windows when the summary request
   fails. Window mapping now compacts available 5-hour, weekly, and monthly
   values so a weekly-only response remains visible and correctly labeled.
+- Fork PR review round 2 found two cross-surface and endpoint-override gaps.
+  `ALIBABA_TOKEN_PLAN_HOST` now routes the rate-limit request as well as the
+  dashboard and subscription summary, including override-scoped Origin,
+  Referer, and request metadata, so test credentials never fall through to the
+  production rate-limit host. Duration-derived labels now flow through Mac
+  menus, CloudKit sync, localized iOS cards, CLI text, and dashboard JSON; the
+  tertiary monthly credits window is no longer hidden outside the Mac menu.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -86,7 +93,9 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- `swift test --filter AlibabaTokenPlan`: 47 tests across 10 suites passed.
+- Focused Alibaba provider and cross-surface checks: 51 tests across 13 suites
+  passed, including endpoint override, CloudKit/iOS labels, CLI output, and
+  dashboard JSON.
 - `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --parallel`: complete
   macOS test graph passed with live-account tests disabled.
 - `bash Scripts/lint.sh lint`: passed, including SwiftFormat, SwiftLint,

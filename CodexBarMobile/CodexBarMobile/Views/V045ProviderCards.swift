@@ -4,6 +4,8 @@ import SwiftUI
 enum ProviderWindowLabel {
     static func localizationKey(for label: String?) -> String? {
         switch label {
+        case "5-hour": "alibaba_token_plan_window_5_hour"
+        case "Credits": "Credits"
         case "Daily": "v045_window_daily"
         case "Weekly": "v045_window_weekly"
         case "Monthly": "v045_window_monthly"
@@ -33,6 +35,10 @@ enum ProviderWindowLabel {
             return label ?? fallback
         }
         switch key {
+        case "alibaba_token_plan_window_5_hour":
+            return String(localized: "alibaba_token_plan_window_5_hour", defaultValue: "5-hour")
+        case "Credits":
+            return String(localized: "Credits", defaultValue: "Credits")
         case "v045_window_daily":
             return String(localized: "v045_window_daily", defaultValue: "Daily")
         case "v045_window_weekly":

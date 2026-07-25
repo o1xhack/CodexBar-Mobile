@@ -13551,6 +13551,35 @@
         }
       }
     },
+    "alibaba_token_plan_window_5_hour": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5-hour"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5時間"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 小时"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 小時"
+          }
+        }
+      }
+    },
     "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies.": {
       "localizations": {
         "en": {

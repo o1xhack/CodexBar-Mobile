@@ -37,6 +37,14 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let now: Date
     }
 
+    private struct RateLimitContext: Sendable {
+        let cookieHeader: String
+        let secToken: String
+        let region: AlibabaTokenPlanAPIRegion
+        let environment: [String: String]
+        let now: Date
+    }
+
     private static let log = CodexBarLog.logger("alibaba-token-plan")
     private static let bssServiceCode = "BssOpenAPI-V3"
     private static let subscriptionSummaryAction = "GetSubscriptionSummary"
@@ -152,10 +160,12 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         if let secToken {
             do {
                 rateLimitSnapshot = try await self.fetchRateLimitUsage(
-                    cookieHeader: normalizedAPIHeader,
-                    secToken: secToken,
-                    region: region,
-                    now: now,
+                    context: RateLimitContext(
+                        cookieHeader: normalizedAPIHeader,
+                        secToken: secToken,
+                        region: region,
+                        environment: environment,
+                        now: now),
                     session: apiSession)
             } catch {
                 Self.log.info(
@@ -258,33 +268,39 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     }
 
     private static func fetchRateLimitUsage(
-        cookieHeader: String,
-        secToken: String,
-        region: AlibabaTokenPlanAPIRegion,
-        now: Date,
+        context: RateLimitContext,
         session: URLSession) async throws -> AlibabaTokenPlanUsageSnapshot
     {
-        let url = region.rateLimitURL
+        let url = self.resolveRateLimitURL(
+            region: context.region,
+            environment: context.environment)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 20
         request.httpBody = self.rateLimitRequestBody(
-            cookieHeader: cookieHeader,
-            secToken: secToken,
-            region: region)
+            cookieHeader: context.cookieHeader,
+            secToken: context.secToken,
+            region: context.region,
+            environment: context.environment)
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        if let csrf = self.extractCookieValue(name: "login_aliyunid_csrf", from: cookieHeader) ??
-            self.extractCookieValue(name: "csrf", from: cookieHeader)
+        request.setValue(context.cookieHeader, forHTTPHeaderField: "Cookie")
+        if let csrf = self.extractCookieValue(name: "login_aliyunid_csrf", from: context.cookieHeader) ??
+            self.extractCookieValue(name: "csrf", from: context.cookieHeader)
         {
             request.setValue(csrf, forHTTPHeaderField: "x-xsrf-token")
             request.setValue(csrf, forHTTPHeaderField: "x-csrf-token")
         }
         request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
         request.setValue(Self.browserLikeUserAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(region.gatewayBaseURLString, forHTTPHeaderField: "Origin")
-        request.setValue(region.personalDashboardURL.absoluteString, forHTTPHeaderField: "Referer")
+        request.setValue(
+            self.originURLString(for: url) ?? context.region.gatewayBaseURLString,
+            forHTTPHeaderField: "Origin")
+        request.setValue(
+            self.dashboardURL(
+                region: context.region,
+                environment: context.environment).absoluteString,
+            forHTTPHeaderField: "Referer")
 
         let data: Data
         let response: URLResponse
@@ -302,18 +318,19 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             }
             throw AlibabaTokenPlanUsageError.apiError("HTTP \(httpResponse.statusCode)")
         }
-        return try self.parseRateLimitUsageSnapshot(from: data, now: now)
+        return try self.parseRateLimitUsageSnapshot(from: data, now: context.now)
     }
 
     private static func rateLimitRequestBody(
         cookieHeader: String,
         secToken: String,
-        region: AlibabaTokenPlanAPIRegion) -> Data
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> Data
     {
         let traceID = UUID().uuidString.lowercased()
         var cornerstoneParam: [String: Any] = [
             "feTraceId": traceID,
-            "feURL": region.personalDashboardURL.absoluteString,
+            "feURL": self.dashboardURL(region: region, environment: environment).absoluteString,
             "protocol": "V2",
             "console": "ONE_CONSOLE",
             "productCode": "p_efm",
@@ -349,6 +366,34 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             URLQueryItem(name: "sec_token", value: secToken),
         ]
         return Data((components.percentEncodedQuery ?? "").utf8)
+    }
+
+    static func resolveRateLimitURL(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        guard let host = AlibabaTokenPlanSettingsReader.hostOverride(environment: environment),
+              let base = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: host),
+              var components = URLComponents(url: base, resolvingAgainstBaseURL: false),
+              let rateLimitComponents = URLComponents(
+                  url: region.rateLimitURL,
+                  resolvingAgainstBaseURL: false)
+        else {
+            return region.rateLimitURL
+        }
+        components.path = rateLimitComponents.path
+        components.percentEncodedQuery = rateLimitComponents.percentEncodedQuery
+        components.fragment = rateLimitComponents.fragment
+        return components.url ?? region.rateLimitURL
+    }
+
+    private static func originURLString(for url: URL) -> String? {
+        guard let scheme = url.scheme, let host = url.host else { return nil }
+        var components = URLComponents()
+        components.scheme = scheme
+        components.host = host
+        components.port = url.port
+        return components.string
     }
 
     static func resolveQuotaURL(
