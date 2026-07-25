@@ -13551,7 +13551,7 @@
         }
       }
     },
-    "alibaba_token_plan_window_5_hour": {
+    "5-hour": {
       "extractionState": "manual",
       "localizations": {
         "en": {

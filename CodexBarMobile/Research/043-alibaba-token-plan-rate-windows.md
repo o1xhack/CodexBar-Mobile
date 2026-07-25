@@ -1,6 +1,6 @@
 # Alibaba Token Plan Rate Windows Hotfix
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-07-24
 Issue: [#59](https://github.com/o1xhack/CodexBar-Mobile/issues/59)
 Upstream PR: [steipete/CodexBar#2437](https://github.com/steipete/CodexBar/pull/2437)
