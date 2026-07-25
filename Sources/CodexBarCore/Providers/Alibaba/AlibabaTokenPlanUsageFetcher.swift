@@ -48,6 +48,8 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger("alibaba-token-plan")
     private static let bssServiceCode = "BssOpenAPI-V3"
     private static let subscriptionSummaryAction = "GetSubscriptionSummary"
+    private static let rateLimitMergeGrace: Duration = .seconds(2)
+    private static let rateLimitFallbackGrace: Duration = .seconds(5)
     private static let browserLikeUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
@@ -156,22 +158,20 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             region: region,
             environment: environment,
             session: dashboardSession)
-        var rateLimitSnapshot: AlibabaTokenPlanUsageSnapshot?
-        if let secToken {
-            do {
-                rateLimitSnapshot = try await self.fetchRateLimitUsage(
+        let rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>? = secToken.map { token in
+            Task {
+                try await self.fetchRateLimitUsage(
                     context: RateLimitContext(
                         cookieHeader: normalizedAPIHeader,
-                        secToken: secToken,
+                        secToken: token,
                         region: region,
                         environment: environment,
                         now: now),
                     session: apiSession)
-            } catch {
-                Self.log.info(
-                    "Alibaba Token Plan rate-limit request failed; using subscription summary",
-                    metadata: ["error": error.localizedDescription])
             }
+        }
+        defer {
+            rateLimitTask?.cancel()
         }
         Self.log.info(
             "Fetching Alibaba Token Plan usage",
@@ -194,16 +194,48 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                     environment: environment,
                     now: now),
                 session: apiSession)
-            return rateLimitSnapshot?.mergingSubscriptionSummary(subscriptionSnapshot) ?? subscriptionSnapshot
+            return await self.mergeRateLimitTask(
+                rateLimitTask,
+                into: subscriptionSnapshot,
+                joinGrace: self.rateLimitMergeGrace)
         } catch {
-            if let rateLimitSnapshot {
+            guard let rateLimitTask else { throw error }
+            switch await BoundedTaskJoin(sourceTask: rateLimitTask)
+                .value(joinGrace: self.rateLimitFallbackGrace)
+            {
+            case let .value(rateLimitSnapshot):
                 Self.log.info(
                     "Alibaba Token Plan subscription summary failed; using rate-limit usage",
                     metadata: ["error": error.localizedDescription])
                 return rateLimitSnapshot
+            case let .failure(rateLimitError):
+                Self.log.info(
+                    "Alibaba Token Plan rate-limit request also failed",
+                    metadata: ["error": rateLimitError.localizedDescription])
+            case .timedOut:
+                Self.log.info("Alibaba Token Plan rate-limit fallback timed out")
             }
             throw error
         }
+    }
+
+    static func mergeRateLimitTask(
+        _ rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>?,
+        into subscriptionSnapshot: AlibabaTokenPlanUsageSnapshot,
+        joinGrace: Duration) async -> AlibabaTokenPlanUsageSnapshot
+    {
+        guard let rateLimitTask else { return subscriptionSnapshot }
+        switch await BoundedTaskJoin(sourceTask: rateLimitTask).value(joinGrace: joinGrace) {
+        case let .value(rateLimitSnapshot):
+            return rateLimitSnapshot.mergingSubscriptionSummary(subscriptionSnapshot)
+        case let .failure(error):
+            Self.log.info(
+                "Alibaba Token Plan rate-limit request failed; using subscription summary",
+                metadata: ["error": error.localizedDescription])
+        case .timedOut:
+            Self.log.info("Alibaba Token Plan rate-limit request timed out; using subscription summary")
+        }
+        return subscriptionSnapshot
     }
 
     private static func fetchSubscriptionSummary(
@@ -294,7 +326,9 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
         request.setValue(Self.browserLikeUserAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(
-            self.originURLString(for: url) ?? context.region.gatewayBaseURLString,
+            self.rateLimitOriginURLString(
+                region: context.region,
+                environment: context.environment),
             forHTTPHeaderField: "Origin")
         request.setValue(
             self.dashboardURL(
@@ -385,6 +419,18 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         components.percentEncodedQuery = rateLimitComponents.percentEncodedQuery
         components.fragment = rateLimitComponents.fragment
         return components.url ?? region.rateLimitURL
+    }
+
+    static func rateLimitOriginURLString(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> String
+    {
+        guard AlibabaTokenPlanSettingsReader.hostOverride(environment: environment) != nil else {
+            return region.dashboardOriginURLString
+        }
+        return self.originURLString(for: self.resolveRateLimitURL(
+            region: region,
+            environment: environment)) ?? region.dashboardOriginURLString
     }
 
     private static func originURLString(for url: URL) -> String? {

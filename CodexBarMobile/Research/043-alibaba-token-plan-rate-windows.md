@@ -74,6 +74,14 @@ our exact baseline while preserving the fork-only
   production rate-limit host. Duration-derived labels now flow through Mac
   menus, CloudKit sync, localized iOS cards, CLI text, and dashboard JSON; the
   tertiary monthly credits window is no longer hidden outside the Mac menu.
+- Fork PR review round 3 found two request-behavior regressions. Production
+  rate-limit requests now retain the region's Alibaba dashboard Origin, while
+  `ALIBABA_TOKEN_PLAN_HOST` still supplies the Origin for override traffic.
+  Rate-limit and subscription-summary requests now start concurrently; a
+  successful summary waits at most two seconds for optional rolling windows,
+  and a failed summary allows at most five seconds for rate data to become the
+  fallback. The rate endpoint's 20-second timeout can therefore no longer
+  block a healthy summary response.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -93,8 +101,9 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 51 tests across 13 suites
-  passed, including endpoint override, CloudKit/iOS labels, CLI output, and
+- Focused Alibaba provider and cross-surface checks: 53 tests across 13 suites
+  passed, including production/override Origin handling, bounded concurrent
+  fetch behavior, endpoint override, CloudKit/iOS labels, CLI output, and
   dashboard JSON.
 - `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --parallel`: complete
   macOS test graph passed with live-account tests disabled.

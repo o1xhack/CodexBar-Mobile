@@ -69,16 +69,30 @@ struct AlibabaTokenPlanSettingsReaderTests {
 
     @Test
     func `host override also routes rate limit requests`() {
+        let environment = [
+            AlibabaTokenPlanSettingsReader.hostKey: "https://token-plan.test:9443",
+        ]
         let url = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
             region: .international,
-            environment: [
-                AlibabaTokenPlanSettingsReader.hostKey: "https://token-plan.test:9443",
-            ])
+            environment: environment)
 
         #expect(url.host == "token-plan.test")
         #expect(url.port == 9443)
         #expect(url.path == AlibabaTokenPlanAPIRegion.international.rateLimitURL.path)
         #expect(url.query == AlibabaTokenPlanAPIRegion.international.rateLimitURL.query)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: environment) == "https://token-plan.test:9443")
+    }
+
+    @Test
+    func `production rate limit request preserves dashboard origin`() {
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.international.dashboardOriginURLString)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .chinaMainland,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.chinaMainland.dashboardOriginURLString)
     }
 }
 
@@ -708,6 +722,43 @@ struct AlibabaTokenPlanUsageParsingTests {
         #expect(usage.secondary?.usedPercent == 50)
         #expect(usage.secondary?.windowMinutes == 10080)
         #expect(usage.tertiary == nil)
+    }
+
+    @Test
+    func `slow optional rate limit does not block subscription summary`() async {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            try await Task.sleep(for: .seconds(1))
+            return AlibabaTokenPlanUsageSnapshot(
+                planName: "TOKEN PLAN",
+                usedQuota: nil,
+                totalQuota: nil,
+                remainingQuota: nil,
+                resetsAt: nil,
+                fiveHourUsedPercent: 25,
+                updatedAt: now)
+        }
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+
+        let snapshot = await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: .milliseconds(20))
+        let elapsed = startedAt.duration(to: clock.now)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(elapsed < .milliseconds(500))
+        #expect(usage.primary?.usedPercent == 10)
+        #expect(usage.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(usage.secondary == nil)
     }
 
     @Test
