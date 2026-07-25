@@ -122,6 +122,8 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let cookieSource = context.settings?.alibabaTokenPlan?.cookieSource ?? .auto
         let region = context.settings?.alibabaTokenPlan?.apiRegion ?? .international
+        let canRefreshImportedCookies = cookieSource != .manual &&
+            AlibabaTokenPlanSettingsReader.cookieHeader(environment: context.env) == nil
         let cookieHeaders = try Self.resolveCookieHeaders(context: context, allowCached: true, region: region)
         do {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
@@ -129,10 +131,11 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 dashboardCookieHeader: cookieHeaders.dashboardCookieHeader,
                 rateLimitCookieHeader: cookieHeaders.rateLimitCookieHeader,
                 region: region,
-                environment: context.env)
+                environment: context.env,
+                propagateCredentialFailures: canRefreshImportedCookies)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
         } catch let error as AlibabaTokenPlanUsageError
-            where error.isCredentialFailure && cookieSource != .manual
+            where error.isCredentialFailure && canRefreshImportedCookies
         {
             #if os(macOS)
             CookieHeaderCache.clear(provider: .alibabatokenplan, scope: region.cookieCacheScope)
@@ -142,7 +145,8 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 dashboardCookieHeader: refreshedHeaders.dashboardCookieHeader,
                 rateLimitCookieHeader: refreshedHeaders.rateLimitCookieHeader,
                 region: region,
-                environment: context.env)
+                environment: context.env,
+                propagateCredentialFailures: false)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
             #else
             throw error
@@ -298,16 +302,5 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
 extension [String] {
     fileprivate func uniquedSorted() -> [String] {
         Array(Set(self)).sorted()
-    }
-}
-
-extension AlibabaTokenPlanUsageError {
-    fileprivate var isCredentialFailure: Bool {
-        switch self {
-        case .loginRequired, .invalidCredentials:
-            true
-        case .apiError, .networkError, .parseFailed:
-            false
-        }
     }
 }

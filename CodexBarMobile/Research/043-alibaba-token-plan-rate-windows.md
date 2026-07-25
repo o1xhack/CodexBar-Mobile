@@ -107,6 +107,12 @@ our exact baseline while preserving the fork-only
   structured Credits card to iOS. The sync mapper now emits that card only
   when its values can render a credit metric; the independent 5-hour and
   weekly rate-window cards remain available.
+- Fork PR review round 9 and a full-branch self-review found symmetric stale
+  cookie cases: either rate-limit or subscription-summary credentials could
+  fail while the other response hid the rejection. Auto-imported cookies now
+  refresh on an explicit credential failure from either endpoint, while the
+  post-refresh attempt keeps any still-usable partial result. Merged snapshots
+  also retain the subscription summary's concrete plan name.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -126,7 +132,7 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 58 tests across 14 suites
+- Focused Alibaba provider and cross-surface checks: 63 tests across 14 suites
   passed, including URL-scoped RPC cookies, Mac Widget rows,
   personal-page RPC metadata, production/override Origin handling, bounded
   concurrent fetch behavior, endpoint override, localized Mac labels,

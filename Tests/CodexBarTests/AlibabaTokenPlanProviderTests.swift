@@ -316,6 +316,32 @@ struct AlibabaTokenPlanUsageSnapshotTests {
         #expect(usage.primary == nil)
         #expect(usage.loginMethod(for: .alibabatokenplan) == "TOKEN PLAN")
     }
+
+    @Test
+    func `rate windows merge with the subscription plan name`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let rate = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            fiveHourUsedPercent: 25,
+            updatedAt: now)
+        let summary = AlibabaTokenPlanUsageSnapshot(
+            planName: "Bailian Pro",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+
+        let merged = rate.mergingSubscriptionSummary(summary)
+
+        #expect(merged.planName == "Bailian Pro")
+        #expect(merged.fiveHourUsedPercent == 25)
+        #expect(merged.remainingQuota == 900)
+    }
 }
 
 @Suite(.serialized)
@@ -816,7 +842,122 @@ struct AlibabaTokenPlanUsageParsingTests {
     }
 
     @Test
-    func `slow optional rate limit does not block subscription summary`() async {
+    func `rate endpoint rejection propagates before cached cookie refresh`() async {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+            if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(url: url, body: "expired", statusCode: 401)
+            }
+            return Self.makeResponse(
+                url: url,
+                body: """
+                {
+                  "Success": true,
+                  "Data": {
+                    "TotalCount": 1,
+                    "TotalValue": 1000,
+                    "TotalSurplusValue": 900
+                  }
+                }
+                """,
+                statusCode: 200)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "login_aliyunid_ticket=summary-valid",
+                dashboardCookieHeader: "login_aliyunid_ticket=dashboard-valid",
+                rateLimitCookieHeader: "login_aliyunid_ticket=rate-expired",
+                environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+                propagateCredentialFailures: true,
+                session: session)
+            Issue.record("Expected the rate credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `summary endpoint rejection propagates despite valid rate windows`() async {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+            if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(
+                    url: url,
+                    body: """
+                    {
+                      "code": "200",
+                      "data": {
+                        "DataV2": {
+                          "data": {
+                            "success": true,
+                            "data": {
+                              "per5HourPercentage": 0.25,
+                              "per1WeekPercentage": 0.5
+                            }
+                          }
+                        }
+                      },
+                      "successResponse": true
+                    }
+                    """,
+                    statusCode: 200)
+            }
+            return Self.makeResponse(url: url, body: "expired", statusCode: 403)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "login_aliyunid_ticket=summary-expired",
+                dashboardCookieHeader: "login_aliyunid_ticket=dashboard-valid",
+                rateLimitCookieHeader: "login_aliyunid_ticket=rate-valid",
+                environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+                propagateCredentialFailures: true,
+                session: session)
+            Issue.record("Expected the summary credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `slow optional rate limit does not block subscription summary`() async throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
             planName: "TOKEN PLAN",
@@ -839,7 +980,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         let clock = ContinuousClock()
         let startedAt = clock.now
 
-        let snapshot = await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
             rateLimitTask,
             into: subscriptionSnapshot,
             joinGrace: .milliseconds(20))
@@ -850,6 +991,58 @@ struct AlibabaTokenPlanUsageParsingTests {
         #expect(usage.primary?.usedPercent == 10)
         #expect(usage.primary?.windowMinutes == 30 * 24 * 60)
         #expect(usage.secondary == nil)
+    }
+
+    @Test
+    func `rate credential failure requests a cookie refresh`() async {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            throw AlibabaTokenPlanUsageError.loginRequired
+        }
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+                rateLimitTask,
+                into: subscriptionSnapshot,
+                joinGrace: .seconds(1),
+                propagateCredentialFailures: true)
+            Issue.record("Expected the rate credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `rate credential failure falls back after cookie refresh`() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            throw AlibabaTokenPlanUsageError.loginRequired
+        }
+
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: .seconds(1),
+            propagateCredentialFailures: false)
+
+        #expect(snapshot.totalQuota == 1000)
+        #expect(snapshot.fiveHourUsedPercent == nil)
     }
 
     @Test

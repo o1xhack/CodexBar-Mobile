@@ -24,6 +24,15 @@ public enum AlibabaTokenPlanUsageError: LocalizedError, Sendable, Equatable {
             "Could not parse Alibaba Token Plan usage: \(message)"
         }
     }
+
+    var isCredentialFailure: Bool {
+        switch self {
+        case .loginRequired, .invalidCredentials:
+            true
+        case .apiError, .networkError, .parseFailed:
+            false
+        }
+    }
 }
 
 // swiftlint:disable:next type_body_length
@@ -121,6 +130,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         region: AlibabaTokenPlanAPIRegion = .international,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date(),
+        propagateCredentialFailures: Bool = false,
         session overrideSession: URLSession? = nil) async throws -> AlibabaTokenPlanUsageSnapshot
     {
         guard let normalizedAPIHeader = CookieHeaderNormalizer.normalize(apiCookieHeader),
@@ -213,8 +223,9 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 "secTokenSource": secToken == nil ? "missing" : "resolved",
             ])
 
+        let subscriptionSnapshot: AlibabaTokenPlanUsageSnapshot
         do {
-            let subscriptionSnapshot = try await self.fetchSubscriptionSummary(
+            subscriptionSnapshot = try await self.fetchSubscriptionSummary(
                 context: SubscriptionSummaryContext(
                     url: url,
                     cookieHeader: normalizedAPIHeader,
@@ -223,11 +234,13 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                     environment: environment,
                     now: now),
                 session: apiSession)
-            return await self.mergeRateLimitTask(
-                rateLimitTask,
-                into: subscriptionSnapshot,
-                joinGrace: self.rateLimitMergeGrace)
         } catch {
+            if propagateCredentialFailures,
+               let usageError = error as? AlibabaTokenPlanUsageError,
+               usageError.isCredentialFailure
+            {
+                throw error
+            }
             guard let rateLimitTask else { throw error }
             switch await BoundedTaskJoin(sourceTask: rateLimitTask)
                 .value(joinGrace: self.rateLimitFallbackGrace)
@@ -246,18 +259,30 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             }
             throw error
         }
+        return try await self.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: self.rateLimitMergeGrace,
+            propagateCredentialFailures: propagateCredentialFailures)
     }
 
     static func mergeRateLimitTask(
         _ rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>?,
         into subscriptionSnapshot: AlibabaTokenPlanUsageSnapshot,
-        joinGrace: Duration) async -> AlibabaTokenPlanUsageSnapshot
+        joinGrace: Duration,
+        propagateCredentialFailures: Bool = false) async throws -> AlibabaTokenPlanUsageSnapshot
     {
         guard let rateLimitTask else { return subscriptionSnapshot }
         switch await BoundedTaskJoin(sourceTask: rateLimitTask).value(joinGrace: joinGrace) {
         case let .value(rateLimitSnapshot):
             return rateLimitSnapshot.mergingSubscriptionSummary(subscriptionSnapshot)
         case let .failure(error):
+            if propagateCredentialFailures,
+               let usageError = error as? AlibabaTokenPlanUsageError,
+               usageError.isCredentialFailure
+            {
+                throw error
+            }
             Self.log.info(
                 "Alibaba Token Plan rate-limit request failed; using subscription summary",
                 metadata: ["error": error.localizedDescription])

@@ -40,7 +40,7 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
 extension AlibabaTokenPlanUsageSnapshot {
     func mergingSubscriptionSummary(_ summary: Self) -> Self {
         Self(
-            planName: self.planName ?? summary.planName,
+            planName: summary.planName ?? self.planName,
             usedQuota: summary.usedQuota,
             totalQuota: summary.totalQuota,
             remainingQuota: summary.remainingQuota,
