@@ -99,6 +99,10 @@ our exact baseline while preserving the fork-only
   page, including the active quota/host override origin. The Mac app and Widget
   resolve `5-hour` through the localization bundle, with translations in every
   supported Mac locale.
+- Fork PR review round 7 found a cancellation-time race in redirect
+  diagnostics. Redirect delegate writes and teardown-time log snapshots now
+  share an `NSLock`, so an optional rate request timing out cannot mutate the
+  redirect array while it is read.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.

@@ -164,30 +164,17 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 rateLimitSession.invalidateAndCancel()
                 dashboardSession.invalidateAndCancel()
             }
-            if let dashboardRedirectDiagnostics, !dashboardRedirectDiagnostics.redirects.isEmpty {
-                Self.log.info(
-                    "Alibaba Token Plan dashboard redirects",
-                    metadata: [
-                        "count": "\(dashboardRedirectDiagnostics.redirects.count)",
-                        "items": dashboardRedirectDiagnostics.redirects.joined(separator: " | "),
-                    ])
+            if let dashboardRedirectDiagnostics {
+                Self.logRedirects(
+                    dashboardRedirectDiagnostics.snapshot(),
+                    message: "Alibaba Token Plan dashboard redirects")
             }
-            if !apiRedirectDiagnostics.redirects.isEmpty {
-                Self.log.info(
-                    "Alibaba Token Plan subscription-summary redirects",
-                    metadata: [
-                        "count": "\(apiRedirectDiagnostics.redirects.count)",
-                        "items": apiRedirectDiagnostics.redirects.joined(separator: " | "),
-                    ])
-            }
-            if !rateLimitRedirectDiagnostics.redirects.isEmpty {
-                Self.log.info(
-                    "Alibaba Token Plan rate-limit redirects",
-                    metadata: [
-                        "count": "\(rateLimitRedirectDiagnostics.redirects.count)",
-                        "items": rateLimitRedirectDiagnostics.redirects.joined(separator: " | "),
-                    ])
-            }
+            Self.logRedirects(
+                apiRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan subscription-summary redirects")
+            Self.logRedirects(
+                rateLimitRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan rate-limit redirects")
         }
         let secToken = await self.resolveSECToken(
             dashboardCookieHeader: normalizedDashboardHeader,
@@ -773,7 +760,8 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
 
     private final class RedirectDiagnostics: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         private let cookieHeader: String
-        var redirects: [String] = []
+        private let lock = NSLock()
+        private var redirects: [String] = []
 
         init(cookieHeader: String) {
             self.cookieHeader = cookieHeader
@@ -788,13 +776,29 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         {
             let from = AlibabaTokenPlanUsageFetcher.redactedURLDescription(response.url)
             let to = AlibabaTokenPlanUsageFetcher.redactedURLDescription(request.url)
-            self.redirects.append("\(response.statusCode) \(from) -> \(to)")
+            self.lock.withLock {
+                self.redirects.append("\(response.statusCode) \(from) -> \(to)")
+            }
 
             completionHandler(AlibabaTokenPlanUsageFetcher.redirectedRequest(
                 response: response,
                 request: request,
                 cookieHeader: self.cookieHeader))
         }
+
+        func snapshot() -> [String] {
+            self.lock.withLock { self.redirects }
+        }
+    }
+
+    private static func logRedirects(_ redirects: [String], message: String) {
+        guard !redirects.isEmpty else { return }
+        self.log.info(
+            "\(message)",
+            metadata: [
+                "count": "\(redirects.count)",
+                "items": redirects.joined(separator: " | "),
+            ])
     }
 
     private static func redactedURLDescription(_ url: URL?) -> String {
