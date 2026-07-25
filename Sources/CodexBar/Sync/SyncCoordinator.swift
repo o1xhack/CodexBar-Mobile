@@ -2019,6 +2019,10 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?) -> SyncAlibabaTokenPlan?
     {
         guard provider == .alibabatokenplan, let a = snapshot?.alibabaTokenPlanUsage else { return nil }
+        let hasCreditProgress = (a.totalQuota ?? 0) > 0 &&
+            (a.usedQuota != nil || a.remainingQuota != nil)
+        let hasRemainingCredits = a.remainingQuota != nil
+        guard hasCreditProgress || hasRemainingCredits else { return nil }
         return SyncAlibabaTokenPlan(
             planName: a.planName,
             usedCredits: a.usedQuota,

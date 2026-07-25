@@ -103,6 +103,10 @@ our exact baseline while preserving the fork-only
   diagnostics. Redirect delegate writes and teardown-time log snapshots now
   share an `NSLock`, so an optional rate request timing out cannot mutate the
   redirect array while it is read.
+- Fork PR review round 8 found that rate-only fallbacks still synced an empty
+  structured Credits card to iOS. The sync mapper now emits that card only
+  when its values can render a credit metric; the independent 5-hour and
+  weekly rate-window cards remain available.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -122,7 +126,7 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 57 tests across 14 suites
+- Focused Alibaba provider and cross-surface checks: 58 tests across 14 suites
   passed, including URL-scoped RPC cookies, Mac Widget rows,
   personal-page RPC metadata, production/override Origin handling, bounded
   concurrent fetch behavior, endpoint override, localized Mac labels,
