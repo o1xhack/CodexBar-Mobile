@@ -278,6 +278,63 @@ struct CloudKitMergeTests {
     }
 
     @Test(arguments: [false, true])
+    func `Mixed Alibaba writers preserve rolling lanes in both freshness orders`(
+        oldMacIsFresher: Bool) throws
+    {
+        let oldDate = oldMacIsFresher ? self.newerDate : self.olderDate
+        let newDate = oldMacIsFresher ? self.olderDate : self.newerDate
+        let oldMacProvider = ProviderUsageSnapshot(
+            providerID: "alibabatokenplan", providerName: "Alibaba Token Plan",
+            primary: SyncRateWindow(
+                label: "Credits", usedPercent: 30, windowMinutes: 43200,
+                resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            accountEmail: nil, loginMethod: "Bailian Pro",
+            statusMessage: nil, isError: false, lastUpdated: oldDate,
+            rateWindows: [
+                SyncRateWindow(
+                    label: "Credits", usedPercent: 30, windowMinutes: 43200,
+                    resetsAt: nil, resetDescription: nil),
+            ])
+        let newMacProvider = ProviderUsageSnapshot(
+            providerID: "alibabatokenplan", providerName: "Alibaba Token Plan",
+            primary: SyncRateWindow(
+                label: "5-hour", usedPercent: 10, windowMinutes: 300,
+                resetsAt: nil, resetDescription: nil),
+            secondary: SyncRateWindow(
+                label: "Weekly", usedPercent: 20, windowMinutes: 10080,
+                resetsAt: nil, resetDescription: nil),
+            accountEmail: nil, loginMethod: "Bailian Pro",
+            statusMessage: nil, isError: false, lastUpdated: newDate,
+            rateWindows: [
+                SyncRateWindow(
+                    label: "5-hour", usedPercent: 10, windowMinutes: 300,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Weekly", usedPercent: 20, windowMinutes: 10080,
+                    resetsAt: nil, resetDescription: nil),
+                SyncRateWindow(
+                    label: "Credits", usedPercent: 30, windowMinutes: 43200,
+                    resetsAt: nil, resetDescription: nil),
+            ])
+
+        let oldMac = self.makeSnapshot(
+            deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldMacProvider],
+            appVersion: "0.45.2.1")
+        let newMac = self.makeSnapshot(
+            deviceName: "New Mac", deviceID: "uuid-new", providers: [newMacProvider],
+            appVersion: "0.45.2.2")
+        let iPhoneA = try #require(CloudSyncReader.mergeSnapshots([oldMac, newMac]))
+        let iPhoneB = try #require(CloudSyncReader.mergeSnapshots([newMac, oldMac]))
+        let alibabaA = try #require(iPhoneA.providers.first)
+        let alibabaB = try #require(iPhoneB.providers.first)
+
+        #expect(alibabaA.rateWindows.compactMap(\.label) == ["5-hour", "Weekly", "Credits"])
+        #expect(alibabaA.rateWindows.map(\.windowMinutes) == [300, 10080, 43200])
+        #expect(alibabaB.rateWindows == alibabaA.rateWindows)
+    }
+
+    @Test(arguments: [false, true])
     func `Mixed Claude writers preserve a specific Max tier in both freshness orders`(
         oldMacIsFresher: Bool) throws
     {

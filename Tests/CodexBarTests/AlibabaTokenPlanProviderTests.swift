@@ -408,11 +408,31 @@ struct AlibabaTokenPlanUsageParsingTests {
         let snapshot = try AlibabaTokenPlanUsageFetcher.parseRateLimitUsageSnapshot(from: Data(json.utf8))
         let usage = snapshot.toUsageSnapshot()
 
-        #expect(usage.primary?.usedPercent == 12.5)
-        #expect(usage.primary?.windowMinutes == 7 * 24 * 60)
-        #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_700_200_000))
-        #expect(usage.secondary == nil)
+        #expect(usage.primary == nil)
+        #expect(usage.secondary?.usedPercent == 12.5)
+        #expect(usage.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.secondary?.resetsAt == Date(timeIntervalSince1970: 1_700_200_000))
         #expect(usage.tertiary == nil)
+    }
+
+    @Test
+    func `partial rolling response preserves weekly and credits lanes`() {
+        let snapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "Bailian Pro",
+            usedQuota: 250,
+            totalQuota: 1000,
+            remainingQuota: 750,
+            resetsAt: nil,
+            sevenDayUsedPercent: 12.5,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary == nil)
+        #expect(usage.secondary?.usedPercent == 12.5)
+        #expect(usage.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.tertiary?.usedPercent == 25)
+        #expect(usage.tertiary?.windowMinutes == 30 * 24 * 60)
     }
 
     @Test

@@ -704,18 +704,21 @@ final class SyncCoordinator {
     {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
+        var semanticWindows: (primary: SyncRateWindow?, secondary: SyncRateWindow?) = (nil, nil)
         if let p = snapshot?.primary {
             let label = provider == .alibabatokenplan
                 ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
                     window: p,
                     fallback: metadata?.sessionLabel ?? "Credits")
                 : metadata?.sessionLabel
-            rateWindows.append(SyncRateWindow(
+            let window = SyncRateWindow(
                 label: label,
                 usedPercent: p.usedPercent,
                 windowMinutes: p.windowMinutes,
                 resetsAt: p.resetsAt,
-                resetDescription: p.resetDescription))
+                resetDescription: p.resetDescription)
+            rateWindows.append(window)
+            semanticWindows.primary = window
         }
         if let s = snapshot?.secondary {
             let label = provider == .alibabatokenplan
@@ -723,12 +726,14 @@ final class SyncCoordinator {
                     window: s,
                     fallback: metadata?.weeklyLabel ?? "Usage")
                 : metadata?.weeklyLabel
-            rateWindows.append(SyncRateWindow(
+            let window = SyncRateWindow(
                 label: label,
                 usedPercent: s.usedPercent,
                 windowMinutes: s.windowMinutes,
                 resetsAt: s.resetsAt,
-                resetDescription: s.resetDescription))
+                resetDescription: s.resetDescription)
+            rateWindows.append(window)
+            semanticWindows.secondary = window
         }
         if let t = snapshot?.tertiary {
             let label: String? = if provider == .alibabatokenplan {
@@ -759,8 +764,8 @@ final class SyncCoordinator {
         }
 
         // Legacy primary/secondary for backward compat with older iOS builds.
-        let primaryWindow = rateWindows.first
-        let secondaryWindow = rateWindows.count > 1 ? rateWindows[1] : nil
+        let primaryWindow = provider == .alibabatokenplan ? semanticWindows.primary : rateWindows.first
+        let secondaryWindow = provider == .alibabatokenplan ? semanticWindows.secondary : rateWindows.dropFirst().first
 
         // Provider budget / spend (per-account when snapshot.providerCost is
         // set per-account by upstream; otherwise shared with active).

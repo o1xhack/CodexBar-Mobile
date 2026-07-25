@@ -251,15 +251,19 @@ enum ProviderSnapshotMerger {
             .first(where: specificMaxLabels.contains) ?? latest
     }
 
-    /// Kimi and Claude added named lanes over several Mac releases. Preserve a
-    /// lane supplied by any active writer while taking overlapping values from
-    /// the freshest writer. Kimi then restores its canonical mobile order;
-    /// Claude keeps freshest-writer order followed by missing lanes.
+    /// Kimi, Claude, and Alibaba Token Plan added named lanes over several Mac
+    /// releases. Preserve a lane supplied by any active writer while taking
+    /// overlapping values from the freshest writer. Providers with fixed lane
+    /// semantics then restore their canonical mobile order; Claude keeps
+    /// freshest-writer order followed by missing lanes.
     private static func mergedRateWindows(
         _ entries: [ProviderUsageSnapshot],
         base: ProviderUsageSnapshot) -> [SyncRateWindow]
     {
-        guard base.providerID == "kimi" || base.providerID == "claude" else {
+        guard base.providerID == "kimi"
+            || base.providerID == "claude"
+            || base.providerID == "alibabatokenplan"
+        else {
             return base.rateWindows
         }
 
@@ -276,13 +280,24 @@ enum ProviderSnapshotMerger {
             }
         }
 
-        guard base.providerID == "kimi" else { return merged }
-        let preferredOrder = [
-            "weekly": 0,
-            "rate limit": 1,
-            "monthly": 2,
-            "code 7-day": 3,
-        ]
+        let preferredOrder: [String: Int]
+        switch base.providerID {
+        case "kimi":
+            preferredOrder = [
+                "weekly": 0,
+                "rate limit": 1,
+                "monthly": 2,
+                "code 7-day": 3,
+            ]
+        case "alibabatokenplan":
+            preferredOrder = [
+                "5-hour": 0,
+                "weekly": 1,
+                "credits": 2,
+            ]
+        default:
+            return merged
+        }
         return merged.enumerated().sorted { lhs, rhs in
             let lhsRank = Self.normalizedRateWindowLabel(lhs.element)
                 .flatMap { preferredOrder[$0] } ?? Int.max

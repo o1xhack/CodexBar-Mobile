@@ -80,10 +80,13 @@ extension AlibabaTokenPlanUsageSnapshot {
                 resetsAt: self.sevenDayResetsAt,
                 resetDescription: nil)
         }
-        let windows = [fiveHour, sevenDay, monthlyCredits].compactMap(\.self)
-        let primary = windows.first
-        let secondary = windows.count > 1 ? windows[1] : nil
-        let tertiary = windows.count > 2 ? windows[2] : nil
+        // Keep the rolling windows in their semantic lanes even when Alibaba
+        // returns a partial response. Consumers such as CLI guard and dashboard
+        // JSON interpret primary as session and secondary as weekly.
+        let hasRollingWindows = fiveHour != nil || sevenDay != nil
+        let primary = hasRollingWindows ? fiveHour : monthlyCredits
+        let secondary = hasRollingWindows ? sevenDay : nil
+        let tertiary = hasRollingWindows ? monthlyCredits : nil
 
         let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let loginMethod = (planName?.isEmpty ?? true) ? nil : planName

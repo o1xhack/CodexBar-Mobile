@@ -113,6 +113,14 @@ our exact baseline while preserving the fork-only
   refresh on an explicit credential failure from either endpoint, while the
   post-refresh attempt keeps any still-usable partial result. Merged snapshots
   also retain the subscription summary's concrete plan name.
+- Fork PR review round 10 found that compacting partial rate responses could
+  promote a weekly value into the session lane. Alibaba snapshots now preserve
+  semantic slots even when 5-hour or weekly data is absent, and the legacy
+  CloudKit `primary` / `secondary` fields retain the same lane identity.
+- The required 2 Mac × 2 iPhone review then exposed a mixed-writer risk not
+  called out by the review: a freshest old-Mac Credits-only snapshot could hide
+  rolling lanes from a new Mac. The mobile merger now unions Alibaba's named
+  lanes across writers and restores `5-hour`, `Weekly`, `Credits` order.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -132,24 +140,32 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 63 tests across 14 suites
-  passed, including URL-scoped RPC cookies, Mac Widget rows,
+- Focused Alibaba provider checks: 62 tests across 11 suites passed. The
+  adjacent Dashboard, CLI guard, and wire-compatibility suites add 40 passing
+  tests, including URL-scoped RPC cookies, Mac Widget rows,
   personal-page RPC metadata, production/override Origin handling, bounded
   concurrent fetch behavior, endpoint override, localized Mac labels,
   CloudKit/iOS labels, CLI output, and dashboard JSON.
 - `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --parallel`: complete
   macOS test graph passed with live-account tests disabled.
-- `bash Scripts/lint.sh lint`: passed, including SwiftFormat, SwiftLint,
+- `bash Scripts/lint.sh lint`: passed with 0 violations across 1,628 Swift
+  files, including SwiftFormat, SwiftLint,
   localization, parser-version, docs, and fork CI-policy guards.
 - `swift build --product CodexBar` and
   `swift build --product CodexBarCLI`: passed.
-- Generated the iOS project from `project.yml`; `CodexBarMobile` built for an
-  iPhone 17 / iOS 26.4 Simulator with zero warnings and zero errors.
+- Generated the iOS project from `project.yml`; 604 non-UI tests and 3
+  serialized UI tests passed on an iPhone 17 / iOS 26.4 Simulator. Four
+  SpringBoard widget tests were skipped by their explicit environment guard.
 - Four-language release-note catalog passes the source/catalog audit and JSON
   validation.
 - CloudKit release audit against
   `v0.45.2.1-mobile.1.19.0`: no schema-related or Shared model diff, so no
   Production schema deploy is required.
+- The canonical sync compatibility matrix is recorded in
+  [`043-alibaba-token-plan-rate-windows/03-testing.md`](043-alibaba-token-plan-rate-windows/03-testing.md).
+  All 16 rows passed substituted code/test coverage, including both old/new
+  writer freshness orders and opposite reader input orders. The document
+  explicitly retains the real-device silent-push/cache risk for release QA.
 - No live Alibaba request, browser-cookie import, Keychain read, signing,
   notarization, archive, upload, or release action was performed.
 

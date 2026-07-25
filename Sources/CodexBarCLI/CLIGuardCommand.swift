@@ -88,6 +88,15 @@ extension CodexBarCLI {
         return 100 - window.usedPercent
     }
 
+    static func guardRateWindow(_ window: GuardWindow, usage: UsageSnapshot) -> RateWindow? {
+        switch window {
+        case .session:
+            usage.primary
+        case .weekly:
+            usage.secondary
+        }
+    }
+
     static func runGuard(_ values: ParsedValues) async {
         let output = CLIOutputPreferences.from(values: values)
         let json = values.flags.contains("json")
@@ -289,7 +298,7 @@ extension CodexBarCLI {
         switch outcome.result {
         case let .success(result):
             let usage = result.usage.scoped(to: provider)
-            let rateWindow = window == .session ? usage.primary : usage.secondary
+            let rateWindow = Self.guardRateWindow(window, usage: usage)
             guard let remaining = Self.guardRemainingHeadroom(for: rateWindow) else {
                 return .unavailable(.windowUnavailable)
             }
