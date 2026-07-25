@@ -82,6 +82,11 @@ our exact baseline while preserving the fork-only
   and a failed summary allows at most five seconds for rate data to become the
   fallback. The rate endpoint's 20-second timeout can therefore no longer
   block a healthy summary response.
+- Fork PR review round 4 found that the standalone
+  `ALIBABA_TOKEN_PLAN_QUOTA_URL` override did not contain the new rate-limit
+  request. Rate-limit endpoint resolution now mirrors subscription-summary
+  precedence: the explicit quota URL wins over the shared host override, and
+  all API cookies and request metadata remain scoped to that override origin.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -101,7 +106,7 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 53 tests across 13 suites
+- Focused Alibaba provider and cross-surface checks: 54 tests across 13 suites
   passed, including production/override Origin handling, bounded concurrent
   fetch behavior, endpoint override, CloudKit/iOS labels, CLI output, and
   dashboard JSON.

@@ -406,9 +406,8 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         region: AlibabaTokenPlanAPIRegion,
         environment: [String: String]) -> URL
     {
-        guard let host = AlibabaTokenPlanSettingsReader.hostOverride(environment: environment),
-              let base = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: host),
-              var components = URLComponents(url: base, resolvingAgainstBaseURL: false),
+        guard let override = self.rateLimitOverrideBaseURL(environment: environment),
+              var components = URLComponents(url: override, resolvingAgainstBaseURL: false),
               let rateLimitComponents = URLComponents(
                   url: region.rateLimitURL,
                   resolvingAgainstBaseURL: false)
@@ -425,12 +424,22 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         region: AlibabaTokenPlanAPIRegion,
         environment: [String: String]) -> String
     {
-        guard AlibabaTokenPlanSettingsReader.hostOverride(environment: environment) != nil else {
+        guard self.rateLimitOverrideBaseURL(environment: environment) != nil else {
             return region.dashboardOriginURLString
         }
         return self.originURLString(for: self.resolveRateLimitURL(
             region: region,
             environment: environment)) ?? region.dashboardOriginURLString
+    }
+
+    private static func rateLimitOverrideBaseURL(environment: [String: String]) -> URL? {
+        if let quotaURL = AlibabaTokenPlanSettingsReader.quotaURL(environment: environment) {
+            return quotaURL
+        }
+        guard let host = AlibabaTokenPlanSettingsReader.hostOverride(environment: environment) else {
+            return nil
+        }
+        return ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: host)
     }
 
     private static func originURLString(for url: URL) -> String? {

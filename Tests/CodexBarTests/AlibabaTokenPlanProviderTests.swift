@@ -86,6 +86,33 @@ struct AlibabaTokenPlanSettingsReaderTests {
     }
 
     @Test
+    func `quota URL override contains rate limit API traffic`() {
+        let quotaOverride = "https://quota.token-plan.test:8443/custom/summary"
+        let environment = [
+            AlibabaTokenPlanSettingsReader.quotaURLKey: quotaOverride,
+        ]
+        let url = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: environment)
+
+        #expect(url.host == "quota.token-plan.test")
+        #expect(url.port == 8443)
+        #expect(url.path == AlibabaTokenPlanAPIRegion.international.rateLimitURL.path)
+        #expect(url.query == AlibabaTokenPlanAPIRegion.international.rateLimitURL.query)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: environment) == "https://quota.token-plan.test:8443")
+
+        let urlWithHostOverride = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: [
+                AlibabaTokenPlanSettingsReader.quotaURLKey: quotaOverride,
+                AlibabaTokenPlanSettingsReader.hostKey: "https://dashboard.token-plan.test",
+            ])
+        #expect(urlWithHostOverride.host == "quota.token-plan.test")
+    }
+
+    @Test
     func `production rate limit request preserves dashboard origin`() {
         #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
             region: .international,
