@@ -277,6 +277,19 @@ extension UsageMenuCardView.Model {
         if input.provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
+        if input.provider == .alibabatokenplan {
+            return (
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.primary,
+                    fallback: input.metadata.sessionLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.secondary,
+                    fallback: input.metadata.weeklyLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.tertiary,
+                    fallback: "Credits")),
+                snapshot.tertiary != nil)
+        }
         // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
         let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
             "Requests"
@@ -286,19 +299,12 @@ extension UsageMenuCardView.Model {
             DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else if input.provider == .sub2api {
             Sub2APIProviderDescriptor.primaryLabel(details: snapshot.sub2APIUsage) ?? input.metadata.sessionLabel
-        } else if input.provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
         } else {
             input.metadata.sessionLabel
         }
-        let secondaryLabel = if input.provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary)
-        } else {
-            input.metadata.weeklyLabel
-        }
         return (
             L(primaryLabel),
-            L(secondaryLabel),
+            L(input.metadata.weeklyLabel),
             input.metadata.opusLabel.map(L) ?? L("Sonnet"),
             input.metadata.supportsOpus)
     }

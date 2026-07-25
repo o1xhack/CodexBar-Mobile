@@ -62,6 +62,11 @@ our exact baseline while preserving the fork-only
   both menu render paths dynamically: true 300-minute and 10,080-minute windows
   display as `5-hour` and `Weekly`, while the legacy monthly fallback retains
   its existing `Credits` label.
+- Fork PR review round 1 found two additional P2 cases. The fetcher now merges
+  the subscription summary into a successful rate-limit snapshot instead of
+  dropping monthly credits, and keeps the rate windows when the summary request
+  fails. Window mapping now compacts available 5-hour, weekly, and monthly
+  values so a weekly-only response remains visible and correctly labeled.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -81,7 +86,7 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- `swift test --filter AlibabaTokenPlan`: 44 tests across 10 suites passed.
+- `swift test --filter AlibabaTokenPlan`: 47 tests across 10 suites passed.
 - `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --parallel`: complete
   macOS test graph passed with live-account tests disabled.
 - `bash Scripts/lint.sh lint`: passed, including SwiftFormat, SwiftLint,

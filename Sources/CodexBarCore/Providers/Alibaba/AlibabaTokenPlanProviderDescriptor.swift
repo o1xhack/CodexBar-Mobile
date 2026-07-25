@@ -7,12 +7,17 @@ import SweetCookieKit
 public enum AlibabaTokenPlanProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
-    public static func primaryLabel(window: RateWindow?) -> String {
-        window?.windowMinutes == 5 * 60 ? "5-hour" : "Credits"
-    }
-
-    public static func secondaryLabel(window: RateWindow?) -> String {
-        window?.windowMinutes == 7 * 24 * 60 ? "Weekly" : "Usage"
+    public static func rateWindowLabel(window: RateWindow?, fallback: String) -> String {
+        switch window?.windowMinutes {
+        case 5 * 60:
+            "5-hour"
+        case 7 * 24 * 60:
+            "Weekly"
+        case 30 * 24 * 60:
+            "Credits"
+        default:
+            fallback
+        }
     }
 
     static func makeDescriptor() -> ProviderDescriptor {

@@ -669,25 +669,31 @@ struct MenuDescriptor {
         if provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
+        if provider == .alibabatokenplan {
+            return (
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.primary,
+                    fallback: metadata.sessionLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.secondary,
+                    fallback: metadata.weeklyLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.tertiary,
+                    fallback: "Credits")),
+                snapshot.tertiary != nil)
+        }
         let primaryLabel = if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .doubao {
             DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .sub2api {
             Sub2APIProviderDescriptor.primaryLabel(details: snapshot.sub2APIUsage) ?? metadata.sessionLabel
-        } else if provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
         } else {
             metadata.sessionLabel
         }
-        let secondaryLabel = if provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary)
-        } else {
-            metadata.weeklyLabel
-        }
         return (
             L(primaryLabel),
-            L(secondaryLabel),
+            L(metadata.weeklyLabel),
             metadata.opusLabel.map(L) ?? L("Sonnet"),
             metadata.supportsOpus)
     }

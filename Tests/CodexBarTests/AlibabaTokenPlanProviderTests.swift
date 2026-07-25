@@ -248,6 +248,36 @@ struct AlibabaTokenPlanUsageParsingTests {
     }
 
     @Test
+    func `preserves a weekly only rate window`() throws {
+        let json = """
+        {
+          "code": "200",
+          "data": {
+            "DataV2": {
+              "data": {
+                "success": true,
+                "data": {
+                  "per1WeekPercentage": 0.125,
+                  "per1WeekResetTime": 1700200000000
+                }
+              }
+            }
+          },
+          "successResponse": true
+        }
+        """
+
+        let snapshot = try AlibabaTokenPlanUsageFetcher.parseRateLimitUsageSnapshot(from: Data(json.utf8))
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 12.5)
+        #expect(usage.primary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_700_200_000))
+        #expect(usage.secondary == nil)
+        #expect(usage.tertiary == nil)
+    }
+
+    @Test
     func `parses subscription summary payload`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let json = """
@@ -493,7 +523,7 @@ struct AlibabaTokenPlanUsageParsingTests {
     }
 
     @Test
-    func `fetches authenticated token plan rate windows before credit fallback`() async throws {
+    func `fetches authenticated rate windows and merges credit summary`() async throws {
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
@@ -545,6 +575,22 @@ struct AlibabaTokenPlanUsageParsingTests {
                 return Self.makeResponse(url: url, body: json, statusCode: 200)
             }
 
+            if url.host == "rate-limit.test", request.httpMethod == "POST" {
+                let body = Self.requestBodyString(from: request)
+                #expect(body.contains("GetSubscriptionSummary"))
+                let json = """
+                {
+                  "Success": true,
+                  "Data": {
+                    "TotalCount": 1,
+                    "TotalValue": 1000,
+                    "TotalSurplusValue": 900
+                  }
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
+            }
+
             throw URLError(.unsupportedURL)
         }
 
@@ -562,6 +608,69 @@ struct AlibabaTokenPlanUsageParsingTests {
         #expect(usage.primary?.windowMinutes == 300)
         #expect(abs((usage.secondary?.usedPercent ?? -.infinity) - 2.61) < 0.000_001)
         #expect(usage.secondary?.windowMinutes == 10080)
+        #expect(usage.tertiary?.usedPercent == 10)
+        #expect(usage.tertiary?.windowMinutes == 30 * 24 * 60)
+    }
+
+    @Test
+    func `keeps rate windows when credit summary fails`() async throws {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+
+            if url.host == "rate-limit.test", request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+
+            if url.host == "bailian-singapore-cs.alibabacloud.com", request.httpMethod == "POST" {
+                let json = """
+                {
+                  "code": "200",
+                  "data": {
+                    "DataV2": {
+                      "data": {
+                        "success": true,
+                        "data": {
+                          "per5HourPercentage": 0.25,
+                          "per1WeekPercentage": 0.5
+                        }
+                      }
+                    }
+                  },
+                  "successResponse": true
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
+            }
+
+            if url.host == "rate-limit.test", request.httpMethod == "POST" {
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
+            }
+
+            throw URLError(.unsupportedURL)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+            apiCookieHeader: "login_aliyunid_ticket=ticket",
+            dashboardCookieHeader: "login_aliyunid_ticket=ticket",
+            environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+            session: session)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.windowMinutes == 300)
+        #expect(usage.secondary?.usedPercent == 50)
+        #expect(usage.secondary?.windowMinutes == 10080)
+        #expect(usage.tertiary == nil)
     }
 
     @Test

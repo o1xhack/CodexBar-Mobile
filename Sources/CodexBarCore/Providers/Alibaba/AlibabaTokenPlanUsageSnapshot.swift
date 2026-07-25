@@ -38,6 +38,20 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
 }
 
 extension AlibabaTokenPlanUsageSnapshot {
+    func mergingSubscriptionSummary(_ summary: Self) -> Self {
+        Self(
+            planName: self.planName ?? summary.planName,
+            usedQuota: summary.usedQuota,
+            totalQuota: summary.totalQuota,
+            remainingQuota: summary.remainingQuota,
+            resetsAt: summary.resetsAt,
+            fiveHourUsedPercent: self.fiveHourUsedPercent,
+            fiveHourResetsAt: self.fiveHourResetsAt,
+            sevenDayUsedPercent: self.sevenDayUsedPercent,
+            sevenDayResetsAt: self.sevenDayResetsAt,
+            updatedAt: max(self.updatedAt, summary.updatedAt))
+    }
+
     public func toUsageSnapshot() -> UsageSnapshot {
         let monthlyCredits: RateWindow? = Self.usedPercent(
             used: self.usedQuota,
@@ -66,9 +80,10 @@ extension AlibabaTokenPlanUsageSnapshot {
                 resetsAt: self.sevenDayResetsAt,
                 resetDescription: nil)
         }
-        let primary = fiveHour ?? monthlyCredits
-        let secondary = fiveHour == nil ? nil : sevenDay
-        let tertiary = fiveHour == nil ? nil : monthlyCredits
+        let windows = [fiveHour, sevenDay, monthlyCredits].compactMap(\.self)
+        let primary = windows.first
+        let secondary = windows.count > 1 ? windows[1] : nil
+        let tertiary = windows.count > 2 ? windows[2] : nil
 
         let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let loginMethod = (planName?.isEmpty ?? true) ? nil : planName

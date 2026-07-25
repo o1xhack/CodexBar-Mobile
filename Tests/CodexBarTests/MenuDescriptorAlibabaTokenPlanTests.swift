@@ -22,9 +22,9 @@ struct MenuDescriptorAlibabaTokenPlanTests {
             settings: settings)
         let snapshot = AlibabaTokenPlanUsageSnapshot(
             planName: "TOKEN PLAN",
-            usedQuota: nil,
-            totalQuota: nil,
-            remainingQuota: nil,
+            usedQuota: 250,
+            totalQuota: 1000,
+            remainingQuota: 750,
             resetsAt: nil,
             fiveHourUsedPercent: 7.69,
             fiveHourResetsAt: nil,
@@ -48,6 +48,7 @@ struct MenuDescriptorAlibabaTokenPlanTests {
 
         #expect(lines.contains(where: { $0.hasPrefix("5-hour:") }))
         #expect(lines.contains(where: { $0.hasPrefix("Weekly:") }))
-        #expect(!lines.contains(where: { $0.hasPrefix("Credits:") || $0.hasPrefix("Usage:") }))
+        #expect(lines.contains(where: { $0.hasPrefix("Credits:") }))
+        #expect(!lines.contains(where: { $0.hasPrefix("Usage:") }))
     }
 }
