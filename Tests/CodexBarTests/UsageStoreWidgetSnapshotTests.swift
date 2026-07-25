@@ -53,6 +53,50 @@ struct UsageStoreWidgetSnapshotTests {
     }
 
     @Test
+    func `widget snapshot preserves Alibaba rate windows and credits`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-alibaba-rate-windows"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let now = Date()
+        store._setSnapshotForTesting(
+            AlibabaTokenPlanUsageSnapshot(
+                planName: "TOKEN PLAN",
+                usedQuota: 100,
+                totalQuota: 1000,
+                remainingQuota: 900,
+                resetsAt: nil,
+                fiveHourUsedPercent: 25,
+                sevenDayUsedPercent: 50,
+                updatedAt: now).toUsageSnapshot(),
+            provider: .alibabatokenplan)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "alibaba-rate-windows-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .alibabatokenplan })
+        #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", "tertiary"])
+        #expect(entry.usageRows?.map(\.title) == ["5-hour", "Weekly", "Credits"])
+        #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 50, 90])
+        #expect(entry.usageRows?.compactMap { $0.window?.windowMinutes } == [300, 10080, 43200])
+    }
+
+    @Test
     func `widget snapshot includes Kimi subscription quota rows`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-kimi-subscription-rows"
         let defaults = try #require(UserDefaults(suiteName: suite))

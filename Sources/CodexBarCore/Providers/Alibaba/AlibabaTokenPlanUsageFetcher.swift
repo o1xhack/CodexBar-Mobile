@@ -90,6 +90,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return try await self.fetchUsage(
             apiCookieHeader: headers.apiCookieHeader,
             dashboardCookieHeader: headers.dashboardCookieHeader,
+            rateLimitCookieHeader: headers.rateLimitCookieHeader,
             region: region,
             environment: environment,
             now: now)
@@ -98,6 +99,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     static func fetchUsage(
         apiCookieHeader: String,
         dashboardCookieHeader: String,
+        rateLimitCookieHeader: String?,
         region: AlibabaTokenPlanAPIRegion = .international,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date(),
@@ -108,14 +110,18 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         else {
             throw AlibabaTokenPlanSettingsError.invalidCookie
         }
+        let normalizedRateLimitHeader = CookieHeaderNormalizer.normalize(rateLimitCookieHeader)
 
         let url = self.resolveQuotaURL(region: region, environment: environment)
         let apiRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedAPIHeader)
+        let rateLimitRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedRateLimitHeader ?? "")
         let dashboardRedirectDiagnostics: RedirectDiagnostics?
         let apiSession: URLSession
+        let rateLimitSession: URLSession
         let dashboardSession: URLSession
         if let overrideSession {
             apiSession = overrideSession
+            rateLimitSession = overrideSession
             dashboardSession = overrideSession
             dashboardRedirectDiagnostics = nil
         } else {
@@ -123,6 +129,10 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             apiSession = URLSession(
                 configuration: .default,
                 delegate: apiRedirectDiagnostics,
+                delegateQueue: nil)
+            rateLimitSession = URLSession(
+                configuration: .default,
+                delegate: rateLimitRedirectDiagnostics,
                 delegateQueue: nil)
             dashboardSession = URLSession(
                 configuration: .default,
@@ -133,6 +143,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         defer {
             if overrideSession == nil {
                 apiSession.invalidateAndCancel()
+                rateLimitSession.invalidateAndCancel()
                 dashboardSession.invalidateAndCancel()
             }
             if let dashboardRedirectDiagnostics, !dashboardRedirectDiagnostics.redirects.isEmpty {
@@ -145,10 +156,18 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             }
             if !apiRedirectDiagnostics.redirects.isEmpty {
                 Self.log.info(
-                    "Alibaba Token Plan redirects",
+                    "Alibaba Token Plan subscription-summary redirects",
                     metadata: [
                         "count": "\(apiRedirectDiagnostics.redirects.count)",
                         "items": apiRedirectDiagnostics.redirects.joined(separator: " | "),
+                    ])
+            }
+            if !rateLimitRedirectDiagnostics.redirects.isEmpty {
+                Self.log.info(
+                    "Alibaba Token Plan rate-limit redirects",
+                    metadata: [
+                        "count": "\(rateLimitRedirectDiagnostics.redirects.count)",
+                        "items": rateLimitRedirectDiagnostics.redirects.joined(separator: " | "),
                     ])
             }
         }
@@ -158,17 +177,21 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             region: region,
             environment: environment,
             session: dashboardSession)
-        let rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>? = secToken.map { token in
+        let rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>? = if let secToken,
+                                                                            let normalizedRateLimitHeader
+        {
             Task {
                 try await self.fetchRateLimitUsage(
                     context: RateLimitContext(
-                        cookieHeader: normalizedAPIHeader,
-                        secToken: token,
+                        cookieHeader: normalizedRateLimitHeader,
+                        secToken: secToken,
                         region: region,
                         environment: environment,
                         now: now),
-                    session: apiSession)
+                    session: rateLimitSession)
             }
+        } else {
+            nil
         }
         defer {
             rateLimitTask?.cancel()
@@ -179,6 +202,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 "apiHost": url.host ?? "unknown",
                 "region": region.rawValue,
                 "apiCookieNames": self.cookieNamesDescription(from: normalizedAPIHeader),
+                "rateLimitCookieNames": self.cookieNamesDescription(from: normalizedRateLimitHeader ?? ""),
                 "dashboardCookieNames": self.cookieNamesDescription(from: normalizedDashboardHeader),
                 "hasCSRF": self.hasCSRF(in: normalizedAPIHeader) ? "1" : "0",
                 "secTokenSource": secToken == nil ? "missing" : "resolved",

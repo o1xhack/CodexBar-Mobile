@@ -87,6 +87,13 @@ our exact baseline while preserving the fork-only
   request. Rate-limit endpoint resolution now mirrors subscription-summary
   precedence: the explicit quota URL wins over the shared host override, and
   all API cookies and request metadata remain scoped to that override origin.
+- Fork PR review round 5 found two remaining consumer and credential-scoping
+  gaps. Browser imports now build and cache three independently URL-scoped
+  headers for the subscription summary, dashboard, and rate-limit RPC host;
+  pre-fix cache entries are refreshed instead of forwarding host-only cookies
+  across sibling domains. Mac Widget rows now use the same duration-derived
+  labels as the app, preserve each source window, and include Alibaba's
+  tertiary monthly credits row.
 - The patch changes provider fetch and presentation code only. It does not
   change credentials, entitlements, app groups, Shared models, CloudKit record
   types, or CloudKit indexes.
@@ -106,10 +113,10 @@ our exact baseline while preserving the fork-only
 
 ## Validation Evidence
 
-- Focused Alibaba provider and cross-surface checks: 54 tests across 13 suites
-  passed, including production/override Origin handling, bounded concurrent
-  fetch behavior, endpoint override, CloudKit/iOS labels, CLI output, and
-  dashboard JSON.
+- Focused Alibaba provider and cross-surface checks: 56 tests across 14 suites
+  passed, including URL-scoped RPC cookies, Mac Widget rows,
+  production/override Origin handling, bounded concurrent fetch behavior,
+  endpoint override, CloudKit/iOS labels, CLI output, and dashboard JSON.
 - `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --parallel`: complete
   macOS test graph passed with live-account tests disabled.
 - `bash Scripts/lint.sh lint`: passed, including SwiftFormat, SwiftLint,

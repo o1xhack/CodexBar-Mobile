@@ -127,6 +127,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: cookieHeaders.apiCookieHeader,
                 dashboardCookieHeader: cookieHeaders.dashboardCookieHeader,
+                rateLimitCookieHeader: cookieHeaders.rateLimitCookieHeader,
                 region: region,
                 environment: context.env)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
@@ -139,6 +140,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: refreshedHeaders.apiCookieHeader,
                 dashboardCookieHeader: refreshedHeaders.dashboardCookieHeader,
+                rateLimitCookieHeader: refreshedHeaders.rateLimitCookieHeader,
                 region: region,
                 environment: context.env)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
@@ -174,6 +176,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 metadata: [
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -187,6 +190,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 metadata: [
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -203,6 +207,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                     "source": cached.sourceLabel,
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -240,6 +245,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                     "rawCookieNames": rawCookieNames.joined(separator: ","),
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                     "importLogLines": "\(importLog.count)",
                 ])

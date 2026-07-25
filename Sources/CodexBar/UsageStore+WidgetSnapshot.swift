@@ -161,6 +161,23 @@ extension UsageStore {
         {
             return rows
         }
+        if provider == .alibabatokenplan {
+            let windows: [(id: String, window: RateWindow?, fallback: String)] = [
+                ("primary", snapshot.primary, metadata?.sessionLabel ?? "Session"),
+                ("secondary", snapshot.secondary, metadata?.weeklyLabel ?? "Weekly"),
+                ("tertiary", snapshot.tertiary, "Credits"),
+            ]
+            return windows.compactMap { candidate in
+                guard let window = candidate.window else { return nil }
+                return WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: candidate.id,
+                    title: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                        window: window,
+                        fallback: candidate.fallback),
+                    percentLeft: window.remainingPercent,
+                    window: window)
+            }
+        }
 
         let primaryTitle: String = {
             // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
