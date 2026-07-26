@@ -91,7 +91,7 @@ artifacts.
   fallback and current-zero-session regressions.
 - `CloudKitMergeTests` + `ViewCacheIdentityTests` +
   `MultiAccountForEachIdentityTests`: 72 passed.
-- Complete `CodexBarMobileTests` target: 605 passed, 0 failed.
+- Complete `CodexBarMobileTests` target: 606 passed, 0 failed.
 - Simulator Debug build, install, and launch: passed on iPhone 17 Pro Max,
   iOS 26.4.
 - `./Scripts/lint.sh lint`: passed; SwiftFormat clean, SwiftLint 0 violations,
@@ -103,6 +103,15 @@ artifacts.
 The built-in demo snapshot currently has no `utilizationHistory`, so it cannot
 render this section for visual comparison. The aggregate was instead verified
 with deterministic model fixtures matching the production incident shape.
+
+## Sync Compatibility Gate
+
+The canonical 2 Mac × 2 iPhone gate applies because this changes
+cross-version rendering of already-synced utilization history. The complete
+16-case ledger, substituted evidence, and residual physical-device risks are in
+[`044/03-testing.md`](044-subscription-utilization-freshness-fallback/03-testing.md).
+Its current verdict is `substituted`: code review may complete, but build 190
+still requires the physical four-device matrix before public iOS release.
 
 ## Release Notes Consolidation
 
