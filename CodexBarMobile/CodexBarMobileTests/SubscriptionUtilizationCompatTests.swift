@@ -258,6 +258,81 @@ struct SubscriptionUtilizationCompatTests {
         #expect(model.providerShares.first?.rawAvgPercent == 42)
     }
 
+    @Test("Stale session history falls back to the freshest quota series")
+    func aggregateFallsBackWhenSessionStopsUpdating() throws {
+        // Production incident (2026-07-26): Codex session history stopped on
+        // July 12 while weekly history continued through July 26. The aggregate
+        // saw that an old session series existed and ignored every fresh weekly
+        // sample, producing 0% for Today / This Week / 14 Days while Raw Sync
+        // Data still showed current quota data.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 60 * 60)
+        let staleSession = SyncUtilizationSeries(
+            name: "session",
+            windowMinutes: 300,
+            entries: [
+                SyncUtilizationEntry(
+                    capturedAt: now.addingTimeInterval(-3 * 86_400),
+                    usedPercent: 90,
+                    resetsAt: nil),
+            ])
+        let freshWeekly = SyncUtilizationSeries(
+            name: "weekly",
+            windowMinutes: 10_080,
+            entries: [
+                SyncUtilizationEntry(
+                    capturedAt: now,
+                    usedPercent: 42,
+                    resetsAt: nil),
+            ])
+        let provider = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            utilization: [staleSession, freshWeekly])
+
+        let model = try #require(
+            UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+        #expect(model.todayAvg == 42)
+        #expect(model.last14Avg == 42)
+        #expect(model.providerShares.first?.rawAvgPercent == 42)
+        #expect(model.dayBars.last?.segments.first?.avgPercent == 42)
+    }
+
+    @Test("Fresh zero-percent session remains preferred over a non-zero weekly quota")
+    func aggregateDoesNotTreatCurrentZeroSessionAsMissing() throws {
+        // A genuine 0% session is valid data. Selection is based on timestamp
+        // freshness, never on the value, so weekly fallback cannot turn an idle
+        // session into apparent activity.
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 60 * 60)
+        let freshSession = SyncUtilizationSeries(
+            name: "session",
+            windowMinutes: 300,
+            entries: [
+                SyncUtilizationEntry(
+                    capturedAt: now,
+                    usedPercent: 0,
+                    resetsAt: nil),
+            ])
+        let freshWeekly = SyncUtilizationSeries(
+            name: "weekly",
+            windowMinutes: 10_080,
+            entries: [
+                SyncUtilizationEntry(
+                    capturedAt: now,
+                    usedPercent: 75,
+                    resetsAt: nil),
+            ])
+        let provider = self.makeProvider(
+            id: "claude",
+            name: "Claude",
+            utilization: [freshSession, freshWeekly])
+
+        let model = try #require(
+            UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+        #expect(model.todayAvg == 0)
+        #expect(model.providerShares.first?.rawAvgPercent == 0)
+        #expect(model.dayBars.last?.segments.first?.avgPercent == 0)
+    }
+
     // MARK: - Build 81 · thread safety (Codex-caught P0)
 
     @Test("iso8601DayKey is safe to call from many concurrent tasks (DateFormatter thread safety)")
