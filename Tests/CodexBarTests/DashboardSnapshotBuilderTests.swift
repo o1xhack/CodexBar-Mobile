@@ -125,6 +125,96 @@ struct DashboardSnapshotBuilderTests {
     }
 
     @Test
+    func `Alibaba Token Plan dashboard windows use duration labels`() throws {
+        let usage = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 10,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 20,
+                windowMinutes: 10080,
+                resetsAt: nil,
+                resetDescription: nil),
+            tertiary: RateWindow(
+                usedPercent: 30,
+                windowMinutes: 43200,
+                resetsAt: nil,
+                resetDescription: nil),
+            updatedAt: Date(timeIntervalSince1970: 0))
+        let payload = ProviderPayload(
+            provider: .alibabatokenplan,
+            account: nil,
+            version: nil,
+            source: "web",
+            status: nil,
+            usage: usage,
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [payload],
+            costPayloads: [],
+            config: CodexBarConfig(providers: [
+                ProviderConfig(id: .alibabatokenplan, enabled: true),
+            ]),
+            identityMode: .none,
+            generatedAt: Date(timeIntervalSince1970: 0),
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let object = try self.jsonObject(snapshot)
+        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+        let windows = try #require(provider["windows"] as? [[String: Any]])
+
+        #expect(windows.map { $0["label"] as? String } == ["5-hour", "Weekly", "Credits"])
+    }
+
+    @Test
+    func `Alibaba weekly only dashboard window stays in weekly lane`() throws {
+        let usage = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            sevenDayUsedPercent: 20,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+        let payload = ProviderPayload(
+            provider: .alibabatokenplan,
+            account: nil,
+            version: nil,
+            source: "web",
+            status: nil,
+            usage: usage,
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [payload],
+            costPayloads: [],
+            config: CodexBarConfig(providers: [
+                ProviderConfig(id: .alibabatokenplan, enabled: true),
+            ]),
+            identityMode: .none,
+            generatedAt: Date(timeIntervalSince1970: 0),
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let object = try self.jsonObject(snapshot)
+        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+        let windows = try #require(provider["windows"] as? [[String: Any]])
+
+        #expect(windows.count == 1)
+        #expect(windows[0]["kind"] as? String == "weekly")
+        #expect(windows[0]["label"] as? String == "Weekly")
+    }
+
+    @Test
     func `dashboard identity mode none emits null identity`() throws {
         let usage = UsageSnapshot(
             primary: nil,

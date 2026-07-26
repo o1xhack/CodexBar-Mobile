@@ -61,6 +61,31 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func `renders every Alibaba Token Plan rate window with duration labels`() {
+        let snapshot = UsageSnapshot(
+            primary: .init(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: .init(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            tertiary: .init(usedPercent: 30, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date(timeIntervalSince1970: 0))
+
+        let output = CLIRenderer.renderText(
+            provider: .alibabatokenplan,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Alibaba Token Plan",
+                status: nil,
+                useColor: false,
+                resetStyle: .absolute))
+
+        #expect(output.contains("5-hour: 90% left"))
+        #expect(output.contains("Weekly: 80% left"))
+        #expect(output.contains("Credits: 70% left"))
+        #expect(!output.contains("Usage:"))
+        #expect(!output.contains("Tertiary:"))
+    }
+
+    @Test
     func `renders Factory legacy billing with pool labels`() {
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),

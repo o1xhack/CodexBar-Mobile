@@ -6,19 +6,24 @@ import FoundationNetworking
 struct AlibabaTokenPlanCookieHeaders {
     private static let cachedAPIHeaderName = "__codexbar_alibaba_token_plan_api"
     private static let cachedDashboardHeaderName = "__codexbar_alibaba_token_plan_dashboard"
+    private static let cachedRateLimitHeaderName = "__codexbar_alibaba_token_plan_rate_limit"
+    private static let missingCachedHeaderValue = "-"
 
     let apiCookieHeader: String
     let dashboardCookieHeader: String
+    let rateLimitCookieHeader: String?
 
-    init(apiCookieHeader: String, dashboardCookieHeader: String) {
+    init(apiCookieHeader: String, dashboardCookieHeader: String, rateLimitCookieHeader: String?) {
         self.apiCookieHeader = apiCookieHeader
         self.dashboardCookieHeader = dashboardCookieHeader
+        self.rateLimitCookieHeader = rateLimitCookieHeader
     }
 
     init?(singleHeader raw: String?) {
         guard let normalized = CookieHeaderNormalizer.normalize(raw) else { return nil }
         self.apiCookieHeader = normalized
         self.dashboardCookieHeader = normalized
+        self.rateLimitCookieHeader = normalized
     }
 
     init?(cachedHeader raw: String?) {
@@ -28,22 +33,37 @@ struct AlibabaTokenPlanCookieHeaders {
         }
         if let encodedAPI = valuesByName[Self.cachedAPIHeaderName],
            let encodedDashboard = valuesByName[Self.cachedDashboardHeaderName],
+           let encodedRateLimit = valuesByName[Self.cachedRateLimitHeaderName],
            let apiHeader = Self.decodeCachedHeader(encodedAPI),
            let dashboardHeader = Self.decodeCachedHeader(encodedDashboard),
            let normalizedAPI = CookieHeaderNormalizer.normalize(apiHeader),
            let normalizedDashboard = CookieHeaderNormalizer.normalize(dashboardHeader)
         {
-            self.init(apiCookieHeader: normalizedAPI, dashboardCookieHeader: normalizedDashboard)
+            let normalizedRateLimit: String?
+            if encodedRateLimit == Self.missingCachedHeaderValue {
+                normalizedRateLimit = nil
+            } else {
+                guard let rateLimitHeader = Self.decodeCachedHeader(encodedRateLimit),
+                      let normalized = CookieHeaderNormalizer.normalize(rateLimitHeader)
+                else { return nil }
+                normalizedRateLimit = normalized
+            }
+            self.init(
+                apiCookieHeader: normalizedAPI,
+                dashboardCookieHeader: normalizedDashboard,
+                rateLimitCookieHeader: normalizedRateLimit)
             return
         }
-
-        self.init(singleHeader: raw)
+        return nil
     }
 
     var cacheCookieHeader: String {
-        [
+        let encodedRateLimit = self.rateLimitCookieHeader.map(Self.encodeCachedHeader) ??
+            Self.missingCachedHeaderValue
+        return [
             "\(Self.cachedAPIHeaderName)=\(Self.encodeCachedHeader(self.apiCookieHeader))",
             "\(Self.cachedDashboardHeaderName)=\(Self.encodeCachedHeader(self.dashboardCookieHeader))",
+            "\(Self.cachedRateLimitHeaderName)=\(encodedRateLimit)",
         ].joined(separator: "; ")
     }
 
@@ -55,9 +75,14 @@ struct AlibabaTokenPlanCookieHeaders {
         Self.cookieNames(from: self.dashboardCookieHeader)
     }
 
+    var rateLimitCookieNames: [String] {
+        Self.cookieNames(from: self.rateLimitCookieHeader ?? "")
+    }
+
     func hasCookie(named name: String) -> Bool {
         Self.cookieNames(from: self.apiCookieHeader).contains(name) ||
-            Self.cookieNames(from: self.dashboardCookieHeader).contains(name)
+            Self.cookieNames(from: self.dashboardCookieHeader).contains(name) ||
+            Self.cookieNames(from: self.rateLimitCookieHeader ?? "").contains(name)
     }
 
     private static func cookieNames(from header: String) -> [String] {
@@ -92,7 +117,15 @@ enum AlibabaTokenPlanCookieHeader {
         else {
             return nil
         }
-        return AlibabaTokenPlanCookieHeaders(apiCookieHeader: apiHeader, dashboardCookieHeader: dashboardHeader)
+        let rateLimitHeader = self.header(
+            from: cookies,
+            targetURL: AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+                region: region,
+                environment: environment))
+        return AlibabaTokenPlanCookieHeaders(
+            apiCookieHeader: apiHeader,
+            dashboardCookieHeader: dashboardHeader,
+            rateLimitCookieHeader: rateLimitHeader)
     }
 
     static func header(from cookies: [HTTPCookie], targetURL: URL) -> String? {

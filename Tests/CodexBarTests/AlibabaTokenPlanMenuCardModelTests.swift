@@ -5,6 +5,84 @@ import Testing
 
 struct AlibabaTokenPlanMenuCardModelTests {
     @Test
+    func `weekly only rate limit keeps its label`() throws {
+        let now = Date(timeIntervalSince1970: 10_368_000)
+        let snapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            sevenDayUsedPercent: 12.5,
+            sevenDayResetsAt: now.addingTimeInterval(6 * 24 * 3600),
+            updatedAt: now)
+            .toUsageSnapshot()
+        let metadata = try #require(ProviderDefaults.metadata[.alibabatokenplan])
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .alibabatokenplan,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.map(\.title) == ["Weekly"])
+    }
+
+    @Test
+    func `rate limits use five hour and weekly labels`() throws {
+        let now = Date(timeIntervalSince1970: 10_368_000)
+        let snapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 250,
+            totalQuota: 1000,
+            remainingQuota: 750,
+            resetsAt: now.addingTimeInterval(30 * 24 * 3600),
+            fiveHourUsedPercent: 7.69,
+            fiveHourResetsAt: now.addingTimeInterval(3600),
+            sevenDayUsedPercent: 2.61,
+            sevenDayResetsAt: now.addingTimeInterval(6 * 24 * 3600),
+            updatedAt: now)
+            .toUsageSnapshot()
+        let metadata = try #require(ProviderDefaults.metadata[.alibabatokenplan])
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .alibabatokenplan,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.map(\.title) == ["5-hour", "Weekly", "Credits"])
+    }
+
+    @Test
     func `monthly quota shows deficit and run out details`() throws {
         let now = Date(timeIntervalSince1970: 10_368_000) // 1970-05-01T00:00:00Z
         let snapshot = AlibabaTokenPlanUsageSnapshot(

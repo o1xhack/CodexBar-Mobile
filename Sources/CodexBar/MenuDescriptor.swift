@@ -669,6 +669,19 @@ struct MenuDescriptor {
         if provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
+        if provider == .alibabatokenplan {
+            return (
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.primary,
+                    fallback: metadata.sessionLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.secondary,
+                    fallback: metadata.weeklyLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.tertiary,
+                    fallback: "Credits")),
+                snapshot.tertiary != nil)
+        }
         let primaryLabel = if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .doubao {

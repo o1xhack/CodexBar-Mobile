@@ -2,6 +2,23 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.19.0 (189)] — 2026-07-24 — Alibaba Token Plan hotfix
+
+### Fixed
+
+- **Alibaba Token Plan limits** — Restored the rolling 5-hour and weekly
+  limits from the Mac companion and labeled both windows correctly while
+  retaining the existing monthly-credit fallback.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.45.2.2` / build `109.2`; existing Shared payloads
+  and the CloudKit Production schema are unchanged.
+- iOS `MARKETING_VERSION` remains `1.19.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `188` → `189`.
+
+---
+
 ## [1.19.0 (188)] — 2026-07-19 — CodexBar 0.45 upstream sync
 
 ### Added

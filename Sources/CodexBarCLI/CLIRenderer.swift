@@ -797,6 +797,19 @@ enum CLIRenderer {
                 tertiary: "Monthly",
                 showsTertiary: true)
         }
+        if provider == .alibabatokenplan {
+            return RateWindowLabels(
+                primary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.primary,
+                    fallback: metadata.sessionLabel),
+                secondary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.secondary,
+                    fallback: metadata.weeklyLabel),
+                tertiary: AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.tertiary,
+                    fallback: "Credits"),
+                showsTertiary: snapshot.tertiary != nil)
+        }
         let primaryLabel = if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .sub2api {

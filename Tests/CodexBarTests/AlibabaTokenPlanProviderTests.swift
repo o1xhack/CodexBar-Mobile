@@ -66,6 +66,83 @@ struct AlibabaTokenPlanSettingsReaderTests {
         #expect(url.absoluteString.contains("GetSubscriptionSummary"))
         #expect(url.absoluteString.contains("BssOpenAPI-V3"))
     }
+
+    @Test
+    func `host override also routes rate limit requests`() {
+        let environment = [
+            AlibabaTokenPlanSettingsReader.hostKey: "https://token-plan.test:9443",
+        ]
+        let url = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: environment)
+
+        #expect(url.host == "token-plan.test")
+        #expect(url.port == 9443)
+        #expect(url.path == AlibabaTokenPlanAPIRegion.international.rateLimitURL.path)
+        #expect(url.query == AlibabaTokenPlanAPIRegion.international.rateLimitURL.query)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: environment) == "https://token-plan.test:9443")
+    }
+
+    @Test
+    func `quota URL override contains rate limit API traffic`() {
+        let quotaOverride = "https://quota.token-plan.test:8443/custom/summary"
+        let environment = [
+            AlibabaTokenPlanSettingsReader.quotaURLKey: quotaOverride,
+        ]
+        let url = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: environment)
+
+        #expect(url.host == "quota.token-plan.test")
+        #expect(url.port == 8443)
+        #expect(url.path == AlibabaTokenPlanAPIRegion.international.rateLimitURL.path)
+        #expect(url.query == AlibabaTokenPlanAPIRegion.international.rateLimitURL.query)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: environment) == "https://quota.token-plan.test:8443")
+
+        let urlWithHostOverride = AlibabaTokenPlanUsageFetcher.resolveRateLimitURL(
+            region: .international,
+            environment: [
+                AlibabaTokenPlanSettingsReader.quotaURLKey: quotaOverride,
+                AlibabaTokenPlanSettingsReader.hostKey: "https://dashboard.token-plan.test",
+            ])
+        #expect(urlWithHostOverride.host == "quota.token-plan.test")
+    }
+
+    @Test
+    func `production rate limit request preserves dashboard origin`() {
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .international,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.international.dashboardOriginURLString)
+        #expect(AlibabaTokenPlanUsageFetcher.rateLimitOriginURLString(
+            region: .chinaMainland,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.chinaMainland.dashboardOriginURLString)
+    }
+
+    @Test
+    func `rate limit metadata uses personal dashboard page`() {
+        #expect(AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .international,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.international.personalDashboardURL)
+        #expect(AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .chinaMainland,
+            environment: [:]) == AlibabaTokenPlanAPIRegion.chinaMainland.personalDashboardURL)
+
+        let override = AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .international,
+            environment: [
+                AlibabaTokenPlanSettingsReader.quotaURLKey: "https://quota.token-plan.test:8443/custom/summary",
+                AlibabaTokenPlanSettingsReader.hostKey: "https://dashboard.token-plan.test",
+            ])
+        #expect(override.host == "quota.token-plan.test")
+        #expect(override.port == 8443)
+        #expect(override.path == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.path)
+        #expect(override.query == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.query)
+        #expect(override.fragment == AlibabaTokenPlanAPIRegion.international.personalDashboardURL.fragment)
+    }
 }
 
 struct AlibabaTokenPlanCookieHeaderTests {
@@ -76,10 +153,15 @@ struct AlibabaTokenPlanCookieHeaderTests {
             self.cookie(name: "login_current_pk", value: "account", domain: ".alibabacloud.com"),
             self.cookie(name: "sec_token", value: "shared", domain: ".console.alibabacloud.com"),
             self.cookie(name: "sec_token", value: "dashboard", domain: "modelstudio.console.alibabacloud.com"),
+            self.cookie(
+                name: "rpc_only",
+                value: "rpc",
+                domain: "bailian-singapore-cs.alibabacloud.com"),
             self.cookie(name: "bailian_only", value: "bailian", domain: "bailian.console.aliyun.com"),
         ]
 
         let headers = try #require(AlibabaTokenPlanCookieHeader.headers(from: cookies))
+        let rateLimitHeader = try #require(headers.rateLimitCookieHeader)
 
         #expect(headers.apiCookieHeader.contains("login_aliyunid_ticket=ticket"))
         #expect(headers.apiCookieHeader.contains("login_current_pk=account"))
@@ -87,6 +169,9 @@ struct AlibabaTokenPlanCookieHeaderTests {
         #expect(!headers.apiCookieHeader.contains("bailian_only=bailian"))
         #expect(headers.dashboardCookieHeader.contains("sec_token=dashboard"))
         #expect(!headers.dashboardCookieHeader.contains("bailian_only=bailian"))
+        #expect(rateLimitHeader.contains("login_aliyunid_ticket=ticket"))
+        #expect(rateLimitHeader.contains("rpc_only=rpc"))
+        #expect(!rateLimitHeader.contains("sec_token=dashboard"))
     }
 
     @Test
@@ -96,10 +181,12 @@ struct AlibabaTokenPlanCookieHeaderTests {
             self.cookie(name: "login_current_pk", value: "account", domain: ".aliyun.com"),
             self.cookie(name: "sec_token", value: "shared", domain: ".console.aliyun.com"),
             self.cookie(name: "sec_token", value: "dashboard", domain: "bailian.console.aliyun.com"),
+            self.cookie(name: "rpc_only", value: "rpc", domain: "bailian-cs.console.aliyun.com"),
             self.cookie(name: "modelstudio_only", value: "modelstudio", domain: "modelstudio.console.alibabacloud.com"),
         ]
 
         let headers = try #require(AlibabaTokenPlanCookieHeader.headers(from: cookies, region: .chinaMainland))
+        let rateLimitHeader = try #require(headers.rateLimitCookieHeader)
 
         #expect(headers.apiCookieHeader.contains("login_aliyunid_ticket=ticket"))
         #expect(headers.apiCookieHeader.contains("login_current_pk=account"))
@@ -107,13 +194,16 @@ struct AlibabaTokenPlanCookieHeaderTests {
         #expect(!headers.apiCookieHeader.contains("modelstudio_only=modelstudio"))
         #expect(headers.dashboardCookieHeader.contains("sec_token=dashboard"))
         #expect(!headers.dashboardCookieHeader.contains("modelstudio_only=modelstudio"))
+        #expect(rateLimitHeader.contains("rpc_only=rpc"))
+        #expect(!rateLimitHeader.contains("sec_token=dashboard"))
     }
 
     @Test
     func `cached token plan headers preserve URL scoping`() throws {
         let headers = AlibabaTokenPlanCookieHeaders(
             apiCookieHeader: "login_aliyunid_ticket=ticket; api_only=api",
-            dashboardCookieHeader: "login_aliyunid_ticket=ticket; dashboard_only=dashboard")
+            dashboardCookieHeader: "login_aliyunid_ticket=ticket; dashboard_only=dashboard",
+            rateLimitCookieHeader: "login_aliyunid_ticket=ticket; rpc_only=rpc")
 
         let cached = try #require(AlibabaTokenPlanCookieHeaders(cachedHeader: headers.cacheCookieHeader))
 
@@ -121,6 +211,26 @@ struct AlibabaTokenPlanCookieHeaderTests {
         #expect(!cached.apiCookieHeader.contains("dashboard_only=dashboard"))
         #expect(cached.dashboardCookieHeader.contains("dashboard_only=dashboard"))
         #expect(!cached.dashboardCookieHeader.contains("api_only=api"))
+        #expect(cached.rateLimitCookieHeader?.contains("rpc_only=rpc") == true)
+        #expect(cached.rateLimitCookieHeader?.contains("api_only=api") == false)
+    }
+
+    @Test
+    func `missing RPC cookies do not discard summary headers`() throws {
+        let cookies = [
+            self.cookie(
+                name: "summary_only",
+                value: "summary",
+                domain: "modelstudio.console.alibabacloud.com"),
+        ]
+
+        let headers = try #require(AlibabaTokenPlanCookieHeader.headers(from: cookies))
+        let cached = try #require(AlibabaTokenPlanCookieHeaders(cachedHeader: headers.cacheCookieHeader))
+
+        #expect(headers.apiCookieHeader.contains("summary_only=summary"))
+        #expect(headers.dashboardCookieHeader.contains("summary_only=summary"))
+        #expect(headers.rateLimitCookieHeader == nil)
+        #expect(cached.rateLimitCookieHeader == nil)
     }
 
     @Test
@@ -148,6 +258,8 @@ struct AlibabaTokenPlanCookieHeaderTests {
         #expect(!headers.apiCookieHeader.contains("prod_api_only=prod-api"))
         #expect(headers.dashboardCookieHeader.contains("dashboard_only=dashboard"))
         #expect(!headers.dashboardCookieHeader.contains("prod_dashboard_only=prod-dashboard"))
+        #expect(headers.rateLimitCookieHeader?.contains("api_only=api") == true)
+        #expect(headers.rateLimitCookieHeader?.contains("prod_api_only=prod-api") == false)
     }
 
     private func cookie(
@@ -204,10 +316,125 @@ struct AlibabaTokenPlanUsageSnapshotTests {
         #expect(usage.primary == nil)
         #expect(usage.loginMethod(for: .alibabatokenplan) == "TOKEN PLAN")
     }
+
+    @Test
+    func `rate windows merge with the subscription plan name`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let rate = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            fiveHourUsedPercent: 25,
+            updatedAt: now)
+        let summary = AlibabaTokenPlanUsageSnapshot(
+            planName: "Bailian Pro",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+
+        let merged = rate.mergingSubscriptionSummary(summary)
+
+        #expect(merged.planName == "Bailian Pro")
+        #expect(merged.fiveHourUsedPercent == 25)
+        #expect(merged.remainingQuota == 900)
+    }
 }
 
 @Suite(.serialized)
 struct AlibabaTokenPlanUsageParsingTests {
+    @Test
+    func `parses token plan rate windows with millisecond resets`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let json = """
+        {
+          "code": "200",
+          "data": {
+            "DataV2": {
+              "data": {
+                "success": true,
+                "data": {
+                  "per5HourPercentage": 0.0769,
+                  "per5HourResetTime": 1700100000000,
+                  "per1WeekPercentage": 0.0261,
+                  "per1WeekResetTime": 1700200000000
+                }
+              },
+              "success": true,
+              "httpStatus": 200
+            }
+          },
+          "successResponse": true
+        }
+        """
+
+        let snapshot = try AlibabaTokenPlanUsageFetcher.parseRateLimitUsageSnapshot(
+            from: Data(json.utf8),
+            now: now)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(abs((usage.primary?.usedPercent ?? -.infinity) - 7.69) < 0.000_001)
+        #expect(usage.primary?.windowMinutes == 5 * 60)
+        #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_700_100_000))
+        #expect(abs((usage.secondary?.usedPercent ?? -.infinity) - 2.61) < 0.000_001)
+        #expect(usage.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.secondary?.resetsAt == Date(timeIntervalSince1970: 1_700_200_000))
+        #expect(usage.loginMethod(for: .alibabatokenplan) == "TOKEN PLAN")
+    }
+
+    @Test
+    func `preserves a weekly only rate window`() throws {
+        let json = """
+        {
+          "code": "200",
+          "data": {
+            "DataV2": {
+              "data": {
+                "success": true,
+                "data": {
+                  "per1WeekPercentage": 0.125,
+                  "per1WeekResetTime": 1700200000000
+                }
+              }
+            }
+          },
+          "successResponse": true
+        }
+        """
+
+        let snapshot = try AlibabaTokenPlanUsageFetcher.parseRateLimitUsageSnapshot(from: Data(json.utf8))
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary == nil)
+        #expect(usage.secondary?.usedPercent == 12.5)
+        #expect(usage.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.secondary?.resetsAt == Date(timeIntervalSince1970: 1_700_200_000))
+        #expect(usage.tertiary == nil)
+    }
+
+    @Test
+    func `partial rolling response preserves weekly and credits lanes`() {
+        let snapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "Bailian Pro",
+            usedQuota: 250,
+            totalQuota: 1000,
+            remainingQuota: 750,
+            resetsAt: nil,
+            sevenDayUsedPercent: 12.5,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary == nil)
+        #expect(usage.secondary?.usedPercent == 12.5)
+        #expect(usage.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(usage.tertiary?.usedPercent == 25)
+        #expect(usage.tertiary?.windowMinutes == 30 * 24 * 60)
+    }
+
     @Test
     func `parses subscription summary payload`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
@@ -415,6 +642,16 @@ struct AlibabaTokenPlanUsageParsingTests {
                 return Self.makeResponse(url: url, body: json, statusCode: 200)
             }
 
+            if url.host == "alibaba-token-plan.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
+                #expect(url.port == 9443)
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
+            }
+
             if url.host == "alibaba-token-plan.test", request.httpMethod == "POST" {
                 #expect(request.value(forHTTPHeaderField: "Cookie") == "login_aliyunid_ticket=ticket; raw_only=keep")
                 #expect(request.value(forHTTPHeaderField: "Origin") == "https://modelstudio.console.alibabacloud.com")
@@ -447,10 +684,385 @@ struct AlibabaTokenPlanUsageParsingTests {
         let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
             apiCookieHeader: "login_aliyunid_ticket=ticket; raw_only=keep",
             dashboardCookieHeader: "login_aliyunid_ticket=ticket; raw_only=keep",
+            rateLimitCookieHeader: "login_aliyunid_ticket=ticket; raw_only=keep",
             environment: environment,
             session: session)
 
         #expect(snapshot.planName == "TOKEN PLAN")
+    }
+
+    @Test
+    func `fetches authenticated rate windows and merges credit summary`() async throws {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+        let environment = [
+            AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test",
+        ]
+        let expectedReferer = AlibabaTokenPlanUsageFetcher.personalDashboardURL(
+            region: .international,
+            environment: environment).absoluteString
+
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+
+            if url.host == "rate-limit.test", request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+
+            if url.host == "rate-limit.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .first(where: { $0.name == "api" })?
+                   .value == "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage"
+            {
+                #expect(request.value(forHTTPHeaderField: "Origin") ==
+                    "https://rate-limit.test")
+                #expect(request.value(forHTTPHeaderField: "Referer") ==
+                    expectedReferer)
+                let body = Self.requestBodyString(from: request)
+                #expect(body.contains("sec_token=session-token"))
+                #expect(body.contains("params="))
+                #expect(body.contains("region=ap-southeast-1"))
+                let params = try #require(Self.requestParamsDictionary(from: body))
+                let data = try #require(params["Data"] as? [String: Any])
+                let cornerstone = try #require(data["cornerstoneParam"] as? [String: Any])
+                #expect(cornerstone["feURL"] as? String == expectedReferer)
+                let json = """
+                {
+                  "code": "200",
+                  "data": {
+                    "DataV2": {
+                      "data": {
+                        "success": true,
+                        "data": {
+                          "per5HourPercentage": 0.0769,
+                          "per5HourResetTime": 1700100000000,
+                          "per1WeekPercentage": 0.0261,
+                          "per1WeekResetTime": 1700200000000
+                        }
+                      },
+                      "success": true,
+                      "httpStatus": 200
+                    }
+                  },
+                  "successResponse": true
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
+            }
+
+            if url.host == "rate-limit.test", request.httpMethod == "POST" {
+                let body = Self.requestBodyString(from: request)
+                #expect(body.contains("GetSubscriptionSummary"))
+                let json = """
+                {
+                  "Success": true,
+                  "Data": {
+                    "TotalCount": 1,
+                    "TotalValue": 1000,
+                    "TotalSurplusValue": 900
+                  }
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
+            }
+
+            throw URLError(.unsupportedURL)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+            apiCookieHeader: "login_aliyunid_ticket=ticket",
+            dashboardCookieHeader: "login_aliyunid_ticket=ticket",
+            rateLimitCookieHeader: "login_aliyunid_ticket=ticket",
+            environment: environment,
+            session: session)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(abs((usage.primary?.usedPercent ?? -.infinity) - 7.69) < 0.000_001)
+        #expect(usage.primary?.windowMinutes == 300)
+        #expect(abs((usage.secondary?.usedPercent ?? -.infinity) - 2.61) < 0.000_001)
+        #expect(usage.secondary?.windowMinutes == 10080)
+        #expect(usage.tertiary?.usedPercent == 10)
+        #expect(usage.tertiary?.windowMinutes == 30 * 24 * 60)
+    }
+
+    @Test
+    func `keeps rate windows when credit summary fails`() async throws {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+
+            if url.host == "rate-limit.test", request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+
+            if url.host == "rate-limit.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
+                let json = """
+                {
+                  "code": "200",
+                  "data": {
+                    "DataV2": {
+                      "data": {
+                        "success": true,
+                        "data": {
+                          "per5HourPercentage": 0.25,
+                          "per1WeekPercentage": 0.5
+                        }
+                      }
+                    }
+                  },
+                  "successResponse": true
+                }
+                """
+                return Self.makeResponse(url: url, body: json, statusCode: 200)
+            }
+
+            if url.host == "rate-limit.test", request.httpMethod == "POST" {
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
+            }
+
+            throw URLError(.unsupportedURL)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+            apiCookieHeader: "login_aliyunid_ticket=ticket",
+            dashboardCookieHeader: "login_aliyunid_ticket=ticket",
+            rateLimitCookieHeader: "login_aliyunid_ticket=ticket",
+            environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+            session: session)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.windowMinutes == 300)
+        #expect(usage.secondary?.usedPercent == 50)
+        #expect(usage.secondary?.windowMinutes == 10080)
+        #expect(usage.tertiary == nil)
+    }
+
+    @Test
+    func `rate endpoint rejection propagates before cached cookie refresh`() async {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+            if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(url: url, body: "expired", statusCode: 401)
+            }
+            return Self.makeResponse(
+                url: url,
+                body: """
+                {
+                  "Success": true,
+                  "Data": {
+                    "TotalCount": 1,
+                    "TotalValue": 1000,
+                    "TotalSurplusValue": 900
+                  }
+                }
+                """,
+                statusCode: 200)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "login_aliyunid_ticket=summary-valid",
+                dashboardCookieHeader: "login_aliyunid_ticket=dashboard-valid",
+                rateLimitCookieHeader: "login_aliyunid_ticket=rate-expired",
+                environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+                propagateCredentialFailures: true,
+                session: session)
+            Issue.record("Expected the rate credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `summary endpoint rejection propagates despite valid rate windows`() async {
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+        }
+        AlibabaTokenPlanStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if request.httpMethod == "GET" {
+                return Self.makeResponse(
+                    url: url,
+                    body: "<html><script>sec_token = \"session-token\";</script></html>",
+                    statusCode: 200)
+            }
+            if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(
+                    url: url,
+                    body: """
+                    {
+                      "code": "200",
+                      "data": {
+                        "DataV2": {
+                          "data": {
+                            "success": true,
+                            "data": {
+                              "per5HourPercentage": 0.25,
+                              "per1WeekPercentage": 0.5
+                            }
+                          }
+                        }
+                      },
+                      "successResponse": true
+                    }
+                    """,
+                    statusCode: 200)
+            }
+            return Self.makeResponse(url: url, body: "expired", statusCode: 403)
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "login_aliyunid_ticket=summary-expired",
+                dashboardCookieHeader: "login_aliyunid_ticket=dashboard-valid",
+                rateLimitCookieHeader: "login_aliyunid_ticket=rate-valid",
+                environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://rate-limit.test"],
+                propagateCredentialFailures: true,
+                session: session)
+            Issue.record("Expected the summary credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `slow optional rate limit does not block subscription summary`() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            try await Task.sleep(for: .seconds(1))
+            return AlibabaTokenPlanUsageSnapshot(
+                planName: "TOKEN PLAN",
+                usedQuota: nil,
+                totalQuota: nil,
+                remainingQuota: nil,
+                resetsAt: nil,
+                fiveHourUsedPercent: 25,
+                updatedAt: now)
+        }
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: .milliseconds(20))
+        let elapsed = startedAt.duration(to: clock.now)
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(elapsed < .milliseconds(500))
+        #expect(usage.primary?.usedPercent == 10)
+        #expect(usage.primary?.windowMinutes == 30 * 24 * 60)
+        #expect(usage.secondary == nil)
+    }
+
+    @Test
+    func `rate credential failure requests a cookie refresh`() async {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            throw AlibabaTokenPlanUsageError.loginRequired
+        }
+
+        do {
+            _ = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+                rateLimitTask,
+                into: subscriptionSnapshot,
+                joinGrace: .seconds(1),
+                propagateCredentialFailures: true)
+            Issue.record("Expected the rate credential failure to propagate")
+        } catch let error as AlibabaTokenPlanUsageError {
+            #expect(error == .loginRequired)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `rate credential failure falls back after cookie refresh`() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let subscriptionSnapshot = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: 100,
+            totalQuota: 1000,
+            remainingQuota: 900,
+            resetsAt: nil,
+            updatedAt: now)
+        let rateLimitTask = Task<AlibabaTokenPlanUsageSnapshot, Error> {
+            throw AlibabaTokenPlanUsageError.loginRequired
+        }
+
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: .seconds(1),
+            propagateCredentialFailures: false)
+
+        #expect(snapshot.totalQuota == 1000)
+        #expect(snapshot.fiveHourUsedPercent == nil)
     }
 
     @Test
@@ -463,6 +1075,15 @@ struct AlibabaTokenPlanUsageParsingTests {
                     url: url,
                     body: "<html><script>sec_token = \"session-html-token\";</script></html>",
                     statusCode: 200)
+            }
+
+            if url.host == "session-token.test",
+               request.httpMethod == "POST",
+               URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                   .queryItems?
+                   .contains(where: { $0.name == "api" }) == true
+            {
+                return Self.makeResponse(url: url, body: "unavailable", statusCode: 500)
             }
 
             if url.host == "session-token.test", request.httpMethod == "POST" {
@@ -493,6 +1114,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
             apiCookieHeader: "login_aliyunid_ticket=ticket",
             dashboardCookieHeader: "login_aliyunid_ticket=ticket",
+            rateLimitCookieHeader: "login_aliyunid_ticket=ticket",
             environment: [AlibabaTokenPlanSettingsReader.hostKey: "https://session-token.test"],
             session: session)
 
@@ -584,6 +1206,18 @@ struct AlibabaTokenPlanUsageParsingTests {
             return String(data: data, encoding: .utf8) ?? ""
         }
         return ""
+    }
+
+    private static func requestParamsDictionary(from body: String) -> [String: Any]? {
+        guard let components = URLComponents(string: "https://example.invalid/?\(body)"),
+              let params = components.queryItems?.first(where: { $0.name == "params" })?.value,
+              let data = params.data(using: .utf8)
+        else {
+            return nil
+        }
+
+        let object = try? JSONSerialization.jsonObject(with: data, options: [])
+        return object as? [String: Any]
     }
 }
 
@@ -780,12 +1414,18 @@ struct AlibabaTokenPlanWebStrategyTests {
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
                 scope: AlibabaTokenPlanAPIRegion.international.cookieCacheScope,
-                cookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                cookieHeader: AlibabaTokenPlanCookieHeaders(
+                    apiCookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                    dashboardCookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                    rateLimitCookieHeader: "login_aliyunid_ticket=intl-ticket; rpc=intl").cacheCookieHeader,
                 sourceLabel: "International fixture")
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
                 scope: AlibabaTokenPlanAPIRegion.chinaMainland.cookieCacheScope,
-                cookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                cookieHeader: AlibabaTokenPlanCookieHeaders(
+                    apiCookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                    dashboardCookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                    rateLimitCookieHeader: "login_aliyunid_ticket=cn-ticket; rpc=cn").cacheCookieHeader,
                 sourceLabel: "China fixture")
             try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
                 throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
@@ -809,7 +1449,7 @@ struct AlibabaTokenPlanWebStrategyTests {
     }
 
     @Test
-    func `legacy unscoped cache migrates only to China gateway`() throws {
+    func `legacy unscoped cache refreshes without crossing regions`() throws {
         try self.withIsolatedCookieCache {
             self.clearCookieCaches()
             defer { self.clearCookieCaches() }
@@ -839,7 +1479,22 @@ struct AlibabaTokenPlanWebStrategyTests {
             }
 
             let china = try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
-                throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected China import")
+                AlibabaCodingPlanCookieImporter.SessionInfo(
+                    cookies: [
+                        self.cookie(
+                            name: "login_aliyunid_ticket",
+                            value: "cn",
+                            domain: ".aliyun.com"),
+                        self.cookie(
+                            name: "gateway",
+                            value: "fresh-cn",
+                            domain: "bailian.console.aliyun.com"),
+                        self.cookie(
+                            name: "rpc",
+                            value: "fresh-cn",
+                            domain: "bailian-cs.console.aliyun.com"),
+                    ],
+                    sourceLabel: "China fixture")
             } operation: {
                 try AlibabaTokenPlanWebFetchStrategy.resolveCookieHeaders(
                     context: context,
@@ -849,7 +1504,9 @@ struct AlibabaTokenPlanWebStrategyTests {
 
             #expect(international.apiCookieHeader.contains("gateway=intl"))
             #expect(!international.apiCookieHeader.contains("gateway=legacy-cn"))
-            #expect(china.apiCookieHeader.contains("gateway=legacy-cn"))
+            #expect(china.apiCookieHeader.contains("gateway=fresh-cn"))
+            #expect(!china.apiCookieHeader.contains("gateway=legacy-cn"))
+            #expect(china.rateLimitCookieHeader?.contains("rpc=fresh-cn") == true)
             #expect(CookieHeaderCache.load(provider: .alibabatokenplan) == nil)
             #expect(CookieHeaderCache.load(
                 provider: .alibabatokenplan,
@@ -921,7 +1578,9 @@ final class AlibabaTokenPlanStubURLProtocol: URLProtocol {
     override static func canInit(with request: URLRequest) -> Bool {
         guard let host = request.url?.host else { return false }
         return host == "bailian.console.aliyun.com" ||
+            host == "bailian-singapore-cs.alibabacloud.com" ||
             host == "alibaba-token-plan.test" ||
+            host == "rate-limit.test" ||
             host == "session-token.test"
     }
 

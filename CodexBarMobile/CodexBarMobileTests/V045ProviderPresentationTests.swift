@@ -9,6 +9,8 @@ struct V045ProviderPresentationTests {
     func `canonical generic window labels map to localized semantic keys`() {
         #expect(ProviderWindowLabel.localizationKey(for: "Daily") == "v045_window_daily")
         #expect(ProviderWindowLabel.localizationKey(for: "Weekly") == "v045_window_weekly")
+        #expect(ProviderWindowLabel.localizationKey(for: "5-hour") == "5-hour")
+        #expect(ProviderWindowLabel.localizationKey(for: "Credits") == "Credits")
         #expect(ProviderWindowLabel.localizationKey(for: "Monthly") == "v045_window_monthly")
         #expect(ProviderWindowLabel.localizationKey(for: "Additional") == "v045_window_additional")
         #expect(ProviderWindowLabel.localizationKey(for: "5 hour limit") == "v045_window_5_hour_limit")

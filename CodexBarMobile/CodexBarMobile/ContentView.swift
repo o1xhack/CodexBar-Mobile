@@ -3665,7 +3665,7 @@ private enum MobileReleaseNotesCatalog {
                         String(
                             localized: "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings."),
                         String(
-                            localized: "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them."),
+                            localized: "Richer limit coverage — Alibaba Token Plan restores its 5-hour and weekly limits, and monthly or additional limits stay visible when providers offer them."),
                         String(
                             localized: "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes."),
                     ]),
@@ -3673,7 +3673,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "Required Mac version"),
                     items: [
                         String(
-                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions."),
+                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.2 or later. iPhone 1.19 still works with data from older Mac versions."),
                     ]),
             ]),
         ReleaseNotesVersion(

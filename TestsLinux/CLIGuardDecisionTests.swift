@@ -129,4 +129,20 @@ struct CLIGuardDecisionTests {
         let remaining = CodexBarCLI.guardRemainingHeadroom(for: self.window(usedPercent: 100, synthetic: false))
         #expect(remaining == 0)
     }
+
+    @Test
+    func `Alibaba weekly only response is unavailable for session guard`() {
+        let usage = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            sevenDayUsedPercent: 25,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+
+        #expect(CodexBarCLI.guardRateWindow(.session, usage: usage) == nil)
+        #expect(CodexBarCLI.guardRateWindow(.weekly, usage: usage)?.usedPercent == 25)
+    }
 }

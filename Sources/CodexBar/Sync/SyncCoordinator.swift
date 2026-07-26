@@ -704,24 +704,43 @@ final class SyncCoordinator {
     {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
+        var semanticWindows: (primary: SyncRateWindow?, secondary: SyncRateWindow?) = (nil, nil)
         if let p = snapshot?.primary {
-            rateWindows.append(SyncRateWindow(
-                label: metadata?.sessionLabel,
+            let label = provider == .alibabatokenplan
+                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: p,
+                    fallback: metadata?.sessionLabel ?? "Credits")
+                : metadata?.sessionLabel
+            let window = SyncRateWindow(
+                label: label,
                 usedPercent: p.usedPercent,
                 windowMinutes: p.windowMinutes,
                 resetsAt: p.resetsAt,
-                resetDescription: p.resetDescription))
+                resetDescription: p.resetDescription)
+            rateWindows.append(window)
+            semanticWindows.primary = window
         }
         if let s = snapshot?.secondary {
-            rateWindows.append(SyncRateWindow(
-                label: metadata?.weeklyLabel,
+            let label = provider == .alibabatokenplan
+                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: s,
+                    fallback: metadata?.weeklyLabel ?? "Usage")
+                : metadata?.weeklyLabel
+            let window = SyncRateWindow(
+                label: label,
                 usedPercent: s.usedPercent,
                 windowMinutes: s.windowMinutes,
                 resetsAt: s.resetsAt,
-                resetDescription: s.resetDescription))
+                resetDescription: s.resetDescription)
+            rateWindows.append(window)
+            semanticWindows.secondary = window
         }
         if let t = snapshot?.tertiary {
-            let label: String? = if let metadata, metadata.supportsOpus {
+            let label: String? = if provider == .alibabatokenplan {
+                AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: t,
+                    fallback: "Credits")
+            } else if let metadata, metadata.supportsOpus {
                 metadata.opusLabel ?? "Sonnet"
             } else {
                 Self.additionalWindowLabel(windowMinutes: t.windowMinutes)
@@ -745,8 +764,8 @@ final class SyncCoordinator {
         }
 
         // Legacy primary/secondary for backward compat with older iOS builds.
-        let primaryWindow = rateWindows.first
-        let secondaryWindow = rateWindows.count > 1 ? rateWindows[1] : nil
+        let primaryWindow = provider == .alibabatokenplan ? semanticWindows.primary : rateWindows.first
+        let secondaryWindow = provider == .alibabatokenplan ? semanticWindows.secondary : rateWindows.dropFirst().first
 
         // Provider budget / spend (per-account when snapshot.providerCost is
         // set per-account by upstream; otherwise shared with active).
@@ -2005,6 +2024,10 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?) -> SyncAlibabaTokenPlan?
     {
         guard provider == .alibabatokenplan, let a = snapshot?.alibabaTokenPlanUsage else { return nil }
+        let hasCreditProgress = (a.totalQuota ?? 0) > 0 &&
+            (a.usedQuota != nil || a.remainingQuota != nil)
+        let hasRemainingCredits = a.remainingQuota != nil
+        guard hasCreditProgress || hasRemainingCredits else { return nil }
         return SyncAlibabaTokenPlan(
             planName: a.planName,
             usedCredits: a.usedQuota,

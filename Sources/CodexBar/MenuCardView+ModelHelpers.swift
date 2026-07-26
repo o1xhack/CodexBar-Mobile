@@ -277,6 +277,19 @@ extension UsageMenuCardView.Model {
         if input.provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
+        if input.provider == .alibabatokenplan {
+            return (
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.primary,
+                    fallback: input.metadata.sessionLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.secondary,
+                    fallback: input.metadata.weeklyLabel)),
+                L(AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+                    window: snapshot.tertiary,
+                    fallback: "Credits")),
+                snapshot.tertiary != nil)
+        }
         // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
         let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
             "Requests"

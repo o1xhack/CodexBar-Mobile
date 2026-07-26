@@ -24,13 +24,41 @@ public enum AlibabaTokenPlanUsageError: LocalizedError, Sendable, Equatable {
             "Could not parse Alibaba Token Plan usage: \(message)"
         }
     }
+
+    var isCredentialFailure: Bool {
+        switch self {
+        case .loginRequired, .invalidCredentials:
+            true
+        case .apiError, .networkError, .parseFailed:
+            false
+        }
+    }
 }
 
 // swiftlint:disable:next type_body_length
 public struct AlibabaTokenPlanUsageFetcher: Sendable {
+    private struct SubscriptionSummaryContext: Sendable {
+        let url: URL
+        let cookieHeader: String
+        let secToken: String?
+        let region: AlibabaTokenPlanAPIRegion
+        let environment: [String: String]
+        let now: Date
+    }
+
+    private struct RateLimitContext: Sendable {
+        let cookieHeader: String
+        let secToken: String
+        let region: AlibabaTokenPlanAPIRegion
+        let environment: [String: String]
+        let now: Date
+    }
+
     private static let log = CodexBarLog.logger("alibaba-token-plan")
     private static let bssServiceCode = "BssOpenAPI-V3"
     private static let subscriptionSummaryAction = "GetSubscriptionSummary"
+    private static let rateLimitMergeGrace: Duration = .seconds(2)
+    private static let rateLimitFallbackGrace: Duration = .seconds(5)
     private static let browserLikeUserAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
@@ -59,6 +87,24 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return region.dashboardURL
     }
 
+    static func personalDashboardURL(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        guard let override = self.rateLimitOverrideBaseURL(environment: environment),
+              var components = URLComponents(url: override, resolvingAgainstBaseURL: false),
+              let personalComponents = URLComponents(
+                  url: region.personalDashboardURL,
+                  resolvingAgainstBaseURL: false)
+        else {
+            return region.personalDashboardURL
+        }
+        components.path = personalComponents.path
+        components.percentEncodedQuery = personalComponents.percentEncodedQuery
+        components.fragment = personalComponents.fragment
+        return components.url ?? region.personalDashboardURL
+    }
+
     public static func fetchUsage(
         cookieHeader: String,
         region: AlibabaTokenPlanAPIRegion = .international,
@@ -71,6 +117,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return try await self.fetchUsage(
             apiCookieHeader: headers.apiCookieHeader,
             dashboardCookieHeader: headers.dashboardCookieHeader,
+            rateLimitCookieHeader: headers.rateLimitCookieHeader,
             region: region,
             environment: environment,
             now: now)
@@ -79,9 +126,11 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     static func fetchUsage(
         apiCookieHeader: String,
         dashboardCookieHeader: String,
+        rateLimitCookieHeader: String?,
         region: AlibabaTokenPlanAPIRegion = .international,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date(),
+        propagateCredentialFailures: Bool = false,
         session overrideSession: URLSession? = nil) async throws -> AlibabaTokenPlanUsageSnapshot
     {
         guard let normalizedAPIHeader = CookieHeaderNormalizer.normalize(apiCookieHeader),
@@ -89,14 +138,18 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         else {
             throw AlibabaTokenPlanSettingsError.invalidCookie
         }
+        let normalizedRateLimitHeader = CookieHeaderNormalizer.normalize(rateLimitCookieHeader)
 
         let url = self.resolveQuotaURL(region: region, environment: environment)
         let apiRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedAPIHeader)
+        let rateLimitRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedRateLimitHeader ?? "")
         let dashboardRedirectDiagnostics: RedirectDiagnostics?
         let apiSession: URLSession
+        let rateLimitSession: URLSession
         let dashboardSession: URLSession
         if let overrideSession {
             apiSession = overrideSession
+            rateLimitSession = overrideSession
             dashboardSession = overrideSession
             dashboardRedirectDiagnostics = nil
         } else {
@@ -104,6 +157,10 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             apiSession = URLSession(
                 configuration: .default,
                 delegate: apiRedirectDiagnostics,
+                delegateQueue: nil)
+            rateLimitSession = URLSession(
+                configuration: .default,
+                delegate: rateLimitRedirectDiagnostics,
                 delegateQueue: nil)
             dashboardSession = URLSession(
                 configuration: .default,
@@ -114,8 +171,20 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         defer {
             if overrideSession == nil {
                 apiSession.invalidateAndCancel()
+                rateLimitSession.invalidateAndCancel()
                 dashboardSession.invalidateAndCancel()
             }
+            if let dashboardRedirectDiagnostics {
+                Self.logRedirects(
+                    dashboardRedirectDiagnostics.snapshot(),
+                    message: "Alibaba Token Plan dashboard redirects")
+            }
+            Self.logRedirects(
+                apiRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan subscription-summary redirects")
+            Self.logRedirects(
+                rateLimitRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan rate-limit redirects")
         }
         let secToken = await self.resolveSECToken(
             dashboardCookieHeader: normalizedDashboardHeader,
@@ -123,65 +192,144 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             region: region,
             environment: environment,
             session: dashboardSession)
+        let rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>? = if let secToken,
+                                                                            let normalizedRateLimitHeader
+        {
+            Task {
+                try await self.fetchRateLimitUsage(
+                    context: RateLimitContext(
+                        cookieHeader: normalizedRateLimitHeader,
+                        secToken: secToken,
+                        region: region,
+                        environment: environment,
+                        now: now),
+                    session: rateLimitSession)
+            }
+        } else {
+            nil
+        }
+        defer {
+            rateLimitTask?.cancel()
+        }
         Self.log.info(
             "Fetching Alibaba Token Plan usage",
             metadata: [
                 "apiHost": url.host ?? "unknown",
                 "region": region.rawValue,
                 "apiCookieNames": self.cookieNamesDescription(from: normalizedAPIHeader),
+                "rateLimitCookieNames": self.cookieNamesDescription(from: normalizedRateLimitHeader ?? ""),
                 "dashboardCookieNames": self.cookieNamesDescription(from: normalizedDashboardHeader),
                 "hasCSRF": self.hasCSRF(in: normalizedAPIHeader) ? "1" : "0",
                 "secTokenSource": secToken == nil ? "missing" : "resolved",
             ])
 
-        var request = URLRequest(url: url)
+        let subscriptionSnapshot: AlibabaTokenPlanUsageSnapshot
+        do {
+            subscriptionSnapshot = try await self.fetchSubscriptionSummary(
+                context: SubscriptionSummaryContext(
+                    url: url,
+                    cookieHeader: normalizedAPIHeader,
+                    secToken: secToken,
+                    region: region,
+                    environment: environment,
+                    now: now),
+                session: apiSession)
+        } catch {
+            if propagateCredentialFailures,
+               let usageError = error as? AlibabaTokenPlanUsageError,
+               usageError.isCredentialFailure
+            {
+                throw error
+            }
+            guard let rateLimitTask else { throw error }
+            switch await BoundedTaskJoin(sourceTask: rateLimitTask)
+                .value(joinGrace: self.rateLimitFallbackGrace)
+            {
+            case let .value(rateLimitSnapshot):
+                Self.log.info(
+                    "Alibaba Token Plan subscription summary failed; using rate-limit usage",
+                    metadata: ["error": error.localizedDescription])
+                return rateLimitSnapshot
+            case let .failure(rateLimitError):
+                Self.log.info(
+                    "Alibaba Token Plan rate-limit request also failed",
+                    metadata: ["error": rateLimitError.localizedDescription])
+            case .timedOut:
+                Self.log.info("Alibaba Token Plan rate-limit fallback timed out")
+            }
+            throw error
+        }
+        return try await self.mergeRateLimitTask(
+            rateLimitTask,
+            into: subscriptionSnapshot,
+            joinGrace: self.rateLimitMergeGrace,
+            propagateCredentialFailures: propagateCredentialFailures)
+    }
+
+    static func mergeRateLimitTask(
+        _ rateLimitTask: Task<AlibabaTokenPlanUsageSnapshot, Error>?,
+        into subscriptionSnapshot: AlibabaTokenPlanUsageSnapshot,
+        joinGrace: Duration,
+        propagateCredentialFailures: Bool = false) async throws -> AlibabaTokenPlanUsageSnapshot
+    {
+        guard let rateLimitTask else { return subscriptionSnapshot }
+        switch await BoundedTaskJoin(sourceTask: rateLimitTask).value(joinGrace: joinGrace) {
+        case let .value(rateLimitSnapshot):
+            return rateLimitSnapshot.mergingSubscriptionSummary(subscriptionSnapshot)
+        case let .failure(error):
+            if propagateCredentialFailures,
+               let usageError = error as? AlibabaTokenPlanUsageError,
+               usageError.isCredentialFailure
+            {
+                throw error
+            }
+            Self.log.info(
+                "Alibaba Token Plan rate-limit request failed; using subscription summary",
+                metadata: ["error": error.localizedDescription])
+        case .timedOut:
+            Self.log.info("Alibaba Token Plan rate-limit request timed out; using subscription summary")
+        }
+        return subscriptionSnapshot
+    }
+
+    private static func fetchSubscriptionSummary(
+        context: SubscriptionSummaryContext,
+        session: URLSession) async throws -> AlibabaTokenPlanUsageSnapshot
+    {
+        var request = URLRequest(url: context.url)
         request.httpMethod = "POST"
         request.timeoutInterval = 20
-        request.httpBody = self.subscriptionSummaryRequestBody(region: region, secToken: secToken)
+        request.httpBody = self.subscriptionSummaryRequestBody(
+            region: context.region,
+            secToken: context.secToken)
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue(normalizedAPIHeader, forHTTPHeaderField: "Cookie")
-        if let csrf = self.extractCookieValue(name: "login_aliyunid_csrf", from: normalizedAPIHeader) ??
-            self.extractCookieValue(name: "csrf", from: normalizedAPIHeader)
+        request.setValue(context.cookieHeader, forHTTPHeaderField: "Cookie")
+        if let csrf = self.extractCookieValue(name: "login_aliyunid_csrf", from: context.cookieHeader) ??
+            self.extractCookieValue(name: "csrf", from: context.cookieHeader)
         {
             request.setValue(csrf, forHTTPHeaderField: "x-xsrf-token")
             request.setValue(csrf, forHTTPHeaderField: "x-csrf-token")
         }
         request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
         request.setValue(Self.browserLikeUserAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(region.dashboardOriginURLString, forHTTPHeaderField: "Origin")
+        request.setValue(context.region.dashboardOriginURLString, forHTTPHeaderField: "Origin")
         request.setValue(
-            Self.dashboardURL(region: region, environment: environment).absoluteString,
+            Self.dashboardURL(region: context.region, environment: context.environment).absoluteString,
             forHTTPHeaderField: "Referer")
 
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await apiSession.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch {
             Self.log.error(
                 "Alibaba Token Plan request failed",
                 metadata: [
-                    "apiHost": url.host ?? "unknown",
+                    "apiHost": context.url.host ?? "unknown",
                     "error": error.localizedDescription,
                 ])
             throw AlibabaTokenPlanUsageError.networkError(error.localizedDescription)
-        }
-        if let dashboardRedirectDiagnostics, !dashboardRedirectDiagnostics.redirects.isEmpty {
-            Self.log.info(
-                "Alibaba Token Plan dashboard redirects",
-                metadata: [
-                    "count": "\(dashboardRedirectDiagnostics.redirects.count)",
-                    "items": dashboardRedirectDiagnostics.redirects.joined(separator: " | "),
-                ])
-        }
-        if !apiRedirectDiagnostics.redirects.isEmpty {
-            Self.log.info(
-                "Alibaba Token Plan redirects",
-                metadata: [
-                    "count": "\(apiRedirectDiagnostics.redirects.count)",
-                    "items": apiRedirectDiagnostics.redirects.joined(separator: " | "),
-                ])
         }
         guard let httpResponse = response as? HTTPURLResponse else {
             Self.log.error("Alibaba Token Plan response was not HTTP")
@@ -202,7 +350,159 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             throw AlibabaTokenPlanUsageError.apiError("HTTP \(httpResponse.statusCode)")
         }
 
-        return try self.parseUsageSnapshot(from: data, now: now)
+        return try self.parseUsageSnapshot(from: data, now: context.now)
+    }
+
+    private static func fetchRateLimitUsage(
+        context: RateLimitContext,
+        session: URLSession) async throws -> AlibabaTokenPlanUsageSnapshot
+    {
+        let url = self.resolveRateLimitURL(
+            region: context.region,
+            environment: context.environment)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.httpBody = self.rateLimitRequestBody(
+            cookieHeader: context.cookieHeader,
+            secToken: context.secToken,
+            region: context.region,
+            environment: context.environment)
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue(context.cookieHeader, forHTTPHeaderField: "Cookie")
+        if let csrf = self.extractCookieValue(name: "login_aliyunid_csrf", from: context.cookieHeader) ??
+            self.extractCookieValue(name: "csrf", from: context.cookieHeader)
+        {
+            request.setValue(csrf, forHTTPHeaderField: "x-xsrf-token")
+            request.setValue(csrf, forHTTPHeaderField: "x-csrf-token")
+        }
+        request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+        request.setValue(Self.browserLikeUserAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(
+            self.rateLimitOriginURLString(
+                region: context.region,
+                environment: context.environment),
+            forHTTPHeaderField: "Origin")
+        request.setValue(
+            self.personalDashboardURL(
+                region: context.region,
+                environment: context.environment).absoluteString,
+            forHTTPHeaderField: "Referer")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw AlibabaTokenPlanUsageError.networkError(error.localizedDescription)
+        }
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AlibabaTokenPlanUsageError.networkError("Invalid rate-limit response")
+        }
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                throw AlibabaTokenPlanUsageError.loginRequired
+            }
+            throw AlibabaTokenPlanUsageError.apiError("HTTP \(httpResponse.statusCode)")
+        }
+        return try self.parseRateLimitUsageSnapshot(from: data, now: context.now)
+    }
+
+    private static func rateLimitRequestBody(
+        cookieHeader: String,
+        secToken: String,
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> Data
+    {
+        let traceID = UUID().uuidString.lowercased()
+        var cornerstoneParam: [String: Any] = [
+            "feTraceId": traceID,
+            "feURL": self.personalDashboardURL(region: region, environment: environment).absoluteString,
+            "protocol": "V2",
+            "console": "ONE_CONSOLE",
+            "productCode": "p_efm",
+            "switchAgent": 1_233_135,
+            "switchUserType": 3,
+            "domain": region.consoleDomain,
+            "consoleSite": region.consoleSite,
+            "userNickName": "",
+            "userPrincipalName": "",
+            "xsp_lang": "en-US",
+        ]
+        if let anonymousID = self.extractCookieValue(name: "cna", from: cookieHeader),
+           !anonymousID.isEmpty
+        {
+            cornerstoneParam["X-Anonymous-Id"] = anonymousID
+        }
+        let paramsObject: [String: Any] = [
+            "Api": region.rateLimitAPIName,
+            "V": "1.0",
+            "Data": [
+                "cornerstoneParam": cornerstoneParam,
+            ],
+        ]
+        guard let paramsData = try? JSONSerialization.data(withJSONObject: paramsObject, options: []),
+              let paramsString = String(data: paramsData, encoding: .utf8)
+        else {
+            return Data()
+        }
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "params", value: paramsString),
+            URLQueryItem(name: "region", value: region.currentRegionID),
+            URLQueryItem(name: "sec_token", value: secToken),
+        ]
+        return Data((components.percentEncodedQuery ?? "").utf8)
+    }
+
+    static func resolveRateLimitURL(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        guard let override = self.rateLimitOverrideBaseURL(environment: environment),
+              var components = URLComponents(url: override, resolvingAgainstBaseURL: false),
+              let rateLimitComponents = URLComponents(
+                  url: region.rateLimitURL,
+                  resolvingAgainstBaseURL: false)
+        else {
+            return region.rateLimitURL
+        }
+        components.path = rateLimitComponents.path
+        components.percentEncodedQuery = rateLimitComponents.percentEncodedQuery
+        components.fragment = rateLimitComponents.fragment
+        return components.url ?? region.rateLimitURL
+    }
+
+    static func rateLimitOriginURLString(
+        region: AlibabaTokenPlanAPIRegion,
+        environment: [String: String]) -> String
+    {
+        guard self.rateLimitOverrideBaseURL(environment: environment) != nil else {
+            return region.dashboardOriginURLString
+        }
+        return self.originURLString(for: self.resolveRateLimitURL(
+            region: region,
+            environment: environment)) ?? region.dashboardOriginURLString
+    }
+
+    private static func rateLimitOverrideBaseURL(environment: [String: String]) -> URL? {
+        if let quotaURL = AlibabaTokenPlanSettingsReader.quotaURL(environment: environment) {
+            return quotaURL
+        }
+        guard let host = AlibabaTokenPlanSettingsReader.hostOverride(environment: environment) else {
+            return nil
+        }
+        return ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: host)
+    }
+
+    private static func originURLString(for url: URL) -> String? {
+        guard let scheme = url.scheme, let host = url.host else { return nil }
+        var components = URLComponents()
+        components.scheme = scheme
+        components.host = host
+        components.port = url.port
+        return components.string
     }
 
     static func resolveQuotaURL(
@@ -278,6 +578,65 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             remainingQuota: remaining,
             resetsAt: resetsAt,
             updatedAt: now)
+    }
+
+    static func parseRateLimitUsageSnapshot(
+        from data: Data,
+        now: Date = Date()) throws -> AlibabaTokenPlanUsageSnapshot
+    {
+        guard !data.isEmpty else {
+            throw AlibabaTokenPlanUsageError.parseFailed("Empty response body")
+        }
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data, options: [])
+        } catch {
+            if self.isLikelyLoginHTML(data) {
+                throw AlibabaTokenPlanUsageError.loginRequired
+            }
+            throw AlibabaTokenPlanUsageError.parseFailed("Invalid JSON response")
+        }
+        let expanded = self.expandedJSON(object)
+        guard let dictionary = expanded as? [String: Any] else {
+            throw AlibabaTokenPlanUsageError.parseFailed("Unexpected payload")
+        }
+        try self.throwIfErrorPayload(dictionary)
+
+        let rateKeys = [
+            "per5HourPercentage",
+            "per1WeekPercentage",
+            "per5HourResetTime",
+            "per1WeekResetTime",
+        ]
+        guard let usage = self.findFirstDictionary(matchingAnyKey: rateKeys, in: dictionary) else {
+            throw AlibabaTokenPlanUsageError.parseFailed("Missing rate-limit usage")
+        }
+        let fiveHour = self.normalizedUsedPercent(self.parseDouble(usage["per5HourPercentage"]))
+        let sevenDay = self.normalizedUsedPercent(self.parseDouble(usage["per1WeekPercentage"]))
+        guard fiveHour != nil || sevenDay != nil else {
+            throw AlibabaTokenPlanUsageError.parseFailed("Missing rate-limit usage")
+        }
+
+        return AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            fiveHourUsedPercent: fiveHour,
+            fiveHourResetsAt: self.parseDate(usage["per5HourResetTime"]),
+            sevenDayUsedPercent: sevenDay,
+            sevenDayResetsAt: self.parseDate(usage["per1WeekResetTime"]),
+            updatedAt: now)
+    }
+
+    private static func normalizedUsedPercent(_ raw: Double?) -> Double? {
+        guard let raw, raw >= 0 else { return nil }
+        if raw <= 1 {
+            return raw * 100
+        }
+        guard raw <= 100 else { return nil }
+        return raw
     }
 
     private static func subscriptionSummaryRequestBody(region: AlibabaTokenPlanAPIRegion, secToken: String?) -> Data {
@@ -426,7 +785,8 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
 
     private final class RedirectDiagnostics: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         private let cookieHeader: String
-        var redirects: [String] = []
+        private let lock = NSLock()
+        private var redirects: [String] = []
 
         init(cookieHeader: String) {
             self.cookieHeader = cookieHeader
@@ -441,13 +801,29 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         {
             let from = AlibabaTokenPlanUsageFetcher.redactedURLDescription(response.url)
             let to = AlibabaTokenPlanUsageFetcher.redactedURLDescription(request.url)
-            self.redirects.append("\(response.statusCode) \(from) -> \(to)")
+            self.lock.withLock {
+                self.redirects.append("\(response.statusCode) \(from) -> \(to)")
+            }
 
             completionHandler(AlibabaTokenPlanUsageFetcher.redirectedRequest(
                 response: response,
                 request: request,
                 cookieHeader: self.cookieHeader))
         }
+
+        func snapshot() -> [String] {
+            self.lock.withLock { self.redirects }
+        }
+    }
+
+    private static func logRedirects(_ redirects: [String], message: String) {
+        guard !redirects.isEmpty else { return }
+        self.log.info(
+            "\(message)",
+            metadata: [
+                "count": "\(redirects.count)",
+                "items": redirects.joined(separator: " | "),
+            ])
     }
 
     private static func redactedURLDescription(_ url: URL?) -> String {

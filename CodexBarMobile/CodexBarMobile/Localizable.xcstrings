@@ -13551,6 +13551,35 @@
         }
       }
     },
+    "5-hour": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5-hour"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5時間"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 小时"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 小時"
+          }
+        }
+      }
+    },
     "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies.": {
       "localizations": {
         "en": {
@@ -19630,11 +19659,11 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的详情——sub2api 显示账户余额和请求总计，Wayfinder 显示路由活动与节省金额。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的詳情——sub2api 顯示帳戶餘額和請求總計，Wayfinder 顯示路由活動與節省金額。" } }
     } },
-    "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them.": { "extractionState": "manual", "localizations": {
-      "en": { "stringUnit": { "state": "translated", "value": "Richer limit coverage — monthly and additional limits now stay visible alongside daily and weekly windows when a provider offers them." } },
-      "ja": { "stringUnit": { "state": "translated", "value": "上限表示を拡充 — プロバイダーが提供する月間および追加の上限も、日次・週次の上限と並んで表示されます。" } },
-      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的额度展示——提供商支持时，月度和其他额度现在会与每日、每周额度一同保留显示。" } },
-      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的額度顯示——提供者支援時，月度和其他額度現在會與每日、每週額度一同保留顯示。" } }
+    "Richer limit coverage — Alibaba Token Plan restores its 5-hour and weekly limits, and monthly or additional limits stay visible when providers offer them.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Richer limit coverage — Alibaba Token Plan restores its 5-hour and weekly limits, and monthly or additional limits stay visible when providers offer them." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "上限表示を拡充 — Alibaba Token Plan の5時間・週間上限を復元し、プロバイダーが提供する月間および追加の上限も表示します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的额度展示——恢复 Alibaba Token Plan 的 5 小时和每周额度，并继续显示提供商支持的月度及其他额度。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的額度顯示——恢復 Alibaba Token Plan 的 5 小時和每週額度，並繼續顯示提供者支援的月度及其他額度。" } }
     } },
     "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes." } },
@@ -19642,11 +19671,11 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "功能更强的 Mac 端——可自定义菜单栏布局、查看用量预测、使用更安全的刷新控制，并获得最新的提供商、性能与安全修复。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "功能更強的 Mac 端——可自訂選單列佈局、查看用量預測、使用更安全的重新整理控制，並獲得最新的提供者、效能與安全修正。" } }
     } },
-    "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions.": { "extractionState": "manual", "localizations": {
-      "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions." } },
-      "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.1 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
-      "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
-      "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
+    "For all new details, update CodexBar on Mac to version 0.45.2.2 or later. iPhone 1.19 still works with data from older Mac versions.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.45.2.2 or later. iPhone 1.19 still works with data from older Mac versions." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.2 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
     } }
   },
   "version": "1.0"

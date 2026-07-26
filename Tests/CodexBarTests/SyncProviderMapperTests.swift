@@ -345,6 +345,25 @@ struct SyncProviderMapperTests {
     }
 
     @Test
+    func `mapAlibabaTokenPlan: suppresses an empty rate-only credit card`() {
+        let rateOnly = AlibabaTokenPlanUsageSnapshot(
+            planName: "TOKEN PLAN",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            fiveHourUsedPercent: 25,
+            sevenDayUsedPercent: 50,
+            updatedAt: Self.now)
+
+        #expect(SyncCoordinator.mapAlibabaTokenPlan(
+            provider: .alibabatokenplan,
+            snapshot: self.snapshot(alibaba: rateOnly)) == nil)
+        #expect(rateOnly.toUsageSnapshot().primary?.windowMinutes == 300)
+        #expect(rateOnly.toUsageSnapshot().secondary?.windowMinutes == 10080)
+    }
+
+    @Test
     func `mapAlibabaTokenPlan: maps plan name and quota → credits`() throws {
         let plan = try #require(SyncCoordinator.mapAlibabaTokenPlan(
             provider: .alibabatokenplan, snapshot: self.snapshot(alibaba: self.alibabaFixture())))

@@ -7,6 +7,19 @@ import SweetCookieKit
 public enum AlibabaTokenPlanProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
+    public static func rateWindowLabel(window: RateWindow?, fallback: String) -> String {
+        switch window?.windowMinutes {
+        case 5 * 60:
+            "5-hour"
+        case 7 * 24 * 60:
+            "Weekly"
+        case 30 * 24 * 60:
+            "Credits"
+        default:
+            fallback
+        }
+    }
+
     static func makeDescriptor() -> ProviderDescriptor {
         #if os(macOS)
         let browserOrder: BrowserCookieImportOrder = [
@@ -109,16 +122,20 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let cookieSource = context.settings?.alibabaTokenPlan?.cookieSource ?? .auto
         let region = context.settings?.alibabaTokenPlan?.apiRegion ?? .international
+        let canRefreshImportedCookies = cookieSource != .manual &&
+            AlibabaTokenPlanSettingsReader.cookieHeader(environment: context.env) == nil
         let cookieHeaders = try Self.resolveCookieHeaders(context: context, allowCached: true, region: region)
         do {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: cookieHeaders.apiCookieHeader,
                 dashboardCookieHeader: cookieHeaders.dashboardCookieHeader,
+                rateLimitCookieHeader: cookieHeaders.rateLimitCookieHeader,
                 region: region,
-                environment: context.env)
+                environment: context.env,
+                propagateCredentialFailures: canRefreshImportedCookies)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
         } catch let error as AlibabaTokenPlanUsageError
-            where error.isCredentialFailure && cookieSource != .manual
+            where error.isCredentialFailure && canRefreshImportedCookies
         {
             #if os(macOS)
             CookieHeaderCache.clear(provider: .alibabatokenplan, scope: region.cookieCacheScope)
@@ -126,8 +143,10 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
             let usage = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
                 apiCookieHeader: refreshedHeaders.apiCookieHeader,
                 dashboardCookieHeader: refreshedHeaders.dashboardCookieHeader,
+                rateLimitCookieHeader: refreshedHeaders.rateLimitCookieHeader,
                 region: region,
-                environment: context.env)
+                environment: context.env,
+                propagateCredentialFailures: false)
             return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
             #else
             throw error
@@ -161,6 +180,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 metadata: [
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -174,6 +194,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                 metadata: [
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -190,6 +211,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                     "source": cached.sourceLabel,
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                 ])
             return headers
@@ -227,6 +249,7 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
                     "rawCookieNames": rawCookieNames.joined(separator: ","),
                     "apiCookieNames": headers.apiCookieNames.joined(separator: ","),
                     "dashboardCookieNames": headers.dashboardCookieNames.joined(separator: ","),
+                    "rateLimitCookieNames": headers.rateLimitCookieNames.joined(separator: ","),
                     "hasSecToken": headers.hasCookie(named: "sec_token") ? "1" : "0",
                     "importLogLines": "\(importLog.count)",
                 ])
@@ -279,16 +302,5 @@ struct AlibabaTokenPlanWebFetchStrategy: ProviderFetchStrategy {
 extension [String] {
     fileprivate func uniquedSorted() -> [String] {
         Array(Set(self)).sorted()
-    }
-}
-
-extension AlibabaTokenPlanUsageError {
-    fileprivate var isCredentialFailure: Bool {
-        switch self {
-        case .loginRequired, .invalidCredentials:
-            true
-        case .apiError, .networkError, .parseFailed:
-            false
-        }
     }
 }
