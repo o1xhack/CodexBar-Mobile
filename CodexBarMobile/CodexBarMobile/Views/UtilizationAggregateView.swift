@@ -108,7 +108,7 @@ struct UtilizationAggregateView: View {
                     .font(.headline)
                     .padding(.top, 4)
 
-                Text("Session quota usage trend across synced providers.")
+                Text("Quota usage trend across synced providers.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -472,6 +472,64 @@ struct UtilizationAggregateView: View {
 
     // MARK: - Build Model
 
+    /// Mac plan-utilization history is sampled at most once per hour. Give a
+    /// temporarily missing session lane one extra bucket before treating it as
+    /// stale, so a single partial refresh cannot make the aggregate chart jump
+    /// between session and weekly semantics.
+    private nonisolated static let seriesFreshnessGrace: TimeInterval = 2 * 60 * 60
+
+    /// Picks one semantic quota family for a provider.
+    ///
+    /// Session remains the preferred signal while it is being sampled alongside
+    /// the provider's other quota histories. If session stops advancing while a
+    /// weekly/monthly/other series keeps receiving samples, using the historical
+    /// session forever makes Today / This Week / 14 Days read as zero or empty
+    /// even though the synced payload contains current utilization. In that
+    /// state, fall back to the freshest family and union all duplicate series
+    /// with that name (the same cross-version protection used for session).
+    private nonisolated static func preferredSeries(
+        from history: [SyncUtilizationSeries]) -> [SyncUtilizationSeries]
+    {
+        let nonEmpty = history.filter { !$0.entries.isEmpty }
+        guard !nonEmpty.isEmpty else { return [] }
+
+        let families = Dictionary(grouping: nonEmpty, by: \.name)
+        let rankedFamilies = families.compactMap { name, series -> (
+            name: String,
+            series: [SyncUtilizationSeries],
+            latest: Date,
+            rank: Int)? in
+            guard let latest = series.flatMap(\.entries).map(\.capturedAt).max() else {
+                return nil
+            }
+            let rank = switch name {
+            case "session": 0
+            case "weekly": 1
+            case "monthly": 2
+            case "opus": 3
+            default: 4
+            }
+            return (name: name, series: series, latest: latest, rank: rank)
+        }
+        .sorted { lhs, rhs in
+            if lhs.latest != rhs.latest {
+                return lhs.latest > rhs.latest
+            }
+            if lhs.rank != rhs.rank {
+                return lhs.rank < rhs.rank
+            }
+            return lhs.name < rhs.name
+        }
+
+        guard let freshest = rankedFamilies.first else { return [] }
+        if let session = rankedFamilies.first(where: { $0.name == "session" }),
+           freshest.latest.timeIntervalSince(session.latest) <= self.seriesFreshnessGrace
+        {
+            return session.series
+        }
+        return freshest.series
+    }
+
     /// Builds the aggregate from per-provider utilization entries, using
     /// **daily peak** semantics throughout:
     ///
@@ -494,10 +552,13 @@ struct UtilizationAggregateView: View {
     nonisolated static func buildModel(from providers: [ProviderUsageSnapshot], windowSize: Int) -> AggregateModel? {
         let calendar = Calendar.current
 
-        // Collect providers that have any session-window utilization history.
-        // Union entries across EVERY series named "session" (not just the first);
-        // this shields us from cross-version duplication where `mergeUtilizationHistories`
-        // left two "session" series behind because the devices disagreed on windowMinutes.
+        // Collect providers that have utilization history. Prefer current
+        // session history, but fall back to the freshest quota family when a
+        // stale session series is retained beside newer weekly/monthly data.
+        // Union entries across every series in the chosen family; this shields
+        // us from cross-version duplication where `mergeUtilizationHistories`
+        // left duplicate semantic series behind because devices disagreed on
+        // windowMinutes.
         //
         // **id**: must be `cardIdentityKey` (providerID|accountEmail), not raw
         // `providerID`. Two accounts on the same provider (e.g. two Codex
@@ -506,8 +567,7 @@ struct UtilizationAggregateView: View {
         // chart segment ForEach and the ProviderShare list. 1.5.3 fix.
         let providerData = providers.compactMap { provider -> (id: String, name: String, color: Color, dayMaxes: [Date: Double])? in
             guard let history = provider.utilizationHistory else { return nil }
-            let sessionSeries = history.filter { $0.name == "session" }
-            let chosen = sessionSeries.isEmpty ? Array(history.prefix(1)) : sessionSeries
+            let chosen = Self.preferredSeries(from: history)
             let entries = chosen.flatMap(\.entries)
             guard !entries.isEmpty else { return nil }
 

@@ -7457,30 +7457,30 @@
         }
       }
     },
-    "Session quota usage trend across synced providers.": {
+    "Quota usage trend across synced providers.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Session quota usage trend across synced providers."
+            "value": "Quota usage trend across synced providers."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "同期済みプロバイダ全体でのセッションクォータ使用率のトレンド。"
+            "value": "同期済みプロバイダー全体のクォータ使用率の推移。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已同步 provider 的会话配额使用趋势。"
+            "value": "已同步 provider 的配额使用趋势。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已同步 provider 的會話配額使用趨勢。"
+            "value": "已同步 provider 的配額使用趨勢。"
           }
         }
       }
@@ -19641,11 +19641,11 @@
     "v045_period_prepaid_balance": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
     } },
-    "iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements.": { "extractionState": "manual", "localizations": {
-      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 adds eight providers, richer account details, and the latest CodexBar Mac improvements." } },
-      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 は 8 つのプロバイダー、より詳しいアカウント情報、最新の CodexBar Mac 改善を追加します。" } },
-      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 个提供商、更丰富的账户详情，以及最新版 CodexBar Mac 改进。" } },
-      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 個提供者、更豐富的帳戶詳情，以及最新版 CodexBar Mac 改進。" } }
+    "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 は 8 つのプロバイダー、より詳しいクォータ情報、わかりやすい上限表示、より信頼性の高い iCloud 同期を追加します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 个提供商、更丰富的额度详情、更清晰的限额显示，以及更可靠的 iCloud 同步。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 新增 8 個提供者、更豐富的額度詳情、更清楚的限額顯示，以及更可靠的 iCloud 同步。" } }
     } },
     "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available." } },
@@ -19659,11 +19659,11 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的详情——sub2api 显示账户余额和请求总计，Wayfinder 显示路由活动与节省金额。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的詳情——sub2api 顯示帳戶餘額和請求總計，Wayfinder 顯示路由活動與節省金額。" } }
     } },
-    "Richer limit coverage — Alibaba Token Plan restores its 5-hour and weekly limits, and monthly or additional limits stay visible when providers offer them.": { "extractionState": "manual", "localizations": {
-      "en": { "stringUnit": { "state": "translated", "value": "Richer limit coverage — Alibaba Token Plan restores its 5-hour and weekly limits, and monthly or additional limits stay visible when providers offer them." } },
-      "ja": { "stringUnit": { "state": "translated", "value": "上限表示を拡充 — Alibaba Token Plan の5時間・週間上限を復元し、プロバイダーが提供する月間および追加の上限も表示します。" } },
-      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整的额度展示——恢复 Alibaba Token Plan 的 5 小时和每周额度，并继续显示提供商支持的月度及其他额度。" } },
-      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整的額度顯示——恢復 Alibaba Token Plan 的 5 小時和每週額度，並繼續顯示提供者支援的月度及其他額度。" } }
+    "Richer, more reliable limits — Alibaba Token Plan restores its 5-hour and weekly limits, monthly and additional limits stay visible, and Subscription Utilization uses the freshest quota history when session history stops updating.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Richer, more reliable limits — Alibaba Token Plan restores its 5-hour and weekly limits, monthly and additional limits stay visible, and Subscription Utilization uses the freshest quota history when session history stops updating." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より豊富で確実な上限表示 — Alibaba Token Plan の5時間・週間上限を復元し、月間および追加の上限も表示します。セッション履歴の更新が止まった場合、サブスクリプション使用率は最新のクォータ履歴を使用します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更完整、更可靠的额度——恢复 Alibaba Token Plan 的 5 小时和每周额度，继续显示月度及其他额度；会话历史停止更新时，订阅利用率会改用最新的额度历史。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更完整、更可靠的額度——恢復 Alibaba Token Plan 的 5 小時和每週額度，繼續顯示月度及其他額度；會話歷史停止更新時，訂閱利用率會改用最新的額度歷史。" } }
     } },
     "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes." } },

@@ -2,20 +2,42 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.19.0 (189)] — 2026-07-24 — Alibaba Token Plan hotfix
+## [1.19.0 (189)] — 2026-07-26 — Alibaba Token Plan and utilization history hotfixes
 
 ### Fixed
 
 - **Alibaba Token Plan limits** — Restored the rolling 5-hour and weekly
   limits from the Mac companion and labeled both windows correctly while
   retaining the existing monthly-credit fallback.
+- **Current quota history selection** — Subscription Utilization now keeps
+  using session history while it is current, but falls back to the provider's
+  freshest quota series when a retained session series stops updating. Current
+  weekly data can no longer be masked by an old session series, which previously
+  produced `0%` for Today / This Week / 14 Days while 30 Days still showed old
+  usage.
+- **Real zero usage preserved** — Series selection uses capture timestamps,
+  never utilization values, so a current 0% session remains 0% instead of being
+  replaced by a non-zero weekly quota.
 
 ### Notes
 
 - Pairs with Mac CodexBar `0.45.2.2` / build `109.2`; existing Shared payloads
   and the CloudKit Production schema are unchanged.
+- The Subscription Utilization change is iOS-only; no Mac history, cost data,
+  or provider API behavior changed.
+- **Release notes follow the public App Store path** — iOS 1.18 was never
+  released after 1.17, so its user-facing Kimi, Claude, percentage, iCloud, and
+  Mac companion notes are consolidated into 1.19. The in-app history now moves
+  directly from 1.17 to 1.19; the 1.18 entry below remains only as a technical
+  record of its TestFlight builds.
 - iOS `MARKETING_VERSION` remains `1.19.0`.
 - iOS `CURRENT_PROJECT_VERSION`: `188` → `189`.
+- **App Store Connect handoff** — Build 189 was archived with CloudKit
+  Production entitlements, uploaded, processed as `VALID`, bound to 1.19, and
+  submitted for review with the Subscription Utilization fix and exact
+  four-locale metadata readback. The later Alibaba iOS presentation additions
+  are merged in source but require a new App Store build number to ship. The
+  version remains configured for manual release.
 
 ---
 
@@ -61,6 +83,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 ---
 
 ## [1.18.0 (187)] — 2026-07-10 — CodexBar 0.41 upstream sync
+
+> TestFlight candidate only; this marketing version was not released on the
+> App Store. Its user-facing notes are included in 1.19.0.
 
 ### Changed
 
