@@ -37,8 +37,11 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   Subscription Utilization fix, but it predates the Alibaba iOS presentation
   additions. Build 190 was archived before the final review fixes, uploaded,
   processed as `VALID`, and initially bound to the new manual-release 1.19.1
-  version. Build 191 supersedes it so the App Store build matches the reviewed
-  and merged source. No App Review submission was created.
+  version. Build 191 was archived from the reviewed and merged source with
+  CloudKit Production, uploaded, processed as `VALID`, and bound to 1.19.1 in
+  `PREPARE_FOR_SUBMISSION`. All four localized release notes match their
+  checked-in sources exactly. Build 191 supersedes build 190; no App Review
+  submission was created.
 
 ---
 

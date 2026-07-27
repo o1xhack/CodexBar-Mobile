@@ -151,7 +151,15 @@ Japanese, Simplified Chinese, and Traditional Chinese.
 - App Store Connect processed build 190 as `VALID` and unexpired. Created the
   manual-release `1.19.1` version, initially bound build 190, and read back
   `PREPARE_FOR_SUBMISSION`. Build 190 predates the final code-review fixes and
-  must be superseded by build 191.
+  was superseded by build 191.
+- Archived and uploaded
+  `/tmp/CodexBarMobile-20260727-152526.xcarchive` from the reviewed and merged
+  source. The app, push extension, widget extension, and sync extension all
+  report `1.19.1 (191)`, and the archived app entitlement uses CloudKit
+  `Production`.
+- App Store Connect processed build 191 as `VALID` and unexpired, then bound it
+  to the manual-release `1.19.1` version in `PREPARE_FOR_SUBMISSION`. Build 191
+  now supersedes the still-valid but unbound build 190.
 - Updated and read back `whatsNew` for `en-US`, `ja`, `zh-Hans`, and
   `zh-Hant`; every remote value exactly matches its checked-in
   `AppStoreMetadata/1.19.1` source file. No App Review submission was created.
