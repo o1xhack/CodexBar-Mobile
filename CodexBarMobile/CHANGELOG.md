@@ -40,8 +40,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   version. Build 191 was archived from the reviewed and merged source with
   CloudKit Production, uploaded, processed as `VALID`, and bound to 1.19.1 in
   `PREPARE_FOR_SUBMISSION`. All four localized release notes match their
-  checked-in sources exactly. Build 191 supersedes build 190; no App Review
-  submission was created.
+  checked-in sources exactly. Build 191 supersedes build 190 and was submitted
+  to App Review on 2026-07-27; the version and review submission both read back
+  as `WAITING_FOR_REVIEW`. Release control remains `MANUAL`.
 
 ---
 

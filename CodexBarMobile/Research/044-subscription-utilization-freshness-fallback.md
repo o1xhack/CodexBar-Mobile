@@ -162,4 +162,10 @@ Japanese, Simplified Chinese, and Traditional Chinese.
   now supersedes the still-valid but unbound build 190.
 - Updated and read back `whatsNew` for `en-US`, `ja`, `zh-Hans`, and
   `zh-Hant`; every remote value exactly matches its checked-in
-  `AppStoreMetadata/1.19.1` source file. No App Review submission was created.
+  `AppStoreMetadata/1.19.1` source file.
+- Created review submission `0c68910c-aa6f-4458-b9e0-3a65dca44bd6` for
+  iOS `1.19.1` and submitted it at `2026-07-27T23:01:09.024Z`. Final API
+  readback shows both the submission and App Store version in
+  `WAITING_FOR_REVIEW`, still bound to valid, unexpired build 191.
+- Release control remains `MANUAL`; this submission does not publish the
+  version automatically after approval.
