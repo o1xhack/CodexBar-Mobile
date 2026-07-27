@@ -1,0 +1,1 @@
+Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix.

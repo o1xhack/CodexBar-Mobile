@@ -82,20 +82,33 @@ enum ProviderSnapshotMerger {
             groupedIndices[root, default: []].append(idx)
         }
 
-        var mergedProviders: [ProviderUsageSnapshot] = []
+        var mergedProviders: [(provider: ProviderUsageSnapshot, sortIdentity: String)] = []
         for (_, indices) in groupedIndices {
             let group = indices.map { allProviders[$0] }
+            let sortIdentity = Set(indices.flatMap { effectiveIdentifiers[$0] })
+                .sorted()
+                .joined(separator: "|")
             if group.count == 1 {
-                mergedProviders.append(group[0])
+                mergedProviders.append((group[0], sortIdentity))
             } else {
-                mergedProviders.append(self.mergeProviderEntries(
-                    group,
-                    sourceAppVersions: indices.map { sourceAppVersions[$0] },
-                    sumLocalCosts: sumLocalCostsAcrossDevices))
+                mergedProviders.append((
+                    self.mergeProviderEntries(
+                        group,
+                        sourceAppVersions: indices.map { sourceAppVersions[$0] },
+                        sumLocalCosts: sumLocalCostsAcrossDevices),
+                    sortIdentity))
             }
         }
 
-        mergedProviders.sort { $0.providerName < $1.providerName }
+        mergedProviders.sort { lhs, rhs in
+            if lhs.provider.providerName != rhs.provider.providerName {
+                return lhs.provider.providerName < rhs.provider.providerName
+            }
+            if lhs.provider.providerID != rhs.provider.providerID {
+                return lhs.provider.providerID < rhs.provider.providerID
+            }
+            return lhs.sortIdentity < rhs.sortIdentity
+        }
 
         let latestTimestamp = snapshots.map(\.syncTimestamp).max() ?? Date()
         let deviceNames = snapshots.map(\.deviceName).sorted()
@@ -117,7 +130,7 @@ enum ProviderSnapshotMerger {
         let mobileVersion = snapshots.compactMap(\.mobileVersion).max(by: Self.semverLessThan)
 
         return SyncedUsageSnapshot(
-            providers: mergedProviders,
+            providers: mergedProviders.map(\.provider),
             syncTimestamp: latestTimestamp,
             deviceName: combinedDeviceName,
             deviceID: nil,

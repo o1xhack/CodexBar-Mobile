@@ -19641,6 +19641,18 @@
     "v045_period_prepaid_balance": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
     } },
+    "Fixes for Alibaba Token Plan and Subscription Utilization.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Fixes for Alibaba Token Plan and Subscription Utilization." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan とサブスクリプション使用率の修正。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "修复 Alibaba Token Plan 和订阅利用率。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "修正 Alibaba Token Plan 和訂閱使用率。" } }
+    } },
+    "Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan に5時間・週間上限を表示し、サブスクリプション使用率は最新のクォータ履歴を使用するようになりました。完全な修正を利用するには、Mac の CodexBar を 0.45.2.2 に更新してください。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan 现在会显示 5 小时和每周限额，订阅利用率也会使用最新的额度历史。请将 Mac 上的 CodexBar 更新到 0.45.2.2 以获得完整修复。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan 現在會顯示 5 小時和每週限額，訂閱使用率也會使用最新的額度記錄。請將 Mac 上的 CodexBar 更新到 0.45.2.2 以取得完整修正。" } }
+    } },
     "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync." } },
       "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 は 8 つのプロバイダー、より詳しいクォータ情報、わかりやすい上限表示、より信頼性の高い iCloud 同期を追加します。" } },
@@ -19676,6 +19688,18 @@
       "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.2 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
+    } },
+    "More reliable quota history — monthly and additional limits stay visible alongside daily and weekly windows, and Subscription Utilization automatically uses the freshest quota history when session history stops updating.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "More reliable quota history — monthly and additional limits stay visible alongside daily and weekly windows, and Subscription Utilization automatically uses the freshest quota history when session history stops updating." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より確実なクォータ履歴 — 月間および追加の上限は日次・週次の上限と並んで表示され、セッション履歴の更新が止まった場合もサブスクリプション使用率は最新のクォータ履歴へ自動的に切り替わります。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更可靠的额度历史——月度和其他额度会与每日、每周额度一同显示；会话历史停止更新时，订阅利用率也会自动改用最新的额度历史。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更可靠的額度歷史——月度和其他額度會與每日、每週額度一同顯示；會話歷史停止更新時，訂閱使用率也會自動改用最新的額度歷史。" } }
+    } },
+    "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.1 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
     } }
   },
   "version": "1.0"

@@ -335,10 +335,9 @@ struct SameMacMultiAccountMergeTests {
 
     @Test("R5 D12: Sort stability — same Mac multi-account merge produces alphabetical ordering")
     func multiAccountMergeAlphabetical() throws {
-        // Pre-existing test ensures "Merged providers are sorted alphabetically by name".
-        // With multi-account, all entries share providerName ("Codex") so
-        // ordering between accounts becomes implementation-defined.
-        // Verify it doesn't crash and is at least deterministic.
+        // Pre-existing tests ensure merged providers are sorted alphabetically
+        // by name. Multi-account entries share providerName ("Codex"), so the
+        // account identity provides the deterministic tie-breaker.
         let zeb = self.makeProvider(
             id: "codex", name: "Codex", email: "zeb@x.com",
             accountIdentities: ["codex:email:zeb%40x.com"])
@@ -350,12 +349,53 @@ struct SameMacMultiAccountMergeTests {
             providers: [zeb, aro])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
         #expect(merged.providers.count == 2)
-        // Order between same-name entries is implementation-defined but
-        // should be stable run-to-run.
         let merged2 = try #require(CloudSyncReader.mergeSnapshots([mac]))
         let order1 = merged.providers.map(\.accountEmail)
         let order2 = merged2.providers.map(\.accountEmail)
+        #expect(order1 == ["aro@x.com", "zeb@x.com"])
         #expect(order1 == order2, "merge ordering must be deterministic")
+    }
+
+    @Test("R5 D13: Mixed-writer identity freshness cannot reorder account tabs")
+    func mixedWriterIdentityFreshnessKeepsStableOrdering() throws {
+        let oldZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate.addingTimeInterval(60),
+            accountIdentities: ["codex:email:z%40x.com"])
+        let newZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate,
+            accountIdentities: ["codex:account:a", "codex:email:z%40x.com"])
+        let middle = self.makeProvider(
+            id: "codex", name: "Codex", email: "m@x.com",
+            accountIdentities: ["codex:email:m%40x.com"])
+
+        let oldWriterFreshest = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Old Mac", deviceID: "old",
+                providers: [oldZ, middle]),
+            self.makeSnapshot(
+                deviceName: "New Mac", deviceID: "new",
+                providers: [newZ]),
+        ]))
+
+        let refreshedNewZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate.addingTimeInterval(120),
+            accountIdentities: ["codex:account:a", "codex:email:z%40x.com"])
+        let newWriterFreshest = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Old Mac", deviceID: "old",
+                providers: [oldZ, middle]),
+            self.makeSnapshot(
+                deviceName: "New Mac", deviceID: "new",
+                providers: [refreshedNewZ]),
+        ]))
+
+        let firstOrder = oldWriterFreshest.providers.map(\.accountEmail)
+        let secondOrder = newWriterFreshest.providers.map(\.accountEmail)
+        #expect(firstOrder == ["z@x.com", "m@x.com"])
+        #expect(secondOrder == firstOrder)
     }
 }
 

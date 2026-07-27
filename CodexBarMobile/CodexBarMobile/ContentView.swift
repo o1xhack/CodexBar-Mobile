@@ -3652,8 +3652,21 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.19.0",
+            version: "1.19.1",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "Fixes for Alibaba Token Plan and Subscription Utilization."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.19.0",
+            status: "",
             summary: String(
                 localized: "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync."),
             sections: [
@@ -3669,7 +3682,7 @@ private enum MobileReleaseNotesCatalog {
                         String(
                             localized: "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings."),
                         String(
-                            localized: "Richer, more reliable limits — Alibaba Token Plan restores its 5-hour and weekly limits, monthly and additional limits stay visible, and Subscription Utilization uses the freshest quota history when session history stops updating."),
+                            localized: "More reliable quota history — monthly and additional limits stay visible alongside daily and weekly windows, and Subscription Utilization automatically uses the freshest quota history when session history stops updating."),
                         String(
                             localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
                         String(
@@ -3683,7 +3696,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "Required Mac version"),
                     items: [
                         String(
-                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.2 or later. iPhone 1.19 still works with data from older Mac versions."),
+                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions."),
                     ]),
             ]),
         ReleaseNotesVersion(

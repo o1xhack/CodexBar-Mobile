@@ -16,7 +16,7 @@ and real CloudKit convergence are exercised on the four-device matrix.
 Versions represented by this hotfix matrix:
 
 - old Mac: `0.45.2.1`; new Mac: `0.45.2.2`
-- old iOS reader: `1.19.0 (188)`; new iOS reader: `1.19.0 (190)`
+- old iOS reader: `1.19.0 (188)`; new iOS reader: `1.19.1 (190)`
 - uploaded build `1.19.0 (189)` contains the same Subscription Utilization
   selection fix as build 190, but predates the Alibaba iOS presentation changes
 
@@ -77,7 +77,7 @@ in this one-Mac simulator environment.
 
 ## Remaining Release QA
 
-Before replacing build 189 with build 190 for public iOS release, execute all
+Before releasing build 190 as iOS 1.19.1, execute all
 16 rows on two Macs and two physical iPhones. For each applicable row, retain a
 screenshot or diagnostic log showing:
 
