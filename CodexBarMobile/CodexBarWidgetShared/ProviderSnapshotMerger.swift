@@ -95,7 +95,17 @@ enum ProviderSnapshotMerger {
             }
         }
 
-        mergedProviders.sort { $0.providerName < $1.providerName }
+        mergedProviders.sort { lhs, rhs in
+            if lhs.providerName != rhs.providerName {
+                return lhs.providerName < rhs.providerName
+            }
+            if lhs.providerID != rhs.providerID {
+                return lhs.providerID < rhs.providerID
+            }
+            let lhsIdentity = Self.effectiveIdentifiers(for: lhs).sorted().joined(separator: "|")
+            let rhsIdentity = Self.effectiveIdentifiers(for: rhs).sorted().joined(separator: "|")
+            return lhsIdentity < rhsIdentity
+        }
 
         let latestTimestamp = snapshots.map(\.syncTimestamp).max() ?? Date()
         let deviceNames = snapshots.map(\.deviceName).sorted()

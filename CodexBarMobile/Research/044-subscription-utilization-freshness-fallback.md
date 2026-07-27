@@ -115,11 +115,11 @@ still requires the physical four-device matrix before public iOS release.
 
 ## Release Notes Consolidation
 
-The public App Store upgrade path is `1.17.0` → `1.19.0`; iOS `1.18.0` was a
-TestFlight candidate and was never released. Its Kimi, Claude, small-percentage,
-iCloud sync, and Mac companion notes are therefore folded into the single
-user-facing `1.19.0` entry. The App Store source notes use the same combined
-content in English, Japanese, Simplified Chinese, and Traditional Chinese.
+The public App Store upgrade path is `1.17.0` → `1.19.1`; iOS `1.18.0` and
+`1.19.0` were TestFlight/App Review candidates that were never released.
+Their user-facing changes are therefore represented by the single
+`1.19.1` entry. The App Store source notes use the same concise content in
+English, Japanese, Simplified Chinese, and Traditional Chinese.
 
 ## App Store Connect Handoff
 

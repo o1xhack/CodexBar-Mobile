@@ -335,10 +335,9 @@ struct SameMacMultiAccountMergeTests {
 
     @Test("R5 D12: Sort stability — same Mac multi-account merge produces alphabetical ordering")
     func multiAccountMergeAlphabetical() throws {
-        // Pre-existing test ensures "Merged providers are sorted alphabetically by name".
-        // With multi-account, all entries share providerName ("Codex") so
-        // ordering between accounts becomes implementation-defined.
-        // Verify it doesn't crash and is at least deterministic.
+        // Pre-existing tests ensure merged providers are sorted alphabetically
+        // by name. Multi-account entries share providerName ("Codex"), so the
+        // account identity provides the deterministic tie-breaker.
         let zeb = self.makeProvider(
             id: "codex", name: "Codex", email: "zeb@x.com",
             accountIdentities: ["codex:email:zeb%40x.com"])
@@ -350,11 +349,10 @@ struct SameMacMultiAccountMergeTests {
             providers: [zeb, aro])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
         #expect(merged.providers.count == 2)
-        // Order between same-name entries is implementation-defined but
-        // should be stable run-to-run.
         let merged2 = try #require(CloudSyncReader.mergeSnapshots([mac]))
         let order1 = merged.providers.map(\.accountEmail)
         let order2 = merged2.providers.map(\.accountEmail)
+        #expect(order1 == ["aro@x.com", "zeb@x.com"])
         #expect(order1 == order2, "merge ordering must be deterministic")
     }
 }

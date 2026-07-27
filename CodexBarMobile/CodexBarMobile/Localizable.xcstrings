@@ -19641,6 +19641,18 @@
     "v045_period_prepaid_balance": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
     } },
+    "Fixes for Alibaba Token Plan and Subscription Utilization.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Fixes for Alibaba Token Plan and Subscription Utilization." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan とサブスクリプション使用率の修正。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "修复 Alibaba Token Plan 和订阅利用率。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "修正 Alibaba Token Plan 和訂閱使用率。" } }
+    } },
+    "Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan now shows 5-hour and weekly limits, and Subscription Utilization uses the latest quota history. Update CodexBar on Mac to 0.45.2.2 for the full fix." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan に5時間・週間上限を表示し、サブスクリプション使用率は最新のクォータ履歴を使用するようになりました。完全な修正を利用するには、Mac の CodexBar を 0.45.2.2 に更新してください。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan 现在会显示 5 小时和每周限额，订阅利用率也会使用最新的额度历史。请将 Mac 上的 CodexBar 更新到 0.45.2.2 以获得完整修复。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan 現在會顯示 5 小時和每週限額，訂閱使用率也會使用最新的額度記錄。請將 Mac 上的 CodexBar 更新到 0.45.2.2 以取得完整修正。" } }
+    } },
     "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync." } },
       "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.19 は 8 つのプロバイダー、より詳しいクォータ情報、わかりやすい上限表示、より信頼性の高い iCloud 同期を追加します。" } },

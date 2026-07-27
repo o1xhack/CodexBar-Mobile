@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.19.0 (190)] — 2026-07-26 — Alibaba Token Plan and utilization history hotfixes
+## [1.19.1 (190)] — 2026-07-27 — Alibaba Token Plan and utilization history hotfixes
 
 ### Fixed
 
@@ -18,6 +18,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Real zero usage preserved** — Series selection uses capture timestamps,
   never utilization values, so a current 0% session remains 0% instead of being
   replaced by a non-zero weekly quota.
+- **Stable multi-account ordering** — Provider accounts with the same display
+  name now use their stable account identity as a tie-breaker, so repeated
+  merges cannot reorder the account tabs.
 
 ### Notes
 
@@ -25,20 +28,16 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   and the CloudKit Production schema are unchanged.
 - The Subscription Utilization change is iOS-only; no Mac history, cost data,
   or provider API behavior changed.
-- **Release notes follow the public App Store path** — iOS 1.18 was never
-  released after 1.17, so its user-facing Kimi, Claude, percentage, iCloud, and
-  Mac companion notes are consolidated into 1.19. The in-app history now moves
-  directly from 1.17 to 1.19; the 1.18 entry below remains only as a technical
-  record of its TestFlight builds.
-- iOS `MARKETING_VERSION` remains `1.19.0`.
+- **Release notes follow the public App Store path** — iOS 1.18 and 1.19.0
+  were never publicly released. The in-app history now moves directly from
+  1.17 to 1.19.1; their changelog entries remain as technical records of the
+  TestFlight and App Review candidates.
+- iOS `MARKETING_VERSION`: `1.19.0` → `1.19.1`.
 - iOS `CURRENT_PROJECT_VERSION`: `189` → `190`.
-- **App Store Connect handoff** — Build 189 was archived with CloudKit
-  Production entitlements, uploaded, processed as `VALID`, bound to 1.19, and
-  submitted for review with the Subscription Utilization fix and exact
-  four-locale metadata readback. Build 190 is reserved for the consolidated
-  source with the later Alibaba iOS presentation additions; it must replace
-  build 189 in App Store review before manual release if those additions are to
-  ship in iOS 1.19.
+- **App Store Connect handoff** — Build 189 was approved for manual release as
+  iOS 1.19.0 with the Subscription Utilization fix, but it predates the Alibaba
+  iOS presentation additions. Build 190 advances the marketing version to
+  1.19.1 and carries the complete merged source for a new App Review submission.
 
 ---
 
