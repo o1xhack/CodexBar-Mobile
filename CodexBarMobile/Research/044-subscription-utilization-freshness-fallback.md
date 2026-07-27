@@ -110,7 +110,7 @@ The canonical 2 Mac × 2 iPhone gate applies because this changes
 cross-version rendering of already-synced utilization history. The complete
 16-case ledger, substituted evidence, and residual physical-device risks are in
 [`044/03-testing.md`](044-subscription-utilization-freshness-fallback/03-testing.md).
-Its current verdict is `substituted`: code review may complete, but build 190
+Its current verdict is `substituted`: code review may complete, but build 191
 still requires the physical four-device matrix before public iOS release.
 
 ## Release Notes Consolidation
@@ -144,13 +144,14 @@ Japanese, Simplified Chinese, and Traditional Chinese.
 - App Store Connect now reports build 189 and iOS `1.19.0` as
   `READY_FOR_SALE`. Build 189 predates the later Alibaba iOS presentation
   additions, so it is not the complete fix.
-- Archived and uploaded
+- Archived and uploaded the pre-final-review candidate
   `/tmp/CodexBarMobile-20260727-144448.xcarchive`. The app, push extension,
   widget extension, and sync extension all report `1.19.1 (190)`, and the
   archived app entitlement uses CloudKit `Production`.
 - App Store Connect processed build 190 as `VALID` and unexpired. Created the
-  manual-release `1.19.1` version, bound build 190, and read back
-  `PREPARE_FOR_SUBMISSION`.
+  manual-release `1.19.1` version, initially bound build 190, and read back
+  `PREPARE_FOR_SUBMISSION`. Build 190 predates the final code-review fixes and
+  must be superseded by build 191.
 - Updated and read back `whatsNew` for `en-US`, `ja`, `zh-Hans`, and
   `zh-Hant`; every remote value exactly matches its checked-in
   `AppStoreMetadata/1.19.1` source file. No App Review submission was created.

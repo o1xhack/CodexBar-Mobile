@@ -9,16 +9,16 @@ Canonical gate: [`docs/ios-sync-compatibility-testing.md`](../../../docs/ios-syn
 All 16 old/new placements are recorded and have no simulated failure. The
 physical gate is **not complete**: this workspace has one Mac and one iOS
 Simulator, not two independent Macs and two physical iPhones with retained
-old/new signed builds. PR review and merge may proceed, but iOS build 190 must
+old/new signed builds. PR review and merge may proceed, but iOS build 191 must
 not be treated as physically release-ready until silent-push, independent-cache,
 and real CloudKit convergence are exercised on the four-device matrix.
 
 Versions represented by this hotfix matrix:
 
 - old Mac: `0.45.2.1`; new Mac: `0.45.2.2`
-- old iOS reader: `1.19.0 (188)`; new iOS reader: `1.19.1 (190)`
+- old iOS reader: `1.19.0 (188)`; new iOS reader: `1.19.1 (191)`
 - uploaded build `1.19.0 (189)` contains the same Subscription Utilization
-  selection fix as build 190, but predates the Alibaba iOS presentation changes
+  selection fix as build 191, but predates the Alibaba iOS presentation changes
 
 The Subscription Utilization fix changes only the new iOS reader's selection of
 already-synced history. It adds no Mac writer change, Shared field, CloudKit
@@ -35,7 +35,7 @@ record, or physical-device push was used.
 | S2 | The two new regressions reproduce stale `session` plus current `weekly`, and fresh 0% `session` plus non-zero `weekly`. The new reader falls back only for stale data and never treats 0% as missing. Duplicate selected series are still unioned before aggregation. | pass |
 | S3 | `CloudKitMergeTests` exercises two distinct Mac device identities, opposite freshness orders, utilization-series union, stale/idle histories, zero histories, and deterministic merge order. `DualZoneReaderTests` and `SnapshotCacheTests` cover old/new zone fallback, replay, ghost filtering, cache replacement, and multi-device retention. | pass |
 | S4 | `SyncModelTests` covers old payload decoding, legacy version keys, JSON round trips, and unknown future fields. Source diff audit confirms this hotfix does not change `Shared/`, `CloudConstants`, entitlements, schema, writer code, or payload version. | pass |
-| S5 | Complete build-190 non-UI iOS suite passed 606 tests with 0 failures. `xcodegen generate` synchronized all app, push-extension, widget, and sync-framework targets at build 190. Root lint, localization, and CI-policy gates passed. | pass |
+| S5 | Final reviewed source passed the complete simulator suite with 610 tests, 0 failures, and 4 intentional SpringBoard skips; the focused multi-account suite passed 13/13. `xcodegen generate` synchronized all app, push-extension, widget, and sync-framework targets at build 191. Root lint, localization, and CI-policy gates passed. | pass |
 | S6 | The Alibaba mixed-writer compatibility evidence remains recorded in [`043/03-testing.md`](../043-alibaba-token-plan-rate-windows/03-testing.md); the combined branch reran its merge and presentation regressions before this matrix was written. | pass |
 
 ## 2 Mac × 2 iPhone Matrix
@@ -77,7 +77,7 @@ in this one-Mac simulator environment.
 
 ## Remaining Release QA
 
-Before releasing build 190 as iOS 1.19.1, execute all
+Before releasing build 191 as iOS 1.19.1, execute all
 16 rows on two Macs and two physical iPhones. For each applicable row, retain a
 screenshot or diagnostic log showing:
 
