@@ -37,6 +37,7 @@ record, or physical-device push was used.
 | S4 | `SyncModelTests` covers old payload decoding, legacy version keys, JSON round trips, and unknown future fields. Source diff audit confirms this hotfix does not change `Shared/`, `CloudConstants`, entitlements, schema, writer code, or payload version. | pass |
 | S5 | Final reviewed source passed the complete simulator suite with 610 tests, 0 failures, and 4 intentional SpringBoard skips; the focused multi-account suite passed 13/13. `xcodegen generate` synchronized all app, push-extension, widget, and sync-framework targets at build 191. Root lint, localization, and CI-policy gates passed. | pass |
 | S6 | The Alibaba mixed-writer compatibility evidence remains recorded in [`043/03-testing.md`](../043-alibaba-token-plan-rate-windows/03-testing.md); the combined branch reran its merge and presentation regressions before this matrix was written. | pass |
+| S7 | The reviewed and merged source produced `/tmp/CodexBarMobile-20260727-152526.xcarchive`; the app and all three embedded targets report `1.19.1 (191)`, the app carries the CloudKit `Production` entitlement, ASC processed build 191 as `VALID`, and the 1.19.1 version now binds build 191 with exact four-locale metadata readback. | pass |
 
 ## 2 Mac × 2 iPhone Matrix
 
