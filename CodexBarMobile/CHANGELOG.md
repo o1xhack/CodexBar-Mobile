@@ -28,16 +28,17 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   and the CloudKit Production schema are unchanged.
 - The Subscription Utilization change is iOS-only; no Mac history, cost data,
   or provider API behavior changed.
-- **Release notes follow the public App Store path** — iOS 1.18 and 1.19.0
-  were never publicly released. The in-app history now moves directly from
-  1.17 to 1.19.1; their changelog entries remain as technical records of the
-  TestFlight and App Review candidates.
+- **Release notes follow the public App Store path** — iOS 1.18 was never
+  publicly released. The in-app history preserves the public 1.19.0 entry and
+  adds the concise 1.19.1 hotfix above it.
 - iOS `MARKETING_VERSION`: `1.19.0` → `1.19.1`.
 - iOS `CURRENT_PROJECT_VERSION`: `189` → `190`.
-- **App Store Connect handoff** — Build 189 was approved for manual release as
-  iOS 1.19.0 with the Subscription Utilization fix, but it predates the Alibaba
-  iOS presentation additions. Build 190 advances the marketing version to
-  1.19.1 and carries the complete merged source for a new App Review submission.
+- **App Store Connect handoff** — Build 189 is live as iOS 1.19.0 with the
+  Subscription Utilization fix, but it predates the Alibaba iOS presentation
+  additions. Build 190 was archived with CloudKit Production, uploaded,
+  processed as `VALID`, and bound to the new manual-release 1.19.1 version in
+  `PREPARE_FOR_SUBMISSION`. Its concise `en-US`, `ja`, `zh-Hans`, and `zh-Hant`
+  release notes were read back exactly; no App Review submission was created.
 
 ---
 

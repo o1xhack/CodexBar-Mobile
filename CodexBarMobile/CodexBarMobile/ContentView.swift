@@ -3665,6 +3665,41 @@ private enum MobileReleaseNotesCatalog {
                     ]),
             ]),
         ReleaseNotesVersion(
+            version: "1.19.0",
+            status: "",
+            summary: String(
+                localized: "iPhone 1.19 adds eight providers, richer quota details, clearer limits, and more reliable iCloud sync."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Eight more providers — ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& now appear with their own colors and detail pages, plus quota alerts when available."),
+                        String(
+                            localized: "Kimi at a glance — see Weekly, five-hour, Monthly, and Code 7-day limits in one consistent order."),
+                        String(
+                            localized: "Clearer Claude plans — Max 5x and Max 20x stay distinct, even while your Macs update at different times."),
+                        String(
+                            localized: "More complete details — sub2api shows account balance and request totals, while Wayfinder shows routing activity and savings."),
+                        String(
+                            localized: "Richer, more reliable limits — Alibaba Token Plan restores its 5-hour and weekly limits, monthly and additional limits stay visible, and Subscription Utilization uses the freshest quota history when session history stops updating."),
+                        String(
+                            localized: "Small percentages — every positive usage value below 1% now displays as <1% instead of rounding to 0% or 1%."),
+                        String(
+                            localized: "Reliable iCloud sync — stalled Mac uploads now time out with a clear failure instead of spinning forever, and Developer Tools includes a read-only iCloud diagnostic report."),
+                        String(
+                            localized: "A smoother Mac companion — CodexBar for Mac now recovers sign-ins more safely, reports usage more accurately, and improves performance, menus, and settings."),
+                        String(
+                            localized: "A more capable Mac companion — customize menu bar layouts, see usage forecasts, use safer refresh controls, and benefit from the latest provider, performance, and security fixes."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(
+                            localized: "For all new details, update CodexBar on Mac to version 0.45.2.2 or later. iPhone 1.19 still works with data from older Mac versions."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
             version: "1.17.0",
             status: "",
             summary: String(

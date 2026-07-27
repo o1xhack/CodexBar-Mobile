@@ -115,11 +115,11 @@ still requires the physical four-device matrix before public iOS release.
 
 ## Release Notes Consolidation
 
-The public App Store upgrade path is `1.17.0` → `1.19.1`; iOS `1.18.0` and
-`1.19.0` were TestFlight/App Review candidates that were never released.
-Their user-facing changes are therefore represented by the single
-`1.19.1` entry. The App Store source notes use the same concise content in
-English, Japanese, Simplified Chinese, and Traditional Chinese.
+The public App Store upgrade path is `1.17.0` → `1.19.0` → `1.19.1`; iOS
+`1.18.0` was a TestFlight candidate and was never released. The in-app history
+preserves the public `1.19.0` entry and adds a concise `1.19.1` hotfix entry.
+The 1.19.1 App Store source notes use the same concise content in English,
+Japanese, Simplified Chinese, and Traditional Chinese.
 
 ## App Store Connect Handoff
 
@@ -141,3 +141,16 @@ English, Japanese, Simplified Chinese, and Traditional Chinese.
   App Store version in `WAITING_FOR_REVIEW`.
 - Release control remains `MANUAL`. This handoff did not publish the version
   to the public App Store.
+- App Store Connect now reports build 189 and iOS `1.19.0` as
+  `READY_FOR_SALE`. Build 189 predates the later Alibaba iOS presentation
+  additions, so it is not the complete fix.
+- Archived and uploaded
+  `/tmp/CodexBarMobile-20260727-144448.xcarchive`. The app, push extension,
+  widget extension, and sync extension all report `1.19.1 (190)`, and the
+  archived app entitlement uses CloudKit `Production`.
+- App Store Connect processed build 190 as `VALID` and unexpired. Created the
+  manual-release `1.19.1` version, bound build 190, and read back
+  `PREPARE_FOR_SUBMISSION`.
+- Updated and read back `whatsNew` for `en-US`, `ja`, `zh-Hans`, and
+  `zh-Hant`; every remote value exactly matches its checked-in
+  `AppStoreMetadata/1.19.1` source file. No App Review submission was created.
