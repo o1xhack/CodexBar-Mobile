@@ -3,6 +3,22 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.45.2.2</title>
+            <pubDate>Mon, 27 Jul 2026 14:36:01 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>109.2.1.19.0</sparkle:version>
+            <sparkle:shortVersionString>0.45.2.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.45.2.2-Mobile 1.19.0</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Alibaba Token Plan: restore the authenticated 5-hour and weekly rate windows, keep the legacy monthly credit response as a fallback, and label each restored window by its actual duration. Thanks @rohitsabu!</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.45.2.2-mobile.1.19.0/CodexBar-0.45.2.2-mobile.1.19.0.zip" length="55866766" type="application/octet-stream" sparkle:edSignature="aIh8K8mvgYcHpFWBpY1FoyKOWMgz1DxSCkJRzEOK3WJUr7vaFnDcyux5v5EgjaLYPoNKvQywbdXNLQuYByg/AQ=="/>
+        </item>
+        <item>
             <title>0.45.2.1</title>
             <pubDate>Mon, 20 Jul 2026 14:05:52 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -73,94 +89,6 @@ v0.41.0，并配套 iOS <strong>1.18.0</strong>，不拆成多个用户可见版
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.41.0.1-mobile.1.18.0/CodexBar-0.41.0.1-mobile.1.18.0.zip" length="47521329" type="application/octet-stream" sparkle:edSignature="MYSi2/aN66/I398M7fWcNKSaxBZX3DSRPV+jbbR8mKBiGX/Y17PTS50lpQoQXUJAH1KoLgOaQis/wUjIhGTnAg=="/>
-        </item>
-        <item>
-            <title>0.39.0.1</title>
-            <pubDate>Mon, 06 Jul 2026 17:14:41 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>97.1.1.17.0</sparkle:version>
-            <sparkle:shortVersionString>0.39.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.39.0.1-Mobile 1.17.0</h2>
-Syncs the Mac app to upstream CodexBar <strong>v0.39.0</strong> (spanning v0.38.0–v0.39.0)
-and pairs it with iOS <strong>1.17.0</strong>. This is one combined upstream-sync release
-for the current upstream-sync issue set, keeping the provider additions,
-settings redesign, menu/provider fixes, and iOS compatibility work together.
-<h3>Added / Improved</h3>
-<ul>
-<li><strong>New upstream providers</strong> — Sakana AI, Qoder, CrossModel, and ClawRouter are</li>
-</ul>
-  included in the Mac provider registry, diagnostics, status/menu rendering,
-  and the fork's iCloud sync path.
-<ul>
-<li><strong>iOS provider parity</strong> — The companion app now registers the new providers</li>
-</ul>
-  for quota-transition zones, provider colors, synthetic test data, and detail
-  pages. CrossModel gets a typed optional sync payload for wallet balance,
-  uncollected spend, and day/week/month usage windows.
-<ul>
-<li><strong>Cost sync bridge</strong> — CrossModel native spend maps into <code>SyncCostSummary</code>,</li>
-</ul>
-  so iOS Cost views can include it without requiring a CloudKit schema change.
-<ul>
-<li><strong>Settings sync preservation</strong> — The upstream Settings <code>NavigationSplitView</code></li>
-</ul>
-  redesign is merged while preserving the fork's Mobile pane and iCloud sync
-  controls.
-<ul>
-<li><strong>Mock QA coverage</strong> — Mac mock sync now emits 69 synthetic providers across</li>
-</ul>
-  59 IDs, including the v0.38/v0.39 provider set for iPhone layout and
-  compatibility testing.
-<h3>Compatibility</h3>
-<ul>
-<li>CloudKit stays in the Production environment. No CloudKit Dashboard deploy is</li>
-</ul>
-  expected for this release because the sync changes are additive optional
-  fields inside the existing compressed provider payload.
-<ul>
-<li>The 2 Mac x 2 iPhone old/new compatibility gate and substituted evidence are</li>
-</ul>
-  tracked in <code>CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md</code>.
-<h3>中文说明</h3>
-同步 Mac 端到上游 CodexBar <strong>v0.39.0</strong>（覆盖 v0.38.0–v0.39.0），并配套 iOS
-<strong>1.17.0</strong>。本次把当前 upstream-sync issue 集合合并为一个版本，避免把 provider
-新增、Settings 改版、菜单/provider 修复和 iOS 兼容工作拆散。
-<h3>新增 / 改进</h3>
-<ul>
-<li><strong>新增上游 provider</strong> —— Sakana AI、Qoder、CrossModel、ClawRouter 已纳入 Mac</li>
-</ul>
-  provider registry、诊断、状态/menu 渲染，以及 fork 的 iCloud sync 路径。
-<ul>
-<li><strong>iOS provider 对齐</strong> —— companion app 为新 provider 补齐 quota-transition zone、</li>
-</ul>
-  provider 颜色、合成测试数据和详情页；CrossModel 通过可选 typed payload 显示钱包余额、
-  待结算金额和 day/week/month 用量。
-<ul>
-<li><strong>Cost sync bridge</strong> —— CrossModel 原生 spend 会映射为 <code>SyncCostSummary</code>，</li>
-</ul>
-  iOS Cost 视图无需 CloudKit schema 变更即可纳入它。
-<ul>
-<li><strong>Settings sync 保留</strong> —— 合并上游 Settings <code>NavigationSplitView</code> 改版，同时保留</li>
-</ul>
-  fork 的 Mobile pane 和 iCloud sync 控件。
-<ul>
-<li><strong>Mock QA 覆盖</strong> —— Mac mock sync 现在推送 69 个 synthetic provider、覆盖 59 个 ID，</li>
-</ul>
-  包含 v0.38/v0.39 provider 集，用于 iPhone 布局和兼容测试。
-<h3>兼容性</h3>
-<ul>
-<li>CloudKit 保持 Production 环境。本次 sync 变更只是既有压缩 provider payload 内的可选字段，</li>
-</ul>
-  预期不需要 CloudKit Dashboard deploy。
-<ul>
-<li>2 Mac x 2 iPhone 新旧版本兼容 gate 与替代证据记录在</li>
-</ul>
-  <code>CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md</code>。
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.39.0.1-mobile.1.17.0/CodexBar-0.39.0.1-mobile.1.17.0.zip" length="46309745" type="application/octet-stream" sparkle:edSignature="Z9EX4KkZRtJB+5I7C0dvRfzbZo6fsfyQj0DiZXQl7/R3bv2qIEHWhNKm/Y4BeEmI2otvRBz3oZ59NrcIUCvjCg=="/>
         </item>
         <item>
             <title>0.14.0</title>
