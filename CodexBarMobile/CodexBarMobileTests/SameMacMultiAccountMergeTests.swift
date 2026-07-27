@@ -355,6 +355,48 @@ struct SameMacMultiAccountMergeTests {
         #expect(order1 == ["aro@x.com", "zeb@x.com"])
         #expect(order1 == order2, "merge ordering must be deterministic")
     }
+
+    @Test("R5 D13: Mixed-writer identity freshness cannot reorder account tabs")
+    func mixedWriterIdentityFreshnessKeepsStableOrdering() throws {
+        let oldZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate.addingTimeInterval(60),
+            accountIdentities: ["codex:email:z%40x.com"])
+        let newZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate,
+            accountIdentities: ["codex:account:a", "codex:email:z%40x.com"])
+        let middle = self.makeProvider(
+            id: "codex", name: "Codex", email: "m@x.com",
+            accountIdentities: ["codex:email:m%40x.com"])
+
+        let oldWriterFreshest = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Old Mac", deviceID: "old",
+                providers: [oldZ, middle]),
+            self.makeSnapshot(
+                deviceName: "New Mac", deviceID: "new",
+                providers: [newZ]),
+        ]))
+
+        let refreshedNewZ = self.makeProvider(
+            id: "codex", name: "Codex", email: "z@x.com",
+            lastUpdated: self.baseDate.addingTimeInterval(120),
+            accountIdentities: ["codex:account:a", "codex:email:z%40x.com"])
+        let newWriterFreshest = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Old Mac", deviceID: "old",
+                providers: [oldZ, middle]),
+            self.makeSnapshot(
+                deviceName: "New Mac", deviceID: "new",
+                providers: [refreshedNewZ]),
+        ]))
+
+        let firstOrder = oldWriterFreshest.providers.map(\.accountEmail)
+        let secondOrder = newWriterFreshest.providers.map(\.accountEmail)
+        #expect(firstOrder == ["z@x.com", "m@x.com"])
+        #expect(secondOrder == firstOrder)
+    }
 }
 
 // swiftlint:enable multiline_arguments

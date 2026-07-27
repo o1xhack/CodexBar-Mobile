@@ -19688,6 +19688,18 @@
       "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.2 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.2 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
+    } },
+    "More reliable quota history — monthly and additional limits stay visible alongside daily and weekly windows, and Subscription Utilization automatically uses the freshest quota history when session history stops updating.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "More reliable quota history — monthly and additional limits stay visible alongside daily and weekly windows, and Subscription Utilization automatically uses the freshest quota history when session history stops updating." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より確実なクォータ履歴 — 月間および追加の上限は日次・週次の上限と並んで表示され、セッション履歴の更新が止まった場合もサブスクリプション使用率は最新のクォータ履歴へ自動的に切り替わります。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更可靠的额度历史——月度和其他额度会与每日、每周额度一同显示；会话历史停止更新时，订阅利用率也会自动改用最新的额度历史。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更可靠的額度歷史——月度和其他額度會與每日、每週額度一同顯示；會話歷史停止更新時，訂閱使用率也會自動改用最新的額度歷史。" } }
+    } },
+    "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.45.2.1 or later. iPhone 1.19 still works with data from older Mac versions." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.1 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
     } }
   },
   "version": "1.0"
