@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.19.1 (190)] — 2026-07-27 — Alibaba Token Plan and utilization history hotfixes
+## [1.19.1 (191)] — 2026-07-27 — Alibaba Token Plan and utilization history hotfixes
 
 ### Fixed
 
@@ -32,13 +32,13 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   publicly released. The in-app history preserves the public 1.19.0 entry and
   adds the concise 1.19.1 hotfix above it.
 - iOS `MARKETING_VERSION`: `1.19.0` → `1.19.1`.
-- iOS `CURRENT_PROJECT_VERSION`: `189` → `190`.
+- iOS `CURRENT_PROJECT_VERSION`: `189` → `191`.
 - **App Store Connect handoff** — Build 189 is live as iOS 1.19.0 with the
   Subscription Utilization fix, but it predates the Alibaba iOS presentation
-  additions. Build 190 was archived with CloudKit Production, uploaded,
-  processed as `VALID`, and bound to the new manual-release 1.19.1 version in
-  `PREPARE_FOR_SUBMISSION`. Its concise `en-US`, `ja`, `zh-Hans`, and `zh-Hant`
-  release notes were read back exactly; no App Review submission was created.
+  additions. Build 190 was archived before the final review fixes, uploaded,
+  processed as `VALID`, and initially bound to the new manual-release 1.19.1
+  version. Build 191 supersedes it so the App Store build matches the reviewed
+  and merged source. No App Review submission was created.
 
 ---
 
