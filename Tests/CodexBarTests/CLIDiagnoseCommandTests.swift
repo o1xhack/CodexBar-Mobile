@@ -49,6 +49,7 @@ struct CLIDiagnoseCommandTests {
             copilot: nil,
             kilo: nil,
             kimi: nil,
+            kimi2: nil,
             augment: nil,
             amp: nil,
             ollama: nil)

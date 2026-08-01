@@ -11,7 +11,7 @@ public struct Kimi2CookieOverride: Sendable {
 public enum Kimi2CookieHeader {
     private static let log = CodexBarLog.logger(LogCategories.kimiCookie)
     private static let headerPatterns: [String] = [
-        #"(?i)kimi2-auth=([A-Za-z0-9._\-+=/]+)"#,
+        #"(?i)kimi-auth=([A-Za-z0-9._\-+=/]+)"#,
         #"(?i)-H\s*'Cookie:\s*([^']+)'"#,
         #"(?i)-H\s*"Cookie:\s*([^"]+)""#,
         #"(?i)\bcookie:\s*'([^']+)'"#,
@@ -60,8 +60,8 @@ public enum Kimi2CookieHeader {
 
     private static func extractKIMAuthToken(from raw: String) -> String? {
         let patterns = [
-            #"(?i)kimi2-auth=([A-Za-z0-9._\-+=/]+)"#,
-            #"(?i)kimi2-auth:\s*([A-Za-z0-9._\-+=/]+)"#,
+            #"(?i)kimi-auth=([A-Za-z0-9._\-+=/]+)"#,
+            #"(?i)kimi-auth:\s*([A-Za-z0-9._\-+=/]+)"#,
         ]
 
         for pattern in patterns {

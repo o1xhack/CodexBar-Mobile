@@ -8,9 +8,9 @@ public struct Kimi2UsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.kimiAPI)
     private static let subscriptionGraceSeconds: TimeInterval = 2
     private static let usageURL =
-        URL(string: "https://www.kimi.com/apiv2/kimi2.gateway.billing.v1.BillingService/GetUsages")!
+        URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
     private static let subscriptionStatsURL =
-        URL(string: "https://www.kimi.com/apiv2/kimi2.gateway.membership.v2.MembershipService/GetSubscriptionStats")!
+        URL(string: "https://www.kimi.com/apiv2/kimi.gateway.membership.v2.MembershipService/GetSubscriptionStats")!
 
     public static func fetchCodeAPIUsage(
         apiKey: String,
@@ -231,7 +231,7 @@ public struct Kimi2UsageFetcher: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("kimi2-auth=\(authToken)", forHTTPHeaderField: "Cookie")
+        request.setValue("kimi-auth=\(authToken)", forHTTPHeaderField: "Cookie")
         request.setValue("https://www.kimi.com", forHTTPHeaderField: "Origin")
         request.setValue("https://www.kimi.com/code/console", forHTTPHeaderField: "Referer")
         request.setValue("*/*", forHTTPHeaderField: "Accept")

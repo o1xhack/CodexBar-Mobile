@@ -20,7 +20,7 @@ public enum Kimi2CookieImporter {
         }
 
         public var authToken: String? {
-            self.cookies.first(where: { $0.name == "kimi2-auth" })?.value
+            self.cookies.first(where: { $0.name == "kimi-auth" })?.value
         }
     }
 
@@ -72,12 +72,12 @@ public enum Kimi2CookieImporter {
             let httpCookies = BrowserCookieClient.makeHTTPCookies(mergedRecords, origin: query.origin)
             guard !httpCookies.isEmpty else { continue }
 
-            // Only include sessions that have the kimi2-auth cookie
-            guard httpCookies.contains(where: { $0.name == "kimi2-auth" }) else {
+            // Only include sessions that have the kimi-auth cookie
+            guard httpCookies.contains(where: { $0.name == "kimi-auth" }) else {
                 continue
             }
 
-            log("Found kimi2-auth cookie in \(label)")
+            log("Found kimi-auth cookie in \(label)")
             sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: label))
         }
         return sessions

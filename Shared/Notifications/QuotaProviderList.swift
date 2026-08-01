@@ -128,8 +128,8 @@ public enum QuotaProviderList {
         // APPENDED at the tail so every existing per-provider CloudKit zone
         // and subscription identifier stays stable. Kimi K2 and CrossModel
         // remain above for mixed-version Macs even though upstream removed
-        // them from the v0.42+ Mac registry. 57 → 65 providers × 3 states
-        // = 195 subscriptions.
+        // them from the v0.42+ Mac registry. 57 → 66 providers × 3 states
+        // = 198 subscriptions.
         Provider(id: "clinepass", displayName: "ClinePass"),
         Provider(id: "deepinfra", displayName: "DeepInfra"),
         Provider(id: "neuralwatt", displayName: "Neuralwatt"),
@@ -138,6 +138,11 @@ public enum QuotaProviderList {
         Provider(id: "wayfinder", displayName: "Wayfinder"),
         Provider(id: "zenmux", displayName: "ZenMux"),
         Provider(id: "aiand", displayName: "ai&"),
+        // Kimi 2 (this PR): Mac-side QuotaTransitionWriter writes
+        // Quota-kimi2-{state}Zone records; iOS must subscribe to receive
+        // depleted/restored/warning pushes. Appended at the tail so all
+        // existing per-provider subscription identifiers stay stable.
+        Provider(id: "kimi2", displayName: "Kimi 2"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

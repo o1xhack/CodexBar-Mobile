@@ -67,7 +67,7 @@ struct Kimi2ProviderImplementation: ProviderImplementation {
                 source: context.settings.kimi2CookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 auto: "Automatic imports browser cookies.",
-                manual: "Paste a cookie header or the kimi2-auth token value.",
+                manual: "Paste a cookie header or the kimi-auth token value.",
                 off: "Kimi2 cookies are disabled.")
         }
 
@@ -127,7 +127,7 @@ struct Kimi2ProviderImplementation: ProviderImplementation {
                 title: "",
                 subtitle: "",
                 kind: .secure,
-                placeholder: "Cookie: \u{2026}\n\nor paste the kimi2-auth token value",
+                placeholder: "Cookie: \u{2026}\n\nor paste the kimi-auth token value",
                 binding: context.stringBinding(\.kimi2ManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
