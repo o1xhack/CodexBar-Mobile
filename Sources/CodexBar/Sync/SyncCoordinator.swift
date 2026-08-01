@@ -2107,7 +2107,7 @@ final class SyncCoordinator {
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
-             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .kimi2, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers — pre-computed costs from
              // their own APIs, never go through the local Codex/Claude

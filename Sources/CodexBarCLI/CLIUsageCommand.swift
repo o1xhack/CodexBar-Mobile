@@ -732,6 +732,15 @@ extension CodexBarCLI {
         {
             return false
         }
+        if provider == .kimi2,
+           sourceMode == .auto,
+           environment.map({ environment in
+               ProviderTokenResolver.kimi2APIToken(environment: environment) != nil ||
+                   Kimi2SettingsReader.hasKimi2CodeCredential(environment: environment)
+           }) == true
+        {
+            return false
+        }
         if provider == .factory,
            sourceMode == .auto || sourceMode == .cli,
            environment.map({ FactorySettingsReader.apiKey(environment: $0) != nil }) == true

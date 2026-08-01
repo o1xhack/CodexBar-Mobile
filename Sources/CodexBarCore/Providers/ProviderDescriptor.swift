@@ -72,6 +72,7 @@ public enum ProviderDescriptorRegistry {
         .minimax: MiniMaxProviderDescriptor.descriptor,
         .manus: ManusProviderDescriptor.descriptor,
         .kimi: KimiProviderDescriptor.descriptor,
+        .kimi2: Kimi2ProviderDescriptor.descriptor,
         .kilo: KiloProviderDescriptor.descriptor,
         .kiro: KiroProviderDescriptor.descriptor,
         .vertexai: VertexAIProviderDescriptor.descriptor,

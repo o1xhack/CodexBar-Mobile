@@ -161,6 +161,8 @@ extension UsageStore {
             return MiniMaxAPISettingsError.missingToken.errorDescription
         case .kimi:
             return KimiAPIError.missingToken.errorDescription
+        case .kimi2:
+            return Kimi2APIError.missingToken.errorDescription
         default:
             return "\(self.metadata(for: provider).displayName) is unavailable in the current environment."
         }

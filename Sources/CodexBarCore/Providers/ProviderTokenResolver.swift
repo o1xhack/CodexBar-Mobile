@@ -78,6 +78,14 @@ public enum ProviderTokenResolver {
         self.kimiAPIResolution(environment: environment)?.token
     }
 
+    public static func kimi2AuthToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.kimi2AuthResolution(environment: environment)?.token
+    }
+
+    public static func kimi2APIToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.kimi2APIResolution(environment: environment)?.token
+    }
+
     public static func moonshotToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.moonshotResolution(environment: environment)?.token
     }
@@ -327,6 +335,31 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(KimiSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func kimi2AuthResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        if let resolution = self.resolveEnv(Kimi2SettingsReader.authToken(environment: environment)) {
+            return resolution
+        }
+        #if os(macOS)
+        do {
+            let session = try Kimi2CookieImporter.importSession()
+            if let token = session.authToken {
+                return ProviderTokenResolution(token: token, source: .environment)
+            }
+        } catch {
+            // No browser cookies found, continue to fallback
+        }
+        #endif
+        return nil
+    }
+
+    public static func kimi2APIResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(Kimi2SettingsReader.apiKey(environment: environment))
     }
 
     public static func moonshotResolution(

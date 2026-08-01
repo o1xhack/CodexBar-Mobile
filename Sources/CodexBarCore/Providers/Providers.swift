@@ -22,6 +22,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case minimax
     case manus
     case kimi
+    case kimi2
     case kilo
     case kiro
     case vertexai

@@ -33,6 +33,7 @@ public enum CodexBarConfigValidator {
         .clawrouter,
         .copilot,
         .kimi,
+        .kimi2,
         .litellm,
         .llmproxy,
         .sub2api,

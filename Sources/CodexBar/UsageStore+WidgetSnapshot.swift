@@ -225,6 +225,18 @@ extension UsageStore {
                     percentLeft: window.window.remainingPercent)
             })
         }
+        if provider == .kimi2 {
+            // Mirror of Kimi lane filtering for the second account.
+            let kimi2WindowIDs = ["kimi2-monthly", "kimi2-code-7d"]
+            rows.append(contentsOf: kimi2WindowIDs.compactMap { id in
+                guard let window = snapshot.extraRateWindows?.first(where: { $0.id == id }), window.usageKnown
+                else { return nil }
+                return WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: window.id,
+                    title: window.title,
+                    percentLeft: window.window.remainingPercent)
+            })
+        }
         return rows.filter { $0.percentLeft != nil }
     }
 

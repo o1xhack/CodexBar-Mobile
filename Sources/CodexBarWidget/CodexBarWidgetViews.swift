@@ -325,6 +325,7 @@ private struct ProviderSwitchChip: View {
         case .augment: "Augment"
         case .jetbrains: "JetBrains"
         case .kimi: "Kimi"
+        case .kimi2: "Kimi 2"
         case .moonshot: "Moonshot"
         case .amp: "Amp"
         case .t3chat: "T3 Chat"
@@ -1040,7 +1041,7 @@ enum WidgetColors {
             Color(red: 99 / 255, green: 102 / 255, blue: 241 / 255) // Augment purple
         case .jetbrains:
             Color(red: 255 / 255, green: 51 / 255, blue: 153 / 255) // JetBrains pink
-        case .kimi:
+        case .kimi, .kimi2:
             Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255) // Kimi orange
         case .moonshot:
             Color(red: 32 / 255, green: 93 / 255, blue: 235 / 255)

@@ -101,6 +101,8 @@ public enum ProviderConfigEnvironment {
             self.applyAzureOpenAIOverrides(base: base, config: config)
         case .kimi:
             self.applyKimiOverrides(base: base, config: config)
+        case .kimi2:
+            self.applyKimi2Overrides(base: base, config: config)
         case .doubao:
             self.applyDoubaoOverrides(base: base, config: config)
         case .sakana:
@@ -175,6 +177,8 @@ public enum ProviderConfigEnvironment {
             MoonshotSettingsReader.apiKeyEnvironmentKeys.first
         case .kimi:
             KimiSettingsReader.apiKeyEnvironmentKeys.first
+        case .kimi2:
+            Kimi2SettingsReader.apiKeyEnvironmentKeys.first
         case .ollama:
             OllamaAPISettingsReader.apiKeyEnvironmentKeys.first
         case .venice:
@@ -342,6 +346,23 @@ public enum ProviderConfigEnvironment {
         }
         if let baseURL = config.sanitizedEnterpriseHost {
             env[KimiSettingsReader.codeAPIBaseURLEnvironmentKey] = baseURL
+        }
+        return env
+    }
+
+    private static func applyKimi2Overrides(
+        base: [String: String],
+        config: ProviderConfig?) -> [String: String]
+    {
+        guard let config else { return base }
+        var env = base
+        if let apiKey = config.sanitizedAPIKey,
+           let key = Kimi2SettingsReader.apiKeyEnvironmentKeys.first
+        {
+            env[key] = apiKey
+        }
+        if let baseURL = config.sanitizedEnterpriseHost {
+            env[Kimi2SettingsReader.codeAPIBaseURLEnvironmentKey] = baseURL
         }
         return env
     }

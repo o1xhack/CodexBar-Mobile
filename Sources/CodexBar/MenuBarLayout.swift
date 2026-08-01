@@ -44,7 +44,7 @@ enum MenuBarLayoutSemanticWindowResolver {
         }
         let cadenceWeekly = usable.first { $0.windowMinutes == 7 * 24 * 60 }
         let kimiWeekly = snapshot.primary.flatMap { $0.isSyntheticPlaceholder ? nil : $0 }
-        let weekly = provider == .kimi ? kimiWeekly ?? cadenceWeekly : cadenceWeekly
+        let weekly = provider == .kimi || provider == .kimi2 ? kimiWeekly ?? cadenceWeekly : cadenceWeekly
         return (session, weekly)
     }
 }
@@ -243,9 +243,9 @@ extension MenuBarLayout {
     {
         switch preference {
         case .primary:
-            provider == .kimi ? .weekly : .session
+            provider == .kimi || provider == .kimi2 ? .weekly : .session
         case .secondary:
-            provider == .kimi ? .session : .weekly
+            provider == .kimi || provider == .kimi2 ? .session : .weekly
         case .automatic, .primaryAndSecondary, .tertiary, .extraUsage, .average, .monthlyPlan:
             .automatic
         }

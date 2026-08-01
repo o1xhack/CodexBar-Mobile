@@ -205,6 +205,8 @@ struct TokenAccountCLIContext {
             return self.makeSnapshot(ollama: self.makeProviderCookieSettings(cookieSettings))
         case .kimi:
             return self.makeSnapshot(kimi: self.makeProviderCookieSettings(cookieSettings))
+        case .kimi2:
+            return self.makeSnapshot(kimi2: self.makeProviderCookieSettings(cookieSettings))
         case .perplexity:
             return self.makeSnapshot(perplexity: self.makeProviderCookieSettings(cookieSettings))
         case .mimo:
@@ -247,6 +249,7 @@ struct TokenAccountCLIContext {
         moonshot: ProviderSettingsSnapshot.MoonshotProviderSettings? = nil,
         kilo: ProviderSettingsSnapshot.KiloProviderSettings? = nil,
         kimi: ProviderSettingsSnapshot.KimiProviderSettings? = nil,
+        kimi2: ProviderSettingsSnapshot.Kimi2ProviderSettings? = nil,
         longcat: ProviderSettingsSnapshot.LongCatProviderSettings? = nil,
         augment: ProviderSettingsSnapshot.AugmentProviderSettings? = nil,
         amp: ProviderSettingsSnapshot.AmpProviderSettings? = nil,
@@ -274,6 +277,7 @@ struct TokenAccountCLIContext {
             zai: zai,
             kilo: kilo,
             kimi: kimi,
+            kimi2: kimi2,
             longcat: longcat,
             augment: augment,
             moonshot: moonshot,

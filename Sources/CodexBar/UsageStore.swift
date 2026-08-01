@@ -987,6 +987,7 @@ extension UsageStore {
                 .kilo: "Kilo debug log not yet implemented",
                 .kiro: "Kiro debug log not yet implemented",
                 .kimi: "Kimi debug log not yet implemented",
+                .kimi2: "Kimi 2 debug log not yet implemented",
                 .jetbrains: "JetBrains AI debug log not yet implemented",
                 .mimo: "Xiaomi MiMo debug log not yet implemented",
                 .doubao: "Doubao debug log not yet implemented",
@@ -1084,7 +1085,7 @@ extension UsageStore {
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
                 case .clinepass, .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory,
-                     .copilot, .devin, .vertexai, .kilo, .kiro, .kimi, .moonshot, .jetbrains, .perplexity,
+                     .copilot, .devin, .vertexai, .kilo, .kiro, .kimi, .kimi2, .moonshot, .jetbrains, .perplexity,
                      .mimo, .doubao, .sakana, .abacus, .mistral, .deepinfra, .codebuff, .crof, .windsurf,
                      .venice, .manus, .commandcode, .qoder, .stepfun, .bedrock, .grok, .groq, .t3chat, .llmproxy,
                      .litellm, .zed, .deepgram, .poe, .chutes, .neuralwatt, .clawrouter, .longcat, .wayfinder,

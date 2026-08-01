@@ -1270,7 +1270,7 @@ extension UsageMenuCardView.Model {
             snapshot: snapshot,
             input: input,
             percentStyle: percentStyle))
-        if input.provider == .kilo || input.provider == .kimi,
+        if input.provider == .kilo || input.provider == .kimi || input.provider == .kimi2,
            metrics.contains(where: { $0.id == "primary" }),
            metrics.contains(where: { $0.id == "secondary" })
         {

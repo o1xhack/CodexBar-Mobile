@@ -261,6 +261,8 @@ extension CodexBarCLI {
         switch provider {
         case .kimi:
             KimiSettingsReader.apiKey(environment: environment) != nil
+        case .kimi2:
+            Kimi2SettingsReader.apiKey(environment: environment) != nil
         case .llmproxy:
             LLMProxySettingsReader.apiKey(environment: environment) != nil
         case .clawrouter:
@@ -299,6 +301,8 @@ extension CodexBarCLI {
             AlibabaTokenPlanSettingsReader.cookieHeader(environment: environment) != nil
         case .kimi:
             KimiSettingsReader.authToken(environment: environment) != nil
+        case .kimi2:
+            Kimi2SettingsReader.authToken(environment: environment) != nil
         case .manus:
             ManusSettingsReader.sessionToken(environment: environment) != nil
         case .perplexity:

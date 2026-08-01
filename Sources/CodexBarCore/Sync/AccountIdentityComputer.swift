@@ -51,7 +51,7 @@ public enum AccountIdentityComputer {
         case .vertexai:
             self.vertexAI(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
-             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .kimi2, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
              // iOS falls back to per-device legacy bucket. Promote to a

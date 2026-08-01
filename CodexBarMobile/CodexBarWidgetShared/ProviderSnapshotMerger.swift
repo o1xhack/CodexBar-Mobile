@@ -274,6 +274,7 @@ enum ProviderSnapshotMerger {
         base: ProviderUsageSnapshot) -> [SyncRateWindow]
     {
         guard base.providerID == "kimi"
+            || base.providerID == "kimi2"
             || base.providerID == "claude"
             || base.providerID == "alibabatokenplan"
         else {
@@ -295,7 +296,7 @@ enum ProviderSnapshotMerger {
 
         let preferredOrder: [String: Int]
         switch base.providerID {
-        case "kimi":
+        case "kimi", "kimi2":
             preferredOrder = [
                 "weekly": 0,
                 "rate limit": 1,
