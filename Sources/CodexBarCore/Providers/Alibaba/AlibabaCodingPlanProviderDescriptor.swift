@@ -43,7 +43,7 @@ public enum AlibabaCodingPlanProviderDescriptor {
                 statusPageURL: nil,
                 statusLinkURL: "https://status.aliyun.com"),
             branding: ProviderBranding(
-                iconStyle: .alibaba,
+                iconStyle: .init(provider: .alibaba),
                 iconResourceName: "ProviderIcon-alibaba",
                 color: ProviderColor(red: 1.0, green: 106 / 255, blue: 0),
                 confettiPalette: [
@@ -54,6 +54,7 @@ public enum AlibabaCodingPlanProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Alibaba Coding Plan cost summary is not supported." }),
+            pace: .calendarMonthResetWindow,
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),

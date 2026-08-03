@@ -685,6 +685,14 @@ extension SettingsStore {
         }
     }
 
+    var claudeDailyRoutinesUsageVisible: Bool {
+        get { self.defaultsState.claudeDailyRoutinesUsageVisible }
+        set {
+            self.defaultsState.claudeDailyRoutinesUsageVisible = newValue
+            self.userDefaults.set(newValue, forKey: "claudeDailyRoutinesUsageVisible")
+        }
+    }
+
     var codexSparkUsageVisible: Bool {
         get { self.defaultsState.codexSparkUsageVisible }
         set {
@@ -715,6 +723,22 @@ extension SettingsStore {
                 metadata: ["enabled": newValue ? "1" : "0"])
             self.noteBackgroundWorkSettingsChanged()
         }
+    }
+
+    var backgroundWorkLowPowerModeEnabled: Bool {
+        get { self.defaultsState.backgroundWorkLowPowerModeEnabled }
+        set {
+            self.defaultsState.backgroundWorkLowPowerModeEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "backgroundWorkLowPowerModeEnabled")
+            CodexBarLog.logger(LogCategories.settings).info(
+                "Background work low power mode updated",
+                metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
+    var effectiveOpenAIWebBatterySaverEnabled: Bool {
+        self.openAIWebBatterySaverEnabled || self.backgroundWorkLowPowerModeEnabled
     }
 
     var providerStorageFootprintsEnabled: Bool {
@@ -1006,6 +1030,14 @@ extension SettingsStore {
         set {
             self.defaultsState.agentSessionsManualHosts = newValue
             self.userDefaults.set(newValue, forKey: "agentSessionsManualHosts")
+        }
+    }
+
+    var preferredCurrencyCode: String {
+        get { self.defaultsState.preferredCurrencyCode }
+        set {
+            self.defaultsState.preferredCurrencyCode = newValue
+            self.userDefaults.set(newValue, forKey: "preferredCurrencyCode")
         }
     }
 }

@@ -392,7 +392,9 @@ enum ProviderSnapshotMerger {
             wayfinderUsage: Self.latestNonNil(entries, \.wayfinderUsage),
             sub2APIUsage: Self.latestNonNil(entries, \.sub2APIUsage),
             providerAmount: Self.latestNonNil(entries, \.providerAmount),
-            accountRecordKey: Self.latestNonNil(entries, \.accountRecordKey))
+            accountRecordKey: Self.latestNonNil(entries, \.accountRecordKey),
+            accountOrganization: Self.latestNonNil(entries, \.accountOrganization),
+            zoomMateCredits: Self.latestNonNil(entries, \.zoomMateCredits))
     }
 
     private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {

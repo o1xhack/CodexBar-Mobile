@@ -58,9 +58,11 @@ struct SettingsDefaultsState {
     var claudeOAuthKeychainReadStrategyRaw: String?
     var claudeWebExtrasEnabledRaw: Bool
     var showOptionalCreditsAndExtraUsage: Bool
+    var claudeDailyRoutinesUsageVisible: Bool
     var codexSparkUsageVisible: Bool
     var openAIWebAccessEnabled: Bool
     var openAIWebBatterySaverEnabled: Bool
+    var backgroundWorkLowPowerModeEnabled: Bool
     var providerStorageFootprintsEnabled: Bool
     var jetbrainsIDEBasePath: String
     var mergeIcons: Bool
@@ -75,4 +77,10 @@ struct SettingsDefaultsState {
     var agentSessionsEnabled: Bool
     var agentSessionLabelStyleRaw: String
     var agentSessionsManualHosts: String
+    var preferredCurrencyCode: String
+    var macFleetSyncEnabled: Bool
+    var macFleetSyncIncludeSecrets: Bool
+    var macFleetSyncSnapshotsEnabled: Bool
+    var macFleetSyncShowFleetAccounts: Bool
+    var macFleetSyncDeviceID: String
 }

@@ -98,6 +98,9 @@ public enum TokenAccountSupportCatalog {
         guard let support = self.support(for: provider) else {
             return token.trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        if provider == .ollama, let cookieName = support.cookieName {
+            return normalizedOllamaTokenAccountHeader(token, defaultCookieName: cookieName)
+        }
         return self.normalizedCookieHeader(token, support: support)
     }
 

@@ -266,6 +266,12 @@ public struct DoubaoUsageFetcher: Sendable {
     private static let apiURL = URL(string: "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions")!
     private static let codingPlanAPIURL = URL(
         string: "https://open.volcengineapi.com/?Action=GetCodingPlanUsage&Version=2024-01-01")!
+    /// Agent Plan usage lives behind a sibling Volcengine Top OpenAPI action (`GetAFPUsage`,
+    /// AFP = "Agent Flow Points"), signed with the same AK/SK the Coding Plan path uses.
+    /// Accounts can hold Coding Plan and Agent Plan simultaneously, so both actions must be
+    /// queried independently.
+    private static let agentPlanAPIURL = URL(
+        string: "https://open.volcengineapi.com/?Action=GetAFPUsage&Version=2024-01-01")!
 
     /// Closure that runs `arkcli usage plan` and returns raw stdout.
     public typealias ArkcliRunner = @Sendable () async throws -> Data
@@ -354,13 +360,128 @@ public struct DoubaoUsageFetcher: Sendable {
         }
 
         let codingPlanUsage = try self.decodeCodingPlanUsage(from: response.data)
+        let agentPlanUsage: DoubaoCodingPlanUsage?
+        do {
+            // Keep these requests sequential. Coding Plan is the required result and AFP is an
+            // independent, best-effort product probe with its own bounded request timeout.
+            agentPlanUsage = try await self.fetchAgentPlanUsage(
+                credentials: credentials, session: transport, date: date)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as DoubaoUsageError {
+            if self.isAgentPlanAbsence(error) || !codingPlanUsage.quotas.isEmpty {
+                Self.log.debug("Doubao agent plan usage unavailable; preserving Coding Plan usage: \(error)")
+                agentPlanUsage = nil
+            } else {
+                throw error
+            }
+        } catch {
+            if !codingPlanUsage.quotas.isEmpty {
+                Self.log.debug("Doubao agent plan usage unavailable; preserving Coding Plan usage: \(error)")
+                agentPlanUsage = nil
+            } else {
+                throw error
+            }
+        }
+
+        let combinedUsage: DoubaoCodingPlanUsage = if codingPlanUsage.quotas.isEmpty, let agentPlanUsage,
+                                                      !agentPlanUsage.quotas.isEmpty
+        {
+            agentPlanUsage
+        } else if let agentPlanUsage, !agentPlanUsage.quotas.isEmpty {
+            DoubaoCodingPlanUsage(
+                status: codingPlanUsage.status,
+                updateTime: codingPlanUsage.updateTime ?? agentPlanUsage.updateTime,
+                quotas: codingPlanUsage.quotas + agentPlanUsage.quotas)
+        } else {
+            codingPlanUsage
+        }
         return DoubaoUsageSnapshot(
             remainingRequests: 0,
             limitRequests: 0,
             resetTime: nil,
-            updatedAt: codingPlanUsage.updateTime ?? date,
+            updatedAt: combinedUsage.updateTime ?? date,
             apiKeyValid: true,
-            codingPlanUsage: codingPlanUsage)
+            codingPlanUsage: combinedUsage)
+    }
+
+    private static func isAgentPlanAbsence(_ error: DoubaoUsageError) -> Bool {
+        guard case let .apiError(statusCode, _) = error else { return false }
+        return statusCode == 403 || statusCode == 404
+    }
+
+    /// Fetches Agent Plan (AFP) usage via the AK/SK-signed `GetAFPUsage` action. Mirrors the
+    /// Coding Plan request path; maps the AFP rolling windows onto the same `agent_*` quota
+    /// levels the arkcli (`.cli`) Agent Plan path already renders, so `.api` and `.cli` show
+    /// an Agent Plan account identically.
+    static func fetchAgentPlanUsage(
+        credentials: DoubaoCodingPlanCredentials,
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        date: Date = Date()) async throws -> DoubaoCodingPlanUsage
+    {
+        let body = Data()
+        var request = URLRequest(url: self.agentPlanAPIURL)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        DoubaoVolcengineSigner.sign(
+            request: &request,
+            body: body,
+            credentials: credentials,
+            date: date)
+
+        let response: ProviderHTTPResponse
+        do {
+            response = try await transport.response(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch {
+            throw DoubaoUsageError.networkError(error.localizedDescription)
+        }
+        guard response.statusCode == 200 else {
+            let summary = Self.apiErrorSummary(statusCode: response.statusCode, data: response.data)
+            if response.statusCode == 403 || response.statusCode == 404 {
+                Self.log.debug("Doubao agent plan is unavailable: \(summary)")
+            } else {
+                Self.log.error("Doubao agent plan API returned \(response.statusCode): \(summary)")
+            }
+            throw DoubaoUsageError.apiError(response.statusCode, summary)
+        }
+
+        return try self.decodeAgentPlanUsage(from: response.data)
+    }
+
+    static func decodeAgentPlanUsage(from data: Data) throws -> DoubaoCodingPlanUsage {
+        let response: AgentPlanUsageResponse
+        do {
+            response = try JSONDecoder().decode(AgentPlanUsageResponse.self, from: data)
+        } catch {
+            throw DoubaoUsageError.parseFailed(error.localizedDescription)
+        }
+        let result = response.result
+        var quotas: [DoubaoCodingPlanUsage.Quota] = []
+        func appendQuota(_ window: AgentPlanWindowPayload?, level: String) {
+            guard let window, window.quota > 0 else { return }
+            let percent = min(100, max(0, window.used / window.quota * 100))
+            quotas.append(DoubaoCodingPlanUsage.Quota(
+                level: level,
+                percent: percent,
+                resetTime: self.date(fromEpochMilliseconds: window.resetTime)))
+        }
+        // Only the 5-hour/weekly/monthly windows have a renderer slot in `toUsageSnapshot`;
+        // the daily window (`AFPDaily`) is intentionally skipped to match the arkcli path.
+        appendQuota(result.fiveHour, level: "agent_5h")
+        appendQuota(result.weekly, level: "agent_weekly")
+        appendQuota(result.monthly, level: "agent_monthly")
+        return DoubaoCodingPlanUsage(status: nil, updateTime: nil, quotas: quotas)
+    }
+
+    private static func date(fromEpochMilliseconds milliseconds: TimeInterval?) -> Date? {
+        guard let milliseconds, milliseconds > 0 else { return nil }
+        return Date(timeIntervalSince1970: milliseconds / 1000)
     }
 
     static func decodeCodingPlanUsage(from data: Data) throws -> DoubaoCodingPlanUsage {
@@ -914,6 +1035,15 @@ public struct DoubaoUsageFetcher: Sendable {
             case updateTimestamp = "UpdateTimestamp"
             case quotaUsage = "QuotaUsage"
         }
+
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.status = try container.decodeIfPresent(String.self, forKey: .status)
+            self.updateTimestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .updateTimestamp)
+            // A reclaimed/inactive Coding Plan returns Status only and omits `QuotaUsage`.
+            // Decode it as no quota rather than a hard failure so the Agent Plan fallback runs.
+            self.quotaUsage = try container.decodeIfPresent([QuotaPayload].self, forKey: .quotaUsage) ?? []
+        }
     }
 
     private struct QuotaPayload: Decodable {
@@ -925,6 +1055,40 @@ public struct DoubaoUsageFetcher: Sendable {
             case level = "Level"
             case percent = "Percent"
             case resetTimestamp = "ResetTimestamp"
+        }
+    }
+
+    // MARK: - Agent Plan (GetAFPUsage) signed API response
+
+    private struct AgentPlanUsageResponse: Decodable {
+        let result: AgentPlanResultPayload
+
+        private enum CodingKeys: String, CodingKey {
+            case result = "Result"
+        }
+    }
+
+    private struct AgentPlanResultPayload: Decodable {
+        let fiveHour: AgentPlanWindowPayload?
+        let weekly: AgentPlanWindowPayload?
+        let monthly: AgentPlanWindowPayload?
+
+        private enum CodingKeys: String, CodingKey {
+            case fiveHour = "AFPFiveHour"
+            case weekly = "AFPWeekly"
+            case monthly = "AFPMonthly"
+        }
+    }
+
+    private struct AgentPlanWindowPayload: Decodable {
+        let quota: Double
+        let used: Double
+        let resetTime: TimeInterval?
+
+        private enum CodingKeys: String, CodingKey {
+            case quota = "Quota"
+            case used = "Used"
+            case resetTime = "ResetTime"
         }
     }
 }

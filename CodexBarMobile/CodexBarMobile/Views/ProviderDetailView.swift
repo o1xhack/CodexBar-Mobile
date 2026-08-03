@@ -93,6 +93,11 @@ struct ProviderDetailView: View {
                 {
                     ZaiHourlyChart(usage: zaiHourly, tintColor: self.providerColor)
                 }
+                if self.provider.providerID == "zoommate",
+                   let zoomMateCredits = self.provider.zoomMateCredits
+                {
+                    ZoomMateCreditsCard(credits: zoomMateCredits, tintColor: self.providerColor)
+                }
                 if self.provider.providerID == "openai",
                    let openAIDashboard = self.provider.openAIAPIDashboard
                 {

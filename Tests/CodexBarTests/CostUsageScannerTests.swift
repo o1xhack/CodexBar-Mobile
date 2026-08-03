@@ -453,6 +453,7 @@ struct CostUsageScannerTests {
                         "input_tokens": 100,
                         "cached_input_tokens": 20,
                         "output_tokens": 10,
+                        "reasoning_output_tokens": 4,
                     ],
                     "model": model,
                 ],
@@ -470,6 +471,8 @@ struct CostUsageScannerTests {
         #expect(first.lastTotals?.input == 100)
         #expect(first.lastTotals?.cached == 20)
         #expect(first.lastTotals?.output == 10)
+        #expect(first.lastTotals?.reasoning == 4)
+        #expect(first.rows.first?.reasoning == 4)
 
         let secondTokenCount: [String: Any] = [
             "type": "event_msg",
@@ -481,6 +484,7 @@ struct CostUsageScannerTests {
                         "input_tokens": 160,
                         "cached_input_tokens": 40,
                         "output_tokens": 16,
+                        "reasoning_output_tokens": 7,
                     ],
                     "model": model,
                 ],
@@ -501,6 +505,7 @@ struct CostUsageScannerTests {
         #expect(packed[0] == 60)
         #expect(packed[1] == 20)
         #expect(packed[2] == 6)
+        #expect(delta.rows.first?.reasoning == 3)
     }
 
     @Test

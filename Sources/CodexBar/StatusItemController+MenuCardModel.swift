@@ -19,7 +19,8 @@ extension StatusItemController {
         forceOverrideCard: Bool = false,
         accountOverride: AccountInfo? = nil,
         historySelectionOverride: PlanUtilizationHistorySelection? = nil,
-        planOverride: String? = nil) -> UsageMenuCardView.Model?
+        planOverride: String? = nil,
+        subtitleOverride: String? = nil) -> UsageMenuCardView.Model?
     {
         let target = provider ?? self.store.enabledProvidersForDisplay().first ?? .codex
         let metadata = self.store.metadata(for: target)
@@ -32,11 +33,10 @@ extension StatusItemController {
         }
         // Override cards belong to a specific account/context. Never fall back to
         // provider-level live data here; that can belong to a different account.
-        let snapshot: UsageSnapshot? = if surface == .overrideCard {
-            snapshotOverride
-        } else {
-            snapshotOverride ?? self.store.presentationSnapshot(for: target)
-        }
+        let snapshot = self.menuCardSnapshot(
+            provider: target,
+            surface: surface,
+            override: snapshotOverride)
         let projectedTokenSnapshot = self.store.tokenSnapshot(fromProviderSnapshot: snapshot, provider: target)
         let storedTokenSnapshot = UsageStore.tokenCostRequiresProviderSnapshot(target)
             ? nil
@@ -88,48 +88,13 @@ extension StatusItemController {
 
         let sourceLabel = surface == .liveCard ? self.store.sourceLabel(for: target) : nil
         let kiloAutoMode = target == .kilo && self.settings.kiloUsageDataSource == .auto
-        // Abacus uses primary for monthly credits (no secondary window)
-        let paceWindow = target == .abacus ? snapshot?.primary : snapshot?.secondary
-        let sessionEquivalentHistorySelection = self.sessionEquivalentHistorySelection(
-            provider: target,
+        let (weeklyPace, sessionEquivalentForecast) = self.resolvePaceAndForecast(
+            target: target,
             snapshot: snapshot,
+            codexProjection: codexProjection,
             usesOverrideCard: surface == .overrideCard,
-            override: historySelectionOverride)
-        let weeklyPace = if let codexProjection,
-                            let weekly = codexProjection.rateWindow(for: .weekly)
-        {
-            self.store.weeklyPace(provider: target, window: weekly, now: now)
-        } else {
-            paceWindow.flatMap { window in
-                self.store.weeklyPace(provider: target, window: window, now: now)
-            }
-        }
-        let sessionEquivalentForecast: SessionEquivalentForecast? = if let codexProjection,
-                                                                       let session = codexProjection
-                                                                           .rateWindow(for: .session),
-                                                                           let weekly = codexProjection
-                                                                               .rateWindow(for: .weekly)
-        {
-            self.store.sessionEquivalentForecast(
-                provider: target,
-                sessionWindow: session,
-                weeklyWindow: weekly,
-                historySelection: sessionEquivalentHistorySelection,
-                now: now)
-        } else if let snapshot,
-                  let windows = self.store.sessionEquivalentWindows(provider: target, snapshot: snapshot)
-        {
-            self.store.sessionEquivalentForecast(
-                provider: target,
-                sessionWindow: windows.session,
-                weeklyWindow: windows.weekly,
-                weeklyWindowID: windows.weeklyWindowID,
-                historyIdentity: windows.historyIdentity,
-                historySelection: sessionEquivalentHistorySelection,
-                now: now)
-        } else {
-            nil
-        }
+            historySelectionOverride: historySelectionOverride,
+            now: now)
         let fallbackAccount = accountOverride
             ?? (metadata.usesAccountFallback
                 ? self.store.accountInfo(for: target)
@@ -173,9 +138,11 @@ extension StatusItemController {
                 self.settings.costSummaryShowsSubmenu(for: target),
             costComparisonPeriodsEnabled: self.settings.costComparisonPeriodsEnabled,
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            claudeDailyRoutinesUsageVisible: self.settings.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: self.settings.codexSparkUsageVisible,
             copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             sourceLabel: sourceLabel,
+            subtitleOverride: subtitleOverride,
             kiloAutoMode: kiloAutoMode,
             hidePersonalInfo: self.settings.hidePersonalInfo,
             weeklyPace: weeklyPace,
@@ -186,8 +153,98 @@ extension StatusItemController {
             ],
             workDaysPerWeek: self.settings.weeklyProgressWorkDays,
             usesLiveSubtitle: surface == .liveCard,
+            preferredCurrencyCode: self.settings.preferredCurrencyCode,
             now: now)
         return UsageMenuCardView.Model.make(input)
+    }
+
+    private func menuCardSnapshot(
+        provider: UsageProvider,
+        surface: CodexConsumerProjection.Surface,
+        override: UsageSnapshot?) -> UsageSnapshot?
+    {
+        let baseSnapshot: UsageSnapshot? = if surface == .overrideCard {
+            override
+        } else {
+            override ?? self.store.presentationSnapshot(for: provider)
+        }
+        return self.subscriptionMetadataSnapshot(baseSnapshot, provider: provider, surface: surface)
+    }
+
+    private func subscriptionMetadataSnapshot(
+        _ snapshot: UsageSnapshot?,
+        provider: UsageProvider,
+        surface: CodexConsumerProjection.Surface) -> UsageSnapshot?
+    {
+        guard provider == .codex,
+              surface == .liveCard,
+              let snapshot,
+              let cache = OpenAIDashboardCacheStore.load(),
+              cache.snapshot.subscriptionRenewsAt != nil || cache.snapshot.subscriptionExpiresAt != nil,
+              let cacheEmail = CodexIdentityResolver.normalizeEmail(cache.accountEmail),
+              let currentEmail = CodexIdentityResolver.normalizeEmail(
+                  snapshot.accountEmail(for: .codex) ?? self.store.accountInfo(for: .codex).email),
+              cacheEmail == currentEmail
+        else { return snapshot }
+        return snapshot.withSubscriptionMetadata(
+            expiresAt: cache.snapshot.subscriptionExpiresAt,
+            renewsAt: cache.snapshot.subscriptionRenewsAt)
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    private func resolvePaceAndForecast(
+        target: UsageProvider,
+        snapshot: UsageSnapshot?,
+        codexProjection: CodexConsumerProjection?,
+        usesOverrideCard: Bool,
+        historySelectionOverride: PlanUtilizationHistorySelection?,
+        now: Date)
+        -> (weeklyPace: UsagePace?, sessionEquivalentForecast: SessionEquivalentForecast?)
+    {
+        let paceWindow = target == .abacus || target == .kimi
+            ? snapshot?.primary : snapshot?.secondary
+        let historySelection = self.sessionEquivalentHistorySelection(
+            provider: target,
+            snapshot: snapshot,
+            usesOverrideCard: usesOverrideCard,
+            override: historySelectionOverride)
+        let weeklyPace = if let codexProjection,
+                            let weekly = codexProjection.rateWindow(for: .weekly)
+        {
+            self.store.weeklyPace(provider: target, window: weekly, now: now)
+        } else {
+            paceWindow.flatMap { window in
+                self.store.weeklyPace(provider: target, window: window, now: now)
+            }
+        }
+        let forecast: SessionEquivalentForecast? = if let codexProjection,
+                                                      let session = codexProjection
+                                                          .rateWindow(for: .session),
+                                                          let weekly = codexProjection
+                                                              .rateWindow(for: .weekly)
+        {
+            self.store.sessionEquivalentForecast(
+                provider: target,
+                sessionWindow: session,
+                weeklyWindow: weekly,
+                historySelection: historySelection,
+                now: now)
+        } else if let snapshot,
+                  let windows = self.store.sessionEquivalentWindows(
+                      provider: target, snapshot: snapshot)
+        {
+            self.store.sessionEquivalentForecast(
+                provider: target,
+                sessionWindow: windows.session,
+                weeklyWindow: windows.weekly,
+                weeklyWindowID: windows.weeklyWindowID,
+                historyIdentity: windows.historyIdentity,
+                historySelection: historySelection,
+                now: now)
+        } else {
+            nil
+        }
+        return (weeklyPace, forecast)
     }
 
     private func sessionEquivalentHistorySelection(

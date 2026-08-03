@@ -121,6 +121,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     let store: UsageStore
     let settings: SettingsStore
+    var cloudSyncState: CloudSyncState {
+        didSet {
+            guard oldValue !== self.cloudSyncState else { return }
+            self.observeCloudSyncChanges()
+            self.invalidateMenus(refreshOpenMenus: true)
+        }
+    }
+
     let agentSessions: AgentSessionsStore
     lazy var menuCardRefreshMonitor = self.makeMenuCardRefreshMonitor()
 
@@ -274,6 +282,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastCodexAccountMenuDisplay: CodexAccountMenuDisplay?
     /// Tracks the visible token account switcher contents for merged-menu smart updates.
     var lastTokenAccountMenuDisplay: TokenAccountMenuDisplay?
+    /// Debounced pre-build of sibling switcher tabs for flicker-free tab switches.
+    /// A common-modes Timer (not a Task) so it fires during NSMenu tracking.
+    var mergedSwitcherWarmupTimer: Timer?
+    /// Compact multi-account layout: accounts the user expanded to full cards this menu session.
+    var compactAccountExpandedIDs: Set<ProviderAccountIdentity> = []
+    /// Compact multi-account layout: providers whose collapsed healthy tail is revealed this menu session.
+    var compactAccountExpandedHealthyTailProviders: Set<UsageProvider> = []
     /// Keeps detached merged-menu tab content reusable while the same menu remains open.
     var mergedSwitcherContentCaches: [ObjectIdentifier: [ProviderSwitcherSelection: CachedMergedSwitcherMenuContent]]
         = [:]
@@ -381,13 +396,15 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         statusBar: NSStatusBar = .system,
         menuCardRenderingEnabled: Bool = StatusItemController.menuCardRenderingEnabled,
         menuRefreshEnabled: Bool = StatusItemController.menuRefreshEnabled,
-        observeProviderConfigNotifications: Bool = !SettingsStore.isRunningTests)
+        observeProviderConfigNotifications: Bool = !SettingsStore.isRunningTests,
+        cloudSyncState: CloudSyncState = CloudSyncState())
     {
         if SettingsStore.isRunningTests {
             _ = NSApplication.shared
         }
         self.store = store
         self.settings = settings
+        self.cloudSyncState = cloudSyncState
         self.agentSessions = AgentSessionsStore(settings: settings)
         self.account = account
         self.updater = updater
@@ -503,6 +520,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.observeSettingsChanges()
         self.observeUpdaterChanges()
         self.observeManagedCodexCoordinatorChanges()
+        self.observeCloudSyncChanges()
     }
 
     private func observeStoreChanges() {

@@ -496,6 +496,34 @@ struct ProviderColorPaletteTests {
                     .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
         }
     }
+
+
+    // MARK: - iOS 1.20.0 · v0.46-v0.47 provider catch-up
+
+    @Test("v0.46-v0.47 provider colors are distinct from the generic blue fallback")
+    func v047ProviderColorsAreExplicit() {
+        let fallback = UIColor(ProviderColorPalette.color(for: "unknown-provider"))
+        for id in ["qwencloud", "zoommate", "xai", "notion"] {
+            #expect(
+                !UIColor(ProviderColorPalette.color(for: id)).isApproximately(fallback),
+                "\(id) must not use the generic fallback color")
+        }
+    }
+
+    @Test("v0.46-v0.47 provider color normalization accepts display-name variants")
+    func v047ProviderColorNormalization() {
+        let pairs = [
+            ("qwencloud", "Qwen-Cloud"),
+            ("zoommate", "Zoom-Mate"),
+            ("xai", "x-ai"),
+            ("notion", "Notion AI"),
+        ]
+        for (id, name) in pairs {
+            #expect(
+                UIColor(ProviderColorPalette.color(for: id))
+                    .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
+        }
+    }
 }
 
 // MARK: - Test helpers

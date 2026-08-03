@@ -195,6 +195,55 @@ struct ZaiUsageSnapshotTests {
 
         #expect(usage.primary?.usedPercent == 25)
     }
+
+    @Test
+    func `time limit with explicit duration preserves windowMinutes instead of monthly sentinel`() {
+        let reset = Date(timeIntervalSince1970: 123)
+        let timeLimit = ZaiLimitEntry(
+            type: .timeLimit,
+            unit: .hours,
+            number: 5,
+            usage: 100,
+            currentValue: 20,
+            remaining: 80,
+            percentage: 25,
+            usageDetails: [],
+            nextResetTime: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: nil,
+            timeLimit: timeLimit,
+            planName: nil,
+            updatedAt: reset)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.windowMinutes == 300)
+        #expect(usage.primary?.resetDescription == "5 hours window")
+    }
+
+    @Test
+    func `time limit without explicit duration falls back to monthly sentinel`() {
+        let reset = Date(timeIntervalSince1970: 123)
+        let timeLimit = ZaiLimitEntry(
+            type: .timeLimit,
+            unit: .days,
+            number: 0,
+            usage: 100,
+            currentValue: 20,
+            remaining: 80,
+            percentage: 25,
+            usageDetails: [],
+            nextResetTime: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: nil,
+            timeLimit: timeLimit,
+            planName: nil,
+            updatedAt: reset)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
+    }
 }
 
 struct ZaiUsageParsingTests {
@@ -253,7 +302,7 @@ struct ZaiUsageParsingTests {
         #expect(snapshot.tokenLimit?.percentage == 34.0)
 
         let usage = snapshot.toUsageSnapshot()
-        #expect(usage.secondary?.windowMinutes == nil)
+        #expect(usage.secondary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
         #expect(usage.secondary?.resetDescription == "Monthly")
     }
 
@@ -292,7 +341,7 @@ struct ZaiUsageParsingTests {
         let usage = snapshot.toUsageSnapshot()
 
         #expect(snapshot.timeLimit?.windowDescription == "1 minute")
-        #expect(usage.secondary?.windowMinutes == nil)
+        #expect(usage.secondary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
         #expect(usage.secondary?.resetDescription == "Monthly")
     }
 
@@ -806,8 +855,87 @@ struct ZaiHourlyUsageTests {
         #expect(bars.map(\.totalTokens) == [20, 30])
     }
 
+    @Test
+    func `model usage parser decodes daily model payload`() throws {
+        let json = """
+        {
+          "code": 200,
+          "msg": "success",
+          "success": true,
+          "data": {
+            "x_time": ["2026-05-13", "2026-05-14"],
+            "modelDataList": [
+              { "modelName": "glm-4.6", "tokensUsage": [300, 150] }
+            ]
+          }
+        }
+        """
+
+        let usage = try ZaiUsageFetcher.parseModelUsage(from: Data(json.utf8))
+
+        #expect(usage.xTime == ["2026-05-13", "2026-05-14"])
+        #expect(usage.modelDataList[0].tokensUsage == [300, 150])
+    }
+
+    @Test
+    func `last 7 day bars aggregate daily buckets and drop older days`() {
+        let reference = Self.localDate(year: 2026, month: 5, day: 14, hour: 12)
+        let old = Calendar.current.date(byAdding: .day, value: -8, to: reference) ?? reference
+        let inWindow = Calendar.current.date(byAdding: .day, value: -6, to: reference) ?? reference
+        let modelData = ZaiModelUsageData(
+            xTime: [
+                Self.dayString(old),
+                Self.dayString(inWindow),
+                Self.dayString(reference),
+            ],
+            modelDataList: [
+                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [999, 100, 40]),
+                ZaiModelDataItem(modelName: "glm-4.5", tokensUsage: [0, 50, nil]),
+            ])
+
+        let bars = ZaiHourlyBars.from(modelData: modelData, range: .last7d, now: reference)
+
+        #expect(bars.map(\.label) == [Self.dayLabel(inWindow), Self.dayLabel(reference)])
+        #expect(bars.map(\.totalTokens) == [150, 40])
+        #expect(bars.first?.segments.count == 2)
+    }
+
+    @Test
+    func `last 30 day bars keep days beyond the 7 day window`() {
+        let reference = Self.localDate(year: 2026, month: 5, day: 14, hour: 12)
+        let day20 = Calendar.current.date(byAdding: .day, value: -20, to: reference) ?? reference
+        let day35 = Calendar.current.date(byAdding: .day, value: -35, to: reference) ?? reference
+        let modelData = ZaiModelUsageData(
+            xTime: [
+                Self.dayString(day35),
+                Self.dayString(day20),
+                Self.dayString(reference),
+            ],
+            modelDataList: [ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [5, 20, 30])])
+
+        let bars = ZaiHourlyBars.from(modelData: modelData, range: .last30d, now: reference)
+
+        // -35 days is outside the 30-day window; -20 and today remain.
+        #expect(bars.map(\.label) == [Self.dayLabel(day20), Self.dayLabel(reference)])
+        #expect(bars.map(\.totalTokens) == [20, 30])
+    }
+
     private static func localDate(year: Int, month: Int, day: Int, hour: Int) -> Date {
         Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: hour)) ?? Date()
+    }
+
+    private static func dayString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
+    }
+
+    private static func dayLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
     }
 
     private static func hourString(_ date: Date) -> String {

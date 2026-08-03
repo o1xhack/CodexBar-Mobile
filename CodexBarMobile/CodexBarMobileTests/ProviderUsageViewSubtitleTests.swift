@@ -29,7 +29,8 @@ struct ProviderUsageViewSubtitleTests {
     private func makeSnapshot(
         providerID: String = "codex",
         providerName: String = "Codex",
-        accountEmail: String?
+        accountEmail: String?,
+        accountOrganization: String? = nil
     ) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: providerID,
@@ -40,7 +41,8 @@ struct ProviderUsageViewSubtitleTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: self.baseDate)
+            lastUpdated: self.baseDate,
+            accountOrganization: accountOrganization)
     }
 
     // MARK: - cardIdentityKey
@@ -80,6 +82,28 @@ struct ProviderUsageViewSubtitleTests {
             provider: self.makeSnapshot(accountEmail: nil),
             duplicateOrdinal: nil)
         #expect(view.subtitleLine() == nil)
+    }
+
+    @Test("Single-card + workspace → workspace is the subtitle")
+    func singleCardWithWorkspace() {
+        let view = ProviderUsageView(
+            provider: self.makeSnapshot(
+                providerID: "notion",
+                providerName: "Notion AI",
+                accountEmail: nil,
+                accountOrganization: "Design Workspace"),
+            duplicateOrdinal: nil)
+        #expect(view.subtitleLine() == "Design Workspace")
+    }
+
+    @Test("Email wins over workspace")
+    func emailWinsOverWorkspace() {
+        let view = ProviderUsageView(
+            provider: self.makeSnapshot(
+                accountEmail: "alice@example.com",
+                accountOrganization: "Design Workspace"),
+            duplicateOrdinal: nil)
+        #expect(view.subtitleLine() == "alice@example.com")
     }
 
     @Test("Multi-card + email → email still wins (never show bare ordinal when email is attributable)")

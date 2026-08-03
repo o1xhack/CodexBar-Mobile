@@ -1,5 +1,104 @@
 # Changelog
 
+## 0.47.0.1 — Unreleased
+
+### Added
+- Mobile sync: prepare Qwen Cloud, ZoomMate, xAI Platform, Notion AI, Claude prepaid balance, and z.ai daily model usage for iPhone display while keeping upstream Mac fleet sync isolated from the existing Mac-to-iPhone channel.
+
+### Changed
+- Fork release: combine upstream v0.46.0-v0.47.0 into Mac `0.47.0.1` (`111.1.1.20.0` Sparkle build) and iOS `1.20.0`.
+
+### Fixed
+- Fork integration: preserve Production CloudKit, mobile sync defaults, collision-safe versioning, signing, appcast, and fork CI policy while incorporating all upstream fixes through v0.47.0.
+
+## 0.47.0 — 2026-08-03
+
+### Added
+- Notion AI: add Business and Enterprise workspace allowance tracking for rolling and billing-period windows (#2552). Thanks @n0ah37!
+- Notion AI: pace estimates on both the rolling and billing-period bars, scored against the real calendar month ending at the reset rather than a flat 30 days (#2552). Thanks @n0ah37!
+- Sync: opt-in iCloud sync (Settings → iCloud Sync, default off) syncs provider configuration, a curated preferences subset, and per-device usage snapshots across Macs via CloudKit; API keys/cookies/tokens ride end-to-end-encrypted fields with their own opt-out, hooks and machine-local paths never sync, and menus can show accounts from other Macs with last-known usage ("via <Mac> · 1h ago") when the local fetch is unavailable. The app now also watches `config.json`, so external CLI edits apply live.
+- z.ai: add 7-day and 30-day model-usage chart ranges with dataset-consistent legends, colors, and daily tooltips (#2524). Thanks @LeoLin990405!
+- Refresh: add a default-off global Low Power Mode that limits automatic provider, local usage, and storage work to once every 30 minutes while keeping manual refresh immediate (#2518). Thanks @Carl723000!
+- CLI: `codexbar hooks watch` continuously polls providers and fires hooks on real quota/status transitions for headless installs, with in-memory baselines, event rate limits, `--interval` (default 300s, minimum 60s), `--provider`, and JSON output (#2536). Thanks @OfficialAbhinavSingh!
+- Claude: compact multi-account menu for claude-swap — with four or more accounts the active account keeps its full card while the others become one-line rows sorted by remaining headroom, constrained accounts surface in red/amber, the healthiest switch target gets a star, and the healthy tail folds behind a summary row. Click a row to expand its full card.
+- Menu: the compact multi-account layout now covers every stacked multi-account list — token accounts on any provider and Codex accounts (flat lists; workspace-grouped Codex lists keep their sections).
+- Menu bar: Session/Weekly/Auto pace layout tokens that render the signed pace delta (`+11%`, `-8%`, `0%`), restoring the pre-0.45 "Both" display in the layout editor (#2540, fixes #2534). Thanks @kratocz!
+
+### Fixed
+- Notion AI: `codexbar` now honors the provider's Workspace ID, manual cookie header, and `off` source instead of always auto-selecting a workspace (#2552). Thanks @n0ah37!
+- Providers with monthly billing windows (Notion AI, Amp, MiMo, StepFun, Doubao, Alibaba, OpenCode Go): the menu bar's pace token, the "runs out" estimate, and predictive pace warnings now measure the real calendar cycle, matching the card and the CLI instead of scoring every period as a flat 30 days (#2552). Thanks @n0ah37!
+- Cursor: make on-demand extra usage follow the shared optional-usage setting and remove the unsupported credits placeholder (#2338). Thanks @Zihao-Qi!
+- Antigravity/Sessions: inspect processes in-process via libproc instead of spawning full-system ps/lsof, eliminating repeated macOS 26 “access data from other apps” prompts (#2267 hardening).
+- Doubao: show Agent Plan windows alongside Coding Plan usage for Volcengine AK/SK accounts that subscribe to both products (#2517). Thanks @Astro-Han!
+- Augment: store session cookies owner-only (0600), atomically publish updates, and repair permissions on legacy files (#2567).
+- Ollama: direct declined Chrome Keychain access recovery to the provider card's Refresh (⌘R) action instead of the ambiguous manual-cookie path (#2072).
+- Menu: merged provider tabs now size to their own content when switching from Overview instead of padding every tab to the tallest provider and leaving large blank regions.
+- Codex: persist and budget fork-parent discovery so missing parents quiesce between inventory changes instead of sweeping every rollout on each refresh (#2525, #2538). Thanks @xx205, and @Helmi and @kiranmagic7 for the investigation!
+- Claude: Auto cold boot with Keychain disabled loads without manual refresh (#2494, fixes #2493). Thanks @gmkbenjamin!
+- Menu: no more stray floating "Refresh" tooltip beside the menu when switching tabs with the cursor over the actions area.
+- Providers: write the Factory and Cursor session files (bearer/refresh tokens, auth cookies) owner-only (0600), matching the codex/kimi/antigravity credential stores.
+- Menu: keep Overview↔provider switches flash-free by hosting every card row in one reusable AppKit container, including GPU-selection Overview rows.
+- Codex: keep confirmed weekly reset lows and confetti private until the previously published reset boundary is due (#2481). Thanks @gmkbenjamin!
+- Usage: populate verified z.ai, Kimi, and Grok rate-window durations for pace and forecasts while leaving unknown provider cadences unset (#2431, supersedes #2514). Thanks @Yuxin-Qiao!
+- Command Code: persist validated browser sessions so CLI refreshes and the local service can reuse them (#2541). Thanks @rbonill!
+- Menu: provider tab switches no longer blank out card rows mid-switch. Cached tab content is replanted into the attached hosting views (SwiftUI payload swap) instead of detaching `item.view`, which made Tahoe's NSMenu paint fallback "NSMenuItem" placeholder rows for a few frames; residual structural churn now renders blank instead of placeholder text. Verified frame-by-frame via 120fps screen recordings driven by the self-probe.
+- OpenCode Go: read idle WAL-mode local history without creating SQLite sidecars (#2544). Thanks @Astro-Han for the report!
+- Keychain: stop "CodexBar Cache" login-keychain password prompts from dev and test tooling. Unbundled processes (`swift build` binaries, dev CLI runs) now use a process-local cache instead of the shared keychain item, never freeze a broken trusted-app ACL onto it, and test-blocked processes disable legacy keychain interaction process-wide and export the suppression flag to spawned child binaries.
+- MiMo/StepFun: feed monthly token-plan windows into usage history, pace, and forecasts (#2526, part of #2431). Thanks @LeoLin990405!
+- CLI: clearer error when setting an API key for the codex provider — point users to the openai provider for Platform keys (#2510, fixes #2501). Thanks @Yuxin-Qiao!
+- Kiro: explain the kiro-cli requirement when no fetch strategy is available (#2465). Thanks @hxy91819!
+- Linux: posix_spawn compatibility for glibc file-actions symbols; musl and Darwin paths unchanged (#2531). Thanks @kocaemre!
+- Menu: switching provider tabs no longer flashes. The sibling-tab warmup now runs off a tracking-safe timer (the previous Task-based warmup never fired while the menu was open, which is the only time it matters), and provider tabs share one stable menu height via an invisible spacer, so a switch is a single-frame content swap with no window resize. Verified frame-by-frame with a new env-gated self-probe (`CODEXBAR_FLICKER_PROBE_DIR`).
+
+### Changed
+- About: link the Website entry to codex.bar.
+
+### Fixed
+- Alibaba: authenticate mainland and international personal Token Plans without a captured Teams workspace, preserve valid sessions on gateway permission errors, and forward optional security tokens (#2533, fixes #2500, #2349, and #2370). Thanks @wait2050!
+
+## 0.46.0 — 2026-07-29
+
+### Added
+- Qwen Cloud: new provider for Individual Token Plans with 5-hour and weekly rolling windows (#2361). Thanks @umutkeltek, and @Yach0 for the API investigation!
+- ZoomMate: new provider with credits, session history, and pacing, using host-scoped cookie routing (#2344). Thanks @weddle!
+- Alibaba: Personal/Solo Token Plan variants for mainland (Bailian) and international (Model Studio) accounts (#2487). Thanks @LeoLin990405 and @halilertekin for the investigations!
+- Claude: show prepaid credit balance in cost surfaces, using only cached or manually configured web sessions (#2443). Thanks @Zihao-Qi!
+- Claude: setting to hide the Daily Routines row (#2358, fixes #2353). Thanks @Zihao-Qi and @tavlean!
+- Codex: local Workspaces indexing foundation for per-workspace usage attribution (#2456). Thanks @AmrMohamad!
+- Menu: fractional session quota estimates with a condensed weekly forecast row (#2357). Thanks @Zihao-Qi!
+
+### Changed
+- CLI: `config dump` now redacts stored credentials by default; `--show-secrets` restores raw output (#2410, fixes #2400). Thanks @Yuxin-Qiao!
+
+### Fixed
+- Keychain: disabling Keychain access no longer breaks Cursor and Claude refresh — cookie caches fall back to memory only, and background Claude checks cannot prompt (#2426, fixes #2408 and #2425). Thanks @gmkbenjamin!
+- Claude: keep the switcher bar on the account Weekly quota instead of exhausted model carve-outs (#2424, fixes #2423). Thanks @gmkbenjamin!
+- Claude: profile-scoped credential caching so multiple Claude profiles cannot reuse each other's cached credentials, with safe legacy migration (#2484, part of #2380). Thanks @ProspectOre!
+- Codex: bound cost scans on giant session corpora with resumable parsing — huge rollouts no longer pin a CPU core and still count fully toward cost history (#2452). Thanks @D4ilyHub!
+- Menu bar: center stacked two-line custom layouts vertically (#2347, fixes #2345). Thanks @kiranmagic7, and @lg for the measured report!
+- Menu bar: stale `--hook-event` launches from other CodexBar installations no longer create duplicate menu bar items (#2416). Thanks @uclort!
+- Widgets: prevent a WidgetKit reload loop that caused sustained chronod disk writes near quota resets (#2371). Thanks @Yuxin-Qiao and @cskeleton!
+- Widgets: remove an unintended dark background overlay (#2354). Thanks @jarvisluk!
+- Widgets: Claude enterprise spend-cap accounts now persist their extra-usage row instead of synthetic Session/Weekly rows (#2478). Thanks @ChenZiHong-Gavin!
+- Claude: hide the Daily Routines row entirely when Anthropic returns a null routines payload (#2450). Thanks @urda!
+- Claude: show model-scoped weekly rows above Daily Routines (#2461, fixes #2460). Thanks @Eimerrrrr!
+- Claude: tolerate garbled "all models" captures so duplicated weekly rows no longer appear (#2434). Thanks @guhyun9454!
+- Amp: parse subscription plans (Megawatt) into proper percentage windows instead of a misleading cookie error (#2438, fixes #2435). Thanks @tylergibbs1 and @diegomrv!
+- Grok: explicit cookie-refresh imports browser cookies and caches validated sessions for background reuse (#2458). Thanks @olddonkey!
+- Kimi: reliable weekly and API-derived window durations now feed pace and forecasts (#2433). Thanks @harjothkhara!
+- Chutes: render quota counts as detail text instead of misreading them as reset schedules (#2402, fixes #2399). Thanks @kiranmagic7!
+- Alibaba/Qwen: allow Token Plan usage on Linux with a manual cookie (#2356). Thanks @OfficialAbhinavSingh!
+- LongCat: automatic cookie import falls back to Firefox after Chrome (#2462, fixes #2463). Thanks @akshayprabhu200!
+- Hooks: preserve configured hooks across config saves (#2436, fixes #2432). Thanks @kiranmagic7!
+- Menu: prioritize exhausted windows for automatic display while preserving the Antigravity preference (#2352). Thanks @Yuxin-Qiao!
+- Menu bar: refresh custom Account labels after account changes (#2362). Thanks @kiranmagic7!
+- Usage: keep the learned full-session estimate visible while the session window is idle (#2336). Thanks @Zihao-Qi!
+- Resets: show the day form at exactly 24 hours in countdowns (#2343). Thanks @OfficialAbhinavSingh!
+- z.ai: clamp the raw-percentage fallback to 0–100 (#2342). Thanks @OfficialAbhinavSingh!
+- LLMProxy: skip already-elapsed reset times when picking the next reset (#2335). Thanks @OfficialAbhinavSingh!
+- Ollama: reuse validated browser sessions across refreshes, and skip inaccessible Safari cookies during automatic
+  fallback while preserving explicit Safari permission guidance (#2404). Thanks @hxy91819!
+
 ## 0.45.2.2 — 2026-07-24
 
 ### Fixed
@@ -249,43 +348,6 @@
 - MiMo: flag a stale local-fallback cache in the summary (e.g. `stale 34d`) so a tracker that has not been refreshed by `Scripts/mimo-usage.py` is not misread as live usage. Thanks @LeoLin990405!
 - Catalan: complete current strings, align instructional voice, and enforce catalog parity. Thanks @pmontp19!
 
-## 0.41.0.1 (Mobile 1.18.0 · build 100.1) — 2026-07-10 — upstream v0.41.0 sync
-
-Syncs the Mac app from the fork baseline at upstream **v0.39.0** through
-**v0.40.0** and **v0.41.0** as one release, paired with iOS **1.18.0**.
-
-### Added / Improved
-
-- **Reliable iCloud sync and diagnostics** — Mac uploads now use cancellable
-  CloudKit operations with a 45-second deadline, serialize overlapping pushes,
-  expose the active phase, and report failures instead of remaining on
-  “Syncing” indefinitely. The existing KVS fallback is written before CloudKit
-  waits, and Advanced → Debug plus Mobile developer tools now provide a
-  read-only account/zone/KVS diagnostic and copyable file-log evidence.
-- **Complete Mac upstream sync** — Includes Claude read-only `claude-swap` account cards/switching, the responsive `codexbar cards` CLI, cost-chart scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget selection, Devin extra-usage balance, and the upstream Settings refinements.
-- **Provider correctness and safety** — Includes Kimi/Kimi K2 endpoint and finite-value fixes, Claude fractional utilization and account-history isolation, Gemini consumer-tier/Flash corrections, Alibaba international region support, browser Safe Storage prompt suppression, Codex weekly-cap presentation, and Tahoe menu-bar recovery.
-- **Cost and parser performance** — Reuses Codex pricing/catalog work, migrates incomplete cached cost maps before reporting, discovers nested Claude Desktop projects, bumps `parserLogicVersion` to 8, and regenerates the parser hash.
-- **iOS 1.18 parity** — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive values below 1% display as &lt;1% on iPhone.
-
-### Compatibility
-
-- No Shared payload key or CloudKit record schema field is added. Kimi uses existing `rateWindows`; Claude uses existing `loginMethod`.
-- CloudKit remains Production. The upstream-sync audit is recorded in
-  `CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md`; the bounded
-  writer, diagnostics, and updated 16-case evidence are in
-  `CodexBarMobile/Research/040-icloud-sync-timeout-diagnostics/03-testing.md`.
-
-### 中文说明
-
-本次把 fork 从上游 **v0.39.0** 一次性同步到 **v0.41.0**，覆盖 v0.40.0 与
-v0.41.0，并配套 iOS **1.18.0**，不拆成多个用户可见版本。
-
-- Mac 端完整纳入 Claude 多账号、`codexbar cards` CLI、Kimi 多条订阅 quota、Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。
-- iPhone 通过既有 `rateWindows` 显示 Kimi Weekly / Rate Limit / Monthly / Code 7-day，通过既有 `loginMethod` 显示 Claude Max 5x/20x；正数且低于 1% 的用量显示为 &lt;1%。
-- 本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与 16 组合兼容矩阵记录在本轮 Research 测试文档中。
-
----
-
 ## 0.41.0 — 2026-07-06
 
 ### Added
@@ -344,68 +406,6 @@ v0.41.0，并配套 iOS **1.18.0**，不拆成多个用户可见版本。
 - Reset times: preserve minute precision in long day-scale countdowns when there are no whole hours, while keeping countdowns compact to two units. Thanks @konon4!
 - Mistral: reject non-finite and overflowing credit balances before they can reach menu, CLI, or widget formatting. Thanks @joeVenner!
 
-## 0.39.0.1 (Mobile 1.17.0 · build 97.1) — 2026-07-04 — upstream v0.39.0 sync
-
-Syncs the Mac app to upstream CodexBar **v0.39.0** (spanning v0.38.0–v0.39.0)
-and pairs it with iOS **1.17.0**. This is one combined upstream-sync release
-for the current upstream-sync issue set, keeping the provider additions,
-settings redesign, menu/provider fixes, and iOS compatibility work together.
-
-### Added / Improved
-
-- **New upstream providers** — Sakana AI, Qoder, CrossModel, and ClawRouter are
-  included in the Mac provider registry, diagnostics, status/menu rendering,
-  and the fork's iCloud sync path.
-- **iOS provider parity** — The companion app now registers the new providers
-  for quota-transition zones, provider colors, synthetic test data, and detail
-  pages. CrossModel gets a typed optional sync payload for wallet balance,
-  uncollected spend, and day/week/month usage windows.
-- **Cost sync bridge** — CrossModel native spend maps into `SyncCostSummary`,
-  so iOS Cost views can include it without requiring a CloudKit schema change.
-- **Settings sync preservation** — The upstream Settings `NavigationSplitView`
-  redesign is merged while preserving the fork's Mobile pane and iCloud sync
-  controls.
-- **Mock QA coverage** — Mac mock sync now emits 69 synthetic providers across
-  59 IDs, including the v0.38/v0.39 provider set for iPhone layout and
-  compatibility testing.
-
-### Compatibility
-
-- CloudKit stays in the Production environment. No CloudKit Dashboard deploy is
-  expected for this release because the sync changes are additive optional
-  fields inside the existing compressed provider payload.
-- The 2 Mac x 2 iPhone old/new compatibility gate and substituted evidence are
-  tracked in `CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md`.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar **v0.39.0**（覆盖 v0.38.0–v0.39.0），并配套 iOS
-**1.17.0**。本次把当前 upstream-sync issue 集合合并为一个版本，避免把 provider
-新增、Settings 改版、菜单/provider 修复和 iOS 兼容工作拆散。
-
-### 新增 / 改进
-
-- **新增上游 provider** —— Sakana AI、Qoder、CrossModel、ClawRouter 已纳入 Mac
-  provider registry、诊断、状态/menu 渲染，以及 fork 的 iCloud sync 路径。
-- **iOS provider 对齐** —— companion app 为新 provider 补齐 quota-transition zone、
-  provider 颜色、合成测试数据和详情页；CrossModel 通过可选 typed payload 显示钱包余额、
-  待结算金额和 day/week/month 用量。
-- **Cost sync bridge** —— CrossModel 原生 spend 会映射为 `SyncCostSummary`，
-  iOS Cost 视图无需 CloudKit schema 变更即可纳入它。
-- **Settings sync 保留** —— 合并上游 Settings `NavigationSplitView` 改版，同时保留
-  fork 的 Mobile pane 和 iCloud sync 控件。
-- **Mock QA 覆盖** —— Mac mock sync 现在推送 69 个 synthetic provider、覆盖 59 个 ID，
-  包含 v0.38/v0.39 provider 集，用于 iPhone 布局和兼容测试。
-
-### 兼容性
-
-- CloudKit 保持 Production 环境。本次 sync 变更只是既有压缩 provider payload 内的可选字段，
-  预期不需要 CloudKit Dashboard deploy。
-- 2 Mac x 2 iPhone 新旧版本兼容 gate 与替代证据记录在
-  `CodexBarMobile/Research/037-v039-upstream-sync/03-testing.md`。
-
----
-
 ## 0.39.0 — 2026-07-04
 
 ### Added
@@ -429,337 +429,377 @@ settings redesign, menu/provider fixes, and iOS compatibility work together.
 - OpenCode web: search Dia after Chrome for automatic cookie import, with Keychain preflight scoped to the candidate browser (fixes #1822). Thanks @zeajose!
 - Claude: make the "Avoid Keychain prompts" setting use the no-prompt policy instead of the experimental `security` CLI reader. Thanks @gmkbenjamin!
 
----
+## 0.38.1 — 2026-07-04
 
-## 0.37.2.1 (Mobile 1.15.0 · build 92.1) — 2026-06-23 — upstream v0.37.2 sync
+### Added
+- Localization: add complete Russian coverage for the app and redesigned website. Thanks @Kirchberg!
+- Localization: add Galician app translations and language selection. Thanks @B1NAR10!
+- ClawRouter: add API-key tracking for monthly budget, spend, requests, tokens, and routed-provider usage.
+- Claude: show model-scoped weekly quota windows, including promotional Fable limits, from OAuth and web usage responses. Thanks @konon4!
+- Usage refresh: add an opt-in Adaptive cadence that polls every 2–30 minutes based on recent menu use, Low Power Mode, and thermal state. Thanks @hhh2210!
+- Codex: show a conservative 1.5× pace-headroom hint in menus and CLI output when usage is safely ahead of the reset curve. Thanks @astuteprogrammer!
 
-Syncs the Mac app to upstream CodexBar **v0.37.2** (spanning v0.37.0–v0.37.2)
-and pairs it with the next iOS train, **1.15.0**. This is one combined
-upstream-sync release for issues #30, #32, and #33; it intentionally does not
-split the v0.37 provider, widget, security, diagnostics, and menu reliability
-work into separate user-visible versions.
-
-### Added / Improved
-
-- **New Mac widgets** — Codex and Claude burn-down widgets now include
-  single-window and combined session/weekly views for faster quota planning.
-- **Provider data improvements** — Bedrock can show rolling 14-day CloudWatch
-  activity, Mistral adds Vibe monthly-plan usage, Cursor separates personal
-  on-demand spend from shared team pool, Codex can expose configured profile
-  homes as switchable accounts, and Codex OAuth accounts can show manual reset
-  credits with expiry.
-- **Diagnostics and CLI visibility** — provider diagnostics can be exported as
-  redacted reports with platform/app-version context, and the CLI server reports
-  its startup build version from `/health`.
-- **Security hardening** — Codex OAuth credentials are refreshed with private
-  file permissions, and unsafe endpoint overrides are rejected before attaching
-  credentials for Deepgram, z.ai, Xiaomi MiMo, and Azure OpenAI.
-- **Menu and performance fixes** — refresh stays in-place while the menu remains
-  open, provider cards align with the Overview layout, memory-pressure callbacks
-  avoid actor-isolation crashes, idle WebViews and rebuildable caches are trimmed
-  safely, and release packages are smaller.
-- **iOS 1.15 readiness** — the companion app will use this release train for any
-  new mobile-side rendering or compatibility support required by the v0.37 Mac
-  data. The already-reviewing iOS 1.14 release remains separate.
-
-### Compatibility
-
-- CloudKit stays in the Production environment. Schema deploy decisions and the
-  2 Mac x 2 iPhone old/new compatibility gate are tracked in
-  `CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md`.
-- Provider-display values are expected to stay inside the existing compressed
-  provider payload or existing quota-transition record path unless the v0.37
-  payload audit records an explicit optional-field addition.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar **v0.37.2**（覆盖 v0.37.0–v0.37.2），并配套下一条
-iOS 发布线 **1.15.0**。本次把 issue #30、#32、#33 覆盖的上游内容合并为一个用户可见版本，
-不把 v0.37 的 provider、widget、安全、诊断和菜单可靠性改动拆成多次发布。
-
-### 新增 / 改进
-
-- **新的 Mac widget** —— Codex 与 Claude burn-down widget 支持单窗口和 session/weekly
-  组合视图，方便判断 quota 消耗节奏。
-- **Provider 数据增强** —— Bedrock 可显示 14 天 CloudWatch 活动，Mistral 增加 Vibe
-  月度套餐用量，Cursor 区分个人按需消费和团队共享池，Codex 可把显式配置的 profile home
-  作为账号切换，并显示 OAuth 手动重置额度及到期时间。
-- **诊断与 CLI 可见性** —— provider 诊断可导出带平台/app 版本上下文的脱敏报告；
-  CLI server 的 `/health` 会报告启动时的 build version。
-- **安全加固** —— Codex OAuth 凭据刷新后使用私有文件权限；Deepgram、z.ai、Xiaomi MiMo
-  与 Azure OpenAI 的不安全 endpoint override 会在附加凭据前被拒绝。
-- **菜单与性能修复** —— 刷新时菜单保持打开并原地显示进度，provider card 对齐 Overview
-  布局，memory-pressure callback 避免 actor-isolation crash，空闲 WebView 和可重建缓存会安全释放，
-  release 包体积也更小。
-- **iOS 1.15 准备** —— companion app 会用 1.15 发布线承接 v0.37 Mac 数据所需的新渲染或兼容支持；
-  已在 review 的 iOS 1.14 保持独立。
-
-### 兼容性
-
-- CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate
-  记录在 `CodexBarMobile/Research/033-v037-upstream-sync/03-testing.md`。
-- Provider 展示值预期继续保留在现有压缩 provider payload 或既有 quota-transition record 路径中；
-  如 v0.37 payload 审计需要新增可选字段，会在 Research 中单独记录。
-
----
-
-## 0.36.1.1 (Mobile 1.13.0 · build 88.1) — 2026-06-16 — upstream v0.36.1 sync
-
-Syncs the Mac app to upstream CodexBar **v0.36.1** (spanning v0.36.0–v0.36.1)
-and pairs it with iOS **1.13.0**. This is one combined upstream-sync release
-for issue #28; it intentionally does not split LiteLLM, Poe, Chutes, Zed, and
-the Antigravity/provider reliability fixes into separate user-visible versions.
-
-### Added / Improved
-
-- **New upstream providers** — LiteLLM personal/team budget tracking, Poe point
-  balance and recent history, Chutes subscription/quota/pay-as-you-go tracking,
-  and Zed editor-session plan/quota/billing-cycle tracking.
-- **iOS provider readiness** — the mobile companion is prepared to recognize and
-  render the new provider data that arrives through the existing Mac → CloudKit
-  sync payload. Provider credentials and live API/Keychain access remain Mac-only.
-- **iOS 1.13.0 direct train** — the companion release folds in the unreleased
-  1.12.0 sync work as well, including MiniMax renewal/expiration metadata,
-  Devin quotas, Copilot budget windows, MiMo balance/token-plan updates, Kimi
-  Code API usage, and rolling-upgrade preservation of rich provider details.
-- **Antigravity accuracy** — quota summaries now prefer current local app/CLI
-  sources, group Gemini and Claude + GPT session/weekly windows, and preserve
-  structured reset timestamps for localized display.
-- **Menu bar reliability** — upstream fixes stale open-menu values, provider
-  switcher background, hosted submenu refresh timing, subprocess pipe hangs, Kiro
-  helper cleanup, Gemini package discovery, and bounded optional provider work.
-- **Configuration and localization** — Mac config resolution now honors absolute
-  `XDG_CONFIG_HOME` while preserving legacy paths, and upstream Mac resources
-  expand to the 21-language catalog. iOS remains on this fork's required
-  English, Simplified Chinese, Traditional Chinese, and Japanese localizations.
-- **Provider polish** — Ollama uses the official icon, Copilot exposes shared
-  reset dates for limited windows, OpenCode Go handles Zen balances without a
-  subscription window, and the website/provider gallery gains LiteLLM, Poe,
-  Chutes, Zed, Devin, and T3 Chat assets.
-
-### Compatibility
-
-- CloudKit stays in the Production environment. Schema deploy decisions and the
-  2 Mac x 2 iPhone old/new compatibility gate are tracked in
-  `CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md`.
-- New provider values are expected to stay inside the existing compressed
-  provider payload or existing quota-transition record path. Existing iOS builds
-  should ignore unrecognized optional payload fields.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar **v0.36.1**（覆盖 v0.36.0–v0.36.1），并配套 iOS
-**1.13.0**。本次把 issue #28 覆盖的上游内容合并为一个用户可见版本，不把
-LiteLLM、Poe、Chutes、Zed 和 Antigravity/provider 稳定性修复拆成多次发布。
-
-### 新增 / 改进
-
-- **新增上游 provider** —— LiteLLM 个人/团队 budget、Poe 积分余额和近期历史、Chutes
-  订阅/quota/pay-as-you-go 用量，以及 Zed 编辑器 session 的套餐、quota、账期和逾期发票状态。
-- **iOS provider 准备** —— mobile companion 会识别并渲染通过现有 Mac → CloudKit 同步
-  payload 传来的新 provider 数据；provider 凭证、API 请求和 Keychain/editor session 仍只在 Mac 端处理。
-- **iOS 1.13.0 直接发布线** —— companion release 同时合入未单独发布的 1.12.0 同步工作，
-  包括 MiniMax 续费/到期元数据、Devin 配额、Copilot budget 窗口、MiMo 余额与 token-plan 更新、
-  Kimi Code API 用量，以及滚动升级时保留丰富 provider 详情。
-- **Antigravity 准确性** —— quota summary 优先使用当前本地 app/CLI 来源，按 Gemini 与
-  Claude + GPT 的 session/weekly 窗口分组，并保留结构化 reset timestamp 用于本地化显示。
-- **菜单栏可靠性** —— 合入打开菜单时数值原地刷新、provider switcher 背景、submenu 刷新时序、
-  子进程 pipe hang、Kiro helper 清理、Gemini package discovery 和可选 provider enrichment 超时边界修复。
-- **配置与本地化** —— Mac config resolution 支持绝对 `XDG_CONFIG_HOME` 并保留 legacy 路径；
-  上游 Mac 资源扩展到 21 语言。iOS 仍按本 fork 规则保持 English、简体中文、繁体中文、日文四语言。
-- **Provider polish** —— Ollama 使用官方图标，Copilot 显示 limited window 的共享 reset date，
-  OpenCode Go 在无订阅窗口时仍显示 Zen balance，网站/provider gallery 加入 LiteLLM、Poe、Chutes、
-  Zed、Devin 和 T3 Chat 资产。
-
-### 兼容性
-
-- CloudKit 保持 Production 环境。schema deploy 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate
-  记录在 `CodexBarMobile/Research/030-v036-upstream-sync/03-testing.md`。
-- 新 provider 值预期保留在现有压缩 provider payload 或既有 quota-transition record 路径中；
-  旧 iOS build 应安全忽略不认识的可选字段。
-
----
-
-## 0.35.0.1 (Mobile 1.12.0 · build 85.1) — 2026-06-14 — upstream v0.35.0 sync
-
-Syncs the Mac app to upstream CodexBar **v0.35.0** (spanning v0.32.5–v0.35.0) and ships the paired iOS **1.12.0** companion. This is one combined upstream-sync release; it intentionally folds the open upstream-sync issues for v0.32.5, v0.33.0, v0.34.0, and v0.35.0 into a single user-visible version.
-
-### Added / Improved
-
-- **New upstream providers and data paths** — Devin daily/weekly quota tracking, Copilot billing budget windows, MiMo balance/token-plan improvements, Kimi Code API key usage, and MiMo local session-log fallback.
-- **MiniMax on iPhone** — subscription renewal/expiration dates now sync as additive optional metadata and render on the iOS provider card when Mac sends them.
-- **Menu bar reliability and performance** — upstream fixes for merged-provider menu flicker, delayed switching, tracking-session stalls, shortcut handling, layout stability, and open-menu refresh behavior.
-- **Provider accuracy** — upstream fixes for Antigravity, Cursor, Grok, OpenAI API pagination, Amp, Doubao, Bedrock, Claude pricing/cache behavior, and provider endpoint security validation.
-- **Localization** — upstream adds French, Ukrainian, Dutch, Vietnamese, Japanese, German, Korean, and Turkish Mac localizations.
-- **iOS bridge preparation** — Mac sync payloads and iOS compatibility handling are updated for the upstream fields that matter to the mobile companion, with old/new device matrix testing recorded in Research.
-
-### Compatibility
-
-- CloudKit stays in the Production environment. Any wire/schema decision and the 2 Mac x 2 iPhone old/new compatibility gate are tracked in `CodexBarMobile/Research/029-v035-upstream-sync/03-testing.md`.
-- Existing iOS builds safely ignore fields they do not understand; iOS 1.12.0 is the paired build for the complete v0.35.0 data set.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar **v0.35.0**（覆盖 v0.32.5–v0.35.0），并配套发布 iOS **1.12.0**。本次把当前 open 的 v0.32.5、v0.33.0、v0.34.0、v0.35.0 upstream-sync issue 合并为一个用户可见版本，不拆多次发布。
-
-### 新增 / 改进
-
-- **新增上游 provider 与数据通道** —— Devin 每日/每周配额、Copilot billing budget、MiMo 余额与 token-plan 改进、Kimi Code API key 用量、MiMo 本地 session-log fallback。
-- **MiniMax on iPhone** —— 订阅续费/到期日期现在作为可选同步元数据传到 iOS，并在 Mac 发送这些字段时显示在 provider 卡片上。
-- **菜单栏可靠性和性能** —— 合入上游针对合并 provider 菜单闪烁、切换延迟、tracking-session 卡顿、快捷键、布局稳定性和打开菜单刷新行为的修复。
-- **Provider 准确性** —— 合入 Antigravity、Cursor、Grok、OpenAI API 分页、Amp、Doubao、Bedrock、Claude 定价/cache 行为和 provider endpoint 安全校验修复。
-- **本地化** —— 合入上游 Mac 端 French、Ukrainian、Dutch、Vietnamese、Japanese、German、Korean、Turkish 语言支持。
-- **iOS 同步准备** —— 针对 mobile companion 需要展示或兼容的上游字段更新 Mac sync payload 与 iOS 兼容处理；新旧设备矩阵测试记录在 Research 中。
-
-### 兼容性
-
-- CloudKit 保持 Production 环境。wire/schema 判断以及 2 Mac x 2 iPhone 新旧版本兼容 gate 记录在 `CodexBarMobile/Research/029-v035-upstream-sync/03-testing.md`。
-- 旧 iOS build 会安全忽略无法识别的新字段；iOS 1.12.0 是完整 v0.35.0 数据集的配套版本。
-
----
-
-## iOS 1.11.1 (build 151) — 2026-06-06 — Daily Spend chart scroll fix (iOS-only; Mac unchanged at 0.32.4.1)
-
-iOS-only patch on top of 1.11.0. The Cost tab's **Daily Spend** chart now shows a ~30-day viewport and scrolls horizontally through the full accumulated history (50 / 90 / 365-day windows) instead of cramming every day into one non-scrollable screen. No Mac change — Mac stays at 0.32.4.1. Re-versioned from the unreleased build 150 because iOS 1.11.0 (build 149) is already in App Store review.
-
-### 中文说明
-
-仅 iOS 的补丁，叠加在 1.11.0 之上。「费用」标签的「每日支出」图表现在显示约 30 天的视口，并可横向滚动浏览完整的已积累历史（50 / 90 / 365 天窗口），不再把所有天数挤在一屏里无法滚动。Mac 端无变化，仍为 0.32.4.1。因 iOS 1.11.0（build 149）已在 App Store 审核中，故从未发布的 build 150 重新定版为 1.11.1。
-
-## 0.32.4.1 (Mobile 1.11.0 · build 79.1) — 2026-06-03 — upstream v0.32.4 sync
-
-Syncs the Mac app to upstream CodexBar **v0.32.4** (spanning 0.32.0–0.32.4) and ships the paired iOS **1.11.0** companion. A refinement + reliability batch — no new providers; the visible wins are quieter, more accurate provider data that flows through to iPhone automatically.
-
-### Fixed / Improved
-
-- **Antigravity** quota rows are cleaner — image / lite / autocomplete / internal noise rows no longer skew the summary bar (#1209).
-- **Copilot** zero-entitlement business tokens no longer show a misleading usage percentage (#1258).
-- **Augment** usage parses correctly again after the upstream `auggie` status-format change, with a browser-cookie fallback (#1224).
-- **Claude** keeps the last good web-usage snapshot through a brief Unauthorized refresh instead of blanking, and delegates the CLI OAuth refresh token so CodexBar stops forcing re-logins (#1220, #1239).
-- **Codex cost** scanner rewrite (faster scans, new fast-JSON path) — the on-disk cost cache is invalidated and re-scanned so Codex and Claude cost cards reflect the new parser.
-- Plus upstream menu-bar, OpenAI Web, and notarization-path hardening for macOS 26.
-- **iOS** — new provider search at the top of the Usage list (filter by name) for easier navigation of a long synced provider list.
-
-### Compatibility
-
-- No wire-format, schema, or CloudKit change. Mixing app versions across Macs and iPhones stays safe — the refinements arrive once Mac is on 0.32.4.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar **v0.32.4**（覆盖 0.32.0–0.32.4），并配套发布 iOS **1.11.0**。本批以精修 + 可靠性为主，无新增 provider；可见收益是更干净、更准确的 provider 数据，并自动同步到 iPhone。
-
-### 修复 / 改进
-
-- **Antigravity** 配额行更干净 —— image / lite / autocomplete / internal 噪声行不再干扰汇总进度条（#1209）。
-- **Copilot** zero-entitlement 商业 token 不再显示误导性用量百分比（#1258）。
-- **Augment** 在上游 `auggie` 状态格式变更后用量重新正确解析，并增加浏览器 cookie fallback（#1224）。
-- **Claude** 短暂 Unauthorized 刷新期间保留最后有效的 web 用量快照而不清空，并把 CLI 的 OAuth refresh token 委托出去，避免强制重登（#1220、#1239）。
-- **Codex 成本** 扫描器重写（更快、新增 fast-JSON 路径）—— 失效并重扫磁盘成本缓存，使 Codex 与 Claude 成本卡反映新 parser。
-- 以及上游菜单栏、OpenAI Web、公证路径加固（macOS 26）。
-- **iOS** —— Usage 列表顶部新增 provider 搜索（按名称过滤），同步的 provider 多时更好找。
-
-### 兼容性
-
-- 无 wire / schema / CloudKit 变更。Mac 与 iPhone 间混用版本安全 —— 待 Mac 升级到 0.32.4 后这些精修即到达。
-
----
-
-## 0.31.0.2 (Mobile 1.10.0 · build 73.2) — 2026-06-02 — cost-cache invalidation hotfix
-
-Hotfix on top of 0.31.0.1: forces the Codex and Claude cost-usage caches to re-scan after the v0.31.0 parser update, so cost cards show the new parser's numbers instead of stale cached attributions.
+### Changed
+- Branding: replace the app and website icon with a usage-meter prompt mark that matches CodexBar's core UI.
+- Website: redesign codexbar.app around faster download, provider discovery, feature, CLI, and widget paths with responsive dark/light and localized layouts. Thanks @vyctorbrzezowski!
+- Architecture: accept a bounded opt-in adaptive refresh design with a deterministic 2–30-minute cadence and no behavioral telemetry. Thanks @hhh2210!
+- Architecture: define the security and identity boundaries required before custom HTTP JSON providers can be implemented safely.
+- Claude: accept a display-only multi-account design based on read-only `claude-swap --list --json`, without account switching or credential storage.
+- Notifications: accept a default-off predictive pace warning design that alerts once per risk episode and re-arms only after authoritative recovery.
+- OpenCode Go: accept bounded automatic multi-workspace fan-out while preserving the configured workspace as an exact single-workspace override.
+- Xiaomi MiMo: require authoritative cadence evidence before showing reserve or deficit projections, avoiding guesses from plan dates or names.
 
 ### Fixed
+- Gemini: resolve fnm from the active PATH, stop package-discovery helpers on deadline, and return after the first output line even when descendants keep stdout open.
+- Branding: replace the malformed Poe icon and use Poe's official purple consistently across the app, widget, and website. Thanks @garethpaul!
+- Monthly quota pace: show reserve, deficit, and run-out estimates for OpenCode Go, Doubao, and Alibaba monthly reset windows using their calendar-cycle length. Thanks @Zihao-Qi and @joeVenner!
+- Localization: translate the Default Terminal setting across every supported app language. Thanks @Zihao-Qi!
+- Settings: recover collapsed sidebars and undersized saved window frames when reopening Settings. Thanks @ProspectOre!
+- z.ai: parse successful BigModel CN quota responses that omit the optional message field, while preserving useful API-code errors. Thanks @joeVenner!
+- Claude: block background delegated CLI OAuth refresh when the keychain holds MCP-only state (`mcpOAuth` without `claudeAiOauth`) while preserving explicit Refresh recovery (#1844). Thanks @Yuxin-Qiao!
+- OpenAI API: reject non-finite cost values before they can corrupt usage totals or JSON output. Thanks @joeVenner!
+- OpenCode: ignore non-finite and out-of-range reset timestamps instead of crashing usage parsing, while preserving valid quota windows. Thanks @joeVenner!
 
-- **Cost caches now re-scan after the v0.31.0 parser update** — the upstream merge rewrote the Codex and Claude cost-usage scanner, but neither cache-invalidation axis was rolled, so upgrading users kept the old parser's cached cost attributions. Bumped `parserLogicVersion` and regenerated the parser-source hash so every Codex and Claude cost cache is invalidated and re-scanned on next launch. Codex was already covered by the scanner-hash axis (its value changed across the upgrade); this closes the Claude gap — Claude has no producer-key axis and relies solely on the pricing fingerprint.
+## 0.38.0 — 2026-07-03
 
-### Compatibility
+### Added
+- Doubao: add signed Volcengine AK/SK support for Coding Plan session, weekly, and monthly usage. Thanks @LeoLin990405!
+- CrossModel: add API-key wallet balance and UTC daily, weekly, and monthly spend tracking. Thanks @hujuncheng!
+- Localization: complete Traditional Chinese provider and menu coverage, and route remaining provider UI copy through localized formatters. Thanks @jack24254029!
+- Menu: add an opt-in setting to refresh provider usage whenever the menu opens without changing the periodic refresh clock. Thanks @dstier-git!
+- Qoder: add big-model credit usage from qoder.com and qoder.com.cn browser sessions or manual cookies. Thanks @Yuxin-Qiao!
+- Quota warnings: add an optional centered on-screen text alert that stays click-through and does not steal focus. Thanks @SAASEmpiree!
+- Sakana AI: add manual-cookie usage for five-hour and weekly quota windows. Thanks @LeoLin990405!
+- Status pages: show live component submenus for Claude, Codex, and Augment. Thanks @elijahfriedman!
+- Cost history: choose inline, submenu, or combined local-cost presentation. Thanks @Zihao-Qi!
+- Confetti: optionally celebrate session-limit resets with full-screen confetti, configurable beside the weekly-limit celebration in Advanced settings. Thanks @bystritskiy!
+- z.ai: support saved token-account team usage with account-scoped organization and project metadata. Thanks @zqbake!
+- CLI: show session pace in text output, expose derived pace data in JSON, and honor the configured weekly work-day baseline. Thanks @kmatsunami!
+- Claude: add a combined "Session + Weekly" menu bar metric that shows the 5-hour session and weekly lanes together (paced on the weekly lane), matching Codex, and classify lanes by cadence so a weekly-only account is not mislabeled as a session. Thanks @Shengqiang-Zhang!
 
-- No wire-format, schema, or CloudKit change. iOS app code is identical to build 145; iPhone build 146 is a version bump to pair with this Mac hotfix. Mixing app versions across Macs and iPhones stays safe.
+### Changed
+- Settings: complete redesign as a System Settings-style window — a sidebar lists app panes plus every provider (search, drag reorder, status dots, enable via context menu), panes use native grouped forms, the window keeps one size instead of resizing per tab, and the last selected pane is remembered across launches.
+- Menu: group Plan Usage, Cost, and Storage rows so related account usage is easier to scan. Thanks @Zihao-Qi!
 
-### 中文说明
+### Fixed
+- Usage refresh: refresh provider data shortly after known quota reset boundaries instead of leaving expired reset times visible until the next normal poll. Thanks @pavbar!
+- Settings: align General-pane controls, show compact installed terminal app icons, and enlarge the window to fit more options.
+- Sakana AI: parse server-rendered quota reset timestamps as UTC instead of device-local time (#1826). Thanks @ss251!
+- Cursor: hide misleading pace and run-out details once a billing-cycle quota is fully depleted. Thanks @Yuxin-Qiao!
+- Claude Education: treat subscription-only CLI responses as unavailable quotas, keep local cost data in menus and widgets, and suppress expected refresh cancellations (#1808).
+- Claude web usage: bound stale requests so Auto can reach CLI fallback instead of hanging indefinitely.
+- Claude history: keep OAuth utilization separate across account switches while preserving continuity through token refreshes.
+- Linux CLI: keep Claude OAuth usage subprocess-free, skip version probes, and let Auto bypass unsupported web sources. Thanks @derekszen!
+- Usage display: make Usage widgets follow the used-versus-remaining preference already shared by menus and Overview rows (#1738). Thanks @OlegLustenko and @FrancoLan!
+- OpenCode Go: keep rolling usage available when the dashboard omits the optional weekly window. Thanks @mohkg1017!
+- Menu bar: make Show most-used provider rank only providers selected for Overview. Thanks @dstier-git!
+- Codex: show expiring reset-credit availability even when optional credits and extra usage are hidden, while preserving CLI `--no-credits`. Thanks @simon-ami!
+- Claude CLI: prevent logged-out background Auto fallbacks from opening browser OAuth during app refresh. Thanks @afarwind!
+- Keychain prompts: explain that macOS handles password entry, surface the existing opt-out path, and link to troubleshooting before access begins (fixes #1681). Thanks @someshfengde and @Yuxin-Qiao!
+- Claude: use the dedicated Claude Code authentication command for sign-in, report its real exit status, and stop treating a browser URL as completed login (fixes #1715).
+- OpenAI API: explain that project service-account keys cannot read organization usage instead of surfacing a generic credit-balance HTTP 401 error (fixes #1792). Thanks @dhruv-anand-aintech!
+- Codex cost history: stop double-billing cached input and reprice stale Codex and Pi cache entries. Thanks @dstier-git!
+- Overview: render row selection on the GPU to keep trackpad scrolling smooth. Thanks @hhh2210!
+- Codex cost history: count cache reads separately, deduplicate active and archived sessions at row level, and preserve cached days across narrow refreshes. Thanks @kiranmagic7!
+- Pi cost history: price Codex cache reads once using their true context size. Thanks @kiranmagic7!
+- Menu bar: in the combined "Session + Weekly" metric (Codex and Claude), pair the 5-hour session usage with the weekly pace in pace and both display modes instead of showing the busier (most-constrained) lane's usage, which mislabeled the readout as weekly usage + weekly pace. Thanks @Shengqiang-Zhang!
+- Menu bar: in the combined "Session + Weekly" metric, ignore Claude web's synthetic 0% five-hour placeholder (emitted for accounts with no live session window but a real weekly lane) so the readout shows the weekly lane instead of a non-existent `5h 0%`/`5h 100%` session.
+- Memory pressure: finish isolating utility-queue source reads from main-actor state to prevent the remaining callback crash. Thanks @Zihao-Qi!
+- Kiro: run account, usage, and context commands through a PTY so current CLI versions return usage without timing out. Thanks @sf-jin-ku!
+- OpenAI web: ignore stale profiles from removed browsers, discover registered installs outside standard app folders, and surface browser-profile access and cookie-load timeout diagnostics.
+- PTY probes: preserve Darwin device identifiers without crashing when Intel macOS reports signed values.
+- CLI server: collect `/usage` providers concurrently under finite per-provider deadlines so one hung provider degrades to its own error row without discarding healthy results. Thanks @enieuwy!
+- Privacy: hide account and team identity values without showing a `Hidden` placeholder or empty account rows. Thanks @Zihao-Qi!
+- Mistral: restore Vibe monthly-plan usage by forwarding only required console session cookies. Thanks @lfmundim!
+- Codex: show enterprise monthly credit limits across OAuth, CLI, menu, and widget surfaces. Thanks @ChenZiHong-Gavin!
+- Codex: avoid launching monthly-credit CLI enrichment during usage-only OAuth refreshes.
+- Usage display: keep positive values below one percent visible instead of rounding them to zero. Thanks @Max0633!
+- Menu bar: show pace as `0%` instead of a signed `+0%` or `-0%` when the pace delta rounds to zero. Thanks @devYRPauli!
+- Menu: align the persistent Refresh row with native actions, keep Settings, About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon. Thanks @Zihao-Qi!
+- Menu: match the persistent Refresh symbol size, weight, and icon column to native action rows across standard and narrow provider menus. Thanks @micnem!
+- Claude: stop installed-version checks from invoking a login shell and triggering unwanted Keychain prompts. Thanks @enieuwy!
+- Localization: reject blank translated values and restore the affected Vietnamese provider prompts. Thanks @kiranmagic7!
+- Usage totals: keep Today tied to the current local calendar day across cost, Admin API, and Poe surfaces instead of showing the latest historical bucket. Thanks @Zihao-Qi!
+- Antigravity: align compact icons and automatic highest-usage selection with grouped Gemini and Claude/GPT 5-hour and weekly lanes while ignoring non-renderable cadences. Thanks @Yuxin-Qiao!
+- Antigravity CLI: reuse an authenticated user-launched `agy` server for faster, more reliable one-shot usage checks. Thanks @junmo-kim!
 
-0.31.0.1 的热修复：v0.31.0 合并重写了 Codex 与 Claude 的成本扫描器，但两条缓存失效轴都没滚动，导致升级用户的成本卡仍显示旧 parser 的缓存归因。本次 bump `parserLogicVersion` 并重生成 parser 源码 hash，强制所有 Codex 与 Claude 成本缓存在下次启动时失效并重扫。Codex 原本已被 scanner-hash 轴覆盖（其值在升级间已变化）；本次补齐 Claude —— Claude 没有 producer-key 轴，只依赖定价 fingerprint。无 wire / schema / CloudKit 变更，iOS app 代码与 build 145 完全一致，手机端 build 146 仅为配套 Mac 热修复的版本号 bump。
+## 0.37.2 — 2026-06-22
 
----
+### Added
+- Diagnostics: write redacted provider reports to a file with platform and app-version context. Thanks @Yuxin-Qiao!
+- CLI server: report the startup build version from `/health` so clients can detect stale helper processes after updates. Thanks @enieuwy!
 
-## 0.31.0.1 (Mobile 1.10.0 · build 73.1) — 2026-05-30 — upstream v0.31.0 + iOS 1.10.0
+### Fixed
+- Claude: pause background CLI usage probes briefly after rate limiting while keeping manual refresh available. Thanks @kiranmagic7!
+- Codex OAuth: publish refreshed `auth.json` credentials with private file permissions already applied. Thanks @Hinotoi-agent!
+- Provider endpoints: reject unsafe Deepgram, z.ai, and Xiaomi MiMo overrides before attaching credentials. Thanks @Hinotoi-agent!
+- Azure OpenAI: reject unsafe endpoint overrides before attaching API keys while keeping invalid configurations visible with an actionable error. Thanks @Hinotoi-agent!
 
-Syncs the Mac app to upstream CodexBar **v0.31.0** (spanning 0.29.1–0.31.0) and ships the paired iOS **1.10.0** companion.
+## 0.37.1 — 2026-06-21
 
-### Highlights — Mobile 1.10.0
+### Fixed
+- MiniMax: recover detailed token-plan windows from the remains API when the coding-plan page only exposes coarse usage. Thanks @Yuxin-Qiao!
+- Cost history: remove the redundant tooltip from submenu-backed Cost rows. Thanks @Zihao-Qi!
+- Menu refresh: keep the menu open and show in-place progress when Refresh is clicked. Thanks @elijahfriedman!
+- Menu: align provider usage-card spacing with the Overview layout. Thanks @Zihao-Qi!
+- Memory pressure: avoid actor-isolation crashes when system callbacks arrive on a utility queue. Thanks @Zihao-Qi!
+- Menu: remove extra separators and spacing around Storage, Cost, and Subscription Utilization rows. Thanks @elijahfriedman!
+- Antigravity: show limits as unavailable when OAuth identifies the account but quota endpoints deny access. Thanks @Yuxin-Qiao!
 
-- **DeepSeek** now shows web-session usage + cost on iOS — today / this-month tokens, spend, and request counts beside the balance.
-- **Codex Spark** (5-hour + weekly) and **Antigravity** per-model quota lanes now sync through to iOS.
-- **Cost cards** display request counts and the correct currency (EUR / CNY), not just USD.
-- Upstream fixes flow through automatically: Claude Enterprise extra-usage amount (no longer 100× too high), Grok / Ollama window labels + pace projection, and the Claude "Design" lane folded into the main Claude limit.
+## 0.37.0 — 2026-06-19
 
-### Compatibility
+### Added
+- Widgets: add single-window and combined burn-down charts for Codex and Claude session/weekly limits. Thanks @jamesjlopez!
+- AWS Bedrock: show optional rolling 14-day Claude token and request totals from CloudWatch. Thanks @zyaiire!
+- Codex: optionally show both session-window and weekly percentages in the compact menu bar label. Thanks @thepraggyverse!
+- Cursor: show personal on-demand spend alongside the shared team pool. Thanks @yashiels!
+- Documentation: link the community KDE Plasma panel integration. Thanks @tylxr59!
+- Codex: expose explicitly configured profile homes as switchable accounts without copying their credentials. Thanks @kiranmagic7!
+- Codex: show available manual rate-limit reset credits and their next expiry for signed-in OAuth accounts. Thanks @rogdex24!
+- Mistral: add Vibe monthly-plan usage and menu bar metric selection. Thanks @lfmundim!
+- Storage: show a compact segmented provider breakdown with an expandable Other group. Thanks @elijahfriedman!
+- Settings: add an optional enabled-first alphabetical sort for the Providers sidebar without changing custom order. Thanks @elijahfriedman!
+- Linux CLI: publish static musl release tarballs for x86_64 and aarch64. Thanks @Yuxin-Qiao!
+- Documentation: add safe troubleshooting for browser Keychain prompts that persist after uninstall. Thanks @Yuxin-Qiao!
+- Diagnostics: report provider-neutral usage confidence and mark fully decoded Codex OAuth windows exact. Thanks @Yuxin-Qiao!
+- Codex agents: add a read-only `codexbar` skill for bounded, redacted provider usage JSON. Thanks @coygeek!
+- Display: add a Hide critters option for plain menu bar quota capsules. Thanks @elijahfriedman!
 
-- Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new fields and older Macs simply don't send them. No crashes or data loss across any new/old device combination.
+### Changed
+- Packaging: strip local symbols from release executables to reduce the installed app and download size. Thanks @jieshu666!
+- Logging: skip message, metadata, and redaction work for filtered or disabled log destinations. Thanks @ProspectOre!
+- Cost history: cache date parsers per thread to reduce repeated report-decoding overhead. Thanks @ProspectOre!
+- Linux CLI: accept an opt-in static SQLite library directory for musl builds. Thanks @Yuxin-Qiao!
+- Linux CLI: add musl source compatibility for static Linux SDK builds. Thanks @Yuxin-Qiao!
+- Cost history: resize the chart details to the hovered day's model breakdown instead of reserving the tallest day. Thanks @elijahfriedman!
+- Antigravity: use current backend quota labels in menus and widgets while preferring a usable quota lane over an exhausted one. Thanks @Yuxin-Qiao!
+- Pi: cache session filename and timestamp parsers to reduce cost-history refresh overhead. Thanks @ProspectOre!
+- Menu bar: reuse the icon-observation signature during provider refreshes instead of computing it twice. Thanks @abe238!
+- LiteLLM: show personal and team spend amounts directly on budget rows while suppressing duplicate budget sections. Thanks @hololee!
 
-### CodexBar v0.29.1–v0.31.0 (Upstream)
+### Fixed
+- Menu: align cost and utilization rows with provider content and use native bottom action items. Thanks @elijahfriedman!
+- Charts: keep hover selection on bar widths, preserve single-day details, and remove redundant cost-menu detail lines. Thanks @elijahfriedman!
+- Cost history: keep chart date labels aligned with their bars and visible without clipping. Thanks @elijahfriedman!
+- Claude settings: dim and disable Avoid Keychain prompts while global Keychain access is disabled. Thanks @Zihao-Qi!
+- Linux CLI: read OpenCode Go local SQLite usage in automatic mode and allow Command Code billing with a configured manual cookie.
+- MiniMax diagnostics: include safe per-service usage and boosted quota limits for mismatch reports. Thanks @sagelga!
+- Xiaomi MiMo: retry another imported browser session when a stale session redirects API requests to login. Thanks @Yuxin-Qiao!
+- MiniMax: retry the China API region when the global token endpoint reports a structured invalid-key response.
+- Menu refresh: scope manual refreshes to the visible provider, keep Command-R consistent with mouse refresh, and avoid animated refresh-row compositing. Thanks @jangisaac-dev!
+- Localization: improve Catalan app and website translations. Thanks @pmontp19!
+- Claude web: persist renewed session cookies after successful usage requests so imported sessions stay current. Thanks @ProspectOre!
+- Kiro: keep parsed usage available when the optional account probe times out or fails. Thanks @Yuxin-Qiao!
+- Cursor: ignore an exhausted Auto or API subquota only when another independent quota remains usable, while preserving the overall cap. Thanks @Yuxin-Qiao!
+- Memory: release idle OpenAI WebViews under system pressure without blocking the main thread. Thanks @ProspectOre!
+- Memory: trim rebuildable menu and OpenAI debug caches under system pressure. Thanks @ProspectOre!
+- Provider plans: keep Claude and Kiro plan matching on one rendered line to avoid bogus labels from adjacent usage hints. Thanks @elijahfriedman!
+- Antigravity: use current Gemini 5-hour and weekly quota-summary lanes for the compact menu bar icon and merged highest-usage selection. Thanks @Zihao-Qi!
+- Usage bars: render values rounded to 0% or 100% as fully empty or full. Thanks @Zihao-Qi!
+- Codex web: keep cookie-import deadlines responsive when browser cookie work blocks the shared worker pool.
+- z.ai: open the usage dashboard for the configured global or China API region. Thanks @renbaoshuo!
+- Usage dashboards: tint inline history bars with each provider's branding color. Thanks @elijahfriedman!
+- Command Code: avoid repeated depleted notifications when subscription lookup intermittently fails. Thanks @LPFchan!
+- Codex pace: extrapolate historically exhausted weeks for run-out forecasts and avoid contradictory reset headlines. Thanks @Yuxin-Qiao!
+- Localization: correct the German in-progress refresh label. Thanks @ChrisLauinger77!
+- Localization: correct misleading literal German UI translations. Thanks @madebyjulz!
+- Install docs: describe the official Homebrew cask as universal on Intel and Apple silicon. Thanks @ChrisGVE!
+- Settings: switch tabs immediately before animated window resizing and reduce Providers sidebar work. Thanks @elijahfriedman!
+- Windsurf: import complete Devin sessions from the current app origin before legacy browser storage. Thanks @kiranmagic7!
+- Antigravity: humanize raw model identifiers while preserving server-provided quota labels. Thanks @bcharleson!
+- Menu bar: show provider status markers only for the provider rendered in each icon. Thanks @Zihao-Qi!
+- Codex CLI: make automatic usage reads prefer OAuth and CLI sources instead of blocking on the optional web dashboard.
+- Codex web: apply `--web-timeout` to the full cookie import, account verification, retry, and dashboard fetch path.
+- OpenCode Go: allow configured manual cookies in the Linux CLI while keeping browser-cookie import gated to macOS. Thanks @Yuxin-Qiao!
+- Provider probes: cap captured subprocess output at 1 MiB per stream without dropping valid text at a truncated UTF-8 boundary. Thanks @ProspectOre!
+- Provider switcher: keep Codex quota rows visible when switching away and back during a manual refresh, including menus with usage-history sections. Thanks @Yuxin-Qiao!
+- Bedrock: ignore invalid billing dates when selecting the latest usage values. Thanks @ProspectOre!
+- Usage history: let opted-in providers persist weekly utilization and keep saved charts visible. Thanks @kiranmagic7!
+- Localization: improve Japanese terminology consistency and localize next-day reset times across all 21 app languages. Thanks @tukuyomil032!
+- Menu bar: keep visible quota values stable while a manual refresh is in flight without rewinding background-refresh countdowns. Thanks @Zihao-Qi!
+- Menu bar: stop informational usage-card rows from highlighting like clickable actions. Thanks @elijahfriedman!
+- Localization: validate placeholder integrity across every app language and repair malformed Vietnamese interpolation tokens. Thanks @Yuxin-Qiao!
 
-- Codex Spark model usage, Antigravity per-model quotas, DeepSeek usage summaries, OpenAI project-scoped Admin API, Ollama pace projection, Bedrock AWS-profile auth, Swedish + Brazilian-Portuguese localization, plus numerous menu-bar and stability fixes for macOS 26.5.
+## 0.36.1 — 2026-06-16
 
-### 中文说明
+### Added
+- Poe: add current point balance and recent points history from a configured API key (#1191). Thanks @Yuxin-Qiao!
+- Chutes: add subscription, quota-window, and pay-as-you-go usage tracking from a configured API key (#1496). Thanks @mvanhorn!
+- Zed: add plan, edit-prediction quota, billing-cycle, and overdue-invoice tracking from the signed-in editor Keychain session (#1517). Thanks @enesteve0!
 
-同步 Mac 端到上游 CodexBar **v0.31.0**（覆盖 0.29.1–0.31.0），并配套发布 iOS **1.10.0**。iOS 新增 DeepSeek 用量+成本卡；Codex Spark 与 Antigravity 分模型配额条同步到手机；成本卡显示请求数与正确币种；上游的 Claude 企业版金额、Grok/Ollama 窗口与配速、Claude Design 合并等修复自动透传。任意新旧设备混用同步均安全。
+### Changed
+- Website: add Poe, Chutes, and Zed to the provider gallery with matching icons and setup documentation.
 
----
+### Fixed
+- Provider switcher: use a continuous menu background instead of a separate light-mode tinted band. Thanks @Zihao-Qi!
 
-## 0.29.0.1 (Mobile 1.9.0 · build 68.1) — 2026-05-27 — upstream v0.29.0 + iOS 1.9.0
+## 0.36.0 — 2026-06-16
 
-Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
+- Ollama: replace the bundled provider icon with the cleaner official mark while preserving native template tinting. Thanks @mattab178!
+- Menu bar: avoid a one-time visible menu rebuild after first-open background data arrives.
+- Settings: use high-contrast selected-content colors for provider sidebar text and icons.
+- Localization: align the app and website on the same 21-language catalog, adding Italian (#1248), Indonesian (#1513), Polish (#1253), Arabic, Persian, and Thai as selectable app languages, plus automatic website detection, persistent pickers, and right-to-left layouts for Arabic and Persian. Thanks @Yuxin-Qiao and @StevanusPangau!
+- Website: replace the remaining provider letter tiles with the canonical Devin, LiteLLM, and T3 Chat logos.
+- Website: keep localized mobile navigation, calls to action, package commands, and right-to-left layouts inside narrow viewports.
 
-### New providers
+### Added
+- LiteLLM: add personal and team budget tracking from a configured virtual key and proxy URL (#1542). Thanks @hololee!
 
-- **Azure OpenAI** — validate a deployment via API key, endpoint, and deployment name.
-- **Alibaba Token Plan (Bailian)** — monthly token-plan quota via browser or manual cookies.
-- **T3 Chat** — web-session usage with a 4-hour base window and a monthly overage window; paste a full browser cURL if a cookie-only refresh hits a 429 challenge.
+### Changed
+- Antigravity: prefer app and `agy` quota summaries, group usage into Gemini and Claude + GPT session/weekly pools, and preserve IDE and OAuth fallbacks. Thanks @Zihao-Qi!
+- Antigravity: show structured quota reset timestamps from the current `resetTime` field (#1553). Thanks @akunzai!
+- Configuration: honor absolute `XDG_CONFIG_HOME` paths while rejecting relative paths, preserving existing standard and legacy config precedence (#1562). Thanks @kiranmagic7!
 
-### Also from upstream
+### Fixed
+- Menu bar: preserve native AppKit image-row alignment when returning to cached provider content in the open merged menu (#1560). Thanks @Zihao-Qi!
+- Menu bar: defer hosted submenu reconstruction until an active refresh finishes so partial provider data cannot replace the visible menu (#1556). Thanks @Yuxin-Qiao!
+- Weekly pace: suppress the “Lasts until reset” label when the projected run-out risk is nonzero (#1561). Thanks @kiranmagic7!
+- Antigravity: retry transient `Text file busy` launch failures while the CLI executable is being replaced.
+- Antigravity: fall back to loopback HTTP for local CLI and language-server probes on Linux, where self-signed localhost TLS cannot be trusted (fixes #1508). Thanks @zodiacfireworks!
+- Codebuff: enforce the optional subscription grace period even when the transport ignores cancellation.
+- Copilot: show the shared quota reset date for limited premium and chat usage windows. Thanks @Zihao-Qi!
+- Codex: keep managed login timeouts bounded while preserving captured output when detached helpers retain stdout or stderr.
+- Claude: keep segmented multi-account menus scoped to the selected account while its refresh is in flight (fixes #1527).
+- Command Code: keep showing available credits after the bounded optional subscription grace, including when the transport ignores cancellation (fixes #1131).
+- DeepSeek: keep balance refreshes responsive when optional usage-summary work ignores cancellation.
+- OpenRouter: keep credit refreshes responsive when optional key-quota enrichment ignores cancellation.
+- Provider probes: stop waiting indefinitely for inherited output pipes after subprocesses or CLI version checks exit (fixes #1531).
+- Menu bar: update visible usage values in place when a manual refresh completes instead of leaving the open provider card stale until the menu is reopened (fixes #1516).
+- Gemini: recognize the current `gemini-api-key` CLI auth setting so API-key sessions show the supported OAuth guidance instead of a misleading not-logged-in error (fixes #1511).
+- Kiro: keep usage refreshes bounded and clean up CLI helpers when they retain output pipes, ignore termination, or are cancelled (fixes #1533). Thanks @kiranmagic7!
+- Gemini: keep fnm package discovery bounded when helper descendants retain output pipes or ignore termination (fixes #1534). Thanks @kiranmagic7!
+- Xiaomi MiMo: cancel optional token-plan requests when the required balance request fails instead of delaying the error for up to 30 seconds.
+- Settings: make the cost history window directly editable by keyboard while preserving the existing stepper and 1–365 day bounds (fixes #1499). Thanks @kiranmagic7!
+- OpenCode Go: show Zen balances for accounts without subscription usage windows, including when the balance request takes longer than optional enrichment (fixes #1476). Thanks @kiranmagic7!
 
-- Codex cost history now splits standard vs fast spend/token usage in model breakdowns.
-- OpenCode / OpenCode Go show workspace renewal dates.
-- Ollama can authenticate with an API key as an alternative to browser cookies.
-- Plus the upstream v0.28/v0.29 menu-bar, Codex, Antigravity, and localization fixes.
+## 0.35.0 — 2026-06-14
 
-### Compatibility
+### Added
+- Kimi: add usage fetching from the official Code API key flow, with optional compatible HTTPS proxy support (#1424). Thanks @kiranmagic7!
+- Xiaomi MiMo: show paid and granted balance components alongside token-plan usage without requiring a duplicate provider (#1309). Thanks @AdrianSimionov!
+- Xiaomi MiMo: add an opt-in local session-log fallback for token accounting when browser quota authentication is unavailable (#1284). Thanks @LeoLin990405!
+- Weekly pace: use configured work days for standard weekly pace calculations while leaving historical Codex pacing unchanged (#1451, fixes #1356). Thanks @pstanton237!
 
-- Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new providers and older Macs simply don't send them. No crashes or data loss across any new/old device combination.
+### Fixed
+- Security: prevent test and infrastructure cookie-import paths from accessing real browser profiles, SQLite stores, or Keychain data unless explicitly enabled (#1491).
+- Menu bar: stop the provider-switcher shortcut monitor from killing the menu's event tracking session. Its event-queue peek re-entered the run loop in tracking mode, which could leave a zombie menu on screen that ignored clicks for tens of seconds (beach ball) — most often right after opening the menu or after rapid Cmd-number provider switching, with Settings… the usual victim. Peeks now run in a barren private run-loop mode, start only once the tracking session is pumping, and no longer touch mouse events. Thanks @ProspectOre!
+- Menu bar: rebuild merged provider content inside AppKit's active tracking run loop so provider switches no longer wait for the menu to close or the default run loop to resume.
+- Menu bar: keep cached provider content visible while switching merged tabs so the open menu no longer flickers through an empty state.
+- Menu bar: restore native macOS positioning for merged provider dropdowns while preparing current content before AppKit lays out the menu.
+- Menu bar: avoid starting a duplicate background provider refresh when the menu closes while its initial missing-data refresh is still in flight.
+- Menu bar: pin the status-item dropdown to the current system appearance so it follows the Light/Dark setting instead of inheriting the menu bar's vibrant appearance, which rendered the menu dark in Light mode whenever a dark or strongly-colored window or wallpaper sat behind the menu bar (#1490). Thanks @npapridonu!
+- Menu bar: handle the global open-menu shortcut synchronously so repeated presses close the tracked menu instead of queueing a delayed reopen (#1470). Thanks @Zihao-Qi!
+- Menu bar: keep the selected quota percentage visible in Pace mode when pace is temporarily unavailable instead of collapsing to an icon-only status item (fixes #1462).
+- Settings: memoize cookie cache lookups behind the "Cached: …" picker labels so opening Settings and switching panes no longer pays a synchronous Keychain read per SwiftUI body evaluation, which froze the Providers pane for seconds (#1471). Thanks @ProspectOre!
+- Settings: keep the native tab toolbar in sync when macOS switches appearance while the window is open (#1484). Thanks @hhh2210!
+- Launch at Login: remove pending registrations when disabled without re-registering entries awaiting user approval (#1469). Thanks @AmrMohamad!
+- Diagnostics: enforce probe timeouts even when an underlying provider operation ignores Swift task cancellation.
 
-### Required versions
+## 0.34.0 — 2026-06-12
 
-- iPhone companion: iOS 1.9.0 (build 139), via TestFlight / App Store.
-- This Mac build: 0.29.0.1 (fork build 68.1). Update both for the full feature set.
+### Added
+- Copilot: optionally import GitHub billing budget windows, bind them to the active account, and expose budget metrics in cards and menu bar icons (#1273). Thanks @Quicksaver!
+- Localization: add native Korean language support across the app and language picker (#1460). Thanks @soohanpark!
+- Localization: add German as a selectable app language (#1245). Thanks @Yuxin-Qiao!
+- Localization: add Turkish as a selectable app language (#1232). Thanks @ykarateke!
+- Devin: add daily and weekly quota tracking from the signed-in Chrome session or a manual Bearer token (#1264, fixes #800). Thanks @coygeek!
+- Amp: add local `amp usage` support, including account identity and individual and workspace credit balances (fixes #1317). Thanks @3kh0!
+- Menu bar: add an optional reset-time display for the selected quota metric, with percent fallback when reset metadata is unavailable (#1223, fixes #1185). Thanks @Yuxin-Qiao!
+- Cursor: include application data, extensions, settings, and caches in optional local storage tracking (fixes #1403). Thanks @dhruv-anand-aintech!
+- Menu bar: move the highlighted Overview provider with trackpad or mouse-wheel scrolling while preserving native submenu and keyboard behavior (#1436). Thanks @joshuavial!
 
-### 中文说明
+### Fixed
+- CLI: keep Ollama API credentials scoped to Ollama when deciding whether another provider requires macOS web support (#1466). Thanks @WadydX!
+- Provider switcher: keep localized tab titles visible by tightening outer insets only when equal-width segments would otherwise truncate.
+- OpenAI API: follow Admin usage pagination for costs and completions so multi-page organization usage totals are not undercounted (#1465). Thanks @rohitjavvadi!
+- Settings: slightly increase the window height so standard panes fit without clipping their final controls or helper text.
+- Menu bar: show immediate in-place feedback for manual refreshes, keep tracked-menu geometry stable, and coalesce repeated clicks until the active refresh succeeds or fails (#1458). Thanks @hhh2210!
+- Grok: recover web billing from status-7 credential failures by combining current browser sessions with non-expired CLI auth, accept raw protobuf responses, and render current zero-use periods (#1452). Thanks @bcharleson!
+- Amp: restore usage fetching with access-token authentication for the current balance endpoint and retain browser-cookie settings parsing as a fallback. Thanks @3kh0!
+- Antigravity: detect current hyphenated IDE language-server processes inside Antigravity app bundles so local quota refreshes no longer report the IDE as unavailable (#1405). Thanks @lfmundim!
+- Menu bar: avoid republishing unchanged provider storage footprints so background scans no longer trigger unnecessary menu observation work (#1416). Thanks @soohanpark!
+- Cursor: show capped team Extra usage when no individual cap exists, and honor percent used/remaining menu bar display settings instead of always showing currency spend (#1426). Thanks @lpc-eol!
+- Cursor: derive a first-party web session from the signed-in Cursor.app as a final fallback, preserving account precedence and legacy request quotas (#1295). Thanks @Jackie-Qin!
+- Claude: explain that an unauthorized Web session requires signing in at claude.ai or refreshing imported cookies (#1287). Thanks @LeoLin990405!
+- CLI server: reload provider config for every usage and cost request, invalidate config-dependent cache entries, and prune expired config variants without restarting `codexbar serve`. Thanks @enieuwy!
+- Menu bar: reserve quota-bar space consistently across Overview and provider switcher segments so selection no longer changes segment height (#1445). Thanks @Zihao-Qi!
+- Cost usage: accept normal models.dev catalog churn while retaining prior model prices as fallbacks, so newly priced models appear without requiring a manual cache reset (#1438). Thanks @tom-rigelblu!
+- Menu bar: detect Tahoe Control Center proxy windows parked in the blocked offscreen slot during startup recovery, so hidden icons show the existing guidance without weakening menu-bar-manager safeguards (#1440).
+- AWS Bedrock: treat Cost Explorer's temporary data-unavailable response as zero usage instead of an HTTP 400 error (#1324). Thanks @enesteve0!
+- Provider switcher: inset quota bars inside fixed-height segments so icons, labels, and selected pills remain vertically centered.
+- Doubao: show an unavailable quota state when Ark omits trustworthy request-limit data instead of reporting 100% left.
+- Menu bar: anchor merged provider dropdowns to the status item's trailing edge without marking preserved in-flight refresh content fresh, preventing horizontal drift while keeping deferred updates visible (#1288). Thanks @Yuxin-Qiao!
+- Antigravity: fall back to the CLI usage server when the desktop app is closed, keep helper sessions owned and bounded without hidden sign-in flows, and show model rows with missing usage as unavailable instead of exhausted (#1313). Thanks @enieuwy!
+- Cost usage: replace repeated Foundation metadata/root checks with one portable file-stat pass so expired Codex history refreshes stay responsive on very large session archives (#1392). Thanks @TheAngryPit and @ProspectOre!
+- Cursor: show the Safari Full Disk Access recovery hint before the long browser login list so permission guidance remains visible when menu errors truncate (#1419, fixes #1417). Thanks @hhh2210!
+- Cursor: present legacy request-based plans as one Requests quota with the raw used/limit count instead of unrelated token-based Auto/API bars (#1420, fixes #1418). Thanks @hhh2210!
+- Cost usage: memoize Codex priority-turn trace metadata incrementally so warm refreshes scan only appended rows instead of rescanning large trace databases (#1404). Thanks @ProspectOre!
+- Security: reject insecure or malformed MiniMax and Alibaba endpoint overrides while preserving valid custom HTTPS deployments (#1269). Thanks @Hinotoi-agent!
+- Security: reject insecure or malformed OpenRouter, Codebuff, Groq, and ElevenLabs endpoint overrides before sending provider credentials (#1256). Thanks @Hinotoi-agent!
 
-同步 Mac 端到上游 CodexBar v0.29.0，并配套发布 iOS 1.9.0。本次新增三个 provider —— Azure OpenAI、Alibaba Token Plan（百炼）和 T3 Chat —— 外加上游 v0.28.0 + v0.29.0 的修复。
+## 0.33.0 — 2026-06-11
 
-### 新增 provider
+### Added
+- Settings: choose Terminal.app or iTerm for Open Terminal actions, including Vertex AI login commands (#1225, fixes #1147). Thanks @Yuxin-Qiao!
+- Localization: add Japanese as a selectable app language (#1385). Thanks @naoterumaker!
 
-- **Azure OpenAI** —— 通过 API key、endpoint 和部署名称校验部署。
-- **Alibaba Token Plan（百炼）** —— 通过浏览器或手动 cookie 跟踪每月 token 套餐额度。
-- **T3 Chat** —— web session 用量，含 4 小时基础窗口和每月超额窗口；若 cookie 刷新遇到 429 挑战，可粘贴完整的浏览器 cURL。
+### Fixed
+- Menu bar: keep large dynamic Cost totals inside the fixed-width hosted row so switching providers no longer widens the menu or misaligns submenu arrows.
+- Cost history: keep all per-day model breakdown rows available in a bounded scrolling detail area instead of hiding models after the first four (#1370). Thanks @MoollaMore!
+- Cost usage: run local session-corpus scans and cache decoding on a dedicated serial queue instead of the Swift cooperative thread pool, so multi-minute scans of large archives no longer starve the app's async work or freeze menus (#1387, #1392). Thanks @ProspectOre!
+- Copilot: keep explicitly unlimited chat quotas visible instead of dropping their zero-entitlement payload as unavailable (#1320). Thanks @soumikbhatta!
+- Security: block credentialed provider redirects that leave the original HTTPS origin while preserving same-origin redirects (#1237). Thanks @Hinotoi-agent!
+- Codex: keep local token and cost history visible when remote quota data is unavailable (#1390). Thanks @vaibhavarora14!
+- Doubao: confirm zero-remaining HTTP 200 request limits before falling back, preserving genuine exhaustion and avoiding false 100% usage (#1383). Thanks @LeoLin990405 and @foobra!
+- Menu bar: defer pasteboard writes and copy feedback outside the `NSMenu` tracking callback so in-menu copy buttons no longer beachball on macOS 26 (#1388). Thanks @LeoLin990405!
+- Menu bar: defer merged status-icon redraws until the tracked menu closes while preserving animation lifecycle and quota-warning timing, reducing WindowServer churn during long menu sessions (#1409, fixes #1399). Thanks @kiranmagic7!
+- Provider status: decode status feeds on the concurrent executor and reuse ISO8601 formatters, removing a measured main-thread stall during refreshes (#1406). Thanks @ProspectOre!
+- Menu bar: keep one stable width across merged provider tabs and resize every hosted card row to AppKit's final menu width so provider switching no longer leaves a widened menu with inset submenu arrows (#1410).
+- Menu bar: keep Codex `auth.json` reads, JWT parsing, and fingerprint hashing off the menu-build path by rendering a cached account snapshot and revalidating it asynchronously (#1401). Thanks @ProspectOre!
+- Menu bar: defer Overview-row provider transitions out of AppKit's click callback so opening provider detail no longer performs a full synchronous menu rebuild (#1325).
+- Menu bar: open cached menus immediately after data-only invalidations, then refresh missing or stale provider data asynchronously without queuing redundant work on close (#1398). Thanks @joshuavial!
+- Menu bar: recycle SwiftUI card hosting views across data refreshes and provider switches, and reconcile matching menu rows in place instead of removing and reinserting every row, cutting open-click, switch, and idle rebuild cost (#1394). Thanks @bcssewl!
+- Menu bar: gate the provider-switcher shortcut monitor's event-queue peek behind session event counters so hover-driven menu tracking no longer calls `NSApp.nextEvent` on every run-loop pass (#1397). Thanks @bcssewl!
+- Development: disable Keychain access for unbundled executables to avoid repeated password prompts while preserving packaged app behavior (#1271). Thanks @Yuxin-Qiao!
+- Antigravity: exclude model quotas without a remaining fraction from family summaries so they no longer mask tracked usage in the automatic menu-bar metric (#1369). Thanks @Martin-Hausleitner!
+- Claude: add bundled Fable 5 pricing, account for native 1-hour cache-write usage, and refresh Sonnet 4.6 full-context rates (#1368). Thanks @MoollaMore!
+- Claude: show a direct claude.ai re-login action when a configured web session expires or becomes invalid (#1377). Thanks @LeoLin990405!
+- Menu: reuse unchanged hosted chart submenus and precompute utilization history models to reduce expand and hover stalls (#1379). Thanks @hhh2210!
+- Menu bar: defer data-refresh rebuilds until the tracked menu closes, avoiding multi-second WindowServer stalls with slower providers such as Grok (#1376). Thanks @jangisaac-dev!
+- OpenAI Web: evict cached dashboard WebViews after their idle timeout even when no later cache activity occurs, releasing hidden WebKit helper processes (#1386). Thanks @naoterumaker!
+- Xiaomi MiMo: import automatic session cookies from Safari, Chrome variants, Firefox, and Edge instead of limiting discovery to Chrome (#1304). Thanks @Yuxin-Qiao!
 
-### 同样来自上游
+## 0.32.5 — 2026-06-09
 
-- Codex 费用历史现在区分标准 / 快速的消费和 token 用量。
-- OpenCode / OpenCode Go 显示工作区续费日期。
-- Ollama 可用 API key 作为浏览器 cookie 之外的认证方式。
-- 以及上游 v0.28/v0.29 的菜单栏、Codex、Antigravity 和本地化修复。
+### Added
+- Localization: add French as a selectable app language (#1241). Thanks @Yuxin-Qiao!
+- Localization: add Ukrainian as a selectable app language (#1250). Thanks @Yuxin-Qiao!
+- Localization: add Dutch as a selectable app language (#1252). Thanks @Yuxin-Qiao!
+- Localization: add Vietnamese as a selectable app language (#1247). Thanks @Yuxin-Qiao!
 
-### 兼容性
+### Fixed
+- Menu bar: keep provider switching inside AppKit's menu-tracking transaction and defer structural dropdown rebuilds until mouse-up completes, preventing intermittent hangs when moving between providers and Overview.
+- Localization: cache resolved localized bundles so repeated menu/status text lookups no longer hit disk on the main thread (#1355, fixes #1347). Thanks @Yuxin-Qiao!
+- Menu bar: size hosted chart submenus directly instead of spinning up throwaway SwiftUI hosting controllers during menu layout (#1352). Thanks @Yuxin-Qiao!
+- Menu bar: avoid recomputing expensive readiness signatures on closed-menu store ticks while preserving root-open refresh correctness for deferred observations (#1351). Thanks @Yuxin-Qiao!
+- Menu bar: defer Quit from the status menu until AppKit menu tracking unwinds so shutdown does not wedge Dock autohide state (#1354, fixes #1353). Thanks @jskoiz!
+- Claude: remove transient ClaudeProbe session artifacts after CLI usage polls so background refreshes no longer fill Claude Code project history with CodexBar `/usage` sessions (#1301). Thanks @LPFchan and @matthewod11-stack!
+- Menu bar: keep z.ai overview rows with detail submenus in Overview so hovering quota details no longer recurses into a nested provider menu (#1279, fixes #1246). Thanks @RajvardhanPatil07!
+- Codex: backfill visible-account reset timestamps and missing 5-hour/weekly window metadata from same-workspace plan history so segmented multi-account JSON keeps machine-readable reset data (#1283). Thanks @callmepopo!
+- Antigravity: detect CLI local language-server processes and allow empty CSRF tokens only for explicit CLI matches so Antigravity CLI quota usage renders without weakening IDE CSRF detection (#1341). Thanks @oyaah!
+- Menu bar: skip closed attached-menu rebuilds during stale background data-refresh ticks so closed dropdowns are not pre-warmed while the user is not interacting (#1291). Thanks @Nicolas0315!
+- Cursor: show deficit and run-out pace details for 30-day Total, Auto, and API billing-cycle usage rows (#1336). Thanks @dhruv-anand-aintech!
+- Codex: time out stalled managed `codex login` processes so account switches no longer stay stuck in progress after OAuth completes (#1330). Thanks @dhruv-anand-aintech!
+- Codex Spark: show the same deficit and run-out pace details as the core Codex quota lanes for 5-hour and weekly model limits (#1335). Thanks @dhruv-anand-aintech!
+- Antigravity: make the automatic menu-bar summary choose the most constrained family quota so an exhausted Gemini lane is no longer hidden by a full Claude lane (#1334). Thanks @dhruv-anand-aintech!
+- Performance: memoize models.dev cost catalog load outcomes so large Codex history scans no longer re-read and decode the same cache file per row (#1322, refs #1311). Thanks @turbothad!
+- Menu bar: compute Claude pace/reserve from the selected menu-bar metric window so Primary (Session) no longer pairs the session percentage with the weekly reserve (#1302). Thanks @outfoxer!
+- Menu bar: defer merged-menu close rebuilds and cache repeated menu-card height measurements so dismissing or rapidly switching the merged dropdown avoids rebuilding SwiftUI-backed cards on the main thread (#1274, #1286, #1314). Thanks @hhh2210!
+- Menu bar: keep merged provider tab selection from invalidating broad settings observers so switching providers no longer triggers background refresh and status-icon work.
+- Menu bar: observe a compact icon-state signature so merged status icons no longer redraw for provider snapshot changes that cannot affect the visible icon (#1297). Thanks @hhh2210!
+- Menu bar: keep provider-switcher quota bars from replacing Auto Layout constraints when the visible ratio is unchanged, making tab switches responsive with many providers enabled (#1303, #1315). Thanks @juanjoseluisgarcia!
+- Kiro: retry login-shell PATH capture when CLI discovery races a slow cold shell startup, so `kiro-cli` is no longer stuck as missing for the whole app session (#1316). Thanks @bt-justtrack!
 
-- 在 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新 provider，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。
-
-### 所需版本
-
-- iPhone 配套：iOS 1.9.0（build 139），经 TestFlight / App Store。
-- 本 Mac 版本：0.29.0.1（fork build 68.1）。两边都更新才能用全套功能。
-
----
 ## 0.32.4 — 2026-06-02
 
 ### Fixed
@@ -941,85 +981,7 @@ Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 co
 - Codex: invalidate local cost-history caches from the scanner source hash so parser fixes rebuild stale cached rows automatically (#1042). Thanks @hhh2210!
 - Release: update Homebrew automation so CodexBar releases publish both the CLI formula and app cask from the same workflow.
 
-## 0.27.0 (Mobile 1.8.0 · build 65.5) — 2026-05-25 — upstream v0.27.0 + iOS 1.8.0
-
-Syncs the Mac app to upstream CodexBar v0.27.0 and ships the paired iOS 1.8.0 companion. Five brand-new providers, five existing-provider detail upgrades, account-aware quota notifications, and a Codex workspace + weekly-pace badge — all in one release.
-
-### New providers
-
-- **Grok (xAI)** — monthly USD spend, plan tier badge, percent used, and renewal date.
-- **ElevenLabs** — character credits plus standard and professional voice-slot counts.
-- **Deepgram** — speech / agent / total hours, request count, agent tokens, and TTS characters.
-- **GroqCloud** — live request / token / cache-hit-per-minute rates for Enterprise keys.
-- **LLM Proxy** — aggregate usage across all upstream providers with per-credential pool health.
-
-### Existing providers — richer detail
-
-- **Claude Admin API** — today / 7-day / 30-day spend, top models, and top cost items when an `sk-ant-admin…` key is configured in Preferences.
-- **Claude Extra usage** — spend-limit utilization gauge for Enterprise and Team plans.
-- **OpenAI API** — configurable 1–365 day cost-history window, with a range picker on the iPhone dashboard.
-- **OpenCode Go** — Zen workspace pay-as-you-go USD balance.
-- **MiniMax** — 30-day billing history with a token chart and top method / model breakdown.
-- **Kiro** — overage credit count and estimated cost when your monthly plan is exhausted.
-
-### Quota notifications now name the account
-
-- Push notifications on multi-account providers include the triggering account — e.g. "Codex · admin@example.com" instead of bare "Codex". Honours the Hide-personal-info privacy setting.
-
-### Codex workspace + weekly pace
-
-- When your active Codex account belongs to an OpenAI workspace, the workspace name shows on the Codex detail page along with a weekly-pace arrow (ahead of / on / under pace).
-
-### Compatibility
-
-- Mixing app versions across Macs and iPhones is safe — an older iPhone ignores the new fields and an older Mac simply doesn't send them. No crashes or data loss across any new/old device combination.
-
-### Required versions
-
-- iPhone companion: iOS 1.8.0 (build 137), via TestFlight / App Store.
-- This Mac build: 0.27.0 (fork build 65.5). Update both for the full feature set.
-
-### 中文说明
-
-同步 Mac 端到上游 CodexBar v0.27.0，并配套发布 iOS 1.8.0。本次一口气带来 5 个全新 provider、5 个现有 provider 的详情升级、带账号的额度推送通知，以及 Codex 工作区 + 周用量节奏徽章。
-
-### 新增 provider
-
-- **Grok (xAI)** —— 每月美元消费、套餐徽章、使用百分比、续费日期。
-- **ElevenLabs** —— 字符额度，外加标准语音槽和专业语音槽数量。
-- **Deepgram** —— 语音 / 智能体 / 总时长、请求数、智能体 token、TTS 字符数。
-- **GroqCloud** —— 企业版 key 的实时每分钟请求 / token / 缓存命中速率。
-- **LLM Proxy** —— 跨所有上游 provider 的聚合用量，含每个凭证的池健康度。
-
-### 现有 provider 详情升级
-
-- **Claude Admin API** —— 配置 `sk-ant-admin…` key 后显示今天 / 7 天 / 30 天花费、主要模型、主要费用项。
-- **Claude 额外用量** —— 企业版 / Team 套餐的花费上限使用率仪表。
-- **OpenAI API** —— 可配置 1–365 天的费用历史窗口，iPhone 仪表盘带范围选择器。
-- **OpenCode Go** —— Zen 工作区按量付费美元余额。
-- **MiniMax** —— 30 天计费历史，含 token 柱状图和主要接口 / 模型分解。
-- **Kiro** —— 月度套餐耗尽后显示超额信用数和预估费用。
-
-### 额度通知现在带上账号
-
-- 多账号 provider 的推送通知会带上触发的账号 —— 例如「Codex · admin@example.com」而非单纯的「Codex」。遵守「隐藏个人信息」隐私开关。
-
-### Codex 工作区 + 周节奏
-
-- 当激活的 Codex 账号属于某个 OpenAI 工作区时，Codex 详情页会显示工作区名称，并配一个周用量节奏箭头（超前 / 正常 / 落后）。
-
-### 兼容性
-
-- 在你的 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新字段，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。
-
-### 所需版本
-
-- iPhone 配套：iOS 1.8.0（build 137），经 TestFlight / App Store。
-- 本 Mac 版本：0.27.0（fork build 65.5）。两边都更新才能用全套功能。
-
----
-
-## 0.27.0 — 2026-05-18 (upstream)
+## 0.27.0 — 2026-05-18
 
 ### Added
 - Usage charts: reuse the OpenAI API inline dashboard for local Codex/Claude/Vertex/Bedrock cost history, OpenRouter day/week/month spend, z.ai hourly tokens, and Mistral daily spend.
@@ -1079,176 +1041,21 @@ Syncs the Mac app to upstream CodexBar v0.27.0 and ships the paired iOS 1.8.0 co
 - Localization: fall back to English when a bundled localized string is blank instead of rendering empty menu/settings text (#952). Thanks @xiaoqianWX!
 - Settings: localize the provider storage usage toggle in the Advanced pane (#985, fixes #971). Thanks @tanish19078!
 
----
+## 0.26.1 — 2026-05-15
 
-## 0.26.4 (Mobile 1.7.0 · build 63.4) — 2026-05-18 — Phase G hotfix: decouple CloudKit sync from Mac menu layout
-
-> Patch on top of 63.3 fixing a user-reported regression where iPhone
-> still showed only 1 OpenAI card despite 63.3 shipping the universal
-> multi-account mechanism. Root cause was orthogonal to Phase G —
-> upstream's `shouldFetchAllTokenAccounts` gated the per-account
-> fan-out on `multiAccountMenuLayout == .stacked`. Users on the
-> default `.segmented` layout had only their *active* token-account
-> fetched, so `accountSnapshots[provider]` ever contained one entry,
-> so SyncCoordinator only ever pushed one snapshot to CloudKit even
-> after the Phase G universalization. iPhone was blameless — Mac
-> wasn't sending the other accounts.
->
-> Fix: when `iCloudSyncEnabled` is true, ignore the menu-layout gate
-> and fan-out unconditionally (subject to the existing count > 1 and
-> catalog-membership guards). Mac-only users (no iCloud sync) keep
-> upstream's API-frugality behavior: segmented layout fetches just
-> the active account, stacked fetches all. The menu layout choice
-> stays a local Mac UI ergonomics decision; it no longer dictates
-> what reaches iPhone.
-
-### Mac
-
-- `UsageStore.shouldFetchAllTokenAccounts(provider:accounts:)` now
-  short-circuits to `true` when `settings.iCloudSyncEnabled == true`
-  (after the catalog + count > 1 guards). Mac-only users see no
-  behavior change.
-- New `Tests/CodexBarTests/ShouldFetchAllTokenAccountsTests.swift`
-  (9 tests, all green) pins both branches: iCloud-on always fans out
-  for multi-account providers; iCloud-off preserves upstream's
-  layout-gated behavior. Includes a regression case for the exact
-  scenario reported (OpenAI + 2 admin keys + segmented + iCloud-on).
-
-### iOS
-
-- No iOS-side code change. The Phase G UI shipped in 63.3 was
-  correct; it just never received the second snapshot. Hotfix is
-  Mac-only; iOS 1.7.0 build 130 (already on TestFlight) consumes
-  the now-correct snapshot stream automatically.
-
-### CloudKit deploy
-
-No schema deploy needed. Hotfix is consumer-side gating logic only.
-
-### Notes
-- `version.env`: `MARKETING_VERSION=0.26.4`, `BUILD_NUMBER=63.4`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
-- Tag name: `v0.26.4-mobile.1.7.0` (new release). Per [[docs/versioning.md]] rule: BUILD `63.y` ↔ MARKETING `0.26.y`. `0.26.3` is intentionally skipped because BUILD `63.3` was incorrectly shipped as MARKETING `0.26.2`; aligning forward instead of relabeling history.
-
----
-
-## 0.26.2 (Mobile 1.7.0 · build 63.3) — 2026-05-18 — universal multi-account mechanism (Phase G)
-
-> Fork-only patch on top of upstream v0.26.1. **No Mac UI deltas
-> beyond what v0.26.1 already shipped** — the Mac menu's per-provider
-> account-tab switcher (e.g., OpenAI admin keys) already worked. The
-> change in this release is two-sided plumbing so iPhone finally
-> mirrors that Mac UX: catalog-driven multi-account sync fan-out
-> (Mac → CloudKit) plus a generic account-tab UI inside iOS provider
-> detail pages.
-
-### Mac
-
-- `SyncCoordinator.tokenBasedMultiAccountProviders` is now a computed
-  property reading `TokenAccountSupportCatalog.allProviders` (single
-  source of truth). Fan-out now covers all 18 token-account providers
-  instead of the prior hardcoded 11 — silently fixes 7 providers
-  (openai, deepseek, antigravity, manus, copilot, venice, stepfun)
-  whose extra accounts were never reaching iOS via CloudKit.
-- New `Tests/CodexBarTests/TokenAccountSyncCoverageTests.swift` —
-  pins the catalog⇔sync-list equality so future upstream-added token
-  providers automatically flow through; missing-mirror cases fail
-  the build instead of silently losing multi-account on iPhone.
-- `MockProviderInjector` +7 second-tab simple mocks (one per Phase G
-  provider above) so the iOS multi-account tab UI is exercised
-  end-to-end via the mock-injection toggle. Total mock count 45 → 52.
-- Localized `mobile_toggle_mock_subtitle` updated to reflect the new
-  52/42/44 count.
-
-### iOS (pairs with the same 1.7.0 marketing version, build 130)
-
-- Universal `ProviderAccountGroup` model — groups post-merge snapshots
-  by providerID. Mac multi-account providers now show **one row** in
-  the iOS Usage list (with a `· N` count badge) instead of N separate
-  rows.
-- `ProviderDetailView` segmented account-tab bar at the top when the
-  group has 2+ accounts. Tab labels prefer email local-part →
-  loginMethod → `Account N`. Tapping a tab re-renders all the
-  existing cards (rate windows, cost, OpenAI Dashboard, daily chart,
-  Phase B typed cards) against the selected account's data —
-  mirroring Mac's "click into provider, switch between admin tabs"
-  flow.
-- See `CodexBarMobile/CHANGELOG.md` for the iOS-side detail.
-
-### CloudKit deploy
-
-Per pre-release audit (`docs/cloudkit-deploy-audit.md`): **no schema
-deploy needed**. Phase G is 100% consumer-side — Mac pushes more
-records of the existing `DeviceProviderSnapshot` type; iOS renders
-the post-merge snapshot list with grouping. No new record types, no
-new fields outside the existing zlib-compressed `payload: Data`,
-no new indexes or zones.
-
-### Notes
-- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.3`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
-- Tag name: `v0.26.2-mobile.1.7.0`. Release branch: `mobile-dev`.
-- Naming scheme: see `docs/versioning.md`.
-
----
-
-## 0.26.1 (Mobile 1.7.0 · build 63.2) — 2026-05-18 — upstream v0.26.0/v0.26.1 fold-in + iOS 1.7.0 pairing
-
-> Fork release that **tracks upstream v0.26.1 exactly** for the
-> Mac-visible feature set (no Mac UI deltas beyond what upstream
-> shipped). Pairs with the freshly-published **iOS 1.7.0** which
-> renders six new dedicated provider cards (Kiro / Bedrock /
-> Moonshot / z.ai hourly chart / OpenAI Admin Dashboard / Antigravity
-> multi-account) plus two new settings toggles via the Shared iCloud
-> envelope extensions in this release. End-to-end verified via mock
-> injection before publish: all 6 new cards render correctly on
-> iPhone with the typed data Mac pushes through CloudKit.
-
-### Mac changes folded in (all from upstream)
-- Sync upstream v0.26.0 + v0.26.1 in full (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).
-- `Sources/CodexBarCore/Sync/AccountIdentityComputer` + `SyncCoordinator.isModelEstimated()` extended for new providers `moonshot` and `bedrock` (fork-private wiring, no Mac UI change).
-- `Sources/CodexBar/Sync/MockProviderInjector` extended to emit Moonshot + Bedrock mocks (43 → 45 synthetic providers).
-- Cost cache invalidation: codex `v5 → v6` (adopts upstream's bump; supersedes fork 0.23.1 hotfix); claude/vertex stay at fork's `v3`.
-
-### Mobile bridge — Shared envelope extensions (no user-visible Mac change)
-- `Shared/Models/UsageSnapshot.swift` adds six optional `decodeIfPresent` fields so a future iOS 1.7 reader can pick up the data without a wire-format break:
-  - `openAIAPIDashboard: SyncOpenAIAPIDashboard?` — Today/7d/30d summaries + daily breakdown + top models / line items.
-  - `zaiHourlyUsage: SyncZaiHourlyUsage?` — per-model hourly token series.
-  - `kiroCredits: SyncKiroCredits?` — plan + credits + bonus + expiry countdown.
-  - `bedrockCost: SyncBedrockCost?` — monthly spend + budget + region.
-  - `moonshotBalance: SyncMoonshotBalance?` — account balance + region + last-updated.
-  - `antigravityAccounts: SyncMultiAccountList?` — OAuth account list + active index (Mac stub for now).
-- `Shared/iCloud/CloudConstants.providerPayloadVersion` deliberately NOT bumped (additive optional fields).
-- Mac `SyncCoordinator` populates the new fields whenever upstream's per-provider snapshot carries the corresponding data.
-- Bedrock region & Moonshot balance flow through dedicated paths (Mac `SettingsStore.bedrockRegion` plumb-through, loginMethod parser) — not the composite display strings — so iOS reads the actual values, not the menu copy.
-
-### iOS pairing
-- Pairs with **iOS 1.7.0** (build 129); see `CodexBarMobile/CHANGELOG.md`. iOS 1.7.0 renders six new dedicated provider cards driven by the typed envelope fields. iOS 1.6.0 (126) on TestFlight remains forward-compatible — `decodeIfPresent` makes the new keys invisible to it.
-
-### Notes
-- `version.env`: `MARKETING_VERSION=0.26.1`, `BUILD_NUMBER=63.2`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
-- Tag name: `v0.26.1-mobile.1.7.0`. Release branch: `mobile-dev`.
-- Naming scheme: see `docs/versioning.md`.
-
----
-
-## Upstream v0.26.0 / v0.26.1 — 2026-05-15
-
-Folded into fork 0.26.1 (above). Original upstream release notes:
-
-### Upstream v0.26.1 — 2026-05-15
-
-**Added**
+### Added
 - OpenAI API: show Admin API usage inline with Today/7d/30d summaries, a 30-day spend graph, and an interactive detail chart for daily spend, tokens, and requests.
 - CLI: add `codexbar serve` for localhost JSON access to usage and cost endpoints (#957). Thanks @ThiagoCAltoe!
 
-**Fixed**
+### Fixed
 - OpenCode Go: block cross-host redirects when fetching usage so imported cookies cannot follow external redirect targets (#969). Thanks @pavbar!
 - Codex: keep background `/status` probes out of Codex Desktop history by using isolated non-persistent CLI storage (#953).
 - Menu: stabilize the Cost submenu by using a native menu item and deferring open-menu rebuilds while tracking (#954). Thanks @getogrand!
 - Localization: add Brazilian Portuguese quota-warning settings strings (#958). Thanks @ThiagoCAltoe!
 
-### Upstream v0.26.0 — 2026-05-15
+## 0.26.0 — 2026-05-15
 
-**Added**
+### Added
 - Codex: add tiered long-context and Fast/Priority pricing to local cost history using local app-server priority traces (#917). Thanks @iam-brain!
 - Kiro: show account/auth details, plan labels, credit and bonus-credit balances, overage state, and Kiro-specific menu bar display options (#933, fixes #934). Thanks @solnikhil!
 - Antigravity: add Google OAuth token-account switching with selected-account refresh persistence (#937, fixes #936). Thanks @hhh2210!
@@ -1263,7 +1070,7 @@ Folded into fork 0.26.1 (above). Original upstream release notes:
 - Localization: add Brazilian Portuguese translations (#902). Thanks @ThiagoCAltoe!
 - Localization: add Simplified Chinese translations for Claude peak-hour labels (#921). Thanks @whtis!
 
-**Fixed**
+### Fixed
 - Codex: show authenticated plan/account rows as "Limits not available" instead of a red no-rate-limit error when Codex reports profile data but no rate-limit windows yet.
 - Overview: hide provider rows that only contain an error, and avoid showing a one-item Codex System Account submenu.
 - Menu: disable implicit provider-switcher layer animations and reuse the deferred rebuild path so open menus stay stable under pointer movement (#950).
@@ -1296,419 +1103,117 @@ Folded into fork 0.26.1 (above). Original upstream release notes:
 - Release: include macOS platform and architecture in notarized app and dSYM asset names (#164).
 - Upstream tooling: resolve remote default branches and tolerate missing upstream remotes in review scripts (#906).
 
----
-
-## 0.25.2 — 2026-05-15 — Mac quota warnings now push to iPhone
-
-Mac quota warning notifications can now also be pushed to your iPhone (previously, only depletion / restoration triggered a push). Requires iOS 1.6.0+.
-
-# 中文
-
-Mac 的配额警告通知现在也可以推送到 iPhone 上（之前只有耗尽 / 恢复才会推送）。需配合 iOS 1.6.0+。
-
----
-
-## 0.25.1 — 2026-05-12 — Mobile fork's first 0.25.1 release (folds v0.24 / v0.25 / v0.25.1)
-
-**0.25.1-mobile.1.5.3** folds three upstream releases (v0.24, v0.25, v0.25.1) into one Mac build, plus a small zh-Hans / en translation gap fix our audit caught.
-
-### What's new
-
-- **11 new providers** — Windsurf, Codebuff, DeepSeek, Manus, MiMo, Qwen, Doubao, Command Code, StepFun, Crof, Venice, plus OpenAI API balance tracking.
-- **Simplified Chinese** localization with in-app language selector.
-- **Quota warning notifications** — opt-in alerts at configurable thresholds (e.g. 80%) for session and weekly quota windows.
-- **Codex multi-account switcher** — stacked or segmented layout in the menu bar.
-- **Codex cost attribution fix** — GPT-5.4 / GPT-5.5 sessions no longer bucket under GPT-5.
-- **MiniMax** multi-service quota cards (text / speech / image / video / music).
-- **Copilot multi-account** + Claude peak-hours indicator + Storage usage view.
-- **VoiceOver** labels across the menu bar.
-
-### Fixes
-
-- Settings / About no longer crashes on packaged-app launch (SwiftPM bundle lookup).
-- Codex hung RPC reads time out instead of looping; menu reopen behaves as a true toggle.
-- Cursor Enterprise / Team usage displays correctly (was reporting 100% remaining).
-- macOS 26.4 menu bar icon visible again.
-- Pi session cost cache rebuilds automatically after pricing changes.
-- Simplified Chinese peak-hours strings (`off_peak`, `peak_ends_in`, `off_peak_peak_in`) and English `not_found` fallback translated (fork hotfix).
-
-### iOS compatibility
-
-Wire format unchanged. Compatible with iOS 1.5.0+. iOS clients without native UI for the new providers show them as fallback (blue) cards; a future iOS release will add native rendering. No iOS update required for this Mac build.
-
----
-
-# 中文
-
-**0.25.1-mobile.1.5.3** 一次性合入上游三个版本（v0.24、v0.25、v0.25.1），并附带一个 zh-Hans / en 翻译补缺。
-
-### 新功能
-
-- **11 个新 provider** —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Qwen、Doubao、Command Code、StepFun、Crof、Venice，加 OpenAI API balance 跟踪。
-- **简体中文** 本地化 + 应用内语言选择器。
-- **配额警告通知** —— session / 周额度按可配置阈值（例如 80%）提醒，可选开启。
-- **Codex 多账号切换器** —— 菜单栏堆叠 / 分段两种布局。
-- **Codex 成本归因修复** —— GPT-5.4 / GPT-5.5 session 不再被归入 GPT-5。
-- **MiniMax** 多业务额度卡（文本 / 语音 / 图像 / 视频 / 音乐）。
-- **Copilot 多账号** + Claude 高峰时段指示器 + 本地存储用量视图。
-- **VoiceOver** 标签覆盖菜单栏。
-
-### 修复
-
-- Settings / About 在打包 app 启动时不再崩溃（SwiftPM bundle 查找）。
-- Codex 卡死的 RPC 读取会超时退出；菜单重开行为修正为 toggle。
-- Cursor 企业 / 团队用量显示正确（之前误报 100% remaining）。
-- macOS 26.4 菜单栏图标重新可见。
-- Pi session 成本缓存在价格变更后自动重建。
-- 简体中文高峰时段 3 个字符串（`off_peak`、`peak_ends_in`、`off_peak_peak_in`）+ 英文 `not_found` fallback 补译（fork hotfix）。
-
-### iOS 兼容
-
-Wire format 未变，兼容 iOS 1.5.0+。iOS 客户端没有原生支持新 provider 的会显示为 fallback（蓝色）卡片；后续 iOS 版本会上原生 UI。本 Mac 版本不强制 iOS 同步升级。
-
-## 0.23.6 — 2026-05-05 — Pairs with iOS 1.5.2
-
-Bump from 0.23.5 → 0.23.6. The 0.23.5 internal cycle bundled mock
-infrastructure groundwork (mix-mode injector + Settings UI gating
-fix + L1 ghost cleanup survives Mac restart). 0.23.5 was never
-published; everything ships as 0.23.6.
-
-### Mac-side changes folded in
-
-- **L1 ghost cleanup survives Mac restart** (commit `4e633c02`)
-
-User QA 2026-05-05: stranded mock CKRecords from a previous Mac process
-incarnation persisted on iOS forever after the user toggled mock injection
-off. Build 95's Research/017 already noted "the codebase has zero explicit
-record or zone deletion semantics" for cross-process scenarios; this hits
-that gap directly — the in-memory `lastPushedRecordNames` was wiped on
-every Mac process restart, so the L1 cleanup never knew about records
-pushed by a previous process.
+## 0.25.1 — 2026-05-11
 
 ### Fixed
+- Settings: avoid packaged-app crashes from SwiftPM localization bundle lookup when opening Settings or About (#896, fixes #891). Thanks @lederniermagicien!
+- CLI: include a VERSION file in standalone release archives so `--version` reports the release tag outside the app bundle (#898). Thanks @ThiagoCAltoe!
+- Pi: rebuild stale session cost caches after cache-version migrations so refreshed cost history reflects current scanner data.
+- Keychain cache: reduce repeated development prompt churn by trusting the bundled helper when writing CodexBar-owned cache items (#888).
 
-- `SyncCoordinator.startObserving` now triggers a one-shot
-  `fetchPerProviderRecordNames(forDeviceID:)` against `DeviceProvidersZone`
-  and seeds `lastPushedRecordNames` with the result. The next push cycle's
-  diff sees pre-existing records that this Mac process never knew about,
-  so L1 cleanup deletes them via the existing `deletePerProviderRecords`
-  path. Closes the failure mode where:
-  1. Mac pushes mocks (toggle on) → records land in CloudKit
-  2. Mac process restarts (binary upgrade, normal quit, etc.)
-  3. User toggles mocks off
-  4. New Mac process starts with empty in-memory `lastPushedRecordNames`
-  5. First-cycle guard skips delete → mocks stranded forever
-- Generalises beyond mocks: ANY orphan record from a previous process
-  (e.g. user disabled Codex on Mac before restart) now gets cleaned up
-  on next restart's first push cycle.
+## 0.25 — 2026-05-10
 
-### Added
+### Highlights
+- Localization: add Simplified Chinese app strings and an in-app language selector (#819). Thanks @markhome1!
+- New providers: Manus, MiMo, Qwen, Doubao, Command Code, StepFun, Crof, Venice, and OpenAI API balance support.
+- MiniMax: add multi-service quota cards for text, speech, image, video, and music coding-plan usage (#605). Thanks @XWind18!
+- Notifications: add opt-in quota warning notifications, warning markers, and provider-level thresholds for session and weekly quota windows (#852). Thanks @Alekstodo!
+- Codex: add stacked multi-account switchers and show official Pro 5x/Pro 20x plan labels (#869, #882). Thanks @ajmccall and @xiaoqianWX!
+- Cost history: use live models.dev pricing metadata, preserve tiered pricing boundaries, and keep large Codex/Claude log scans incremental (#863, #884, #886). Thanks @iam-brain!
+- Menu bar: fix hidden/stale status items, keep manual refreshes open, and improve balance-style menu bar text for providers without useful quota percentages (#845, #853, #861). Thanks @OlimjonovOtabek and @willytop8!
+- Accessibility: add VoiceOver labels for status icons, menu rows, provider switcher buttons, and usage charts (#860, fixes #859). Thanks @WadydX!
 
-- `SyncPushing.fetchPerProviderRecordNames(forDeviceID:)` protocol
-  method with no-op default. CloudSyncManager implements via
-  `desiredKeys: []` CKQuery (metadata only — no payload download)
-  filtered by `NSPredicate(format: "deviceID == %@", deviceID)`.
-- 3 new SyncCoordinator tests (`l1Reconcile*`): stranded-record
-  cleanup confirmed, empty-CloudKit no-op, sync-disabled skip.
+### Providers & Usage
+- Manus: add browser-cookie provider support for credit balance, monthly credits, and daily refresh tracking (#700). Thanks @hhh2210!
+- MiMo: add browser-cookie provider support for Xiaomi token-plan usage, plan labels, balance fallback, CLI, widget, and docs (#651). Thanks @debpramanik!
+- Qwen and Doubao: add API-key provider support for Alibaba Qwen and Volcengine Ark request-limit tracking (#498). Thanks @LeoLin990405!
+- Antigravity: add OAuth-backed remote usage fetching so quotas can refresh even when the IDE is closed (#635). Thanks @abnormal749!
+- Venice: add API-key balance provider support with DIEM/USD balance display and token-account CLI wiring (#865). Thanks @clawSean!
+- Crof: add API-key provider support with request quota and credit balance tracking (#872). Thanks @baanish!
+- OpenAI API: add optional platform credit-balance tracking from the billing credit-grants endpoint (#877).
+- Command Code: add browser-cookie provider support for monthly USD billing credits (#857). Thanks @sixhobbits!
+- StepFun: add username/password or Oasis-Token provider support for Step Plan rate-limit tracking (#815). Thanks @tevenfeng!
+- Factory/Droid: add token-rate-limit billing windows, Core fallback buckets, and extra usage balance display (#878). Thanks @dantemoon1!
+- OpenRouter, Mistral, and Kimi K2: show balance/spend metrics in menu bar text when quota percentage is not useful (#853). Thanks @willytop8!
+- Usage pace: show session-level pace indicators for Codex and Claude 5-hour windows, and compute pace for any explicit reset window instead of a provider allowlist (#355, #875). Thanks @johnlarkin1 and @ViperThanks!
+- Cost history: add a models.dev pricing metadata parser/cache pipeline and prefer cached models.dev pricing for Codex and Claude before bundled fallback tables (#863, #884). Thanks @iam-brain!
+- Browser cookies: bump SweetCookieKit to 0.4.1 for Comet and Yandex browser discovery, Safari profile cookie stores, and per-browser Chromium Safe Storage keys.
 
-## 0.23.6 — Mock-First infrastructure groundwork (folded into 0.23.6 release)
+### Menu & Settings
+- Codex: add a stacked multi-account menu layout for account switchers (#869). Thanks @ajmccall!
+- Menu bar: keep status items visible on launch by avoiding macOS autosaved hidden menu-extra state from v0.24 (#861).
+- Menu bar: remove stale split provider status items instead of hiding them, avoiding leftover second-icon slots on macOS 26.4.
+- Menu: keep the status menu open when manually refreshing usage from the menu (#845). Thanks @OlimjonovOtabek!
+- Menu: route provider switcher tab clicks through the parent view's mouse tracking so a sub-provider tab still responds after switching back from the Overview tab (#867). Thanks @Karl-Dai!
+- Menu: keep long Codex account labels from widening the status menu when switching to the Codex tab.
+- Menu: keep Cost and Subscription Utilization submenus stable by deferring parent card rebuilds while hosted submenus are open (#862).
+- Settings: avoid a crash when opening the display overview provider picker.
 
-Mock-First quality infrastructure groundwork. This release establishes
-the synthetic-mock injection layer that subsequent iOS releases (1.5.2+)
-build on for first-class multi-account testing without requiring real
-provider subscriptions.
+### Fixes
+- Startup: avoid blocking menu-bar creation on synchronous defaults migration/default seeding when macOS preferences services stall.
+- Codex: honor the legacy `openAIWebAccess` defaults key when importing OpenAI web extras preferences, so existing terminal workarounds no longer get ignored on launch (#794).
+- Codex: restrict OAuth auto fallback to missing/invalid auth so transient API/decode errors do not spawn `codex app-server` and burn tokens (#876, fixes #874). Thanks @ViperThanks!
+- Codex: show official Pro 5x/Pro 20x plan labels instead of Pro Lite/Pro in menu and CLI output (#882). Thanks @xiaoqianWX!
+- Cost history: keep manual refreshes on the incremental scanner cache and drain per-line JSON parse allocations so large Codex/Claude histories do not trigger full local log rescans and CPU/memory spikes.
+- Cost history: preserve cached models.dev pricing when an upstream catalog only changes a pinned snapshot suffix for the same model family (#883). Thanks @iam-brain!
+- Cost history: preserve per-request tiered pricing boundaries when aggregating Claude/Pi daily reports (#886). Thanks @iam-brain!
+- Keychain cache: trust the bundled CodexBarCLI helper when writing CodexBar-owned cache items, reducing repeated "CodexBar Cache" prompts from CLI usage (#679). Thanks @QuarkAssistant!
+- Locale: keep relative timestamps in hardcoded-English UI labels consistently English on non-English macOS systems (#868, fixes #866). Thanks @Karl-Dai!
+- Droid: send the bearer JWT subject as the usage `userId` when Factory omits `userProfile.id`, avoiding false login failures (#626). Thanks @CrystalChen1017!
+- Droid: fall back to token/allowance math when the Factory API reports a zero ratio despite non-zero usage (#864). Thanks @proxynico!
+- Alibaba: point the International Coding Plan dashboard link at the current `coding_plan` route and clarify unsupported API-key quota errors (#612).
+- Claude: allow web/sessionKey token accounts to specify `organizationId` so linked Anthropic emails can target the intended org (#848).
+- DeepSeek: show a positive CNY balance when the API also returns an empty USD balance (#873).
+- Vertex AI: detect service-account ADC files from `GOOGLE_APPLICATION_CREDENTIALS` and use `gcloud` to fetch access tokens (#871).
+- Gemini: retry direct API requests with curl when URLSession times out on hosts where curl succeeds (#826).
+- Gemini: locate Homebrew-installed CLI bundles and parse bundled OAuth client constants so token refresh works with newer `gemini-cli` installs (#695).
+- OpenRouter: keep the menu bar rendering the usage meter instead of falling back to the provider logo when no key limit is configured (#854). Thanks @willytop8!
+- DeepSeek: show balance as plain text instead of a misleading quota-style progress bar (#856). Thanks @jb381!
+- Augment: report the real 1-minute keepalive check/min-refresh intervals in startup logs and docs (#434). Thanks @guglielmofonda!
+- Website: refresh codex.bar with the current canonical domain, structured background, and updated social preview.
 
-### Highlights — internal-only (no Sparkle release)
+## 0.24 — 2026-05-06
 
-- **Mock provider injector — mix design + full provider coverage.**
-  `MockProviderInjector` now emits **32 synthetic
-  `ProviderUsageSnapshot` entries spanning 29 distinct providerIDs**:
-  - 6 rich mocks with REAL provider IDs (`codex` × 3, `claude` × 2,
-    `perplexity` × 1) so iOS renders them with first-class provider UI
-    (icon, color, native multi-account affordances). Exercises the
-    critical "3 Codex on Mac, 1 on iOS" rendering path that real users
-    hit.
-  - 24 simple single-account mocks covering every other real provider
-    (cursor, opencode, opencodego, alibaba, factory, gemini,
-    antigravity, copilot, zai, minimax, kimi, kilo, kiro, vertexai,
-    augment, jetbrains, kimik2, amp, ollama, synthetic, warp,
-    openrouter, abacus, mistral). Each emits a 1-account snapshot with
-    a primary rate window + cost data (where applicable) so iPhone's
-    first-class card UI for each provider is exercised.
-  - 2 mocks with synthetic `_mock_*` IDs (`_mock_cursor_unknown` for
-    error-state fallback, `_mock_synthetic_unknown` for rich-data
-    fallback). Forward-compat insurance: when a future Mac adds a new
-    provider iOS doesn't know yet, that fallback path must still
-    render.
-- **Cost data on most real-borrowed mocks.** 28 of 32 mocks carry a
-  synthetic `SyncCostSummary` (session + 30-day total). The 4
-  intentionally cost-less mocks: `_mock_cursor_unknown` (error state),
-  `_mock_synthetic_unknown` (budget-driven), `antigravity` (preview /
-  no billing), `ollama` (local inference, no spend). Codex Alice
-  additionally carries a 30-day daily breakdown with model breakdowns
-  so the iPhone Cost dashboard's Daily Spend / per-day chart /
-  model-breakdown pie are all end-to-end testable. Aggregate
-  ~$85/30day across all 28 cost-bearing mocks — visible but capped so
-  it doesn't dwarf real users' real numbers.
-- **Universal `*-mock@*.test` email TLD.** Every mock account uses the
-  RFC 6761 reserved `.test` TLD as the universal "is this a mock?"
-  signal. Works regardless of whether the providerID is real-borrowed
-  or synthetic. iOS 1.5.2+ uses this TLD as the trigger for the MOCK
-  badge + purple-striped card treatment.
-- **Settings UI surface.** New "Debug · Mock Provider Data" section in
-  Settings → Mobile, visible to all users (default OFF). Toggle flips
-  `CodexBarMockProvidersEnabled` UserDefaults; the same flag drives
-  `MockProviderInjector.isEnabled`. When ON, displays a reference list
-  of the 8 mocks (display name + email + state) so QA can compare
-  against what shows on iPhone. When toggled off, CloudKit ghost-
-  records cleanup automatically purges the mock CKRecords within ~1
-  cycle.
-- **SyncCoordinator dependency injection for mock injector.**
-  `mockInjector: () -> [ProviderUsageSnapshot]` parameter (default
-  empty closure) decouples production from process-global UserDefaults
-  state, enabling cross-suite parallel test isolation.
-- **55 mock tests** (15 unit + 35 integration + 5 cost dashboard
-  end-to-end) covering: providerID allowlist enforcement, real vs.
-  fallback path coverage, .test TLD invariant, multi-account distinct
-  recordNames, ghost-records cleanup on toggle, env var precedence,
-  cost data sums match aggregates, daily breakdown model labels.
-- **All 82 Sync regression tests still pass** with the redesigned
-  mocks — R1 Codex multi-account, R2 token-based 11 provider expansion,
-  R3-R5 multi-Mac merge + edge cases all unaffected. Combined Sync +
-  Mock filter run: 136 tests pass.
+### Providers & Usage
+- Windsurf: add provider support with web-session usage fetching and local SQLite-cache fallback (#583). Thanks @Coooolfan!
+- Codebuff: add provider support with credit balance tracking, weekly rate-limit usage, API-token settings, and `codebuff login` credential import (#837). Thanks @anandghegde!
+- Copilot: add multi-account support with GitHub OAuth sign-in, account switching, and per-account usage cards (#637). Thanks @ajmccall!
+- DeepSeek: add provider support with token-account balance tracking, paid vs. granted credit breakdown, and CLI support (#811). Thanks @willytop8!
+- Storage: add an opt-in menu view for local provider storage usage with background scans and copyable path breakdowns (#829). Thanks @fatiheminoge!
+- OpenRouter and DeepSeek: show remaining account balances in the menu bar, while preserving OpenRouter's API-key limit metric when explicitly selected (#832). Thanks @giuseppebisemi!
+- Claude: add a peak-hours menu-card indicator with countdowns and a provider setting to hide it (#611). Thanks @hello-amed!
+- Cost history: show per-model cost details as a compact vertical list when hovering daily bars (#513). Thanks @iam-brain!
+- Copilot: support GitHub Enterprise hosts for the device-flow login and usage API paths (#827). Thanks @ramzesenok!
+- Alibaba: clarify China-region API-key failures when the console endpoint requires a browser session (#628). Thanks @XWind18!
 
-### Activation (any one)
-
-```sh
-# Env var (developer)
-CODEXBAR_MOCK_PROVIDERS=1 /Applications/CodexBar.app/Contents/MacOS/CodexBar
-
-# defaults write (CLI / scripted QA)
-defaults write com.o1xhack.codexbar CodexBarMockProvidersEnabled -bool true
-
-# Settings UI (everyone)
-CodexBar → Settings → Mobile → Debug · Mock Provider Data → toggle on
-```
-
-### Production safety
-
-- Default is OFF; user must explicitly opt in. App Store / Sparkle
-  distribution never accidentally activates.
-- Mock CKRecords are stored under composite keys distinct from real
-  data: `{deviceID}|{providerID}|*-mock@*.test`. Real provider records
-  use a different email bucket and are never touched.
-- L1 ghost-records cleanup auto-purges mock records within ~1 cycle
-  after toggle-off. Real numbers restore fully.
-
----
-
-## 0.23.4 — 2026-04-28
-
-### Highlights — Mobile 1.5.1 — 2026-04-29
-
-- Fork repository renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile`
-  to differentiate from the upstream Mac repo. The Mac binary is unchanged
-  from Mobile 1.3.1 — this bump just stamps the new fork URL into the
-  appcast and GitHub release tag. All previous download URLs continue to
-  resolve via GitHub's permanent redirect, so the Sparkle update flow stays
-  uninterrupted for existing installs.
-- Pairs with iOS **1.5.1 (102)** which carries the same rename through
-  every iOS user-visible string and the in-app release notes.
-
----
-
-Hotfix that closes a long-standing Codex JSONL parser bug — pre-existing
-all the way back to when the Codex scanner was first written, only
-became visible recently because Codex CLI 0.125 changed its
-`turn_context` shape. Caused 90%+ of Codex token usage to be silently
-misattributed to `gpt-5`, no matter what model the user actually ran.
-
-Every previous version's user (0.18 / 0.19 / 0.20 / 0.20.x / 0.21 /
-0.22 / 0.23 / 0.23.1) is automatically corrected on first launch of
-0.23.4 — the fingerprint mechanism rolls and triggers a fresh full
-re-scan with the fixed parser.
-
-### Root cause
-
-`Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift:669`
-declared `prefixBytes = 32 * 1024` for the Codex JSONL parser. Any line
-larger than that gets `wasTruncated = true` from `CostUsageJsonl.scan`
-and is skipped entirely.
-
-Codex CLI 0.125+ ships `turn_context` events that bundle the project's
-`AGENTS.md` / `CLAUDE.md` / `developer_instructions` into
-`payload.user_instructions`, growing the line to **~38–41 KB** on a
-typical project. Every `turn_context` was therefore truncated → skipped
-→ `currentModel` never updated. All subsequent `event_msg/token_count`
-events fell through the priority chain to `?? "gpt-5"` (line 763) and
-got bucketed under `gpt-5` regardless of the real model.
-
-The bug was masked because almost all earlier test fixtures included
-`info.model` directly inside the token_count event (which bypasses
-`currentModel`). Real Codex CLI 0.125 traffic doesn't.
-
-### Fix
-
-- Bumped `prefixBytes` from 32 KB to `maxLineBytes` (256 KB), matching
-  what `CostUsageScanner+Claude.swift:80` and `PiSessionCostScanner.swift:280`
-  already use. The cap remains in place for runaway-JSONL safety, just
-  at a level that fits modern Codex events.
-- Bumped `CostUsagePricing.parserLogicVersion` from `1` → `2`. The
-  `pricingFingerprint` mechanism (added in 0.23.1) detects the rolled
-  fingerprint on first launch and runs a fresh full scan with the fixed
-  parser. Caches written without a fingerprint at all (every release
-  before 0.23.1) also fail the equality check and get invalidated, so
-  long-time users on older versions are corrected too.
-- Two new regression tests in `CostUsageScannerTests.swift` pin the
-  contract: one writes a single 50 KB turn_context + bare token_count
-  (no `info.model`) and asserts attribution lands on `gpt-5.5`; the
-  other simulates a mid-session model switch (gpt-5.4 → gpt-5.5) with
-  two large turn_contexts and asserts the delta-split attribution
-  lands on the right model in both segments. Both tests assert that
-  `gpt-5` (the default fallback bucket) stays empty.
-
-### Code-review follow-ups (folded in before ship)
-
-A self-review with codex-reviewer caught three P1 issues across the
-0.23 / 0.23.1 / 0.23.4 commit cluster. All three are fixed in this
-release rather than deferred:
-
-- **P1-1 — Lint guard fail-closed.** The new `audit_parser_version`
-  check silently `return 0`'d when its base ref (`origin/mobile-dev`)
-  was missing. CI shallow-clone checkouts (`actions/checkout` without
-  `fetch-depth: 0`) would never have this ref, so parser changes could
-  ship with no `parserLogicVersion` bump and the audit would still
-  report success. Now it tries to fetch the missing ref first; if
-  fetch fails it errors out instead of skipping. Explicit opt-out via
-  `ALLOW_MISSING_BASE=1` for offline / fresh-fork-clone scenarios.
-- **P1-2 — Fingerprint must include prices, not just keys.** The
-  `pricingFingerprint` introduced in 0.23.1 hashed only model **names**,
-  not their prices. A same-name reprice (existing model gets a new
-  rate) wouldn't roll the fingerprint, leaving stale baked
-  `costNanos` in `PiSessionCostCache` (and similarly in Claude
-  caches that persist computed cost). Fingerprint now embeds the
-  full price tuple per model — input / output / cacheRead /
-  cacheCreation / threshold and above-threshold rates — so any
-  edit invalidates every cache. New `pricingFingerprint rolls when
-  a price changes` test pins the contract.
-- **P1-3 — iOS legacy-email normalization byte-matches Mac.** Mac
-  `AccountIdentityComputer` normalizes (NFC + percent-encode + length
-  cap) before writing identifiers like `codex:email:...`. iOS's
-  legacy-fallback synthesis in `CloudSyncReader.effectiveIdentifiers`
-  used only `trim + lowercased`, so non-ASCII emails (e.g.
-  `café@example.com`) split into separate cards across versions
-  (Mac on 0.23+ writes `caf%C3%A9@…`; iOS synthesized
-  `café@…` from a 0.20.x snapshot). Extracted the normalization
-  to `Shared/iCloud/AccountIdentityNormalize.swift` so both sides use
-  it. Pinned by paired tests on Mac and iOS asserting byte-identical
-  output for the same fixture inputs.
-
-### Hardening — preventing the next prefixBytes-class bug
-
-Two infrastructure additions so this kind of regression can't reach
-users again:
-
-- **Lint guard.** New `Scripts/lint.sh audit-parser-version` step
-  fails CI when any of `CostUsageScanner.swift`,
-  `CostUsageScanner+Claude.swift`, or `CostUsageJsonl.swift` change
-  without a matching bump to `CostUsagePricing.parserLogicVersion`.
-  Wired into the default `lint` command so `./Scripts/lint.sh lint`
-  catches it pre-push and CI re-runs the same check on every PR.
-  Cosmetic / comment-only edits can opt out via `ALLOW_PARSER_CHANGE=1`.
-  Why: this 0.23.4 fix needed a manual `parserLogicVersion` bump for
-  the cache to actually re-roll on user machines — easy to forget on
-  future parser tweaks.
-- **Real-shape regression fixtures in tests.** The new tests
-  deliberately model real Codex CLI 0.125 output (multi-KB
-  `user_instructions` payloads, no `info.model` on token_count)
-  rather than the cooperative shape earlier tests used. Future
-  scanner changes that re-introduce the truncation class of bugs
-  break these tests immediately.
-
-### Notes
-
-- CFBundleVersion = `58.4.1.3.1`. Sparkle on 0.23 prompts the upgrade
-  on next check-for-updates.
-- iOS unchanged (1.5.0 Build 96 / 98). Mac re-scan repushes corrected
-  numbers to CloudKit; iOS reads automatically.
-- 0.23.1 GitHub draft superseded — 0.23.4 carries the same cache
-  invalidation infrastructure plus this parser fix, so 0.23.1 was
-  never finalized.
-
-## 0.23.1 — 2026-04-28
-
-Hotfix on top of 0.23. Closes a stale-cache bug exposed during 0.23 QA: the
-0.20.3 → 0.23 upgrade added new pricing (gpt-5.5, claude-opus-4-7) and the
-fallback resolver, but the on-disk cost cache wasn't invalidated. Existing
-users saw token usage attributed to the wrong model bucket (e.g., gpt-5.4
-/ gpt-5.5 traffic stuck under gpt-5 in the cache, making Daily Spend
-visibly low).
-
-### Fix
-
-- **Cost cache auto-invalidates on upgrade.** Bumped on-disk artifact
-  versions: `codex-v4` → `codex-v5`, `claude-v2` / `vertexai-v2` →
-  `claude-v3` / `vertexai-v3`, `pi-sessions-v1` → `pi-sessions-v2`. First
-  launch on 0.23.1 ignores old cache files and runs a fresh full scan
-  (10–60 s depending on JSONL volume).
-- **Future-proofed against the same bug class.** Added
-  `CostUsagePricing.pricingFingerprint` — a deterministic string of
-  parser-logic version + sorted pricing keys. `CostUsageCache` and
-  `PiSessionCostCache` carry this fingerprint at write time; load()
-  rejects any cache whose fingerprint doesn't match the current build.
-  Any future pricing-table edit (new model added, repriced, removed)
-  auto-invalidates every user's cache on next launch — no manual
-  artifact-version bump required.
-- 9 new test cases pin the fingerprint contract.
-
-### Notes
-
-- CFBundleVersion = `58.2.1.3.1` (was `58.1.3.1` for 0.23). Sparkle on 0.23 prompts the upgrade.
-- iOS unchanged (1.5.0 Build 96/98). Once Mac re-scans and pushes,
-  iOS sees the corrected numbers automatically.
+### Fixes
+- Codex: time out hung `codex app-server` RPC reads and cap loading animation runtime so stalled refreshes no longer keep the menu bar redrawing indefinitely (#842, #844). Thanks @hyspacex!
+- Codex: make OpenAI dashboard refreshes handle non-English pages, lazy-loaded credits history, timeout retries, and unrelated Skillusage rows (#825). Thanks @xiaoqianWX!
+- Cursor: show Enterprise/Team usage from personal caps and shared pools instead of reporting 100% remaining (#813). Thanks @fcamus00!
+- Codex: keep same-workspace managed accounts distinct by matching workspace identity with email, so different OpenAI users in one workspace no longer overwrite each other (#796). Thanks @leezhuuuuu!
+- Claude: enable Claude and switch to OAuth after a successful login, clear stale selected-provider state when Claude is disabled, and tolerate OAuth payloads that omit the five-hour window (#816, #726). Thanks @pdurlej and @Brandawg93!
+- Claude: recognize OAuth `subscriptionType` before `rateLimitTier` so Pro accounts with generic Claude Code tiers
+  open the subscription usage dashboard correctly (#836, fixes #824). Thanks @shixy96!
+- Usage: preserve known reset countdowns when a refresh returns current usage without reset metadata (#427). Thanks @Whoaa512!
+- Menu: refresh open usage cards after live data changes so the “Updated” timestamp advances after manual or cadence refreshes (#715). Thanks @cooper-matt!
+- Menu: make the global open-menu shortcut behave as a true toggle when the menu is already open, avoiding queued reopens after repeated key presses (#218).
+- Menu bar: preserve existing status items and assign stable autosave names so provider icon positions survive provider toggles (#538). Thanks @hxy91819!
+- Settings: make the Preferences window 10% wider and taller so dense provider/settings panes have more breathing room.
+- CLI releases: publish macOS arm64 and x86_64 CLI tarballs alongside Linux artifacts, with release-workflow smoke tests and docs (#457, #839). Thanks @androidshu and @mondary!
+- CLI: query only enabled providers by default when three or more providers are enabled instead of expanding to every registered provider (#830). Thanks @lhoBas!
+- CLI: read MiniMax coding-plan tokens from `MINIMAX_CODING_API_KEY`, accept Alibaba Qwen/DashScope API-key aliases, and avoid duplicate generic JSON error rows after provider failures.
+- CLI discovery: prefer known install paths before interactive shell probing so common Claude installs no longer run shell init hooks during binary detection (#775).
+- CLI lookup: drain login-shell probe output and terminate spawned process groups so interactive shell helpers cannot leak after path detection (#822, fixes #821). Thanks @LPFchan!
+- OpenCode Go: open the workspace-specific usage dashboard when a workspace ID is configured (#667). Thanks @RizaSatya!
+- Augment: use the API-provided credits limit when available instead of reconstructing the limit from consumed plus remaining credits (#338). Thanks @bcharleson!
+- MiniMax: ignore login strings embedded in scripts when checking web-session pages for signed-out state (#508). Thanks @qipihen!
+- Accounts: refresh the selected provider data and open menu after switching token accounts, even while a menu-open refresh is running (#799, fixes #798). Thanks @Zeko369!
+- Codex: prefer session turn-context model metadata when calculating local cost history so GPT-5.4 sessions are not bucketed as GPT-5 (#620). Thanks @betive37!
+- Codex: stop falling back from app-server RPC to bare CLI TUI during automatic usage refreshes, preventing unexpected OpenAI auth browser tabs.
+- Menu/keychain: block delayed test-time menu mutations after teardown and enforce no-UI keychain reads more reliably (#381). Thanks @artuskg!
+- Menu bar: fix invisible status item icon on macOS 26.4 by removing remaining RenderBox-triggering SwiftUI compositing modifiers from `UsageProgressBar` (rewritten as a single Canvas) and eliminating ~28 redundant Keychain reads on every launch after the first-run migration (#805). Thanks @willytop8!
 
 ## 0.23 — 2026-04-26
-
-Mac-side rollup of upstream v0.21 / 0.22 / 0.23 (109 commits, 2 new providers, multiple provider enhancements) plus iOS 1.5.0 data-channel scaffolding pre-loaded so future iOS iterations don't need a new Mac release. Mobile companion stays at **1.3.1** — this is a Mac-only release; iOS users on 1.3.1 / 1.3.0 / 1.2.0 see existing 25 providers unchanged plus 2 new providers (Abacus AI, Mistral) as fallback cards.
-
-### Highlights — upstream 0.21–0.23 (Mac)
-- **Mistral provider** (#607) — monthly spend tracking, browser-cookie import, manual cookies, CLI / token-account support. Thanks @welcoMattic!
-- **Abacus AI provider** — ChatLLM and RouteLLM monthly compute-credit tracking with browser-cookie import, manual-cookie support, and monthly pace rendering. Thanks @ChrisGVE!
-- **Claude Designs / Daily Routines / Web Sonnet bars** (#740) — live OAuth/Web quota data shown as additional usage bars on the Claude provider. Thanks @AISupplyGuy!
-- **Cursor Extra usage** menu metric for on-demand budgets (#789). Thanks @huiye98!
-- **Synthetic** — parses live 5-hour / weekly / search quota payloads with continuous reset/regeneration details (#732). Thanks @baanish!
-- **Codex Pro $100 plan** support across OAuth / OpenAI web / menu / CLI; **GPT-5.5 / GPT-5.5 Pro pricing** for the local cost scanner.
-- **Codex** — opt-in OpenAI web extras for fresh installs with battery-saver toggle; restored OpenAI web dashboard fetching on the new analytics route; Edge browser-cookie import.
-- **Antigravity** — restored localhost endpoint/token probing across newer builds with async TLS challenge handling, retry on API-level errors.
-- **z.ai** — preserve weekly + 5-hour token quotas together, surface 5-hour lane correctly across menu/menu bar.
-- **OpenCode** — weekly pace visualization (reserve / expected / "Lasts until reset" details like Codex/Claude).
-- **Menu shortcuts** ⌘R / ⌘, / ⌘Q while status menu is open (#737); fix macOS 26 RenderBox icon regression (#677); merged-menu width/alignment fixes.
-- **Battery / refresh** — cut menu redraw churn, skip background work for unavailable providers, reuse cached OpenAI web views (#708).
-- **Confetti** — opt-in celebration when weekly limits reset after active use (#785).
-
-### Mobile 1.3.1 — Mac-side data channel pre-loaded for iOS 1.5.0 (Option B)
-
-Mac 0.23 now writes 6 new optional `Shared/` Codable types to CloudKit so iOS 1.5.0 can render Abacus / Mistral structured detail, Synthetic 3-lane, Claude extras, Cursor Extra without ever needing a Mac patch later. iOS 1.3.x silently drops these unknown fields via existing `decodeIfPresent` (Build 79 forward-compat regression test pins this behavior) — bit-for-bit safe.
-
-Types added: `SyncAbacusCreditSummary` · `SyncMistralUsageSummary` · `SyncSyntheticQuotaSummary` · `SyncClaudeExtraBars` · `SyncCursorExtraUsage` plus 6 optional fields on `ProviderUsageSnapshot`. `SyncCoordinator` adds 6 mapping sites mirroring how `SyncPerplexityCreditSummary` was added in 0.20.3.
-
-### L1 ghost-records cleanup (root-cause fix)
-
-Closes the bug class user reported on iOS 1.3.0 right after the 0.20.3 release (duplicate Codex cards from upgrade-induced identity drift, plus stale Perplexity card after disable). iOS 1.3.1 Build 94 shipped a display-time filter; this Mac release adds the *root cause* fix in `SyncCoordinator`:
-
-- **Provider-disable hook** — when a previously-enabled provider transitions to disabled, delete its CKRecord from `DeviceProvidersZone` instead of leaving it as a stale ghost.
-- **Account-identity-drift cleanup** — when a provider's composite key changes (e.g., Codex OAuth refactor between Mac versions), find and delete the stale recordName for that provider before writing the new one.
-
-Together, the 6 known orphan-producing state transitions (provider enable/disable × 3 identity-rewrite paths) now self-heal.
-
-### Notes
-
-- CFBundleVersion = `56.1.3.1`. `BUILD_NUMBER` jumped 55.3 → **56** for the upstream-aligned slot. Sparkle `MOBILE_VERSION` tracks the current iOS train (1.3.1 — App Store hotfix).
-- Multi-device / multi-version compat verified against TestFlight Build 95 and Macs on legacy + per-provider zones.
-
----
-
-## 0.23 (upstream) — 2026-04-26
 
 ### Highlights
 - Mistral: add provider support with monthly spend tracking, browser-cookie import, manual cookies, and CLI/token-account support (#607). Thanks @welcoMattic!
@@ -1791,6 +1296,7 @@ Together, the 6 known orphan-producing state transitions (provider enable/disabl
 - Codex: add an OpenAI web battery-saver toggle, keep manual refresh available when battery saver is on, and hide OpenAI web submenus when web extras are disabled.
 
 ### Development & Tooling
+- CLI / Debug: add user-facing browser-cookie cache clearing, including provider-scoped CLI clearing that removes managed Codex account cookie caches (#592, fixes #591). Thanks @coygeek!
 - Diagnostics: add lightweight battery instrumentation for menu updates and refresh work (#708).
 - Build script: make CodexBar-owned ad-hoc keychain cleanup opt-in with `--clear-adhoc-keychain`, and extend the explicit reset path to clear both `com.steipete.CodexBar` and `com.steipete.codexbar.cache`. Thanks @magnaprog!
 
@@ -1803,307 +1309,51 @@ Together, the 6 known orphan-producing state transitions (provider enable/disabl
 - Claude: fix token and cost inflation caused by cross-file double counting of subagent JSONL logs, fix streaming chunk deduplication, and add `claude-sonnet-4-6` pricing. Thanks @enzonaute for the investigation!
 - Cost history: include supported pi session usage in Codex/Claude provider history so provider charts reflect those local runs (#653). Thanks @ngutman!
 
-## 0.20.3 — 2026-04-23
+### Providers & Usage
+- Perplexity: add recurring, bonus, and purchased-credit tracking; plan detection for Pro/Max; browser-cookie auto-import; and manual-cookie fallback (#449). Thanks @BeelixGit!
+- OpenCode Go: add a dedicated provider, parse live authenticated workspace Go usage from the web app, keep monthly optional and honor workspace env overrides.
+- Codex: add workspace attribution for account labels and same-email multi-workspace accounts.
+- Codex: reconcile live-system and managed accounts by canonical identity, preserve account-scoped usage/history/dashboard state, allow OAuth CLI fallback, and tighten OpenAI web ownership gating so quota and credits only attach to the matching account. Thanks @monterrr and @Rag30 for the initial effort and ideas!
+- Codex: normalize weekly-only rate limits across OAuth and CLI/RPC so free-plan accounts render as Weekly instead of a fake Session, preserve unknown single-window payloads in the primary lane, hide the empty Session lane in widgets, and accept weekly-only Codex CLI `/status`/RPC data without failing. @ratulsarna
+- Codex: refactor the provider end to end into clearer components and better division of responsibilities.
+- OpenCode: preserve product separation between Zen and Go, improve null/unsupported usage handling, and harden cookie/domain behavior for authenticated web fetches.
+- Cost history: merge supported pi session usage into Codex/Claude provider history (#653). Thanks @ngutman!
 
-Mobile 1.3.0 release. Mac 0.20.3 (and the preceding 0.20.2) are small user-invisible data-layer patches on top of 0.20.0 that enable the iOS 1.3.0 experience — everything user-facing in this release lives on iPhone.
+### Menu & Settings
+- Codex: add UI for switching the system-level Codex account and promoting a managed account into the live system slot.
+- Codex: hide display-only OpenAI web extras in widgets and fix buy-credits / credits-only presentation regressions.
+- Claude: enable “Avoid Keychain prompts” by default, remove the experimental label, and preserve user-action cooldown clearing plus startup bootstrap when Security.framework fallback is still needed.
+- Fix alignment of menu chart hover coordinates on macOS. Thanks @cuidong233!
 
-### Highlights — Mobile 1.3.0
-- **2 new providers on iPhone** — Perplexity (3-segment credit detail + Pro/Max badge + renewal countdown) and OpenCode Go, with dedicated colors and Mac→iPhone push notifications.
-- **Codex multi-account cards** — when you run multiple Codex accounts / workspaces, each card shows its email / workspace subtitle.
-- **Faster, leaner sync** — per-provider CloudKit records with zlib compression (typical sync transfer drops from ~2 MB to a few dozen KB); silent-push-driven refresh updates views without pull-to-refresh.
-- **Cold-start polish** — Usage tab no longer flashes blank on launch; transient CloudKit failures preserve cached data instead of blanking the screen.
-- **Per-device Mac version in About & Sync** — see which Mac is running which CodexBar version, with an orange "Update available" chip on any Mac that's not on the latest.
-- **Multi-device + multi-version correctness** — Subscription Utilization numbers stay consistent between the aggregate view and each provider's detail; older Macs can no longer silently drop fields the newer Mac wrote.
+## 0.19.0 — 2026-03-23
+### Highlights
+- Add Alibaba Coding Plan provider with region-aware quota fetching, widget integration, and browser-cookie import defaults (#574).
+- Align Cursor usage with the dashboard's Total/Auto/API lanes. (#587). Thanks @Rag30!
+- Add subscription utilization history chart to the menu with DST-safe data point identification (#589). Thanks @maxceem!
+- Refactor the Claude provider end to end into clearer, better-tested components while preserving behavior (#494). @ratulsarna
+- Add reset time display for Codex code review limits (#581). Thanks @Q1CHENL!
+- Add per-model token counts to cost history (#546). Thanks @iam-brain!
+- Fix Antigravity model selection to use stable model-family matching for Claude, Gemini Pro, and Gemini Flash, and preserve fallback lane visibility in the menu bar and icon (#590). Thanks @skainguyen1412!
+- Add GPT-5.4 mini and nano pricing (#561). Thanks @iam-brain!
 
-### Mobile 1.3.0 — new providers
-- **Perplexity detail page** — 3-segment credit bar (recurring / bonus / purchased), Pro/Max plan badge, renewal and promo-expiration countdowns, dollar balance.
-- **Perplexity + OpenCode Go push notifications** — both now in the 25-provider × 2-state push set (50 zones), with the provider name baked into the alert body in all 4 languages.
-- **Unified provider color palette** — consolidated across 5 previously-drifted call sites; OpenCode Go no longer collides with OpenCode Zen.
-- **Codex cards** with ≥2 accounts show email / workspace subtitles; single-account setups stay minimal.
+### Providers & Usage
+- Alibaba: add Coding Plan provider support with region-aware web/API quota fetching, widget integration, and browser-cookie import defaults (#574).
+- Cursor: trust dashboard percent fields for Total/Auto/API usage, preserve on-demand remaining fallback views, and keep scanning imported browser-cookie candidates until a working Cursor session is found (#587, supersedes #579). Thanks @Rag30!
+- Claude: refactor the provider end to end into clearer components, with baseline docs and expanded tests to lock down behavior (#494).
+- Codex: show reset times for code review limits, including Core review reset parsing support (#581). Thanks @Q1CHENL!
+- Cost history: add per-model token counts so token usage is broken out by model (#546). Thanks @iam-brain!
+- Antigravity: replace label-order guessing with stable model-family selection for Claude, Gemini Pro, and Gemini Flash; fix mapping for Claude thinking models and placeholder model IDs; preserve fallback lane visibility in the menu bar and icon when only fallback lanes exist (#590). Thanks @skainguyen1412!
+- Kimi: tolerate API responses without `resetTime` so usage decoding no longer fails on sparse payloads.
+- Codex: add GPT-5.4 mini and nano pricing (#561). Thanks @iam-brain!
 
-### Mobile 1.3.0 — sync & stability
-- **Per-provider CloudKit records** in a new `DeviceProvidersZone`, zlib-compressed. Older iPhones fall back to the legacy monolithic zone with zero regression.
-- **Silent-push-driven refresh** — iPhone wakes silently when Mac writes, applies the delta, views refresh in the background.
-- **SwiftData cold-start hydrate** — Cost tab no longer flashes a stale value before settling; Usage tab cold-start blank (two root causes — date-strategy mismatch + ghost records) fixed.
-- **Transient-failure defense** — if CloudKit is momentarily unreachable, cached data is preserved instead of the screen blanking.
-- **Multi-device merge correctness** — aggregate and per-provider utilization views share the same daily-peak semantic; cross-version field preservation stops older Macs from dropping fields the newer Mac knows about.
-- **Forward-compatible wire format** — iPhones on today's build silently tolerate unknown fields from future Mac versions.
-
-### Mobile 1.3.0 — polish
-- **Per-device Mac version** in About & Sync, with a "· Update available" chip on older Macs.
-- 4-language localization for all new strings (en / zh-Hans / zh-Hant / ja).
-- Comprehensive regression-guard test fixtures for realistic multi-device, cross-version data distributions.
-
-### Mac — 0.20.0 → 0.20.3
-Two user-invisible Mac-side data-layer patches that power the iOS 1.3.0 experience above — per-provider CloudKit records with zlib compression (0.20.2) and Perplexity credit-pool pass-through (0.20.3). Mac user-facing behavior is unchanged since 0.20.0.
-
-Mac 0.20.0 (2026-04-17) was the fork's alignment with upstream CodexBar 0.20. Highlights:
-- **Codex system account switching** — switch between system accounts / profiles without manually logging out and back in (contribution by @ratulsarna).
-- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
-- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
-- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
-
----
-
-2026-04-23 Mobile 1.3.0 发布。Mac 0.20.3（以及前一个 0.20.2）只是在 0.20.0 之上的两个 Mac 端用户不可见数据层补丁，用来让 iOS 1.3.0 的能力落地 —— 本次所有用户可见变化都在 iPhone 端。
-
-### 亮点 — Mobile 1.3.0
-- **iPhone 新增 2 个 Provider** —— Perplexity（三段式 credit 详情页 + Pro/Max 徽章 + 续费倒计时）和 OpenCode Go，带专属配色以及 Mac→iPhone 推送通知。
-- **Codex 多账号卡片** —— 同时运行多个 Codex 账号 / workspace 时，每张卡片在副标题显示对应的 email / workspace。
-- **更快更省的同步** —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（典型同步流量从约 2 MB 降到几十 KB）；静默推送驱动刷新，视图不用下拉即可更新。
-- **冷启动抛光** —— Usage tab 冷启动不再白屏；CloudKit 临时失败时保留缓存而不是清空界面。
-- **About & Sync 按设备显示 Mac 版本** —— 清晰看到每台 Mac 运行的 CodexBar 版本，落后版本带橙色"可升级"标识。
-- **跨 Mac + 跨版本数据正确性** —— 订阅利用率在聚合视图与单 provider 详情之间数字一致；旧 Mac 不再静默丢弃新 Mac 写入的字段。
-
-### Mobile 1.3.0 — 新 Provider
-- **Perplexity 详情页** —— 三段式 credit 柱（recurring / 赠送 / 购买）、Pro/Max 套餐徽章、续费 / 赠送到期倒计时、美元余额。
-- **Perplexity + OpenCode Go 推送通知** —— 两者均加入 25 Provider × 2 状态的推送集合（50 个 zone），Provider 名称烤进 alertBody，4 语言本地化。
-- **统一 Provider 配色** —— 收敛之前在 5 个调用点漂移的实现；OpenCode Go 视觉上不再与 OpenCode Zen 混淆。
-- **Codex 卡片** 在 ≥2 账号时副标题显示 email / workspace；单账号保持极简。
-
-### Mobile 1.3.0 — 同步 & 稳定性
-- **按 provider 拆分的 CloudKit 记录**，新 zone `DeviceProvidersZone`，zlib 压缩。老版本 iPhone 回落到传统整体 zone，零回退。
-- **静默推送驱动刷新** —— Mac 写入时 iPhone 静默唤醒，应用 delta，视图在后台刷新。
-- **SwiftData 冷启动水合** —— Cost tab 不再闪一下旧值；Usage tab 冷启动白屏（两个根因 —— 日期策略不一致 + 幽灵记录）已修复。
-- **瞬时失败防御** —— CloudKit 临时不可达时保留缓存，而不是清空屏幕。
-- **多设备合并正确性** —— 聚合视图与单 Provider 利用率视图共用"日峰值"语义；跨版本字段保留，防止旧 Mac 静默丢弃新 Mac 知道的字段。
-- **前向兼容的 wire 格式** —— 今日构建的 iPhone 静默容忍未来 Mac 版本加入的未知字段。
-
-### Mobile 1.3.0 — 打磨
-- About & Sync 按设备显示 Mac 版本，落后 Mac 带"· 可升级"标识。
-- 所有新字符串 4 语言本地化（en / zh-Hans / zh-Hant / ja）。
-- 针对真实多设备、跨版本数据分布的回归测试 fixture 全面扩展。
-
-### Mac — 0.20.0 → 0.20.3
-配合 iOS 1.3.0 落地的两个 Mac 端用户不可见数据层补丁 —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（0.20.2），以及 Perplexity credit 分段字段透传（0.20.3）。Mac 端用户可见行为自 0.20.0 以来无变化。
-
-Mac 0.20.0（2026-04-17）是本 fork 对齐上游 CodexBar 0.20 的主版本，亮点：
-- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号 / profile（@ratulsarna 贡献）。
-- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
-- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
-- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
-
-## 0.20.2 — 2026-04-21
-
-Mac-side data-plane support for the ongoing iOS 1.3.0 data-architecture refactor — per-provider CloudKit records, zlib compression, and a ghost-record fix. No user-visible change on Mac; everything below from 0.20.0 still applies.
-
-### Highlights — upstream 0.20 (Mac)
-- **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
-- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
-- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
-- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
-
-### Mac — providers & usage
-- Codex: workspace attribution for account labels and same-email multi-workspace accounts.
-- Codex: reconcile live-system and managed accounts by canonical identity, preserve per-account usage/history/dashboard state, OAuth CLI fallback, tighter OpenAI web ownership gating.
-- Codex: normalize weekly-only rate limits across OAuth and CLI/RPC; free-plan accounts render as Weekly instead of a fake Session.
-- Codex: end-to-end refactor into clearer components (CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator).
-- OpenCode: preserve product separation between Zen and Go; harden cookie/domain behavior for authenticated web fetches.
-- Cost history: merge supported pi session usage into Codex/Claude provider history (#653).
-
-### Mac — menu & settings
-- Codex: UI for switching the system-level Codex account and promoting a managed account into the live system slot.
-- Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).
-- Fix alignment of menu chart hover coordinates on macOS.
-
-### Mac — fixes (selected)
-- Cursor fetch crash path (#663).
-- z.ai 5-hour lane selection.
-- Ollama `__Secure-session` cookie recognition (#707).
-- Edge browser cookie import for Codex (#694).
-- Antigravity localhost TLS challenges (#693).
-- Battery-drain mitigations: menu bar updates and OpenAI web extras (#708, #684).
-- Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).
-- Claude CLI well-known path fallback precedence (#675).
-
----
-
-2026-04-21 配合 iOS 1.3.0 数据架构重构的 Mac 端数据层补丁 —— 按 provider 拆分的 CloudKit 记录、zlib 压缩，以及一个幽灵记录修复。Mac 端用户可见行为不变；下面 0.20.0 的内容全部继续适用。
-
-### 亮点 — 上游 0.20（Mac）
-- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
-- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
-- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
-- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
-
-### Mac — 服务商 & 用量
-- Codex：账号 label 的 workspace 归属，支持同 email 多 workspace。
-- Codex：用 canonical 身份协调实时与 managed 账号，保留每账号独立用量/历史/dashboard；OAuth CLI 兜底；OpenAI web 所有权收紧。
-- Codex：周限额在 OAuth/CLI/RPC 间归一化，免费账号显示为 Weekly 而非虚假 Session。
-- Codex：端到端重构（CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator 等）。
-- OpenCode：Zen 与 Go 的产品边界保留；web 认证抓取的 cookie/domain 行为强化。
-- 费用历史：支持将 pi session 用量合并到 Codex/Claude 历史（#653）。
-
-### Mac — 菜单 & 设置
-- Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。
-- Claude："避免 Keychain 弹窗" 改为默认开启（不再是 experimental）。
-- 修复 macOS 上菜单栏图表 hover 坐标对齐。
-
-### Mac — 修复（节选）
-- Cursor 抓取崩溃路径（#663）。
-- z.ai 5 小时额度通道选择。
-- Ollama `__Secure-session` cookie 识别（#707）。
-- Edge 浏览器 cookie 导入 for Codex（#694）。
-- Antigravity localhost TLS 握手。
-- 电量回归修复（#708、#684）。
-- macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
-- Claude CLI well-known 路径 fallback 优先级（#675）。
-
-## 0.20.0 — 2026-04-16
-
-Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0. New upstream providers (Perplexity, OpenCode Go) appear in the Mac app; iPhone 1.2.0 displays them as fallback cards, full iOS-side adaptation ships in Mobile 1.3.0.
-
-### Highlights — upstream 0.20 (Mac)
-- **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
-- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
-- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
-- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
-
-### Mac — providers & usage
-- Codex: workspace attribution for account labels and same-email multi-workspace accounts.
-- Codex: reconcile live-system and managed accounts by canonical identity, preserve per-account usage/history/dashboard state, OAuth CLI fallback, tighter OpenAI web ownership gating.
-- Codex: normalize weekly-only rate limits across OAuth and CLI/RPC; free-plan accounts render as Weekly instead of a fake Session.
-- Codex: end-to-end refactor into clearer components (CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator).
-- OpenCode: preserve product separation between Zen and Go; harden cookie/domain behavior for authenticated web fetches.
-- Cost history: merge supported pi session usage into Codex/Claude provider history (#653).
-
-### Mac — menu & settings
-- Codex: UI for switching the system-level Codex account and promoting a managed account into the live system slot.
-- Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).
-- Fix alignment of menu chart hover coordinates on macOS.
-
-### Mac — fixes (selected)
-- Cursor fetch crash path (#663).
-- z.ai 5-hour lane selection.
-- Ollama `__Secure-session` cookie recognition (#707).
-- Edge browser cookie import for Codex (#694).
-- Antigravity localhost TLS challenges (#693).
-- Battery-drain mitigations: menu bar updates and OpenAI web extras (#708, #684).
-- Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).
-- Claude CLI well-known path fallback precedence (#675).
-
----
-
-2026-04-16 Mac 端对齐上游 CodexBar 0.20。Mobile 版本保持 1.2.0。上游新增 Provider（Perplexity、OpenCode Go）会出现在 Mac 端；iPhone 1.2.0 以兜底卡片形式显示，完整的 iOS 端适配在 Mobile 1.3.0 推出。
-
-### 亮点 — 上游 0.20（Mac）
-- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
-- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
-- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
-- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
-
-### Mac — 服务商 & 用量
-- Codex：账号 label 的 workspace 归属，支持同 email 多 workspace。
-- Codex：用 canonical 身份协调实时与 managed 账号，保留每账号独立用量/历史/dashboard；OAuth CLI 兜底；OpenAI web 所有权收紧。
-- Codex：周限额在 OAuth/CLI/RPC 间归一化，免费账号显示为 Weekly 而非虚假 Session。
-- Codex：端到端重构（CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator 等）。
-- OpenCode：Zen 与 Go 的产品边界保留；web 认证抓取的 cookie/domain 行为强化。
-- 费用历史：支持将 pi session 用量合并到 Codex/Claude 历史（#653）。
-
-### Mac — 菜单 & 设置
-- Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。
-- Claude："避免 Keychain 弹窗" 改为默认开启（不再是 experimental）。
-- 修复 macOS 上菜单栏图表 hover 坐标对齐。
-
-### Mac — 修复（节选）
-- Cursor 抓取崩溃路径（#663）。
-- z.ai 5 小时额度通道选择。
-- Ollama `__Secure-session` cookie 识别（#707）。
-- Edge 浏览器 cookie 导入 for Codex（#694）。
-- Antigravity localhost TLS 握手。
-- 电量回归修复（#708、#684）。
-- macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
-- Claude CLI well-known 路径 fallback 优先级（#675）。
-
-## 0.19.0 — 2026-04-15
-
-This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit push notification writer (with multi-Mac dedup and 5-minute debounce per provider/state), 4 DEV test buttons in Preferences → Mobile, and an About-page locale fix. Upstream CodexBar 0.19.0 features are unchanged since the original release.
-
-### Highlights — Mobile 1.2.0
-- **Subscription Utilization visualization on iPhone** — see each session / weekly / opus quota per provider and across all providers, with a 30-day daily bar chart in the Cost tab and a utilization history chart on every provider detail page.
-- **Multi-Mac data merge on iPhone** — if you run CodexBar on more than one Mac, iPhone now dedupes data by hour and combines across Macs, so iPhone charts stay consistent regardless of which Mac was last active.
-- **Mac→iPhone push notifications** — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. "Codex session quota depleted" / "Codex 的会话额度已耗尽"). Background App Refresh is not required.
-
-### Mac — Mobile 1.2.0 push infrastructure
-- **`QuotaTransition` CloudKit record writer** — every session quota transition writes one record into the matching `Quota-{providerID}-{state}Zone` (~46 zones for 23 providers × 2 states). iPhone has a pre-baked `CKRecordZoneSubscription` per zone, with the provider name baked into the localized `alertBody` at subscription setup.
-- **5-minute debounce per `(provider, state)`** to prevent oscillation near 0% from spamming.
-- **Multi-Mac dedup** — `recordName = (providerID, hourBucket)` collapses concurrent transitions from 2+ Macs in the same hour to one record, so iPhone receives at most one push per `(provider, state)` per hour.
-- **DEV test buttons in Preferences → Mobile** (debug builds only) — Codex / Claude × Depleted / Restored, for end-to-end push validation without waiting for a real quota change.
-
-### Mac — fixes
-- About page build date is now formatted with `en_US_POSIX` locale, avoiding mixed Chinese + English format on Chinese-system Macs.
-
-### Highlights — Mobile 1.1.0
-- iCloud sync upgraded from KVS to CloudKit for multi-device sync.
-- Session quota push notifications for iOS.
-- Composite Sparkle build number for upstream-safe version detection.
-
-### CodexBar 0.19.0 (Upstream)
-- Alibaba Coding Plan provider with region-aware quota fetching.
-- Subscription utilization history chart in menu bar.
-- Claude provider end-to-end refactor with expanded tests.
-- Cursor dashboard alignment (Total/Auto/API lanes).
-- Codex code review reset time display.
-- Per-model token counts in cost history.
-- GPT-5.4 mini and nano pricing.
-- Antigravity model selection fix.
-
----
-
-本版本带来 Mobile 1.2.0 配套的 Mac 端改动：CloudKit 推送通知写入（支持多 Mac 去重和按 provider/state 的 5 分钟 debounce）、Preferences → Mobile 下的 4 个 DEV 测试按钮，以及 About 页 locale 修复。上游 CodexBar 0.19.0 自原始发布以来无变化。
-
-### 亮点 — Mobile 1.2.0
-- **iPhone 订阅利用率可视化** —— 直观看到每个 session / weekly / opus 额度的使用情况，可按 Provider 分开看也可以跨 Provider 看总体。Cost tab 有 30 天日级柱状图，每个 Provider 详情页还有独立的利用率历史图。
-- **iPhone 多 Mac 数据合并** —— 如果你在多台 Mac 上使用 CodexBar，iPhone 上会按小时去重后把所有 Mac 的数据合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。
-- **Mac→iPhone 推送通知** —— 当你任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 收到一条本地化的通知，内容包含 Provider 名称（如"Codex 的会话额度已耗尽"）。不需要启用 Background App Refresh。
-
-### Mac — Mobile 1.2.0 推送基础设施
-- **`QuotaTransition` CloudKit record 写入** —— 每次会话额度状态变化，Mac 向对应的 `Quota-{providerID}-{state}Zone`（23 providers × 2 states ≈ 46 个 zone）写一条 record。iPhone 端为每个 zone 预创建 `CKRecordZoneSubscription`，subscription 创建时就把 Provider 名烤进 `alertBody`。
-- **5 分钟 (provider, state) 级 debounce**，防止额度在 0% 附近抖动导致重复推送。
-- **多 Mac 去重** —— `recordName` 用 `(providerID, hourBucket)`，多台 Mac 同一小时内检测到同一状态变化合并为单条 record，iPhone 每小时每种 `(provider, state)` 最多收到 1 条推送。
-- **Preferences → Mobile 新增 4 个 DEV 测试按钮**（仅 debug 构建），Codex / Claude × 耗尽 / 恢复，端到端验证推送链路无需等真实额度变化。
-
-### Mac — 修复
-- About 页 Build 日期强制 `en_US_POSIX` locale，避免中文系统 Mac 显示中英文混合格式。
-
-### 亮点 — Mobile 1.1.0
-- iCloud 同步从 KVS 升级至 CloudKit，支持多设备同步。
-- 会话配额推送通知：iOS 后台接收耗尽/恢复提醒。
-- Sparkle 复合版本号方案，避免与上游版本号冲突。
-
-### CodexBar 0.19.0（上游更新）
-- 新增阿里巴巴 Coding Plan 服务商，支持区域化配额查询。
-- 菜单栏新增订阅利用率历史图表。
-- Claude 服务商端到端重构，测试覆盖更完整。
-- Cursor 用量与仪表盘 Total/Auto/API 对齐。
-- Codex 代码审查限制显示重置时间。
-- 费用历史新增每模型 Token 统计。
-- GPT-5.4 mini 和 nano 定价支持。
-- Antigravity 模型选择修复。
+### Menu & Settings
+- Menu: add subscription utilization history chart with DST-safe chart point identifiers and per-provider plan utilization tracking (#589). Thanks @maxceem!
+- Menu bar: in Both display mode, fall back to percent when pace data is unavailable so text stays visible for providers without pace metrics (#527). Thanks @Astro-Han!
+- Settings: persist the resolved refresh cadence default to `UserDefaults` on first launch and repair invalid stored values so the setting stays normalized across relaunches (#519). Thanks @Astro-Han!
+- Menu: wrap long status blurbs and preserve wrapped titles for multiline entries (#543). Thanks @zkforge!
 
 ## 0.18.0 — 2026-03-15
-
-### Highlights — Mobile 1.1.0
-- **iCloud sync upgraded from KVS to CloudKit** for reliable multi-device sync.
-- Each Mac now writes its own CloudKit device record; iPhone merges all devices automatically.
-- Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins.
-- Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate.
-- Sync status shows specific CloudKit errors (network, auth, quota) instead of generic messages.
-- Mac generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity.
-- Set CloudKit container environment to Production for both Mac and iOS.
-- Composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) for upstream-safe version detection.
-- Updated About page with fork project links (GitHub, Website, Twitter, Email) and license.
-
-### Mobile 1.0.0
-- Sync cost/usage data (session cost, 30-day cost, daily spend) to iOS via iCloud KVS.
-- Sync dynamic rate windows with labels (Session, Weekly, Sonnet, etc.).
-- Push Mac app version and mobile version in iCloud payload for iOS traceability.
-- Diagnose iCloud sync failures when the Mac build is missing iCloud entitlement or has no active iCloud account.
-- Show explicit iCloud sync failure reasons in Mac Settings instead of reporting a false success state.
-- Display "Mobile 1.0.0" in Mac About panel alongside app version.
-- Update signing identity and Sparkle keys for o1xhack fork.
-
-### CodexBar 0.18.0 (Upstream)
+### Highlights
 - Add Kilo provider support with API/CLI source modes, widget integration, and pass/credit handling (#454). Built on work by @coreh.
 - Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!
 - Add OpenRouter provider for credit-based usage tracking (#396). Thanks @chountalas!
@@ -2605,7 +1855,7 @@ This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit pu
 
 ## 0.2.0 — 2025-11-16
 - CADisplayLink-based loading animations (macOS 15 displayLink API) with randomized patterns (Knight Rider, Cylon, outside-in, race, pulse) and debug replay cycling through all.
-- Debug replay toggle (`defaults write com.o1xhack.codexbar debugMenuEnabled -bool YES`) to view every pattern.
+- Debug replay toggle (`defaults write com.steipete.codexbar debugMenuEnabled -bool YES`) to view every pattern.
 - Usage Dashboard link in menu; menu layout tweaked.
 - Updated time now shows relative formatting when fresher than 24h; refactored sources into smaller files for maintainability.
 - Version bumped to 0.2.0 (4).

@@ -700,7 +700,6 @@ fi
 # Strip xattr one final time before signing the app bundle
 xattr -cr "$APP" 2>/dev/null || true
 find "$APP" -name '._*' -delete 2>/dev/null || true
-
 # Finally sign the app bundle itself
 codesign "${CODESIGN_ARGS[@]}" \
   --entitlements "$APP_ENTITLEMENTS" \

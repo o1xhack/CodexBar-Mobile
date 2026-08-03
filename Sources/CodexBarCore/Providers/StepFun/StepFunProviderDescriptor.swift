@@ -18,6 +18,7 @@ public enum StepFunProviderDescriptor {
                 toggleTitle: "Show StepFun usage",
                 cliName: "stepfun",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -25,7 +26,7 @@ public enum StepFunProviderDescriptor {
                 statusPageURL: nil,
                 statusLinkURL: nil),
             branding: ProviderBranding(
-                iconStyle: .stepfun,
+                iconStyle: .init(provider: .stepfun),
                 iconResourceName: "ProviderIcon-stepfun",
                 color: ProviderColor(red: 0.13, green: 0.59, blue: 0.95),
                 confettiPalette: [
@@ -36,6 +37,7 @@ public enum StepFunProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "StepFun per-day cost history is not available via API." }),
+            pace: .calendarMonthResetWindow,
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [StepFunWebFetchStrategy()] })),

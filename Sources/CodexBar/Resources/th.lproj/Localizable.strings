@@ -1,5 +1,28 @@
 /* Thai localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "ollama_safari_cookie_access_hint" = "คุกกี้ Safari ต้องใช้สิทธิ์เข้าถึงดิสก์แบบเต็มสำหรับ CodexBar (การตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย)";
 "ollama_browser_cookie_decryption_denied" = "การถอดรหัสคุกกี้ %@ ถูกปฏิเสธในพวงกุญแจ โปรดลองอีกครั้งด้วยการรีเฟรชด้วยตนเอง";
 "ollama_browser_cookie_decryption_disabled" = "การถอดรหัสคุกกี้ %@ ถูกปิดใช้งานใน CodexBar ให้เปิดการเข้าถึงพวงกุญแจแล้วรีเฟรช";
@@ -108,7 +131,6 @@
 "Could not start codex login" = "ไม่สามารถเริ่มการเข้าสู่ระบบ codex";
 "Could not switch system account" = "ไม่สามารถสลับบัญชีระบบได้";
 "Credits" = "เครดิต";
-"5-hour" = "5 ชั่วโมง";
 "Individual credits" = "หน่วยกิตส่วนบุคคล";
 "Workspace" = "พื้นที่ทํางาน";
 "Credits history" = "ประวัติเครดิต";
@@ -416,6 +438,9 @@
 "section_agent_sessions" = "เซสชันเอเจนต์";
 "language_title" = "ภาษา";
 "language_subtitle" = "เปลี่ยนภาษาที่แสดง ต้องรีสตาร์ทแอปเพื่อให้มีผลเต็มที่";
+"currency_title" = "สกุลเงินที่ต้องการ";
+"currency_subtitle" = "สกุลเงินสำหรับประมาณการต้นทุนและค่าใช้จ่าย ใช้อัตราแลกเปลี่ยนที่อัปเดตทุกวัน";
+"currency_auto" = "อัตโนมัติ (ตามผู้ให้บริการ / USD)";
 "language_system" = "ระบบ";
 "language_english" = "อังกฤษ";
 "language_spanish" = "Español";
@@ -1235,6 +1260,8 @@
 "section_links" = "ลิงก์";
 "Show Codex Spark usage" = "แสดงการใช้งาน Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "แสดงแถวโควตา Codex Spark ในเมนูและตัวอย่างผู้ให้บริการ ต้องเปิดใช้ “แสดงเครดิต + การใช้งานเพิ่มเติม” ในการตั้งค่าการแสดงผล";
+"Show Daily Routines usage" = "แสดงการใช้งานกิจวัตรประจำวัน";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "แสดงแถวโควตากิจวัตรประจำวันในเมนูและตัวอย่างผู้ให้บริการ ต้องเปิดใช้ “แสดงเครดิต + การใช้งานเพิ่มเติม” ในการตั้งค่าการแสดงผล";
 "Scroll to see more models" = "เลื่อนเพื่อดูโมเดลเพิ่มเติม";
 /* Shareable usage card */
 "Copy Image" = "คัดลอกรูปภาพ";
@@ -1273,8 +1300,13 @@
 "By subscription" = "แยกตามการสมัครสมาชิก";
 "No model-level history" = "ไม่มีประวัติระดับโมเดล";
 "Daily estimated spend" = "ค่าใช้จ่ายรายวันโดยประมาณ";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "เหลือโควตารายสัปดาห์ ≈%d ช่วงเต็ม 5 ชม. · อีก %d ช่วงจนรีเซ็ต";
 "Weekly cannot run out before reset at this pace" = "ด้วยอัตรานี้ โควตารายสัปดาห์จะไม่หมดก่อนรีเซ็ต";
+"Weekly can run out ≈%d windows early" = "โควตารายสัปดาห์อาจหมดเร็วขึ้น ≈%d ช่วง";
 "Estimated: %@" = "โดยประมาณ: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "โควตาเซสชัน";
+"session quotas" = "โควตาเซสชัน";
 "Coding Plan" = "แผนการเขียนโค้ด";
 "Agent Plan" = "แผนเอเจนต์";
 "Team" = "ทีม";
@@ -1319,6 +1351,9 @@
 "menu_bar_layout_token_session" = "เซสชั่น %";
 "menu_bar_layout_token_weekly" = "รายสัปดาห์ %";
 "menu_bar_layout_token_auto" = "% อัตโนมัติ";
+"menu_bar_layout_token_session_pace" = "อัตราเซสชั่น";
+"menu_bar_layout_token_weekly_pace" = "อัตรารายสัปดาห์";
+"menu_bar_layout_token_auto_pace" = "อัตราอัตโนมัติ";
 "menu_bar_layout_token_bar" = "แถบการใช้งาน";
 "menu_bar_layout_token_resets_in" = "รีเซ็ตใน";
 "menu_bar_layout_token_reset_at" = "รีเซ็ตเวลา";
@@ -1344,8 +1379,11 @@
 "Cost today unavailable" = "ค่าใช้จ่ายวันนี้: ไม่พร้อมใช้งาน";
 "30-day cost unavailable" = "ค่าใช้จ่าย 30 วัน: ไม่พร้อมใช้งาน";
 "Resets" = "การรีเซ็ต";
+"Finish now" = "เสร็จสิ้นตอนนี้";
+"Continue in background" = "ทำต่อในเบื้องหลัง";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 ชั่วโมง";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API คีย์ที่ตรวจสอบแล้ว Ollama ไม่เปิดเผยขีดจํากัดโควต้าระบบคลาวด์ผ่าน API";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar จะขอ macOS Keychain สําหรับคีย์ API Kimi K2 ของคุณเพื่อให้สามารถดึงการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CrossModel API spend trend" = "แนวโน้มค่าใช้จ่ายของ CrossModel API";

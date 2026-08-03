@@ -18,6 +18,7 @@ public enum CommandCodeProviderDescriptor {
                 toggleTitle: "Show Command Code usage",
                 cliName: "commandcode",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
@@ -26,7 +27,7 @@ public enum CommandCodeProviderDescriptor {
                 statusPageURL: nil,
                 statusLinkURL: nil),
             branding: ProviderBranding(
-                iconStyle: .commandcode,
+                iconStyle: .init(provider: .commandcode),
                 iconResourceName: "ProviderIcon-commandcode",
                 color: ProviderColor(hex: 0xA04DFD),
                 confettiPalette: [
@@ -84,6 +85,19 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
             return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "manual")
         }
 
+        if let cached = CookieHeaderCache.load(provider: .commandcode) {
+            do {
+                let snapshot = try await self.usageLoader(cached.cookieHeader)
+                return self.makeResult(
+                    usage: snapshot.toUsageSnapshot(),
+                    sourceLabel: cached.sourceLabel)
+            } catch CommandCodeUsageError.invalidCredentials {
+                _ = CookieHeaderCache.clearIfCurrent(provider: .commandcode, expected: cached)
+            } catch {
+                throw error
+            }
+        }
+
         let sessions: [CommandCodeResolvedSession]
         do {
             sessions = try self.sessionLoader()
@@ -101,6 +115,10 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
             },
             attempt: { session in
                 let snapshot = try await self.usageLoader(session.cookieHeader)
+                CookieHeaderCache.store(
+                    provider: .commandcode,
+                    cookieHeader: session.cookieHeader,
+                    sourceLabel: session.sourceLabel)
                 return self.makeResult(
                     usage: snapshot.toUsageSnapshot(),
                     sourceLabel: session.sourceLabel)

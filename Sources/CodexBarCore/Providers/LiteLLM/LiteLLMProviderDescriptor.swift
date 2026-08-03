@@ -18,12 +18,13 @@ public enum LiteLLMProviderDescriptor {
                 toggleTitle: "Show LiteLLM usage",
                 cliName: "litellm",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 dashboardURL: nil,
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .litellm,
+                iconStyle: .init(provider: .litellm),
                 iconResourceName: "ProviderIcon-litellm",
                 color: ProviderColor(red: 76 / 255, green: 137 / 255, blue: 240 / 255),
                 confettiPalette: [
@@ -50,7 +51,7 @@ struct LiteLLMAPIFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         ProviderTokenResolver.liteLLMToken(environment: context.env) != nil &&
-            LiteLLMSettingsReader.baseURL(environment: context.env) != nil
+            LiteLLMSettingsReader.hasBaseURLOverride(environment: context.env)
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
@@ -58,7 +59,11 @@ struct LiteLLMAPIFetchStrategy: ProviderFetchStrategy {
             throw LiteLLMUsageError.missingCredentials
         }
         guard let baseURL = LiteLLMSettingsReader.baseURL(environment: context.env) else {
-            throw LiteLLMUsageError.missingBaseURL
+            // Distinguish "never configured" from "configured but rejected" so the user sees
+            // which one applies instead of the provider silently going unavailable.
+            throw LiteLLMSettingsReader.hasBaseURLOverride(environment: context.env)
+                ? LiteLLMUsageError.invalidEndpointOverride(LiteLLMSettingsReader.baseURLEnvironmentKey)
+                : LiteLLMUsageError.missingBaseURL
         }
         let usage = try await LiteLLMUsageFetcher.fetchUsage(
             apiKey: apiKey,

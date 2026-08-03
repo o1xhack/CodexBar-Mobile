@@ -1,5 +1,28 @@
 /* Chinese (Simplified) localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "钩子";
 "hooks_enable_title" = "启用钩子";
 "hooks_enable_subtitle" = "在配额或提供商事件发生时运行外部命令。";
@@ -126,7 +149,6 @@
 "Could not start codex login" = "无法启动 codex login";
 "Could not switch system account" = "无法切换系统账户";
 "Credits" = "额度";
-"5-hour" = "5 小时";
 "Individual credits" = "个人额度";
 "Workspace" = "工作区";
 "Credits history" = "额度记录";
@@ -194,6 +216,7 @@
 "Login failed" = "登录失败";
 "Login shell PATH (startup capture)" = "登录 shell PATH（启动时捕获）";
 "Login timed out" = "登录超时";
+"Low Power Mode" = "低功耗模式";
 "MCP details" = "MCP 详情";
 "Managed Codex accounts unavailable" = "托管 Codex 账户不可用";
 "Managed account storage is unreadable. Live account access is still available, " = "托管账户存储不可读。实时账户访问仍可用，";
@@ -245,6 +268,7 @@
 "Open menu" = "打开菜单";
 "Open token file" = "打开令牌文件";
 "OpenAI cookies" = "OpenAI Cookie";
+"OpenAI web battery saver" = "OpenAI 网页省电";
 "OpenAI web extras" = "OpenAI Web 附加功能";
 "Option A" = "选项 A";
 "Option B" = "选项 B";
@@ -279,6 +303,7 @@
 "Quit CodexBar" = "退出 CodexBar";
 "Random (default)" = "随机（默认）";
 "Reads local usage logs. Shows today + last 30 days cost in the menu." = "读取本地用量日志。在菜单中显示今天及所选历史窗口的费用。";
+"Runs automatic provider, local usage, and storage refreshes no more often than every 30 minutes. Manual refresh remains available." = "自动供应商刷新、本地用量扫描和存储扫描最多每 30 分钟运行一次；仍可随时手动刷新。";
 "Refresh" = "刷新";
 "Refreshing" = "正在刷新";
 "Refresh cadence" = "刷新频率";
@@ -436,6 +461,9 @@
 "section_agent_sessions" = "智能体会话";
 "language_title" = "语言";
 "language_subtitle" = "更改显示语言。需要重启应用才能完全生效。";
+"currency_title" = "首选货币";
+"currency_subtitle" = "用于费用估算和支出指标的货币。使用每日更新的实时汇率。";
+"currency_auto" = "自动（跟随提供商 / USD）";
 "language_system" = "跟随系统";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -451,6 +479,8 @@
 "language_russian" = "Русский";
 "language_japanese" = "日语";
 "language_korean" = "韩语";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
 "start_at_login_title" = "开机启动";
 "start_at_login_subtitle" = "启动 Mac 时自动打开 CodexBar。";
 "show_cost_summary_subtitle" = "读取本地用量日志。在菜单中显示今天及所选历史窗口的费用。";
@@ -503,7 +533,6 @@
 "apply" = "应用";
 "quit_app" = "退出 CodexBar";
 "tab_general" = "通用";
-"tab_mobile" = "移动";
 "tab_providers" = "提供商";
 "tab_notifications" = "通知";
 "tab_menu_bar" = "菜单栏";
@@ -703,46 +732,6 @@
 "adaptive_activity_consent_allow" = "允许本地活动";
 "adaptive_activity_consent_decline" = "使用普通自适应模式";
 "not_found" = "未找到";
-
-// === Fork-only Mac UI strings (Mobile pane) — added 2026-05-12 ===
-"mobile_section_icloud_sync" = "iCloud 同步";
-"mobile_toggle_sync_title" = "同步用量到 iCloud";
-"mobile_toggle_sync_subtitle" = "将用量数据推送到 iCloud，供 iOS 伴侣 app 展示。";
-"mobile_section_push" = "iOS 推送通知";
-"mobile_toggle_push_title" = "向 iOS 推送通知";
-"mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
-"mobile_section_mock_data" = "调试 · Mock provider 数据";
-"mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步会推送 77 个稳定的模拟快照，覆盖 67 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
-"mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
-"mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
-"mobile_section_dev_test" = "DEV — iOS 推送测试";
-"mobile_dev_test_intro" = "向 CloudKit 写入真实的 `QuotaTransition` 记录，触发 iOS app 生产环境下相同的提醒推送。需上方开关打开。";
-"mobile_dev_depleted" = "已耗尽";
-"mobile_dev_restored" = "已恢复";
-"mobile_dev_warning" = "警告";
-"mobile_dev_verify_push" = "验证推送配置";
-"mobile_sync_status_syncing" = "同步中…";
-"mobile_sync_status_syncing_phase_format" = "正在同步 — %@…";
-"icloud_diagnostics_title" = "iCloud 同步诊断";
-"icloud_diagnostics_read_only_caption" = "只读检查账户、记录区和 KVS 备用通道，不会写入或删除 iCloud 数据。";
-"icloud_diagnostics_run" = "运行只读检查";
-"icloud_diagnostics_running" = "正在运行 iCloud 只读检查…";
-"mobile_sync_status_syncing_elapsed_format" = "正在同步 — %@ · %d 秒";
-"mobile_button_retry_sync" = "重试同步";
-"mobile_sync_status_failure_phase_format" = "iCloud 同步在“%@”阶段失败。请打开“高级”→“调试”查看详情。";
-"icloud_sync_phase_idle" = "空闲";
-"icloud_sync_phase_preparing" = "正在准备";
-"icloud_sync_phase_legacy_upload" = "正在上传快照";
-"icloud_sync_phase_provider_upload" = "正在上传提供商数据";
-"icloud_sync_phase_cleanup" = "正在清理";
-"icloud_sync_phase_reconciling" = "正在核对";
-"mobile_sync_status_last_sync_format" = "上次同步：%@";
-"mobile_sync_status_last_attempt_format" = "上次尝试：%@";
-"mobile_sync_status_no_sync" = "尚未同步";
-"mobile_button_sync_now" = "立即同步";
-
-/* Cost estimation */
 "CodexBar can't show its menu bar icon" = "CodexBar 无法显示菜单栏图标";
 "Dismiss" = "关闭";
 "Open Menu Bar Settings" = "打开菜单栏设置";
@@ -1197,14 +1186,7 @@
 
 "Request quota: %@ / %@" = "请求额度：%@ / %@";
 "language_turkish" = "Türkçe";
-"Renews: %@" = "续订：%@";
-"Plan expires: %@" = "方案到期：%@";
-"∞ Unlimited" = "∞ 无限";
-
-/* Upstream v0.36 locale catch-up fallbacks */
 "language_indonesian" = "Bahasa Indonesia";
-"language_italian" = "Italiano";
-"language_polish" = "Polski";
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
@@ -1239,6 +1221,8 @@
 "section_links" = "链接";
 "Show Codex Spark usage" = "显示 Codex Spark 用量";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在菜单和提供商预览中显示 Codex Spark 配额行。需要在“显示”设置中启用“显示额度 + 额外用量”。";
+"Show Daily Routines usage" = "显示日常任务用量";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在菜单和提供商预览中显示日常任务配额行。需要在“显示”设置中启用“显示额度 + 额外用量”。";
 "Scroll to see more models" = "滚动查看更多模型";
 "Copy Image" = "复制图像";
 "Copy Stats" = "复制统计数据";
@@ -1291,8 +1275,13 @@
 "By subscription" = "按订阅";
 "No model-level history" = "暂无模型级历史";
 "Daily estimated spend" = "每日估算支出";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "每周额度约剩 %d 个完整 5 小时窗口 · 距重置还有 %d 个窗口";
 "Weekly cannot run out before reset at this pace" = "按此速度，每周额度无法在重置前用完";
+"Weekly can run out ≈%d windows early" = "每周额度可能提前约 %d 个窗口用完";
 "Estimated: %@" = "估算：%@";
+"session_quota_estimate_value_format" = "%1$@%2$@";
+"session quota" = "会话额度";
+"session quotas" = "会话额度";
 "Coding Plan" = "编程套餐";
 "Agent Plan" = "智能体套餐";
 "Team" = "团队";
@@ -1337,6 +1326,9 @@
 "menu_bar_layout_token_session" = "会话 %";
 "menu_bar_layout_token_weekly" = "每周 %";
 "menu_bar_layout_token_auto" = "自动 %";
+"menu_bar_layout_token_session_pace" = "会话节奏";
+"menu_bar_layout_token_weekly_pace" = "每周节奏";
+"menu_bar_layout_token_auto_pace" = "自动节奏";
 "menu_bar_layout_token_bar" = "用量条";
 "menu_bar_layout_token_resets_in" = "重置倒计时";
 "menu_bar_layout_token_reset_at" = "重置时间";
@@ -1362,8 +1354,51 @@
 "Cost today unavailable" = "今日费用: 不可用";
 "30-day cost unavailable" = "30 天费用: 不可用";
 "Resets" = "重置";
+"Finish now" = "立即完成";
+"Continue in background" = "转为后台运行";
 
-/* Fork sync keys retained after the upstream locale completeness gate. */
+/* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 小时";
+"tab_mobile" = "移动";
+"mobile_section_icloud_sync" = "iCloud 同步";
+"mobile_toggle_sync_title" = "同步用量到 iCloud";
+"mobile_toggle_sync_subtitle" = "将用量数据推送到 iCloud，供 iOS 伴侣 app 展示。";
+"mobile_section_push" = "iOS 推送通知";
+"mobile_toggle_push_title" = "向 iOS 推送通知";
+"mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
+"mobile_section_mock_data" = "调试 · Mock provider 数据";
+"mobile_toggle_mock_title" = "注入 mock provider 数据";
+"mobile_toggle_mock_subtitle" = "每次同步会推送 77 个稳定的模拟快照，覆盖 67 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
+"mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
+"mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
+"mobile_section_dev_test" = "DEV — iOS 推送测试";
+"mobile_dev_test_intro" = "向 CloudKit 写入真实的 `QuotaTransition` 记录，触发 iOS app 生产环境下相同的提醒推送。需上方开关打开。";
+"mobile_dev_depleted" = "已耗尽";
+"mobile_dev_restored" = "已恢复";
+"mobile_dev_warning" = "警告";
+"mobile_dev_verify_push" = "验证推送配置";
+"mobile_sync_status_syncing" = "同步中…";
+"mobile_sync_status_syncing_phase_format" = "正在同步 — %@…";
+"icloud_diagnostics_title" = "iCloud 同步诊断";
+"icloud_diagnostics_read_only_caption" = "只读检查账户、记录区和 KVS 备用通道，不会写入或删除 iCloud 数据。";
+"icloud_diagnostics_run" = "运行只读检查";
+"icloud_diagnostics_running" = "正在运行 iCloud 只读检查…";
+"mobile_sync_status_syncing_elapsed_format" = "正在同步 — %@ · %d 秒";
+"mobile_button_retry_sync" = "重试同步";
+"mobile_sync_status_failure_phase_format" = "iCloud 同步在“%@”阶段失败。请打开“高级”→“调试”查看详情。";
+"icloud_sync_phase_idle" = "空闲";
+"icloud_sync_phase_preparing" = "正在准备";
+"icloud_sync_phase_legacy_upload" = "正在上传快照";
+"icloud_sync_phase_provider_upload" = "正在上传提供商数据";
+"icloud_sync_phase_cleanup" = "正在清理";
+"icloud_sync_phase_reconciling" = "正在核对";
+"mobile_sync_status_last_sync_format" = "上次同步：%@";
+"mobile_sync_status_last_attempt_format" = "上次尝试：%@";
+"mobile_sync_status_no_sync" = "尚未同步";
+"mobile_button_sync_now" = "立即同步";
+"Renews: %@" = "续订：%@";
+"Plan expires: %@" = "方案到期：%@";
+"∞ Unlimited" = "∞ 无限";
 "Settings" = "设置";
 "hide_critters_subtitle" = "显示不带表情和装饰的简洁进度条。";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 Kimi K2 API 密钥，以获取用量。点击“确定”继续。";

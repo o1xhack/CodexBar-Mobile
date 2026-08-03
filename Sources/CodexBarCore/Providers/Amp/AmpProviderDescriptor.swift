@@ -18,13 +18,14 @@ public enum AmpProviderDescriptor {
                 toggleTitle: "Show Amp usage",
                 cliName: "amp",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://ampcode.com/settings/usage",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .amp,
+                iconStyle: .init(provider: .amp),
                 iconResourceName: "ProviderIcon-amp",
                 color: ProviderColor(red: 220 / 255, green: 38 / 255, blue: 38 / 255),
                 confettiPalette: [
@@ -35,12 +36,21 @@ public enum AmpProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Amp cost summary is not supported." }),
+            pace: .calendarMonthResetWindow,
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api, .web, .cli],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
             cli: ProviderCLIConfig(
                 name: "amp",
                 versionDetector: nil))
+    }
+
+    public static func primaryLabel(details: AmpUsageDetails?) -> String? {
+        details?.subscriptionPlan == nil ? nil : "Other usage"
+    }
+
+    public static func secondaryLabel(details: AmpUsageDetails?) -> String? {
+        details?.subscriptionPlan == nil ? nil : "Orb usage"
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {

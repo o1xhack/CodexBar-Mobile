@@ -1,5 +1,28 @@
 /* Persian localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "ollama_safari_cookie_access_hint" = "کوکی‌های Safari برای CodexBar به دسترسی کامل دیسک نیاز دارند (تنظیمات سیستم > حریم خصوصی و امنیت).";
 "ollama_browser_cookie_decryption_denied" = "رمزگشایی کوکی‌های %@ در Keychain رد شد؛ با یک تازه‌سازی دستی دوباره تلاش کنید.";
 "ollama_browser_cookie_decryption_disabled" = "رمزگشایی کوکی‌های %@ در CodexBar غیرفعال است؛ دسترسی Keychain را فعال و تازه‌سازی کنید.";
@@ -108,7 +131,6 @@
 "Could not start codex login" = "ورود به کدکس فعال نشد";
 "Could not switch system account" = "نتوانستم حساب سیستم را تغییر دهم";
 "Credits" = "اعتبارات";
-"5-hour" = "۵ ساعت";
 "Individual credits" = "اعتبارات فردی";
 "Workspace" = "فضای کاری";
 "Credits history" = "تاریخچه اعتبارها";
@@ -416,6 +438,9 @@
 "section_agent_sessions" = "جلسات عامل‌ها";
 "language_title" = "زبان";
 "language_subtitle" = "زبان نمایش را تغییر دهید. برای اجرایی شدن کامل برنامه نیاز به ریستارت دارد.";
+"currency_title" = "ارز ترجیحی";
+"currency_subtitle" = "ارز برآورد هزینه و مصرف. از نرخ‌های تبدیل روزانه استفاده می‌کند.";
+"currency_auto" = "خودکار (بر اساس ارائه‌دهنده / USD)";
 "language_system" = "سیستم";
 "language_english" = "انگلیسی";
 "language_spanish" = "اسپانیایی";
@@ -1235,6 +1260,8 @@
 "section_links" = "پیوندها";
 "Show Codex Spark usage" = "نمایش استفاده از Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "ردیف‌های سهمیه Codex Spark را در منو و پیش‌نمایش ارائه‌دهنده نمایش می‌دهد. لازم است «نمایش اعتبارها + استفاده اضافی» در تنظیمات نمایش فعال باشد.";
+"Show Daily Routines usage" = "نمایش استفاده از روال روزانه";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "ردیف سهمیه روال روزانه را در منو و پیش‌نمایش ارائه‌دهنده نمایش می‌دهد. لازم است «نمایش اعتبارها + استفاده اضافی» در تنظیمات نمایش فعال باشد.";
 "Scroll to see more models" = "برای دیدن مدل‌های بیشتر پیمایش کنید";
 /* Shareable usage card */
 "Copy Image" = "کپی تصویر";
@@ -1273,8 +1300,13 @@
 "By subscription" = "بر اساس اشتراک";
 "No model-level history" = "تاریخچه‌ای در سطح مدل وجود ندارد";
 "Daily estimated spend" = "برآورد هزینه روزانه";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "حدود %d بازه کامل ۵ ساعته از سهم هفتگی مانده · %d بازه تا بازنشانی";
 "Weekly cannot run out before reset at this pace" = "با این روند، سهم هفتگی پیش از بازنشانی تمام نمی‌شود";
+"Weekly can run out ≈%d windows early" = "سهم هفتگی ممکن است حدود %d بازه زودتر تمام شود";
 "Estimated: %@" = "برآوردی: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "سهمیه جلسه";
+"session quotas" = "سهمیه‌های جلسه";
 "Coding Plan" = "طرح کدنویسی";
 "Agent Plan" = "طرح عامل";
 "Team" = "تیم";
@@ -1319,6 +1351,9 @@
 "menu_bar_layout_token_session" = "جلسه %";
 "menu_bar_layout_token_weekly" = "هفتگی %";
 "menu_bar_layout_token_auto" = "درصد خودکار";
+"menu_bar_layout_token_session_pace" = "سرعت جلسه";
+"menu_bar_layout_token_weekly_pace" = "سرعت هفتگی";
+"menu_bar_layout_token_auto_pace" = "سرعت خودکار";
 "menu_bar_layout_token_bar" = "نوار مصرف";
 "menu_bar_layout_token_resets_in" = "بازنشانی در";
 "menu_bar_layout_token_reset_at" = "بازنشانی در ساعت";
@@ -1344,8 +1379,11 @@
 "Cost today unavailable" = "هزینهٔ امروز: در دسترس نیست";
 "30-day cost unavailable" = "هزینهٔ ۳۰ روز: در دسترس نیست";
 "Resets" = "بازنشانی‌ها";
+"Finish now" = "اکنون تمام شود";
+"Continue in background" = "ادامه در پس‌زمینه";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "۵ ساعت";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API کلید تأیید شد. Ollama محدودیت های سهمیه ابری را از طریق API آشکار نمی کند.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain کلید API K2 Kimi می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CrossModel API spend trend" = "روند هزینه‌ی CrossModel API";

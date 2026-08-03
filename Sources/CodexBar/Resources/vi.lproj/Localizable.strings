@@ -1,5 +1,28 @@
 /* English localization for CodexBar (base/fallback) */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "Hook";
 "hooks_enable_title" = "Bật hook";
 "hooks_enable_subtitle" = "Chạy lệnh bên ngoài khi có sự kiện hạn mức hoặc nhà cung cấp.";
@@ -124,7 +147,6 @@
 "Could not start codex login" = "Không thể bắt đầu đăng nhập codex";
 "Could not switch system account" = "Không thể không chuyển đổi tài khoản hệ thống";
 "Credits" = "Tín dụng";
-"5-hour" = "5 giờ";
 "Individual credits" = "Tín dụng cá nhân";
 "Workspace" = "Không gian làm việc";
 "Credits history" = "Lịch sử tín dụng";
@@ -429,6 +451,9 @@
 "section_agent_sessions" = "Phiên tác nhân";
 "language_title" = "Ngôn ngữ";
 "language_subtitle" = "Thay đổi ngôn ngữ hiển thị. Yêu cầu khởi động lại ứng dụng để có hiệu lực đầy đủ.";
+"currency_title" = "Tiền tệ ưu tiên";
+"currency_subtitle" = "Tiền tệ dùng cho ước tính chi phí và chi tiêu. Sử dụng tỷ giá được cập nhật hằng ngày.";
+"currency_auto" = "Tự động (theo nhà cung cấp / USD)";
 "language_system" = "Hệ thống";
 "language_english" = "Tiếng Anh";
 "language_spanish" = "Español";
@@ -1217,6 +1242,8 @@
 "section_links" = "Liên kết";
 "Show Codex Spark usage" = "Hiển thị mức sử dụng Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị các hàng hạn mức Codex Spark trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
+"Show Daily Routines usage" = "Hiển thị mức sử dụng Quy trình hàng ngày";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị hàng hạn mức Quy trình hàng ngày trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
 "Scroll to see more models" = "Cuộn để xem thêm mô hình";
 "Copy Image" = "Sao chép hình ảnh";
 "Copy Stats" = "Sao chép số liệu";
@@ -1270,8 +1297,13 @@
 "By subscription" = "Theo gói đăng ký";
 "No model-level history" = "Không có lịch sử theo mô hình";
 "Daily estimated spend" = "Chi tiêu ước tính hằng ngày";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "Còn ≈%d cửa sổ 5 giờ đầy đủ của hạn mức tuần · %d cửa sổ đến khi đặt lại";
 "Weekly cannot run out before reset at this pace" = "Với tốc độ này, hạn mức tuần không thể hết trước khi đặt lại";
+"Weekly can run out ≈%d windows early" = "Hạn mức tuần có thể hết sớm ≈%d cửa sổ";
 "Estimated: %@" = "Ước tính: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "hạn mức phiên";
+"session quotas" = "hạn mức phiên";
 "Coding Plan" = "Gói lập trình";
 "Agent Plan" = "Gói tác nhân";
 "Team" = "Nhóm";
@@ -1316,6 +1348,9 @@
 "menu_bar_layout_token_session" = "Phiên %";
 "menu_bar_layout_token_weekly" = "Hàng tuần %";
 "menu_bar_layout_token_auto" = "% tự động";
+"menu_bar_layout_token_session_pace" = "Tốc độ phiên";
+"menu_bar_layout_token_weekly_pace" = "Tốc độ hàng tuần";
+"menu_bar_layout_token_auto_pace" = "Tốc độ tự động";
 "menu_bar_layout_token_bar" = "Thanh sử dụng";
 "menu_bar_layout_token_resets_in" = "Đặt lại sau";
 "menu_bar_layout_token_reset_at" = "Đặt lại lúc";
@@ -1341,8 +1376,11 @@
 "Cost today unavailable" = "Chi phí hôm nay: Không có sẵn";
 "30-day cost unavailable" = "Chi phí 30 ngày: Không có sẵn";
 "Resets" = "Lần đặt lại";
+"Finish now" = "Hoàn tất ngay";
+"Continue in background" = "Tiếp tục trong nền";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 giờ";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API đã được xác minh. Ollama không đưa ra các giới hạn Hạn mức của Đám mây thông qua API .";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp khóa Kimi K2 API của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
@@ -1379,8 +1417,6 @@
 "weekly_limit_confetti_subtitle" = "Phát hoa giấy toàn màn hình khi đặt lại Mức sử dụng hàng tuần.";
 "weekly_limit_confetti_title" = "Hoa giấy giới hạn hàng tuần";
 "∞ Unlimited" = "∞ Không giới hạn";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
 "mobile_sync_status_syncing" = "Syncing…";

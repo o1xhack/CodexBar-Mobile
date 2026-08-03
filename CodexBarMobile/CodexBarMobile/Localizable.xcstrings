@@ -1,6 +1,141 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Four more providers — Qwen Cloud, ZoomMate, xAI, and Notion AI now appear with their own colors and detail pages.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Four more providers — Qwen Cloud, ZoomMate, xAI, and Notion AI now appear with their own colors and detail pages." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "4つのプロバイダーを追加 — Qwen Cloud、ZoomMate、xAI、Notion AI が専用カラーと詳細ページで表示されます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新增四个 provider — Qwen Cloud、ZoomMate、xAI 和 Notion AI 现已拥有各自的颜色与详情页。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "新增四個 provider — Qwen Cloud、ZoomMate、xAI 和 Notion AI 現已擁有各自的顏色與詳細資訊頁。" } }
+      }
+    },
+    "More useful balances — ZoomMate shows credit history, xAI shows prepaid balance and daily spend, Notion AI shows the active workspace, and Claude shows prepaid credits when available.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "More useful balances — ZoomMate shows credit history, xAI shows prepaid balance and daily spend, Notion AI shows the active workspace, and Claude shows prepaid credits when available." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "残高をより詳しく — ZoomMate はクレジット履歴、xAI はプリペイド残高と日別支出、Notion AI は使用中のワークスペース、Claude は利用可能なプリペイドクレジットを表示します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更实用的余额信息 — ZoomMate 显示额度记录，xAI 显示预付余额和每日支出，Notion AI 显示当前工作区，Claude 在可用时显示预付额度。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更實用的餘額資訊 — ZoomMate 顯示額度記錄，xAI 顯示預付餘額和每日支出，Notion AI 顯示目前工作區，Claude 在可用時顯示預付額度。" } }
+      }
+    },
+    "Richer z.ai history — switch between the last 24 hours, 7 days, and 30 days of model token usage.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Richer z.ai history — switch between the last 24 hours, 7 days, and 30 days of model token usage." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "z.ai の履歴を強化 — モデルのトークン使用量を過去24時間、7日間、30日間で切り替えられます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更丰富的 z.ai 历史 — 可切换查看最近 24 小时、7 天和 30 天的模型 Token 用量。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更豐富的 z.ai 歷史 — 可切換查看最近 24 小時、7 天和 30 天的模型 Token 用量。" } }
+      }
+    },
+    "iPhone 1.20 adds Qwen Cloud, ZoomMate, xAI, and Notion AI, with richer z.ai and Claude details.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.20 adds Qwen Cloud, ZoomMate, xAI, and Notion AI, with richer z.ai and Claude details." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.20 は Qwen Cloud、ZoomMate、xAI、Notion AI を追加し、z.ai と Claude の詳細表示を強化します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.20 新增 Qwen Cloud、ZoomMate、xAI 和 Notion AI，并带来更丰富的 z.ai 与 Claude 信息。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.20 新增 Qwen Cloud、ZoomMate、xAI 和 Notion AI，並帶來更豐富的 z.ai 與 Claude 資訊。" } }
+      }
+    },
+    "24 hours": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "24 hours" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "24時間" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "24 小时" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "24 小時" } }
+      }
+    },
+    "7 days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "7 days" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "7日" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "7 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "7 天" } }
+      }
+    },
+    "30 days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "30 days" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "30日" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天" } }
+      }
+    },
+    "Credit history": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Credit history" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クレジット履歴" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "额度记录" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "額度記錄" } }
+      }
+    },
+    "No model usage in this range": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No model usage in this range" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この期間にモデル使用はありません" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此时间范围内没有模型用量" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "此時間範圍內沒有模型用量" } }
+      }
+    },
+    "Renews": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Renews" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "更新日" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "续期" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "續期" } }
+      }
+    },
+    "Unlimited": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unlimited" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "無制限" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无限" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "無限" } }
+      }
+    },
+    "Used": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Used" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "使用済み" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已用" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "已用" } }
+      }
+    },
+    "ZoomMate credits": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "ZoomMate credits" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ZoomMate クレジット" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "ZoomMate 额度" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "ZoomMate 額度" } }
+      }
+    },
+    "credits over the limit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "credits over the limit" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クレジット超過" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "点额度已超出限额" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "點額度已超出限額" } }
+      }
+    },
+    "credits remaining": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "credits remaining" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クレジット残高" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "点额度剩余" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "點額度剩餘" } }
+      }
+    },
     "$%.2f / 30d": {
       "extractionState": "manual",
       "localizations": {
