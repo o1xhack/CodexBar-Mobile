@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.47.0.1 — Unreleased
+## 0.47.0.1 — 2026-08-03
 
 ### Added
 - Mobile sync: prepare Qwen Cloud, ZoomMate, xAI Platform, Notion AI, Claude prepaid balance, and z.ai daily model usage for iPhone display while keeping upstream Mac fleet sync isolated from the existing Mac-to-iPhone channel.

@@ -123,6 +123,7 @@ public struct ZoomMateUsageSnapshot: Sendable {
         return UsageSnapshot(
             primary: primary,
             secondary: nil,
+            zoommateCreditStatus: self.creditStatus,
             zoommateCreditsHistory: history,
             updatedAt: self.updatedAt,
             identity: identity)

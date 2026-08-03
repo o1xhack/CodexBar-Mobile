@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 @Suite("iOS 1.20 v0.47 sync compatibility")
@@ -29,20 +28,11 @@ struct V047SyncCompatTests {
         let deviceID: String?
     }
 
-    private static let encoder: JSONEncoder = {
-        let value = JSONEncoder()
-        value.dateEncodingStrategy = .iso8601
-        return value
-    }()
+    private static let encoder = CloudSyncConstants.makeJSONEncoder()
+    private static let decoder = CloudSyncConstants.makeJSONDecoder()
 
-    private static let decoder: JSONDecoder = {
-        let value = JSONDecoder()
-        value.dateDecodingStrategy = .iso8601
-        return value
-    }()
-
-    @Test("old z.ai payload decodes daily series as empty")
-    func oldZaiPayload() throws {
+    @Test
+    func `old z.ai payload decodes daily series as empty`() throws {
         let json = """
         {"xTime":["2026-08-03T09:00:00Z"],"modelSeries":[{"modelName":"glm","tokens":[42]}]}
         """
@@ -52,8 +42,8 @@ struct V047SyncCompatTests {
         #expect(decoded.dailyModelSeries.isEmpty)
     }
 
-    @Test("new ZoomMate and workspace fields round trip")
-    func newFieldsRoundTrip() throws {
+    @Test
+    func `new ZoomMate and workspace fields round trip`() throws {
         let now = Date(timeIntervalSince1970: 1_786_320_000)
         let source = ProviderUsageSnapshot(
             providerID: "zoommate",
@@ -79,8 +69,8 @@ struct V047SyncCompatTests {
         #expect(decoded.hasUsableSignal)
     }
 
-    @Test("pre-1.20 provider payload decodes additive fields as nil")
-    func oldProviderPayload() throws {
+    @Test
+    func `pre-1.20 provider payload decodes additive fields as nil`() throws {
         let json = """
         {
           "providerID":"notion",
@@ -95,8 +85,8 @@ struct V047SyncCompatTests {
         #expect(decoded.zoomMateCredits == nil)
     }
 
-    @Test("mixed-version merge keeps newest non-nil v0.47 fields")
-    func mixedVersionMerge() throws {
+    @Test
+    func `mixed-version merge keeps newest non-nil v0.47 fields`() throws {
         let oldDate = Date(timeIntervalSince1970: 1_786_320_000)
         let newDate = oldDate.addingTimeInterval(60)
         let oldWriter = ProviderUsageSnapshot(
@@ -137,8 +127,8 @@ struct V047SyncCompatTests {
     /// bit 3 = Mac A, bit 2 = Mac B, bit 1 = iPhone A, bit 0 = iPhone B.
     /// Case 1 is all-old (mask 0); case 16 is all-new (mask 15).
     @MainActor
-    @Test("2 Mac x 2 iPhone old/new matrix", arguments: Array(0..<16))
-    func fourDeviceCompatibilityMatrix(mask: Int) throws {
+    @Test(arguments: Array(0..<16))
+    func `2 Mac x 2 iPhone old/new matrix`(mask: Int) throws {
         let macANew = mask & 0b1000 != 0
         let macBNew = mask & 0b0100 != 0
         let iPhoneANew = mask & 0b0010 != 0
@@ -157,18 +147,26 @@ struct V047SyncCompatTests {
                 isNew: macBNew,
                 timestamp: baseDate.addingTimeInterval(60)),
         ]
-        let encoded = try sourceSnapshots.map(Self.encoder.encode)
+        let writers = try zip(sourceSnapshots, [macANew, macBNew]).map {
+            try Self.makeWireWriter(snapshot: $0.0, isNew: $0.1)
+        }
 
-        let phoneA = try Self.readMatrixPhone(isNew: iPhoneANew, encoded: encoded)
-        let phoneB = try Self.readMatrixPhone(isNew: iPhoneBNew, encoded: encoded)
+        let phoneA = try Self.readMatrixPhone(isNew: iPhoneANew, writers: writers)
+        let phoneB = try Self.readMatrixPhone(isNew: iPhoneBNew, writers: writers)
 
         #expect(phoneA.deviceIDs == ["matrix-mac-a", "matrix-mac-b"])
         #expect(phoneB.deviceIDs == ["matrix-mac-a", "matrix-mac-b"])
         #expect(phoneA.providerIDs.contains("codex"))
         #expect(phoneB.providerIDs.contains("codex"))
+        #expect(!phoneA.providerIDs.contains("retired-provider"))
+        #expect(!phoneB.providerIDs.contains("retired-provider"))
+        #expect(!phoneA.providerIDs.contains("ghost-provider"))
+        #expect(!phoneB.providerIDs.contains("ghost-provider"))
+        #expect(phoneA.cardIdentityKeys.count == phoneA.providerIDs.count)
+        #expect(phoneB.cardIdentityKeys.count == phoneB.providerIDs.count)
 
         let hasNewWriter = macANew || macBNew
-        let newProviderIDs: Set<String> = ["notion", "qwencloud", "xai", "zoommate", "zai"]
+        let newProviderIDs: Set = ["notion", "qwencloud", "xai", "zoommate", "zai"]
         #expect(newProviderIDs.isSubset(of: phoneA.providerIDs) == hasNewWriter)
         #expect(newProviderIDs.isSubset(of: phoneB.providerIDs) == hasNewWriter)
 
@@ -189,34 +187,72 @@ struct V047SyncCompatTests {
     private struct MatrixPhoneResult: Equatable {
         let deviceIDs: [String]
         let providerIDs: Set<String>
+        let cardIdentityKeys: Set<String>
         let hasV047TypedFields: Bool
+    }
+
+    private struct MatrixWireEnvelope {
+        let recordName: String
+        let payload: Data
+    }
+
+    private struct MatrixWireWriter {
+        let legacyPayload: Data
+        let perProviderPayloads: [MatrixWireEnvelope]
+        let deletedRecordNames: [String]
     }
 
     @MainActor
     private static func readMatrixPhone(
         isNew: Bool,
-        encoded: [Data]) throws -> MatrixPhoneResult
+        writers: [MatrixWireWriter]) throws -> MatrixPhoneResult
     {
         if !isNew {
-            let snapshots = try encoded.map { try Self.decoder.decode(LegacySnapshot.self, from: $0) }
+            let snapshots = try writers.map {
+                try Self.decoder.decode(LegacySnapshot.self, from: $0.legacyPayload)
+            }
             let providers = snapshots.flatMap(\.providers)
             #expect(providers.allSatisfy { $0.primary != nil && !$0.isError })
             #expect(providers.allSatisfy { !$0.providerName.isEmpty && $0.lastUpdated > .distantPast })
             #expect(snapshots.allSatisfy { !$0.deviceName.isEmpty && $0.syncTimestamp > .distantPast })
+            let identities = Set(providers.map {
+                "\($0.providerID)|\($0.accountEmail ?? "")"
+            })
             return MatrixPhoneResult(
                 deviceIDs: snapshots.compactMap(\.deviceID).sorted(),
                 providerIDs: Set(providers.map(\.providerID)),
+                cardIdentityKeys: identities,
                 hasV047TypedFields: false)
         }
 
-        let snapshots = try encoded.map { try Self.decoder.decode(SyncedUsageSnapshot.self, from: $0) }
-        // Two separate calls create the same isolated cache state an iPhone
-        // reconstructs after its own full fetch. The matrix invokes this once
-        // per phone, so cache convergence is verified without shared memory.
+        let legacySnapshots = try writers.map {
+            try Self.decoder.decode(SyncedUsageSnapshot.self, from: $0.legacyPayload)
+        }
         var cache = SnapshotCache()
-        cache.replaceFromFullFetch(perProviderSnapshots: snapshots, legacySnapshots: [])
+        cache.replaceFromFullFetch(perProviderSnapshots: [], legacySnapshots: legacySnapshots)
+
+        // Each new iPhone independently replays the production per-provider
+        // codec and change-token delta path. Ghost upserts are ignored and a
+        // deleted provider must not leak back through the legacy fallback.
+        for writer in writers {
+            let envelopes = try writer.perProviderPayloads.map { wire in
+                let json = try PayloadCompression.decompress(wire.payload)
+                let envelope = try Self.decoder.decode(ProviderUsageEnvelope.self, from: json)
+                let parsed = try #require(SnapshotCache.splitRecordName(wire.recordName))
+                #expect(parsed.deviceID == envelope.deviceID)
+                #expect(parsed.composite == SnapshotCache.compositeKey(for: envelope.provider))
+                return envelope
+            }
+            cache.applyDelta(
+                upserted: envelopes,
+                deletedRecordNames: writer.deletedRecordNames)
+        }
+
         let cached = cache.buildDeviceSnapshots()
         let merged = try #require(CloudSyncReader.mergeSnapshots(cached))
+        let identities = merged.providers.map(\.cardIdentityKey)
+        #expect(Set(identities).count == identities.count)
+        #expect(merged.providers.allSatisfy(Self.hasRenderableValues))
         let typed = merged.providers.contains(where: {
             $0.accountOrganization != nil || $0.zoomMateCredits != nil
                 || $0.zaiHourlyUsage?.dailyModelSeries.isEmpty == false
@@ -224,7 +260,103 @@ struct V047SyncCompatTests {
         return MatrixPhoneResult(
             deviceIDs: cached.compactMap(\.deviceID).sorted(),
             providerIDs: Set(merged.providers.map(\.providerID)),
+            cardIdentityKeys: Set(identities),
             hasV047TypedFields: typed)
+    }
+
+    private static func makeWireWriter(
+        snapshot: SyncedUsageSnapshot,
+        isNew: Bool) throws -> MatrixWireWriter
+    {
+        guard isNew, let deviceID = snapshot.deviceID else {
+            return try MatrixWireWriter(
+                legacyPayload: self.encoder.encode(snapshot),
+                perProviderPayloads: [],
+                deletedRecordNames: [])
+        }
+
+        let retired = ProviderUsageSnapshot(
+            providerID: "retired-provider",
+            providerName: "Retired Provider",
+            primary: SyncRateWindow(
+                usedPercent: 50,
+                windowMinutes: 300,
+                resetsAt: snapshot.syncTimestamp,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: snapshot.syncTimestamp.addingTimeInterval(-3600))
+        let ghost = ProviderUsageSnapshot(
+            providerID: "ghost-provider",
+            providerName: "Ghost Provider",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: snapshot.syncTimestamp)
+        let wireProviders = snapshot.providers + [retired, ghost]
+        let payloads = try wireProviders.map { provider in
+            let envelope = ProviderUsageEnvelope(
+                deviceID: deviceID,
+                deviceName: snapshot.deviceName,
+                appVersion: snapshot.appVersion,
+                mobileVersion: snapshot.mobileVersion,
+                syncTimestamp: snapshot.syncTimestamp,
+                notificationPushEnabled: snapshot.notificationPushEnabled,
+                provider: provider)
+            let recordName = CloudSyncManager.perProviderRecordName(
+                deviceID: deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey)
+            return try MatrixWireEnvelope(
+                recordName: recordName,
+                payload: PayloadCompression.compress(Self.encoder.encode(envelope)))
+        }
+        let retiredRecordName = CloudSyncManager.perProviderRecordName(
+            deviceID: deviceID,
+            providerID: retired.providerID,
+            accountEmail: retired.accountEmail,
+            accountRecordKey: retired.accountRecordKey)
+        #expect(Set(payloads.map(\.recordName)).count == payloads.count)
+        return try MatrixWireWriter(
+            legacyPayload: Self.encoder.encode(snapshot),
+            perProviderPayloads: payloads,
+            deletedRecordNames: [retiredRecordName])
+    }
+
+    private static func hasRenderableValues(_ provider: ProviderUsageSnapshot) -> Bool {
+        let windows = [provider.primary, provider.secondary].compactMap(\.self)
+        guard windows.allSatisfy({
+            $0.usedPercent.isFinite && (0...100).contains($0.usedPercent)
+        }) else { return false }
+        guard !provider.providerID.isEmpty,
+              !provider.providerName.isEmpty,
+              !provider.cardIdentityKey.isEmpty
+        else { return false }
+        if let credits = provider.zoomMateCredits {
+            let values = [
+                credits.budgetCap,
+                credits.usedCredits,
+                credits.remainingCredits,
+                credits.overageCredits,
+                credits.todayCreditsUsed,
+            ].compactMap(\.self)
+            guard values.allSatisfy({ $0.isFinite && $0 >= 0 }) else { return false }
+            if let cap = credits.budgetCap,
+               let used = credits.usedCredits,
+               let remaining = credits.remainingCredits,
+               abs((used + remaining) - cap) > 0.0001
+            {
+                return false
+            }
+        }
+        return true
     }
 
     private static func makeMatrixSnapshot(

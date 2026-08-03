@@ -130,6 +130,11 @@ merge 会导致现有用户意外开启 secret sync，或关闭新功能时同�
 - record types `AccountSnapshot`、`Device`、`Preferences`、`ProviderIntent`；
 - 多个 encrypted/plain fields。
 
+只读 Production export 还暴露出一个本轮前已存在但未部署的缺口：iOS 的账户合并功能会
+读写 `ProviderAccountLinkage`，代码已在 `DeviceProvidersZone` 使用该类型，但 Production
+schema 与旧 tracked schema 都没有它。本轮将它与 4 个 fleet types 一并加入完整 tracked
+schema；这不是新增产品 scope，而是避免候选 schema 继续漏掉已有 writer contract。
+
 它们不与现有 `DeviceSnapshot`、`DeviceProviderSnapshot`、`QuotaTransition`、
 `DeviceLifecycleEvent` 等 record families 重名，但属于真实 CloudKit schema / zone
 新增，不能按“opaque JSON optional field”归类为 `NO_DEPLOY`。实际 Dashboard deploy
@@ -138,7 +143,8 @@ merge 会导致现有用户意外开启 secret sync，或关闭新功能时同�
 ## 风险与 release gate
 
 - P0：两个 sync toggle/key 串线会造成意外 secret sync 或 iPhone 数据中断；
-- P0：fork container 缺少 4 个 record types 时启用 fleet sync 会写入失败；
+- P0：fork container 缺少 4 个 fleet record types 时启用 fleet sync 会写入失败；既有
+  `ProviderAccountLinkage` 缺失时，用户确认的跨版本账户合并也无法落盘；
 - P1：上游 fleet snapshots 与 fork Mobile snapshots 双写但不能双读/双计数；
 - P1：old/new Mac 同时写不同 record families 时，设备/账户 identity 必须稳定；
 - P1：ZoomMate/xAI/Claude monetary values不能渲染成 `$X / $0`；

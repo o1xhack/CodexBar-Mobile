@@ -98,10 +98,12 @@ provider 与 sync 兼容的 feature minor `1.20.0 (192)`。
 
 ## CloudKit 方案
 
-预期最终 audit 为 `DEPLOY_REQUIRED`：同一 fork container 新增独立 zone 和四种 record
-types。代码可以先完成并打包，但签名 candidate 只能作为 pre-deploy 验证；Production
-deploy 完成前不得发布 live release。schema 文件和 deploy script 必须改为 fork
-container，并且只做显式目标审计，不能把 upstream team profile 或 container 写入资产。
+预期最终 audit 为 `DEPLOY_REQUIRED`：同一 fork container 新增独立 zone 和四种 fleet
+record types；同时把已有 iOS writer 使用、但 Production export 缺失的
+`ProviderAccountLinkage` 纳入 tracked schema。代码可以先完成并打包，但签名 candidate
+只能作为 pre-deploy 验证；Production deploy 完成前不得发布 live release。schema 文件
+和 deploy script 必须改为 fork container，并且只做显式目标审计，不能把 upstream team
+profile 或 container 写入资产。
 
 ## 测试方案
 

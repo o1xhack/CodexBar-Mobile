@@ -261,10 +261,10 @@ struct SessionEquivalentForecastTests {
         let earlyText = UsagePaceText.sessionEquivalentDetail(forecast: early)
         let strandedText = UsagePaceText.sessionEquivalentDetail(forecast: stranded)
 
-        #expect(earlyText.leftText == "Est. 4 session quotas left")
+        #expect(earlyText.leftText == "Estimated: 4 session quotas left")
         #expect(earlyText.rightText == "9 windows until reset")
-        #expect(earlyText.accessibilityLabel == "Est. 4 session quotas left · 9 windows until reset")
-        #expect(strandedText.leftText == "Est. 10 session quotas left")
+        #expect(earlyText.accessibilityLabel == "Estimated: 4 session quotas left · 9 windows until reset")
+        #expect(strandedText.leftText == "Estimated: 10 session quotas left")
     }
 
     @Test
@@ -288,10 +288,10 @@ struct SessionEquivalentForecastTests {
             weeklyResetsAt: Self.weeklyReset,
             weeklyUsedPercent: 14))
 
-        #expect(equal.leftText == "Est. 2 session quotas left")
-        #expect(roundedSingular.leftText == "Est. 1 session quota left")
+        #expect(equal.leftText == "Estimated: 2 session quotas left")
+        #expect(roundedSingular.leftText == "Estimated: 1 session quota left")
         #expect(roundedSingular.rightText == "2 windows until reset")
-        #expect(close.leftText == "Est. 8.6 session quotas left")
+        #expect(close.leftText == "Estimated: 8.6 session quotas left")
         #expect(close.rightText == "9 windows until reset")
     }
 
@@ -305,7 +305,7 @@ struct SessionEquivalentForecastTests {
             weeklyResetsAt: Self.weeklyReset,
             weeklyUsedPercent: 95))
 
-        #expect(detail.leftText == "Est. 0.3 session quota left")
+        #expect(detail.leftText == "Estimated: 0.3 session quota left")
         #expect(detail.rightText == "1 window until reset")
     }
 
@@ -396,7 +396,7 @@ struct SessionEquivalentForecastTests {
             sampleCount: 7,
             weeklyResetsAt: Self.weeklyReset,
             weeklyUsedPercent: 1))
-        #expect(huge.leftText == "Est. 1,000,000 session quotas left")
+        #expect(huge.leftText == "Estimated: 1,000,000 session quotas left")
     }
 
     @Test
@@ -502,7 +502,7 @@ struct SessionEquivalentForecastTests {
         #expect(weeklyMetric.percentLabel == "5% left")
         #expect(weeklyMetric.detailLeftText == "On pace")
         #expect(weeklyMetric.detailRightText == "Lasts until reset")
-        #expect(weeklyMetric.sessionEquivalentDetail?.leftText == "Est. 0.3 session quota left")
+        #expect(weeklyMetric.sessionEquivalentDetail?.leftText == "Estimated: 0.3 session quota left")
         #expect(weeklyMetric.sessionEquivalentDetail?.rightText == "1 window until reset")
     }
 
@@ -763,7 +763,7 @@ extension SessionEquivalentForecastTests {
         #expect(forecast.estimatedWindowsToExhaustWeekly == 6)
         #expect(forecast.windowsUntilReset == 14)
         let detail = UsagePaceText.sessionEquivalentDetail(forecast: forecast)
-        #expect(detail.leftText == "Est. 6 session quotas left")
+        #expect(detail.leftText == "Estimated: 6 session quotas left")
         #expect(detail.rightText == "14 windows until reset")
     }
 

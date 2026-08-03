@@ -172,8 +172,8 @@ struct MenuCardOverrideIsolationTests {
         let weeklyMetric = try #require(model.metrics.first { $0.id == "secondary" })
         let leftText = try #require(weeklyMetric.sessionEquivalentDetail?.leftText)
 
-        #expect(leftText == "Est. 8 session quotas left")
-        #expect(leftText != "Est. 2 session quotas left")
+        #expect(leftText == "Estimated: 8 session quotas left")
+        #expect(leftText != "Estimated: 2 session quotas left")
     }
 
     @Test

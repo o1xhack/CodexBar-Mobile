@@ -151,6 +151,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let kiroUsage: KiroUsageDetails?
     public let ampUsage: AmpUsageDetails?
     public let zaiUsage: ZaiUsageSnapshot?
+    public let zoommateCreditStatus: ZoomMateCreditStatus?
     public let zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot?
     public let minimaxUsage: MiniMaxUsageSnapshot?
     public let deepseekUsage: DeepSeekUsageSummary?
@@ -237,6 +238,7 @@ public struct UsageSnapshot: Codable, Sendable {
         ampUsage: AmpUsageDetails? = nil,
         providerCost: ProviderCostSnapshot? = nil,
         zaiUsage: ZaiUsageSnapshot? = nil,
+        zoommateCreditStatus: ZoomMateCreditStatus? = nil,
         zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot? = nil,
         minimaxUsage: MiniMaxUsageSnapshot? = nil,
         deepseekUsage: DeepSeekUsageSummary? = nil,
@@ -282,6 +284,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.ampUsage = ampUsage
         self.providerCost = providerCost
         self.zaiUsage = zaiUsage
+        self.zoommateCreditStatus = zoommateCreditStatus
         self.zoommateCreditsHistory = zoommateCreditsHistory
         self.minimaxUsage = minimaxUsage
         self.deepseekUsage = deepseekUsage
@@ -350,6 +353,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.kiroUsage = try container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
         self.ampUsage = try container.decodeIfPresent(AmpUsageDetails.self, forKey: .ampUsage)
         self.zaiUsage = nil // Not persisted, fetched fresh each time
+        self.zoommateCreditStatus = nil // Not persisted, fetched fresh each time
         self.zoommateCreditsHistory = nil // Not persisted, fetched fresh each time
         self.minimaxUsage = nil // Not persisted, fetched fresh each time
         self.deepseekUsage = nil // Not persisted, fetched fresh each time
@@ -603,6 +607,7 @@ public struct UsageSnapshot: Codable, Sendable {
             ampUsage: self.ampUsage,
             providerCost: self.providerCost,
             zaiUsage: self.zaiUsage,
+            zoommateCreditStatus: self.zoommateCreditStatus,
             zoommateCreditsHistory: self.zoommateCreditsHistory,
             minimaxUsage: self.minimaxUsage,
             deepseekUsage: deepseekUsage.resolving(self.deepseekUsage),

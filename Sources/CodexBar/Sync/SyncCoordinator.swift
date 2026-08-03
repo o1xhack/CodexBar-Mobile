@@ -1164,29 +1164,30 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncZoomMateCredits?
     {
-        guard provider == .zoommate, let history = snapshot?.zoommateCreditsHistory else { return nil }
-        let status = history.creditStatus
+        guard provider == .zoommate, let snapshot else { return nil }
+        let history = snapshot.zoommateCreditsHistory
+        guard let status = history?.creditStatus ?? snapshot.zoommateCreditStatus else { return nil }
         func date(milliseconds: Int64?) -> Date? {
             guard let milliseconds, milliseconds > 0 else { return nil }
             return Date(timeIntervalSince1970: Double(milliseconds) / 1000)
         }
-        let now = history.updatedAt
-        let daily = history.dailyBreakdown(now: now).map {
+        let now = history?.updatedAt ?? snapshot.updatedAt
+        let daily = history?.dailyBreakdown(now: now).map {
             SyncZoomMateDailyPoint(dayKey: $0.day, creditsUsed: $0.totalCreditsUsed)
-        }
+        } ?? []
         return SyncZoomMateCredits(
-            budgetCap: status?.budgetCap,
-            usedCredits: status?.usedCredit,
-            remainingCredits: status?.remainingCredit,
-            overageCredits: status?.overageCredit,
-            allowsOverage: status?.allowOverage,
-            cycleStartAt: date(milliseconds: status?.cycleStartDate),
-            cycleEndAt: date(milliseconds: status?.cycleEndDate),
-            isQuotaAvailable: status?.isQuotaAvailable,
-            isUnlimited: status?.isUnlimited,
-            todayCreditsUsed: history.todayCreditsUsed(now: now),
+            budgetCap: status.budgetCap,
+            usedCredits: status.usedCredit,
+            remainingCredits: status.remainingCredit,
+            overageCredits: status.overageCredit,
+            allowsOverage: status.allowOverage,
+            cycleStartAt: date(milliseconds: status.cycleStartDate),
+            cycleEndAt: date(milliseconds: status.cycleEndDate),
+            isQuotaAvailable: status.isQuotaAvailable,
+            isUnlimited: status.isUnlimited,
+            todayCreditsUsed: history?.todayCreditsUsed(now: now),
             daily: daily,
-            updatedAt: history.updatedAt)
+            updatedAt: now)
     }
 
     static func mapKiroCredits(

@@ -80,6 +80,32 @@ struct SyncCoordinatorV047MapperTests {
     }
 
     @Test
+    func `ZoomMate mapper keeps structured status when history is unavailable`() throws {
+        let end = Int64(Self.now.addingTimeInterval(20 * 86400).timeIntervalSince1970 * 1000)
+        let status = ZoomMateCreditStatus(
+            budgetCap: 1000,
+            usedCredit: 250,
+            remainingCredit: 750,
+            overageCredit: 0,
+            allowOverage: true,
+            cycleStartDate: nil,
+            cycleEndDate: end,
+            isQuotaAvailable: true,
+            isUnlimited: false)
+        let snapshot = ZoomMateUsageSnapshot(
+            creditStatus: status,
+            updatedAt: Self.now).toUsageSnapshot(history: nil)
+
+        let mapped = try #require(SyncCoordinator.mapZoomMateCredits(provider: .zoommate, snapshot: snapshot))
+        #expect(mapped.budgetCap == 1000)
+        #expect(mapped.remainingCredits == 750)
+        #expect(mapped.cycleEndAt == Date(timeIntervalSince1970: Double(end) / 1000))
+        #expect(mapped.daily.isEmpty)
+        #expect(mapped.todayCreditsUsed == nil)
+        #expect(mapped.updatedAt == Self.now)
+    }
+
+    @Test
     func `Claude prepaid balance survives alongside a positive spend limit`() throws {
         let cost = ProviderCostSnapshot(
             used: 18,
