@@ -1,6 +1,6 @@
 # v0.47.0 Upstream Sync 测试证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-03
 
 ## 环境定义
@@ -35,8 +35,9 @@ Production 的命令不在未单独授权的自动测试中运行。
 | 16-case compatibility | parameterized `V047SyncCompatTests/fourDeviceCompatibilityMatrix(mask:)` | substituted pass；production codec/cache/delete/render invariants，16 dynamic runs，见 matrix |
 | CloudKit audit | published `v0.45.2.2-mobile.1.19.0` → HEAD + Production export | `DEPLOY_REQUIRED`；只读 audit，未 import/deploy |
 | Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
-| Signing/notarization | universal candidate app/ZIP/dSYM + draft | pending；代码 review 后执行 |
-| Review | self diff + 两个独立 agent final review | pass；sync P0/P1/P2=0，release P0/P1=0，draft blocker=0 |
+| Signing/notarization | `Scripts/sign-and-notarize.sh` + 独立 ZIP 解包验收 | pass；Developer ID、notarization Accepted、staple、Gatekeeper、universal binaries、Production entitlement、dSYM UUID 全部通过 |
+| GitHub draft | draft create + API readback + local/remote tag/branch audit | pass；draft ID `364520043`，两资产 size/digest 一致；未创建 tag、未 push |
+| Review | self diff + 两个独立 agent final review | pass；最终 `P0=0 / P1=0 / P2=0 / blocker=0` |
 
 ## 2 Mac × 2 iPhone compatibility matrix
 
@@ -129,14 +130,48 @@ retest、full retest 后交回同一批 reviewer：
 - sync architecture final：`P0=0 / P1=0 / P2=0 / blocker=0`；逐项复核 production
   codec/envelope/zlib/recordName/cache/delete/ghost/render invariants、pre-xcrun production
   refusal、linkage schema 与 ZoomMate fallback；
-- upstream/release final：`P0=0 / P1=0 / draft blocker=0`；确认版本、CHANGELOG、完整
-  schema union、appcast 未改与安全 draft 路径。保留 3 个只影响 live 的 P2：真实 2 Mac ×
-  2 iPhone 尚未执行、Production schema 未 deploy、draft 的 `target=mobile-dev` 在未 push/
-  merge 前只是占位；因此 candidate ZIP 必须记录 embedded commit + SHA-256，live 前重新
-  确认远端 target 已包含该 commit。
+- upstream/release final：确认版本、CHANGELOG、完整 schema union、appcast 未改与安全
+  draft 路径；packaging credential 修复后再次 review，最终
+  `P0=0 / P1=0 / P2=0 / blocker=0`。真实 2 Mac × 2 iPhone、Production schema deploy 与
+  远端 target provenance 仍是 live gate，而不是 draft blocker；candidate ZIP 因此记录
+  embedded commit + SHA-256，live 前必须重新确认远端 target 已包含该 commit。
 
 第一次 packaging preflight 在进入签名/公证前失败：Widget Xcode SourcePackages mirror
 缺少锁定的 SweetCookieKit `v0.5.1` object；补入精确 tag 后，采样又确认 resolver 停在
 `SecItemCopyMatching` 等待 Keychain authorization。两次均在签名、notarization、release
 创建之前中止。修复为 Xcode 显式 `-packageAuthorizationProvider netrc`，避免公开 artifact
 下载回退到交互式 Keychain；对应 shell/contract test 通过，随后交回 release reviewer。
+
+## Signed candidate / draft release evidence
+
+Candidate source commit：`151a17ae43c3e1be9070d852efca2749e49ca719`；ZIP 内
+`CodexGitCommit=151a17ae4`。执行 `Scripts/sign-and-notarize.sh` 的最终结果：
+
+- Developer ID：`Developer ID Application: Yuxiao Wang (3TUERHN53E)`；
+- Apple notarization submission：`ad29f441-b170-422c-8cef-a440724156d2`，status
+  `Accepted`；staple validate、`syspolicy_check distribution` 与 direct-launch smoke pass；
+- app：`CFBundleShortVersionString=0.47.0.1`，
+  `CFBundleVersion=111.1.1.20.0`；
+- 主程序、`CodexBarCLI`、`CodexBarClaudeWatchdog`、`CodexBarWidget` 均为
+  `x86_64 arm64`；
+- 主程序 / dSYM UUID 完全一致：x86_64
+  `11566CA4-B239-38CF-B3F9-D8395F9F326E`，arm64
+  `D9DE5E06-E147-3DC7-8875-23FF85B6E8A3`；
+- 签名 entitlement：container `iCloud.com.o1xhack.codexbar`、environment
+  `Production`、team `3TUERHN53E`。
+
+| Asset | Bytes | SHA-256 |
+|---|---:|---|
+| `CodexBar-0.47.0.1-mobile.1.20.0.zip` | 62,218,691 | `6c5568282d518cd7d805378ae26d0bdc8b713a520adc5cb7249d5bc6a4b00d86` |
+| `CodexBar-0.47.0.1-mobile.1.20.0.dSYM.zip` | 46,990,922 | `983bf918b9fa142bae38d3d0268b255af0719cc7f80b28fd3be78bd4818cd579` |
+
+GitHub draft readback：
+
+- URL：<https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-fce8f8f3bb37740266ba>；
+- release ID `364520043`，title `CodexBar 0.47.0.1 Mobile 1.20.0`，
+  `tag_name=v0.47.0.1-mobile.1.20.0`，`isDraft=true`，`prerelease=false`；
+- `target_commitish=mobile-dev` 只是未 push 阶段的占位；draft 不发布 Git tag；
+- GitHub API 返回的两个 asset `state=uploaded`、size 与 `sha256:` digest 和上表完全一致；
+- `git tag -l`、`git ls-remote --tags origin`、目标分支的
+  `git ls-remote --heads origin` 均为空；未 push、未 merge、未发布 tag、未改 appcast、
+  未 live release。

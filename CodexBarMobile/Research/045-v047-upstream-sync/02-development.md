@@ -1,6 +1,6 @@
 # v0.47.0 Upstream Sync 开发证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-03
 Branch: `upstream-sync/v0.47.0-mobile.1.20.0`
 
@@ -83,3 +83,11 @@ Packaging preflight 发现 Xcode Widget extension 的 SwiftPM artifact resolver 
 依赖也会尝试 macOS Keychain authorization。`package_app.sh` 的 Xcode 命令现固定使用
 `-packageAuthorizationProvider netrc`，避免 headless release 进入交互式 Keychain prompt；
 `test_package_signing.sh` 增加 contract guard。
+
+最终从 clean HEAD `151a17ae43c3e1be9070d852efca2749e49ca719` 重新执行
+`Scripts/sign-and-notarize.sh` 成功：Widget、CLI、watchdog 和主程序均打入 universal
+candidate；Developer ID 签名通过；Apple notarization submission
+`ad29f441-b170-422c-8cef-a440724156d2` 返回 `Accepted`；staple、Gatekeeper、distribution
+和 direct-launch smoke 全部通过。生成 ZIP 与 dSYM ZIP，并以不创建 Git tag、不 push 的
+方式上传到 GitHub draft。完整 hash、UUID、entitlement 与远端 readback 见
+`03-testing.md`。

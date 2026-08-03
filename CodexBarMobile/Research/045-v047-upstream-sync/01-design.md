@@ -1,6 +1,6 @@
 # v0.47.0 Upstream Sync 设计
 
-Status: `ready`
+Status: `done`
 Date: 2026-08-03
 
 ## 设计原则

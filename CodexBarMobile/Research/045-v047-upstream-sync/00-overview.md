@@ -1,6 +1,6 @@
 # v0.47.0 Upstream Sync + iOS 1.20.0 概览
 
-Status: `ready`
+Status: `done`
 Date: 2026-08-03
 Branch: `upstream-sync/v0.47.0-mobile.1.20.0`
 Open issue:
@@ -173,3 +173,19 @@ GitHub draft release 和本地 candidate appcast 证据。
 不允许：push、merge 到 `mobile-dev`、published tag、live release、appcast publish、
 TestFlight upload、App Store submission/publication。CloudKit Production schema deploy
 需要单独暂停询问。
+
+## 完成状态（2026-08-03）
+
+- semantic merge、fork integration、Shared/iOS bridge、版本与四语言 release notes 均已
+  在目标分支完成；最终文档提交前 candidate source commit 为
+  `151a17ae43c3e1be9070d852efca2749e49ca719`；
+- Mac full suite、iOS full unit、Release simulator build、lint、schema validation 与
+  16-case substituted compatibility matrix 全部通过；最终独立 review 为
+  `P0=0 / P1=0 / P2=0 / blocker=0`；
+- Mac candidate 已完成 Developer ID 签名、Apple notarization、staple、Gatekeeper 和
+  独立 ZIP 解包验收；GitHub draft release 已创建：
+  <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-fce8f8f3bb37740266ba>；
+- draft 资产的远端 size / SHA-256 与本地完全一致，candidate tag 在本地与 origin 都不
+  存在，目标分支没有 push，`appcast.xml` 没有改动；
+- `DEPLOY_REQUIRED` 是 live release 前的明确授权门；Production schema deploy、push、
+  merge、published tag、live release、appcast publish 与 TestFlight 均未执行。
