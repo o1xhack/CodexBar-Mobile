@@ -78,3 +78,8 @@ Branch: `upstream-sync/v0.47.0-mobile.1.20.0`
 
 完整命令、结果、xcresult、16-case matrix、CloudKit audit、review findings 和 draft
 release 证据统一记录在 `03-testing.md`，避免本文件复制同一批长日志。
+
+Packaging preflight 发现 Xcode Widget extension 的 SwiftPM artifact resolver 即使处理公开
+依赖也会尝试 macOS Keychain authorization。`package_app.sh` 的 Xcode 命令现固定使用
+`-packageAuthorizationProvider netrc`，避免 headless release 进入交互式 Keychain prompt；
+`test_package_signing.sh` 增加 contract guard。

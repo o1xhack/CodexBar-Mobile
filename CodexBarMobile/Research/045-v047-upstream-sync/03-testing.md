@@ -34,6 +34,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | iOS Release build | `xcodebuild ... -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build -quiet` | pass |
 | 16-case compatibility | parameterized `V047SyncCompatTests/fourDeviceCompatibilityMatrix(mask:)` | substituted pass；production codec/cache/delete/render invariants，16 dynamic runs，见 matrix |
 | CloudKit audit | published `v0.45.2.2-mobile.1.19.0` → HEAD + Production export | `DEPLOY_REQUIRED`；只读 audit，未 import/deploy |
+| Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
 | Signing/notarization | universal candidate app/ZIP/dSYM + draft | pending；代码 review 后执行 |
 | Review | self diff + 两个独立 agent final review | pass；sync P0/P1/P2=0，release P0/P1=0，draft blocker=0 |
 
@@ -133,3 +134,9 @@ retest、full retest 后交回同一批 reviewer：
   2 iPhone 尚未执行、Production schema 未 deploy、draft 的 `target=mobile-dev` 在未 push/
   merge 前只是占位；因此 candidate ZIP 必须记录 embedded commit + SHA-256，live 前重新
   确认远端 target 已包含该 commit。
+
+第一次 packaging preflight 在进入签名/公证前失败：Widget Xcode SourcePackages mirror
+缺少锁定的 SweetCookieKit `v0.5.1` object；补入精确 tag 后，采样又确认 resolver 停在
+`SecItemCopyMatching` 等待 Keychain authorization。两次均在签名、notarization、release
+创建之前中止。修复为 Xcode 显式 `-packageAuthorizationProvider netrc`，避免公开 artifact
+下载回退到交互式 Keychain；对应 shell/contract test 通过，随后交回 release reviewer。

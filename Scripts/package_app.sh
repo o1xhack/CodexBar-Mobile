@@ -465,6 +465,7 @@ build_widget_extension() {
     -derivedDataPath "$derived_dir" \
     -skipPackageUpdates \
     -disableAutomaticPackageResolution \
+    -packageAuthorizationProvider netrc \
     -skipMacroValidation \
     -skipPackagePluginValidation \
     CODEXBAR_WIDGET_BUNDLE_ID="$WIDGET_BUNDLE_ID" \
