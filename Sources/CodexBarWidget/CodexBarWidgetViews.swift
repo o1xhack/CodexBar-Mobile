@@ -12,14 +12,14 @@ struct CodexBarUsageWidgetView: View {
 
     var body: some View {
         let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
-        ZStack {
-            Color.black.opacity(0.02)
+        Group {
             if let providerEntry {
                 self.content(providerEntry: providerEntry)
             } else {
                 self.emptyState
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.fill.tertiary, for: .widget)
         .environment(\.widgetUsageShowsUsed, self.entry.snapshot.usageBarsShowUsed)
     }
@@ -55,14 +55,14 @@ struct CodexBarHistoryWidgetView: View {
 
     var body: some View {
         let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
-        ZStack {
-            Color.black.opacity(0.02)
+        Group {
             if let providerEntry {
                 HistoryView(entry: providerEntry, isLarge: self.family == .systemLarge)
             } else {
                 self.emptyState
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.fill.tertiary, for: .widget)
     }
 
@@ -84,14 +84,14 @@ struct CodexBarCompactWidgetView: View {
 
     var body: some View {
         let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
-        ZStack {
-            Color.black.opacity(0.02)
+        Group {
             if let providerEntry {
                 CompactMetricView(entry: providerEntry, metric: self.entry.metric)
             } else {
                 self.emptyState
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.fill.tertiary, for: .widget)
     }
 
@@ -114,23 +114,21 @@ struct CodexBarSwitcherWidgetView: View {
 
     var body: some View {
         let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
-        ZStack {
-            Color.black.opacity(0.02)
-            VStack(alignment: .leading, spacing: 10) {
-                ProviderSwitcherRow(
-                    providers: self.entry.availableProviders,
-                    selected: self.entry.provider,
-                    updatedAt: providerEntry?.updatedAt ?? Date(),
-                    compact: self.family == .systemSmall,
-                    showsTimestamp: self.family != .systemSmall)
-                if let providerEntry {
-                    self.content(providerEntry: providerEntry)
-                } else {
-                    self.emptyState
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            ProviderSwitcherRow(
+                providers: self.entry.availableProviders,
+                selected: self.entry.provider,
+                updatedAt: providerEntry?.updatedAt ?? Date(),
+                compact: self.family == .systemSmall,
+                showsTimestamp: self.family != .systemSmall)
+            if let providerEntry {
+                self.content(providerEntry: providerEntry)
+            } else {
+                self.emptyState
             }
-            .padding(12)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.fill.tertiary, for: .widget)
         .environment(\.widgetUsageShowsUsed, self.entry.snapshot.usageBarsShowUsed)
     }
@@ -300,71 +298,7 @@ private struct ProviderSwitchChip: View {
     }
 
     private var shortLabel: String {
-        switch self.provider {
-        case .codex: "Codex"
-        case .openai: "OpenAI"
-        case .azureopenai: "Azure OpenAI"
-        case .claude: "Claude"
-        case .clinepass: "ClinePass"
-        case .gemini: "Gemini"
-        case .antigravity: "Anti"
-        case .cursor: "Cursor"
-        case .opencode: "OpenCode"
-        case .opencodego: "OpenCode Go"
-        case .alibaba: "Alibaba"
-        case .alibabatokenplan: "Token Plan"
-        case .zai: "z.ai"
-        case .factory: "Droid"
-        case .copilot: "Copilot"
-        case .devin: "Devin"
-        case .minimax: "MiniMax"
-        case .manus: "Manus"
-        case .vertexai: "Vertex"
-        case .kilo: "Kilo"
-        case .kiro: "Kiro"
-        case .augment: "Augment"
-        case .jetbrains: "JetBrains"
-        case .kimi: "Kimi"
-        case .moonshot: "Moonshot"
-        case .amp: "Amp"
-        case .t3chat: "T3 Chat"
-        case .ollama: "Ollama"
-        case .synthetic: "Synthetic"
-        case .openrouter: "OpenRouter"
-        case .clawrouter: "ClawRouter"
-        case .sub2api: "sub2api"
-        case .wayfinder: "Wayfinder"
-        case .elevenlabs: "ElevenLabs"
-        case .warp: "Warp"
-        case .windsurf: "Windsurf"
-        case .perplexity: "Pplx"
-        case .mimo: "MiMo"
-        case .doubao: "Doubao"
-        case .sakana: "Sakana"
-        case .abacus: "Abacus"
-        case .mistral: "Mistral"
-        case .deepseek: "DeepSeek"
-        case .deepinfra: "DeepInfra"
-        case .codebuff: "Codebuff"
-        case .crof: "Crof"
-        case .venice: "Venice"
-        case .commandcode: "Command Code"
-        case .qoder: "Qoder"
-        case .stepfun: "StepFun"
-        case .bedrock: "Bedrock"
-        case .grok: "Grok"
-        case .groq: "Groq"
-        case .llmproxy: "LLM Proxy"
-        case .litellm: "LiteLLM"
-        case .deepgram: "Deepgram"
-        case .poe: "Poe"
-        case .chutes: "Chutes"
-        case .longcat: "LongCat"
-        case .zed: "Zed"
-        case .neuralwatt: "Neuralwatt"
-        case .zenmux: "ZenMux"
-        case .aiand: "ai&"
-        }
+        ProviderDefaults.metadata[self.provider]?.shortDisplayName ?? self.provider.rawValue.capitalized
     }
 }
 
@@ -639,12 +573,16 @@ struct WidgetUsageRow: Identifiable, Equatable {
     }
 
     static func smallWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
-        if entry.provider == .kimi { return 3 }
+        if entry.provider == .kimi {
+            return 3
+        }
         return self.antigravityQuotaSummaryRowLimit(for: entry, limit: 2)
     }
 
     static func mediumWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
-        if entry.provider == .kimi { return 3 }
+        if entry.provider == .kimi {
+            return 3
+        }
         return self.antigravityQuotaSummaryRowLimit(for: entry, limit: 3)
     }
 
@@ -950,7 +888,9 @@ private struct UsageHistoryChart: View {
     var body: some View {
         let isCostMode = UsageHistoryChartMode.isCostMode(self.points)
         let values = self.points.map { point -> Double in
-            if isCostMode { return point.costUSD ?? 0 }
+            if isCostMode {
+                return point.costUSD ?? 0
+            }
             return Double(point.totalTokens ?? 0)
         }
         let scale = UsageChartScale(values: values)
@@ -1018,6 +958,8 @@ enum WidgetColors {
             Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
         case .alibaba, .alibabatokenplan:
             Color(red: 1.0, green: 106 / 255, blue: 0)
+        case .qwencloud:
+            Color(red: 97 / 255, green: 92 / 255, blue: 237 / 255)
         case .zai:
             Color(red: 232 / 255, green: 90 / 255, blue: 106 / 255)
         case .factory:
@@ -1048,6 +990,10 @@ enum WidgetColors {
             Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255) // Amp red
         case .t3chat:
             Color(red: 245 / 255, green: 102 / 255, blue: 71 / 255)
+        case .zoommate:
+            Color(red: 11 / 255, green: 92 / 255, blue: 255 / 255) // Zoom blue
+        case .notion:
+            Color(red: 51 / 255, green: 126 / 255, blue: 169 / 255) // Notion accent blue
         case .ollama:
             Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255) // Ollama charcoal
         case .synthetic:
@@ -1120,6 +1066,8 @@ enum WidgetColors {
             Color(red: 108 / 255, green: 92 / 255, blue: 231 / 255)
         case .aiand:
             Color(red: 226 / 255, green: 92 / 255, blue: 43 / 255)
+        case .xai:
+            Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255)
         }
     }
 }

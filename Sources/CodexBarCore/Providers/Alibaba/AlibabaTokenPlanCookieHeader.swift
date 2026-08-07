@@ -57,6 +57,10 @@ struct AlibabaTokenPlanCookieHeaders {
         return nil
     }
 
+    init?(alibabaTokenPlanCachedHeader raw: String?) {
+        self.init(cachedHeader: raw)
+    }
+
     var cacheCookieHeader: String {
         let encodedRateLimit = self.rateLimitCookieHeader.map(Self.encodeCachedHeader) ??
             Self.missingCachedHeaderValue
@@ -65,6 +69,10 @@ struct AlibabaTokenPlanCookieHeaders {
             "\(Self.cachedDashboardHeaderName)=\(Self.encodeCachedHeader(self.dashboardCookieHeader))",
             "\(Self.cachedRateLimitHeaderName)=\(encodedRateLimit)",
         ].joined(separator: "; ")
+    }
+
+    func cacheAlibabaTokenPlanCookieHeader() -> String {
+        self.cacheCookieHeader
     }
 
     var apiCookieNames: [String] {
@@ -186,11 +194,5 @@ enum AlibabaTokenPlanCookieHeader {
         let domainLength = normalizedDomain.count
         let expiry = cookie.expiresDate ?? .distantPast
         return (pathLength, domainLength, expiry)
-    }
-}
-
-extension [String] {
-    fileprivate func uniquedSorted() -> [String] {
-        Array(Set(self)).sorted()
     }
 }

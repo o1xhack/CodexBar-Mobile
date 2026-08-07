@@ -268,6 +268,19 @@ enum ProviderColorPalette {
         if normalized.contains("aiand") || normalized.contains("ai&") {
             return Color(red: 0.88, green: 0.26, blue: 0.33)
         }
+        // iOS 1.20.0 — upstream v0.46.0-v0.47.0 new providers.
+        if normalized.contains("qwencloud") || normalized.contains("qwen-cloud") {
+            return Color(red: 0.36, green: 0.29, blue: 0.86)
+        }
+        if normalized.contains("zoommate") || normalized.contains("zoom-mate") {
+            return Color(red: 0.18, green: 0.48, blue: 0.91)
+        }
+        if normalized == "xai" || normalized.contains("x-ai") {
+            return Color(red: 0.24, green: 0.24, blue: 0.27)
+        }
+        if normalized.contains("notion") {
+            return Color(red: 0.36, green: 0.36, blue: 0.40)
+        }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {

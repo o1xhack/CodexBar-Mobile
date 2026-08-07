@@ -213,6 +213,7 @@ final class SettingsStore {
     @ObservationIgnored let antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore
     @ObservationIgnored var config: CodexBarConfig
     @ObservationIgnored var configPersistTask: Task<Void, Never>?
+    @ObservationIgnored var configFileWatcher: ConfigFileWatcher?
     @ObservationIgnored var configLoading = false
     @ObservationIgnored var tokenAccountsLoaded = false
     @ObservationIgnored var cachedCodexAccountReconciliationSnapshot:
@@ -374,6 +375,11 @@ final class SettingsStore {
             self.defaultsState.openAIWebAccessEnabled = resolvedOpenAIWebAccessEnabled
         }
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
+        self.startConfigFileWatcher()
+    }
+
+    deinit {
+        self.configFileWatcher?.stop()
     }
 }
 
@@ -491,6 +497,12 @@ extension SettingsStore {
         if Self.isRunningTests, creditsExtrasDefault == nil {
             userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
+        let claudeDailyRoutinesUsageVisibleDefault = userDefaults.object(
+            forKey: "claudeDailyRoutinesUsageVisible") as? Bool
+        let claudeDailyRoutinesUsageVisible = claudeDailyRoutinesUsageVisibleDefault ?? true
+        if Self.isRunningTests, claudeDailyRoutinesUsageVisibleDefault == nil {
+            userDefaults.set(true, forKey: "claudeDailyRoutinesUsageVisible")
+        }
         let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
         let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
         if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
@@ -506,6 +518,8 @@ extension SettingsStore {
         if Self.isRunningTests, openAIWebBatterySaverDefault == nil {
             userDefaults.set(false, forKey: "openAIWebBatterySaverEnabled")
         }
+        let backgroundWorkLowPowerModeEnabled =
+            userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
         let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
         if Self.isRunningTests, providerStorageFootprintsDefault == nil {
@@ -527,6 +541,19 @@ extension SettingsStore {
         let agentSessionLabelStyleRaw = userDefaults.string(forKey: "agentSessionLabelStyle")
             ?? AgentSessionLabelStyle.project.rawValue
         let agentSessionsManualHosts = userDefaults.string(forKey: "agentSessionsManualHosts") ?? ""
+        let preferredCurrencyCode = userDefaults.string(forKey: "preferredCurrencyCode") ?? "USD"
+        let macFleetSyncEnabled = userDefaults.object(forKey: "macFleetSyncEnabled") as? Bool ?? false
+        let macFleetSyncIncludeSecrets = userDefaults.object(forKey: "macFleetSyncIncludeSecrets") as? Bool ?? true
+        let macFleetSyncSnapshotsEnabled = userDefaults.object(forKey: "macFleetSyncSnapshotsEnabled") as? Bool ?? true
+        let macFleetSyncShowFleetAccounts = userDefaults
+            .object(forKey: "macFleetSyncShowFleetAccounts") as? Bool ?? true
+        // Reuse the Mac-to-iPhone device identity so both sync channels refer
+        // to the same physical Mac without introducing a second UUID.
+        let sharedDeviceIDKey = "com.codexbar.sync.deviceID"
+        let macFleetSyncDeviceID = userDefaults.string(forKey: sharedDeviceIDKey) ?? UUID().uuidString.lowercased()
+        if userDefaults.string(forKey: sharedDeviceIDKey) == nil {
+            userDefaults.set(macFleetSyncDeviceID, forKey: sharedDeviceIDKey)
+        }
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
             adaptiveActivityScanConsent: adaptiveActivityScanConsent,
@@ -585,9 +612,11 @@ extension SettingsStore {
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
+            claudeDailyRoutinesUsageVisible: claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: codexSparkUsageVisible,
             openAIWebAccessEnabled: openAIWebAccessEnabled,
             openAIWebBatterySaverEnabled: openAIWebBatterySaverEnabled,
+            backgroundWorkLowPowerModeEnabled: backgroundWorkLowPowerModeEnabled,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
@@ -601,7 +630,13 @@ extension SettingsStore {
             terminalAppRaw: userDefaults.string(forKey: "terminalApp"),
             agentSessionsEnabled: agentSessionsEnabled,
             agentSessionLabelStyleRaw: agentSessionLabelStyleRaw,
-            agentSessionsManualHosts: agentSessionsManualHosts)
+            agentSessionsManualHosts: agentSessionsManualHosts,
+            preferredCurrencyCode: preferredCurrencyCode,
+            macFleetSyncEnabled: macFleetSyncEnabled,
+            macFleetSyncIncludeSecrets: macFleetSyncIncludeSecrets,
+            macFleetSyncSnapshotsEnabled: macFleetSyncSnapshotsEnabled,
+            macFleetSyncShowFleetAccounts: macFleetSyncShowFleetAccounts,
+            macFleetSyncDeviceID: macFleetSyncDeviceID)
     }
 
     private static func hadPreviousAppLaunch(userDefaults: UserDefaults) -> Bool {

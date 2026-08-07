@@ -1,5 +1,28 @@
 /* Chinese (Traditional) localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "掛鉤";
 "hooks_enable_title" = "啟用掛鉤";
 "hooks_enable_subtitle" = "在配額或提供者事件發生時執行外部指令。";
@@ -127,7 +150,6 @@
 "Could not start codex login" = "無法啟動 codex login";
 "Could not switch system account" = "無法切換系統帳號";
 "Credits" = "額度";
-"5-hour" = "5 小時";
 "Individual credits" = "個人額度";
 "Workspace" = "工作區";
 "Credits history" = "額度歷史";
@@ -437,6 +459,9 @@
 "section_agent_sessions" = "Agent 工作階段";
 "language_title" = "語言";
 "language_subtitle" = "更改顯示語言。需要重新啟動 App 才會完全生效。";
+"currency_title" = "偏好貨幣";
+"currency_subtitle" = "用於費用估算與支出指標的貨幣。使用每日更新的即時匯率。";
+"currency_auto" = "自動（依供應商 / USD）";
 "language_system" = "依照系統";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -1252,6 +1277,8 @@
 "section_links" = "連結";
 "Show Codex Spark usage" = "顯示 Codex Spark 使用量";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示 Codex Spark 配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
+"Show Daily Routines usage" = "顯示每日例行工作使用量";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示每日例行工作的配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
 "Scroll to see more models" = "捲動查看更多模型";
 "Copy Image" = "拷貝影像";
 "Copy Stats" = "拷貝統計資料";
@@ -1300,8 +1327,13 @@
 "By subscription" = "依訂閱";
 "No model-level history" = "尚無模型層級歷史";
 "Daily estimated spend" = "每日預估支出";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "每週額度約剩 %d 個完整 5 小時視窗 · 距重置還有 %d 個視窗";
 "Weekly cannot run out before reset at this pace" = "依此速度，每週額度無法在重置前用完";
+"Weekly can run out ≈%d windows early" = "每週額度可能提前約 %d 個視窗用完";
 "Estimated: %@" = "預估：%@";
+"session_quota_estimate_value_format" = "%1$@%2$@";
+"session quota" = "工作階段額度";
+"session quotas" = "工作階段額度";
 "Coding Plan" = "程式設計方案";
 "Agent Plan" = "智慧體方案";
 "Team" = "團隊";
@@ -1346,6 +1378,9 @@
 "menu_bar_layout_token_session" = "工作階段 %";
 "menu_bar_layout_token_weekly" = "每週 %";
 "menu_bar_layout_token_auto" = "自動 %";
+"menu_bar_layout_token_session_pace" = "工作階段節奏";
+"menu_bar_layout_token_weekly_pace" = "每週節奏";
+"menu_bar_layout_token_auto_pace" = "自動節奏";
 "menu_bar_layout_token_bar" = "用量列";
 "menu_bar_layout_token_resets_in" = "重設倒數";
 "menu_bar_layout_token_reset_at" = "重設時間";
@@ -1371,8 +1406,11 @@
 "Cost today unavailable" = "今日費用: 無法使用";
 "30-day cost unavailable" = "30 天費用: 無法使用";
 "Resets" = "重設";
+"Finish now" = "立即完成";
+"Continue in background" = "在背景繼續";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 小時";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API 金鑰已驗證。Ollama 不會透過 API 提供 Cloud 配額限制。";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar 將向 macOS 鑰匙圈要求你的 Kimi K2 API 金鑰，以取得使用量。按一下「確定」繼續。";
 "CrossModel API spend trend" = "CrossModel API 支出趨勢";
@@ -1422,8 +1460,6 @@
 "weekly_limit_confetti_subtitle" = "每週使用量重置時播放全螢幕慶祝動畫。";
 "weekly_limit_confetti_title" = "每週重置慶祝動畫";
 "∞ Unlimited" = "∞ 無限";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "mobile_sync_status_syncing" = "Syncing…";
 "mobile_toggle_sync_title" = "Sync usage to iCloud";

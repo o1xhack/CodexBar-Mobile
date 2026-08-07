@@ -1,5 +1,28 @@
 /* English localization for CodexBar (base/fallback) */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "Hooks";
 "hooks_enable_title" = "Activer les hooks";
 "hooks_enable_subtitle" = "Exécute des commandes externes lors d’événements de quota ou de fournisseur.";
@@ -124,7 +147,6 @@
 "Could not start codex login" = "Impossible de démarrer la connexion à Codex";
 "Could not switch system account" = "Impossible de changer de compte système";
 "Credits" = "Crédits";
-"5-hour" = "5 heures";
 "Individual credits" = "Crédits individuels";
 "Workspace" = "Espace de travail";
 "Credits history" = "Historique des crédits";
@@ -429,6 +451,9 @@
 "section_agent_sessions" = "Sessions d’agents";
 "language_title" = "Langue";
 "language_subtitle" = "Change la langue d'affichage. Nécessite de redémarrer l'app pour une prise en compte complète.";
+"currency_title" = "Devise préférée";
+"currency_subtitle" = "Devise des estimations de coût et des dépenses. Utilise des taux de change actualisés chaque jour.";
+"currency_auto" = "Automatique (selon le fournisseur / USD)";
 "language_system" = "Système";
 "language_english" = "Anglais";
 "language_spanish" = "Espagnol";
@@ -1216,6 +1241,8 @@
 "section_links" = "Liens";
 "Show Codex Spark usage" = "Afficher l’utilisation de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Affiche les lignes de quota Codex Spark dans le menu et l’aperçu du fournisseur. Nécessite d’activer « Afficher les crédits + utilisation supplémentaire » dans les réglages Affichage.";
+"Show Daily Routines usage" = "Afficher l’utilisation de Routines quotidiennes";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Affiche la ligne de quota Routines quotidiennes dans le menu et l’aperçu du fournisseur. Nécessite d’activer « Afficher les crédits + utilisation supplémentaire » dans les réglages Affichage.";
 "Scroll to see more models" = "Faites défiler pour voir plus de modèles";
 "Copy Image" = "Copier l’image";
 "Copy Stats" = "Copier les statistiques";
@@ -1269,8 +1296,13 @@
 "By subscription" = "Par abonnement";
 "No model-level history" = "Aucun historique au niveau des modèles";
 "Daily estimated spend" = "Dépenses quotidiennes estimées";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d fenêtres complètes de 5 h de quota hebdomadaire · %d fenêtres avant réinitialisation";
 "Weekly cannot run out before reset at this pace" = "Le quota hebdomadaire ne peut pas être épuisé avant la réinitialisation à ce rythme";
+"Weekly can run out ≈%d windows early" = "Le quota hebdomadaire peut être épuisé ≈%d fenêtres plus tôt";
 "Estimated: %@" = "Estimation : %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "quota de session";
+"session quotas" = "quotas de session";
 "Coding Plan" = "Plan de codage";
 "Agent Plan" = "Plan d'agent";
 "Team" = "Équipe";
@@ -1315,6 +1347,9 @@
 "menu_bar_layout_token_session" = "Session %";
 "menu_bar_layout_token_weekly" = "Hebdomadaire %";
 "menu_bar_layout_token_auto" = "% auto";
+"menu_bar_layout_token_session_pace" = "Rythme de session";
+"menu_bar_layout_token_weekly_pace" = "Rythme hebdomadaire";
+"menu_bar_layout_token_auto_pace" = "Rythme auto";
 "menu_bar_layout_token_bar" = "Barre d’utilisation";
 "menu_bar_layout_token_resets_in" = "Réinitialisation dans";
 "menu_bar_layout_token_reset_at" = "Réinitialisation à";
@@ -1340,8 +1375,11 @@
 "Cost today unavailable" = "Coût aujourd’hui: Indisponible";
 "30-day cost unavailable" = "Coût sur 30 j: Indisponible";
 "Resets" = "Réinitialisations";
+"Finish now" = "Terminer maintenant";
+"Continue in background" = "Continuer en arrière-plan";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 heures";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "Clé API vérifiée. Ollama n'expose pas les limites de quota Cloud via l'API.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar demandera au Trousseau macOS votre clé API Kimi K2 afin de pouvoir récupérer son utilisation. Cliquez sur OK pour continuer.";
 "CrossModel API spend trend" = "Tendance des dépenses de l'API CrossModel";
@@ -1378,8 +1416,6 @@
 "weekly_limit_confetti_subtitle" = "Jouez des confettis en plein écran lorsque l'utilisation hebdomadaire est réinitialisée.";
 "weekly_limit_confetti_title" = "Confettis de limite hebdomadaire";
 "∞ Unlimited" = "∞ Illimité";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
 "mobile_sync_status_syncing" = "Syncing…";

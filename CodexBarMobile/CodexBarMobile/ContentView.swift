@@ -3652,8 +3652,25 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.19.1",
+            version: "1.20.0",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "iPhone 1.20 adds Qwen Cloud, ZoomMate, xAI, and Notion AI, with richer z.ai and Claude details."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Four more providers — Qwen Cloud, ZoomMate, xAI, and Notion AI now appear with their own colors and detail pages."),
+                        String(
+                            localized: "More useful balances — ZoomMate shows credit history, xAI shows prepaid balance and daily spend, Notion AI shows the active workspace, and Claude shows prepaid credits when available."),
+                        String(
+                            localized: "Richer z.ai history — switch between the last 24 hours, 7 days, and 30 days of model token usage."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.19.1",
+            status: "",
             summary: String(
                 localized: "Fixes for Alibaba Token Plan and Subscription Utilization."),
             sections: [

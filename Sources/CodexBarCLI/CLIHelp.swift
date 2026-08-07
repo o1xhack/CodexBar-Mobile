@@ -188,7 +188,7 @@ extension CodexBarCLI {
                                  [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                                  [-v|--verbose]
                                  [--pretty]
-          codexbar config dump [--format text|json]
+          codexbar config dump [--show-secrets] [--format text|json]
                              [--json]
                              [--json-only]
                              [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
@@ -205,6 +205,8 @@ extension CodexBarCLI {
 
         Description:
           Validate or print the CodexBar config file (default: validate).
+          dump prints normalized config JSON with stored credentials redacted by default
+          (use --show-secrets to reveal raw values).
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
           set-api-key stores a provider API key in the resolved config file and enables that provider by default.
@@ -260,6 +262,7 @@ extension CodexBarCLI {
           codexbar hooks enable
           codexbar hooks disable
           codexbar hooks test <event> --provider <name>
+          codexbar hooks watch [--interval <seconds>] [--provider <name>]
 
         Description:
           Run external commands when quota/provider events occur. Rules are stored in the
@@ -270,11 +273,19 @@ extension CodexBarCLI {
           Commands run directly (no shell), receive event metadata via CODEXBAR_* environment
           variables and a JSON payload on stdin, and are timed out. Only configure commands you trust.
 
+          `watch` polls the selected providers and fires rules on real transitions, so hooks
+          work without the macOS app. Events are edge-triggered against the previous poll, so a
+          persisting condition does not re-fire. Baselines are in-memory: the first poll of a
+          lane establishes state without firing. Keep one continuous process running so transition
+          baselines and event rate limits survive between polls. Default interval 300s, minimum 60s.
+
         Examples:
           codexbar hooks list
           codexbar hooks enable
           codexbar hooks test quota_reached --provider codex
           codexbar hooks test quota_low --provider claude
+          codexbar hooks watch --interval 600
+          codexbar hooks watch --provider codex
         """
     }
 

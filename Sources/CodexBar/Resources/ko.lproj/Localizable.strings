@@ -1,5 +1,28 @@
 /* Korean (한국어) localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "훅";
 "hooks_enable_title" = "훅 활성화";
 "hooks_enable_subtitle" = "할당량 또는 공급자 이벤트가 발생하면 외부 명령을 실행합니다.";
@@ -124,7 +147,6 @@
 "Could not start codex login" = "codex login을 시작할 수 없음";
 "Could not switch system account" = "시스템 계정을 전환할 수 없음";
 "Credits" = "크레딧";
-"5-hour" = "5시간";
 "Individual credits" = "개인 크레딧";
 "Workspace" = "작업 공간";
 "Credits history" = "크레딧 내역";
@@ -427,6 +449,9 @@
 "section_agent_sessions" = "에이전트 세션";
 "language_title" = "언어";
 "language_subtitle" = "표시 언어를 변경합니다. 적용하려면 앱을 다시 시작해야 합니다.";
+"currency_title" = "기본 통화";
+"currency_subtitle" = "비용 추정 및 지출 지표에 사용할 통화입니다. 매일 갱신되는 환율을 사용합니다.";
+"currency_auto" = "자동(제공업체 / USD 따름)";
 "language_system" = "시스템";
 "language_english" = "영어";
 "language_spanish" = "스페인어";
@@ -1185,6 +1210,8 @@
 "section_links" = "링크";
 "Show Codex Spark usage" = "Codex Spark 사용량 표시";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "메뉴와 공급자 미리보기에 Codex Spark 할당량 행을 표시합니다. 표시 설정에서 ‘크레딧 + 추가 사용량 표시’를 활성화해야 합니다.";
+"Show Daily Routines usage" = "일일 루틴 사용량 표시";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "메뉴와 공급자 미리보기에 일일 루틴 할당량 행을 표시합니다. 표시 설정에서 ‘크레딧 + 추가 사용량 표시’를 활성화해야 합니다.";
 "Scroll to see more models" = "스크롤하여 더 많은 모델 보기";
 "Copy Image" = "이미지 복사";
 "Copy Stats" = "통계 복사";
@@ -1237,8 +1264,13 @@
 "By subscription" = "구독별";
 "No model-level history" = "모델별 내역이 없습니다";
 "Daily estimated spend" = "일별 예상 지출";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "주간 한도 약 %d개의 전체 5시간 창 남음 · 재설정까지 %d개 창";
 "Weekly cannot run out before reset at this pace" = "이 속도라면 재설정 전에 주간 한도를 소진할 수 없습니다";
+"Weekly can run out ≈%d windows early" = "주간 한도가 약 %d개 창 일찍 소진될 수 있습니다";
 "Estimated: %@" = "예상: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "세션 할당량";
+"session quotas" = "세션 할당량";
 "Coding Plan" = "코딩 요금제";
 "Agent Plan" = "에이전트 요금제";
 "Team" = "팀";
@@ -1283,6 +1315,9 @@
 "menu_bar_layout_token_session" = "세션 %";
 "menu_bar_layout_token_weekly" = "주간 %";
 "menu_bar_layout_token_auto" = "자동 %";
+"menu_bar_layout_token_session_pace" = "세션 속도";
+"menu_bar_layout_token_weekly_pace" = "주간 속도";
+"menu_bar_layout_token_auto_pace" = "자동 속도";
 "menu_bar_layout_token_bar" = "사용량 막대";
 "menu_bar_layout_token_resets_in" = "재설정까지";
 "menu_bar_layout_token_reset_at" = "재설정 시각";
@@ -1308,8 +1343,11 @@
 "Cost today unavailable" = "오늘 비용: 사용할 수 없음";
 "30-day cost unavailable" = "30일 비용: 사용할 수 없음";
 "Resets" = "재설정";
+"Finish now" = "지금 완료";
+"Continue in background" = "백그라운드에서 계속";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5시간";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API 키가 확인되었습니다. Ollama는 API를 통해 클라우드 할당량 한도를 제공하지 않습니다.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar가 사용량을 가져올 수 있도록 macOS 키체인에 Kimi K2 API 키를 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CrossModel API spend trend" = "CrossModel API 지출 추이";
@@ -1346,8 +1384,6 @@
 "weekly_limit_confetti_subtitle" = "주간 사용량이 재설정될 때 전체 화면 색종이를 재생합니다.";
 "weekly_limit_confetti_title" = "주간 한도 색종이";
 "∞ Unlimited" = "∞ 무제한";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
 "mobile_sync_status_syncing" = "Syncing…";

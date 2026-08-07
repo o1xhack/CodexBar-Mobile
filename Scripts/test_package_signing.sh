@@ -42,6 +42,9 @@ if resolve_package_signing_mode 2>/dev/null; then
 fi
 
 grep -Fq 'CODEXBAR_SIGNING=identity ./Scripts/package_app.sh release' "$RELEASE_SCRIPT"
+# Public package/artifact resolution must never fall back to an interactive
+# macOS Keychain lookup during headless packaging.
+grep -Fq -- '-packageAuthorizationProvider netrc' "$PACKAGE_SCRIPT"
 
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-package-signing.XXXXXX")
 trap 'rm -f "$FUNCTIONS_FILE"; rm -rf "$TEMP_DIR"' EXIT

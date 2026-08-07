@@ -241,6 +241,7 @@ struct CLICardsClaudeSwapTests {
         let statuses: [ClaudeSwapUsageStatus] = [
             .apiKey,
             .tokenExpired,
+            .reloginRequired,
             .keychainUnavailable,
             .noCredentials,
             .unavailable,
@@ -265,6 +266,7 @@ struct CLICardsClaudeSwapTests {
         #expect(output.cards.map(\.accountProblem) == [
             "API-key account; subscription usage is unavailable.",
             "Token expired. Switch to this account in claude-swap to refresh it.",
+            "Re-login required. Re-authenticate this account in claude-swap.",
             "claude-swap could not read the active account's Keychain entry.",
             "No stored credentials for this account slot.",
             "Usage fetch failed.",
@@ -371,7 +373,7 @@ struct CLICardsClaudeSwapTests {
         ]}
         JSON
         """
-        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try Data(script.utf8).write(to: executable)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
 
         let output = await CLIClaudeSwapCards.fetch(

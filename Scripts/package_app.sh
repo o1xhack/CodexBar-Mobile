@@ -465,6 +465,7 @@ build_widget_extension() {
     -derivedDataPath "$derived_dir" \
     -skipPackageUpdates \
     -disableAutomaticPackageResolution \
+    -packageAuthorizationProvider netrc \
     -skipMacroValidation \
     -skipPackagePluginValidation \
     CODEXBAR_WIDGET_BUNDLE_ID="$WIDGET_BUNDLE_ID" \
@@ -700,7 +701,6 @@ fi
 # Strip xattr one final time before signing the app bundle
 xattr -cr "$APP" 2>/dev/null || true
 find "$APP" -name '._*' -delete 2>/dev/null || true
-
 # Finally sign the app bundle itself
 codesign "${CODESIGN_ARGS[@]}" \
   --entitlements "$APP_ENTITLEMENTS" \

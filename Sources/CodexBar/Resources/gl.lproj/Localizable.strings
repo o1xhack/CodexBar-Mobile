@@ -1,5 +1,28 @@
 /* Galician localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "ollama_safari_cookie_access_hint" = "As cookies de Safari precisan acceso total ao disco para CodexBar (Axustes do Sistema > Privacidade e seguridade).";
 "ollama_browser_cookie_decryption_denied" = "Rexeitouse no Chaveiro o descifrado das cookies de %@; téntao de novo cunha actualización manual.";
 "ollama_browser_cookie_decryption_disabled" = "O descifrado das cookies de %@ está desactivado en CodexBar; activa o acceso ao Chaveiro e actualiza.";
@@ -106,7 +129,6 @@
 "Could not start codex login" = "Non se puido iniciar codex login";
 "Could not switch system account" = "Non se puido cambiar a conta do sistema";
 "Credits" = "Créditos";
-"5-hour" = "5 horas";
 "Individual credits" = "Créditos individuais";
 "Workspace" = "Espazo de traballo";
 "Credits history" = "Historial de créditos";
@@ -411,6 +433,9 @@
 "section_agent_sessions" = "Sesións de axentes";
 "language_title" = "Idioma";
 "language_subtitle" = "Cambia o idioma da interface. Cómpre reiniciar a aplicación para que se aplique por completo.";
+"currency_title" = "Moeda preferida";
+"currency_subtitle" = "Moeda para estimacións de custo e gasto. Usa tipos de cambio actualizados diariamente.";
+"currency_auto" = "Automático (segundo o provedor / USD)";
 "language_system" = "Sistema";
 "language_english" = "Inglés";
 "language_spanish" = "Castelán";
@@ -1230,6 +1255,8 @@
 "≈ %d%% run-out risk" = "≈ %d%% de risco de esgotamento";
 "Show Codex Spark usage" = "Amosar o uso de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Amosa as filas de cota de Codex Spark no menú e na previsualización do provedor. Require activar «Amosar créditos + uso adicional» nos axustes de Pantalla.";
+"Show Daily Routines usage" = "Amosar o uso de Rutinas diarias";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Amosa a fila de cota de Rutinas diarias no menú e na previsualización do provedor. Require activar «Amosar créditos + uso adicional» nos axustes de Pantalla.";
 "Scroll to see more models" = "Desprázate para ver máis modelos";
 
 /* Shareable usage card */
@@ -1269,8 +1296,13 @@
 "By subscription" = "Por subscrición";
 "No model-level history" = "Sen historial por modelo";
 "Daily estimated spend" = "Gasto diario estimado";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d xanelas completas de 5 h de cota semanal · %d xanelas ata o restablecemento";
 "Weekly cannot run out before reset at this pace" = "A cota semanal non pode esgotarse antes do restablecemento a este ritmo";
+"Weekly can run out ≈%d windows early" = "A cota semanal pode esgotarse ≈%d xanelas antes";
 "Estimated: %@" = "Estimación: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "cota de sesión";
+"session quotas" = "cotas de sesión";
 "Coding Plan" = "Plan de programación";
 "Agent Plan" = "Plan de axente";
 "Team" = "Equipo";
@@ -1315,6 +1347,9 @@
 "menu_bar_layout_token_session" = "Sesión %";
 "menu_bar_layout_token_weekly" = "Semanal %";
 "menu_bar_layout_token_auto" = "% automática";
+"menu_bar_layout_token_session_pace" = "Ritmo de sesión";
+"menu_bar_layout_token_weekly_pace" = "Ritmo semanal";
+"menu_bar_layout_token_auto_pace" = "Ritmo automático";
 "menu_bar_layout_token_bar" = "Barra de uso";
 "menu_bar_layout_token_resets_in" = "Reiníciase en";
 "menu_bar_layout_token_reset_at" = "Reinicio ás";
@@ -1340,8 +1375,11 @@
 "Cost today unavailable" = "Custo de hoxe: Non dispoñible";
 "30-day cost unavailable" = "Custo de 30 días: Non dispoñible";
 "Resets" = "Reinicios";
+"Finish now" = "Rematar agora";
+"Continue in background" = "Continuar en segundo plano";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 horas";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "Chave de API verificada. Ollama non expón os límites da cota de Cloud mediante a API.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS a túa chave de API de Kimi K2 para obter o uso. Preme Aceptar para continuar.";
 "CrossModel API spend trend" = "Tendencia de gasto da API de CrossModel";

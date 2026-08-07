@@ -84,7 +84,9 @@ extension ZaiLimitEntry {
         if let computed = self.computedUsedPercent {
             return computed
         }
-        return self.percentage
+        // The raw API percentage can fall outside 0...100 (z.ai omits/misreports quota fields);
+        // clamp it like computedUsedPercent and every sibling provider instead of surfacing it raw.
+        return min(100, max(0, self.percentage))
     }
 
     public var windowMinutes: Int? {
@@ -168,6 +170,10 @@ public struct ZaiUsageSnapshot: Sendable {
     public let timeLimit: ZaiLimitEntry?
     public let planName: String?
     public let modelUsage: ZaiModelUsageData?
+    /// Daily-granularity per-model usage (last ~30 days) for the 7-day/30-day chart ranges.
+    /// The `model-usage` endpoint returns hourly buckets only for short windows, so the longer
+    /// ranges need a separate wide-window fetch rather than aggregating `modelUsage`.
+    public let dailyModelUsage: ZaiModelUsageData?
     public let updatedAt: Date
 
     public init(
@@ -176,6 +182,7 @@ public struct ZaiUsageSnapshot: Sendable {
         timeLimit: ZaiLimitEntry?,
         planName: String?,
         modelUsage: ZaiModelUsageData? = nil,
+        dailyModelUsage: ZaiModelUsageData? = nil,
         updatedAt: Date)
     {
         self.tokenLimit = tokenLimit
@@ -183,6 +190,7 @@ public struct ZaiUsageSnapshot: Sendable {
         self.timeLimit = timeLimit
         self.planName = planName
         self.modelUsage = modelUsage
+        self.dailyModelUsage = dailyModelUsage
         self.updatedAt = updatedAt
     }
 
@@ -222,9 +230,18 @@ extension ZaiUsageSnapshot {
     }
 
     private static func rateWindow(for limit: ZaiLimitEntry) -> RateWindow {
-        RateWindow(
+        let windowMinutes: Int? = if limit.isMCPMonthlyMarker {
+            ProviderPaceCapability.monthlyWindowSentinelMinutes
+        } else if limit.type == .timeLimit, let minutes = limit.windowMinutes {
+            minutes
+        } else if limit.type == .timeLimit {
+            ProviderPaceCapability.monthlyWindowSentinelMinutes
+        } else {
+            limit.windowMinutes
+        }
+        return RateWindow(
             usedPercent: limit.usedPercent,
-            windowMinutes: limit.type == .tokensLimit ? limit.windowMinutes : nil,
+            windowMinutes: windowMinutes,
             resetsAt: limit.nextResetTime,
             resetDescription: self.resetDescription(for: limit))
     }
@@ -256,7 +273,9 @@ private struct ZaiQuotaLimitResponse: Decodable {
 
     var errorMessage: String {
         let message = self.msg?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let message, !message.isEmpty { return message }
+        if let message, !message.isEmpty {
+            return message
+        }
         return "Z.ai quota API returned code \(self.code)"
     }
 }
@@ -448,8 +467,12 @@ public struct ZaiUsageFetcher: Sendable {
         environment: [String: String]) throws -> ZaiBigModelTeamContext?
     {
         guard usageScope == .team else { return nil }
-        if let explicit { return explicit }
-        if let context = ZaiBigModelTeamContext(environment: environment) { return context }
+        if let explicit {
+            return explicit
+        }
+        if let context = ZaiBigModelTeamContext(environment: environment) {
+            return context
+        }
         throw ZaiUsageError.missingTeamContext
     }
 
@@ -555,10 +578,22 @@ public struct ZaiModelDataItem: Sendable {
 public enum ZaiHourlyRange: Equatable, Sendable {
     case today(referenceDate: Date)
     case last24h
+    case last7d
+    case last30d
 
     public var isToday: Bool {
-        if case .today = self { return true }
+        if case .today = self {
+            return true
+        }
         return false
+    }
+
+    /// Daily ranges read the wide-window (daily-granularity) dataset and render one bar per day.
+    public var isDaily: Bool {
+        switch self {
+        case .last7d, .last30d: true
+        case .today, .last24h: false
+        }
     }
 }
 
@@ -578,66 +613,107 @@ public struct ZaiHourlyBar: Sendable {
 
 public enum ZaiHourlyBars: Sendable {
     public static func from(modelData: ZaiModelUsageData, range: ZaiHourlyRange, now: Date = Date()) -> [ZaiHourlyBar] {
-        let calendar = Calendar.current
-        let referenceDate: Date = switch range {
-        case let .today(ref): ref
-        case .last24h: now
+        switch range {
+        case .today, .last24h:
+            self.hourlyBars(modelData: modelData, range: range, now: now)
+        case .last7d:
+            self.dailyBars(modelData: modelData, days: 7, now: now)
+        case .last30d:
+            self.dailyBars(modelData: modelData, days: 30, now: now)
         }
+    }
 
-        let todayStart = calendar.startOfDay(for: referenceDate)
-        let cutoff: Date = switch range {
-        case .today: todayStart
-        case .last24h: calendar.date(byAdding: .hour, value: -24, to: now) ?? now
+    private static func hourlyBars(modelData: ZaiModelUsageData, range: ZaiHourlyRange, now: Date) -> [ZaiHourlyBar] {
+        let calendar = Calendar.current
+        let referenceDate: Date = if case let .today(ref) = range {
+            ref
+        } else {
+            now
+        }
+        let cutoff: Date = if case .today = range {
+            calendar.startOfDay(for: referenceDate)
+        } else {
+            calendar.date(byAdding: .hour, value: -24, to: now) ?? now
         }
 
         var bars: [ZaiHourlyBar] = []
         for (index, timeString) in modelData.xTime.enumerated() {
-            guard let hourDate = parseHourDate(timeString) else { continue }
-
-            if hourDate < cutoff { continue }
-
-            var segments: [(model: String, tokens: Int)] = []
-            for item in modelData.modelDataList {
-                guard index < item.tokensUsage.count,
-                      let tokenCount = item.tokensUsage[index], tokenCount > 0
-                else { continue }
-                segments.append((model: item.modelName ?? "Unknown", tokens: tokenCount))
-            }
-
-            let total = segments.reduce(0) { $0 + $1.tokens }
-            guard total > 0 else { continue }
-
-            let label = self.formatHourLabel(hourDate: hourDate)
-            bars.append(ZaiHourlyBar(label: label, segments: segments))
+            guard let hourDate = parseHourDate(timeString), hourDate >= cutoff else { continue }
+            let segments = self.segments(modelData: modelData, index: index)
+            guard !segments.isEmpty else { continue }
+            bars.append(ZaiHourlyBar(label: self.formatHourLabel(hourDate), segments: segments))
         }
-
         return bars
     }
 
+    private static func dailyBars(modelData: ZaiModelUsageData, days: Int, now: Date) -> [ZaiHourlyBar] {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -(days - 1), to: calendar.startOfDay(for: now)) ?? now
+
+        var bars: [ZaiHourlyBar] = []
+        for (index, timeString) in modelData.xTime.enumerated() {
+            guard let dayDate = parseDayDate(timeString), dayDate >= cutoff else { continue }
+            let segments = self.segments(modelData: modelData, index: index)
+            guard !segments.isEmpty else { continue }
+            bars.append(ZaiHourlyBar(label: self.formatDayLabel(dayDate), segments: segments))
+        }
+        return bars
+    }
+
+    private static func segments(modelData: ZaiModelUsageData, index: Int) -> [(model: String, tokens: Int)] {
+        var segments: [(model: String, tokens: Int)] = []
+        for item in modelData.modelDataList {
+            guard index < item.tokensUsage.count,
+                  let tokenCount = item.tokensUsage[index], tokenCount > 0
+            else { continue }
+            segments.append((model: item.modelName ?? "Unknown", tokens: tokenCount))
+        }
+        return segments
+    }
+
     public static func parseHourDate(_ string: String) -> Date? {
+        self.date(from: string, format: "yyyy-MM-dd HH:mm")
+    }
+
+    public static func parseDayDate(_ string: String) -> Date? {
+        self.date(from: string, format: "yyyy-MM-dd")
+    }
+
+    private static func date(from string: String, format: String) -> Date? {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.dateFormat = format
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter.date(from: string)
     }
 
-    private static func formatHourLabel(hourDate: Date) -> String {
+    private static func formatHourLabel(_ hourDate: Date) -> String {
+        self.label(from: hourDate, format: "HH")
+    }
+
+    private static func formatDayLabel(_ dayDate: Date) -> String {
+        self.label(from: dayDate, format: "MM-dd")
+    }
+
+    private static func label(from date: Date, format: String) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH"
+        formatter.dateFormat = format
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: hourDate)
+        return formatter.string(from: date)
     }
 }
 
 // MARK: - Model Usage Fetcher Extension
 
 extension ZaiUsageFetcher {
-    /// Fetches hourly model usage data for the last 24 hours
+    /// Fetches per-model token usage. The `model-usage` endpoint returns granularity by span:
+    /// a short window (`daysBack: 1`) yields hourly buckets (`xTime` like "2026-07-31 14:00"),
+    /// while a long window (`daysBack: 30`) yields daily buckets (`xTime` like "2026-07-31").
     public static func fetchModelUsage(
         apiKey: String,
         region: ZaiAPIRegion = .global,
         usageScope: ZaiUsageScope? = nil,
         teamContext: ZaiBigModelTeamContext? = nil,
+        daysBack: Int = 1,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> ZaiModelUsageData
     {
@@ -662,7 +738,8 @@ extension ZaiUsageFetcher {
 
         let now = Date()
         let calendar = Calendar.current
-        guard let startDate = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: now)) else {
+        guard let startDate = calendar.date(byAdding: .day, value: -max(1, daysBack), to: calendar.startOfDay(for: now))
+        else {
             throw ZaiUsageError.parseFailed("Invalid date calculation")
         }
 
@@ -769,7 +846,24 @@ extension ZaiUsageFetcher {
             modelUsage = nil
         }
 
-        guard modelUsage != nil else { return snapshot }
+        // Wide-window daily fetch powers the 7-day / 30-day chart ranges. The endpoint only
+        // returns hourly buckets for short windows, so this is a separate request.
+        let dailyModelUsage: ZaiModelUsageData?
+        do {
+            dailyModelUsage = try await Self.fetchModelUsage(
+                apiKey: apiKey,
+                region: region,
+                usageScope: usageScope,
+                teamContext: teamContext,
+                daysBack: 30,
+                environment: environment,
+                transport: transport)
+        } catch {
+            Self.log.info("z.ai daily model usage fetch failed (non-fatal): \(error.localizedDescription)")
+            dailyModelUsage = nil
+        }
+
+        guard modelUsage != nil || dailyModelUsage != nil else { return snapshot }
 
         return ZaiUsageSnapshot(
             tokenLimit: snapshot.tokenLimit,
@@ -777,6 +871,7 @@ extension ZaiUsageFetcher {
             timeLimit: snapshot.timeLimit,
             planName: snapshot.planName,
             modelUsage: modelUsage,
+            dailyModelUsage: dailyModelUsage,
             updatedAt: snapshot.updatedAt)
     }
 

@@ -24,7 +24,7 @@ public enum CopilotProviderDescriptor {
                 dashboardURL: "https://github.com/settings/copilot",
                 statusPageURL: "https://www.githubstatus.com/"),
             branding: ProviderBranding(
-                iconStyle: .copilot,
+                iconStyle: .init(provider: .copilot),
                 iconResourceName: "ProviderIcon-copilot",
                 color: ProviderColor(red: 168 / 255, green: 85 / 255, blue: 247 / 255),
                 confettiPalette: [
@@ -35,6 +35,9 @@ public enum CopilotProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Copilot cost summary is not supported." }),
+            pace: ProviderPaceCapability(
+                resetWindowPace: .resetDatePresent,
+                inferredMonthlyDuration: .windowDurationMissing),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [CopilotAPIFetchStrategy()] })),

@@ -1,0 +1,153 @@
+DEFINE SCHEMA
+
+    RECORD TYPE DeviceLifecycleEvent (
+        "___createTime"       TIMESTAMP,
+        "___createdBy"        REFERENCE,
+        "___etag"             STRING,
+        "___modTime"          TIMESTAMP,
+        "___modifiedBy"       REFERENCE,
+        "___recordID"         REFERENCE QUERYABLE,
+        confirmedAt           TIMESTAMP,
+        confirmedFromDeviceID STRING,
+        kind                  STRING,
+        note                  STRING,
+        primaryDeviceID       STRING,
+        relatedDeviceIDs      LIST<STRING>,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE DeviceProviderSnapshot (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        accountEmail    STRING QUERYABLE SEARCHABLE SORTABLE,
+        deviceID        STRING QUERYABLE SEARCHABLE SORTABLE,
+        deviceName      STRING QUERYABLE SEARCHABLE SORTABLE,
+        encodingVersion INT64 QUERYABLE SORTABLE,
+        lastUpdated     TIMESTAMP QUERYABLE SORTABLE,
+        payload         BYTES QUERYABLE SORTABLE,
+        providerID      STRING QUERYABLE SEARCHABLE SORTABLE,
+        providerName    STRING QUERYABLE SEARCHABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE ProviderAccountLinkage (
+        "___createTime"       TIMESTAMP,
+        "___createdBy"        REFERENCE,
+        "___etag"             STRING,
+        "___modTime"          TIMESTAMP,
+        "___modifiedBy"       REFERENCE,
+        "___recordID"         REFERENCE QUERYABLE,
+        confirmedAt           TIMESTAMP,
+        confirmedFromDeviceID STRING,
+        linkedIdentifiers     LIST<STRING>,
+        providerID            STRING,
+        unmerge               INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE DeviceSnapshot (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        appVersion      STRING QUERYABLE SEARCHABLE SORTABLE,
+        deviceID        STRING QUERYABLE SEARCHABLE SORTABLE,
+        deviceName      STRING QUERYABLE SEARCHABLE SORTABLE,
+        payload         BYTES QUERYABLE SORTABLE,
+        syncTimestamp   TIMESTAMP QUERYABLE SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE QuotaTransition (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        accountEmail    STRING,
+        deviceID        STRING,
+        providerID      STRING,
+        providerName    STRING,
+        state           STRING QUERYABLE,
+        transitionAt    TIMESTAMP SORTABLE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Users (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        roles           LIST<INT64>,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE AccountSnapshot (
+        accountKey       STRING,
+        deviceID         STRING,
+        fetchedAt        TIMESTAMP,
+        provider         STRING,
+        schemaVersion    INT64,
+        displayLabel     ENCRYPTED STRING,
+        usagePayload     ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_creator"
+    );
+
+    RECORD TYPE Device (
+        appVersion       STRING,
+        deviceID         STRING,
+        hostName         STRING,
+        lastSeen         TIMESTAMP,
+        model            STRING,
+        schemaVersion    INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_creator"
+    );
+
+    RECORD TYPE Preferences (
+        editCount        INT64,
+        modifiedAt       TIMESTAMP,
+        payload          STRING,
+        schemaVersion    INT64,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_creator"
+    );
+
+    RECORD TYPE ProviderIntent (
+        editCount        INT64,
+        modifiedAt       TIMESTAMP,
+        payload          STRING,
+        provider         STRING,
+        schemaVersion    INT64,
+        apiKey           ENCRYPTED STRING,
+        cookieHeader     ENCRYPTED STRING,
+        secretKey        ENCRYPTED STRING,
+        tokenAccounts    ENCRYPTED STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_creator"
+    );

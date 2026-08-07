@@ -156,17 +156,41 @@ public struct SyncZaiModelSeries: Codable, Sendable, Equatable {
     }
 }
 
-/// Per-model hourly token usage. iOS renders this as a stacked bar
-/// chart on the z.ai provider detail page.
+/// Per-model hourly and daily token usage. iOS renders this as a stacked
+/// bar chart on the z.ai provider detail page. The daily fields were added
+/// in iOS 1.20.0 and decode to empty arrays for older Mac payloads.
 public struct SyncZaiHourlyUsage: Codable, Sendable, Equatable {
     /// X-axis timestamps for the hourly bars (one per hour bucket).
     public let xTime: [Date]
     /// Per-model parallel series; tokens count matches `xTime.count`.
     public let modelSeries: [SyncZaiModelSeries]
+    /// X-axis timestamps for the daily 7/30-day ranges.
+    public let dailyXTime: [Date]
+    /// Per-model parallel daily series; tokens count matches `dailyXTime.count`.
+    public let dailyModelSeries: [SyncZaiModelSeries]
 
-    public init(xTime: [Date], modelSeries: [SyncZaiModelSeries]) {
+    public init(
+        xTime: [Date],
+        modelSeries: [SyncZaiModelSeries],
+        dailyXTime: [Date] = [],
+        dailyModelSeries: [SyncZaiModelSeries] = [])
+    {
         self.xTime = xTime
         self.modelSeries = modelSeries
+        self.dailyXTime = dailyXTime
+        self.dailyModelSeries = dailyModelSeries
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.xTime = try container.decodeIfPresent([Date].self, forKey: .xTime) ?? []
+        self.modelSeries = try container.decodeIfPresent(
+            [SyncZaiModelSeries].self,
+            forKey: .modelSeries) ?? []
+        self.dailyXTime = try container.decodeIfPresent([Date].self, forKey: .dailyXTime) ?? []
+        self.dailyModelSeries = try container.decodeIfPresent(
+            [SyncZaiModelSeries].self,
+            forKey: .dailyModelSeries) ?? []
     }
 }
 

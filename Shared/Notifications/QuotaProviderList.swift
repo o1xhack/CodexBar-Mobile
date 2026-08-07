@@ -138,6 +138,13 @@ public enum QuotaProviderList {
         Provider(id: "wayfinder", displayName: "Wayfinder"),
         Provider(id: "zenmux", displayName: "ZenMux"),
         Provider(id: "aiand", displayName: "ai&"),
+        // iOS 1.20.0 catch-up — upstream v0.46.0-v0.47.0 providers.
+        // Append-only: existing zone/subscription identifiers must not move.
+        // 65 → 69 providers × 3 states = 207 subscriptions.
+        Provider(id: "qwencloud", displayName: "Qwen Cloud"),
+        Provider(id: "zoommate", displayName: "ZoomMate"),
+        Provider(id: "xai", displayName: "xAI"),
+        Provider(id: "notion", displayName: "Notion AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

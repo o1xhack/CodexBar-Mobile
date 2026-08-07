@@ -1,5 +1,28 @@
 /* Swedish localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "Hooks";
 "hooks_enable_title" = "Aktivera hooks";
 "hooks_enable_subtitle" = "Kör externa kommandon vid kvot- eller leverantörshändelser.";
@@ -124,7 +147,6 @@
 "Could not start codex login" = "Kunde inte starta codex login";
 "Could not switch system account" = "Kunde inte byta systemkonto";
 "Credits" = "Krediter";
-"5-hour" = "5 timmar";
 "Individual credits" = "Individuella krediter";
 "Workspace" = "Arbetsyta";
 "Credits history" = "Kredithistorik";
@@ -430,6 +452,9 @@
 "section_agent_sessions" = "Agentsessioner";
 "language_title" = "Språk";
 "language_subtitle" = "Byt visningsspråk. Appen behöver startas om för att ändringen ska slå igenom helt.";
+"currency_title" = "Önskad valuta";
+"currency_subtitle" = "Valuta för kostnadsuppskattningar och utgifter. Använder växelkurser som uppdateras dagligen.";
+"currency_auto" = "Automatiskt (följ leverantör / USD)";
 "language_system" = "System";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -1215,6 +1240,8 @@
 "section_links" = "Länkar";
 "Show Codex Spark usage" = "Visa Codex Spark-användning";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Visar kvotrader för Codex Spark i menyn och i förhandsvisningen för leverantören. Kräver att ”Visa krediter och extra användning” är aktiverat under Visning i Inställningar.";
+"Show Daily Routines usage" = "Visa användning för Dagliga rutiner";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Visar kvotraden för Dagliga rutiner i menyn och i förhandsvisningen för leverantören. Kräver att ”Visa krediter och extra användning” är aktiverat under Visning i Inställningar.";
 "Scroll to see more models" = "Rulla för att se fler modeller";
 "Copy Image" = "Kopiera bild";
 "Copy Stats" = "Kopiera statistik";
@@ -1268,8 +1295,13 @@
 "By subscription" = "Per abonnemang";
 "No model-level history" = "Ingen historik på modellnivå";
 "Daily estimated spend" = "Uppskattade dagliga utgifter";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d fulla 5-timmarsfönster av veckokvoten kvar · %d fönster till återställning";
 "Weekly cannot run out before reset at this pace" = "Veckokvoten kan inte ta slut före återställningen i den här takten";
+"Weekly can run out ≈%d windows early" = "Veckokvoten kan ta slut ≈%d fönster tidigare";
 "Estimated: %@" = "Uppskattning: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "sessionskvot";
+"session quotas" = "sessionskvoter";
 "Coding Plan" = "Kodningsplan";
 "Agent Plan" = "Agentplan";
 "Team" = "Team";
@@ -1314,6 +1346,9 @@
 "menu_bar_layout_token_session" = "Session %";
 "menu_bar_layout_token_weekly" = "Vecka %";
 "menu_bar_layout_token_auto" = "Automatiskt %";
+"menu_bar_layout_token_session_pace" = "Sessionstakt";
+"menu_bar_layout_token_weekly_pace" = "Veckotakt";
+"menu_bar_layout_token_auto_pace" = "Automatisk takt";
 "menu_bar_layout_token_bar" = "Användningsstapel";
 "menu_bar_layout_token_resets_in" = "Återställs om";
 "menu_bar_layout_token_reset_at" = "Återställs kl.";
@@ -1339,8 +1374,11 @@
 "Cost today unavailable" = "Kostnad idag: Inte tillgänglig";
 "30-day cost unavailable" = "Kostnad 30 dagar: Inte tillgänglig";
 "Resets" = "Återställningar";
+"Finish now" = "Slutför nu";
+"Continue in background" = "Fortsätt i bakgrunden";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 timmar";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API-nyckeln har verifierats. Ollama exponerar inte Cloud-kvotgränser via API:t.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar kommer att be macOS Nyckelring om din Kimi K2-API-nyckel så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "CrossModel API spend trend" = "CrossModel API-utgiftstrend";
@@ -1377,8 +1415,6 @@
 "weekly_limit_confetti_subtitle" = "Spela konfetti i helskärm när veckoförbrukningen återställs.";
 "weekly_limit_confetti_title" = "Veckogränskonfetti";
 "∞ Unlimited" = "∞ Obegränsat";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
 "mobile_sync_status_syncing" = "Syncing…";

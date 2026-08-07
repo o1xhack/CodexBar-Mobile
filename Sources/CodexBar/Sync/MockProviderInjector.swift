@@ -232,6 +232,8 @@ enum MockProviderInjector {
         // iOS 1.19.0 catch-up (upstream v0.42.0-v0.45.2 new providers).
         "clinepass", "deepinfra", "neuralwatt", "longcat",
         "sub2api", "wayfinder", "zenmux", "aiand",
+        // iOS 1.20.0 catch-up (upstream v0.46.0-v0.47.0 new providers).
+        "qwencloud", "zoommate", "xai", "notion",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -269,6 +271,14 @@ enum MockProviderInjector {
     /// this is acceptable because mock activation is opt-in and rare.
     private static var nowReference: Date {
         Date()
+    }
+
+    private static func dayKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     // MARK: - Cost helper
@@ -1513,6 +1523,47 @@ enum MockProviderInjector {
             primaryResetDescription: "",
             secondary: nil,
             thirtyDayCostUSD: 12.75, sessionCostUSD: 0.44),
+        // iOS 1.20.0 — upstream v0.46.0-v0.47.0 new providers.
+        .init(
+            providerID: "qwencloud", providerName: "Qwen Cloud",
+            accountLocal: "coding", loginMethod: "Browser session",
+            primaryUsage: 34, primaryLabel: "5-hour",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 2 * 3600,
+            primaryResetDescription: "5-hour · 34% used",
+            secondary: .init(
+                label: "Weekly", usedPercent: 48,
+                windowMinutes: 10080,
+                resetsInSeconds: 4 * 86400,
+                resetDescription: "Weekly · 48% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "zoommate", providerName: "ZoomMate",
+            accountLocal: "credits", loginMethod: "Browser session",
+            primaryUsage: 42, primaryLabel: "Credits",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "420 / 1,000 credits used",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "xai", providerName: "xAI",
+            accountLocal: "prepaid", loginMethod: "Management API",
+            primaryUsage: nil, primaryLabel: "Balance",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 18.75, sessionCostUSD: 0.84),
+        .init(
+            providerID: "notion", providerName: "Notion AI",
+            accountLocal: "workspace", loginMethod: "Browser session",
+            primaryUsage: 28, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 18 * 86400,
+            primaryResetDescription: "Monthly · 28% used",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1646,6 +1697,12 @@ enum MockProviderInjector {
                 modelSeries: [
                     SyncZaiModelSeries(modelName: "glm-4.6", tokens: glm),
                     SyncZaiModelSeries(modelName: "glm-4.6-plus", tokens: glmPlus),
+                ],
+                dailyXTime: (0..<30).map { now.addingTimeInterval(TimeInterval(-86400 * (29 - $0))) },
+                dailyModelSeries: [
+                    SyncZaiModelSeries(
+                        modelName: "glm-4.6",
+                        tokens: (0..<30).map { 18000 + ($0 * 700) }),
                 ]))
         case "openai":
             // 30-day daily bucket + top models / line items so iOS
@@ -1762,6 +1819,33 @@ enum MockProviderInjector {
                 ],
                 averageDecisionMilliseconds: 7.4,
                 updatedAt: now))
+        case "zoommate":
+            return V026MockExtras(zoomMateCredits: SyncZoomMateCredits(
+                budgetCap: 1000,
+                usedCredits: 420,
+                remainingCredits: 580,
+                overageCredits: 0,
+                allowsOverage: true,
+                cycleStartAt: now.addingTimeInterval(-18 * 86400),
+                cycleEndAt: now.addingTimeInterval(12 * 86400),
+                isQuotaAvailable: true,
+                isUnlimited: false,
+                todayCreditsUsed: 14.5,
+                daily: (0..<30).map {
+                    SyncZoomMateDailyPoint(
+                        dayKey: Self.dayKey(now.addingTimeInterval(TimeInterval(-86400 * (29 - $0)))),
+                        creditsUsed: Double(5 + ($0 % 8)))
+                },
+                updatedAt: now))
+        case "xai":
+            return V026MockExtras(providerAmount: SyncProviderAmount(
+                kind: "balance",
+                amount: 81.25,
+                currencyCode: "USD",
+                period: "Prepaid credits",
+                isEstimated: false))
+        case "notion":
+            return V026MockExtras(accountOrganization: "Design Workspace")
         default:
             return nil
         }
@@ -1788,6 +1872,9 @@ enum MockProviderInjector {
         /// iOS 1.19.0 / Mac 0.45.2.1 sync.
         var wayfinderUsage: SyncWayfinderUsage?
         var sub2APIUsage: SyncSub2APIUsage?
+        var zoomMateCredits: SyncZoomMateCredits?
+        var providerAmount: SyncProviderAmount?
+        var accountOrganization: String?
 
         init(
             openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -1801,7 +1888,10 @@ enum MockProviderInjector {
             alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
             deepSeekUsage: SyncDeepSeekUsage? = nil,
             wayfinderUsage: SyncWayfinderUsage? = nil,
-            sub2APIUsage: SyncSub2APIUsage? = nil)
+            sub2APIUsage: SyncSub2APIUsage? = nil,
+            zoomMateCredits: SyncZoomMateCredits? = nil,
+            providerAmount: SyncProviderAmount? = nil,
+            accountOrganization: String? = nil)
         {
             self.openAIAPIDashboard = openAIAPIDashboard
             self.zaiHourlyUsage = zaiHourlyUsage
@@ -1815,6 +1905,9 @@ enum MockProviderInjector {
             self.deepSeekUsage = deepSeekUsage
             self.wayfinderUsage = wayfinderUsage
             self.sub2APIUsage = sub2APIUsage
+            self.zoomMateCredits = zoomMateCredits
+            self.providerAmount = providerAmount
+            self.accountOrganization = accountOrganization
         }
     }
 
@@ -1942,7 +2035,10 @@ enum MockProviderInjector {
             deepSeekUsage: extras?.deepSeekUsage,
             crossModelUsage: crossModelUsage,
             wayfinderUsage: extras?.wayfinderUsage,
-            sub2APIUsage: extras?.sub2APIUsage)
+            sub2APIUsage: extras?.sub2APIUsage,
+            providerAmount: extras?.providerAmount,
+            accountOrganization: extras?.accountOrganization,
+            zoomMateCredits: extras?.zoomMateCredits)
     }
 }
 

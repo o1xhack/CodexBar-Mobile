@@ -286,6 +286,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let rateWindows: [SyncRateWindow]
     public let accountEmail: String?
     public let loginMethod: String?
+    /// Optional provider workspace/organization label. Added in iOS 1.20.0;
+    /// old payloads decode as nil and old clients ignore the key.
+    public let accountOrganization: String?
     public let statusMessage: String?
     public let isError: Bool
     public let lastUpdated: Date
@@ -537,6 +540,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// payloads written before iOS 1.19 / Mac 0.45.2.1.
     public let accountRecordKey: String?
 
+    // MARK: - iOS 1.20.0 / Mac 0.47.0.1 — v0.46-v0.47 sync
+
+    /// ZoomMate credit status and optional 30-day history.
+    public let zoomMateCredits: SyncZoomMateCredits?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -584,6 +592,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             || self.wayfinderUsage != nil
             || self.sub2APIUsage != nil
             || self.providerAmount != nil
+            || self.zoomMateCredits != nil
             || self.isError
             || self.statusMessage != nil
     }
@@ -633,7 +642,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         wayfinderUsage: SyncWayfinderUsage? = nil,
         sub2APIUsage: SyncSub2APIUsage? = nil,
         providerAmount: SyncProviderAmount? = nil,
-        accountRecordKey: String? = nil)
+        accountRecordKey: String? = nil,
+        accountOrganization: String? = nil,
+        zoomMateCredits: SyncZoomMateCredits? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -642,6 +653,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.rateWindows = rateWindows
         self.accountEmail = accountEmail
         self.loginMethod = loginMethod
+        self.accountOrganization = accountOrganization
         self.statusMessage = statusMessage
         self.isError = isError
         self.lastUpdated = lastUpdated
@@ -680,6 +692,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.sub2APIUsage = sub2APIUsage
         self.providerAmount = providerAmount
         self.accountRecordKey = accountRecordKey
+        self.zoomMateCredits = zoomMateCredits
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -732,7 +745,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             wayfinderUsage: self.wayfinderUsage,
             sub2APIUsage: self.sub2APIUsage,
             providerAmount: self.providerAmount,
-            accountRecordKey: self.accountRecordKey)
+            accountRecordKey: self.accountRecordKey,
+            accountOrganization: self.accountOrganization,
+            zoomMateCredits: self.zoomMateCredits)
     }
 
     /// Backward-compatible decoder: old payloads without
@@ -746,6 +761,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.rateWindows = try container.decodeIfPresent([SyncRateWindow].self, forKey: .rateWindows) ?? []
         self.accountEmail = try container.decodeIfPresent(String.self, forKey: .accountEmail)
         self.loginMethod = try container.decodeIfPresent(String.self, forKey: .loginMethod)
+        self.accountOrganization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
         self.statusMessage = try container.decodeIfPresent(String.self, forKey: .statusMessage)
         self.isError = try container.decode(Bool.self, forKey: .isError)
         self.lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
@@ -803,6 +819,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.sub2APIUsage = try container.decodeIfPresent(SyncSub2APIUsage.self, forKey: .sub2APIUsage)
         self.providerAmount = try container.decodeIfPresent(SyncProviderAmount.self, forKey: .providerAmount)
         self.accountRecordKey = try container.decodeIfPresent(String.self, forKey: .accountRecordKey)
+        self.zoomMateCredits = try container.decodeIfPresent(SyncZoomMateCredits.self, forKey: .zoomMateCredits)
     }
 }
 

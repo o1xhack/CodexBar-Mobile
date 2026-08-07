@@ -13,6 +13,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case opencodego
     case alibaba
     case alibabatokenplan
+    case qwencloud
     case factory
     case gemini
     case antigravity
@@ -66,78 +67,54 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case wayfinder
     case zenmux
     case aiand
+    case zoommate
+    case xai
+    case notion
 }
 
 // swiftformat:enable sortDeclarations
 
-public enum IconStyle: String, Sendable, CaseIterable {
-    case codex
-    case openai
-    case claude
-    case clinepass
-    case zai
-    case minimax
-    case manus
-    case gemini
-    case antigravity
-    case cursor
-    case opencode
-    case opencodego
-    case alibaba
-    case factory
-    case copilot
-    case devin
-    case kimi
-    case kilo
-    case kiro
-    case vertexai
-    case augment
-    case jetbrains
-    case moonshot
-    case amp
-    case t3chat
-    case ollama
-    case synthetic
-    case warp
-    case openrouter
-    case elevenlabs
-    case windsurf
-    case zed
-    case perplexity
-    case mimo
-    case doubao
-    case sakana
-    case abacus
-    case mistral
-    case deepseek
-    case deepinfra
-    case codebuff
-    case crof
-    case venice
-    case commandcode
-    case qoder
-    case stepfun
-    case bedrock
-    case grok
-    case groq
-    case llmproxy
-    case litellm
-    case deepgram
-    case poe
-    case chutes
-    case neuralwatt
-    case clawrouter
-    case longcat
-    case sub2api
-    case wayfinder
-    case zenmux
-    case aiand
-    case combined
+public struct IconStyle: RawRepresentable, Hashable, Sendable, CaseIterable, CustomStringConvertible {
+    public let rawValue: String
+
+    public var description: String {
+        self.rawValue
+    }
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public init(provider: UsageProvider) {
+        self.init(rawValue: provider.rawValue)
+    }
+
+    public static var allCases: [IconStyle] {
+        UsageProvider.allCases.map(Self.init(provider:)) + [.combined]
+    }
+
+    // Named styles below carry renderer behavior or preserve source-compatible call sites.
+    public static let codex = Self(provider: .codex)
+    public static let claude = Self(provider: .claude)
+    public static let gemini = Self(provider: .gemini)
+    public static let antigravity = Self(provider: .antigravity)
+    public static let cursor = Self(provider: .cursor)
+    public static let factory = Self(provider: .factory)
+    public static let copilot = Self(provider: .copilot)
+    public static let commandcode = Self(provider: .commandcode)
+    public static let kimi = Self(provider: .kimi)
+    public static let mimo = Self(provider: .mimo)
+    public static let mistral = Self(provider: .mistral)
+    public static let qoder = Self(provider: .qoder)
+    public static let warp = Self(provider: .warp)
+    public static let perplexity = Self(provider: .perplexity)
+    public static let combined = Self(rawValue: "combined")
 }
 
 public struct ProviderMetadata: Sendable {
     public let id: UsageProvider
     public let displayName: String
+    public let shortDisplayName: String
     public let sessionLabel: String
     public let weeklyLabel: String
     public let opusLabel: String?
@@ -147,6 +124,7 @@ public struct ProviderMetadata: Sendable {
     public let toggleTitle: String
     public let cliName: String
     public let defaultEnabled: Bool
+    public let widgetSelectable: Bool
     public let isPrimaryProvider: Bool
     public let usesAccountFallback: Bool
     public let browserCookieOrder: BrowserCookieImportOrder?
@@ -160,10 +138,13 @@ public struct ProviderMetadata: Sendable {
     public let statusLinkURL: String?
     /// Google Workspace product ID for status polling (appsstatus dashboard).
     public let statusWorkspaceProductID: String?
+    /// Optional top-level component/group names to show from a provider status feed.
+    public let statusComponentAllowlist: Set<String>?
 
     public init(
         id: UsageProvider,
         displayName: String,
+        shortDisplayName: String? = nil,
         sessionLabel: String,
         weeklyLabel: String,
         opusLabel: String?,
@@ -173,6 +154,7 @@ public struct ProviderMetadata: Sendable {
         toggleTitle: String,
         cliName: String,
         defaultEnabled: Bool,
+        widgetSelectable: Bool = true,
         isPrimaryProvider: Bool = false,
         usesAccountFallback: Bool = false,
         browserCookieOrder: BrowserCookieImportOrder? = nil,
@@ -181,10 +163,12 @@ public struct ProviderMetadata: Sendable {
         changelogURL: String? = nil,
         statusPageURL: String?,
         statusLinkURL: String? = nil,
-        statusWorkspaceProductID: String? = nil)
+        statusWorkspaceProductID: String? = nil,
+        statusComponentAllowlist: Set<String>? = nil)
     {
         self.id = id
         self.displayName = displayName
+        self.shortDisplayName = shortDisplayName ?? displayName
         self.sessionLabel = sessionLabel
         self.weeklyLabel = weeklyLabel
         self.opusLabel = opusLabel
@@ -194,6 +178,7 @@ public struct ProviderMetadata: Sendable {
         self.toggleTitle = toggleTitle
         self.cliName = cliName
         self.defaultEnabled = defaultEnabled
+        self.widgetSelectable = widgetSelectable
         self.isPrimaryProvider = isPrimaryProvider
         self.usesAccountFallback = usesAccountFallback
         self.browserCookieOrder = browserCookieOrder
@@ -203,6 +188,7 @@ public struct ProviderMetadata: Sendable {
         self.statusPageURL = statusPageURL
         self.statusLinkURL = statusLinkURL
         self.statusWorkspaceProductID = statusWorkspaceProductID
+        self.statusComponentAllowlist = statusComponentAllowlist
     }
 }
 
@@ -213,6 +199,14 @@ public enum ProviderDefaults {
 }
 
 public enum ProviderBrowserCookieDefaults {
+    public static var chromeOnlyImportOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome]
+        #else
+        nil
+        #endif
+    }
+
     public static var defaultImportOrder: BrowserCookieImportOrder? {
         #if os(macOS)
         Browser.defaultImportOrder
@@ -291,10 +285,11 @@ public enum ProviderBrowserCookieDefaults {
         #endif
     }
 
-    /// LongCat Auto imports only from Chrome by default to avoid prompting unrelated browser keychains.
+    /// LongCat Auto keeps Chrome first for existing users, then checks Firefox without adding
+    /// an unrelated browser Keychain prompt.
     public static var longcatCookieImportOrder: BrowserCookieImportOrder? {
         #if os(macOS)
-        [.chrome]
+        [.chrome, .firefox]
         #else
         nil
         #endif

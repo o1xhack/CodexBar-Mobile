@@ -211,8 +211,8 @@ struct ProviderUsageView: View {
     }
 
     /// Selects the subtitle string under the provider name. Prefers the
-    /// account email (honoring the redactor), falls back to a localized
-    /// ordinal (`"Codex 2"`) when email is nil AND this card is one of
+    /// account email (honoring the redactor), then a workspace/organization,
+    /// and finally a localized ordinal (`"Codex 2"`) when both are nil and this card is one of
     /// multiple for the same `providerID`, otherwise returns nil so the
     /// single-card layout stays minimal.
     ///
@@ -221,6 +221,11 @@ struct ProviderUsageView: View {
     func subtitleLine() -> String? {
         if let email = self.provider.accountEmail, !email.isEmpty {
             return MobilePersonalInfoRedactor.redactEmail(email, isEnabled: self.hidePersonalInfo)
+        }
+        if let organization = self.provider.accountOrganization, !organization.isEmpty {
+            return MobilePersonalInfoRedactor.redactEmails(
+                in: organization,
+                isEnabled: self.hidePersonalInfo) ?? organization
         }
         if let ordinal = self.duplicateOrdinal {
             // Localized format: "%@ %lld" → `"Codex 2"` / `"Codex 2 号账户"`

@@ -47,6 +47,7 @@ struct CKRecordReservedKeyAuditTests {
     /// accidentally used.
     static let auditedRelativePaths: [String] = [
         "Shared/iCloud/CloudSyncManager.swift",
+        "Sources/CodexBar/Sync/CloudSyncEngine.swift",
     ]
 
     @Test("No source file writes a CKRecord field using a reserved name")

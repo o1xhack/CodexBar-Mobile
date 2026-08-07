@@ -2,6 +2,49 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.20.0 (192)] — 2026-08-03 — CodexBar 0.47 upstream sync
+
+### Added
+
+- **Four provider catch-up** — Added Qwen Cloud, ZoomMate, xAI, and Notion AI
+  to provider colors, quota-transition subscriptions, mock data, and iPhone
+  detail routing.
+- **ZoomMate credit details** — Added an optional Shared payload and iPhone
+  card for plan allowance, remaining and overage credits, cycle end, today's
+  use, and 30-day history.
+- **Workspace and prepaid balances** — Notion AI now carries the active
+  workspace label; Claude and xAI carry prepaid balances; xAI also reuses the
+  existing daily cost-history payload for its Management API spend.
+
+### Changed
+
+- **z.ai history ranges** — Extended the existing hourly model-usage payload
+  with optional daily axes and series, allowing the iPhone chart to switch
+  between 24 hours, 7 days, and 30 days.
+- **Mixed-version wire compatibility** — Every new value is an additive
+  optional or a collection that decodes missing keys as empty, so old Mac and
+  old iPhone payloads continue to render without a schema-version bump.
+
+### Fixed
+
+- **Notion workspace visibility** — Provider cards fall back to the synced
+  organization/workspace label when no account email is available.
+- **z.ai time parsing** — Mac sync now accepts the provider's native hourly
+  and daily date formats in addition to ISO-8601 timestamps.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.47.0.1` / build `111.1` and upstream
+  `steipete/CodexBar` `v0.47.0`.
+- iOS `MARKETING_VERSION`: `1.19.1` → `1.20.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `191` → `192`.
+- Existing mobile `ProviderUsageSnapshot` records are reused; the additive
+  mobile fields do not require a CloudKit schema deploy. Upstream's separate
+  Mac fleet-sync zone and four record types do require an authorized
+  Production deploy before that default-off feature can ship live.
+
+---
+
 ## [1.19.1 (191)] — 2026-07-27 — Alibaba Token Plan and utilization history hotfixes
 
 ### Fixed

@@ -108,7 +108,6 @@
 "Could not start codex login" = "Could not start codex login";
 "Could not switch system account" = "Could not switch system account";
 "Credits" = "Credits";
-"5-hour" = "5-hour";
 "Individual credits" = "Individual credits";
 "Workspace" = "Workspace";
 "Credits history" = "Credits history";
@@ -416,6 +415,9 @@
 "section_agent_sessions" = "Agent sessions";
 "language_title" = "Language";
 "language_subtitle" = "Change the display language. Requires app restart to take full effect.";
+"currency_title" = "Preferred Currency";
+"currency_subtitle" = "Currency for cost estimates and spend metrics. Uses live exchange rates updated daily.";
+"currency_auto" = "Auto (Follow Provider / USD)";
 "language_system" = "System";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -1235,6 +1237,8 @@
 "section_links" = "Links";
 "Show Codex Spark usage" = "Show Codex Spark usage";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings.";
+"Show Daily Routines usage" = "Show Daily Routines usage";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings.";
 "Scroll to see more models" = "Scroll to see more models";
 
 /* Shareable usage card */
@@ -1274,8 +1278,13 @@
 "By subscription" = "By subscription";
 "No model-level history" = "No model-level history";
 "Daily estimated spend" = "Daily estimated spend";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d full 5h windows of weekly left · %d windows until reset";
 "Weekly cannot run out before reset at this pace" = "Weekly cannot run out before reset at this pace";
+"Weekly can run out ≈%d windows early" = "Weekly can run out ≈%d windows early";
 "Estimated: %@" = "Estimated: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "session quota";
+"session quotas" = "session quotas";
 "Coding Plan" = "Coding Plan";
 "Agent Plan" = "Agent Plan";
 "Team" = "Team";
@@ -1320,6 +1329,9 @@
 "menu_bar_layout_token_session" = "Session %";
 "menu_bar_layout_token_weekly" = "Weekly %";
 "menu_bar_layout_token_auto" = "Auto %";
+"menu_bar_layout_token_session_pace" = "Session pace";
+"menu_bar_layout_token_weekly_pace" = "Weekly pace";
+"menu_bar_layout_token_auto_pace" = "Auto pace";
 "menu_bar_layout_token_bar" = "Usage bar";
 "menu_bar_layout_token_resets_in" = "Resets in";
 "menu_bar_layout_token_reset_at" = "Reset at";
@@ -1345,8 +1357,34 @@
 "Cost today unavailable" = "Cost today unavailable";
 "30-day cost unavailable" = "30-day cost unavailable";
 "Resets" = "Resets";
+"Finish now" = "Finish now";
+"Continue in background" = "Continue in background";
+
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5-hour";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API key verified. Ollama does not expose Cloud quota limits through the API.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue.";
 "CrossModel API spend trend" = "CrossModel API spend trend";

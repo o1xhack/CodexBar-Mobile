@@ -1,4 +1,4 @@
-// swiftlint:disable type_body_length
+// swiftlint:disable file_length type_body_length
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.8.0
 // build 134 when 5 v0.27 existing-provider mappers were added
@@ -7,7 +7,9 @@
 // assembler — pulling the mappers into a separate type would just
 // split the dispatch logic across files without changing the
 // structure. Scoped suppression matches the same pattern already
-// used in MockProviderInjector.
+// used in MockProviderInjector. The file-length rule is paired with the
+// existing type suppression because this fork-owned assembler also contains
+// the protocol-specific Mac-to-iOS mappers.
 import CodexBarCore
 import CodexBarSync
 import Foundation
@@ -871,6 +873,7 @@ final class SyncCoordinator {
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
         let wayfinderUsage = Self.mapWayfinderUsage(provider: provider, snapshot: snapshot)
         let sub2APIUsage = Self.mapSub2APIUsage(provider: provider, snapshot: snapshot)
+        let zoomMateCredits = Self.mapZoomMateCredits(provider: provider, snapshot: snapshot)
         let providerAmount = Self.mapProviderAmount(
             provider: provider,
             snapshot: snapshot,
@@ -886,7 +889,8 @@ final class SyncCoordinator {
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: sharedCostSummary
-                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
+                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
+                ?? Self.mapXAICostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
@@ -926,7 +930,9 @@ final class SyncCoordinator {
             wayfinderUsage: wayfinderUsage,
             sub2APIUsage: sub2APIUsage,
             providerAmount: providerAmount,
-            accountRecordKey: accountRecordKey)
+            accountRecordKey: accountRecordKey,
+            accountOrganization: snapshot?.identity?.accountOrganization,
+            zoomMateCredits: zoomMateCredits)
     }
 
     static func syncAccountIdentities(
@@ -974,20 +980,32 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?,
         providerCost: ProviderCostSnapshot?) -> SyncProviderAmount?
     {
-        guard let providerCost, providerCost.limit <= 0 else { return nil }
+        guard let providerCost else { return nil }
         let kind: String
+        let amount: Double
         switch provider {
         case .neuralwatt, .zenmux:
+            guard providerCost.limit <= 0 else { return nil }
             kind = "balance"
+            amount = providerCost.used
         case .aiand:
+            guard providerCost.limit <= 0 else { return nil }
             kind = "spend"
+            amount = providerCost.used
+        case .claude:
+            guard let balance = providerCost.balance else { return nil }
+            kind = "balance"
+            amount = balance
+        case .xai:
+            kind = "balance"
+            amount = snapshot?.xaiUsage?.balanceUSD ?? providerCost.balance ?? providerCost.used
         default:
             return nil
         }
         let confidence = snapshot?.dataConfidence ?? .unknown
         return SyncProviderAmount(
             kind: kind,
-            amount: providerCost.used,
+            amount: amount,
             currencyCode: providerCost.currencyCode,
             period: providerCost.period,
             isEstimated: confidence == .estimated || confidence == .percentOnly)
@@ -1098,23 +1116,78 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncZaiHourlyUsage?
     {
-        guard provider == .zai, let model = snapshot?.zaiUsage?.modelUsage else { return nil }
+        guard provider == .zai, let usage = snapshot?.zaiUsage else { return nil }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let fallback = ISO8601DateFormatter()
         fallback.formatOptions = [.withInternetDateTime]
-        let xTime: [Date] = model.xTime.compactMap { iso in
-            formatter.date(from: iso) ?? fallback.date(from: iso)
+
+        func makeFormatter(_ format: String) -> DateFormatter {
+            let value = DateFormatter()
+            value.locale = Locale(identifier: "en_US_POSIX")
+            value.timeZone = TimeZone.current
+            value.dateFormat = format
+            return value
         }
-        // Skip if the time series didn't parse — iOS can't render
-        // anything useful with mismatched x-axis.
-        guard xTime.count == model.xTime.count, !xTime.isEmpty else { return nil }
-        let series: [SyncZaiModelSeries] = model.modelDataList.compactMap { row in
-            guard let name = row.modelName else { return nil }
-            return SyncZaiModelSeries(modelName: name, tokens: row.tokensUsage)
+
+        let hourlyFormatter = makeFormatter("yyyy-MM-dd HH:mm")
+        let dailyFormatter = makeFormatter("yyyy-MM-dd")
+        func parse(_ raw: String) -> Date? {
+            formatter.date(from: raw)
+                ?? fallback.date(from: raw)
+                ?? hourlyFormatter.date(from: raw)
+                ?? dailyFormatter.date(from: raw)
         }
-        guard !series.isEmpty else { return nil }
-        return SyncZaiHourlyUsage(xTime: xTime, modelSeries: series)
+
+        func mapModel(_ model: ZaiModelUsageData?) -> ([Date], [SyncZaiModelSeries]) {
+            guard let model else { return ([], []) }
+            let dates = model.xTime.compactMap(parse)
+            guard dates.count == model.xTime.count else { return ([], []) }
+            let series = model.modelDataList.compactMap { row -> SyncZaiModelSeries? in
+                guard let name = row.modelName, !name.isEmpty else { return nil }
+                return SyncZaiModelSeries(modelName: name, tokens: row.tokensUsage)
+            }
+            return (dates, series)
+        }
+
+        let hourly = mapModel(usage.modelUsage)
+        let daily = mapModel(usage.dailyModelUsage)
+        guard !hourly.0.isEmpty || !daily.0.isEmpty else { return nil }
+        return SyncZaiHourlyUsage(
+            xTime: hourly.0,
+            modelSeries: hourly.1,
+            dailyXTime: daily.0,
+            dailyModelSeries: daily.1)
+    }
+
+    static func mapZoomMateCredits(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncZoomMateCredits?
+    {
+        guard provider == .zoommate, let snapshot else { return nil }
+        let history = snapshot.zoommateCreditsHistory
+        guard let status = history?.creditStatus ?? snapshot.zoommateCreditStatus else { return nil }
+        func date(milliseconds: Int64?) -> Date? {
+            guard let milliseconds, milliseconds > 0 else { return nil }
+            return Date(timeIntervalSince1970: Double(milliseconds) / 1000)
+        }
+        let now = history?.updatedAt ?? snapshot.updatedAt
+        let daily = history?.dailyBreakdown(now: now).map {
+            SyncZoomMateDailyPoint(dayKey: $0.day, creditsUsed: $0.totalCreditsUsed)
+        } ?? []
+        return SyncZoomMateCredits(
+            budgetCap: status.budgetCap,
+            usedCredits: status.usedCredit,
+            remainingCredits: status.remainingCredit,
+            overageCredits: status.overageCredit,
+            allowsOverage: status.allowOverage,
+            cycleStartAt: date(milliseconds: status.cycleStartDate),
+            cycleEndAt: date(milliseconds: status.cycleEndDate),
+            isQuotaAvailable: status.isQuotaAvailable,
+            isUnlimited: status.isUnlimited,
+            todayCreditsUsed: history?.todayCreditsUsed(now: now),
+            daily: daily,
+            updatedAt: now)
     }
 
     static func mapKiroCredits(
@@ -1976,6 +2049,35 @@ final class SyncCoordinator {
             currencyCode: m.currency)
     }
 
+    /// xAI's Management API exposes prepaid balance plus daily USD spend.
+    /// Reuse the existing cost-summary wire type so old iOS builds ignore the
+    /// additive data and iOS 1.20.0 gets the normal 30-day chart.
+    static func mapXAICostSummary(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCostSummary?
+    {
+        guard provider == .xai, let usage = snapshot?.xaiUsage, !usage.daily.isEmpty else {
+            return nil
+        }
+        return SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: usage.windowCostUSD,
+            last30DaysTokens: nil,
+            daily: usage.daily.map {
+                SyncDailyPoint(
+                    dayKey: $0.day,
+                    costUSD: $0.costUSD,
+                    totalTokens: 0,
+                    modelBreakdowns: [],
+                    serviceBreakdowns: [],
+                    isEstimated: usage.limitReached ? true : nil)
+            },
+            isEstimated: usage.limitReached ? true : nil,
+            historyDays: usage.historyDays,
+            currencyCode: "USD")
+    }
+
     /// Maps OpenRouter's native balance/credits + per-key usage windows into
     /// the wire envelope (gap D). Before this, all of OpenRouter's
     /// /api/v1/credits + /api/v1/key data collapsed to a "Balance: $X"
@@ -2141,7 +2243,10 @@ final class SyncCoordinator {
              .sakana, .qoder, .clawrouter,
              // Upstream v0.42.0–v0.45.2 providers likewise expose
              // provider-computed quota, balance, or spend values.
-             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand:
+             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
+             // Upstream v0.46.0-v0.47.0 providers expose provider-computed
+             // quota, credit, balance, or workspace allowance values.
+             .qwencloud, .zoommate, .xai, .notion:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

@@ -936,7 +936,8 @@ extension UsageStore {
         provider: UsageProvider,
         override: TokenAccountOverride?,
         codexActiveSourceOverride: CodexActiveSource? = nil,
-        includeCredits: Bool = false) -> ProviderFetchContext
+        includeCredits: Bool = false,
+        claudeOwnerCLIRecoveryOnly: Bool = false) -> ProviderFetchContext
     {
         let account = ProviderTokenAccountSelection.selectedAccount(
             provider: provider,
@@ -1015,6 +1016,7 @@ extension UsageStore {
                 }
             },
             costUsageHistoryDays: self.settings.costUsageHistoryDays,
+            claudeOwnerCLIRecoveryOnly: claudeOwnerCLIRecoveryOnly,
             persistsCLISessions: true,
             persistentCLISessionIdleWindow: ProviderRegistry.persistentCLISessionIdleWindow(
                 refreshInterval: self.normalRefreshIntervalForHeuristics()))
@@ -1578,6 +1580,7 @@ extension UsageStore {
                     accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
+                self.widgetUsagePreservationBlockedProviders.remove(provider)
                 if provider == .deepseek {
                     self.clearDeepSeekProfileTransition()
                 }

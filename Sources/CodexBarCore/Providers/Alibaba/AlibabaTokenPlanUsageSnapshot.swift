@@ -7,9 +7,15 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
     public let remainingQuota: Double?
     public let resetsAt: Date?
     public let fiveHourUsedPercent: Double?
+    public let fiveHourTotalQuota: Double?
     public let fiveHourResetsAt: Date?
+    /// Legacy Teams rate-limit window retained for the fork's authenticated
+    /// fallback path. Personal/Solo plans use the `weekly*` fields below.
     public let sevenDayUsedPercent: Double?
     public let sevenDayResetsAt: Date?
+    public let weeklyUsedPercent: Double?
+    public let weeklyTotalQuota: Double?
+    public let weeklyResetsAt: Date?
     public let updatedAt: Date
 
     public init(
@@ -19,9 +25,13 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
         remainingQuota: Double?,
         resetsAt: Date?,
         fiveHourUsedPercent: Double? = nil,
+        fiveHourTotalQuota: Double? = nil,
         fiveHourResetsAt: Date? = nil,
         sevenDayUsedPercent: Double? = nil,
         sevenDayResetsAt: Date? = nil,
+        weeklyUsedPercent: Double? = nil,
+        weeklyTotalQuota: Double? = nil,
+        weeklyResetsAt: Date? = nil,
         updatedAt: Date)
     {
         self.planName = planName
@@ -30,9 +40,13 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
         self.remainingQuota = remainingQuota
         self.resetsAt = resetsAt
         self.fiveHourUsedPercent = fiveHourUsedPercent
+        self.fiveHourTotalQuota = fiveHourTotalQuota
         self.fiveHourResetsAt = fiveHourResetsAt
         self.sevenDayUsedPercent = sevenDayUsedPercent
         self.sevenDayResetsAt = sevenDayResetsAt
+        self.weeklyUsedPercent = weeklyUsedPercent
+        self.weeklyTotalQuota = weeklyTotalQuota
+        self.weeklyResetsAt = weeklyResetsAt
         self.updatedAt = updatedAt
     }
 }
@@ -46,9 +60,13 @@ extension AlibabaTokenPlanUsageSnapshot {
             remainingQuota: summary.remainingQuota,
             resetsAt: summary.resetsAt,
             fiveHourUsedPercent: self.fiveHourUsedPercent,
+            fiveHourTotalQuota: self.fiveHourTotalQuota,
             fiveHourResetsAt: self.fiveHourResetsAt,
             sevenDayUsedPercent: self.sevenDayUsedPercent,
             sevenDayResetsAt: self.sevenDayResetsAt,
+            weeklyUsedPercent: self.weeklyUsedPercent,
+            weeklyTotalQuota: self.weeklyTotalQuota,
+            weeklyResetsAt: self.weeklyResetsAt,
             updatedAt: max(self.updatedAt, summary.updatedAt))
     }
 
@@ -71,21 +89,23 @@ extension AlibabaTokenPlanUsageSnapshot {
                 usedPercent: $0,
                 windowMinutes: 5 * 60,
                 resetsAt: self.fiveHourResetsAt,
-                resetDescription: nil)
+                resetDescription: Self.quotaDetail(usedPercent: $0, total: self.fiveHourTotalQuota))
         }
-        let sevenDay = self.sevenDayUsedPercent.map {
+        let weeklyPercent = self.weeklyUsedPercent ?? self.sevenDayUsedPercent
+        let weeklyReset = self.weeklyUsedPercent == nil ? self.sevenDayResetsAt : self.weeklyResetsAt
+        let weekly = weeklyPercent.map {
             RateWindow(
                 usedPercent: $0,
                 windowMinutes: 7 * 24 * 60,
-                resetsAt: self.sevenDayResetsAt,
-                resetDescription: nil)
+                resetsAt: weeklyReset,
+                resetDescription: Self.quotaDetail(usedPercent: $0, total: self.weeklyTotalQuota))
         }
         // Keep the rolling windows in their semantic lanes even when Alibaba
         // returns a partial response. Consumers such as CLI guard and dashboard
         // JSON interpret primary as session and secondary as weekly.
-        let hasRollingWindows = fiveHour != nil || sevenDay != nil
+        let hasRollingWindows = fiveHour != nil || weekly != nil
         let primary = hasRollingWindows ? fiveHour : monthlyCredits
-        let secondary = hasRollingWindows ? sevenDay : nil
+        let secondary = hasRollingWindows ? weekly : nil
         let tertiary = hasRollingWindows ? monthlyCredits : nil
 
         let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -131,6 +151,12 @@ extension AlibabaTokenPlanUsageSnapshot {
             return "\(Self.format(remaining)) credits left"
         }
         return nil
+    }
+
+    private static func quotaDetail(usedPercent: Double, total: Double?) -> String? {
+        guard let total, total > 0 else { return nil }
+        let used = total * usedPercent / 100
+        return "\(Self.format(used)) / \(Self.format(total)) credits used"
     }
 
     private static func format(_ value: Double) -> String {

@@ -20,6 +20,9 @@ struct MenuBarLayoutRendererTests {
             (.percent(window: .session), "5h 25%"),
             (.percent(window: .weekly), "W 60%"),
             (.percent(window: .automatic), "50%"),
+            (.pace(window: .session), "-8%"),
+            (.pace(window: .weekly), "+11%"),
+            (.pace(window: .automatic), "0%"),
             (.usageBar, "▮▮▯"),
             (.resetCountdown, "in 2h"),
             (.runsOut, "Runs out tomorrow"),
@@ -88,6 +91,9 @@ struct MenuBarLayoutRendererTests {
             session: nil,
             weekly: nil,
             automatic: nil,
+            sessionPace: nil,
+            weeklyPace: nil,
+            automaticPace: nil,
             runsOut: nil,
             costToday: nil,
             cost30d: nil)
@@ -98,6 +104,9 @@ struct MenuBarLayoutRendererTests {
             .percent(window: .session),
             .percent(window: .weekly),
             .percent(window: .automatic),
+            .pace(window: .session),
+            .pace(window: .weekly),
+            .pace(window: .automatic),
             .usageBar,
             .resetCountdown,
             .resetAbsolute,
@@ -108,7 +117,57 @@ struct MenuBarLayoutRendererTests {
 
         let output = renderer.render(layout: layout, data: missingData, icon: nil, options: self.options())
 
-        #expect(output.attributedTitle.string.count(where: { $0 == "–" }) == 12)
+        #expect(output.attributedTitle.string.count(where: { $0 == "–" }) == 15)
+        #expect(output.accessibilityLabel.contains("unavailable"))
+    }
+
+    @Test
+    func `pace token renders the signed delta for its own window`() {
+        let renderer = MenuBarLayoutRenderer()
+        let output = renderer.render(
+            layout: MenuBarLayout(lines: [[
+                .percent(window: .weekly),
+                .separatorDot,
+                .pace(window: .weekly),
+            ]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options())
+
+        // Each pace token reads its own window, so weekly pace never borrows the session delta.
+        #expect(output.attributedTitle.string == "W 60%\u{2009}·\u{2009}+11%")
+        #expect(output.accessibilityLabel.contains(L("menu_bar_layout_token_weekly_pace")))
+    }
+
+    @Test
+    func `pace token stays a placeholder while siblings keep rendering`() {
+        let renderer = MenuBarLayoutRenderer()
+        let data = MenuBarLayoutRenderData(
+            iconKey: "codex",
+            providerName: "Codex",
+            accountLabel: nil,
+            session: MenuBarLayoutRenderWindow(RateWindow(
+                usedPercent: 25,
+                windowMinutes: 300,
+                resetsAt: self.now.addingTimeInterval(60 * 60),
+                resetDescription: nil)),
+            weekly: nil,
+            automatic: nil,
+            // Pace is suppressed below 3% of window elapsed; the percent token must survive that.
+            sessionPace: nil,
+            weeklyPace: nil,
+            automaticPace: nil,
+            runsOut: nil,
+            costToday: nil,
+            cost30d: nil)
+
+        let output = renderer.render(
+            layout: MenuBarLayout(lines: [[.percent(window: .session), .separatorDot, .pace(window: .session)]]),
+            data: data,
+            icon: nil,
+            options: self.options())
+
+        #expect(output.attributedTitle.string == "5h 25%\u{2009}·\u{2009}–")
         #expect(output.accessibilityLabel.contains("unavailable"))
     }
 
@@ -127,6 +186,29 @@ struct MenuBarLayoutRendererTests {
         #expect(output.attributedTitle.string == "5h 25%\nW 60%")
         #expect(output.accessibilityLabel.contains(L("menu_bar_layout_line", 2)))
         #expect(bounds.height <= 22)
+    }
+
+    @Test
+    func `stacked titles apply a vertical centering offset`() throws {
+        let renderer = MenuBarLayoutRenderer()
+        let stacked = renderer.render(
+            layout: MenuBarLayout(lines: [
+                [.percent(window: .automatic)],
+                [.resetCountdown],
+            ]),
+            data: self.data(),
+            icon: nil,
+            options: self.options())
+        let resetIndex = (stacked.attributedTitle.string as NSString).range(of: "in 2h").location
+        let singleLine = renderer.render(
+            layout: MenuBarLayout(lines: [[.percent(window: .automatic), .resetCountdown]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options())
+
+        #expect(try #require(self.baselineOffset(in: stacked.attributedTitle, at: 0)) == -3)
+        #expect(try #require(self.baselineOffset(in: stacked.attributedTitle, at: resetIndex)) == -3)
+        #expect(self.baselineOffset(in: singleLine.attributedTitle, at: 0) == nil)
     }
 
     @Test
@@ -204,6 +286,9 @@ struct MenuBarLayoutRendererTests {
             session: nil,
             weekly: nil,
             automatic: textOnlyWindow,
+            sessionPace: nil,
+            weeklyPace: nil,
+            automaticPace: nil,
             runsOut: nil,
             costToday: nil,
             cost30d: nil)
@@ -261,6 +346,9 @@ struct MenuBarLayoutRendererTests {
                 windowMinutes: 300,
                 resetsAt: self.now.addingTimeInterval(2 * 60 * 60),
                 resetDescription: nil)),
+            sessionPace: "-8%",
+            weeklyPace: "+11%",
+            automaticPace: "0%",
             runsOut: "Runs out tomorrow",
             costToday: "$1.25",
             cost30d: "$20.00")
@@ -302,5 +390,16 @@ struct MenuBarLayoutRendererTests {
             }
         }
         return try totalBrightness / CGFloat(#require(visiblePixelCount > 0 ? visiblePixelCount : nil))
+    }
+
+    private func baselineOffset(in title: NSAttributedString, at index: Int) -> CGFloat? {
+        let value = title.attribute(.baselineOffset, at: index, effectiveRange: nil)
+        if let value = value as? CGFloat {
+            return value
+        }
+        if let value = value as? NSNumber {
+            return CGFloat(truncating: value)
+        }
+        return nil
     }
 }

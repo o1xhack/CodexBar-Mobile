@@ -57,9 +57,10 @@ struct MockProviderInjectorTests {
         // iOS 1.13.0 adds LiteLLM, Poe, Chutes, and Zed. 61 → 65.
         // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter. 65 → 69.
         // iOS 1.19.0 adds 8 v0.42-v0.45 provider mocks. 69 → 77.
+        // iOS 1.20.0 adds 4 v0.46-v0.47 provider mocks. 77 → 81.
         #expect(
-            MockProviderInjector.allMocks().count == 77,
-            "iOS 1.19.0: 69 → 77 (+8 v0.42-v0.45 simple mocks).")
+            MockProviderInjector.allMocks().count == 81,
+            "iOS 1.20.0: 77 → 81 (+4 v0.46-v0.47 simple mocks).")
     }
 
     @Test
@@ -285,7 +286,7 @@ struct MockProviderInjectorTests {
                 "antigravity", "ollama", "elevenlabs",
                 "azureopenai", "alibabatokenplan", "t3chat",
                 "poe", "sakana", "qoder", "clinepass", "neuralwatt",
-                "longcat", "wayfinder", "zenmux",
+                "longcat", "wayfinder", "zenmux", "qwencloud", "zoommate", "notion",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

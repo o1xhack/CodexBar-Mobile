@@ -85,7 +85,11 @@ public enum AccountIdentityComputer {
              // provider to Tier-A. Keep per-device fallback until a stable
              // cross-Mac account identifier is available.
              .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api,
-             .wayfinder, .zenmux, .aiand:
+             .wayfinder, .zenmux, .aiand,
+             // Upstream v0.46.0-v0.47.0 providers. The mobile bridge carries
+             // their usage and display identity, but none exposes a proven
+             // stable cross-Mac account identifier yet.
+             .qwencloud, .zoommate, .xai, .notion:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

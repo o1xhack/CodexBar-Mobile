@@ -1,5 +1,28 @@
 /* Russian localization for CodexBar */
 
+/* iCloud Sync */
+"iCloud Sync" = "iCloud Sync";
+"Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
+"Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
+"Sync usage snapshots" = "Sync usage snapshots";
+"Show accounts from other Macs" = "Show accounts from other Macs";
+"Requires a signed release build of CodexBar." = "Requires a signed release build of CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Sign in to iCloud in System Settings to enable sync.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "Sync is paused: another Mac uses a newer version of CodexBar. Update to resume.";
+"Last successful fetch" = "Last successful fetch";
+"Last successful push" = "Last successful push";
+"Never" = "Never";
+"Macs" = "Macs";
+"No synced Macs yet." = "No synced Macs yet.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync.";
+"Last seen %@" = "Last seen %@";
+"This Mac" = "This Mac";
+"another Mac" = "another Mac";
+"%dm ago" = "%dm ago";
+"%dh ago" = "%dh ago";
+"%dd ago" = "%dd ago";
+
 "tab_hooks" = "Хуки";
 "hooks_enable_title" = "Включить хуки";
 "hooks_enable_subtitle" = "Запускать внешние команды при событиях квоты или провайдера.";
@@ -125,7 +148,6 @@
 "Could not start codex login" = "Не удалось запустить вход в Codex";
 "Could not switch system account" = "Не удалось переключить системный аккаунт";
 "Credits" = "Кредиты";
-"5-hour" = "5 часов";
 "Individual credits" = "Индивидуальные кредиты";
 "Workspace" = "Рабочая область";
 "Credits history" = "История кредитов";
@@ -432,6 +454,9 @@
 "section_agent_sessions" = "Сеансы агентов";
 "language_title" = "Язык";
 "language_subtitle" = "Изменяет язык интерфейса. Для полного применения нужен перезапуск приложения.";
+"currency_title" = "Предпочитаемая валюта";
+"currency_subtitle" = "Валюта для оценки затрат и расходов. Используются курсы, обновляемые ежедневно.";
+"currency_auto" = "Автоматически (валюта провайдера / USD)";
 "language_system" = "Системный";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -1223,6 +1248,8 @@
 "section_links" = "Ссылки";
 "Show Codex Spark usage" = "Показывать использование Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Показывает строки квот Codex Spark в меню и предварительном просмотре провайдера. Требует включить «Показывать кредиты и доп. использование» в настройках «Отображение».";
+"Show Daily Routines usage" = "Показывать использование ежедневных задач";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Показывает строку квоты ежедневных задач в меню и предварительном просмотре провайдера. Требует включить «Показывать кредиты и доп. использование» в настройках «Отображение».";
 "Scroll to see more models" = "Прокрутите, чтобы увидеть больше моделей";
 "Copy Image" = "Копировать изображение";
 "Copy Stats" = "Копировать статистику";
@@ -1271,8 +1298,13 @@
 "By subscription" = "По подпискам";
 "No model-level history" = "Нет истории по моделям";
 "Daily estimated spend" = "Предполагаемые ежедневные расходы";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d полных 5-часовых окон недельного лимита · %d окон до сброса";
 "Weekly cannot run out before reset at this pace" = "При таком темпе недельный лимит не может закончиться до сброса";
+"Weekly can run out ≈%d windows early" = "Недельный лимит может закончиться на ≈%d окон раньше";
 "Estimated: %@" = "Оценка: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "лимит сессии";
+"session quotas" = "лимиты сессий";
 "Coding Plan" = "План программирования";
 "Agent Plan" = "План агента";
 "Team" = "Команда";
@@ -1317,6 +1349,9 @@
 "menu_bar_layout_token_session" = "Сеанс %";
 "menu_bar_layout_token_weekly" = "Недельный %";
 "menu_bar_layout_token_auto" = "Авто %";
+"menu_bar_layout_token_session_pace" = "Темп сеанса";
+"menu_bar_layout_token_weekly_pace" = "Недельный темп";
+"menu_bar_layout_token_auto_pace" = "Авто темп";
 "menu_bar_layout_token_bar" = "Индикатор использования";
 "menu_bar_layout_token_resets_in" = "Сброс через";
 "menu_bar_layout_token_reset_at" = "Сброс в";
@@ -1342,8 +1377,11 @@
 "Cost today unavailable" = "Расход сегодня: Недоступно";
 "30-day cost unavailable" = "Расход за 30 дней: Недоступно";
 "Resets" = "Сбросы";
+"Finish now" = "Завершить сейчас";
+"Continue in background" = "Продолжить в фоновом режиме";
 
 /* CodexBar Mobile fork compatibility strings. */
+"5-hour" = "5 часов";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API-ключ проверен. Ollama не раскрывает лимиты квот Cloud через API.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar запросит у macOS Keychain API-ключ Kimi K2, чтобы получить данные об использовании. Нажмите OK, чтобы продолжить.";
 "CrossModel API spend trend" = "Тренд расходов CrossModel API";
@@ -1377,8 +1415,6 @@
 "tab_display" = "Отображение";
 "weekly_limit_confetti_subtitle" = "Показывать полноэкранное конфетти при сбросе недельного лимита.";
 "weekly_limit_confetti_title" = "Конфетти при сбросе недельного лимита";
-
-/* Fork sync keys retained after the upstream locale completeness gate. */
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
 "icloud_diagnostics_read_only_caption" = "Checks account, zones, and the KVS fallback without writing or deleting iCloud data.";
 "mobile_sync_status_syncing" = "Syncing…";

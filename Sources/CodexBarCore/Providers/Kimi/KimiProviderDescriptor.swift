@@ -1,6 +1,8 @@
 import Foundation
 
 public enum KimiProviderDescriptor {
+    public static let sessionWindowMinutes = 5 * 60
+    public static let weeklyWindowMinutes = 7 * 24 * 60
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
     static func makeDescriptor() -> ProviderDescriptor {
@@ -24,7 +26,7 @@ public enum KimiProviderDescriptor {
                 dashboardURL: "https://www.kimi.com/code/console",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .kimi,
+                iconStyle: .init(provider: .kimi),
                 iconResourceName: "ProviderIcon-kimi",
                 color: ProviderColor(red: 254 / 255, green: 96 / 255, blue: 60 / 255),
                 confettiPalette: [
@@ -35,6 +37,8 @@ public enum KimiProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kimi cost summary is not supported." }),
+            pace: ProviderPaceCapability(
+                resetWindowPace: .windowDuration(minutes: self.weeklyWindowMinutes)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
