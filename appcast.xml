@@ -3,6 +3,32 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.47.0.1</title>
+            <pubDate>Sat, 08 Aug 2026 10:06:57 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>111.1.1.20.0</sparkle:version>
+            <sparkle:shortVersionString>0.47.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.47.0.1-Mobile 1.20.0</h2>
+<h3>Added</h3>
+<ul>
+<li>Mobile sync: prepare Qwen Cloud, ZoomMate, xAI Platform, Notion AI, Claude prepaid balance, and z.ai daily model usage for iPhone display while keeping upstream Mac fleet sync isolated from the existing Mac-to-iPhone channel.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Fork release: combine upstream v0.46.0-v0.47.0 into Mac <code>0.47.0.1</code> (<code>111.1.1.20.0</code> Sparkle build) and iOS <code>1.20.0</code>.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Fork integration: preserve Production CloudKit, mobile sync defaults, collision-safe versioning, signing, appcast, and fork CI policy while incorporating all upstream fixes through v0.47.0.</li>
+<li>Mac fleet sync: remove this Mac's stale CloudKit account snapshots only after confirmed account/provider changes, preserving last-good data through transient refresh failures and snapshots owned by other Macs.</li>
+<li>Linux CLI: atomically replace the persisted Codex cost cache without deleting the prior cache when Foundation replacement fails.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.47.0.1-mobile.1.20.0/CodexBar-0.47.0.1-mobile.1.20.0.zip" length="62358278" type="application/octet-stream" sparkle:edSignature="awgVecBs4b5PBAZ2t584y2lIozjt0Ip/CCnX1+BMaGayNBRvE6wEOfqyZXmNnqR3WZnrw5SMV5VEpa2cFUmDCQ=="/>
+        </item>
+        <item>
             <title>0.45.2.2</title>
             <pubDate>Mon, 27 Jul 2026 14:36:01 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -43,52 +69,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.45.2.1-mobile.1.19.0/CodexBar-0.45.2.1-mobile.1.19.0.zip" length="55674294" type="application/octet-stream" sparkle:edSignature="2iisGkBDN77ZbFDkDkJF2SVjEt5lTupzIWjSa/9BkiyFZpj1tG439g2g3aegs7CulcDPBpvirlhS/KPLuFlvAg=="/>
-        </item>
-        <item>
-            <title>0.41.0.1</title>
-            <pubDate>Wed, 15 Jul 2026 16:45:52 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>100.1.1.18.0</sparkle:version>
-            <sparkle:shortVersionString>0.41.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.41.0.1-Mobile 1.18.0</h2>
-Syncs the Mac app from the fork baseline at upstream <strong>v0.39.0</strong> through
-<strong>v0.40.0</strong> and <strong>v0.41.0</strong> as one release, paired with iOS <strong>1.18.0</strong>.
-<h3>Added / Improved</h3>
-<ul>
-<li><strong>Reliable iCloud sync and diagnostics</strong> — Mac uploads now use cancellable</li>
-</ul>
-  CloudKit operations with a 45-second deadline, serialize overlapping pushes,
-  expose the active phase, and report failures instead of remaining on
-  “Syncing” indefinitely. The existing KVS fallback is written before CloudKit
-  waits, and Advanced → Debug plus Mobile developer tools now provide a
-  read-only account/zone/KVS diagnostic and copyable file-log evidence.
-<ul>
-<li><strong>Complete Mac upstream sync</strong> — Includes Claude read-only <code>claude-swap</code> account cards/switching, the responsive <code>codexbar cards</code> CLI, cost-chart scale labels, Antigravity pace, Kimi subscription quota rows, Mistral widget selection, Devin extra-usage balance, and the upstream Settings refinements.</li>
-<li><strong>Provider correctness and safety</strong> — Includes Kimi/Kimi K2 endpoint and finite-value fixes, Claude fractional utilization and account-history isolation, Gemini consumer-tier/Flash corrections, Alibaba international region support, browser Safe Storage prompt suppression, Codex weekly-cap presentation, and Tahoe menu-bar recovery.</li>
-<li><strong>Cost and parser performance</strong> — Reuses Codex pricing/catalog work, migrates incomplete cached cost maps before reporting, discovers nested Claude Desktop projects, bumps <code>parserLogicVersion</code> to 8, and regenerates the parser hash.</li>
-<li><strong>iOS 1.18 parity</strong> — Kimi Weekly / Rate Limit / Monthly / Code 7-day lanes and Claude Max 5x/20x labels reuse the existing optional sync fields. Positive values below 1% display as &lt;1% on iPhone.</li>
-</ul>
-<h3>Compatibility</h3>
-<ul>
-<li>No Shared payload key or CloudKit record schema field is added. Kimi uses existing <code>rateWindows</code>; Claude uses existing <code>loginMethod</code>.</li>
-<li>CloudKit remains Production. The upstream-sync audit is recorded in</li>
-</ul>
-  <code>CodexBarMobile/Research/039-v041-upstream-sync/03-testing.md</code>; the bounded
-  writer, diagnostics, and updated 16-case evidence are in
-  <code>CodexBarMobile/Research/040-icloud-sync-timeout-diagnostics/03-testing.md</code>.
-<h3>中文说明</h3>
-本次把 fork 从上游 <strong>v0.39.0</strong> 一次性同步到 <strong>v0.41.0</strong>，覆盖 v0.40.0 与
-v0.41.0，并配套 iOS <strong>1.18.0</strong>，不拆成多个用户可见版本。
-<ul>
-<li>Mac 端完整纳入 Claude 多账号、<code>codexbar cards</code> CLI、Kimi 多条订阅 quota、Antigravity pace、成本图刻度、Settings 改进，以及 provider、安全、性能修复。</li>
-<li>iPhone 通过既有 <code>rateWindows</code> 显示 Kimi Weekly / Rate Limit / Monthly / Code 7-day，通过既有 <code>loginMethod</code> 显示 Claude Max 5x/20x；正数且低于 1% 的用量显示为 &lt;1%。</li>
-<li>本轮不新增 Shared payload key 或 CloudKit record schema field；最终审计与 16 组合兼容矩阵记录在本轮 Research 测试文档中。</li>
-</ul>
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.41.0.1-mobile.1.18.0/CodexBar-0.41.0.1-mobile.1.18.0.zip" length="47521329" type="application/octet-stream" sparkle:edSignature="MYSi2/aN66/I398M7fWcNKSaxBZX3DSRPV+jbbR8mKBiGX/Y17PTS50lpQoQXUJAH1KoLgOaQis/wUjIhGTnAg=="/>
         </item>
         <item>
             <title>0.14.0</title>
