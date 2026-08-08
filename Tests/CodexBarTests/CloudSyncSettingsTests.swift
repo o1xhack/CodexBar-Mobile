@@ -260,6 +260,97 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `remote provider account removal creates a durable snapshot tombstone`() async throws {
+        let fixture = try self.makeFixture("remote-account-removal")
+        let persistence = self.makePersistence("remote-account-removal")
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Remote account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        var initial = fixture.store.configSnapshot
+        var openAI = try #require(initial.providerConfig(for: .openai))
+        openAI.tokenAccounts = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
+        initial.setProviderConfig(openAI)
+        fixture.store.applyExternalConfig(initial, reason: "seed")
+        let snapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: fixture.store.macFleetSyncDeviceID)
+        try persistence.save(.init(
+            stateSerialization: nil,
+            encodedSystemFields: [:],
+            snapshotOwnershipKnownRecordNames: [snapshot.recordName],
+            snapshotTokenAccountIDs: [snapshot.recordName: account.id],
+            fleetSnapshots: [snapshot.recordName: snapshot]))
+        let engine = CloudSyncEngine(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence,
+            initialConfiguration: initial,
+            initialConfigurationRevision: fixture.store.configRevision,
+            initialPreferences: fixture.store.syncedPreferences,
+            initialIncludeSecrets: fixture.store.macFleetSyncIncludeSecrets)
+        var remoteConfig = openAI
+        remoteConfig.tokenAccounts = nil
+        let recordID = CKRecord.ID(
+            recordName: ProviderIntentPayload.recordName(for: .openai),
+            zoneID: CloudSyncEngine.zoneID)
+        let record = CKRecord(recordType: SyncRecordType.providerIntent.rawValue, recordID: recordID)
+        record["payload"] = try CanonicalSyncJSON.string(ProviderIntentPayload(config: remoteConfig)) as CKRecordValue
+        record.encryptedValues[ProviderIntentSecretField.tokenAccounts.rawValue] = "" as CKRecordValue
+
+        await engine.applyFetchedRecords([record])
+
+        #expect(fixture.store.tokenAccounts(for: .openai).isEmpty)
+        #expect(persistence.load().snapshotDeletionRecordNames == [snapshot.recordName])
+    }
+
+    @Test
+    func `external config reload reconciles removed account snapshots`() async throws {
+        let fixture = try self.makeFixture("external-account-removal")
+        let persistence = self.makePersistence("external-account-removal")
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "External account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        var initial = fixture.store.configSnapshot
+        var openAI = try #require(initial.providerConfig(for: .openai))
+        openAI.tokenAccounts = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
+        initial.setProviderConfig(openAI)
+        fixture.store.applyExternalConfig(initial, reason: "seed")
+        let snapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: fixture.store.macFleetSyncDeviceID)
+        try persistence.save(.init(
+            stateSerialization: nil,
+            encodedSystemFields: [:],
+            snapshotOwnershipKnownRecordNames: [snapshot.recordName],
+            snapshotTokenAccountIDs: [snapshot.recordName: account.id],
+            fleetSnapshots: [snapshot.recordName: snapshot]))
+        let coordinator = CloudSyncCoordinator(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence)
+        coordinator.start(startEngine: false)
+        defer { coordinator.stop() }
+        var external = initial
+        openAI.tokenAccounts = nil
+        external.setProviderConfig(openAI)
+
+        fixture.store.applyExternalConfig(external, reason: "file-reload")
+
+        for _ in 0..<50 where !persistence.load().snapshotDeletionRecordNames.contains(snapshot.recordName) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(persistence.load().snapshotDeletionRecordNames == [snapshot.recordName])
+    }
+
+    @Test
     func `missing desired record drains its pending save`() {
         let recordID = CKRecord.ID(recordName: "stale", zoneID: CloudSyncEngine.zoneID)
         let change = CKSyncEngine.PendingRecordZoneChange.saveRecord(recordID)
@@ -593,6 +684,29 @@ struct CloudSyncSettingsTests {
         #expect(restored.recordNamesToDelete.isEmpty)
         #expect(restored.recordNamesToCancel == [removedSnapshot.recordName])
         #expect(restored.providersRequiringFreshAuthority.isEmpty)
+    }
+
+    @Test
+    func `persisted ownership repairs an offline account removal on relaunch`() {
+        let removedAccountID = UUID()
+        let removedSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: "this-mac")
+
+        let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [:],
+            currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .openai, enabled: true)]),
+            state: .init(
+                candidateSnapshots: [removedSnapshot.recordName: removedSnapshot],
+                ownershipKnownRecordNames: [removedSnapshot.recordName],
+                tokenAccountIDsByRecordName: [removedSnapshot.recordName: removedAccountID],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+
+        #expect(plan.pendingRecordNames == [removedSnapshot.recordName])
+        #expect(plan.recordNamesToDelete == [removedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.openai])
     }
 
     @Test

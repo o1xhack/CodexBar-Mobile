@@ -11,8 +11,21 @@ extension Notification.Name {
     static let codexbarSessionLimitReset = Notification.Name("codexbarSessionLimitReset")
     static let codexbarWeeklyLimitReset = Notification.Name("codexbarWeeklyLimitReset")
     static let codexbarProviderConfigDidChange = Notification.Name("codexbarProviderConfigDidChange")
+    static let codexbarExternalProviderConfigDidChange = Notification.Name("codexbarExternalProviderConfigDidChange")
     static let codexbarUsageSnapshotsDidChange = Notification.Name("codexbarUsageSnapshotsDidChange")
     static let codexbarQuotaWarningDidPost = Notification.Name("codexbarQuotaWarningDidPost")
+}
+
+final class ExternalProviderConfigDidChangeEvent: NSObject, @unchecked Sendable {
+    let previousConfig: CodexBarConfig
+    let currentConfig: CodexBarConfig
+    let revision: Int
+
+    init(previousConfig: CodexBarConfig, currentConfig: CodexBarConfig, revision: Int) {
+        self.previousConfig = previousConfig
+        self.currentConfig = currentConfig
+        self.revision = revision
+    }
 }
 
 final class UsageSnapshotsDidChangeEvent: NSObject, @unchecked Sendable {

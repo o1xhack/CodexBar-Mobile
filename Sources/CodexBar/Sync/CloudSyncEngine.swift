@@ -287,19 +287,13 @@ enum CloudSyncSnapshotConfigurationReconciliation {
             previousConfigs: previousConfigs,
             currentAccounts: currentAccounts,
             state: state)
-        let removedAccounts = previousConfigs.compactMapValues { previousConfig -> [ProviderTokenAccount]? in
-            let currentIDs = Set(currentAccounts[previousConfig.id, default: []].map(\.id))
-            let removed = (previousConfig.tokenAccounts?.accounts ?? []).filter { !currentIDs.contains($0.id) }
-            return removed.isEmpty ? nil : removed
-        }
         let newlyRemovedRecordNames = Set<String>(state.candidateSnapshots.compactMap { recordName, snapshot in
-            guard snapshot.deviceID == state.deviceID,
-                  let removed = removedAccounts[snapshot.provider]
-            else { return nil }
+            guard snapshot.deviceID == state.deviceID else { return nil }
             guard ownership.knownRecordNames.contains(recordName),
                   let accountID = ownership.tokenAccountIDsByRecordName[recordName]
             else { return nil }
-            return removed.contains(where: { $0.id == accountID }) ? recordName : nil
+            let currentIDs = Set(currentAccounts[snapshot.provider, default: []].map(\.id))
+            return currentIDs.contains(accountID) ? nil : recordName
         })
         let restoredRecordNames = Set(state.pendingRecordNames.filter { recordName in
             guard let provider = self.provider(
@@ -438,6 +432,14 @@ enum CloudSyncSnapshotDeletionIntentReconciliation {
     }
 }
 
+private struct ExternalProviderConfigurationTransition {
+    let merged: ProviderConfig
+    let previousConfig: CodexBarConfig
+    let currentConfig: CodexBarConfig
+    let revision: Int
+    let deviceID: String
+}
+
 enum CloudSyncEntitlementGate {
     static let entitlement = "com.apple.developer.icloud-services"
 
@@ -476,6 +478,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var latestAcceptedSnapshotPublicationGenerations: [UsageProvider: UInt64] = [:]
     private var lastSnapshotHashes: [String: String] = [:]
     private var lastKnownProviderConfigs: [UsageProvider: ProviderConfig] = [:]
+    private var lastAppliedConfigurationRevision: Int
     private var lastKnownPreferences: SyncedPreferences?
     private var lastKnownIncludeSecrets: Bool?
     private var quotaRetryState = CloudSyncQuotaRetryState()
@@ -487,6 +490,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         state: CloudSyncState,
         persistence: CloudSyncPersistence = CloudSyncPersistence(),
         initialConfiguration: CodexBarConfig? = nil,
+        initialConfigurationRevision: Int = 0,
         initialPreferences: SyncedPreferences? = nil,
         initialIncludeSecrets: Bool? = nil)
     {
@@ -494,6 +498,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         self.state = state
         self.persistence = persistence
         self.persistenceEnvelope = persistence.load()
+        self.lastAppliedConfigurationRevision = initialConfigurationRevision
         if let initialConfiguration {
             self.lastKnownProviderConfigs = Dictionary(
                 uniqueKeysWithValues: initialConfiguration.providers.map { ($0.id, $0) })
@@ -531,9 +536,17 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             if !self.persistenceEnvelope.recordMetadata.keys.contains(where: { $0.hasPrefix("intent-") }) {
                 await self.fetchChanges()
             }
-            let configuredProviders = await MainActor.run { self.settings.configSnapshot.providers.map(\.id) }
+            let currentConfiguration = await MainActor.run {
+                (
+                    config: self.settings.configSnapshot,
+                    deviceID: self.settings.macFleetSyncDeviceID)
+            }
+            _ = self.stageSnapshotConfigurationReconciliation(
+                previousConfigs: self.lastKnownProviderConfigs,
+                currentConfig: currentConfiguration.config,
+                deviceID: currentConfiguration.deviceID)
             CloudSyncDirtyState.markBootstrapDirtyIfNeeded(
-                configuredProviders: configuredProviders,
+                configuredProviders: currentConfiguration.config.providers.map(\.id),
                 envelope: &self.persistenceEnvelope)
             self.persistEnvelope()
             try await self.queueCurrentConfigurationAndPreferences()
@@ -985,35 +998,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         return false
     }
 
-    private func applyProviderIntent(_ record: CKRecord) async throws {
-        guard let payloadString = record["payload"] as? String else { return }
-        let payload = try CanonicalSyncJSON.decode(ProviderIntentPayload.self, from: payloadString)
-        let secrets = self.encryptedStringFields(record)
-        let merged = try await MainActor.run {
-            var config = self.settings.configSnapshot
-            guard let local = config.providerConfig(for: payload.provider) else { return nil as ProviderConfig? }
-            let merged = try payload.applying(
-                to: local,
-                secretFields: self.settings.macFleetSyncIncludeSecrets ? secrets : [:],
-                canEnable: self.settings.canEnableProviderFromSync)
-            config.setProviderConfig(merged)
-            self.settings.applyExternalConfig(config, reason: "icloud", affectsBackgroundWork: true)
-            // applyExternalConfig deliberately skips persistence (its other caller reloads FROM
-            // the config file). Sync applies originate remotely, so the merge must reach disk —
-            // the CLI and the next app launch read config.json, not our in-memory state.
-            self.settings.schedulePersistConfig()
-            return merged
-        }
-        guard let merged else { return }
-        self.lastKnownProviderConfigs[payload.provider] = merged
-        if payload.enabled == true, merged.enabled != true {
-            self.persistenceEnvelope.suppressedEnableIntents.insert(payload.provider.rawValue)
-        } else {
-            self.persistenceEnvelope.suppressedEnableIntents.remove(payload.provider.rawValue)
-        }
-        self.persistEnvelope()
-    }
-
     private func applyPreferences(_ record: CKRecord) async throws {
         guard let payloadString = record["payload"] as? String else { return }
         let payload = try CanonicalSyncJSON.decode(PreferencesSyncPayload.self, from: payloadString)
@@ -1307,37 +1291,70 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 }
 
 extension CloudSyncEngine {
-    func localUserConfigurationDidChange(_ config: CodexBarConfig) async {
-        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
-        var candidateSnapshots = self.persistenceEnvelope.fleetSnapshots
-        for snapshot in self.pendingSnapshots {
-            candidateSnapshots[snapshot.recordName] = snapshot
+    private func applyProviderIntent(_ record: CKRecord) async throws {
+        guard let payloadString = record["payload"] as? String else { return }
+        let payload = try CanonicalSyncJSON.decode(ProviderIntentPayload.self, from: payloadString)
+        let secrets = self.encryptedStringFields(record)
+        let transition = try await MainActor.run { () -> ExternalProviderConfigurationTransition? in
+            let previousConfig = self.settings.configSnapshot
+            var config = previousConfig
+            guard let local = config.providerConfig(for: payload.provider) else { return nil }
+            let merged = try payload.applying(
+                to: local,
+                secretFields: self.settings.macFleetSyncIncludeSecrets ? secrets : [:],
+                canEnable: self.settings.canEnableProviderFromSync)
+            config.setProviderConfig(merged)
+            self.settings.applyExternalConfig(config, reason: "icloud", affectsBackgroundWork: true)
+            // applyExternalConfig deliberately skips persistence (its other caller reloads FROM
+            // the config file). Sync applies originate remotely, so the merge must reach disk —
+            // the CLI and the next app launch read config.json, not our in-memory state.
+            self.settings.schedulePersistConfig()
+            return ExternalProviderConfigurationTransition(
+                merged: merged,
+                previousConfig: previousConfig,
+                currentConfig: self.settings.configSnapshot,
+                revision: self.settings.configRevision,
+                deviceID: self.settings.macFleetSyncDeviceID)
         }
-        var ownershipKnownRecordNames = self.persistenceEnvelope.snapshotOwnershipKnownRecordNames
-        ownershipKnownRecordNames.formUnion(self.pendingSnapshots.map(\.recordName))
-        var tokenAccountIDsByRecordName = self.persistenceEnvelope.snapshotTokenAccountIDs
-        tokenAccountIDsByRecordName.merge(self.pendingSnapshotTokenAccountIDs) { _, pending in pending }
-        let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
-            previousConfigs: self.lastKnownProviderConfigs,
+        guard let transition else { return }
+        await self.externalConfigurationDidChange(
+            previousConfig: transition.previousConfig,
+            currentConfig: transition.currentConfig,
+            revision: transition.revision,
+            deviceID: transition.deviceID)
+        let merged = transition.merged
+        if payload.enabled == true, merged.enabled != true {
+            self.persistenceEnvelope.suppressedEnableIntents.insert(payload.provider.rawValue)
+        } else {
+            self.persistenceEnvelope.suppressedEnableIntents.remove(payload.provider.rawValue)
+        }
+        self.persistEnvelope()
+    }
+
+    func localUserConfigurationDidChange(
+        _ config: CodexBarConfig,
+        revision: Int? = nil,
+        deviceID: String? = nil) async
+    {
+        guard self.acceptConfigurationRevision(revision) else { return }
+        let resolvedDeviceID = if let deviceID {
+            deviceID
+        } else {
+            await MainActor.run { self.settings.macFleetSyncDeviceID }
+        }
+        let previousConfigs = self.lastKnownProviderConfigs
+        let snapshotPlan = self.stageSnapshotConfigurationReconciliation(
+            previousConfigs: previousConfigs,
             currentConfig: config,
-            state: .init(
-                candidateSnapshots: candidateSnapshots,
-                ownershipKnownRecordNames: ownershipKnownRecordNames,
-                tokenAccountIDsByRecordName: tokenAccountIDsByRecordName,
-                deviceID: deviceID,
-                pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames))
-        self.persistenceEnvelope.snapshotDeletionRecordNames = snapshotPlan.pendingRecordNames
-        self.persistenceEnvelope.snapshotOwnershipKnownRecordNames = snapshotPlan.ownershipKnownRecordNames
-        self.persistenceEnvelope.snapshotTokenAccountIDs = snapshotPlan.tokenAccountIDsByRecordName
-        self.pendingSnapshotAuthoritativeProviders.subtract(snapshotPlan.providersRequiringFreshAuthority)
+            deviceID: resolvedDeviceID)
         let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
         for providerConfig in config.providers {
-            if let previous = self.lastKnownProviderConfigs[providerConfig.id],
+            if let previous = previousConfigs[providerConfig.id],
                previous.enabled != providerConfig.enabled
             {
                 self.persistenceEnvelope.suppressedEnableIntents.remove(providerConfig.id.rawValue)
             }
-            guard let previous = self.lastKnownProviderConfigs[providerConfig.id] else {
+            guard let previous = previousConfigs[providerConfig.id] else {
                 self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
                 continue
             }
@@ -1360,6 +1377,62 @@ extension CloudSyncEngine {
         await self.applySnapshotConfigurationDeletionIntents(
             recordNamesToDelete: snapshotPlan.recordNamesToDelete,
             recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+    }
+
+    func externalConfigurationDidChange(
+        previousConfig: CodexBarConfig,
+        currentConfig: CodexBarConfig,
+        revision: Int,
+        deviceID: String) async
+    {
+        guard self.acceptConfigurationRevision(revision) else { return }
+        let previousConfigs = Dictionary(uniqueKeysWithValues: previousConfig.providers.map { ($0.id, $0) })
+        let snapshotPlan = self.stageSnapshotConfigurationReconciliation(
+            previousConfigs: previousConfigs,
+            currentConfig: currentConfig,
+            deviceID: deviceID)
+        self.lastKnownProviderConfigs = Dictionary(
+            uniqueKeysWithValues: currentConfig.providers.map { ($0.id, $0) })
+        self.persistEnvelope()
+        await self.applySnapshotConfigurationDeletionIntents(
+            recordNamesToDelete: snapshotPlan.recordNamesToDelete,
+            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+    }
+
+    private func acceptConfigurationRevision(_ revision: Int?) -> Bool {
+        guard let revision else { return true }
+        guard revision > self.lastAppliedConfigurationRevision else { return false }
+        self.lastAppliedConfigurationRevision = revision
+        return true
+    }
+
+    private func stageSnapshotConfigurationReconciliation(
+        previousConfigs: [UsageProvider: ProviderConfig],
+        currentConfig: CodexBarConfig,
+        deviceID: String) -> CloudSyncSnapshotConfigurationReconciliation.Plan
+    {
+        var candidateSnapshots = self.persistenceEnvelope.fleetSnapshots
+        for snapshot in self.pendingSnapshots {
+            candidateSnapshots[snapshot.recordName] = snapshot
+        }
+        var ownershipKnownRecordNames = self.persistenceEnvelope.snapshotOwnershipKnownRecordNames
+        ownershipKnownRecordNames.formUnion(self.pendingSnapshots.map(\.recordName))
+        var tokenAccountIDsByRecordName = self.persistenceEnvelope.snapshotTokenAccountIDs
+        tokenAccountIDsByRecordName.merge(self.pendingSnapshotTokenAccountIDs) { _, pending in pending }
+        let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: previousConfigs,
+            currentConfig: currentConfig,
+            state: .init(
+                candidateSnapshots: candidateSnapshots,
+                ownershipKnownRecordNames: ownershipKnownRecordNames,
+                tokenAccountIDsByRecordName: tokenAccountIDsByRecordName,
+                deviceID: deviceID,
+                pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames))
+        self.persistenceEnvelope.snapshotDeletionRecordNames = snapshotPlan.pendingRecordNames
+        self.persistenceEnvelope.snapshotOwnershipKnownRecordNames = snapshotPlan.ownershipKnownRecordNames
+        self.persistenceEnvelope.snapshotTokenAccountIDs = snapshotPlan.tokenAccountIDsByRecordName
+        self.pendingSnapshotAuthoritativeProviders.subtract(snapshotPlan.providersRequiringFreshAuthority)
+        return snapshotPlan
     }
 
     func queueSnapshots(
