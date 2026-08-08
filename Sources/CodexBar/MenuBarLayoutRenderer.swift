@@ -212,7 +212,10 @@ final class MenuBarLayoutRenderer {
                     attributes: style.attributes)
             }
             let attachment = NSTextAttachment()
-            attachment.image = Self.attachmentImage(icon, tint: style.foregroundColor)
+            attachment.image = Self.attachmentImage(
+                icon,
+                tint: style.foregroundColor,
+                appearanceName: options.appearanceName)
             let height = style.iconHeight
             let width = icon.size.height > 0 ? icon.size.width * height / icon.size.height : height
             attachment.bounds = NSRect(
@@ -309,17 +312,65 @@ final class MenuBarLayoutRenderer {
         }
     }
 
-    private static func attachmentImage(_ image: NSImage, tint: NSColor) -> NSImage {
+    private static func attachmentImage(
+        _ image: NSImage,
+        tint: NSColor,
+        appearanceName: String)
+        -> NSImage
+    {
         guard image.isTemplate else { return image }
 
         // NSTextAttachment draws an NSImage directly instead of through an image cell, so AppKit does not
         // apply template tinting here. Keep a template image for status-item semantics while drawing its mask
-        // with the same dynamic foreground color as the surrounding title.
-        let tintedImage = NSImage(size: image.size, flipped: false) { rect in
-            image.draw(in: rect)
+        // with the same dynamic foreground color as the surrounding title. Materialize the result now: an
+        // NSImage drawing handler is invoked later by AppKit's Objective-C drawing path and can cross the
+        // @MainActor boundary without a Swift task context.
+        let size = image.size
+        let scale: CGFloat = 2
+        guard let representation = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: max(1, Int((size.width * scale).rounded(.up))),
+            pixelsHigh: max(1, Int((size.height * scale).rounded(.up))),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0)
+        else {
+            return image
+        }
+
+        representation.size = size
+        let tintedImage = NSImage(size: size)
+        tintedImage.addRepresentation(representation)
+        let draw = {
+            NSGraphicsContext.saveGraphicsState()
+            defer { NSGraphicsContext.restoreGraphicsState() }
+            guard let context = NSGraphicsContext(bitmapImageRep: representation) else {
+                return
+            }
+            NSGraphicsContext.current = context
+            let rect = NSRect(origin: .zero, size: size)
+            image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
             tint.setFill()
             rect.fill(using: .sourceAtop)
-            return true
+        }
+        let appearance: NSAppearance? =
+            if appearanceName == "aqua" || appearanceName == NSAppearance.Name.aqua.rawValue {
+                NSAppearance(named: .aqua)
+            } else if appearanceName == "darkAqua"
+                || appearanceName == NSAppearance.Name.darkAqua.rawValue
+            {
+                NSAppearance(named: .darkAqua)
+            } else {
+                NSAppearance(named: NSAppearance.Name(rawValue: appearanceName))
+            }
+        if let appearance {
+            appearance.performAsCurrentDrawingAppearance(draw)
+        } else {
+            draw()
         }
         tintedImage.isTemplate = true
         return tintedImage

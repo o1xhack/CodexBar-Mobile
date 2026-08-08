@@ -276,8 +276,13 @@ final class SettingsWindowAppearanceView: NSView {
         self.refreshWindowAppearance()
     }
 
-    @objc private func windowDidUpdate(_ notification: Notification) {
-        self.configureWindowStyle()
+    /// AppKit invokes this selector through Objective-C notification machinery. Keep the entry point
+    /// nonisolated so Swift does not synthesize an executor check before the callback body, then hop to the
+    /// main actor before touching the view or its window.
+    @objc private nonisolated func windowDidUpdate(_ notification: Notification) {
+        Task { @MainActor [weak self] in
+            self?.configureWindowStyle()
+        }
     }
 
     func refreshWindowAppearance(for colorScheme: ColorScheme, windowTitle: String? = nil) {
