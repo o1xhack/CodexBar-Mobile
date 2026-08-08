@@ -235,11 +235,12 @@ enum CloudSyncSnapshotConfigurationReconciliation {
             let currentIDs = Set(currentAccounts[snapshot.provider, default: []].map(\.id))
             return currentIDs.contains(accountID) ? nil : recordName
         })
+        // Presence can safely cancel a destructive intent even when the configuration cannot
+        // authorize absence. This also repairs pending CKSyncEngine deletes after sync was off.
         let restoredRecordNames = Set(state.pendingRecordNames.filter { recordName in
             guard let provider = self.provider(
                 for: recordName,
                 candidateSnapshots: state.candidateSnapshots),
-                authoritativeProviders.contains(provider),
                 let accounts = currentAccounts[provider],
                 !accounts.isEmpty
             else { return false }
@@ -338,9 +339,15 @@ enum CloudSyncSnapshotConfigurationReconciliation {
 }
 
 enum CloudSyncStartupSnapshotDeletionAuthority {
-    static func loadConfiguration(from store: CodexBarConfigStore) -> CodexBarConfig? {
+    static func loadConfiguration(
+        from store: CodexBarConfigStore,
+        matching currentConfig: CodexBarConfig) -> CodexBarConfig?
+    {
         do {
-            return try store.load()
+            guard let loaded = try store.load(),
+                  try store.encodedData(for: loaded) == store.encodedData(for: currentConfig)
+            else { return nil }
+            return loaded
         } catch {
             return nil
         }
@@ -483,19 +490,22 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             // that was decoded from disk successfully. SettingsStore intentionally falls back
             // to defaults when its startup load fails; that fallback is not removal evidence.
             let startupConfiguration = await MainActor.run {
-                (
-                    config: CloudSyncStartupSnapshotDeletionAuthority.loadConfiguration(
-                        from: self.settings.configStore),
+                let currentConfig = self.settings.configSnapshot
+                return (
+                    config: currentConfig,
+                    canDelete: CloudSyncStartupSnapshotDeletionAuthority.loadConfiguration(
+                        from: self.settings.configStore,
+                        matching: currentConfig) != nil,
                     deviceID: self.settings.macFleetSyncDeviceID)
             }
-            if let startupConfig = startupConfiguration.config {
-                _ = self.stageSnapshotConfigurationReconciliation(
-                    previousConfigs: self.lastKnownProviderConfigs,
-                    currentConfig: startupConfig,
-                    authoritativeProviders: Set(startupConfig.providers.map(\.id)),
-                    deviceID: startupConfiguration.deviceID)
-                self.persistEnvelope()
-            }
+            let startupSnapshotPlan = self.stageSnapshotConfigurationReconciliation(
+                previousConfigs: self.lastKnownProviderConfigs,
+                currentConfig: startupConfiguration.config,
+                authoritativeProviders: startupConfiguration.canDelete
+                    ? Set(startupConfiguration.config.providers.map(\.id))
+                    : [],
+                deviceID: startupConfiguration.deviceID)
+            self.persistEnvelope()
             let initialized = try await self.initializeEngineIfNeeded()
             guard self.engine != nil else { return }
             // First sync on this device: apply the fleet's existing state before composing
@@ -514,7 +524,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             try await self.queueDeviceRecord()
             await self.applySnapshotConfigurationDeletionIntents(
                 recordNamesToDelete: self.persistenceEnvelope.snapshotDeletionRecordNames,
-                recordNamesToCancel: [])
+                recordNamesToCancel: startupSnapshotPlan.recordNamesToCancel)
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
@@ -1365,7 +1375,7 @@ extension CloudSyncEngine {
         // A remote apply can overtake a queued local notification. Preserve any local delta
         // already present in the remote transition's previousConfig before advancing the
         // baseline to the newer external revision.
-        _ = self.stageLocalConfigurationChanges(
+        let overtakenLocalPlan = self.stageLocalConfigurationChanges(
             previousConfigs: self.lastKnownProviderConfigs,
             currentConfig: previousConfig,
             deviceID: deviceID)
@@ -1381,7 +1391,7 @@ extension CloudSyncEngine {
         self.persistEnvelope()
         await self.applySnapshotConfigurationDeletionIntents(
             recordNamesToDelete: snapshotPlan.recordNamesToDelete,
-            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+            recordNamesToCancel: overtakenLocalPlan.recordNamesToCancel.union(snapshotPlan.recordNamesToCancel))
     }
 
     private func acceptConfigurationRevision(_ revision: Int?) -> Bool {

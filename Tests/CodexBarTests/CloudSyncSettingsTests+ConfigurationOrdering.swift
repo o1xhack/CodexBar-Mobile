@@ -48,7 +48,8 @@ extension CloudSyncSettingsTests {
         let configURL = directory.appendingPathComponent("config.json")
         try Data("{not-valid-json".utf8).write(to: configURL)
         let config = CloudSyncStartupSnapshotDeletionAuthority.loadConfiguration(
-            from: CodexBarConfigStore(fileURL: configURL))
+            from: CodexBarConfigStore(fileURL: configURL),
+            matching: CodexBarConfig.makeDefault())
         let snapshot = Self.snapshot(
             provider: .openai,
             accountKey: "preserved",
@@ -68,5 +69,76 @@ extension CloudSyncSettingsTests {
         #expect(config == nil)
         #expect(plan.pendingRecordNames.isEmpty)
         #expect(plan.recordNamesToDelete.isEmpty)
+    }
+
+    @Test
+    func `stale debounced startup config cannot authorize snapshot reconciliation`() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CloudSyncStaleStartupConfig-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let configStore = CodexBarConfigStore(fileURL: directory.appendingPathComponent("config.json"))
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Stale account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        var diskConfig = CodexBarConfig.makeDefault()
+        var diskOpenAI = try #require(diskConfig.providerConfig(for: .openai))
+        diskOpenAI.tokenAccounts = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
+        diskConfig.setProviderConfig(diskOpenAI)
+        try configStore.save(diskConfig)
+        var currentConfig = diskConfig
+        diskOpenAI.tokenAccounts = nil
+        currentConfig.setProviderConfig(diskOpenAI)
+
+        let authority = CloudSyncStartupSnapshotDeletionAuthority.loadConfiguration(
+            from: configStore,
+            matching: currentConfig)
+
+        #expect(authority == nil)
+    }
+
+    @Test
+    func `overtaken account restoration keeps its pending delete cancellation`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Restored account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        let empty = ProviderConfig(id: .openai, enabled: true)
+        let populated = ProviderConfig(
+            id: .openai,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+        let snapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "restored",
+            deviceID: "this-mac")
+        let first = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: empty],
+            currentConfig: CodexBarConfig(providers: [populated]),
+            authoritativeProviders: [],
+            state: .init(
+                candidateSnapshots: [snapshot.recordName: snapshot],
+                ownershipKnownRecordNames: [snapshot.recordName],
+                tokenAccountIDsByRecordName: [snapshot.recordName: account.id],
+                deviceID: "this-mac",
+                pendingRecordNames: [snapshot.recordName]))
+        let second = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: populated],
+            currentConfig: CodexBarConfig(providers: [populated]),
+            authoritativeProviders: [],
+            state: .init(
+                candidateSnapshots: [snapshot.recordName: snapshot],
+                ownershipKnownRecordNames: first.ownershipKnownRecordNames,
+                tokenAccountIDsByRecordName: first.tokenAccountIDsByRecordName,
+                deviceID: "this-mac",
+                pendingRecordNames: first.pendingRecordNames))
+
+        #expect(first.recordNamesToCancel == [snapshot.recordName])
+        #expect(second.recordNamesToCancel.isEmpty)
+        #expect(first.recordNamesToCancel.union(second.recordNamesToCancel) == [snapshot.recordName])
     }
 }
