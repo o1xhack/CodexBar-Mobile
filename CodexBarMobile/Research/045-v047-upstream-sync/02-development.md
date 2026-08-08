@@ -106,6 +106,11 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   120 秒 throttle 中尚未入 `fleetSnapshots` 的 queued snapshots 与其 ownership 一并纳入
   tombstone 计算，避免“先排队、后删账号、timer 再上传”的 ghost record。离线/重启后继续
   删除，账号恢复或 authoritative fallback 接管同一 record 时取消 tombstone 与未发送 delete。
+  配置删除同时撤销受影响 provider 的旧 queued authority，避免被裁掉的旧 batch 在 timer
+  触发时把“空集”误解释成整个 provider 的 authoritative absence；下一次成功 refresh 再授予。
+  旧 cache 的 ownership 回填只接受稳定 account key（token account UUID 或 provider
+  external identifier），不再用可编辑 display label 猜测归属，避免同名 OAuth/cookie
+  fallback 被错误 tombstone。
   以上 provenance/tombstone 仅在 Mac 本地 persistence，不改变 CloudKit wire/schema。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，

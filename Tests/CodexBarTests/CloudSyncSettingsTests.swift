@@ -420,16 +420,18 @@ struct CloudSyncSettingsTests {
         #expect(restored.pendingRecordNames.isEmpty)
         #expect(restored.recordNamesToDelete.isEmpty)
         #expect(restored.recordNamesToCancel == [removedSnapshot.recordName])
+        #expect(restored.providersRequiringFreshAuthority.isEmpty)
     }
 
     @Test
-    func `legacy ownership backfill uses a unique display label and preserves fallback records`() {
+    func `legacy ownership backfill requires a stable account key and preserves same label fallback`() {
         let account = ProviderTokenAccount(
             id: UUID(),
             label: "Primary account",
             token: "test-token",
             addedAt: 1000,
-            lastUsed: nil)
+            lastUsed: nil,
+            externalIdentifier: "actual-account-id-from-provider")
         let populatedConfig = ProviderConfig(
             id: .claude,
             enabled: true,
@@ -443,7 +445,7 @@ struct CloudSyncSettingsTests {
             provider: .claude,
             accountKey: "oauth-fallback",
             deviceID: "this-mac",
-            displayLabel: "oauth@example.com")
+            displayLabel: account.label)
 
         let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
             previousConfigs: [.claude: populatedConfig],
@@ -461,6 +463,7 @@ struct CloudSyncSettingsTests {
         #expect(plan.recordNamesToDelete == [removedSnapshot.recordName])
         #expect(!plan.recordNamesToDelete.contains(fallbackSnapshot.recordName))
         #expect(plan.ownershipKnownRecordNames.contains(removedSnapshot.recordName))
+        #expect(!plan.ownershipKnownRecordNames.contains(fallbackSnapshot.recordName))
         #expect(plan.tokenAccountIDsByRecordName[removedSnapshot.recordName] == account.id)
     }
 
@@ -494,6 +497,7 @@ struct CloudSyncSettingsTests {
 
         #expect(plan.pendingRecordNames == [queuedSnapshot.recordName])
         #expect(plan.recordNamesToDelete == [queuedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.openai])
     }
 
     @Test

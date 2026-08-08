@@ -164,13 +164,9 @@ enum CloudSyncSnapshotConfigurationReconciliation {
         let pendingRecordNames: Set<String>
         let recordNamesToDelete: Set<String>
         let recordNamesToCancel: Set<String>
+        let providersRequiringFreshAuthority: Set<UsageProvider>
         let ownershipKnownRecordNames: Set<String>
         let tokenAccountIDsByRecordName: [String: UUID]
-    }
-
-    private struct LabelKey: Hashable {
-        let provider: UsageProvider
-        let label: String
     }
 
     static func plan(
@@ -221,10 +217,14 @@ enum CloudSyncSnapshotConfigurationReconciliation {
         let nextPendingRecordNames = state.pendingRecordNames
             .union(newlyRemovedRecordNames)
             .subtracting(restoredRecordNames)
+        let providersRequiringFreshAuthority = Set(nextPendingRecordNames.compactMap {
+            self.provider(for: $0, candidateSnapshots: state.candidateSnapshots)
+        })
         return Plan(
             pendingRecordNames: nextPendingRecordNames,
             recordNamesToDelete: nextPendingRecordNames,
             recordNamesToCancel: restoredRecordNames,
+            providersRequiringFreshAuthority: providersRequiringFreshAuthority,
             ownershipKnownRecordNames: ownership.knownRecordNames,
             tokenAccountIDsByRecordName: ownership.tokenAccountIDsByRecordName)
     }
@@ -249,25 +249,12 @@ enum CloudSyncSnapshotConfigurationReconciliation {
             accountsByProvider[provider, default: []].append(contentsOf: newAccounts)
         }
         let localSnapshots = state.candidateSnapshots.filter { $0.value.deviceID == state.deviceID }
-        let labelCounts = Dictionary(grouping: localSnapshots.values.compactMap { snapshot -> LabelKey? in
-            guard let label = self.normalized(snapshot.displayLabel) else { return nil }
-            return LabelKey(provider: snapshot.provider, label: label)
-        }, by: { $0 }).mapValues(\.count)
-
         var knownRecordNames = state.ownershipKnownRecordNames
         var tokenAccountIDsByRecordName = state.tokenAccountIDsByRecordName
         for (recordName, snapshot) in localSnapshots where !knownRecordNames.contains(recordName) {
             let accounts = accountsByProvider[snapshot.provider, default: []]
             let keyMatches = accounts.filter { self.matches(snapshot: snapshot, account: $0) }
-            let labelOwner: ProviderTokenAccount? = {
-                guard let label = self.normalized(snapshot.displayLabel),
-                      labelCounts[LabelKey(provider: snapshot.provider, label: label)] == 1
-                else { return nil }
-                let labelMatches = accounts.filter { self.normalized($0.label) == label }
-                return labelMatches.count == 1 ? labelMatches[0] : nil
-            }()
-            let owner = keyMatches.count == 1 ? keyMatches[0] : labelOwner
-            guard let owner else { continue }
+            guard keyMatches.count == 1, let owner = keyMatches.first else { continue }
             knownRecordNames.insert(recordName)
             tokenAccountIDsByRecordName[recordName] = owner.id
         }
@@ -297,7 +284,6 @@ enum CloudSyncSnapshotConfigurationReconciliation {
         Set([
             account.externalIdentifier,
             account.id.uuidString,
-            account.label,
         ].compactMap(self.normalized))
     }
 
@@ -1211,6 +1197,7 @@ extension CloudSyncEngine {
         self.persistenceEnvelope.snapshotDeletionRecordNames = snapshotPlan.pendingRecordNames
         self.persistenceEnvelope.snapshotOwnershipKnownRecordNames = snapshotPlan.ownershipKnownRecordNames
         self.persistenceEnvelope.snapshotTokenAccountIDs = snapshotPlan.tokenAccountIDsByRecordName
+        self.pendingSnapshotAuthoritativeProviders.subtract(snapshotPlan.providersRequiringFreshAuthority)
         let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
         for providerConfig in config.providers {
             if let previous = self.lastKnownProviderConfigs[providerConfig.id],
