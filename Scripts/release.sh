@@ -26,7 +26,6 @@ source "$ROOT/Scripts/sparkle_helpers.sh"
 APPCAST="$ROOT/appcast.xml"
 APP_NAME="CodexBar"
 RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
-ARTIFACT_PREFIX="CodexBar-"
 BUNDLE_ID="com.o1xhack.codexbar"
 RELEASE_BRANCH="mobile-dev"
 export CODEXBAR_RELEASE_BRANCH="$RELEASE_BRANCH"
@@ -326,7 +325,7 @@ phase2() {
     "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "$TAG"
   fi
 
-  check_assets "$TAG" "$ARTIFACT_PREFIX"
+  check_assets "$TAG" "$RELEASE_ASSET_BASENAME"
   # Note: the release tag was already pushed in phase 1
   # (git push -f origin "$TAG"). Running `git push origin --tags` here
   # tries to push ALL local tags — including the upstream tag namespace

@@ -5,16 +5,12 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/sparkle_helpers.sh"
 
 TAG=${1:-$(git describe --tags --abbrev=0)}
-ARTIFACT_PREFIX="CodexBar-macos-[A-Za-z0-9_+-]+-"
+ARTIFACT_BASENAME="CodexBar-${TAG#v}"
 
-check_assets "$TAG" "$ARTIFACT_PREFIX"
+check_assets "$TAG" "$ARTIFACT_BASENAME"
 
 VERSION=${TAG#v}
-if gh --live release view "$TAG" --json assets --jq '.assets[].name' >/dev/null 2>&1; then
-  assets=$(gh --live release view "$TAG" --json assets --jq '.assets[].name')
-else
-  assets=$(gh release view "$TAG" --json assets --jq '.assets[].name')
-fi
+assets=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json assets --jq '.assets[].name')
 missing=0
 for target in \
   macos-arm64 \
