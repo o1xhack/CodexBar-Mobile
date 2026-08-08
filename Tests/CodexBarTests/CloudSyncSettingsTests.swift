@@ -327,20 +327,88 @@ struct CloudSyncSettingsTests {
 
         #expect(store.cloudSyncAuthoritativeSnapshotProviders(
             [snapshot],
-            refreshedProviders: [.openai]) == [.openai])
+            successfulRefreshProviders: [.openai]) == [.openai])
 
         store.errors[.openai] = "transient network failure"
         #expect(store.cloudSyncAuthoritativeSnapshotProviders(
             [snapshot],
-            refreshedProviders: [.openai]).isEmpty)
+            successfulRefreshProviders: [.openai]).isEmpty)
 
         store.errors[.openai] = nil
-        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], refreshedProviders: []).isEmpty)
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], successfulRefreshProviders: []).isEmpty)
 
         let unrelated = Self.snapshot(provider: .claude, accountKey: "unrelated", deviceID: "this-mac")
         #expect(store.cloudSyncAuthoritativeSnapshotProviders(
             [snapshot, unrelated],
-            refreshedProviders: [.openai]) == [.openai])
+            successfulRefreshProviders: [.openai]) == [.openai])
+    }
+
+    @Test
+    func `suppressed provider fetch failure does not issue snapshot authority`() async throws {
+        let fixture = try self.makeFixture("snapshot-suppressed-failure")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        store.snapshots[.openai] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1000))
+        store._test_providerFetchOutcomeOverride = { _ in
+            ProviderFetchOutcome(
+                result: .failure(URLError(.timedOut)),
+                attempts: [])
+        }
+
+        let source = await store.refreshProviderForSnapshotPublication(.openai, allowDisabled: true)
+
+        #expect(source == nil)
+        #expect(store.errors[.openai] == nil)
+        #expect(store.providerSnapshotPublicationSources[.openai] == nil)
+    }
+
+    @Test
+    func `snapshot publication keeps fetch revision and advances provider generation`() async throws {
+        let fixture = try self.makeFixture("snapshot-publication-source")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        store._test_providerFetchOutcomeOverride = { _ in
+            ProviderFetchOutcome(
+                result: .success(ProviderFetchResult(
+                    usage: UsageSnapshot(
+                        primary: nil,
+                        secondary: nil,
+                        updatedAt: Date(timeIntervalSince1970: 2000)),
+                    credits: nil,
+                    dashboard: nil,
+                    sourceLabel: "fixture",
+                    strategyID: "fixture",
+                    strategyKind: .apiToken)),
+                attempts: [])
+        }
+
+        let refreshSource = await store.refreshProviderForSnapshotPublication(.openai, allowDisabled: true)
+        let source = try #require(refreshSource)
+        fixture.store.providerConfigRevisions[.openai, default: 0] &+= 1
+        store._test_widgetSnapshotSaveOverride = { _ in }
+        let events = UsageSnapshotPublicationEventRecorder()
+        defer { events.stop() }
+
+        store.persistWidgetSnapshot(reason: "authoritative-test", successfulRefreshes: [.openai: source])
+        store.persistWidgetSnapshot(reason: "non-authoritative-test")
+
+        let recorded = events.values
+        #expect(recorded.count == 2)
+        let first = try #require(recorded.first)
+        let second = try #require(recorded.last)
+        #expect(first.providerConfigRevisions[.openai] == source.configRevision)
+        #expect(first.providerConfigRevisions[.openai] != fixture.store.providerConfigRevision(for: .openai))
+        #expect(first.providerPublicationGenerations[.openai] == 1)
+        #expect(first.authoritativeProviders == [.openai])
+        #expect(second.providerPublicationGenerations[.openai] == 2)
+        #expect(second.authoritativeProviders.isEmpty)
     }
 
     @Test
@@ -349,6 +417,16 @@ struct CloudSyncSettingsTests {
             claimedProviders: [.openai, .claude],
             sourceRevisions: [.openai: 4, .claude: 7],
             currentRevisions: [.openai: 5, .claude: 7])
+
+        #expect(accepted == [.claude])
+    }
+
+    @Test
+    func `older provider publication generation cannot overwrite newer pending data`() {
+        let accepted = CloudSyncSnapshotPublicationGenerationGate.acceptedProviders(
+            claimedProviders: [.openai, .claude],
+            sourceGenerations: [.openai: 8, .claude: 4],
+            latestAcceptedGenerations: [.openai: 9, .claude: 4])
 
         #expect(accepted == [.claude])
     }
@@ -705,5 +783,37 @@ private final class LockedCounter: @unchecked Sendable {
 
     func increment() {
         self.lock.withLock { self.storage += 1 }
+    }
+}
+
+private final class UsageSnapshotPublicationEventRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [UsageSnapshotsDidChangeEvent] = []
+    private var token: NSObjectProtocol?
+
+    init() {
+        self.token = NotificationCenter.default.addObserver(
+            forName: .codexbarUsageSnapshotsDidChange,
+            object: nil,
+            queue: nil)
+        { [weak self] notification in
+            guard let event = notification.object as? UsageSnapshotsDidChangeEvent else { return }
+            self?.lock.withLock { self?.storage.append(event) }
+        }
+    }
+
+    var values: [UsageSnapshotsDidChangeEvent] {
+        self.lock.withLock { self.storage }
+    }
+
+    func stop() {
+        if let token {
+            NotificationCenter.default.removeObserver(token)
+            self.token = nil
+        }
+    }
+
+    deinit {
+        self.stop()
     }
 }

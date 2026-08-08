@@ -77,7 +77,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             await self.store.awaitForcedRefreshEnrichment()
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             let refreshStartedAt = Date()
-            await self.store.refreshProvider(provider)
+            var successfulRefresh = await self.store.refreshProviderForSnapshotPublication(provider)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             await self.store.refreshProviderStatus(provider)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
@@ -92,7 +92,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                     bypassCoalescing: true)
                 guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
                 if self.store.openAIDashboardRequiresLogin {
-                    await self.store.refreshProvider(.codex)
+                    successfulRefresh = await self.store.refreshProviderForSnapshotPublication(.codex)
                     guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
                     await self.store.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
                     guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
@@ -101,7 +101,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             self.store.scheduleStorageFootprintRefresh(for: [provider], force: true)
             self.store.persistWidgetSnapshot(
                 reason: "provider-refresh",
-                refreshedProviders: [provider])
+                successfulRefreshes: successfulRefresh.map { [provider: $0] } ?? [:])
             if refreshOpenMenusWhenComplete {
                 self.refreshOpenMenusAfterExplicitStoreAction()
             } else {

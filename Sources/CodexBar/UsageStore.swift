@@ -329,6 +329,8 @@ final class UsageStore {
     @ObservationIgnored var providerRuntimes: [UsageProvider: any ProviderRuntime] = [:]
     @ObservationIgnored var providerRefreshCoordinator = ProviderRefreshCoordinator<UsageProvider>()
     @ObservationIgnored var providerRefreshPublicationContexts: [UsageProvider: ProviderRefreshPublicationContext] = [:]
+    @ObservationIgnored var providerSnapshotPublicationSources: [UsageProvider: ProviderSnapshotPublicationSource] = [:]
+    @ObservationIgnored var cloudSyncSnapshotPublicationGenerations: [UsageProvider: UInt64] = [:]
     @ObservationIgnored var providerCleanupRevisions: [UsageProvider: UInt64] = [:]
     @ObservationIgnored private var providerAvailabilityCache: [UsageProvider: ProviderAvailabilityCacheEntry] = [:]
     @ObservationIgnored var accountInfoCache: [UsageProvider: AccountInfoCacheEntry] = [:]
@@ -746,21 +748,37 @@ final class UsageStore {
                 availableProviders: availableRefreshProviders)
             self.scheduleStorageFootprintRefresh(for: displayEnabledProviders)
 
-            await withTaskGroup(of: Void.self) { group in
+            var successfulRefreshes = await withTaskGroup(
+                of: ProviderSnapshotPublicationSource?.self,
+                returning: [UsageProvider: ProviderSnapshotPublicationSource].self)
+            { group in
                 for provider in refreshProviders {
                     group.addTask {
-                        await self.refreshProvider(
+                        await self.refreshProviderForSnapshotPublication(
                             provider,
                             coalesceIfRefreshing: coalesceProviderRefreshesOverride ??
                                 (ProviderInteractionContext.current == .background))
                     }
                     if availableRefreshProviders.contains(provider) {
-                        group.addTask { await self.refreshProviderStatus(provider) }
+                        group.addTask {
+                            await self.refreshProviderStatus(provider)
+                            return nil
+                        }
                     }
                 }
                 if enrichmentMode == .forcedForeground {
-                    group.addTask { await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt) }
+                    group.addTask {
+                        await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
+                        return nil
+                    }
                 }
+                var publications: [UsageProvider: ProviderSnapshotPublicationSource] = [:]
+                for await publication in group {
+                    if let publication {
+                        publications[publication.provider] = publication
+                    }
+                }
+                return publications
             }
             guard !Task.isCancelled else { return false }
 
@@ -788,13 +806,17 @@ final class UsageStore {
             }
 
             if enrichmentMode == .forcedForeground, self.openAIDashboardRequiresLogin {
-                await self.refreshProvider(.codex)
+                if let publication = await self.refreshProviderForSnapshotPublication(.codex) {
+                    successfulRefreshes[.codex] = publication
+                } else {
+                    successfulRefreshes.removeValue(forKey: .codex)
+                }
                 await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
             }
 
             self.persistWidgetSnapshot(
                 reason: "refresh",
-                refreshedProviders: Set(refreshProviders))
+                successfulRefreshes: successfulRefreshes)
             if let forcedBackgroundGeneration {
                 self.enqueueForcedRefreshEnrichment(
                     generation: forcedBackgroundGeneration,

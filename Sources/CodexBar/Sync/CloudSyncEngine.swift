@@ -166,6 +166,19 @@ enum CloudSyncSnapshotPublicationRevisionGate {
     }
 }
 
+enum CloudSyncSnapshotPublicationGenerationGate {
+    static func acceptedProviders(
+        claimedProviders: Set<UsageProvider>,
+        sourceGenerations: [UsageProvider: UInt64],
+        latestAcceptedGenerations: [UsageProvider: UInt64]) -> Set<UsageProvider>
+    {
+        Set(claimedProviders.filter { provider in
+            guard let sourceGeneration = sourceGenerations[provider] else { return false }
+            return sourceGeneration >= latestAcceptedGenerations[provider, default: 0]
+        })
+    }
+}
+
 enum CloudSyncPendingSnapshotPublicationReconciliation {
     struct State {
         let snapshots: [AccountSnapshotSyncPayload]
@@ -460,6 +473,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var pendingSnapshotAuthoritativeProviders: Set<UsageProvider> = []
     private var pendingSnapshotTokenAccountIDs: [String: UUID] = [:]
     private var pendingSnapshotProviderConfigRevisions: [UsageProvider: UInt64] = [:]
+    private var latestAcceptedSnapshotPublicationGenerations: [UsageProvider: UInt64] = [:]
     private var lastSnapshotHashes: [String: String] = [:]
     private var lastKnownProviderConfigs: [UsageProvider: ProviderConfig] = [:]
     private var lastKnownPreferences: SyncedPreferences?
@@ -1352,6 +1366,7 @@ extension CloudSyncEngine {
         _ snapshots: [AccountSnapshotSyncPayload],
         authoritativeProviders: Set<UsageProvider>,
         sourceProviderConfigRevisions: [UsageProvider: UInt64],
+        sourceProviderPublicationGenerations: [UsageProvider: UInt64],
         tokenAccountIDsByRecordName: [String: UUID]) async
     {
         guard self.enabled, self.engine != nil else { return }
@@ -1377,10 +1392,21 @@ extension CloudSyncEngine {
                     $0.tokenAccounts?.accounts.map(\.id) ?? []
                 }))
         }
-        let acceptedPublicationProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+        let revisionAcceptedProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
             claimedProviders: sourceProviders,
             sourceRevisions: sourceProviderConfigRevisions,
             currentRevisions: currentPublicationState.providerConfigRevisions)
+        let generationAcceptedProviders = CloudSyncSnapshotPublicationGenerationGate.acceptedProviders(
+            claimedProviders: revisionAcceptedProviders,
+            sourceGenerations: sourceProviderPublicationGenerations,
+            latestAcceptedGenerations: self.latestAcceptedSnapshotPublicationGenerations)
+        let acceptedPublicationProviders = revisionAcceptedProviders.intersection(generationAcceptedProviders)
+        for provider in acceptedPublicationProviders {
+            self.latestAcceptedSnapshotPublicationGenerations[provider] = sourceProviderPublicationGenerations[provider]
+        }
+        let acceptedProviderConfigRevisions = sourceProviderConfigRevisions.filter {
+            acceptedPublicationProviders.contains($0.key)
+        }
         var acceptedAuthoritativeProviders = authoritativeProviders.intersection(acceptedPublicationProviders)
         let currentSnapshots = snapshots.filter { acceptedPublicationProviders.contains($0.provider) }
         let currentRecordNames = Set(currentSnapshots.map(\.recordName))
@@ -1420,7 +1446,7 @@ extension CloudSyncEngine {
                 snapshots: publishableSnapshots,
                 authoritativeProviders: acceptedAuthoritativeProviders,
                 tokenAccountIDsByRecordName: incomingTokenAccountIDsByRecordName,
-                providerConfigRevisions: sourceProviderConfigRevisions),
+                providerConfigRevisions: acceptedProviderConfigRevisions),
             currentProviderConfigRevisions: currentPublicationState.providerConfigRevisions)
         self.pendingSnapshots = pendingPlan.snapshots
         self.pendingSnapshotAuthoritativeProviders = pendingPlan.authoritativeProviders

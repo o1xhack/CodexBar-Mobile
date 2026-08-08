@@ -284,9 +284,7 @@ extension UsageStore {
             }
         }
 
-        self.persistWidgetSnapshot(
-            reason: "forced-refresh-enrichment",
-            refreshedProviders: [.codex])
+        self.persistWidgetSnapshot(reason: "forced-refresh-enrichment")
     }
 
     func refreshOpenAIWebAfterProviderRefresh(

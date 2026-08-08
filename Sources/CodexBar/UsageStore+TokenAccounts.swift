@@ -250,6 +250,10 @@ extension UsageStore {
     }
 
     func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
+        _ = await self.refreshCodexVisibleAccountsForSnapshotPublication(generation: generation)
+    }
+
+    func refreshCodexVisibleAccountsForSnapshotPublication(generation: UInt64? = nil) async -> Bool {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(
             projection.visibleAccounts,
@@ -257,7 +261,7 @@ extension UsageStore {
             activeVisibleAccountID: projection.activeVisibleAccountID)
         guard accounts.count > 1 else {
             self.codexAccountSnapshots = []
-            return
+            return false
         }
         let managedAccountIDsWithReadableAuthAtStart = self.codexManagedAccountIDsWithReadableAuth()
 
@@ -281,6 +285,11 @@ extension UsageStore {
             allVisibleAccounts: projection.visibleAccounts,
             priorSnapshots: priorSnapshots,
             activeVisibleAccountID: originalVisibleAccountID)
+        let allFetchesSucceeded = results.count == accounts.count && results.allSatisfy { result in
+            guard let outcome = result.outcome else { return false }
+            if case .success = outcome.result { return true }
+            return false
+        }
         for result in results {
             let account = result.account
             let priorSnapshot = Self.codexPriorAccountSnapshot(
@@ -320,7 +329,7 @@ extension UsageStore {
 
         let currentProjection = self.freshCodexVisibleAccountProjectionForAccountRefresh(
             requireLiveManagedAuthFor: managedAccountIDsWithReadableAuthAtStart)
-        guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
+        guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return false }
         let currentSnapshots = snapshots.compactMap { snapshot -> CodexAccountUsageSnapshot? in
             guard let currentAccount = Self.currentCodexVisibleAccount(
                 matching: snapshot.account,
@@ -360,11 +369,11 @@ extension UsageStore {
             } else if !selectionStillMatches {
                 self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
             }
-            return
+            return false
         }
         guard selectionStillMatches else {
             self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
-            return
+            return false
         }
 
         let allowSelectedAuthFingerprintMismatch = switch selectedOutcome.result {
@@ -395,6 +404,9 @@ extension UsageStore {
             }
         } else {
             self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
+        }
+        return allFetchesSucceeded && currentSnapshots.count == accounts.count && currentSnapshots.allSatisfy {
+            $0.snapshot != nil && $0.error == nil
         }
     }
 
@@ -594,13 +606,24 @@ extension UsageStore {
         accounts: [ProviderTokenAccount],
         generation: UInt64? = nil) async
     {
+        _ = await self.refreshTokenAccountsForSnapshotPublication(
+            provider: provider,
+            accounts: accounts,
+            generation: generation)
+    }
+
+    func refreshTokenAccountsForSnapshotPublication(
+        provider: UsageProvider,
+        accounts: [ProviderTokenAccount],
+        generation: UInt64? = nil) async -> Bool
+    {
         guard let selectedAccount = self.settings.effectiveSelectedTokenAccount(for: provider) else {
             await MainActor.run {
                 self.reconcileSelectedTokenAccountSnapshotBeforeRefresh(
                     provider: provider,
                     accounts: accounts)
             }
-            return
+            return false
         }
         let limitedAccounts = self.limitedTokenAccounts(accounts, selected: selectedAccount)
         let effectiveSelected = selectedAccount
@@ -625,7 +648,11 @@ extension UsageStore {
         var sawAnyNonCancellationOutcome = false
 
         let results = await self.fetchTokenAccountOutcomes(provider: provider, accounts: limitedAccounts)
-        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return false }
+        let allFetchesSucceeded = results.count == limitedAccounts.count && results.allSatisfy { result in
+            if case .success = result.outcome.result { return true }
+            return false
+        }
         for result in results {
             guard let account = self.uniqueTokenAccount(provider: provider, accountID: result.account.id)
             else { continue }
@@ -674,11 +701,17 @@ extension UsageStore {
                 generation: generation)
         }
 
-        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return false }
         await self.recordFetchedTokenAccountPlanUtilizationHistory(
             provider: provider,
             samples: historySamples,
             selectedAccount: effectiveSelected)
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return false }
+        return allFetchesSucceeded && limitedAccounts.allSatisfy { account in
+            snapshots.contains { snapshot in
+                snapshot.account.id == account.id && snapshot.snapshot != nil && snapshot.error == nil
+            }
+        }
     }
 
     private static func outcomeIsCancellation(_ outcome: ProviderFetchOutcome) -> Bool {

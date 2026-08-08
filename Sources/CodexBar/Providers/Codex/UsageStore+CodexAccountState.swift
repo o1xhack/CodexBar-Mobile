@@ -41,7 +41,9 @@ extension UsageStore {
             phaseDidChange?(.invalidated)
         }
 
-        await self.refreshProvider(.codex, allowDisabled: allowDisabled)
+        var successfulRefresh = await self.refreshProviderForSnapshotPublication(
+            .codex,
+            allowDisabled: allowDisabled)
         phaseDidChange?(.usage)
         await self.refreshCreditsIfNeeded(minimumSnapshotUpdatedAt: refreshStartedAt)
         phaseDidChange?(.credits)
@@ -57,7 +59,9 @@ extension UsageStore {
         }
 
         if self.openAIDashboardRequiresLogin {
-            await self.refreshProvider(.codex, allowDisabled: allowDisabled)
+            successfulRefresh = await self.refreshProviderForSnapshotPublication(
+                .codex,
+                allowDisabled: allowDisabled)
             phaseDidChange?(.usage)
             await self.refreshCreditsIfNeeded(minimumSnapshotUpdatedAt: refreshStartedAt)
             phaseDidChange?(.credits)
@@ -65,7 +69,7 @@ extension UsageStore {
 
         self.persistWidgetSnapshot(
             reason: "codex-account-refresh",
-            refreshedProviders: [.codex])
+            successfulRefreshes: successfulRefresh.map { [.codex: $0] } ?? [:])
         phaseDidChange?(.completed)
     }
 

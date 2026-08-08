@@ -12,7 +12,7 @@ struct CloudSyncAccountSnapshotPublication {
 extension UsageStore {
     func persistWidgetSnapshot(
         reason: String,
-        refreshedProviders: Set<UsageProvider> = [])
+        successfulRefreshes: [UsageProvider: ProviderSnapshotPublicationSource] = [:])
     {
         #if DEBUG
         // Unsigned test processes must not cross into the real app-group container. Snapshot tests
@@ -30,21 +30,38 @@ extension UsageStore {
         }()
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
         self.lastQueuedWidgetSnapshot = snapshot
-        let cloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
+        let unfilteredCloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
+        let publicationSources = self.providerSnapshotPublicationSources
+        let cloudSyncSnapshots = unfilteredCloudSyncPublication.snapshots.filter {
+            publicationSources[$0.provider] != nil
+        }
+        let cloudSyncRecordNames = Set(cloudSyncSnapshots.map(\.recordName))
+        let cloudSyncTokenAccountIDsByRecordName = unfilteredCloudSyncPublication.tokenAccountIDsByRecordName.filter {
+            cloudSyncRecordNames.contains($0.key)
+        }
+        let successfulRefreshProviders = Set(successfulRefreshes.compactMap { provider, source in
+            publicationSources[provider] == source ? provider : nil
+        })
         let authoritativeProviders = self.cloudSyncAuthoritativeSnapshotProviders(
-            cloudSyncPublication.snapshots,
-            refreshedProviders: refreshedProviders)
-        let publicationProviders = Set(cloudSyncPublication.snapshots.map(\.provider))
-        let providerConfigRevisions = Dictionary(uniqueKeysWithValues: publicationProviders.map {
-            ($0, self.settings.providerConfigRevision(for: $0))
+            cloudSyncSnapshots,
+            successfulRefreshProviders: successfulRefreshProviders)
+        let publicationProviders = Set(cloudSyncSnapshots.map(\.provider))
+        let providerConfigRevisions = Dictionary(uniqueKeysWithValues: publicationProviders.compactMap { provider in
+            publicationSources[provider].map { (provider, $0.configRevision) }
+        })
+        let providerPublicationGenerations = Dictionary(uniqueKeysWithValues: publicationProviders.map { provider in
+            let generation = self.cloudSyncSnapshotPublicationGenerations[provider, default: 0] &+ 1
+            self.cloudSyncSnapshotPublicationGenerations[provider] = generation
+            return (provider, generation)
         })
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(
-                snapshots: cloudSyncPublication.snapshots,
+                snapshots: cloudSyncSnapshots,
                 authoritativeProviders: authoritativeProviders,
                 providerConfigRevisions: providerConfigRevisions,
-                tokenAccountIDsByRecordName: cloudSyncPublication.tokenAccountIDsByRecordName))
+                providerPublicationGenerations: providerPublicationGenerations,
+                tokenAccountIDsByRecordName: cloudSyncTokenAccountIDsByRecordName))
         let previousTask = self.widgetSnapshotPersistTask
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
@@ -136,9 +153,9 @@ extension UsageStore {
     /// partial or empty in-memory store and must never erase the last good fleet snapshot.
     func cloudSyncAuthoritativeSnapshotProviders(
         _ snapshots: [AccountSnapshotSyncPayload],
-        refreshedProviders: Set<UsageProvider>) -> Set<UsageProvider>
+        successfulRefreshProviders: Set<UsageProvider>) -> Set<UsageProvider>
     {
-        let providersWithSnapshots = Set(snapshots.map(\.provider)).intersection(refreshedProviders)
+        let providersWithSnapshots = Set(snapshots.map(\.provider)).intersection(successfulRefreshProviders)
         return Set(providersWithSnapshots.filter { provider in
             guard self.errors[provider] == nil else { return false }
 

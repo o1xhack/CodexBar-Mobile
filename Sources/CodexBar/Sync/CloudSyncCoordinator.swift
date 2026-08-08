@@ -55,6 +55,7 @@ final class CloudSyncCoordinator {
                     event.snapshots,
                     authoritativeProviders: event.authoritativeProviders,
                     sourceProviderConfigRevisions: event.providerConfigRevisions,
+                    sourceProviderPublicationGenerations: event.providerPublicationGenerations,
                     tokenAccountIDsByRecordName: event.tokenAccountIDsByRecordName)
             }
         }
