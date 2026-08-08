@@ -792,7 +792,9 @@ final class UsageStore {
                 await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
             }
 
-            self.persistWidgetSnapshot(reason: "refresh")
+            self.persistWidgetSnapshot(
+                reason: "refresh",
+                refreshedProviders: Set(refreshProviders))
             if let forcedBackgroundGeneration {
                 self.enqueueForcedRefreshEnrichment(
                     generation: forcedBackgroundGeneration,

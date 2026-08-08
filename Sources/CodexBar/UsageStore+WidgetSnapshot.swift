@@ -10,7 +10,10 @@ struct CloudSyncAccountSnapshotPublication {
 }
 
 extension UsageStore {
-    func persistWidgetSnapshot(reason: String) {
+    func persistWidgetSnapshot(
+        reason: String,
+        refreshedProviders: Set<UsageProvider> = [])
+    {
         #if DEBUG
         // Unsigned test processes must not cross into the real app-group container. Snapshot tests
         // opt in with an in-memory override, which also keeps their assertions deterministic.
@@ -30,7 +33,7 @@ extension UsageStore {
         let cloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
         let authoritativeProviders = self.cloudSyncAuthoritativeSnapshotProviders(
             cloudSyncPublication.snapshots,
-            reason: reason)
+            refreshedProviders: refreshedProviders)
         let publicationProviders = Set(cloudSyncPublication.snapshots.map(\.provider))
         let providerConfigRevisions = Dictionary(uniqueKeysWithValues: publicationProviders.map {
             ($0, self.settings.providerConfigRevision(for: $0))
@@ -133,17 +136,9 @@ extension UsageStore {
     /// partial or empty in-memory store and must never erase the last good fleet snapshot.
     func cloudSyncAuthoritativeSnapshotProviders(
         _ snapshots: [AccountSnapshotSyncPayload],
-        reason: String) -> Set<UsageProvider>
+        refreshedProviders: Set<UsageProvider>) -> Set<UsageProvider>
     {
-        let refreshReasons: Set = [
-            "refresh",
-            "provider-refresh",
-            "forced-refresh-enrichment",
-            "codex-account-refresh",
-        ]
-        guard refreshReasons.contains(reason) else { return [] }
-
-        let providersWithSnapshots = Set(snapshots.map(\.provider))
+        let providersWithSnapshots = Set(snapshots.map(\.provider)).intersection(refreshedProviders)
         return Set(providersWithSnapshots.filter { provider in
             guard self.errors[provider] == nil else { return false }
 

@@ -63,7 +63,9 @@ extension UsageStore {
             phaseDidChange?(.credits)
         }
 
-        self.persistWidgetSnapshot(reason: "codex-account-refresh")
+        self.persistWidgetSnapshot(
+            reason: "codex-account-refresh",
+            refreshedProviders: [.codex])
         phaseDidChange?(.completed)
     }
 

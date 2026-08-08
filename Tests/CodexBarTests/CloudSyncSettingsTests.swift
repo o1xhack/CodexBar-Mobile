@@ -325,13 +325,22 @@ struct CloudSyncSettingsTests {
             settings: fixture.store)
         let snapshot = Self.snapshot(provider: .openai, accountKey: "current", deviceID: "this-mac")
 
-        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "refresh") == [.openai])
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot],
+            refreshedProviders: [.openai]) == [.openai])
 
         store.errors[.openai] = "transient network failure"
-        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "refresh").isEmpty)
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot],
+            refreshedProviders: [.openai]).isEmpty)
 
         store.errors[.openai] = nil
-        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "settings-display").isEmpty)
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], refreshedProviders: []).isEmpty)
+
+        let unrelated = Self.snapshot(provider: .claude, accountKey: "unrelated", deviceID: "this-mac")
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot, unrelated],
+            refreshedProviders: [.openai]) == [.openai])
     }
 
     @Test
@@ -387,6 +396,36 @@ struct CloudSyncSettingsTests {
                 providerConfigRevisions: [.openai: 5]),
             currentProviderConfigRevisions: [.openai: 5])
         #expect(fallbackReplacement.tokenAccountIDsByRecordName.isEmpty)
+    }
+
+    @Test
+    func `partial same revision publication preserves complete pending provider slice`() {
+        let first = Self.snapshot(provider: .openai, accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(provider: .openai, accountKey: "second", deviceID: "this-mac")
+        let firstAccountID = UUID()
+        let secondAccountID = UUID()
+
+        let plan = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [first, second],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [
+                    first.recordName: firstAccountID,
+                    second.recordName: secondAccountID,
+                ],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [first],
+                authoritativeProviders: [],
+                tokenAccountIDsByRecordName: [:],
+                providerConfigRevisions: [.openai: 5]),
+            currentProviderConfigRevisions: [.openai: 5])
+
+        #expect(Set(plan.snapshots.map(\.recordName)) == [first.recordName, second.recordName])
+        #expect(plan.authoritativeProviders == [.openai])
+        #expect(plan.tokenAccountIDsByRecordName[first.recordName] == nil)
+        #expect(plan.tokenAccountIDsByRecordName[second.recordName] == secondAccountID)
+        #expect(plan.providerConfigRevisions == [.openai: 5])
     }
 
     @Test

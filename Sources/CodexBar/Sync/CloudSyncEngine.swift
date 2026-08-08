@@ -201,15 +201,15 @@ enum CloudSyncPendingSnapshotPublicationReconciliation {
             claimedProviders: Set(incoming.providerConfigRevisions.keys),
             sourceRevisions: incoming.providerConfigRevisions,
             currentRevisions: currentProviderConfigRevisions)
+        let completeIncomingProviders = incoming.authoritativeProviders.intersection(acceptedIncomingProviders)
 
         var snapshotsByRecordName: [String: AccountSnapshotSyncPayload] = Dictionary(
             uniqueKeysWithValues: state.snapshots.compactMap { snapshot -> (String, AccountSnapshotSyncPayload)? in
                 guard currentPendingProviders.contains(snapshot.provider),
-                      !acceptedIncomingProviders.contains(snapshot.provider)
+                      !completeIncomingProviders.contains(snapshot.provider)
                 else { return nil }
                 return (snapshot.recordName, snapshot)
             })
-        let retainedRecordNames = Set(snapshotsByRecordName.keys)
         for snapshot in incoming.snapshots where acceptedIncomingProviders.contains(snapshot.provider) {
             snapshotsByRecordName[snapshot.recordName] = snapshot
         }
@@ -218,14 +218,17 @@ enum CloudSyncPendingSnapshotPublicationReconciliation {
 
         var authoritativeProviders = state.authoritativeProviders
             .intersection(currentPendingProviders)
-            .subtracting(acceptedIncomingProviders)
-        authoritativeProviders.formUnion(incoming.authoritativeProviders.intersection(acceptedIncomingProviders))
+            .subtracting(completeIncomingProviders)
+        authoritativeProviders.formUnion(completeIncomingProviders)
 
         var tokenAccountIDsByRecordName = state.tokenAccountIDsByRecordName.filter {
-            retainedRecordNames.contains($0.key)
+            recordNames.contains($0.key)
         }
-        for (recordName, accountID) in incoming.tokenAccountIDsByRecordName where recordNames.contains(recordName) {
-            tokenAccountIDsByRecordName[recordName] = accountID
+        for snapshot in incoming.snapshots where acceptedIncomingProviders.contains(snapshot.provider) {
+            tokenAccountIDsByRecordName.removeValue(forKey: snapshot.recordName)
+            if let accountID = incoming.tokenAccountIDsByRecordName[snapshot.recordName] {
+                tokenAccountIDsByRecordName[snapshot.recordName] = accountID
+            }
         }
 
         var providerConfigRevisions = state.providerConfigRevisions.filter {
