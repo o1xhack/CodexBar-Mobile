@@ -5,9 +5,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/sparkle_helpers.sh"
 
 TAG=${1:-$(git describe --tags --abbrev=0)}
-ARTIFACT_PREFIX="CodexBar-${TAG#v}"
+ARTIFACT_BASENAME="CodexBar-${TAG#v}"
 
-check_assets "$TAG" "$ARTIFACT_PREFIX"
+check_assets "$TAG" "$ARTIFACT_BASENAME"
 
 VERSION=${TAG#v}
 assets=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json assets --jq '.assets[].name')

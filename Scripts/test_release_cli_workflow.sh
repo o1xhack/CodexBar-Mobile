@@ -17,8 +17,8 @@ fail() {
 
 # The fork's signed app and dSYM use CodexBar-<full-tag-version> rather than
 # upstream's CodexBar-macos-<arch>-<version> convention.
-grep -Fq 'ARTIFACT_PREFIX="CodexBar-${TAG#v}"' "$ASSET_CHECKER" || \
-  fail "release asset checker must use the fork tag-derived app prefix"
+grep -Fq 'ARTIFACT_BASENAME="CodexBar-${TAG#v}"' "$ASSET_CHECKER" || \
+  fail "release asset checker must use the fork tag-derived app basename"
 grep -Fq 'gh release view "$TAG" --repo o1xhack/CodexBar-Mobile' "$ASSET_CHECKER" || \
   fail "release asset checker must pin GitHub reads to the fork"
 
@@ -45,6 +45,10 @@ if run_asset_check 'CodexBar-1.2.3-mobile.4.5.6.dSYM.zip' >/dev/null 2>&1; then
 fi
 if run_asset_check 'CodexBar-1.2.3-mobile.4.5.6.zip' >/dev/null 2>&1; then
   fail "app-only release must not satisfy the dSYM check"
+fi
+similar_assets=$'CodexBar-1x2x3-mobilex4x5x6-old.zip\nCodexBar-1x2x3-mobilex4x5x6-old.dSYM.zip'
+if run_asset_check "$similar_assets" >/dev/null 2>&1; then
+  fail "similarly named release assets must not satisfy exact tag checks"
 fi
 
 # Fork releases must keep producing the release assets. Only the upstream-owned

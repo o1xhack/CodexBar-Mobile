@@ -185,12 +185,12 @@ verify_appcast_entry() {
 }
 
 # ---------------------------------------------------------------------------
-# check_assets <tag> <artifact-prefix>
-#   Confirms the GitHub release at <tag> has both the .zip and .dSYM.zip
-#   assets matching <prefix>*.
+# check_assets <tag> <artifact-basename>
+#   Confirms the GitHub release at <tag> has the exact <basename>.zip and
+#   <basename>.dSYM.zip assets.
 # ---------------------------------------------------------------------------
 check_assets() {
-  local tag=$1 prefix=$2
+  local tag=$1 basename=$2
   local missing=0
   local assets
   # --repo pinned to fork explicitly. Without it, gh inspects local
@@ -199,18 +199,16 @@ check_assets() {
   assets=$(gh release view "$tag" --repo o1xhack/CodexBar-Mobile --json assets -q '.assets[].name' 2>&1) || {
     err "gh release view failed for $tag: $assets"
   }
-  if ! printf "%s\n" "$assets" \
-    | grep -E "^${prefix}.*\.zip\$" \
-    | grep -Evq '\.dSYM\.zip$'; then
-    echo "MISSING: ${prefix}*.zip (excluding dSYM archives)" >&2
+  if ! printf "%s\n" "$assets" | grep -Fxq "${basename}.zip"; then
+    echo "MISSING: ${basename}.zip" >&2
     missing=1
   fi
-  if ! printf "%s\n" "$assets" | grep -Eq "^${prefix}.*\.dSYM\.zip\$"; then
-    echo "MISSING: ${prefix}*.dSYM.zip" >&2
+  if ! printf "%s\n" "$assets" | grep -Fxq "${basename}.dSYM.zip"; then
+    echo "MISSING: ${basename}.dSYM.zip" >&2
     missing=1
   fi
   [[ "$missing" -eq 0 ]] || err "GitHub release $tag is missing expected assets."
-  echo "Release $tag assets OK ($prefix*.zip + $prefix*.dSYM.zip present)."
+  echo "Release $tag assets OK (${basename}.zip + ${basename}.dSYM.zip present)."
 }
 
 export CODEXBAR_SPARKLE_HELPERS_LOADED=1
