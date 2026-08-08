@@ -51,7 +51,10 @@ final class CloudSyncCoordinator {
             guard let event = notification.object as? UsageSnapshotsDidChangeEvent else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                await self.engine.queueSnapshots(event.snapshots)
+                await self.engine.queueSnapshots(
+                    event.snapshots,
+                    enabledProviders: event.enabledProviders,
+                    authoritativeProviders: event.authoritativeProviders)
             }
         }
         self.accountObserver = NotificationCenter.default.addObserver(

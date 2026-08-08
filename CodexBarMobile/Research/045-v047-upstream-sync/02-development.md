@@ -91,6 +91,11 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   `unknownItem`，即服务端已不存在）后才清理持久化 cache，失败路径保留证据供后续重试；
 - server/fetch deletion 同步清除 snapshot hash，避免服务端删除后当前有效 snapshot 因旧
   hash 被错误抑制、无法重建。
+- PR #71 第二轮 review 将删除条件收紧为 authoritative snapshot set：provider 被明确禁用，
+  或完整成功的 provider/account refresh 才能根据 absence 删除；启动期网络/鉴权失败、
+  settings/cost/invalidation 等 partial publication 只更新已有记录，不删除 last-good fleet data；
+- 每个本轮仍存在的 record 都会先取消同名 pending delete，再进入 payload hash shortcut，
+  避免账号短暂消失后恢复、但旧 delete 仍在队列里最终删掉有效记录。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
   与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后

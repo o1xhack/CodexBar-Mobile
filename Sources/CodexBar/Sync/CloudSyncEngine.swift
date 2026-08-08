@@ -124,16 +124,28 @@ enum CloudSyncDirtyState {
 }
 
 enum CloudSyncSnapshotReconciliation {
-    static func recordNamesToDelete(
+    struct Plan: Equatable {
+        let recordNamesToCancelPendingDeletes: Set<String>
+        let recordNamesToDelete: Set<String>
+    }
+
+    static func plan(
         currentSnapshots: [AccountSnapshotSyncPayload],
         persistedSnapshots: [String: AccountSnapshotSyncPayload],
-        deviceID: String) -> Set<String>
+        deviceID: String,
+        enabledProviders: Set<UsageProvider>,
+        authoritativeProviders: Set<UsageProvider>) -> Plan
     {
         let currentRecordNames = Set(currentSnapshots.map(\.recordName))
-        return Set(persistedSnapshots.compactMap { recordName, snapshot in
+        let recordNamesToDelete = Set<String>(persistedSnapshots.compactMap { recordName, snapshot in
             guard snapshot.deviceID == deviceID, !currentRecordNames.contains(recordName) else { return nil }
+            guard !enabledProviders.contains(snapshot.provider) || authoritativeProviders.contains(snapshot.provider)
+            else { return nil }
             return recordName
         })
+        return Plan(
+            recordNamesToCancelPendingDeletes: currentRecordNames,
+            recordNamesToDelete: recordNamesToDelete)
     }
 }
 
@@ -169,6 +181,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var periodicFetchTask: Task<Void, Never>?
     private var lastSnapshotPushAt: Date?
     private var pendingSnapshots: [AccountSnapshotSyncPayload] = []
+    private var pendingSnapshotEnabledProviders: Set<UsageProvider> = []
+    private var pendingSnapshotAuthoritativeProviders: Set<UsageProvider> = []
     private var lastSnapshotHashes: [String: String] = [:]
     private var lastKnownProviderConfigs: [UsageProvider: ProviderConfig] = [:]
     private var lastKnownPreferences: SyncedPreferences?
@@ -313,34 +327,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 return
             } catch {
                 await self?.record(error: error)
-            }
-        }
-    }
-
-    func queueSnapshots(_ snapshots: [AccountSnapshotSyncPayload]) async {
-        guard self.enabled, self.engine != nil else { return }
-        let options = await MainActor.run {
-            (
-                enabled: self.settings.macFleetSyncSnapshotsEnabled,
-                lowPower: self.settings.backgroundWorkLowPowerModeEnabled
-                    || ProcessInfo.processInfo.isLowPowerModeEnabled,
-                needsAppUpdate: self.state.status.needsAppUpdate)
-        }
-        guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
-        self.pendingSnapshots = snapshots
-        let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
-        if elapsed >= 120 {
-            await self.pushPendingSnapshots()
-            return
-        }
-        self.snapshotPushTask?.cancel()
-        self.snapshotPushTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(120 - elapsed))
-                guard !Task.isCancelled else { return }
-                await self?.pushPendingSnapshots()
-            } catch {
-                return
             }
         }
     }
@@ -515,12 +501,20 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
         do {
             let snapshots = self.pendingSnapshots
+            let enabledProviders = self.pendingSnapshotEnabledProviders
+            let authoritativeProviders = self.pendingSnapshotAuthoritativeProviders
             let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
-            let staleRecordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+            let reconciliation = CloudSyncSnapshotReconciliation.plan(
                 currentSnapshots: snapshots,
                 persistedSnapshots: self.persistenceEnvelope.fleetSnapshots,
-                deviceID: deviceID)
-            for recordName in staleRecordNames {
+                deviceID: deviceID,
+                enabledProviders: enabledProviders,
+                authoritativeProviders: authoritativeProviders)
+            for recordName in reconciliation.recordNamesToCancelPendingDeletes {
+                let recordID = self.recordID(named: recordName)
+                engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+            }
+            for recordName in reconciliation.recordNamesToDelete {
                 let recordID = self.recordID(named: recordName)
                 self.desiredRecords.removeValue(forKey: recordID)
                 engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
@@ -544,6 +538,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             }
             self.pendingSnapshots = []
+            self.pendingSnapshotEnabledProviders = []
+            self.pendingSnapshotAuthoritativeProviders = []
             self.lastSnapshotPushAt = Date()
             self.persistEnvelope()
         } catch {
@@ -1020,6 +1016,40 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 }
 
 extension CloudSyncEngine {
+    func queueSnapshots(
+        _ snapshots: [AccountSnapshotSyncPayload],
+        enabledProviders: Set<UsageProvider>,
+        authoritativeProviders: Set<UsageProvider>) async
+    {
+        guard self.enabled, self.engine != nil else { return }
+        let options = await MainActor.run {
+            (
+                enabled: self.settings.macFleetSyncSnapshotsEnabled,
+                lowPower: self.settings.backgroundWorkLowPowerModeEnabled
+                    || ProcessInfo.processInfo.isLowPowerModeEnabled,
+                needsAppUpdate: self.state.status.needsAppUpdate)
+        }
+        guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
+        self.pendingSnapshots = snapshots
+        self.pendingSnapshotEnabledProviders = enabledProviders
+        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders
+        let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
+        if elapsed >= 120 {
+            await self.pushPendingSnapshots()
+            return
+        }
+        self.snapshotPushTask?.cancel()
+        self.snapshotPushTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(120 - elapsed))
+                guard !Task.isCancelled else { return }
+                await self?.pushPendingSnapshots()
+            } catch {
+                return
+            }
+        }
+    }
+
     private func removeDeletedRecordsFromCaches(_ recordNames: some Sequence<String>) async {
         let recordNames = Array(recordNames)
         for recordName in recordNames {

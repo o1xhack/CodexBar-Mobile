@@ -22,9 +22,15 @@ extension UsageStore {
         }()
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
         self.lastQueuedWidgetSnapshot = snapshot
+        let cloudSyncSnapshots = self.cloudSyncAccountSnapshots()
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
-            object: UsageSnapshotsDidChangeEvent(snapshots: self.cloudSyncAccountSnapshots()))
+            object: UsageSnapshotsDidChangeEvent(
+                snapshots: cloudSyncSnapshots,
+                enabledProviders: Set(self.enabledProvidersForDisplay()),
+                authoritativeProviders: self.cloudSyncAuthoritativeSnapshotProviders(
+                    cloudSyncSnapshots,
+                    reason: reason)))
         let previousTask = self.widgetSnapshotPersistTask
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
@@ -93,6 +99,61 @@ extension UsageStore {
         }
 
         return payloads.values.sorted { $0.recordName < $1.recordName }
+    }
+
+    /// Snapshot absence is destructive only after a completed, successful provider refresh. Other
+    /// publications (settings display, cost refreshes, account invalidation) can legitimately expose a
+    /// partial or empty in-memory store and must never erase the last good fleet snapshot.
+    func cloudSyncAuthoritativeSnapshotProviders(
+        _ snapshots: [AccountSnapshotSyncPayload],
+        reason: String) -> Set<UsageProvider>
+    {
+        let refreshReasons: Set = [
+            "refresh",
+            "provider-refresh",
+            "forced-refresh-enrichment",
+            "codex-account-refresh",
+        ]
+        guard refreshReasons.contains(reason) else { return [] }
+
+        let providersWithSnapshots = Set(snapshots.map(\.provider))
+        return Set(providersWithSnapshots.filter { provider in
+            guard self.errors[provider] == nil else { return false }
+
+            if provider == .codex {
+                guard let projection = self.settings.codexVisibleAccountProjectionForMenuDisplay else {
+                    return false
+                }
+                if projection.visibleAccounts.count > 1 {
+                    let snapshotsByAccountID = Dictionary(
+                        uniqueKeysWithValues: self.codexAccountSnapshots.map { ($0.account.id, $0) })
+                    return projection.visibleAccounts.allSatisfy { account in
+                        guard let snapshot = snapshotsByAccountID[account.id] else { return false }
+                        return snapshot.snapshot != nil && snapshot.error == nil
+                    }
+                }
+                return self.codexAccountSnapshots.allSatisfy { snapshot in
+                    snapshot.snapshot != nil && snapshot.error == nil
+                }
+            }
+
+            let configuredAccounts = self.settings.tokenAccounts(for: provider)
+            if !configuredAccounts.isEmpty {
+                let snapshotsByAccountID = Dictionary(
+                    uniqueKeysWithValues: (self.accountSnapshots[provider] ?? []).map { ($0.account.id, $0) })
+                return configuredAccounts.allSatisfy { account in
+                    guard let snapshot = snapshotsByAccountID[account.id] else { return false }
+                    return snapshot.snapshot != nil && snapshot.error == nil
+                }
+            }
+
+            if provider == .claude,
+               self.settings.claudeSwapEnabled
+            {
+                return self.claudeSwapLastRefreshAt != nil && self.claudeSwapLastError == nil
+            }
+            return true
+        })
     }
 
     func cloudSyncLocalAccountKeys(for provider: UsageProvider) -> Set<String> {

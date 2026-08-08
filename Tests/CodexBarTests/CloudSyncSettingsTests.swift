@@ -271,7 +271,7 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
-    func `snapshot reconciliation deletes only stale records from the current device`() {
+    func `authoritative snapshot reconciliation deletes only stale records from the current device`() {
         let current = Self.snapshot(accountKey: "current", deviceID: "this-mac")
         let stale = Self.snapshot(accountKey: "removed", deviceID: "this-mac")
         let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
@@ -281,16 +281,19 @@ struct CloudSyncSettingsTests {
             remote.recordName: remote,
         ]
 
-        let recordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+        let plan = CloudSyncSnapshotReconciliation.plan(
             currentSnapshots: [current],
             persistedSnapshots: persisted,
-            deviceID: "this-mac")
+            deviceID: "this-mac",
+            enabledProviders: [.codex],
+            authoritativeProviders: [.codex])
 
-        #expect(recordNames == [stale.recordName])
+        #expect(plan.recordNamesToDelete == [stale.recordName])
+        #expect(plan.recordNamesToCancelPendingDeletes == [current.recordName])
     }
 
     @Test
-    func `empty snapshot reconciliation deletes every current device record but preserves the fleet`() {
+    func `non authoritative empty snapshot publication preserves last good records`() {
         let first = Self.snapshot(accountKey: "first", deviceID: "this-mac")
         let second = Self.snapshot(accountKey: "second", deviceID: "this-mac")
         let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
@@ -300,13 +303,54 @@ struct CloudSyncSettingsTests {
             remote.recordName: remote,
         ]
 
-        let recordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+        let plan = CloudSyncSnapshotReconciliation.plan(
             currentSnapshots: [],
             persistedSnapshots: persisted,
-            deviceID: "this-mac")
+            deviceID: "this-mac",
+            enabledProviders: [.codex],
+            authoritativeProviders: [])
 
-        #expect(recordNames == [first.recordName, second.recordName])
-        #expect(!recordNames.contains(remote.recordName))
+        #expect(plan.recordNamesToDelete.isEmpty)
+    }
+
+    @Test
+    func `provider refresh failure makes snapshot publication non authoritative`() throws {
+        let fixture = try self.makeFixture("snapshot-authority")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        let snapshot = Self.snapshot(provider: .openai, accountKey: "current", deviceID: "this-mac")
+
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "refresh") == [.openai])
+
+        store.errors[.openai] = "transient network failure"
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "refresh").isEmpty)
+
+        store.errors[.openai] = nil
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "settings-display").isEmpty)
+    }
+
+    @Test
+    func `disabled provider deletion removes current device records but preserves the fleet`() {
+        let first = Self.snapshot(accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(accountKey: "second", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            first.recordName: first,
+            second.recordName: second,
+            remote.recordName: remote,
+        ]
+
+        let plan = CloudSyncSnapshotReconciliation.plan(
+            currentSnapshots: [],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac",
+            enabledProviders: [],
+            authoritativeProviders: [])
+
+        #expect(plan.recordNamesToDelete == [first.recordName, second.recordName])
+        #expect(!plan.recordNamesToDelete.contains(remote.recordName))
     }
 
     @Test
@@ -346,9 +390,13 @@ struct CloudSyncSettingsTests {
         return CloudSyncPersistence(fileURL: directory.appendingPathComponent("engine-state.json"))
     }
 
-    private static func snapshot(accountKey: String, deviceID: String) -> AccountSnapshotSyncPayload {
+    private static func snapshot(
+        provider: UsageProvider = .codex,
+        accountKey: String,
+        deviceID: String) -> AccountSnapshotSyncPayload
+    {
         AccountSnapshotSyncPayload(
-            provider: .codex,
+            provider: provider,
             deviceID: deviceID,
             accountKey: accountKey,
             fetchedAt: Date(timeIntervalSince1970: 1000),

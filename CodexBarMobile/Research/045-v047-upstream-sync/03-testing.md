@@ -27,7 +27,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Mac full tests | `swift test --no-parallel` | pass；post-review rerun 8340 tests / 812 suites / 0 issue / 363.739s；log `/tmp/codexbar-v047-full-test-postreview.log` |
 | Multi-account/device | `swift test --skip-build --filter 'AccountIdentity\|MultiAccount\|DualZoneReader'` | pass；106 tests / 12 suites；截图生成器因未设输出目录 skip 1 |
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
-| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；16/16 focused；full 8342 tests / 812 suites；覆盖删除单个、空集合删除本机全部、保留其他 Mac |
+| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；第二轮 18/18 focused；此前 full 8342 tests / 812 suites；覆盖 authoritative stale delete、transient refresh failure/非 refresh publication 不具删除权限、non-authoritative empty preservation、provider disable delete、pending delete cancellation plan、保留其他 Mac；最新 full CI 等待新 SHA |
 | Linux warm-cache Final CI fix | `CostUsageCacheTests` + x64/arm64 `CodexWarmCacheResumeLinuxTests` | local pass / CI pending；20/20 macOS cache tests；旧 PR 两个 Linux 架构均复现 cache replace 后目标文件消失，等待 fix PR manual/full CI |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
@@ -128,6 +128,11 @@ PR #69 merge 后的异步自动 review 新增 1 个 P1：本机消失的 fleet a
 CloudKit deletion lifecycle。该 finding 不按“已 merge”忽略；在独立 review-fix branch 修复、
 新增 current-device ownership/empty-set/foreign-device preservation tests，并重新进入
 GitHub review → resolve → re-review 循环。最终测试与 thread 状态将在发布前回写本节。
+
+PR #71 第一轮在 commit `4e3784078c` 新增 P1/P2：非权威的空 snapshot publication 可能
+误删 last-good data，且恢复的 snapshot 没有取消 pending delete。现已引入
+enabled/authoritative provider contract，并在 hash guard 前取消当前 record 的 pending
+delete；新提交、thread resolve 与下一轮 review 结果待本轮闭环后回写。
 
 修复前独立 review 找到 2 个 P1（矩阵没有走真实 wire/cache/delete contract、Production
 helper 会调用不适用的 validation endpoint）与 2 个 P2（schema 漏掉
