@@ -10,6 +10,8 @@
 
 ### Fixed
 - Fork integration: preserve Production CloudKit, mobile sync defaults, collision-safe versioning, signing, appcast, and fork CI policy while incorporating all upstream fixes through v0.47.0.
+- Mac fleet sync: remove this Mac's stale CloudKit account snapshots when accounts or providers disappear, while preserving snapshots owned by other Macs.
+- Linux CLI: atomically replace the persisted Codex cost cache without deleting the prior cache when Foundation replacement fails.
 
 ## 0.47.0 — 2026-08-03
 

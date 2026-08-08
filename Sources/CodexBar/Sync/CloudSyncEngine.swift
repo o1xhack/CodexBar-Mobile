@@ -123,6 +123,20 @@ enum CloudSyncDirtyState {
     }
 }
 
+enum CloudSyncSnapshotReconciliation {
+    static func recordNamesToDelete(
+        currentSnapshots: [AccountSnapshotSyncPayload],
+        persistedSnapshots: [String: AccountSnapshotSyncPayload],
+        deviceID: String) -> Set<String>
+    {
+        let currentRecordNames = Set(currentSnapshots.map(\.recordName))
+        return Set(persistedSnapshots.compactMap { recordName, snapshot in
+            guard snapshot.deviceID == deviceID, !currentRecordNames.contains(recordName) else { return nil }
+            return recordName
+        })
+    }
+}
+
 enum CloudSyncEntitlementGate {
     static let entitlement = "com.apple.developer.icloud-services"
 
@@ -497,10 +511,22 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     }
 
     private func pushPendingSnapshots() async {
-        guard let engine = self.engine, !self.pendingSnapshots.isEmpty else { return }
+        guard let engine = self.engine else { return }
         guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
         do {
-            for payload in self.pendingSnapshots {
+            let snapshots = self.pendingSnapshots
+            let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
+            let staleRecordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+                currentSnapshots: snapshots,
+                persistedSnapshots: self.persistenceEnvelope.fleetSnapshots,
+                deviceID: deviceID)
+            for recordName in staleRecordNames {
+                let recordID = self.recordID(named: recordName)
+                self.desiredRecords.removeValue(forKey: recordID)
+                engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
+                engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+            }
+            for payload in snapshots {
                 let hash = try CanonicalSyncJSON.hash(payload)
                 guard self.lastSnapshotHashes[payload.recordName] != hash else { continue }
                 let recordID = self.recordID(named: payload.recordName)
@@ -548,18 +574,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         case let .fetchedRecordZoneChanges(changes):
             await self.applyFetchedRecords(changes.modifications.map(\.record))
             let deletedRecordNames = changes.deletions.map(\.recordID.recordName)
-            for deletion in changes.deletions {
-                self.persistenceEnvelope.encodedSystemFields.removeValue(forKey: deletion.recordID.recordName)
-                self.persistenceEnvelope.recordMetadata.removeValue(forKey: deletion.recordID.recordName)
-                self.persistenceEnvelope.fleetDevices.removeValue(forKey: deletion.recordID.recordName)
-                self.persistenceEnvelope.fleetSnapshots.removeValue(forKey: deletion.recordID.recordName)
-            }
-            await MainActor.run {
-                for recordName in deletedRecordNames {
-                    self.state.fleetDevices.removeValue(forKey: recordName)
-                    self.state.fleetSnapshots.removeValue(forKey: recordName)
-                }
-            }
+            await self.removeDeletedRecordsFromCaches(deletedRecordNames)
             self.persistEnvelope()
             await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
         case let .sentRecordZoneChanges(changes):
@@ -573,11 +588,20 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             CloudSyncDirtyState.clearSavedRecords(
                 changes.savedRecords.map(\.recordID.recordName),
                 envelope: &self.persistenceEnvelope)
+            await self.removeDeletedRecordsFromCaches(changes.deletedRecordIDs.map(\.recordName))
             for failure in changes.failedRecordSaves {
                 await self.handleSaveFailure(failure, syncEngine: syncEngine)
             }
+            for (recordID, error) in changes.failedRecordDeletes {
+                if error.code == .unknownItem {
+                    syncEngine.state.remove(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+                    await self.removeDeletedRecordsFromCaches([recordID.recordName])
+                } else {
+                    await self.record(error: error)
+                }
+            }
             self.persistEnvelope()
-            if !changes.savedRecords.isEmpty {
+            if !changes.savedRecords.isEmpty || !changes.deletedRecordIDs.isEmpty {
                 await MainActor.run { self.state.status.lastSuccessfulPushAt = Date() }
             }
         case let .fetchedDatabaseChanges(changes):
@@ -992,5 +1016,24 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         guard sysctlbyname("hw.model", &buffer, &size, nil, 0) == 0 else { return "unknown" }
         let bytes = buffer.prefix { $0 != 0 }.map(UInt8.init(bitPattern:))
         return String(bytes: bytes, encoding: .utf8) ?? "unknown"
+    }
+}
+
+extension CloudSyncEngine {
+    private func removeDeletedRecordsFromCaches(_ recordNames: some Sequence<String>) async {
+        let recordNames = Array(recordNames)
+        for recordName in recordNames {
+            self.persistenceEnvelope.encodedSystemFields.removeValue(forKey: recordName)
+            self.persistenceEnvelope.recordMetadata.removeValue(forKey: recordName)
+            self.persistenceEnvelope.fleetDevices.removeValue(forKey: recordName)
+            self.persistenceEnvelope.fleetSnapshots.removeValue(forKey: recordName)
+            self.lastSnapshotHashes.removeValue(forKey: recordName)
+        }
+        await MainActor.run {
+            for recordName in recordNames {
+                self.state.fleetDevices.removeValue(forKey: recordName)
+                self.state.fleetSnapshots.removeValue(forKey: recordName)
+            }
+        }
     }
 }

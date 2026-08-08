@@ -27,6 +27,8 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Mac full tests | `swift test --no-parallel` | pass；post-review rerun 8340 tests / 812 suites / 0 issue / 363.739s；log `/tmp/codexbar-v047-full-test-postreview.log` |
 | Multi-account/device | `swift test --skip-build --filter 'AccountIdentity\|MultiAccount\|DualZoneReader'` | pass；106 tests / 12 suites；截图生成器因未设输出目录 skip 1 |
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
+| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；16/16 focused；full 8342 tests / 812 suites；覆盖删除单个、空集合删除本机全部、保留其他 Mac |
+| Linux warm-cache Final CI fix | `CostUsageCacheTests` + x64/arm64 `CodexWarmCacheResumeLinuxTests` | local pass / CI pending；20/20 macOS cache tests；旧 PR 两个 Linux 架构均复现 cache replace 后目标文件消失，等待 fix PR manual/full CI |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
 | iOS unit gate | `xcodebuild ... -only-testing:CodexBarMobileTests test -quiet` | pass；post-review rerun 617 tests / 639 runs / 0 failed；xcresult `14-33-51` |
@@ -121,6 +123,11 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
   merge、push 和 published tag 都不在本 Goal 当前授权内。
 
 ## Review closeout
+
+PR #69 merge 后的异步自动 review 新增 1 个 P1：本机消失的 fleet account snapshots 没有
+CloudKit deletion lifecycle。该 finding 不按“已 merge”忽略；在独立 review-fix branch 修复、
+新增 current-device ownership/empty-set/foreign-device preservation tests，并重新进入
+GitHub review → resolve → re-review 循环。最终测试与 thread 状态将在发布前回写本节。
 
 修复前独立 review 找到 2 个 P1（矩阵没有走真实 wire/cache/delete contract、Production
 helper 会调用不适用的 validation endpoint）与 2 个 P2（schema 漏掉

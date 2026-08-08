@@ -71,13 +71,31 @@ Branch: `upstream-sync/v0.47.0-mobile.1.20.0`
 - `project.yml` 四个 iOS targets 均为 `1.20.0 (192)`，随后运行 `xcodegen generate`；
 - root CHANGELOG 的 fork 段已定稿为 `2026-08-03`，HTML extraction 只包含 fork 段；
 - iOS CHANGELOG 与 `MobileReleaseNotesCatalog` 更新，1.20.0 是唯一新用户版本；
-- parser/cache 改动使 `parserLogicVersion` 9→10，生成 hash
-  `42515949b5fe5d36`，lint audit 通过。
+- parser/cache 改动使 `parserLogicVersion` 9→10；post-merge Linux atomic-cache correction
+  后最终生成 hash 为 `a32f8ff375500a19`，lint audit 通过。
 
 ## Round 5 — Test / review / draft ledger
 
 完整命令、结果、xcresult、16-case matrix、CloudKit audit、review findings 和 draft
 release 证据统一记录在 `03-testing.md`，避免本文件复制同一批长日志。
+
+## Round 6 — Post-merge review correction
+
+- PR #69 的自动 review 在 merge 后补报 P1：fleet snapshot writer 只有 upsert，没有
+  reconcile/delete；本机账号移除、provider 禁用或全部 snapshot 清空后，其他 Mac 会持续
+  读取旧 `AccountSnapshot`；
+- 新增本机范围的 reconciliation：以稳定 `macFleetSyncDeviceID` 限定 ownership，比较本轮
+  record-name set 与持久化 fleet snapshot set，只 enqueue 本机 stale record deletes，其他
+  Mac 的快照不受影响；
+- 空 snapshot batch 现在也会执行 reconcile；删除只有在 CloudKit success（或
+  `unknownItem`，即服务端已不存在）后才清理持久化 cache，失败路径保留证据供后续重试；
+- server/fetch deletion 同步清除 snapshot hash，避免服务端删除后当前有效 snapshot 因旧
+  hash 被错误抑制、无法重建。
+- PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
+  上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
+  与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后
+  `codex-v11.json` 消失；该 parser/cache source 变化同步重生成 hash
+  `a32f8ff375500a19`。
 
 Packaging preflight 发现 Xcode Widget extension 的 SwiftPM artifact resolver 即使处理公开
 依赖也会尝试 macOS Keychain authorization。`package_app.sh` 的 Xcode 命令现固定使用

@@ -271,6 +271,45 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `snapshot reconciliation deletes only stale records from the current device`() {
+        let current = Self.snapshot(accountKey: "current", deviceID: "this-mac")
+        let stale = Self.snapshot(accountKey: "removed", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            current.recordName: current,
+            stale.recordName: stale,
+            remote.recordName: remote,
+        ]
+
+        let recordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+            currentSnapshots: [current],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac")
+
+        #expect(recordNames == [stale.recordName])
+    }
+
+    @Test
+    func `empty snapshot reconciliation deletes every current device record but preserves the fleet`() {
+        let first = Self.snapshot(accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(accountKey: "second", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            first.recordName: first,
+            second.recordName: second,
+            remote.recordName: remote,
+        ]
+
+        let recordNames = CloudSyncSnapshotReconciliation.recordNamesToDelete(
+            currentSnapshots: [],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac")
+
+        #expect(recordNames == [first.recordName, second.recordName])
+        #expect(!recordNames.contains(remote.recordName))
+    }
+
+    @Test
     func `quota backoff doubles to one hour and resets after success`() {
         var backoff = CloudSyncQuotaRetryState()
 
@@ -305,6 +344,16 @@ struct CloudSyncSettingsTests {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CloudSyncDirtyTests-\(name)-\(UUID().uuidString)", isDirectory: true)
         return CloudSyncPersistence(fileURL: directory.appendingPathComponent("engine-state.json"))
+    }
+
+    private static func snapshot(accountKey: String, deviceID: String) -> AccountSnapshotSyncPayload {
+        AccountSnapshotSyncPayload(
+            provider: .codex,
+            deviceID: deviceID,
+            accountKey: accountKey,
+            fetchedAt: Date(timeIntervalSince1970: 1000),
+            displayLabel: "person@example.com",
+            usage: UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date(timeIntervalSince1970: 1000)))
     }
 }
 

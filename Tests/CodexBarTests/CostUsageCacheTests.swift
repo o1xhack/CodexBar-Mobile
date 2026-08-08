@@ -256,6 +256,22 @@ struct CostUsageCacheTests {
     }
 
     @Test
+    func `saving a cache atomically replaces the existing artifact`() throws {
+        let root = try self.makeTemporaryCacheRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1
+        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: root)
+        cache.lastScanUnixMs = 2
+        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: root)
+
+        let url = CostUsageCacheIO.cacheFileURL(provider: .codex, cacheRoot: root)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(CostUsageCacheIO.load(provider: .codex, cacheRoot: root).lastScanUnixMs == 2)
+    }
+
+    @Test
     func `cache load requires matching producer key`() throws {
         let root = try self.makeTemporaryCacheRoot()
         defer { try? FileManager.default.removeItem(at: root) }
