@@ -40,6 +40,13 @@ struct ProviderRefreshPublicationContext {
     var configRevision: UInt64
     let tokenCostScopeSignature: String?
     let allowDisabled: Bool
+    var completedSuccessfully = false
+}
+
+struct ProviderSnapshotPublicationSource: Equatable, Sendable {
+    let provider: UsageProvider
+    let refreshGeneration: UInt64
+    let configRevision: UInt64
 }
 
 /// A single component/service row on a statuspage.io-style status page

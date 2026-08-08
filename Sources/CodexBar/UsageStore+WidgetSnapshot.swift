@@ -4,8 +4,16 @@ import Foundation
 import WidgetKit
 #endif
 
+struct CloudSyncAccountSnapshotPublication {
+    let snapshots: [AccountSnapshotSyncPayload]
+    let tokenAccountIDsByRecordName: [String: UUID]
+}
+
 extension UsageStore {
-    func persistWidgetSnapshot(reason: String) {
+    func persistWidgetSnapshot(
+        reason: String,
+        successfulRefreshes: [UsageProvider: ProviderSnapshotPublicationSource] = [:])
+    {
         #if DEBUG
         // Unsigned test processes must not cross into the real app-group container. Snapshot tests
         // opt in with an in-memory override, which also keeps their assertions deterministic.
@@ -22,9 +30,38 @@ extension UsageStore {
         }()
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
         self.lastQueuedWidgetSnapshot = snapshot
+        let unfilteredCloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
+        let publicationSources = self.providerSnapshotPublicationSources
+        let cloudSyncSnapshots = unfilteredCloudSyncPublication.snapshots.filter {
+            publicationSources[$0.provider] != nil
+        }
+        let cloudSyncRecordNames = Set(cloudSyncSnapshots.map(\.recordName))
+        let cloudSyncTokenAccountIDsByRecordName = unfilteredCloudSyncPublication.tokenAccountIDsByRecordName.filter {
+            cloudSyncRecordNames.contains($0.key)
+        }
+        let successfulRefreshProviders = Set(successfulRefreshes.compactMap { provider, source in
+            publicationSources[provider] == source ? provider : nil
+        })
+        let authoritativeProviders = self.cloudSyncAuthoritativeSnapshotProviders(
+            cloudSyncSnapshots,
+            successfulRefreshProviders: successfulRefreshProviders)
+        let publicationProviders = Set(cloudSyncSnapshots.map(\.provider))
+        let providerConfigRevisions = Dictionary(uniqueKeysWithValues: publicationProviders.compactMap { provider in
+            publicationSources[provider].map { (provider, $0.configRevision) }
+        })
+        let providerPublicationGenerations = Dictionary(uniqueKeysWithValues: publicationProviders.map { provider in
+            let generation = self.cloudSyncSnapshotPublicationGenerations[provider, default: 0] &+ 1
+            self.cloudSyncSnapshotPublicationGenerations[provider] = generation
+            return (provider, generation)
+        })
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
-            object: UsageSnapshotsDidChangeEvent(snapshots: self.cloudSyncAccountSnapshots()))
+            object: UsageSnapshotsDidChangeEvent(
+                snapshots: cloudSyncSnapshots,
+                authoritativeProviders: authoritativeProviders,
+                providerConfigRevisions: providerConfigRevisions,
+                providerPublicationGenerations: providerPublicationGenerations,
+                tokenAccountIDsByRecordName: cloudSyncTokenAccountIDsByRecordName))
         let previousTask = self.widgetSnapshotPersistTask
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
@@ -44,8 +81,22 @@ extension UsageStore {
     }
 
     func cloudSyncAccountSnapshots() -> [AccountSnapshotSyncPayload] {
+        self.cloudSyncAccountSnapshotPublication().snapshots
+    }
+
+    func cloudSyncAccountSnapshotPublication() -> CloudSyncAccountSnapshotPublication {
         let deviceID = self.settings.macFleetSyncDeviceID
         var payloads: [String: AccountSnapshotSyncPayload] = [:]
+        var tokenAccountIDsByRecordName: [String: UUID] = [:]
+
+        func insert(_ payload: AccountSnapshotSyncPayload, tokenAccountID: UUID? = nil) {
+            payloads[payload.recordName] = payload
+            if let tokenAccountID {
+                tokenAccountIDsByRecordName[payload.recordName] = tokenAccountID
+            } else {
+                tokenAccountIDsByRecordName.removeValue(forKey: payload.recordName)
+            }
+        }
 
         for (provider, usage) in self.snapshots {
             let identity = usage.identity?.accountID ?? usage.identity?.accountEmail
@@ -58,7 +109,7 @@ extension UsageStore {
                 accountIdentity: identity,
                 displayLabel: label,
                 usage: usage)
-            payloads[payload.recordName] = payload
+            insert(payload)
         }
 
         for (provider, accountSnapshots) in self.accountSnapshots {
@@ -74,7 +125,7 @@ extension UsageStore {
                     accountIdentity: identity,
                     displayLabel: accountSnapshot.account.displayName,
                     usage: usage)
-                payloads[payload.recordName] = payload
+                insert(payload, tokenAccountID: accountSnapshot.account.id)
             }
         }
 
@@ -89,10 +140,59 @@ extension UsageStore {
                 accountIdentity: identity,
                 displayLabel: accountSnapshot.displayLabel,
                 usage: usage)
-            payloads[payload.recordName] = payload
+            insert(payload)
         }
 
-        return payloads.values.sorted { $0.recordName < $1.recordName }
+        return CloudSyncAccountSnapshotPublication(
+            snapshots: payloads.values.sorted { $0.recordName < $1.recordName },
+            tokenAccountIDsByRecordName: tokenAccountIDsByRecordName)
+    }
+
+    /// Snapshot absence is destructive only after a completed, successful provider refresh. Other
+    /// publications (settings display, cost refreshes, account invalidation) can legitimately expose a
+    /// partial or empty in-memory store and must never erase the last good fleet snapshot.
+    func cloudSyncAuthoritativeSnapshotProviders(
+        _ snapshots: [AccountSnapshotSyncPayload],
+        successfulRefreshProviders: Set<UsageProvider>) -> Set<UsageProvider>
+    {
+        let providersWithSnapshots = Set(snapshots.map(\.provider)).intersection(successfulRefreshProviders)
+        return Set(providersWithSnapshots.filter { provider in
+            guard self.errors[provider] == nil else { return false }
+
+            if provider == .codex {
+                guard let projection = self.settings.codexVisibleAccountProjectionForMenuDisplay else {
+                    return false
+                }
+                if projection.visibleAccounts.count > 1 {
+                    let snapshotsByAccountID = Dictionary(
+                        uniqueKeysWithValues: self.codexAccountSnapshots.map { ($0.account.id, $0) })
+                    return projection.visibleAccounts.allSatisfy { account in
+                        guard let snapshot = snapshotsByAccountID[account.id] else { return false }
+                        return snapshot.snapshot != nil && snapshot.error == nil
+                    }
+                }
+                return self.codexAccountSnapshots.allSatisfy { snapshot in
+                    snapshot.snapshot != nil && snapshot.error == nil
+                }
+            }
+
+            let configuredAccounts = self.settings.tokenAccounts(for: provider)
+            if !configuredAccounts.isEmpty {
+                let snapshotsByAccountID = Dictionary(
+                    uniqueKeysWithValues: (self.accountSnapshots[provider] ?? []).map { ($0.account.id, $0) })
+                return configuredAccounts.allSatisfy { account in
+                    guard let snapshot = snapshotsByAccountID[account.id] else { return false }
+                    return snapshot.snapshot != nil && snapshot.error == nil
+                }
+            }
+
+            if provider == .claude,
+               self.settings.claudeSwapEnabled
+            {
+                return self.claudeSwapLastRefreshAt != nil && self.claudeSwapLastError == nil
+            }
+            return true
+        })
     }
 
     func cloudSyncLocalAccountKeys(for provider: UsageProvider) -> Set<String> {

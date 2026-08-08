@@ -10,36 +10,67 @@ final class CloudSyncCoordinator {
     private let settings: SettingsStore
     private let engine: CloudSyncEngine
     private var configObserver: NSObjectProtocol?
+    private var externalConfigObserver: NSObjectProtocol?
     private var snapshotObserver: NSObjectProtocol?
     private var accountObserver: NSObjectProtocol?
     private var resumeTask: Task<Void, Never>?
     private var observedEnabled: Bool
 
-    init(settings: SettingsStore, state: CloudSyncState = CloudSyncState()) {
+    init(
+        settings: SettingsStore,
+        state: CloudSyncState = CloudSyncState(),
+        persistence: CloudSyncPersistence = CloudSyncPersistence())
+    {
         self.settings = settings
         self.state = state
         self.observedEnabled = settings.macFleetSyncEnabled
         self.engine = CloudSyncEngine(
             settings: settings,
             state: self.state,
+            persistence: persistence,
             initialConfiguration: settings.configSnapshot,
+            initialConfigurationRevision: settings.configRevision,
             initialPreferences: settings.syncedPreferences,
             initialIncludeSecrets: settings.macFleetSyncIncludeSecrets)
     }
 
-    func start() {
+    func start(startEngine: Bool = true) {
         self.observeSettings()
         self.configObserver = NotificationCenter.default.addObserver(
             forName: .codexbarProviderConfigDidChange,
             object: self.settings,
             queue: .main)
-        { [weak self] _ in
+        { [weak self] notification in
+            let notificationRevision = notification.userInfo?["revision"] as? Int
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let config = self.settings.configSnapshot
+                let revision = notificationRevision ?? self.settings.configRevision
+                let deviceID = self.settings.macFleetSyncDeviceID
                 Task {
-                    await self.engine.localUserConfigurationDidChange(config)
+                    await self.engine.localUserConfigurationDidChange(
+                        config,
+                        revision: revision,
+                        deviceID: deviceID)
                     await self.engine.scheduleConfigurationPush()
+                }
+            }
+        }
+        self.externalConfigObserver = NotificationCenter.default.addObserver(
+            forName: .codexbarExternalProviderConfigDidChange,
+            object: self.settings,
+            queue: .main)
+        { [weak self] notification in
+            let event = notification.userInfo?["event"] as? ExternalProviderConfigDidChangeEvent
+            MainActor.assumeIsolated {
+                guard let self, let event else { return }
+                let deviceID = self.settings.macFleetSyncDeviceID
+                Task {
+                    await self.engine.externalConfigurationDidChange(
+                        previousConfig: event.previousConfig,
+                        currentConfig: event.currentConfig,
+                        revision: event.revision,
+                        deviceID: deviceID)
                 }
             }
         }
@@ -51,7 +82,12 @@ final class CloudSyncCoordinator {
             guard let event = notification.object as? UsageSnapshotsDidChangeEvent else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                await self.engine.queueSnapshots(event.snapshots)
+                await self.engine.queueSnapshots(
+                    event.snapshots,
+                    authoritativeProviders: event.authoritativeProviders,
+                    sourceProviderConfigRevisions: event.providerConfigRevisions,
+                    sourceProviderPublicationGenerations: event.providerPublicationGenerations,
+                    tokenAccountIDsByRecordName: event.tokenAccountIDsByRecordName)
             }
         }
         self.accountObserver = NotificationCenter.default.addObserver(
@@ -63,7 +99,9 @@ final class CloudSyncCoordinator {
                 self?.scheduleResume(debounce: true)
             }
         }
-        Task { await self.engine.start(enabled: self.settings.macFleetSyncEnabled) }
+        if startEngine {
+            Task { await self.engine.start(enabled: self.settings.macFleetSyncEnabled) }
+        }
     }
 
     func applicationDidBecomeActive() {
@@ -74,6 +112,9 @@ final class CloudSyncCoordinator {
         if let configObserver {
             NotificationCenter.default.removeObserver(configObserver)
         }
+        if let externalConfigObserver {
+            NotificationCenter.default.removeObserver(externalConfigObserver)
+        }
         if let snapshotObserver {
             NotificationCenter.default.removeObserver(snapshotObserver)
         }
@@ -82,6 +123,7 @@ final class CloudSyncCoordinator {
         }
         self.resumeTask?.cancel()
         self.configObserver = nil
+        self.externalConfigObserver = nil
         self.snapshotObserver = nil
         self.accountObserver = nil
         self.resumeTask = nil

@@ -169,6 +169,7 @@ extension SettingsStore {
         affectsBackgroundWork: Bool? = nil)
     {
         guard !self.configLoading else { return }
+        let previousConfig = self.config
         let normalized = config.normalized()
         let inferredBackgroundWorkChange = Self.configChangeAffectsBackgroundWork(
             from: self.config,
@@ -181,6 +182,15 @@ extension SettingsStore {
         self.bumpConfigRevision(.external(
             reason: "sync-\(reason)",
             affectsBackgroundWork: resolvedBackgroundWorkChange))
+        NotificationCenter.default.post(
+            name: .codexbarExternalProviderConfigDidChange,
+            object: self,
+            userInfo: [
+                "event": ExternalProviderConfigDidChangeEvent(
+                    previousConfig: previousConfig,
+                    currentConfig: normalized,
+                    revision: self.configRevision),
+            ])
     }
 
     private static func configChangeAffectsBackgroundWork(

@@ -133,6 +133,10 @@ struct CloudSyncSettingsTests {
 
         #expect(envelope.dirtyProviders.isEmpty)
         #expect(!envelope.preferencesDirty)
+        #expect(envelope.snapshotDeletionRecordNames.isEmpty)
+        #expect(envelope.snapshotDeletionCancellationRecordNames.isEmpty)
+        #expect(envelope.snapshotOwnershipKnownRecordNames.isEmpty)
+        #expect(envelope.snapshotTokenAccountIDs.isEmpty)
     }
 
     @Test
@@ -257,6 +261,108 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `remote provider account removal creates a durable snapshot tombstone`() async throws {
+        let fixture = try self.makeFixture("remote-account-removal")
+        let persistence = self.makePersistence("remote-account-removal")
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Remote account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        var initial = fixture.store.configSnapshot
+        var openAI = try #require(initial.providerConfig(for: .openai))
+        openAI.tokenAccounts = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
+        initial.setProviderConfig(openAI)
+        fixture.store.applyExternalConfig(initial, reason: "seed")
+        let snapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: fixture.store.macFleetSyncDeviceID)
+        try persistence.save(.init(
+            stateSerialization: nil,
+            encodedSystemFields: [:],
+            snapshotOwnershipKnownRecordNames: [snapshot.recordName],
+            snapshotTokenAccountIDs: [snapshot.recordName: account.id],
+            fleetSnapshots: [snapshot.recordName: snapshot]))
+        let engine = CloudSyncEngine(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence,
+            initialConfiguration: initial,
+            initialConfigurationRevision: fixture.store.configRevision,
+            initialPreferences: fixture.store.syncedPreferences,
+            initialIncludeSecrets: fixture.store.macFleetSyncIncludeSecrets)
+        var remoteConfig = openAI
+        remoteConfig.tokenAccounts = nil
+        let recordID = CKRecord.ID(
+            recordName: ProviderIntentPayload.recordName(for: .openai),
+            zoneID: CloudSyncEngine.zoneID)
+        let record = CKRecord(recordType: SyncRecordType.providerIntent.rawValue, recordID: recordID)
+        record["payload"] = try CanonicalSyncJSON.string(ProviderIntentPayload(config: remoteConfig)) as CKRecordValue
+        record.encryptedValues[ProviderIntentSecretField.tokenAccounts.rawValue] = "" as CKRecordValue
+
+        await engine.applyFetchedRecords([record])
+
+        #expect(fixture.store.tokenAccounts(for: .openai).isEmpty)
+        #expect(persistence.load().snapshotDeletionRecordNames == [snapshot.recordName])
+    }
+
+    @Test
+    func `external config reload reconciles removed account snapshots`() async throws {
+        let fixture = try self.makeFixture("external-account-removal")
+        let persistence = self.makePersistence("external-account-removal")
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "External account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        var initial = fixture.store.configSnapshot
+        var openAI = try #require(initial.providerConfig(for: .openai))
+        openAI.tokenAccounts = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
+        initial.setProviderConfig(openAI)
+        fixture.store.applyExternalConfig(initial, reason: "seed")
+        let snapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: fixture.store.macFleetSyncDeviceID)
+        try persistence.save(.init(
+            stateSerialization: nil,
+            encodedSystemFields: [:],
+            snapshotOwnershipKnownRecordNames: [snapshot.recordName],
+            snapshotTokenAccountIDs: [snapshot.recordName: account.id],
+            fleetSnapshots: [snapshot.recordName: snapshot]))
+        let coordinator = CloudSyncCoordinator(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence)
+        coordinator.start(startEngine: false)
+        defer { coordinator.stop() }
+        var external = initial
+        openAI.tokenAccounts = nil
+        external.setProviderConfig(openAI)
+
+        fixture.store.applyExternalConfig(external, reason: "file-reload")
+
+        for _ in 0..<50 where !persistence.load().snapshotDeletionRecordNames.contains(snapshot.recordName) {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(persistence.load().snapshotDeletionRecordNames == [snapshot.recordName])
+
+        fixture.store.applyExternalConfig(initial, reason: "file-restore")
+
+        for _ in 0..<50
+            where !persistence.load().snapshotDeletionCancellationRecordNames.contains(snapshot.recordName)
+        {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let restoredEnvelope = persistence.load()
+        #expect(restoredEnvelope.snapshotDeletionRecordNames.isEmpty)
+        #expect(restoredEnvelope.snapshotDeletionCancellationRecordNames == [snapshot.recordName])
+    }
+
+    @Test
     func `missing desired record drains its pending save`() {
         let recordID = CKRecord.ID(recordName: "stale", zoneID: CloudSyncEngine.zoneID)
         let change = CKSyncEngine.PendingRecordZoneChange.saveRecord(recordID)
@@ -268,6 +374,476 @@ struct CloudSyncSettingsTests {
 
         #expect(record == nil)
         #expect(pending.isEmpty)
+    }
+
+    @Test
+    func `authoritative snapshot reconciliation deletes only stale records from the current device`() {
+        let current = Self.snapshot(accountKey: "current", deviceID: "this-mac")
+        let stale = Self.snapshot(accountKey: "removed", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            current.recordName: current,
+            stale.recordName: stale,
+            remote.recordName: remote,
+        ]
+
+        let plan = CloudSyncSnapshotReconciliation.plan(
+            currentSnapshots: [current],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac",
+            enabledProviders: [.codex],
+            authoritativeProviders: [.codex])
+
+        #expect(plan.recordNamesToDelete == [stale.recordName])
+        #expect(plan.recordNamesToCancelPendingDeletes == [current.recordName])
+    }
+
+    @Test
+    func `non authoritative empty snapshot publication preserves last good records`() {
+        let first = Self.snapshot(accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(accountKey: "second", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            first.recordName: first,
+            second.recordName: second,
+            remote.recordName: remote,
+        ]
+
+        let plan = CloudSyncSnapshotReconciliation.plan(
+            currentSnapshots: [],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac",
+            enabledProviders: [.codex],
+            authoritativeProviders: [])
+
+        #expect(plan.recordNamesToDelete.isEmpty)
+    }
+
+    @Test
+    func `provider refresh failure makes snapshot publication non authoritative`() throws {
+        let fixture = try self.makeFixture("snapshot-authority")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        let snapshot = Self.snapshot(provider: .openai, accountKey: "current", deviceID: "this-mac")
+
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot],
+            successfulRefreshProviders: [.openai]) == [.openai])
+
+        store.errors[.openai] = "transient network failure"
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot],
+            successfulRefreshProviders: [.openai]).isEmpty)
+
+        store.errors[.openai] = nil
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], successfulRefreshProviders: []).isEmpty)
+
+        let unrelated = Self.snapshot(provider: .claude, accountKey: "unrelated", deviceID: "this-mac")
+        #expect(store.cloudSyncAuthoritativeSnapshotProviders(
+            [snapshot, unrelated],
+            successfulRefreshProviders: [.openai]) == [.openai])
+    }
+
+    @Test
+    func `suppressed provider fetch failure does not issue snapshot authority`() async throws {
+        let fixture = try self.makeFixture("snapshot-suppressed-failure")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        store.snapshots[.openai] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1000))
+        store._test_providerFetchOutcomeOverride = { _ in
+            ProviderFetchOutcome(
+                result: .failure(URLError(.timedOut)),
+                attempts: [])
+        }
+
+        let source = await store.refreshProviderForSnapshotPublication(.openai, allowDisabled: true)
+
+        #expect(source == nil)
+        #expect(store.errors[.openai] == nil)
+        #expect(store.providerSnapshotPublicationSources[.openai] == nil)
+    }
+
+    @Test
+    func `snapshot publication keeps fetch revision and advances provider generation`() async throws {
+        let fixture = try self.makeFixture("snapshot-publication-source")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        store._test_providerFetchOutcomeOverride = { _ in
+            ProviderFetchOutcome(
+                result: .success(ProviderFetchResult(
+                    usage: UsageSnapshot(
+                        primary: nil,
+                        secondary: nil,
+                        updatedAt: Date(timeIntervalSince1970: 2000)),
+                    credits: nil,
+                    dashboard: nil,
+                    sourceLabel: "fixture",
+                    strategyID: "fixture",
+                    strategyKind: .apiToken)),
+                attempts: [])
+        }
+
+        let refreshSource = await store.refreshProviderForSnapshotPublication(.openai, allowDisabled: true)
+        let source = try #require(refreshSource)
+        fixture.store.providerConfigRevisions[.openai, default: 0] &+= 1
+        store._test_widgetSnapshotSaveOverride = { _ in }
+        let events = UsageSnapshotPublicationEventRecorder()
+        defer { events.stop() }
+
+        store.persistWidgetSnapshot(reason: "authoritative-test", successfulRefreshes: [.openai: source])
+        store.persistWidgetSnapshot(reason: "non-authoritative-test")
+
+        let recorded = events.values
+        #expect(recorded.count == 2)
+        let first = try #require(recorded.first)
+        let second = try #require(recorded.last)
+        #expect(first.providerConfigRevisions[.openai] == source.configRevision)
+        #expect(first.providerConfigRevisions[.openai] != fixture.store.providerConfigRevision(for: .openai))
+        #expect(first.providerPublicationGenerations[.openai] == 1)
+        #expect(first.authoritativeProviders == [.openai])
+        #expect(second.providerPublicationGenerations[.openai] == 2)
+        #expect(second.authoritativeProviders.isEmpty)
+    }
+
+    @Test
+    func `stale provider revision cannot restore snapshot authority after configuration change`() {
+        let accepted = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+            claimedProviders: [.openai, .claude],
+            sourceRevisions: [.openai: 4, .claude: 7],
+            currentRevisions: [.openai: 5, .claude: 7])
+
+        #expect(accepted == [.claude])
+    }
+
+    @Test
+    func `older provider publication generation cannot overwrite newer pending data`() {
+        let accepted = CloudSyncSnapshotPublicationGenerationGate.acceptedProviders(
+            claimedProviders: [.openai, .claude],
+            sourceGenerations: [.openai: 8, .claude: 4],
+            latestAcceptedGenerations: [.openai: 9, .claude: 4])
+
+        #expect(accepted == [.claude])
+    }
+
+    @Test
+    func `stale provider event preserves newer pending provider slices`() {
+        let currentOpenAI = Self.snapshot(provider: .openai, accountKey: "current", deviceID: "this-mac")
+        let staleOpenAI = Self.snapshot(provider: .openai, accountKey: "stale", deviceID: "this-mac")
+        let currentClaude = Self.snapshot(provider: .claude, accountKey: "current", deviceID: "this-mac")
+        let openAIAccountID = UUID()
+        let claudeAccountID = UUID()
+
+        let plan = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [currentOpenAI.recordName: openAIAccountID],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [staleOpenAI, currentClaude],
+                authoritativeProviders: [.openai, .claude],
+                tokenAccountIDsByRecordName: [
+                    staleOpenAI.recordName: UUID(),
+                    currentClaude.recordName: claudeAccountID,
+                ],
+                providerConfigRevisions: [.openai: 4, .claude: 7]),
+            currentProviderConfigRevisions: [.openai: 5, .claude: 7])
+
+        #expect(Set(plan.snapshots.map(\.recordName)) == [currentOpenAI.recordName, currentClaude.recordName])
+        #expect(plan.authoritativeProviders == [.openai, .claude])
+        #expect(plan.tokenAccountIDsByRecordName[currentOpenAI.recordName] == openAIAccountID)
+        #expect(plan.tokenAccountIDsByRecordName[currentClaude.recordName] == claudeAccountID)
+        #expect(plan.providerConfigRevisions == [.openai: 5, .claude: 7])
+
+        let fallbackReplacement = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [currentOpenAI.recordName: openAIAccountID],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [:],
+                providerConfigRevisions: [.openai: 5]),
+            currentProviderConfigRevisions: [.openai: 5])
+        #expect(fallbackReplacement.tokenAccountIDsByRecordName.isEmpty)
+    }
+
+    @Test
+    func `partial same revision publication preserves complete pending provider slice`() {
+        let first = Self.snapshot(provider: .openai, accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(provider: .openai, accountKey: "second", deviceID: "this-mac")
+        let firstAccountID = UUID()
+        let secondAccountID = UUID()
+
+        let plan = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [first, second],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [
+                    first.recordName: firstAccountID,
+                    second.recordName: secondAccountID,
+                ],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [first],
+                authoritativeProviders: [],
+                tokenAccountIDsByRecordName: [:],
+                providerConfigRevisions: [.openai: 5]),
+            currentProviderConfigRevisions: [.openai: 5])
+
+        #expect(Set(plan.snapshots.map(\.recordName)) == [first.recordName, second.recordName])
+        #expect(plan.authoritativeProviders == [.openai])
+        #expect(plan.tokenAccountIDsByRecordName[first.recordName] == nil)
+        #expect(plan.tokenAccountIDsByRecordName[second.recordName] == secondAccountID)
+        #expect(plan.providerConfigRevisions == [.openai: 5])
+    }
+
+    @Test
+    func `snapshot publication carries local token account ownership without changing the wire payload`() throws {
+        let fixture = try self.makeFixture("snapshot-token-owner")
+        fixture.store.addTokenAccount(provider: .openai, label: "person@example.com", token: "test-token")
+        let account = try #require(fixture.store.tokenAccounts(for: .openai).first)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        let usage = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1000),
+            identity: ProviderIdentitySnapshot(
+                providerID: .openai,
+                accountEmail: account.label,
+                accountOrganization: nil,
+                loginMethod: nil))
+        store.accountSnapshots[.openai] = [TokenAccountUsageSnapshot(
+            account: account,
+            snapshot: usage,
+            error: nil,
+            sourceLabel: nil,
+            cacheKey: "test")]
+
+        let publication = store.cloudSyncAccountSnapshotPublication()
+        let payload = try #require(publication.snapshots.first)
+
+        #expect(publication.tokenAccountIDsByRecordName[payload.recordName] == account.id)
+        #expect(payload.displayLabel == account.displayName)
+    }
+
+    @Test
+    func `removing and restoring a token account scopes the durable deletion intent to its record`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "removed@example.com",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        let populatedConfig = ProviderConfig(
+            id: .openai,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+        let emptyConfig = ProviderConfig(id: .openai, enabled: true)
+        let removedSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: "this-mac",
+            displayLabel: account.label)
+        let fallbackSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "fallback",
+            deviceID: "this-mac",
+            displayLabel: account.label)
+        let persisted = [
+            removedSnapshot.recordName: removedSnapshot,
+            fallbackSnapshot.recordName: fallbackSnapshot,
+        ]
+
+        let removed = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: populatedConfig],
+            currentConfig: CodexBarConfig(providers: [emptyConfig]),
+            state: .init(
+                candidateSnapshots: persisted,
+                ownershipKnownRecordNames: Set(persisted.keys),
+                tokenAccountIDsByRecordName: [removedSnapshot.recordName: account.id],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+        #expect(removed.pendingRecordNames == [removedSnapshot.recordName])
+        #expect(removed.recordNamesToDelete == [removedSnapshot.recordName])
+        #expect(removed.recordNamesToCancel.isEmpty)
+        #expect(!removed.recordNamesToDelete.contains(fallbackSnapshot.recordName))
+
+        let restored = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: emptyConfig],
+            currentConfig: CodexBarConfig(providers: [populatedConfig]),
+            state: .init(
+                candidateSnapshots: persisted,
+                ownershipKnownRecordNames: Set(persisted.keys),
+                tokenAccountIDsByRecordName: [removedSnapshot.recordName: account.id],
+                deviceID: "this-mac",
+                pendingRecordNames: removed.pendingRecordNames))
+        #expect(restored.pendingRecordNames.isEmpty)
+        #expect(restored.recordNamesToDelete.isEmpty)
+        #expect(restored.recordNamesToCancel == [removedSnapshot.recordName])
+        #expect(restored.providersRequiringFreshAuthority.isEmpty)
+    }
+
+    @Test
+    func `persisted ownership repairs an offline account removal on relaunch`() {
+        let removedAccountID = UUID()
+        let removedSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "removed",
+            deviceID: "this-mac")
+
+        let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [:],
+            currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .openai, enabled: true)]),
+            state: .init(
+                candidateSnapshots: [removedSnapshot.recordName: removedSnapshot],
+                ownershipKnownRecordNames: [removedSnapshot.recordName],
+                tokenAccountIDsByRecordName: [removedSnapshot.recordName: removedAccountID],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+
+        #expect(plan.pendingRecordNames == [removedSnapshot.recordName])
+        #expect(plan.recordNamesToDelete == [removedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.openai])
+    }
+
+    @Test
+    func `legacy ownership backfill requires a stable account key and preserves same label fallback`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Primary account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil,
+            externalIdentifier: "actual-account-id-from-provider")
+        let populatedConfig = ProviderConfig(
+            id: .claude,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+        let removedSnapshot = Self.snapshot(
+            provider: .claude,
+            accountKey: AccountSnapshotSyncPayload.accountKey(for: "actual-account-id-from-provider"),
+            deviceID: "this-mac",
+            displayLabel: account.label)
+        let fallbackSnapshot = Self.snapshot(
+            provider: .claude,
+            accountKey: "oauth-fallback",
+            deviceID: "this-mac",
+            displayLabel: account.label)
+
+        let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.claude: populatedConfig],
+            currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            state: .init(
+                candidateSnapshots: [
+                    removedSnapshot.recordName: removedSnapshot,
+                    fallbackSnapshot.recordName: fallbackSnapshot,
+                ],
+                ownershipKnownRecordNames: [],
+                tokenAccountIDsByRecordName: [:],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+
+        #expect(plan.recordNamesToDelete == [removedSnapshot.recordName])
+        #expect(!plan.recordNamesToDelete.contains(fallbackSnapshot.recordName))
+        #expect(plan.ownershipKnownRecordNames.contains(removedSnapshot.recordName))
+        #expect(!plan.ownershipKnownRecordNames.contains(fallbackSnapshot.recordName))
+        #expect(plan.tokenAccountIDsByRecordName[removedSnapshot.recordName] == account.id)
+    }
+
+    @Test
+    func `queued snapshot is tombstoned when its account is removed before the throttle publishes`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Queued account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        let queuedSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "queued",
+            deviceID: "this-mac",
+            displayLabel: account.label)
+        let previous = ProviderConfig(
+            id: .openai,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+
+        let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: previous],
+            currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .openai, enabled: true)]),
+            state: .init(
+                candidateSnapshots: [queuedSnapshot.recordName: queuedSnapshot],
+                ownershipKnownRecordNames: [queuedSnapshot.recordName],
+                tokenAccountIDsByRecordName: [queuedSnapshot.recordName: account.id],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+
+        #expect(plan.pendingRecordNames == [queuedSnapshot.recordName])
+        #expect(plan.recordNamesToDelete == [queuedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.openai])
+    }
+
+    @Test
+    func `stale removed account publication stays blocked while fallback snapshot remains publishable`() {
+        let removedAccountID = UUID()
+        let removedSnapshot = Self.snapshot(
+            provider: .claude,
+            accountKey: "removed",
+            deviceID: "this-mac")
+        let fallbackSnapshot = Self.snapshot(
+            provider: .claude,
+            accountKey: "fallback",
+            deviceID: "this-mac")
+
+        let plan = CloudSyncSnapshotDeletionIntentReconciliation.plan(
+            snapshots: [removedSnapshot, fallbackSnapshot],
+            tokenAccountIDsByRecordName: [removedSnapshot.recordName: removedAccountID],
+            authoritativeProviders: [.claude],
+            activeTokenAccountIDs: [],
+            pendingRecordNames: [removedSnapshot.recordName])
+
+        #expect(plan.pendingRecordNames == [removedSnapshot.recordName])
+        #expect(plan.recordNamesToCancel.isEmpty)
+        #expect(plan.blockedRecordNames == [removedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.claude])
+    }
+
+    @Test
+    func `disabled provider deletion removes current device records but preserves the fleet`() {
+        let first = Self.snapshot(accountKey: "first", deviceID: "this-mac")
+        let second = Self.snapshot(accountKey: "second", deviceID: "this-mac")
+        let remote = Self.snapshot(accountKey: "remote", deviceID: "other-mac")
+        let persisted = [
+            first.recordName: first,
+            second.recordName: second,
+            remote.recordName: remote,
+        ]
+
+        let plan = CloudSyncSnapshotReconciliation.plan(
+            currentSnapshots: [first],
+            persistedSnapshots: persisted,
+            deviceID: "this-mac",
+            enabledProviders: [],
+            authoritativeProviders: [])
+
+        #expect(plan.recordNamesToDelete == [first.recordName, second.recordName])
+        #expect(plan.recordNamesToCancelPendingDeletes.isEmpty)
+        #expect(!plan.recordNamesToDelete.contains(remote.recordName))
     }
 
     @Test
@@ -286,7 +862,7 @@ struct CloudSyncSettingsTests {
         #expect(backoff.nextDelay(serverRetryAfter: 30) == 30)
     }
 
-    private func makeFixture(_ name: String) throws -> (store: SettingsStore, defaults: UserDefaults) {
+    func makeFixture(_ name: String) throws -> (store: SettingsStore, defaults: UserDefaults) {
         let suite = "CloudSyncSettingsTests-\(name)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -301,10 +877,25 @@ struct CloudSyncSettingsTests {
         return (store, defaults)
     }
 
-    private func makePersistence(_ name: String) -> CloudSyncPersistence {
+    func makePersistence(_ name: String) -> CloudSyncPersistence {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CloudSyncDirtyTests-\(name)-\(UUID().uuidString)", isDirectory: true)
         return CloudSyncPersistence(fileURL: directory.appendingPathComponent("engine-state.json"))
+    }
+
+    static func snapshot(
+        provider: UsageProvider = .codex,
+        accountKey: String,
+        deviceID: String,
+        displayLabel: String = "person@example.com") -> AccountSnapshotSyncPayload
+    {
+        AccountSnapshotSyncPayload(
+            provider: provider,
+            deviceID: deviceID,
+            accountKey: accountKey,
+            fetchedAt: Date(timeIntervalSince1970: 1000),
+            displayLabel: displayLabel,
+            usage: UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date(timeIntervalSince1970: 1000)))
     }
 }
 
@@ -318,5 +909,37 @@ private final class LockedCounter: @unchecked Sendable {
 
     func increment() {
         self.lock.withLock { self.storage += 1 }
+    }
+}
+
+private final class UsageSnapshotPublicationEventRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [UsageSnapshotsDidChangeEvent] = []
+    private var token: NSObjectProtocol?
+
+    init() {
+        self.token = NotificationCenter.default.addObserver(
+            forName: .codexbarUsageSnapshotsDidChange,
+            object: nil,
+            queue: nil)
+        { [weak self] notification in
+            guard let event = notification.object as? UsageSnapshotsDidChangeEvent else { return }
+            self?.lock.withLock { self?.storage.append(event) }
+        }
+    }
+
+    var values: [UsageSnapshotsDidChangeEvent] {
+        self.lock.withLock { self.storage }
+    }
+
+    func stop() {
+        if let token {
+            NotificationCenter.default.removeObserver(token)
+            self.token = nil
+        }
+    }
+
+    deinit {
+        self.stop()
     }
 }

@@ -96,20 +96,10 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
         return 124
 
 
-def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
-    command = [*swift_command, "test", "list"]
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as error:
-        print(f"+ {swift_command[0]} test list", flush=True)
-        if error.stdout:
-            print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
-        if error.stderr:
-            print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
-        raise
+def parse_swift_test_list(output: str) -> list[TestSelection]:
     selections: set[TestSelection] = set()
     unknown: list[str] = []
-    for line in result.stdout.splitlines():
+    for line in output.splitlines():
         top_level = re.fullmatch(r"(?P<module>[^.]+)\.(?:`(?P<display>.+)`|(?P<function>[^()/]+))\(\)", line)
         if top_level is not None:
             module = top_level.group("module")
@@ -141,7 +131,53 @@ def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
     if unknown:
         rendered = "\n".join(f"- {line}" for line in unknown)
         raise RuntimeError(f"Unrecognized `swift test list` output:\n{rendered}")
+    if not selections:
+        raise RuntimeError("`swift test list` returned no test selections")
     return sorted(selections, key=lambda selection: selection.name)
+
+
+def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
+    expected_selections: tuple[TestSelection, ...] | None = None
+    valid_results = 0
+    parse_errors: list[str] = []
+    for attempt in range(4):
+        command = [*swift_command, "test", "list"]
+        if attempt > 0:
+            command.append("--skip-build")
+        try:
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            print(f"+ {' '.join(command)}", flush=True)
+            if error.stdout:
+                print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
+            if error.stderr:
+                print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
+            raise
+        try:
+            selections = tuple(parse_swift_test_list(result.stdout))
+        except RuntimeError as error:
+            parse_errors.append(str(error))
+            print(
+                f"::warning::Malformed Swift test discovery output on attempt {attempt + 1}: {error}",
+                flush=True,
+            )
+            continue
+
+        valid_results += 1
+        if expected_selections is None:
+            expected_selections = selections
+        elif selections != expected_selections:
+            raise RuntimeError(
+                "Swift test discovery changed between valid attempts "
+                f"({len(expected_selections)} selections, then {len(selections)}); "
+                "refusing to run an incomplete shard"
+            )
+
+    if expected_selections is not None and valid_results >= 3:
+        return list(expected_selections)
+
+    error_suffix = f": {' | '.join(parse_errors)}" if parse_errors else ""
+    raise RuntimeError(f"Swift test discovery produced only {valid_results} valid results after 4 attempts{error_suffix}")
 
 
 def append_github_summary(stats: RunStats) -> None:

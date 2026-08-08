@@ -27,6 +27,9 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Mac full tests | `swift test --no-parallel` | pass；post-review rerun 8340 tests / 812 suites / 0 issue / 363.739s；log `/tmp/codexbar-v047-full-test-postreview.log` |
 | Multi-account/device | `swift test --skip-build --filter 'AccountIdentity\|MultiAccount\|DualZoneReader'` | pass；106 tests / 12 suites；截图生成器因未设输出目录 skip 1 |
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
+| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + `swift test --no-parallel` | pass；在当前 release code SHA `15a77b70f` 重跑 36/36 focused；local full 8363 tests / 812 suites / 0 failure / 336.143s，logs `/tmp/codexbar-pr71-15a77b70f-focused.log`、`/tmp/codexbar-pr71-15a77b70f-full.log`；覆盖 record-scoped removal/provenance/revision/generation、external config / CloudKit intent removal、offline startup repair、invalid/stale-disk authority refusal、overtaken local dirty/cancellation ordering、跨启动 durable delete cancellation |
+| Linux Final CI | x64/arm64 Linux build + tests + CLI smoke | pass；修正后的 x64/arm64 均通过；x64 首轮只在 `ProcessPipeCaptureLinuxTests` 的 raw-FD assertion 假失败，因为已关闭 FD number 被并发 suite 复用；`71772e15e` 改用 `/proc/self/fd` target identity 验证旧 pipe alias 已关闭 |
+| macOS Final CI discovery | 6-shard `Scripts/test.sh` | pass；最终 `15a77b70f` 固定执行 4 次 discovery，最多容忍 1 次 malformed，但任何有效 selection set 不一致立即 hard fail，至少 3 次有效结果才执行分片；malformed-once 与稳定截断回归均通过；manual Final CI run [`31239327715`](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31239327715) 的 6/6 shards 全绿 |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
 | iOS unit gate | `xcodebuild ... -only-testing:CodexBarMobileTests test -quiet` | pass；post-review rerun 617 tests / 639 runs / 0 failed；xcresult `14-33-51` |
@@ -37,7 +40,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
 | Signing/notarization | `Scripts/sign-and-notarize.sh` + 独立 ZIP 解包验收 | pass；Developer ID、notarization Accepted、staple、Gatekeeper、universal binaries、Production entitlement、dSYM UUID 全部通过 |
 | GitHub draft | draft create + API readback + local/remote tag/branch audit | pass；draft ID `364520043`，两资产 size/digest 一致；未创建 tag、未 push |
-| Review | self diff + 两个独立 agent final review | pass；最终 `P0=0 / P1=0 / P2=0 / blocker=0` |
+| Review | self diff + GitHub Codex iterative review | pass；截至 PR head `a17ed979f` 的 findings 已逐条修复、回复、resolve；exact-SHA Codex review 明确返回 “Didn't find any major issues”，unresolved threads `0`，`P0=0 / P1=0 / P2=0 / blocker=0` |
 
 ## 2 Mac × 2 iPhone compatibility matrix
 
@@ -117,10 +120,41 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
   fleet sync 宣称为 Production 可用，也不得发布 live release；
 - live provider、browser cookie、真实账户 Keychain 读取和真实 CloudKit writes 均按
   no-prompt policy 未运行；provider parser 由 fixtures/stubs/full suites 覆盖；
-- iOS Archive/TestFlight、真实 SpringBoard widget、live Mac release、appcast publish、
-  merge、push 和 published tag 都不在本 Goal 当前授权内。
+- PR #71 review-fix branch 已 push；用户已授权后续 merge、Mac live release、iOS archive/upload
+  与 App Store review submission。它们仍必须在最终 review/CI、Production schema gate 与各自
+  release readback 通过后执行；当前尚未 merge、publish tag、改 appcast、上传或提交审核。
 
 ## Review closeout
+
+PR #69 merge 后的异步自动 review 新增 1 个 P1：本机消失的 fleet account snapshots 没有
+CloudKit deletion lifecycle。该 finding 不按“已 merge”忽略；在独立 review-fix branch 修复、
+新增 current-device ownership/empty-set/foreign-device preservation tests，并重新进入
+GitHub review → resolve → re-review 循环。
+
+PR #71 第一轮在 commit `4e3784078c` 新增 P1/P2：非权威的空 snapshot publication 可能
+误删 last-good data，且恢复的 snapshot 没有取消 pending delete。现已引入
+enabled/authoritative provider contract，并在 hash guard 前取消当前 record 的 pending
+delete。后续 review 又指出 provider-wide last-token tombstone 会误删同 provider 的 fallback
+账号；第五轮已改为持久化 local record ownership 并只 tombstone 明确移除账号的 record，
+不新增 wire/schema。第六轮继续纳入 throttle queue，并为旧 persistence 在删除前回填唯一
+ownership。随后三条 provenance/ordering review finding 也已通过 actual-success receipt、
+fetch-start config revision 与 per-provider publication generation 修复；`6cf207c404` 的
+29/29 focused、8356-test full suite 均通过；这只是继续 review 前的 checkpoint。
+
+继续循环后又发现并修复 6 类实际问题：external CloudKit intent/config-file reload 绕过
+account-removal reconciliation；fallback/default startup config 误获 destructive authority；
+较新 external revision 吞掉尚未处理的本地 dirty delta；350ms debounce 中 stale-but-valid
+disk config 误获 authority；overtaken local restoration 的 cancellation 被第二个 plan 丢弃；
+以及 tombstone 已清除但 CKSyncEngine 尚未收到 cancellation 时的崩溃/提前返回窗口。最终实现
+要求 startup disk/current config encode-identical，只对 token-account 真正变化的 provider
+授予删除权；external transition 先保存 overtaken local dirty/cancellation；delete cancellation
+作为 local-only 状态先持久化、engine 初始化后立即重放，新的权威删除再覆盖。对应 commits：
+`a948cb99e`、`a98cac24f`、`57351687a`、`c2622aafd`。最终 36/36 focused、8363-test
+full suite、lint 均通过；`c2622aafd9` exact-SHA Codex review 当时明确无 major issue，所有
+thread 已 resolve。后续 CI 基础设施 review 又修复 raw-FD reuse 假失败、malformed discovery
+与 syntactically-valid truncation 漏测：`71772e15e`、`50277b4d9`、`29f2da8fb`、
+`15a77b70f`。其中最后一个 release code SHA 再次通过 36/36 focused、8363 tests /
+812 suites / 0 failure（336.143s），因此 sync compatibility gate 不再引用旧生产代码 SHA。
 
 修复前独立 review 找到 2 个 P1（矩阵没有走真实 wire/cache/delete contract、Production
 helper 会调用不适用的 validation endpoint）与 2 个 P2（schema 漏掉
@@ -144,7 +178,9 @@ retest、full retest 后交回同一批 reviewer：
 
 ## Signed candidate / draft release evidence
 
-Candidate source commit：`151a17ae43c3e1be9070d852efca2749e49ca719`；ZIP 内
+下列是 Round 7 review fixes 之前的 draft candidate evidence，仅证明当时的打包链路；
+不能直接用于 live release。Candidate source commit：
+`151a17ae43c3e1be9070d852efca2749e49ca719`；ZIP 内
 `CodexGitCommit=151a17ae4`。执行 `Scripts/sign-and-notarize.sh` 的最终结果：
 
 - Developer ID：`Developer ID Application: Yuxiao Wang (3TUERHN53E)`；
@@ -175,3 +211,6 @@ GitHub draft readback：
 - `git tag -l`、`git ls-remote --tags origin`、目标分支的
   `git ls-remote --heads origin` 均为空；未 push、未 merge、未发布 tag、未改 appcast、
   未 live release。
+
+发布前必须从最终 merged commit 重新签名、公证、生成 appcast 与 ZIP/dSYM，替换上述 draft
+assets，并重新核对 embedded commit、digest、entitlements、notarization 与远端 target。

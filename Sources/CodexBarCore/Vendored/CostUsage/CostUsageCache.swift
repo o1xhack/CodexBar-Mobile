@@ -1,3 +1,10 @@
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 import Foundation
 
 enum CostUsageCacheIO {
@@ -154,10 +161,13 @@ enum CostUsageCacheIO {
         let data = (try? JSONEncoder().encode(stamped)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
-            if FileManager.default.fileExists(atPath: url.path) {
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
-            } else {
-                try FileManager.default.moveItem(at: tmp, to: url)
+            // Foundation's replaceItemAt can remove the destination and still fail on Linux.
+            // POSIX rename atomically replaces an existing file on every supported platform.
+            let renamed = tmp.path.withCString { source in
+                url.path.withCString { destination in rename(source, destination) }
+            }
+            guard renamed == 0 else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
         } catch {
             try? FileManager.default.removeItem(at: tmp)

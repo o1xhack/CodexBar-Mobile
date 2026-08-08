@@ -144,6 +144,17 @@ extension UsageStore {
         allowDisabled: Bool = false,
         coalesceIfRefreshing: Bool = false) async
     {
+        _ = await self.refreshProviderForSnapshotPublication(
+            provider,
+            allowDisabled: allowDisabled,
+            coalesceIfRefreshing: coalesceIfRefreshing)
+    }
+
+    func refreshProviderForSnapshotPublication(
+        _ provider: UsageProvider,
+        allowDisabled: Bool = false,
+        coalesceIfRefreshing: Bool = false) async -> ProviderSnapshotPublicationSource?
+    {
         // Codex source reconciliation can persist a settings correction. Perform it before
         // capturing the publication revision so the request cannot invalidate itself.
         self.prepareRefreshState(for: provider)
@@ -152,12 +163,14 @@ extension UsageStore {
         {
             switch await self.providerRefreshCoordinator.wait(for: provider, state: existingState) {
             case .cancelled:
-                return
+                return nil
             case .retryRequired:
                 self.providerRefreshCoordinator.remove(existingState, for: provider)
                 continue
             case .completed:
-                return
+                return self.completedProviderSnapshotPublication(
+                    for: provider,
+                    generation: existingState.generation)
             }
         }
 
@@ -212,32 +225,10 @@ extension UsageStore {
                 retryRequired: retryRequired)
         }
         request.state.install(task: task)
-        _ = await self.providerRefreshCoordinator.wait(for: provider, state: request.state)
-    }
-
-    func isCurrentProviderRefreshGeneration(_ provider: UsageProvider, generation: UInt64?) -> Bool {
-        guard let generation else { return true }
-        guard self.providerRefreshCoordinator.isCurrent(generation, for: provider),
-              let context = self.providerRefreshPublicationContexts[provider],
-              context.generation == generation
-        else {
-            return false
+        guard await self.providerRefreshCoordinator.wait(for: provider, state: request.state) == .completed else {
+            return nil
         }
-        return context.enablementRevision == self.settings.providerEnablementRevision(for: provider) &&
-            context.configRevision == self.settings.providerConfigRevision(for: provider) &&
-            (context.tokenCostScopeSignature == nil ||
-                context.tokenCostScopeSignature == self.tokenSnapshotScopeSignature(for: provider))
-    }
-
-    func currentProviderRefreshAllowsDisabledPublication(_ provider: UsageProvider) -> Bool {
-        guard let context = self.providerRefreshPublicationContexts[provider],
-              context.allowDisabled,
-              let state = self.providerRefreshCoordinator.coalescingState(for: provider),
-              state.generation == context.generation
-        else {
-            return false
-        }
-        return true
+        return self.completedProviderSnapshotPublication(for: provider, generation: request.generation)
     }
 
     private func refreshProviderTracked(
@@ -346,7 +337,9 @@ extension UsageStore {
         }
 
         if provider == .codex, self.shouldFetchAllCodexVisibleAccounts() {
-            await self.refreshCodexVisibleAccountsForMenu(generation: generation)
+            if await self.refreshCodexVisibleAccountsForSnapshotPublication(generation: generation) {
+                self.markProviderRefreshSuccessful(provider, generation: generation)
+            }
             return nil
         } else if provider == .codex {
             self.codexAccountSnapshots = []
@@ -368,10 +361,13 @@ extension UsageStore {
 
         let tokenAccounts = self.tokenAccounts(for: provider)
         if self.shouldFetchAllTokenAccounts(provider: provider, accounts: tokenAccounts) {
-            await self.refreshTokenAccounts(
+            if await self.refreshTokenAccountsForSnapshotPublication(
                 provider: provider,
                 accounts: tokenAccounts,
                 generation: generation)
+            {
+                self.markProviderRefreshSuccessful(provider, generation: generation)
+            }
             return nil
         } else {
             _ = await MainActor.run {
@@ -792,15 +788,10 @@ extension UsageStore {
             claudeOAuthActiveAccountObservation: context.claudeOAuthActiveAccountObservation,
             isClaudeOAuthSample: isClaudeOAuthSample,
             codexLimitResetOwnerKey: context.codexLimitResetOwnerKey)
-        guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
-        if let runtime = self.providerRuntimes[provider] {
-            let runtimeContext = ProviderRuntimeContext(
-                provider: provider, settings: self.settings, store: self)
-            runtime.providerDidRefresh(context: runtimeContext, provider: provider)
-        }
-        if provider == .codex {
-            self.recordCodexHistoricalSampleIfNeeded(snapshot: backfilled)
-        }
+        self.finalizeProviderRefreshSuccessPublication(
+            provider: provider,
+            snapshot: backfilled,
+            generation: context.generation)
     }
 
     private func applyProviderRefreshFailure(
