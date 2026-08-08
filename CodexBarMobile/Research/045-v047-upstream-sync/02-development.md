@@ -118,7 +118,19 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   旧 cache 的 ownership 回填只接受稳定 account key（token account UUID 或 provider
   external identifier），不再用可编辑 display label 猜测归属，避免同名 OAuth/cookie
   fallback 被错误 tombstone。
+  最后一轮 review 又补出三类 publication provenance 缺口：可被 UI failure gate 隐藏的
+  refresh failure 不能仅凭 `errors[provider] == nil` 获得删除权；publication 必须保留 fetch
+  开始时的 config revision；同 revision 的旧 partial event 也不能晚到覆盖新 pending slice。
+  修复后，只有完整 apply 成功且 generation 仍为 current 的 refresh 才返回
+  `ProviderSnapshotPublicationSource` receipt；receipt 固定携带 fetch-start revision，所有
+  provider publication 另带进程内单调 generation，engine 在 MainActor suspension 之后先做
+  revision + generation 双 gate，再进入 pending reconciliation。多账号 provider 只有全部
+  当前账号都实际成功且有有效 snapshot 时才取得 receipt；错误被抑制、enrichment、cost、
+  settings display 等 publication 仍可更新 last-good data，但绝无 destructive authority。
   以上 provenance/tombstone 仅在 Mac 本地 persistence，不改变 CloudKit wire/schema。
+- 上述最终代码提交 `6cf207c4041f86c3a034c9c6f250d3471c35a209` 完成 focused
+  29/29、local full 8356 tests / 812 suites / 0 failure；PR #71 reviewer 对该 exact SHA
+  明确返回 “Didn't find any major issues”，所有 review threads 已 resolve，阻塞问题为 0。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
   与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后

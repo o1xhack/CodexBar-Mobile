@@ -27,7 +27,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Mac full tests | `swift test --no-parallel` | pass；post-review rerun 8340 tests / 812 suites / 0 issue / 363.739s；log `/tmp/codexbar-v047-full-test-postreview.log` |
 | Multi-account/device | `swift test --skip-build --filter 'AccountIdentity\|MultiAccount\|DualZoneReader'` | pass；106 tests / 12 suites；截图生成器因未设输出目录 skip 1 |
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
-| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；第六轮 23/23 focused，新增 record-scoped durable removal/restore、local ownership publication、legacy unique-label backfill、queued-before-throttle removal、同 provider fallback preservation/stale re-save blocking tests；此前 full 8342 tests / 812 suites；覆盖 authoritative stale delete、transient refresh failure/非 refresh publication 不具删除权限、non-authoritative empty preservation、provider disable 即使残留内存 snapshot 仍 delete、pending delete cancellation plan、保留其他 Mac；最新 full/local Final CI 等待新 SHA |
+| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + `swift test --no-parallel` | pass；最终 29/29 focused；local full 8356 tests / 812 suites / 0 failure / 335.668s，log `/tmp/codexbar-pr71-full-6cf207c40.log`；覆盖 record-scoped durable removal/restore、local ownership publication、queued-before-throttle removal、同 provider fallback preservation、actual-success receipt、suppressed failure 无 authority、fetch-start config revision、per-provider publication generation、same-revision partial arrival ordering、provider disable 与 pending delete cancellation |
 | Linux warm-cache Final CI fix | `CostUsageCacheTests` + x64/arm64 `CodexWarmCacheResumeLinuxTests` | local pass / CI pending；20/20 macOS cache tests；旧 PR 两个 Linux 架构均复现 cache replace 后目标文件消失，等待 fix PR manual/full CI |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
@@ -39,7 +39,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
 | Signing/notarization | `Scripts/sign-and-notarize.sh` + 独立 ZIP 解包验收 | pass；Developer ID、notarization Accepted、staple、Gatekeeper、universal binaries、Production entitlement、dSYM UUID 全部通过 |
 | GitHub draft | draft create + API readback + local/remote tag/branch audit | pass；draft ID `364520043`，两资产 size/digest 一致；未创建 tag、未 push |
-| Review | self diff + 两个独立 agent final review | pass；最终 `P0=0 / P1=0 / P2=0 / blocker=0` |
+| Review | self diff + GitHub Codex iterative review | pass；PR #71 code SHA `6cf207c404` 的所有 findings 已逐条修复、回复、resolve；exact-SHA re-review 明确返回 “Didn't find any major issues”，unresolved threads `0`，`P0=0 / P1=0 / P2=0 / blocker=0` |
 
 ## 2 Mac × 2 iPhone compatibility matrix
 
@@ -127,7 +127,7 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
 PR #69 merge 后的异步自动 review 新增 1 个 P1：本机消失的 fleet account snapshots 没有
 CloudKit deletion lifecycle。该 finding 不按“已 merge”忽略；在独立 review-fix branch 修复、
 新增 current-device ownership/empty-set/foreign-device preservation tests，并重新进入
-GitHub review → resolve → re-review 循环。最终测试与 thread 状态将在发布前回写本节。
+GitHub review → resolve → re-review 循环。
 
 PR #71 第一轮在 commit `4e3784078c` 新增 P1/P2：非权威的空 snapshot publication 可能
 误删 last-good data，且恢复的 snapshot 没有取消 pending delete。现已引入
@@ -135,7 +135,10 @@ enabled/authoritative provider contract，并在 hash guard 前取消当前 reco
 delete。后续 review 又指出 provider-wide last-token tombstone 会误删同 provider 的 fallback
 账号；第五轮已改为持久化 local record ownership 并只 tombstone 明确移除账号的 record，
 不新增 wire/schema。第六轮继续纳入 throttle queue，并为旧 persistence 在删除前回填唯一
-ownership；新提交、thread resolve 与下一轮 review 结果待本轮闭环后回写。
+ownership。随后三条 provenance/ordering review finding 也已通过 actual-success receipt、
+fetch-start config revision 与 per-provider publication generation 修复；`6cf207c404` 的
+29/29 focused、8356-test full suite 均通过，所有 thread 已 resolve，exact-SHA Codex review
+明确为无 major issue。
 
 修复前独立 review 找到 2 个 P1（矩阵没有走真实 wire/cache/delete contract、Production
 helper 会调用不适用的 validation endpoint）与 2 个 P2（schema 漏掉
