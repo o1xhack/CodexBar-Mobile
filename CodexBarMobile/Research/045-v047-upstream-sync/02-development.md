@@ -98,6 +98,9 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   避免账号短暂消失后恢复、但旧 delete 仍在队列里最终删掉有效记录。
 - self-review 进一步确保 enabled provider set 优先于残留 UI state：已禁用 provider 即使内存中
   仍有旧 snapshot，也不会抵消 delete 或被重新 save。
+- 后续 review 的“最后一个 token account 被删除但 provider 仍启用”场景不再依赖 replacement
+  snapshot：配置 diff 会写入 durable local deletion intent、立即 enqueue 该 provider 的本机
+  records；离线/重启后继续执行，账号重新添加则取消 tombstone 与未发送 delete。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
   与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后

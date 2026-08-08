@@ -151,6 +151,36 @@ enum CloudSyncSnapshotReconciliation {
     }
 }
 
+enum CloudSyncSnapshotConfigurationReconciliation {
+    struct Plan: Equatable {
+        let pendingProviderIDs: Set<String>
+        let providersToDelete: Set<UsageProvider>
+        let providersToCancel: Set<UsageProvider>
+    }
+
+    static func plan(
+        previousConfigs: [UsageProvider: ProviderConfig],
+        currentConfig: CodexBarConfig,
+        pendingProviderIDs: Set<String>) -> Plan
+    {
+        let previousProvidersWithAccounts = Set(previousConfigs.compactMap { provider, config in
+            config.tokenAccounts?.accounts.isEmpty == false ? provider.rawValue : nil
+        })
+        let currentProvidersWithAccounts = Set(currentConfig.providers.compactMap { config in
+            config.tokenAccounts?.accounts.isEmpty == false ? config.id.rawValue : nil
+        })
+        let newlyEmptiedProviderIDs = previousProvidersWithAccounts.subtracting(currentProvidersWithAccounts)
+        let restoredProviderIDs = pendingProviderIDs.intersection(currentProvidersWithAccounts)
+        let nextPendingProviderIDs = pendingProviderIDs
+            .union(newlyEmptiedProviderIDs)
+            .subtracting(restoredProviderIDs)
+        return Plan(
+            pendingProviderIDs: nextPendingProviderIDs,
+            providersToDelete: Set(nextPendingProviderIDs.compactMap(UsageProvider.init(rawValue:))),
+            providersToCancel: Set(restoredProviderIDs.compactMap(UsageProvider.init(rawValue:))))
+    }
+}
+
 enum CloudSyncEntitlementGate {
     static let entitlement = "com.apple.developer.icloud-services"
 
@@ -250,6 +280,10 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             try await self.queueCurrentConfigurationAndPreferences()
             guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
             try await self.queueDeviceRecord()
+            await self.applySnapshotConfigurationDeletionIntents(
+                providersToDelete: Set(self.persistenceEnvelope.snapshotDeletionProviders.compactMap(
+                    UsageProvider.init(rawValue:))),
+                providersToCancel: [])
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
@@ -266,7 +300,12 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
     }
 
-    func localUserConfigurationDidChange(_ config: CodexBarConfig) {
+    func localUserConfigurationDidChange(_ config: CodexBarConfig) async {
+        let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: self.lastKnownProviderConfigs,
+            currentConfig: config,
+            pendingProviderIDs: self.persistenceEnvelope.snapshotDeletionProviders)
+        self.persistenceEnvelope.snapshotDeletionProviders = snapshotPlan.pendingProviderIDs
         let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
         for providerConfig in config.providers {
             if let previous = self.lastKnownProviderConfigs[providerConfig.id],
@@ -294,6 +333,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
         self.lastKnownProviderConfigs = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
         self.persistEnvelope()
+        await self.applySnapshotConfigurationDeletionIntents(
+            providersToDelete: snapshotPlan.providersToDelete,
+            providersToCancel: snapshotPlan.providersToCancel)
     }
 
     func localUserPreferencesDidChange(_ preferences: SyncedPreferences) {
@@ -1032,9 +1074,11 @@ extension CloudSyncEngine {
                 needsAppUpdate: self.state.status.needsAppUpdate)
         }
         guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
-        self.pendingSnapshots = snapshots
+        let deletionProviders = Set(self.persistenceEnvelope.snapshotDeletionProviders.compactMap(
+            UsageProvider.init(rawValue:)))
+        self.pendingSnapshots = snapshots.filter { !deletionProviders.contains($0.provider) }
         self.pendingSnapshotEnabledProviders = enabledProviders
-        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders
+        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders.union(deletionProviders)
         let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
         if elapsed >= 120 {
             await self.pushPendingSnapshots()
@@ -1067,5 +1111,39 @@ extension CloudSyncEngine {
                 self.state.fleetSnapshots.removeValue(forKey: recordName)
             }
         }
+        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
+        let pendingDeletionProviders = self.persistenceEnvelope.snapshotDeletionProviders
+        self.persistenceEnvelope.snapshotDeletionProviders = pendingDeletionProviders.filter { providerID in
+            guard let provider = UsageProvider(rawValue: providerID) else { return true }
+            return self.persistenceEnvelope.fleetSnapshots.values.contains {
+                $0.deviceID == deviceID && $0.provider == provider
+            }
+        }
+    }
+
+    private func applySnapshotConfigurationDeletionIntents(
+        providersToDelete: Set<UsageProvider>,
+        providersToCancel: Set<UsageProvider>) async
+    {
+        guard self.enabled, let engine = self.engine else { return }
+        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
+        let localSnapshots = self.persistenceEnvelope.fleetSnapshots.filter { _, snapshot in
+            snapshot.deviceID == deviceID
+        }
+        for (recordName, snapshot) in localSnapshots where providersToCancel.contains(snapshot.provider) {
+            engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
+        }
+        self.pendingSnapshots.removeAll { providersToDelete.contains($0.provider) }
+        for (recordName, snapshot) in localSnapshots where providersToDelete.contains(snapshot.provider) {
+            let recordID = self.recordID(named: recordName)
+            self.desiredRecords.removeValue(forKey: recordID)
+            engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
+            engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+        }
+        let providersWithRecords = Set(localSnapshots.values.map(\.provider))
+        for provider in providersToDelete where !providersWithRecords.contains(provider) {
+            self.persistenceEnvelope.snapshotDeletionProviders.remove(provider.rawValue)
+        }
+        self.persistEnvelope()
     }
 }

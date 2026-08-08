@@ -133,6 +133,7 @@ struct CloudSyncSettingsTests {
 
         #expect(envelope.dirtyProviders.isEmpty)
         #expect(!envelope.preferencesDirty)
+        #expect(envelope.snapshotDeletionProviders.isEmpty)
     }
 
     @Test
@@ -329,6 +330,37 @@ struct CloudSyncSettingsTests {
 
         store.errors[.openai] = nil
         #expect(store.cloudSyncAuthoritativeSnapshotProviders([snapshot], reason: "settings-display").isEmpty)
+    }
+
+    @Test
+    func `removing and restoring the last token account updates the durable deletion intent`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Example",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        let populatedConfig = ProviderConfig(
+            id: .openai,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+        let emptyConfig = ProviderConfig(id: .openai, enabled: true)
+
+        let removed = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: populatedConfig],
+            currentConfig: CodexBarConfig(providers: [emptyConfig]),
+            pendingProviderIDs: [])
+        #expect(removed.pendingProviderIDs == [UsageProvider.openai.rawValue])
+        #expect(removed.providersToDelete == [.openai])
+        #expect(removed.providersToCancel.isEmpty)
+
+        let restored = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: emptyConfig],
+            currentConfig: CodexBarConfig(providers: [populatedConfig]),
+            pendingProviderIDs: removed.pendingProviderIDs)
+        #expect(restored.pendingProviderIDs.isEmpty)
+        #expect(restored.providersToDelete.isEmpty)
+        #expect(restored.providersToCancel == [.openai])
     }
 
     @Test

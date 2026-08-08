@@ -17,6 +17,7 @@ struct CloudSyncPersistence: Sendable {
         var suppressedEnableIntents: Set<String>
         var dirtyProviders: Set<String>
         var preferencesDirty: Bool
+        var snapshotDeletionProviders: Set<String>
         var fleetDevices: [String: DeviceSyncPayload]
         var fleetSnapshots: [String: AccountSnapshotSyncPayload]
 
@@ -27,6 +28,7 @@ struct CloudSyncPersistence: Sendable {
             suppressedEnableIntents: Set<String> = [],
             dirtyProviders: Set<String> = [],
             preferencesDirty: Bool = false,
+            snapshotDeletionProviders: Set<String> = [],
             fleetDevices: [String: DeviceSyncPayload] = [:],
             fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:])
         {
@@ -36,6 +38,7 @@ struct CloudSyncPersistence: Sendable {
             self.suppressedEnableIntents = suppressedEnableIntents
             self.dirtyProviders = dirtyProviders
             self.preferencesDirty = preferencesDirty
+            self.snapshotDeletionProviders = snapshotDeletionProviders
             self.fleetDevices = fleetDevices
             self.fleetSnapshots = fleetSnapshots
         }
@@ -47,6 +50,7 @@ struct CloudSyncPersistence: Sendable {
             case suppressedEnableIntents
             case dirtyProviders
             case preferencesDirty
+            case snapshotDeletionProviders
             case fleetDevices
             case fleetSnapshots
         }
@@ -71,6 +75,9 @@ struct CloudSyncPersistence: Sendable {
             self.preferencesDirty = try container.decodeIfPresent(
                 Bool.self,
                 forKey: .preferencesDirty) ?? false
+            self.snapshotDeletionProviders = try container.decodeIfPresent(
+                Set<String>.self,
+                forKey: .snapshotDeletionProviders) ?? []
             self.fleetDevices = try container.decodeIfPresent(
                 [String: DeviceSyncPayload].self,
                 forKey: .fleetDevices) ?? [:]
