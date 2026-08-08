@@ -172,7 +172,10 @@ Packaging preflight 发现 Xcode Widget extension 的 SwiftPM artifact resolver 
   最多容忍 1 次完全无法解析的瞬时输出，但任何两次有效 selection set 不一致都立即 hard fail，
   并要求至少 3 次有效结果；harness 覆盖 malformed-once 与“前两次稳定截断、第三次完整”。当前
   release code SHA `15a77b70f` 已重跑 `CloudSyncSettingsTests` 36/36 与 full 8363 tests /
-  812 suites / 0 failure（336.143s）。
+  812 suites / 0 failure（336.143s）。最终 PR head `a17ed979f` 的 exact-SHA Codex review
+  明确返回 “Didn't find any major issues”，unresolved threads 为 0；manual Final CI run
+  [`31239327715`](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31239327715)
+  的 x64/arm64 Linux、6/6 macOS shards、lint 与 aggregate gate 全部通过。
 
 当时从 clean HEAD `151a17ae43c3e1be9070d852efca2749e49ca719` 执行
 `Scripts/sign-and-notarize.sh` 成功：Widget、CLI、watchdog 和主程序均打入 universal

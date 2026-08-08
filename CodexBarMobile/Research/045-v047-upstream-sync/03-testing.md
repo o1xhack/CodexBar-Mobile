@@ -29,7 +29,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
 | Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + `swift test --no-parallel` | pass；在当前 release code SHA `15a77b70f` 重跑 36/36 focused；local full 8363 tests / 812 suites / 0 failure / 336.143s，logs `/tmp/codexbar-pr71-15a77b70f-focused.log`、`/tmp/codexbar-pr71-15a77b70f-full.log`；覆盖 record-scoped removal/provenance/revision/generation、external config / CloudKit intent removal、offline startup repair、invalid/stale-disk authority refusal、overtaken local dirty/cancellation ordering、跨启动 durable delete cancellation |
 | Linux Final CI | x64/arm64 Linux build + tests + CLI smoke | pass；修正后的 x64/arm64 均通过；x64 首轮只在 `ProcessPipeCaptureLinuxTests` 的 raw-FD assertion 假失败，因为已关闭 FD number 被并发 suite 复用；`71772e15e` 改用 `/proc/self/fd` target identity 验证旧 pipe alias 已关闭 |
-| macOS Final CI discovery | 6-shard `Scripts/test.sh` | rerun pending；shard 2 首轮 `swift test list` build 后成功退出但返回 malformed output，0 个测试已执行并 hard fail；最终 `15a77b70f` 固定执行 4 次 discovery，最多容忍 1 次 malformed，但任何有效 selection set 不一致立即 hard fail，至少 3 次有效结果才执行分片；malformed-once 与稳定截断回归均通过 |
+| macOS Final CI discovery | 6-shard `Scripts/test.sh` | pass；最终 `15a77b70f` 固定执行 4 次 discovery，最多容忍 1 次 malformed，但任何有效 selection set 不一致立即 hard fail，至少 3 次有效结果才执行分片；malformed-once 与稳定截断回归均通过；manual Final CI run [`31239327715`](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31239327715) 的 6/6 shards 全绿 |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
 | iOS unit gate | `xcodebuild ... -only-testing:CodexBarMobileTests test -quiet` | pass；post-review rerun 617 tests / 639 runs / 0 failed；xcresult `14-33-51` |
@@ -40,7 +40,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
 | Signing/notarization | `Scripts/sign-and-notarize.sh` + 独立 ZIP 解包验收 | pass；Developer ID、notarization Accepted、staple、Gatekeeper、universal binaries、Production entitlement、dSYM UUID 全部通过 |
 | GitHub draft | draft create + API readback + local/remote tag/branch audit | pass；draft ID `364520043`，两资产 size/digest 一致；未创建 tag、未 push |
-| Review | self diff + GitHub Codex iterative review | in progress；截至 `15a77b70f` 已继续修复 discovery 合法截断漏测 P1，并把 sync gate 在当前 release code SHA 重跑；等待下一轮 exact-SHA review 与 Final CI 后关闭 |
+| Review | self diff + GitHub Codex iterative review | pass；截至 PR head `a17ed979f` 的 findings 已逐条修复、回复、resolve；exact-SHA Codex review 明确返回 “Didn't find any major issues”，unresolved threads `0`，`P0=0 / P1=0 / P2=0 / blocker=0` |
 
 ## 2 Mac × 2 iPhone compatibility matrix
 
