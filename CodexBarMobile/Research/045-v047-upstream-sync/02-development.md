@@ -102,9 +102,11 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   snapshot：publication 会在本地持久化 record→token-account ownership，配置 diff 只为明确
   移除账号对应的 record 写入 durable local tombstone 并 enqueue delete；同 provider 的
   OAuth/cookie/env/claude-swap fallback records 不受影响。旧 persistence 没有 ownership index
-  时只用可重算的 account key 做保守匹配；离线/重启后继续删除，账号恢复或 authoritative
-  fallback 接管同一 record 时取消 tombstone 与未发送 delete。以上 provenance/tombstone 仅在
-  Mac 本地 persistence，不改变 CloudKit wire/schema。
+  时先按唯一 account key 或 publication `displayLabel` 回填 record ownership；配置变更时把
+  120 秒 throttle 中尚未入 `fleetSnapshots` 的 queued snapshots 与其 ownership 一并纳入
+  tombstone 计算，避免“先排队、后删账号、timer 再上传”的 ghost record。离线/重启后继续
+  删除，账号恢复或 authoritative fallback 接管同一 record 时取消 tombstone 与未发送 delete。
+  以上 provenance/tombstone 仅在 Mac 本地 persistence，不改变 CloudKit wire/schema。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
   与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后

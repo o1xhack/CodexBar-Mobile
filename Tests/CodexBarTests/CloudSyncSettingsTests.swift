@@ -398,7 +398,7 @@ struct CloudSyncSettingsTests {
             previousConfigs: [.openai: populatedConfig],
             currentConfig: CodexBarConfig(providers: [emptyConfig]),
             state: .init(
-                persistedSnapshots: persisted,
+                candidateSnapshots: persisted,
                 ownershipKnownRecordNames: Set(persisted.keys),
                 tokenAccountIDsByRecordName: [removedSnapshot.recordName: account.id],
                 deviceID: "this-mac",
@@ -412,7 +412,7 @@ struct CloudSyncSettingsTests {
             previousConfigs: [.openai: emptyConfig],
             currentConfig: CodexBarConfig(providers: [populatedConfig]),
             state: .init(
-                persistedSnapshots: persisted,
+                candidateSnapshots: persisted,
                 ownershipKnownRecordNames: Set(persisted.keys),
                 tokenAccountIDsByRecordName: [removedSnapshot.recordName: account.id],
                 deviceID: "this-mac",
@@ -423,10 +423,10 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
-    func `legacy snapshot ownership inference preserves unrelated provider fallback records`() {
+    func `legacy ownership backfill uses a unique display label and preserves fallback records`() {
         let account = ProviderTokenAccount(
             id: UUID(),
-            label: "removed@example.com",
+            label: "Primary account",
             token: "test-token",
             addedAt: 1000,
             lastUsed: nil)
@@ -436,7 +436,7 @@ struct CloudSyncSettingsTests {
             tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
         let removedSnapshot = Self.snapshot(
             provider: .claude,
-            accountKey: AccountSnapshotSyncPayload.accountKey(for: account.label),
+            accountKey: AccountSnapshotSyncPayload.accountKey(for: "actual-account-id-from-provider"),
             deviceID: "this-mac",
             displayLabel: account.label)
         let fallbackSnapshot = Self.snapshot(
@@ -449,7 +449,7 @@ struct CloudSyncSettingsTests {
             previousConfigs: [.claude: populatedConfig],
             currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
             state: .init(
-                persistedSnapshots: [
+                candidateSnapshots: [
                     removedSnapshot.recordName: removedSnapshot,
                     fallbackSnapshot.recordName: fallbackSnapshot,
                 ],
@@ -460,6 +460,40 @@ struct CloudSyncSettingsTests {
 
         #expect(plan.recordNamesToDelete == [removedSnapshot.recordName])
         #expect(!plan.recordNamesToDelete.contains(fallbackSnapshot.recordName))
+        #expect(plan.ownershipKnownRecordNames.contains(removedSnapshot.recordName))
+        #expect(plan.tokenAccountIDsByRecordName[removedSnapshot.recordName] == account.id)
+    }
+
+    @Test
+    func `queued snapshot is tombstoned when its account is removed before the throttle publishes`() {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Queued account",
+            token: "test-token",
+            addedAt: 1000,
+            lastUsed: nil)
+        let queuedSnapshot = Self.snapshot(
+            provider: .openai,
+            accountKey: "queued",
+            deviceID: "this-mac",
+            displayLabel: account.label)
+        let previous = ProviderConfig(
+            id: .openai,
+            enabled: true,
+            tokenAccounts: ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0))
+
+        let plan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: [.openai: previous],
+            currentConfig: CodexBarConfig(providers: [ProviderConfig(id: .openai, enabled: true)]),
+            state: .init(
+                candidateSnapshots: [queuedSnapshot.recordName: queuedSnapshot],
+                ownershipKnownRecordNames: [queuedSnapshot.recordName],
+                tokenAccountIDsByRecordName: [queuedSnapshot.recordName: account.id],
+                deviceID: "this-mac",
+                pendingRecordNames: []))
+
+        #expect(plan.pendingRecordNames == [queuedSnapshot.recordName])
+        #expect(plan.recordNamesToDelete == [queuedSnapshot.recordName])
     }
 
     @Test
