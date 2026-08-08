@@ -22,6 +22,13 @@ if [[ "$*" == test\ list* ]]; then
     printf 'CodexBarTeward compat)\n'
     exit 0
   fi
+  if [[ "${FAKE_SWIFT_MODE:-success}" == "list_truncated_once" && ! -f "${FAKE_SWIFT_STATE}" ]]; then
+    printf 'truncated\n' > "${FAKE_SWIFT_STATE}"
+    printf '%s\n' \
+      "CodexBarTests.Alpha/test_one()" \
+      "CodexBarTests.Beta/test_two"
+    exit 0
+  fi
   printf '%s\n' \
     "CodexBarTests.Alpha/test_one()" \
     "CodexBarTests.Alpha/test_two(argument:)" \
@@ -144,7 +151,7 @@ grep -Fq "CodexBarTests\\.Alpha" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\.Beta" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top\\ level\\ works" "${FAKE_SWIFT_LOG}"
 grep -Fq "CodexBarTests\\..*top/level\\ slash\\ works" "${FAKE_SWIFT_LOG}"
-[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 5 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 6 ]]
 
 reset_case strict
 export FAKE_SWIFT_MODE=group_fail_once
@@ -165,7 +172,7 @@ set -e
 grep -Fq '| First-pass failed groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Full-group retries | `0` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Isolated selection retries | `0` |' "${GITHUB_STEP_SUMMARY}"
-[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+[[ "$(wc -l < "${FAKE_SWIFT_LOG}")" -eq 3 ]]
 
 reset_case shard-0
 export FAKE_SWIFT_MODE=success
@@ -247,10 +254,19 @@ grep -Fq '| Discovered selections | `0` |' "${GITHUB_STEP_SUMMARY}"
 reset_case list-malformed-retry
 export FAKE_SWIFT_MODE=list_malformed_once
 run_harness --group-size 1 --timeout 10 --list-only > "${TEMP_DIR}/list-malformed-retry.log"
-grep -Fq "Malformed Swift test discovery output; retrying with --skip-build" \
+grep -Fq "Malformed Swift test discovery output on attempt 1" \
   "${TEMP_DIR}/list-malformed-retry.log"
 grep -Fxq "test list" "${FAKE_SWIFT_LOG}"
-grep -Fxq "test list --skip-build" "${FAKE_SWIFT_LOG}"
+[[ "$(grep -Fxc "test list --skip-build" "${FAKE_SWIFT_LOG}")" -eq 2 ]]
 grep -Fq 'CodexBarTests.Alpha' "${TEMP_DIR}/list-malformed-retry.log"
+
+reset_case list-truncated-retry
+export FAKE_SWIFT_MODE=list_truncated_once
+run_harness --group-size 1 --timeout 10 --list-only > "${TEMP_DIR}/list-truncated-retry.log"
+grep -Fq "Swift test discovery results do not yet have a matching confirmation; retrying with --skip-build" \
+  "${TEMP_DIR}/list-truncated-retry.log"
+grep -Fxq "test list" "${FAKE_SWIFT_LOG}"
+[[ "$(grep -Fxc "test list --skip-build" "${FAKE_SWIFT_LOG}")" -eq 2 ]]
+grep -Fq 'Discovered 10 test selections' "${TEMP_DIR}/list-truncated-retry.log"
 
 echo "Swift test sharding tests passed."

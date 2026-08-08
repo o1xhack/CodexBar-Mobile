@@ -137,7 +137,9 @@ def parse_swift_test_list(output: str) -> list[TestSelection]:
 
 
 def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
-    for attempt in range(2):
+    parsed_results: dict[tuple[TestSelection, ...], int] = {}
+    parse_errors: list[str] = []
+    for attempt in range(3):
         command = [*swift_command, "test", "list"]
         if attempt > 0:
             command.append("--skip-build")
@@ -151,15 +153,31 @@ def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
                 print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
             raise
         try:
-            return parse_swift_test_list(result.stdout)
+            selections = tuple(parse_swift_test_list(result.stdout))
         except RuntimeError as error:
-            if attempt > 0:
-                raise
+            parse_errors.append(str(error))
             print(
-                f"::warning::Malformed Swift test discovery output; retrying with --skip-build: {error}",
+                f"::warning::Malformed Swift test discovery output on attempt {attempt + 1}: {error}",
                 flush=True,
             )
-    raise AssertionError("unreachable")
+            continue
+
+        parsed_results[selections] = parsed_results.get(selections, 0) + 1
+        if parsed_results[selections] >= 2:
+            return list(selections)
+        if attempt == 1:
+            print(
+                "::warning::Swift test discovery results do not yet have a matching confirmation; "
+                "retrying with --skip-build",
+                flush=True,
+            )
+
+    result_sizes = ", ".join(str(len(selections)) for selections in parsed_results) or "none"
+    error_suffix = f"; parse errors: {' | '.join(parse_errors)}" if parse_errors else ""
+    raise RuntimeError(
+        "Swift test discovery did not produce two identical valid results "
+        f"after 3 attempts (distinct selection counts: {result_sizes}){error_suffix}"
+    )
 
 
 def append_github_summary(stats: RunStats) -> None:
