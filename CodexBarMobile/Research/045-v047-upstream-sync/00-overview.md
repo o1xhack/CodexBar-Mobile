@@ -167,14 +167,13 @@ schema；这不是新增产品 scope，而是避免候选 schema 继续漏掉已
 
 ## 授权边界
 
-允许：本地分支、Research、merge、代码、测试、本地 commits、签名/公证 candidate、
-GitHub draft release 和本地 candidate appcast 证据。
+Goal 启动时只允许本地分支、Research、merge、代码、测试、本地 commits、签名/公证
+candidate、GitHub draft release 和本地 candidate appcast 证据。后续用户分别明确授权了
+push / PR / merge、Mac live release、iOS upload / App Store submission，以及 CloudKit
+Production schema deploy；因此这些步骤均在授权后执行。iOS 采用 manual release，Apple
+审核通过后的 App Store 公开发布不在本轮自动执行范围。
 
-不允许：push、merge 到 `mobile-dev`、published tag、live release、appcast publish、
-TestFlight upload、App Store submission/publication。CloudKit Production schema deploy
-需要单独暂停询问。
-
-## 完成状态（2026-08-03）
+## 候选阶段完成状态（2026-08-03）
 
 - semantic merge、fork integration、Shared/iOS bridge、版本与四语言 release notes 均已
   在目标分支完成；最终文档提交前 candidate source commit 为
@@ -189,3 +188,32 @@ TestFlight upload、App Store submission/publication。CloudKit Production schem
   存在，目标分支没有 push，`appcast.xml` 没有改动；
 - `DEPLOY_REQUIRED` 是 live release 前的明确授权门；Production schema deploy、push、
   merge、published tag、live release、appcast publish 与 TestFlight 均未执行。
+
+## 最终发布闭环（2026-08-08）
+
+- PR [#71](https://github.com/o1xhack/CodexBar-Mobile/pull/71) 的持续 review 循环已完成；
+  exact-SHA review 无 major issue、unresolved threads `0`，最终修复 SHA `638c01cf3`；
+  merge commit `98f5e55688cd65edd6e4c8841c1c631e54c16b36`；
+- Final CI run
+  [31241006284](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31241006284)
+  全绿，覆盖 Linux x64/arm64 与 macOS 6/6 shards；
+- 从最终 merge commit 重新生成的 Mac 包通过 Developer ID 签名、公证、staple、
+  Gatekeeper、Production entitlement、universal binary 与 dSYM UUID 核验；notarization
+  submission `d6ce3a05-f19e-4f39-bc44-c1675adc7ab5`；
+- Mac release
+  [`v0.47.0.1-mobile.1.20.0`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.47.0.1-mobile.1.20.0)
+  已于 `2026-08-08T17:06:59Z` 发布；ZIP SHA-256
+  `614299556551f1e9e72156ba965df1fdea767bbad1f615b0779f05e828a1249d`，dSYM SHA-256
+  `c73456b7042d3752909b10a206549476f18e1a358115a79ce87e4ddfa054bfd6`；
+- 签名 appcast 已通过下载长度与 EdDSA signature 独立校验，并由 commit `958a184e0`
+  推送到 `mobile-dev`；Sparkle short version `0.47.0.1`、version
+  `111.1.1.20.0`；
+- CloudKit Console promotion 明确列出 5 个新增 record types、1 个 index 与 3 个 security
+  role updates；部署成功后 `cktool export-schema --environment production` 回读确认完整
+  10-type union，包含 `AccountSnapshot`、`Device`、`Preferences`、
+  `ProviderAccountLinkage`、`ProviderIntent`；
+- iOS `1.20.0 (192)` 已 archive / upload，build ID
+  `715a8ec4-8ede-4621-a8d2-1ddd90f48e09` 为 `VALID`；四语言 metadata 与 release notes
+  已配置，review submission `a3a56d2c-5a9c-411f-8e9d-ac5b72cffb99` 于
+  `2026-08-08T17:07:40.9Z` 提交，API 回读 submission 与 version 均为
+  `WAITING_FOR_REVIEW`。

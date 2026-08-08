@@ -36,7 +36,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Widget data parity | `... -only-testing:CodexBarMobileTests/WidgetSnapshotBuilderTests test` | pass；11 tests；xcresult `14-15-41` |
 | iOS Release build | `xcodebuild ... -configuration Release -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build -quiet` | pass |
 | 16-case compatibility | parameterized `V047SyncCompatTests/fourDeviceCompatibilityMatrix(mask:)` | substituted pass；production codec/cache/delete/render invariants，16 dynamic runs，见 matrix |
-| CloudKit audit | published `v0.45.2.2-mobile.1.19.0` → HEAD + Production export | `DEPLOY_REQUIRED`；只读 audit，未 import/deploy |
+| CloudKit audit/deploy | published `v0.45.2.2-mobile.1.19.0` → HEAD + Development import + Console promotion + Production export | pass；Console 部署 5 types / 1 index / 3 role updates，Production 回读为完整 10-type union |
 | Package credential policy | `bash -n Scripts/package_app.sh` + `test_package_signing.sh` | pass；Widget Xcode resolver 强制 `netrc`，不回退交互式 Keychain lookup |
 | Signing/notarization | `Scripts/sign-and-notarize.sh` + 独立 ZIP 解包验收 | pass；Developer ID、notarization Accepted、staple、Gatekeeper、universal binaries、Production entitlement、dSYM UUID 全部通过 |
 | GitHub draft | draft create + API readback + local/remote tag/branch audit | pass；draft ID `364520043`，两资产 size/digest 一致；未创建 tag、未 push |
@@ -86,7 +86,8 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
 
 ## CloudKit Production audit
 
-最终结论：`DEPLOY_REQUIRED`，尚未执行 Production deploy。
+最终结论：`DEPLOY_REQUIRED` 已在用户明确授权后完成部署，并通过独立 Production export
+回读。
 
 - 既有 Mobile record families/zone 不重命名；
 - Shared provider additions仍是 existing compressed JSON payload 内的 optional keys；
@@ -106,9 +107,15 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
 - `bash -n Scripts/cloudkit/deploy_schema.sh` 通过；production dry invocation 在任何
   cktool/import 动作前以 exit 2 拒绝，并要求另行授权后走 CloudKit Console + readback；
 - Mac package 和 iOS entitlements 均为 `iCloud.com.o1xhack.codexbar` / `Production`；
-- 未执行 `import-schema`、Development schema mutation 或 Dashboard deploy；仅执行过上述
-  production refusal path。Production deploy 与 deploy 后 readback 仍是 live release 前的
-  独立授权门。
+- 首次打开 Console 时待部署清单为 0，确认 tracked schema 尚未导入 Development；执行
+  `./Scripts/cloudkit/deploy_schema.sh development` 后 validation / import 均成功；
+- Console `Deploy Schema Changes` 明确列出新增 `AccountSnapshot`、`Device`、
+  `Preferences`、`ProviderAccountLinkage`、`ProviderIntent`，以及 1 个 linkage index、
+  3 个 security role updates；确认页返回 `The schema is deployed to Production.`；
+- deploy 后运行 Production `cktool export-schema`（team `3TUERHN53E`、container
+  `iCloud.com.o1xhack.codexbar`），回读确认上述 5 types 与原有 5 types 共 10 个均存在；
+  runtime-created `CodexBarSync` zone 不由 schema export 证明，仍由 production container
+  entitlement、zone constant 与 engine tests 覆盖。
 
 ## Residual risk
 
@@ -116,13 +123,10 @@ credits 有限、非负且总量一致；同版本 readers 收敛。代码审计
   真实 iPhone；没有覆盖 silent push、foreground/background 时序、真实 iCloud 延迟、
   设备断网重连和物理设备独立持久化；old reader 证据是按 1.19.1 已发布字段冻结的最小
   decoder fixture，不是运行真实 1.19.1 二进制；
-- CloudKit Production schema deploy 未授权且未执行；deploy/readback 前不能把 default-off
-  fleet sync 宣称为 Production 可用，也不得发布 live release；
 - live provider、browser cookie、真实账户 Keychain 读取和真实 CloudKit writes 均按
   no-prompt policy 未运行；provider parser 由 fixtures/stubs/full suites 覆盖；
-- PR #71 review-fix branch 已 push；用户已授权后续 merge、Mac live release、iOS archive/upload
-  与 App Store review submission。它们仍必须在最终 review/CI、Production schema gate 与各自
-  release readback 通过后执行；当前尚未 merge、publish tag、改 appcast、上传或提交审核。
+- App Store 采用 manual release；当前已提交审核但不会在 Apple 审核通过后自动公开，公开
+  发布仍需后续单独执行。
 
 ## Review closeout
 
@@ -214,3 +218,30 @@ GitHub draft readback：
 
 发布前必须从最终 merged commit 重新签名、公证、生成 appcast 与 ZIP/dSYM，替换上述 draft
 assets，并重新核对 embedded commit、digest、entitlements、notarization 与远端 target。
+
+## Final merged release / App Store evidence
+
+- merged source：`98f5e55688cd65edd6e4c8841c1c631e54c16b36`；tag
+  `v0.47.0.1-mobile.1.20.0` peel 到该 commit；Final CI
+  [31241006284](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31241006284)
+  全绿；
+- notarization submission：`d6ce3a05-f19e-4f39-bc44-c1675adc7ab5`，`Accepted`；ZIP 内
+  `CodexGitCommit=98f5e5568`，app UUID 为 x86_64
+  `DD6D576C-69D8-39C1-A1E5-A362C4A067C3`、arm64
+  `21442943-0B73-357C-A2EE-A335C12A5089`，与 dSYM 一致；
+- live release：<https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.47.0.1-mobile.1.20.0>，
+  published at `2026-08-08T17:06:59Z`；
+- final ZIP：62,358,278 bytes，SHA-256
+  `614299556551f1e9e72156ba965df1fdea767bbad1f615b0779f05e828a1249d`；final dSYM：
+  47,225,725 bytes，SHA-256
+  `c73456b7042d3752909b10a206549476f18e1a358115a79ce87e4ddfa054bfd6`；
+- appcast commit `958a184e0`；enclosure download、length 与 Sparkle signature 校验通过，
+  short version `0.47.0.1`、Sparkle version `111.1.1.20.0`；
+- iOS archive `/tmp/CodexBarMobile-20260807-222242.xcarchive` 的 app 与两个 extensions
+  均为 `1.20.0 (192)`、CloudKit Production；ASC version ID
+  `f0cada21-9f94-42e3-a34b-bfd744e9d4f3`，build ID
+  `715a8ec4-8ede-4621-a8d2-1ddd90f48e09`，build `VALID`；
+- 四语言 metadata / release notes 与 screenshots inheritance 已回读；review submission
+  `a3a56d2c-5a9c-411f-8e9d-ac5b72cffb99` 含 1 个 version item，于
+  `2026-08-08T17:07:40.9Z` 提交，submission 与 version 均回读为
+  `WAITING_FOR_REVIEW`。
