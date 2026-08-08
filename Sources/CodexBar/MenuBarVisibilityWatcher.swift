@@ -308,7 +308,16 @@ extension StatusItemController {
         MenuBarVisibilityWatcher.presentGuidance(defaults: self.settings.userDefaults, now: now)
     }
 
-    @objc func handleScreenParametersDidChange(_: Notification) {
+    /// AppKit invokes this selector through Objective-C notification machinery. Keep the entry point
+    /// nonisolated so Swift does not synthesize an executor check before the callback body, then hop to the
+    /// main actor before reading or mutating controller state.
+    @objc nonisolated func handleScreenParametersDidChange(_: Notification) {
+        Task { @MainActor [weak self] in
+            self?.handleScreenParametersDidChangeOnMainActor()
+        }
+    }
+
+    private func handleScreenParametersDidChangeOnMainActor() {
         let previousScreenCount = max(
             self.pendingScreenChangePreviousCount ?? self.lastKnownScreenCount,
             self.lastKnownScreenCount)

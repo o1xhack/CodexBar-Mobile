@@ -57,7 +57,7 @@ struct MenuBarLayoutRendererTests {
     }
 
     @Test
-    func `icon attachment matches the default template size and appearance`() throws {
+    func `icon attachment matches the requested appearance`() throws {
         let renderer = MenuBarLayoutRenderer()
         let icon = NSImage(size: NSSize(width: 16, height: 16))
         icon.lockFocus()
@@ -70,15 +70,44 @@ struct MenuBarLayoutRendererTests {
             layout: MenuBarLayout(lines: [[.icon]]),
             data: self.data(),
             icon: icon,
+            options: self.options(appearanceName: "aqua"))
+        let attachment = try #require(
+            output.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment)
+        let attachmentImage = try #require(attachment.image)
+
+        let darkOutput = renderer.render(
+            layout: MenuBarLayout(lines: [[.icon]]),
+            data: self.data(),
+            icon: icon,
+            options: self.options(appearanceName: NSAppearance.Name.darkAqua.rawValue))
+
+        #expect(attachment.bounds.size == NSSize(width: 16, height: 16))
+        #expect(attachmentImage.isTemplate)
+        #expect(try self.averageBrightness(of: output.attributedTitle, appearance: .aqua) < 0.25)
+        #expect(try self.averageBrightness(of: darkOutput.attributedTitle, appearance: .darkAqua) > 0.75)
+    }
+
+    @Test
+    func `template icon is materialized before AppKit draws the attachment`() throws {
+        let renderer = MenuBarLayoutRenderer()
+        let icon = NSImage(size: NSSize(width: 16, height: 16))
+        icon.lockFocus()
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: icon.size).fill()
+        icon.unlockFocus()
+        icon.isTemplate = true
+
+        let output = renderer.render(
+            layout: MenuBarLayout(lines: [[.icon]]),
+            data: self.data(),
+            icon: icon,
             options: self.options())
         let attachment = try #require(
             output.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment)
         let attachmentImage = try #require(attachment.image)
 
-        #expect(attachment.bounds.size == NSSize(width: 16, height: 16))
-        #expect(attachmentImage.isTemplate)
-        #expect(try self.averageBrightness(of: output.attributedTitle, appearance: .aqua) < 0.25)
-        #expect(try self.averageBrightness(of: output.attributedTitle, appearance: .darkAqua) > 0.75)
+        #expect(attachmentImage.representations.contains { $0 is NSBitmapImageRep })
+        #expect(attachmentImage.representations.contains { $0 is NSCustomImageRep } == false)
     }
 
     @Test
@@ -354,12 +383,12 @@ struct MenuBarLayoutRendererTests {
             cost30d: "$20.00")
     }
 
-    private func options() -> MenuBarLayoutRenderOptions {
+    private func options(appearanceName: String = "aqua") -> MenuBarLayoutRenderOptions {
         MenuBarLayoutRenderOptions(
             size: .regular,
             highContrast: false,
             showUsed: true,
-            appearanceName: "aqua",
+            appearanceName: appearanceName,
             isDebugApp: false,
             now: self.now)
     }
