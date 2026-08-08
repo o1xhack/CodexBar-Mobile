@@ -3,16 +3,17 @@
 Status: `done`
 Date: 2026-08-03
 Branch: `upstream-sync/v0.47.0-mobile.1.20.0`
-Open issue:
+Open issues:
 - [#66](https://github.com/o1xhack/CodexBar-Mobile/issues/66) — monitor 记录的 upstream `v0.46.0`
+- [#68](https://github.com/o1xhack/CodexBar-Mobile/issues/68) — monitor 记录的 upstream `v0.47.0`
 
 ## 结论
 
 本轮以 `version.env` 的 `UPSTREAM_VERSION=v0.45.2` / `UPSTREAM_SYNC_DATE=2026-07-19`
 为 fork 基线，以 `steipete/CodexBar` 的 GitHub Releases 为上游事实源。Goal 启动时
-open upstream-sync issue #66 只记录了 `v0.46.0`，但上游已经在 2026-08-03 发布正式版
-`v0.47.0`。因此本轮按单版本规则一次覆盖 `v0.46.0` 和 `v0.47.0`，不拆成两个用户
-可见版本。
+open upstream-sync issue #66 记录了 `v0.46.0`，后续 monitor issue #68 记录了
+2026-08-03 发布的 `v0.47.0`。因此本轮按单版本规则一次覆盖 `v0.46.0` 和 `v0.47.0`，
+不拆成两个用户可见版本。
 
 目标版本为 Mac `0.47.0.1 (111.1)`、iOS `1.20.0 (192)`，Sparkle version
 `111.1.1.20.0`，候选 tag `v0.47.0.1-mobile.1.20.0`。所有调研、merge、实现、测试、
