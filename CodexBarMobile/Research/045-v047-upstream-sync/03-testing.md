@@ -237,6 +237,17 @@ assets，并重新核对 embedded commit、digest、entitlements、notarization 
   `c73456b7042d3752909b10a206549476f18e1a358115a79ce87e4ddfa054bfd6`；
 - appcast commit `958a184e0`；enclosure download、length 与 Sparkle signature 校验通过，
   short version `0.47.0.1`、Sparkle version `111.1.1.20.0`；
+- Release CLI run
+  [31268623891](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31268623891)
+  6/6 matrix jobs 全绿；GitHub release 最终有 14 个 assets：Mac app ZIP + dSYM，以及
+  macOS arm64/x86_64、Linux glibc arm64/x86_64、Linux musl arm64/x86_64 共 6 份 CLI
+  tarball 与 6 份 checksum；各 checksum 内容与 GitHub SHA-256 digest 一致；
+- 发布后必跑 checker 首次暴露 fork asset prefix / remote pin 不兼容；PR
+  [#72](https://github.com/o1xhack/CodexBar-Mobile/pull/72) 修复后，Codex review 继续找到并
+  修复 dSYM 误充 app ZIP（P1）与 regex 近似文件名误通过（P2）。最终 exact-basename
+  checker、complete / dSYM-only / app-only / similar-name 回归、full lint、Fast Checks 均
+  通过；exact-SHA review 无 major issue、unresolved threads `0`，merge commit
+  `f70d5fb3c20d91748690a048f645e9b203504219`；
 - iOS archive `/tmp/CodexBarMobile-20260807-222242.xcarchive` 的 app 与两个 extensions
   均为 `1.20.0 (192)`、CloudKit Production；ASC version ID
   `f0cada21-9f94-42e3-a34b-bfd744e9d4f3`，build ID
