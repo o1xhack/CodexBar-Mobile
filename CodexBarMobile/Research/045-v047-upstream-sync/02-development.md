@@ -111,7 +111,10 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   snapshot publication 额外携带生成时的 per-provider `configRevision`；engine 消费时只接受
   revision 仍与当前配置相等的 provider snapshots/authority，并现场读取当前 enabled
   providers。这样删除/禁用前已生成但延迟到达的 notification 既不能重存旧 snapshot，
-  也不能恢复旧 authority 或重发已禁用 provider。
+  也不能恢复旧 authority 或重发已禁用 provider。pending queue 按 provider slice 合并：
+  被 revision gate 拒绝的旧 event 不覆盖已排队的新数据；真正过期的 pending slice 在 push
+  前再次校验并丢弃。publication 若仍包含已 tombstone 账号，则该 provider 继续没有
+  authoritative absence 权限，直到不含旧账号的成功 refresh。
   旧 cache 的 ownership 回填只接受稳定 account key（token account UUID 或 provider
   external identifier），不再用可编辑 display label 猜测归属，避免同名 OAuth/cookie
   fallback 被错误 tombstone。

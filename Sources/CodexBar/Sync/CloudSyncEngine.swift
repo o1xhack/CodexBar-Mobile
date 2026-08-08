@@ -166,6 +166,82 @@ enum CloudSyncSnapshotPublicationRevisionGate {
     }
 }
 
+enum CloudSyncPendingSnapshotPublicationReconciliation {
+    struct State {
+        let snapshots: [AccountSnapshotSyncPayload]
+        let authoritativeProviders: Set<UsageProvider>
+        let tokenAccountIDsByRecordName: [String: UUID]
+        let providerConfigRevisions: [UsageProvider: UInt64]
+    }
+
+    struct Plan {
+        let snapshots: [AccountSnapshotSyncPayload]
+        let authoritativeProviders: Set<UsageProvider>
+        let tokenAccountIDsByRecordName: [String: UUID]
+        let providerConfigRevisions: [UsageProvider: UInt64]
+    }
+
+    struct Incoming {
+        let snapshots: [AccountSnapshotSyncPayload]
+        let authoritativeProviders: Set<UsageProvider>
+        let tokenAccountIDsByRecordName: [String: UUID]
+        let providerConfigRevisions: [UsageProvider: UInt64]
+    }
+
+    static func plan(
+        state: State,
+        incoming: Incoming,
+        currentProviderConfigRevisions: [UsageProvider: UInt64]) -> Plan
+    {
+        let currentPendingProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+            claimedProviders: Set(state.providerConfigRevisions.keys),
+            sourceRevisions: state.providerConfigRevisions,
+            currentRevisions: currentProviderConfigRevisions)
+        let acceptedIncomingProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+            claimedProviders: Set(incoming.providerConfigRevisions.keys),
+            sourceRevisions: incoming.providerConfigRevisions,
+            currentRevisions: currentProviderConfigRevisions)
+
+        var snapshotsByRecordName: [String: AccountSnapshotSyncPayload] = Dictionary(
+            uniqueKeysWithValues: state.snapshots.compactMap { snapshot -> (String, AccountSnapshotSyncPayload)? in
+                guard currentPendingProviders.contains(snapshot.provider),
+                      !acceptedIncomingProviders.contains(snapshot.provider)
+                else { return nil }
+                return (snapshot.recordName, snapshot)
+            })
+        let retainedRecordNames = Set(snapshotsByRecordName.keys)
+        for snapshot in incoming.snapshots where acceptedIncomingProviders.contains(snapshot.provider) {
+            snapshotsByRecordName[snapshot.recordName] = snapshot
+        }
+        let snapshots = snapshotsByRecordName.values.sorted { $0.recordName < $1.recordName }
+        let recordNames = Set(snapshotsByRecordName.keys)
+
+        var authoritativeProviders = state.authoritativeProviders
+            .intersection(currentPendingProviders)
+            .subtracting(acceptedIncomingProviders)
+        authoritativeProviders.formUnion(incoming.authoritativeProviders.intersection(acceptedIncomingProviders))
+
+        var tokenAccountIDsByRecordName = state.tokenAccountIDsByRecordName.filter {
+            retainedRecordNames.contains($0.key)
+        }
+        for (recordName, accountID) in incoming.tokenAccountIDsByRecordName where recordNames.contains(recordName) {
+            tokenAccountIDsByRecordName[recordName] = accountID
+        }
+
+        var providerConfigRevisions = state.providerConfigRevisions.filter {
+            currentPendingProviders.contains($0.key)
+        }
+        for provider in acceptedIncomingProviders {
+            providerConfigRevisions[provider] = incoming.providerConfigRevisions[provider]
+        }
+        return Plan(
+            snapshots: snapshots,
+            authoritativeProviders: authoritativeProviders,
+            tokenAccountIDsByRecordName: tokenAccountIDsByRecordName,
+            providerConfigRevisions: providerConfigRevisions)
+    }
+}
+
 enum CloudSyncSnapshotConfigurationReconciliation {
     struct State {
         let candidateSnapshots: [String: AccountSnapshotSyncPayload]
@@ -315,6 +391,7 @@ enum CloudSyncSnapshotDeletionIntentReconciliation {
         let pendingRecordNames: Set<String>
         let recordNamesToCancel: Set<String>
         let blockedRecordNames: Set<String>
+        let providersRequiringFreshAuthority: Set<UsageProvider>
     }
 
     static func plan(
@@ -334,10 +411,14 @@ enum CloudSyncSnapshotDeletionIntentReconciliation {
             return activeTokenAccountIDs.contains(tokenAccountID) ? snapshot.recordName : nil
         })
         let nextPendingRecordNames = pendingRecordNames.subtracting(recordNamesToCancel)
+        let providersRequiringFreshAuthority = Set(snapshots.compactMap { snapshot in
+            nextPendingRecordNames.contains(snapshot.recordName) ? snapshot.provider : nil
+        })
         return Plan(
             pendingRecordNames: nextPendingRecordNames,
             recordNamesToCancel: recordNamesToCancel,
-            blockedRecordNames: nextPendingRecordNames)
+            blockedRecordNames: nextPendingRecordNames,
+            providersRequiringFreshAuthority: providersRequiringFreshAuthority)
     }
 }
 
@@ -373,9 +454,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var periodicFetchTask: Task<Void, Never>?
     private var lastSnapshotPushAt: Date?
     private var pendingSnapshots: [AccountSnapshotSyncPayload] = []
-    private var pendingSnapshotEnabledProviders: Set<UsageProvider> = []
     private var pendingSnapshotAuthoritativeProviders: Set<UsageProvider> = []
     private var pendingSnapshotTokenAccountIDs: [String: UUID] = [:]
+    private var pendingSnapshotProviderConfigRevisions: [UsageProvider: UInt64] = [:]
     private var lastSnapshotHashes: [String: String] = [:]
     private var lastKnownProviderConfigs: [UsageProvider: ProviderConfig] = [:]
     private var lastKnownPreferences: SyncedPreferences?
@@ -666,10 +747,29 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         guard let engine = self.engine else { return }
         guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
         do {
-            let enabledProviders = self.pendingSnapshotEnabledProviders
+            let pendingProviders = Set(self.pendingSnapshotProviderConfigRevisions.keys)
+            let currentPublicationState = await MainActor.run {
+                (
+                    enabledProviders: Set(self.settings.enabledProvidersOrdered(
+                        metadataByProvider: ProviderDescriptorRegistry.metadata)),
+                    providerConfigRevisions: Dictionary(uniqueKeysWithValues: pendingProviders.map {
+                        ($0, self.settings.providerConfigRevision(for: $0))
+                    }))
+            }
+            let currentPendingProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+                claimedProviders: pendingProviders,
+                sourceRevisions: self.pendingSnapshotProviderConfigRevisions,
+                currentRevisions: currentPublicationState.providerConfigRevisions)
+            let enabledProviders = currentPublicationState.enabledProviders
             let authoritativeProviders = self.pendingSnapshotAuthoritativeProviders
-            let snapshots = self.pendingSnapshots.filter { enabledProviders.contains($0.provider) }
-            let tokenAccountIDsByRecordName = self.pendingSnapshotTokenAccountIDs
+                .intersection(currentPendingProviders)
+            let snapshots = self.pendingSnapshots.filter {
+                currentPendingProviders.contains($0.provider) && enabledProviders.contains($0.provider)
+            }
+            let snapshotRecordNames = Set(snapshots.map(\.recordName))
+            let tokenAccountIDsByRecordName = self.pendingSnapshotTokenAccountIDs.filter {
+                snapshotRecordNames.contains($0.key)
+            }
             let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
             let reconciliation = CloudSyncSnapshotReconciliation.plan(
                 currentSnapshots: snapshots,
@@ -711,9 +811,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             }
             self.pendingSnapshots = []
-            self.pendingSnapshotEnabledProviders = []
             self.pendingSnapshotAuthoritativeProviders = []
             self.pendingSnapshotTokenAccountIDs = [:]
+            self.pendingSnapshotProviderConfigRevisions = [:]
             self.lastSnapshotPushAt = Date()
             self.persistEnvelope()
         } catch {
@@ -1261,11 +1361,13 @@ extension CloudSyncEngine {
         }
         guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
         let sourceProviders = Set(sourceProviderConfigRevisions.keys)
+        let pendingProviders = Set(self.pendingSnapshotProviderConfigRevisions.keys)
+        let providersToValidate = sourceProviders.union(pendingProviders)
         let currentPublicationState = await MainActor.run {
             (
                 enabledProviders: Set(self.settings.enabledProvidersOrdered(
                     metadataByProvider: ProviderDescriptorRegistry.metadata)),
-                providerConfigRevisions: Dictionary(uniqueKeysWithValues: sourceProviders.map {
+                providerConfigRevisions: Dictionary(uniqueKeysWithValues: providersToValidate.map {
                     ($0, self.settings.providerConfigRevision(for: $0))
                 }),
                 activeTokenAccountIDs: Set(self.settings.configSnapshot.providers.flatMap {
@@ -1276,7 +1378,7 @@ extension CloudSyncEngine {
             claimedProviders: sourceProviders,
             sourceRevisions: sourceProviderConfigRevisions,
             currentRevisions: currentPublicationState.providerConfigRevisions)
-        let acceptedAuthoritativeProviders = authoritativeProviders.intersection(acceptedPublicationProviders)
+        var acceptedAuthoritativeProviders = authoritativeProviders.intersection(acceptedPublicationProviders)
         let currentSnapshots = snapshots.filter { acceptedPublicationProviders.contains($0.provider) }
         let currentRecordNames = Set(currentSnapshots.map(\.recordName))
         let currentTokenAccountIDsByRecordName = tokenAccountIDsByRecordName.filter { recordName, _ in
@@ -1288,6 +1390,7 @@ extension CloudSyncEngine {
             authoritativeProviders: acceptedAuthoritativeProviders,
             activeTokenAccountIDs: currentPublicationState.activeTokenAccountIDs,
             pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames)
+        acceptedAuthoritativeProviders.subtract(intentPlan.providersRequiringFreshAuthority)
         self.persistenceEnvelope.snapshotDeletionRecordNames = intentPlan.pendingRecordNames
         for recordName in intentPlan.recordNamesToCancel {
             self.engine?.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
@@ -1301,12 +1404,25 @@ extension CloudSyncEngine {
                 self.persistenceEnvelope.snapshotTokenAccountIDs.removeValue(forKey: payload.recordName)
             }
         }
-        self.pendingSnapshots = publishableSnapshots
-        self.pendingSnapshotEnabledProviders = currentPublicationState.enabledProviders
-        self.pendingSnapshotAuthoritativeProviders = acceptedAuthoritativeProviders
-        self.pendingSnapshotTokenAccountIDs = currentTokenAccountIDsByRecordName.filter {
+        let incomingTokenAccountIDsByRecordName = currentTokenAccountIDsByRecordName.filter {
             !intentPlan.blockedRecordNames.contains($0.key)
         }
+        let pendingPlan = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: self.pendingSnapshots,
+                authoritativeProviders: self.pendingSnapshotAuthoritativeProviders,
+                tokenAccountIDsByRecordName: self.pendingSnapshotTokenAccountIDs,
+                providerConfigRevisions: self.pendingSnapshotProviderConfigRevisions),
+            incoming: .init(
+                snapshots: publishableSnapshots,
+                authoritativeProviders: acceptedAuthoritativeProviders,
+                tokenAccountIDsByRecordName: incomingTokenAccountIDsByRecordName,
+                providerConfigRevisions: sourceProviderConfigRevisions),
+            currentProviderConfigRevisions: currentPublicationState.providerConfigRevisions)
+        self.pendingSnapshots = pendingPlan.snapshots
+        self.pendingSnapshotAuthoritativeProviders = pendingPlan.authoritativeProviders
+        self.pendingSnapshotTokenAccountIDs = pendingPlan.tokenAccountIDsByRecordName
+        self.pendingSnapshotProviderConfigRevisions = pendingPlan.providerConfigRevisions
         self.persistEnvelope()
         let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
         if elapsed >= 120 {

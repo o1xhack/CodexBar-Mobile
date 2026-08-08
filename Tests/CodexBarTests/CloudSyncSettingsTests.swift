@@ -345,6 +345,51 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `stale provider event preserves newer pending provider slices`() {
+        let currentOpenAI = Self.snapshot(provider: .openai, accountKey: "current", deviceID: "this-mac")
+        let staleOpenAI = Self.snapshot(provider: .openai, accountKey: "stale", deviceID: "this-mac")
+        let currentClaude = Self.snapshot(provider: .claude, accountKey: "current", deviceID: "this-mac")
+        let openAIAccountID = UUID()
+        let claudeAccountID = UUID()
+
+        let plan = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [currentOpenAI.recordName: openAIAccountID],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [staleOpenAI, currentClaude],
+                authoritativeProviders: [.openai, .claude],
+                tokenAccountIDsByRecordName: [
+                    staleOpenAI.recordName: UUID(),
+                    currentClaude.recordName: claudeAccountID,
+                ],
+                providerConfigRevisions: [.openai: 4, .claude: 7]),
+            currentProviderConfigRevisions: [.openai: 5, .claude: 7])
+
+        #expect(Set(plan.snapshots.map(\.recordName)) == [currentOpenAI.recordName, currentClaude.recordName])
+        #expect(plan.authoritativeProviders == [.openai, .claude])
+        #expect(plan.tokenAccountIDsByRecordName[currentOpenAI.recordName] == openAIAccountID)
+        #expect(plan.tokenAccountIDsByRecordName[currentClaude.recordName] == claudeAccountID)
+        #expect(plan.providerConfigRevisions == [.openai: 5, .claude: 7])
+
+        let fallbackReplacement = CloudSyncPendingSnapshotPublicationReconciliation.plan(
+            state: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [currentOpenAI.recordName: openAIAccountID],
+                providerConfigRevisions: [.openai: 5]),
+            incoming: .init(
+                snapshots: [currentOpenAI],
+                authoritativeProviders: [.openai],
+                tokenAccountIDsByRecordName: [:],
+                providerConfigRevisions: [.openai: 5]),
+            currentProviderConfigRevisions: [.openai: 5])
+        #expect(fallbackReplacement.tokenAccountIDsByRecordName.isEmpty)
+    }
+
+    @Test
     func `snapshot publication carries local token account ownership without changing the wire payload`() throws {
         let fixture = try self.makeFixture("snapshot-token-owner")
         fixture.store.addTokenAccount(provider: .openai, label: "person@example.com", token: "test-token")
@@ -532,6 +577,7 @@ struct CloudSyncSettingsTests {
         #expect(plan.pendingRecordNames == [removedSnapshot.recordName])
         #expect(plan.recordNamesToCancel.isEmpty)
         #expect(plan.blockedRecordNames == [removedSnapshot.recordName])
+        #expect(plan.providersRequiringFreshAuthority == [.claude])
     }
 
     @Test
