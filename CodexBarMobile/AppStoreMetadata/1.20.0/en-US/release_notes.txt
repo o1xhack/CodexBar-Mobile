@@ -1,0 +1,1 @@
+Adds Qwen Cloud, ZoomMate, xAI, and Notion AI with dedicated detail pages. See ZoomMate credit history, xAI balance and daily spend, the active Notion workspace, Claude prepaid credits, and z.ai usage across 24-hour, 7-day, and 30-day ranges. Update CodexBar on Mac to 0.47.0.1 for full support.

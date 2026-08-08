@@ -1,0 +1,1 @@
+新增 Qwen Cloud、ZoomMate、xAI 和 Notion AI，並提供各自的詳細資訊頁。現在可以查看 ZoomMate 額度記錄、xAI 餘額與每日支出、Notion 目前工作區、Claude 預付額度，以及 z.ai 最近 24 小時、7 天和 30 天的用量。請將 Mac 上的 CodexBar 更新到 0.47.0.1 以取得完整支援。
