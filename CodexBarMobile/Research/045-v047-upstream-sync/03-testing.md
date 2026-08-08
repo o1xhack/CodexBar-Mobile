@@ -247,7 +247,9 @@ assets，并重新核对 embedded commit、digest、entitlements、notarization 
   修复 dSYM 误充 app ZIP（P1）与 regex 近似文件名误通过（P2）。最终 exact-basename
   checker、complete / dSYM-only / app-only / similar-name 回归、full lint、Fast Checks 均
   通过；exact-SHA review 无 major issue、unresolved threads `0`，merge commit
-  `f70d5fb3c20d91748690a048f645e9b203504219`；
+  `f70d5fb3c20d91748690a048f645e9b203504219`；合并后的 Final CI
+  [31269630503](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/31269630503)
+  也全绿，重型测试矩阵按路径影响策略正确跳过；
 - iOS archive `/tmp/CodexBarMobile-20260807-222242.xcarchive` 的 app 与两个 extensions
   均为 `1.20.0 (192)`、CloudKit Production；ASC version ID
   `f0cada21-9f94-42e3-a34b-bfd744e9d4f3`，build ID
