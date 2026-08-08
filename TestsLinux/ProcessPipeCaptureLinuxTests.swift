@@ -96,6 +96,8 @@ struct ProcessPipeCaptureLinuxTests {
     func `Linux descriptor setup failure closes the read end immediately`() throws {
         let pipe = Pipe()
         let readFileDescriptor = pipe.fileHandleForReading.fileDescriptor
+        let readDescriptorPath = "/proc/self/fd/\(readFileDescriptor)"
+        let originalReadEnd = try FileManager.default.destinationOfSymbolicLink(atPath: readDescriptorPath)
         let capture = ProcessPipeCapture(pipe: pipe)
         capture.start(linuxDescriptorSetup: { descriptor in
             errno = EMFILE
@@ -108,8 +110,10 @@ struct ProcessPipeCaptureLinuxTests {
 
         #expect(data.isEmpty)
         #expect(elapsed < .milliseconds(500))
-        #expect(Glibc.fcntl(readFileDescriptor, F_GETFD) == -1)
-        #expect(errno == EBADF)
+        // Other test suites run concurrently and can reuse the just-closed descriptor number.
+        // Verify that it no longer aliases this pipe rather than requiring the number to stay unused.
+        let currentReadEnd = try? FileManager.default.destinationOfSymbolicLink(atPath: readDescriptorPath)
+        #expect(currentReadEnd != originalReadEnd)
         try pipe.fileHandleForWriting.close()
     }
 
