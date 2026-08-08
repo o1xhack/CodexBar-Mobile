@@ -199,12 +199,16 @@ check_assets() {
   assets=$(gh release view "$tag" --repo o1xhack/CodexBar-Mobile --json assets -q '.assets[].name' 2>&1) || {
     err "gh release view failed for $tag: $assets"
   }
-  for suffix in ".zip" ".dSYM.zip"; do
-    if ! printf "%s\n" "$assets" | grep -q "^${prefix}.*${suffix}\$"; then
-      echo "MISSING: ${prefix}*${suffix}" >&2
-      missing=1
-    fi
-  done
+  if ! printf "%s\n" "$assets" \
+    | grep -E "^${prefix}.*\.zip\$" \
+    | grep -Evq '\.dSYM\.zip$'; then
+    echo "MISSING: ${prefix}*.zip (excluding dSYM archives)" >&2
+    missing=1
+  fi
+  if ! printf "%s\n" "$assets" | grep -Eq "^${prefix}.*\.dSYM\.zip\$"; then
+    echo "MISSING: ${prefix}*.dSYM.zip" >&2
+    missing=1
+  fi
   [[ "$missing" -eq 0 ]] || err "GitHub release $tag is missing expected assets."
   echo "Release $tag assets OK ($prefix*.zip + $prefix*.dSYM.zip present)."
 }
