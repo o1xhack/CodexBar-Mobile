@@ -54,7 +54,8 @@ final class CloudSyncCoordinator {
                 await self.engine.queueSnapshots(
                     event.snapshots,
                     enabledProviders: event.enabledProviders,
-                    authoritativeProviders: event.authoritativeProviders)
+                    authoritativeProviders: event.authoritativeProviders,
+                    tokenAccountIDsByRecordName: event.tokenAccountIDsByRecordName)
             }
         }
         self.accountObserver = NotificationCenter.default.addObserver(

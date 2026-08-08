@@ -4,6 +4,11 @@ import Foundation
 import WidgetKit
 #endif
 
+struct CloudSyncAccountSnapshotPublication {
+    let snapshots: [AccountSnapshotSyncPayload]
+    let tokenAccountIDsByRecordName: [String: UUID]
+}
+
 extension UsageStore {
     func persistWidgetSnapshot(reason: String) {
         #if DEBUG
@@ -22,15 +27,16 @@ extension UsageStore {
         }()
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
         self.lastQueuedWidgetSnapshot = snapshot
-        let cloudSyncSnapshots = self.cloudSyncAccountSnapshots()
+        let cloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(
-                snapshots: cloudSyncSnapshots,
+                snapshots: cloudSyncPublication.snapshots,
                 enabledProviders: Set(self.enabledProvidersForDisplay()),
                 authoritativeProviders: self.cloudSyncAuthoritativeSnapshotProviders(
-                    cloudSyncSnapshots,
-                    reason: reason)))
+                    cloudSyncPublication.snapshots,
+                    reason: reason),
+                tokenAccountIDsByRecordName: cloudSyncPublication.tokenAccountIDsByRecordName))
         let previousTask = self.widgetSnapshotPersistTask
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
@@ -50,8 +56,22 @@ extension UsageStore {
     }
 
     func cloudSyncAccountSnapshots() -> [AccountSnapshotSyncPayload] {
+        self.cloudSyncAccountSnapshotPublication().snapshots
+    }
+
+    func cloudSyncAccountSnapshotPublication() -> CloudSyncAccountSnapshotPublication {
         let deviceID = self.settings.macFleetSyncDeviceID
         var payloads: [String: AccountSnapshotSyncPayload] = [:]
+        var tokenAccountIDsByRecordName: [String: UUID] = [:]
+
+        func insert(_ payload: AccountSnapshotSyncPayload, tokenAccountID: UUID? = nil) {
+            payloads[payload.recordName] = payload
+            if let tokenAccountID {
+                tokenAccountIDsByRecordName[payload.recordName] = tokenAccountID
+            } else {
+                tokenAccountIDsByRecordName.removeValue(forKey: payload.recordName)
+            }
+        }
 
         for (provider, usage) in self.snapshots {
             let identity = usage.identity?.accountID ?? usage.identity?.accountEmail
@@ -64,7 +84,7 @@ extension UsageStore {
                 accountIdentity: identity,
                 displayLabel: label,
                 usage: usage)
-            payloads[payload.recordName] = payload
+            insert(payload)
         }
 
         for (provider, accountSnapshots) in self.accountSnapshots {
@@ -80,7 +100,7 @@ extension UsageStore {
                     accountIdentity: identity,
                     displayLabel: accountSnapshot.account.displayName,
                     usage: usage)
-                payloads[payload.recordName] = payload
+                insert(payload, tokenAccountID: accountSnapshot.account.id)
             }
         }
 
@@ -95,10 +115,12 @@ extension UsageStore {
                 accountIdentity: identity,
                 displayLabel: accountSnapshot.displayLabel,
                 usage: usage)
-            payloads[payload.recordName] = payload
+            insert(payload)
         }
 
-        return payloads.values.sorted { $0.recordName < $1.recordName }
+        return CloudSyncAccountSnapshotPublication(
+            snapshots: payloads.values.sorted { $0.recordName < $1.recordName },
+            tokenAccountIDsByRecordName: tokenAccountIDsByRecordName)
     }
 
     /// Snapshot absence is destructive only after a completed, successful provider refresh. Other

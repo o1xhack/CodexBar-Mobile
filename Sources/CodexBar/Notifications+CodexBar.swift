@@ -19,15 +19,18 @@ final class UsageSnapshotsDidChangeEvent: NSObject, @unchecked Sendable {
     let snapshots: [AccountSnapshotSyncPayload]
     let enabledProviders: Set<UsageProvider>
     let authoritativeProviders: Set<UsageProvider>
+    let tokenAccountIDsByRecordName: [String: UUID]
 
     init(
         snapshots: [AccountSnapshotSyncPayload],
         enabledProviders: Set<UsageProvider>,
-        authoritativeProviders: Set<UsageProvider>)
+        authoritativeProviders: Set<UsageProvider>,
+        tokenAccountIDsByRecordName: [String: UUID])
     {
         self.snapshots = snapshots
         self.enabledProviders = enabledProviders
         self.authoritativeProviders = authoritativeProviders
+        self.tokenAccountIDsByRecordName = tokenAccountIDsByRecordName
     }
 }
 

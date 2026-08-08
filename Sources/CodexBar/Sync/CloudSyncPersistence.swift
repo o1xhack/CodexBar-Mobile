@@ -17,7 +17,10 @@ struct CloudSyncPersistence: Sendable {
         var suppressedEnableIntents: Set<String>
         var dirtyProviders: Set<String>
         var preferencesDirty: Bool
-        var snapshotDeletionProviders: Set<String>
+        /// Local-only tombstones and provenance; neither field is serialized into CloudKit records.
+        var snapshotDeletionRecordNames: Set<String>
+        var snapshotOwnershipKnownRecordNames: Set<String>
+        var snapshotTokenAccountIDs: [String: UUID]
         var fleetDevices: [String: DeviceSyncPayload]
         var fleetSnapshots: [String: AccountSnapshotSyncPayload]
 
@@ -28,7 +31,9 @@ struct CloudSyncPersistence: Sendable {
             suppressedEnableIntents: Set<String> = [],
             dirtyProviders: Set<String> = [],
             preferencesDirty: Bool = false,
-            snapshotDeletionProviders: Set<String> = [],
+            snapshotDeletionRecordNames: Set<String> = [],
+            snapshotOwnershipKnownRecordNames: Set<String> = [],
+            snapshotTokenAccountIDs: [String: UUID] = [:],
             fleetDevices: [String: DeviceSyncPayload] = [:],
             fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:])
         {
@@ -38,7 +43,9 @@ struct CloudSyncPersistence: Sendable {
             self.suppressedEnableIntents = suppressedEnableIntents
             self.dirtyProviders = dirtyProviders
             self.preferencesDirty = preferencesDirty
-            self.snapshotDeletionProviders = snapshotDeletionProviders
+            self.snapshotDeletionRecordNames = snapshotDeletionRecordNames
+            self.snapshotOwnershipKnownRecordNames = snapshotOwnershipKnownRecordNames
+            self.snapshotTokenAccountIDs = snapshotTokenAccountIDs
             self.fleetDevices = fleetDevices
             self.fleetSnapshots = fleetSnapshots
         }
@@ -50,7 +57,9 @@ struct CloudSyncPersistence: Sendable {
             case suppressedEnableIntents
             case dirtyProviders
             case preferencesDirty
-            case snapshotDeletionProviders
+            case snapshotDeletionRecordNames
+            case snapshotOwnershipKnownRecordNames
+            case snapshotTokenAccountIDs
             case fleetDevices
             case fleetSnapshots
         }
@@ -75,9 +84,15 @@ struct CloudSyncPersistence: Sendable {
             self.preferencesDirty = try container.decodeIfPresent(
                 Bool.self,
                 forKey: .preferencesDirty) ?? false
-            self.snapshotDeletionProviders = try container.decodeIfPresent(
+            self.snapshotDeletionRecordNames = try container.decodeIfPresent(
                 Set<String>.self,
-                forKey: .snapshotDeletionProviders) ?? []
+                forKey: .snapshotDeletionRecordNames) ?? []
+            self.snapshotOwnershipKnownRecordNames = try container.decodeIfPresent(
+                Set<String>.self,
+                forKey: .snapshotOwnershipKnownRecordNames) ?? []
+            self.snapshotTokenAccountIDs = try container.decodeIfPresent(
+                [String: UUID].self,
+                forKey: .snapshotTokenAccountIDs) ?? [:]
             self.fleetDevices = try container.decodeIfPresent(
                 [String: DeviceSyncPayload].self,
                 forKey: .fleetDevices) ?? [:]

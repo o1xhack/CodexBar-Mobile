@@ -152,32 +152,142 @@ enum CloudSyncSnapshotReconciliation {
 }
 
 enum CloudSyncSnapshotConfigurationReconciliation {
+    struct State {
+        let persistedSnapshots: [String: AccountSnapshotSyncPayload]
+        let ownershipKnownRecordNames: Set<String>
+        let tokenAccountIDsByRecordName: [String: UUID]
+        let deviceID: String
+        let pendingRecordNames: Set<String>
+    }
+
     struct Plan: Equatable {
-        let pendingProviderIDs: Set<String>
-        let providersToDelete: Set<UsageProvider>
-        let providersToCancel: Set<UsageProvider>
+        let pendingRecordNames: Set<String>
+        let recordNamesToDelete: Set<String>
+        let recordNamesToCancel: Set<String>
     }
 
     static func plan(
         previousConfigs: [UsageProvider: ProviderConfig],
         currentConfig: CodexBarConfig,
-        pendingProviderIDs: Set<String>) -> Plan
+        state: State) -> Plan
     {
-        let previousProvidersWithAccounts = Set(previousConfigs.compactMap { provider, config in
-            config.tokenAccounts?.accounts.isEmpty == false ? provider.rawValue : nil
+        let currentConfigs = Dictionary(uniqueKeysWithValues: currentConfig.providers.map { ($0.id, $0) })
+        let currentAccounts = currentConfigs.mapValues { $0.tokenAccounts?.accounts ?? [] }
+        let removedAccounts = previousConfigs.compactMapValues { previousConfig -> [ProviderTokenAccount]? in
+            let currentIDs = Set(currentAccounts[previousConfig.id, default: []].map(\.id))
+            let removed = (previousConfig.tokenAccounts?.accounts ?? []).filter { !currentIDs.contains($0.id) }
+            return removed.isEmpty ? nil : removed
+        }
+        let newlyRemovedRecordNames = Set<String>(state.persistedSnapshots.compactMap { recordName, snapshot in
+            guard snapshot.deviceID == state.deviceID,
+                  let removed = removedAccounts[snapshot.provider]
+            else { return nil }
+            if state.ownershipKnownRecordNames.contains(recordName) {
+                guard let accountID = state.tokenAccountIDsByRecordName[recordName] else { return nil }
+                return removed.contains(where: { $0.id == accountID }) ? recordName : nil
+            }
+            return removed.contains(where: { self.matches(snapshot: snapshot, account: $0) }) ? recordName : nil
         })
-        let currentProvidersWithAccounts = Set(currentConfig.providers.compactMap { config in
-            config.tokenAccounts?.accounts.isEmpty == false ? config.id.rawValue : nil
+        let restoredRecordNames = Set(state.pendingRecordNames.filter { recordName in
+            guard let provider = self.provider(
+                for: recordName,
+                persistedSnapshots: state.persistedSnapshots),
+                let accounts = currentAccounts[provider],
+                !accounts.isEmpty
+            else { return false }
+            if state.ownershipKnownRecordNames.contains(recordName) {
+                guard let accountID = state.tokenAccountIDsByRecordName[recordName] else { return false }
+                return accounts.contains(where: { $0.id == accountID })
+            }
+            if let snapshot = state.persistedSnapshots[recordName] {
+                return accounts.contains(where: { self.matches(snapshot: snapshot, account: $0) })
+            }
+            return accounts.contains { self.candidateRecordNames(
+                provider: provider,
+                account: $0,
+                deviceID: state.deviceID).contains(recordName)
+            }
         })
-        let newlyEmptiedProviderIDs = previousProvidersWithAccounts.subtracting(currentProvidersWithAccounts)
-        let restoredProviderIDs = pendingProviderIDs.intersection(currentProvidersWithAccounts)
-        let nextPendingProviderIDs = pendingProviderIDs
-            .union(newlyEmptiedProviderIDs)
-            .subtracting(restoredProviderIDs)
+        let nextPendingRecordNames = state.pendingRecordNames
+            .union(newlyRemovedRecordNames)
+            .subtracting(restoredRecordNames)
         return Plan(
-            pendingProviderIDs: nextPendingProviderIDs,
-            providersToDelete: Set(nextPendingProviderIDs.compactMap(UsageProvider.init(rawValue:))),
-            providersToCancel: Set(restoredProviderIDs.compactMap(UsageProvider.init(rawValue:))))
+            pendingRecordNames: nextPendingRecordNames,
+            recordNamesToDelete: nextPendingRecordNames,
+            recordNamesToCancel: restoredRecordNames)
+    }
+
+    private static func provider(
+        for recordName: String,
+        persistedSnapshots: [String: AccountSnapshotSyncPayload]) -> UsageProvider?
+    {
+        if let provider = persistedSnapshots[recordName]?.provider { return provider }
+        return UsageProvider.allCases.first { recordName.hasPrefix("snap-\($0.rawValue)-") }
+    }
+
+    private static func matches(
+        snapshot: AccountSnapshotSyncPayload,
+        account: ProviderTokenAccount) -> Bool
+    {
+        self.candidateAccountKeys(account).contains(snapshot.accountKey)
+    }
+
+    private static func candidateRecordNames(
+        provider: UsageProvider,
+        account: ProviderTokenAccount,
+        deviceID: String) -> Set<String>
+    {
+        Set(self.candidateAccountKeys(account).map { "snap-\(provider.rawValue)-\($0)-\(deviceID)" })
+    }
+
+    private static func candidateAccountKeys(_ account: ProviderTokenAccount) -> Set<String> {
+        Set(self.normalizedAccountIdentities(account).map(AccountSnapshotSyncPayload.accountKey(for:)))
+    }
+
+    private static func normalizedAccountIdentities(_ account: ProviderTokenAccount) -> Set<String> {
+        Set([
+            account.externalIdentifier,
+            account.id.uuidString,
+            account.label,
+        ].compactMap(self.normalized))
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !value.isEmpty
+        else { return nil }
+        return value
+    }
+}
+
+enum CloudSyncSnapshotDeletionIntentReconciliation {
+    struct Plan: Equatable {
+        let pendingRecordNames: Set<String>
+        let recordNamesToCancel: Set<String>
+        let blockedRecordNames: Set<String>
+    }
+
+    static func plan(
+        snapshots: [AccountSnapshotSyncPayload],
+        tokenAccountIDsByRecordName: [String: UUID],
+        authoritativeProviders: Set<UsageProvider>,
+        activeTokenAccountIDs: Set<UUID>,
+        pendingRecordNames: Set<String>) -> Plan
+    {
+        let recordNamesToCancel = Set(snapshots.compactMap { snapshot -> String? in
+            guard pendingRecordNames.contains(snapshot.recordName),
+                  authoritativeProviders.contains(snapshot.provider)
+            else { return nil }
+            guard let tokenAccountID = tokenAccountIDsByRecordName[snapshot.recordName] else {
+                return snapshot.recordName
+            }
+            return activeTokenAccountIDs.contains(tokenAccountID) ? snapshot.recordName : nil
+        })
+        let nextPendingRecordNames = pendingRecordNames.subtracting(recordNamesToCancel)
+        return Plan(
+            pendingRecordNames: nextPendingRecordNames,
+            recordNamesToCancel: recordNamesToCancel,
+            blockedRecordNames: nextPendingRecordNames)
     }
 }
 
@@ -215,6 +325,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var pendingSnapshots: [AccountSnapshotSyncPayload] = []
     private var pendingSnapshotEnabledProviders: Set<UsageProvider> = []
     private var pendingSnapshotAuthoritativeProviders: Set<UsageProvider> = []
+    private var pendingSnapshotTokenAccountIDs: [String: UUID] = [:]
     private var lastSnapshotHashes: [String: String] = [:]
     private var lastKnownProviderConfigs: [UsageProvider: ProviderConfig] = [:]
     private var lastKnownPreferences: SyncedPreferences?
@@ -281,9 +392,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
             try await self.queueDeviceRecord()
             await self.applySnapshotConfigurationDeletionIntents(
-                providersToDelete: Set(self.persistenceEnvelope.snapshotDeletionProviders.compactMap(
-                    UsageProvider.init(rawValue:))),
-                providersToCancel: [])
+                recordNamesToDelete: self.persistenceEnvelope.snapshotDeletionRecordNames,
+                recordNamesToCancel: [])
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
@@ -298,44 +408,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         } else {
             await self.fetchChanges()
         }
-    }
-
-    func localUserConfigurationDidChange(_ config: CodexBarConfig) async {
-        let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
-            previousConfigs: self.lastKnownProviderConfigs,
-            currentConfig: config,
-            pendingProviderIDs: self.persistenceEnvelope.snapshotDeletionProviders)
-        self.persistenceEnvelope.snapshotDeletionProviders = snapshotPlan.pendingProviderIDs
-        let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
-        for providerConfig in config.providers {
-            if let previous = self.lastKnownProviderConfigs[providerConfig.id],
-               previous.enabled != providerConfig.enabled
-            {
-                self.persistenceEnvelope.suppressedEnableIntents.remove(providerConfig.id.rawValue)
-            }
-            guard let previous = self.lastKnownProviderConfigs[providerConfig.id] else {
-                self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
-                continue
-            }
-            do {
-                if try CloudSyncDirtyState.providerSyncContentChanged(
-                    from: previous,
-                    previousSuppressedEnableIntents: previousSuppressedEnableIntents,
-                    to: providerConfig,
-                    currentSuppressedEnableIntents: self.persistenceEnvelope.suppressedEnableIntents)
-                {
-                    self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
-                }
-            } catch {
-                self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
-                self.logger.error("Failed to compare provider sync content: \(error)")
-            }
-        }
-        self.lastKnownProviderConfigs = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
-        self.persistEnvelope()
-        await self.applySnapshotConfigurationDeletionIntents(
-            providersToDelete: snapshotPlan.providersToDelete,
-            providersToCancel: snapshotPlan.providersToCancel)
     }
 
     func localUserPreferencesDidChange(_ preferences: SyncedPreferences) {
@@ -547,6 +619,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             let enabledProviders = self.pendingSnapshotEnabledProviders
             let authoritativeProviders = self.pendingSnapshotAuthoritativeProviders
             let snapshots = self.pendingSnapshots.filter { enabledProviders.contains($0.provider) }
+            let tokenAccountIDsByRecordName = self.pendingSnapshotTokenAccountIDs
             let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
             let reconciliation = CloudSyncSnapshotReconciliation.plan(
                 currentSnapshots: snapshots,
@@ -565,6 +638,12 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
             }
             for payload in snapshots {
+                self.persistenceEnvelope.snapshotOwnershipKnownRecordNames.insert(payload.recordName)
+                if let tokenAccountID = tokenAccountIDsByRecordName[payload.recordName] {
+                    self.persistenceEnvelope.snapshotTokenAccountIDs[payload.recordName] = tokenAccountID
+                } else {
+                    self.persistenceEnvelope.snapshotTokenAccountIDs.removeValue(forKey: payload.recordName)
+                }
                 let hash = try CanonicalSyncJSON.hash(payload)
                 guard self.lastSnapshotHashes[payload.recordName] != hash else { continue }
                 let recordID = self.recordID(named: payload.recordName)
@@ -584,6 +663,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.pendingSnapshots = []
             self.pendingSnapshotEnabledProviders = []
             self.pendingSnapshotAuthoritativeProviders = []
+            self.pendingSnapshotTokenAccountIDs = [:]
             self.lastSnapshotPushAt = Date()
             self.persistEnvelope()
         } catch {
@@ -1060,10 +1140,55 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 }
 
 extension CloudSyncEngine {
+    func localUserConfigurationDidChange(_ config: CodexBarConfig) async {
+        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
+        let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
+            previousConfigs: self.lastKnownProviderConfigs,
+            currentConfig: config,
+            state: .init(
+                persistedSnapshots: self.persistenceEnvelope.fleetSnapshots,
+                ownershipKnownRecordNames: self.persistenceEnvelope.snapshotOwnershipKnownRecordNames,
+                tokenAccountIDsByRecordName: self.persistenceEnvelope.snapshotTokenAccountIDs,
+                deviceID: deviceID,
+                pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames))
+        self.persistenceEnvelope.snapshotDeletionRecordNames = snapshotPlan.pendingRecordNames
+        let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
+        for providerConfig in config.providers {
+            if let previous = self.lastKnownProviderConfigs[providerConfig.id],
+               previous.enabled != providerConfig.enabled
+            {
+                self.persistenceEnvelope.suppressedEnableIntents.remove(providerConfig.id.rawValue)
+            }
+            guard let previous = self.lastKnownProviderConfigs[providerConfig.id] else {
+                self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
+                continue
+            }
+            do {
+                if try CloudSyncDirtyState.providerSyncContentChanged(
+                    from: previous,
+                    previousSuppressedEnableIntents: previousSuppressedEnableIntents,
+                    to: providerConfig,
+                    currentSuppressedEnableIntents: self.persistenceEnvelope.suppressedEnableIntents)
+                {
+                    self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
+                }
+            } catch {
+                self.persistenceEnvelope.dirtyProviders.insert(providerConfig.id.rawValue)
+                self.logger.error("Failed to compare provider sync content: \(error)")
+            }
+        }
+        self.lastKnownProviderConfigs = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
+        self.persistEnvelope()
+        await self.applySnapshotConfigurationDeletionIntents(
+            recordNamesToDelete: snapshotPlan.recordNamesToDelete,
+            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+    }
+
     func queueSnapshots(
         _ snapshots: [AccountSnapshotSyncPayload],
         enabledProviders: Set<UsageProvider>,
-        authoritativeProviders: Set<UsageProvider>) async
+        authoritativeProviders: Set<UsageProvider>,
+        tokenAccountIDsByRecordName: [String: UUID]) async
     {
         guard self.enabled, self.engine != nil else { return }
         let options = await MainActor.run {
@@ -1074,11 +1199,35 @@ extension CloudSyncEngine {
                 needsAppUpdate: self.state.status.needsAppUpdate)
         }
         guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
-        let deletionProviders = Set(self.persistenceEnvelope.snapshotDeletionProviders.compactMap(
-            UsageProvider.init(rawValue:)))
-        self.pendingSnapshots = snapshots.filter { !deletionProviders.contains($0.provider) }
+        let activeTokenAccountIDs = Set(self.lastKnownProviderConfigs.values.flatMap {
+            $0.tokenAccounts?.accounts.map(\.id) ?? []
+        })
+        let intentPlan = CloudSyncSnapshotDeletionIntentReconciliation.plan(
+            snapshots: snapshots,
+            tokenAccountIDsByRecordName: tokenAccountIDsByRecordName,
+            authoritativeProviders: authoritativeProviders,
+            activeTokenAccountIDs: activeTokenAccountIDs,
+            pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames)
+        self.persistenceEnvelope.snapshotDeletionRecordNames = intentPlan.pendingRecordNames
+        for recordName in intentPlan.recordNamesToCancel {
+            self.engine?.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
+        }
+        let publishableSnapshots = snapshots.filter { !intentPlan.blockedRecordNames.contains($0.recordName) }
+        for payload in publishableSnapshots {
+            self.persistenceEnvelope.snapshotOwnershipKnownRecordNames.insert(payload.recordName)
+            if let tokenAccountID = tokenAccountIDsByRecordName[payload.recordName] {
+                self.persistenceEnvelope.snapshotTokenAccountIDs[payload.recordName] = tokenAccountID
+            } else {
+                self.persistenceEnvelope.snapshotTokenAccountIDs.removeValue(forKey: payload.recordName)
+            }
+        }
+        self.pendingSnapshots = publishableSnapshots
         self.pendingSnapshotEnabledProviders = enabledProviders
-        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders.union(deletionProviders)
+        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders
+        self.pendingSnapshotTokenAccountIDs = tokenAccountIDsByRecordName.filter {
+            !intentPlan.blockedRecordNames.contains($0.key)
+        }
+        self.persistEnvelope()
         let elapsed = self.lastSnapshotPushAt.map { Date().timeIntervalSince($0) } ?? .infinity
         if elapsed >= 120 {
             await self.pushPendingSnapshots()
@@ -1103,6 +1252,10 @@ extension CloudSyncEngine {
             self.persistenceEnvelope.recordMetadata.removeValue(forKey: recordName)
             self.persistenceEnvelope.fleetDevices.removeValue(forKey: recordName)
             self.persistenceEnvelope.fleetSnapshots.removeValue(forKey: recordName)
+            if !self.persistenceEnvelope.snapshotDeletionRecordNames.contains(recordName) {
+                self.persistenceEnvelope.snapshotOwnershipKnownRecordNames.remove(recordName)
+                self.persistenceEnvelope.snapshotTokenAccountIDs.removeValue(forKey: recordName)
+            }
             self.lastSnapshotHashes.removeValue(forKey: recordName)
         }
         await MainActor.run {
@@ -1111,38 +1264,22 @@ extension CloudSyncEngine {
                 self.state.fleetSnapshots.removeValue(forKey: recordName)
             }
         }
-        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
-        let pendingDeletionProviders = self.persistenceEnvelope.snapshotDeletionProviders
-        self.persistenceEnvelope.snapshotDeletionProviders = pendingDeletionProviders.filter { providerID in
-            guard let provider = UsageProvider(rawValue: providerID) else { return true }
-            return self.persistenceEnvelope.fleetSnapshots.values.contains {
-                $0.deviceID == deviceID && $0.provider == provider
-            }
-        }
     }
 
     private func applySnapshotConfigurationDeletionIntents(
-        providersToDelete: Set<UsageProvider>,
-        providersToCancel: Set<UsageProvider>) async
+        recordNamesToDelete: Set<String>,
+        recordNamesToCancel: Set<String>) async
     {
         guard self.enabled, let engine = self.engine else { return }
-        let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
-        let localSnapshots = self.persistenceEnvelope.fleetSnapshots.filter { _, snapshot in
-            snapshot.deviceID == deviceID
-        }
-        for (recordName, snapshot) in localSnapshots where providersToCancel.contains(snapshot.provider) {
+        for recordName in recordNamesToCancel {
             engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
         }
-        self.pendingSnapshots.removeAll { providersToDelete.contains($0.provider) }
-        for (recordName, snapshot) in localSnapshots where providersToDelete.contains(snapshot.provider) {
+        self.pendingSnapshots.removeAll { recordNamesToDelete.contains($0.recordName) }
+        for recordName in recordNamesToDelete {
             let recordID = self.recordID(named: recordName)
             self.desiredRecords.removeValue(forKey: recordID)
             engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
             engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
-        }
-        let providersWithRecords = Set(localSnapshots.values.map(\.provider))
-        for provider in providersToDelete where !providersWithRecords.contains(provider) {
-            self.persistenceEnvelope.snapshotDeletionProviders.remove(provider.rawValue)
         }
         self.persistEnvelope()
     }
