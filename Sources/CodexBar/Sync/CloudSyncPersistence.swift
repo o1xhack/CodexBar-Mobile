@@ -19,6 +19,7 @@ struct CloudSyncPersistence: Sendable {
         var preferencesDirty: Bool
         /// Local-only tombstones and provenance; neither field is serialized into CloudKit records.
         var snapshotDeletionRecordNames: Set<String>
+        var snapshotDeletionCancellationRecordNames: Set<String>
         var snapshotOwnershipKnownRecordNames: Set<String>
         var snapshotTokenAccountIDs: [String: UUID]
         var fleetDevices: [String: DeviceSyncPayload]
@@ -32,6 +33,7 @@ struct CloudSyncPersistence: Sendable {
             dirtyProviders: Set<String> = [],
             preferencesDirty: Bool = false,
             snapshotDeletionRecordNames: Set<String> = [],
+            snapshotDeletionCancellationRecordNames: Set<String> = [],
             snapshotOwnershipKnownRecordNames: Set<String> = [],
             snapshotTokenAccountIDs: [String: UUID] = [:],
             fleetDevices: [String: DeviceSyncPayload] = [:],
@@ -44,6 +46,7 @@ struct CloudSyncPersistence: Sendable {
             self.dirtyProviders = dirtyProviders
             self.preferencesDirty = preferencesDirty
             self.snapshotDeletionRecordNames = snapshotDeletionRecordNames
+            self.snapshotDeletionCancellationRecordNames = snapshotDeletionCancellationRecordNames
             self.snapshotOwnershipKnownRecordNames = snapshotOwnershipKnownRecordNames
             self.snapshotTokenAccountIDs = snapshotTokenAccountIDs
             self.fleetDevices = fleetDevices
@@ -58,6 +61,7 @@ struct CloudSyncPersistence: Sendable {
             case dirtyProviders
             case preferencesDirty
             case snapshotDeletionRecordNames
+            case snapshotDeletionCancellationRecordNames
             case snapshotOwnershipKnownRecordNames
             case snapshotTokenAccountIDs
             case fleetDevices
@@ -87,6 +91,9 @@ struct CloudSyncPersistence: Sendable {
             self.snapshotDeletionRecordNames = try container.decodeIfPresent(
                 Set<String>.self,
                 forKey: .snapshotDeletionRecordNames) ?? []
+            self.snapshotDeletionCancellationRecordNames = try container.decodeIfPresent(
+                Set<String>.self,
+                forKey: .snapshotDeletionCancellationRecordNames) ?? []
             self.snapshotOwnershipKnownRecordNames = try container.decodeIfPresent(
                 Set<String>.self,
                 forKey: .snapshotOwnershipKnownRecordNames) ?? []

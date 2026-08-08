@@ -134,6 +134,7 @@ struct CloudSyncSettingsTests {
         #expect(envelope.dirtyProviders.isEmpty)
         #expect(!envelope.preferencesDirty)
         #expect(envelope.snapshotDeletionRecordNames.isEmpty)
+        #expect(envelope.snapshotDeletionCancellationRecordNames.isEmpty)
         #expect(envelope.snapshotOwnershipKnownRecordNames.isEmpty)
         #expect(envelope.snapshotTokenAccountIDs.isEmpty)
     }
@@ -348,6 +349,17 @@ struct CloudSyncSettingsTests {
             try await Task.sleep(for: .milliseconds(20))
         }
         #expect(persistence.load().snapshotDeletionRecordNames == [snapshot.recordName])
+
+        fixture.store.applyExternalConfig(initial, reason: "file-restore")
+
+        for _ in 0..<50
+            where !persistence.load().snapshotDeletionCancellationRecordNames.contains(snapshot.recordName)
+        {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let restoredEnvelope = persistence.load()
+        #expect(restoredEnvelope.snapshotDeletionRecordNames.isEmpty)
+        #expect(restoredEnvelope.snapshotDeletionCancellationRecordNames == [snapshot.recordName])
     }
 
     @Test

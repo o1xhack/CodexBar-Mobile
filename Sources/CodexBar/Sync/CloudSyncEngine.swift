@@ -508,6 +508,12 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.persistEnvelope()
             let initialized = try await self.initializeEngineIfNeeded()
             guard self.engine != nil else { return }
+            // Re-apply durable cancellations immediately after restoring CKSyncEngine state.
+            // A prior launch may have persisted the cancellation before engine initialization,
+            // fetch, or queueing failed, leaving the serialized engine with a stale delete.
+            await self.applySnapshotConfigurationDeletionIntents(
+                recordNamesToDelete: self.persistenceEnvelope.snapshotDeletionRecordNames,
+                recordNamesToCancel: startupSnapshotPlan.recordNamesToCancel)
             // First sync on this device: apply the fleet's existing state before composing
             // any push. Otherwise a fresh device's records (editCount 1, newer timestamps)
             // win conflict ties against the fleet's records and clobber them server-side.
@@ -522,9 +528,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             try await self.queueCurrentConfigurationAndPreferences()
             guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
             try await self.queueDeviceRecord()
-            await self.applySnapshotConfigurationDeletionIntents(
-                recordNamesToDelete: self.persistenceEnvelope.snapshotDeletionRecordNames,
-                recordNamesToCancel: startupSnapshotPlan.recordNamesToCancel)
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
@@ -777,6 +780,10 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 deviceID: deviceID,
                 enabledProviders: enabledProviders,
                 authoritativeProviders: authoritativeProviders)
+            self.stageSnapshotDeletionIntents(
+                recordNamesToDelete: reconciliation.recordNamesToDelete,
+                recordNamesToCancel: reconciliation.recordNamesToCancelPendingDeletes)
+            self.persistEnvelope()
             for recordName in reconciliation.recordNamesToCancelPendingDeletes {
                 let recordID = self.recordID(named: recordName)
                 engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(recordID)])
@@ -1426,10 +1433,23 @@ extension CloudSyncEngine {
                 deviceID: deviceID,
                 pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames))
         self.persistenceEnvelope.snapshotDeletionRecordNames = snapshotPlan.pendingRecordNames
+        self.stageSnapshotDeletionIntents(
+            recordNamesToDelete: snapshotPlan.recordNamesToDelete,
+            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
         self.persistenceEnvelope.snapshotOwnershipKnownRecordNames = snapshotPlan.ownershipKnownRecordNames
         self.persistenceEnvelope.snapshotTokenAccountIDs = snapshotPlan.tokenAccountIDsByRecordName
         self.pendingSnapshotAuthoritativeProviders.subtract(snapshotPlan.providersRequiringFreshAuthority)
         return snapshotPlan
+    }
+
+    private func stageSnapshotDeletionIntents(
+        recordNamesToDelete: Set<String>,
+        recordNamesToCancel: Set<String>)
+    {
+        // Cancellation intent is local-only and deliberately outlives one CKSyncEngine
+        // instance. A later authoritative delete supersedes the cancellation.
+        self.persistenceEnvelope.snapshotDeletionCancellationRecordNames.formUnion(recordNamesToCancel)
+        self.persistenceEnvelope.snapshotDeletionCancellationRecordNames.subtract(recordNamesToDelete)
     }
 
     private func providersWithChangedTokenAccounts(
@@ -1503,6 +1523,10 @@ extension CloudSyncEngine {
             pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames)
         acceptedAuthoritativeProviders.subtract(intentPlan.providersRequiringFreshAuthority)
         self.persistenceEnvelope.snapshotDeletionRecordNames = intentPlan.pendingRecordNames
+        self.stageSnapshotDeletionIntents(
+            recordNamesToDelete: intentPlan.pendingRecordNames,
+            recordNamesToCancel: intentPlan.recordNamesToCancel)
+        self.persistEnvelope()
         for recordName in intentPlan.recordNamesToCancel {
             self.engine?.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
         }
@@ -1577,8 +1601,16 @@ extension CloudSyncEngine {
         recordNamesToDelete: Set<String>,
         recordNamesToCancel: Set<String>) async
     {
+        self.stageSnapshotDeletionIntents(
+            recordNamesToDelete: recordNamesToDelete,
+            recordNamesToCancel: recordNamesToCancel)
+        // Persist before touching CKSyncEngine. If initialization or later startup work
+        // fails, the next engine instance can still remove every stale pending delete.
+        self.persistEnvelope()
         guard self.enabled, let engine = self.engine else { return }
-        for recordName in recordNamesToCancel {
+        let durableCancellations = self.persistenceEnvelope.snapshotDeletionCancellationRecordNames
+            .subtracting(recordNamesToDelete)
+        for recordName in durableCancellations {
             engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
         }
         self.pendingSnapshots.removeAll { recordNamesToDelete.contains($0.recordName) }
