@@ -1,0 +1,1 @@
+Qwen Cloud、ZoomMate、xAI、Notion AI を追加し、それぞれの詳細ページを用意しました。ZoomMate のクレジット履歴、xAI の残高と日別支出、Notion の使用中ワークスペース、Claude のプリペイドクレジット、z.ai の24時間・7日間・30日間の使用履歴を確認できます。完全なサポートを利用するには、Mac の CodexBar を 0.47.0.1 に更新してください。
