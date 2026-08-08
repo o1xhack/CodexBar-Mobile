@@ -1815,6 +1815,25 @@ final class SyncCoordinator {
                 accountEmail: provider.accountEmail,
                 accountRecordKey: provider.accountRecordKey))
         }
+
+        // An enabled provider can temporarily become a ghost when its fetch
+        // falls back to an empty probe (Ollama's API-key verification is one
+        // example). Do not interpret that transient empty result as a disable
+        // transition: retain the last known composites until a real snapshot
+        // returns. Disabled providers are absent from `providerSnapshots`, so
+        // their records still follow the normal one-cycle cleanup path.
+        let ghostProviderIDs = Set(
+            providerSnapshots
+                .filter(Self.isGhostProvider)
+                .map(\.providerID))
+        if !ghostProviderIDs.isEmpty {
+            result.formUnion(self.lastPushedRecordNames.filter { recordName in
+                guard let providerID = Self.extractProviderID(from: recordName) else {
+                    return false
+                }
+                return ghostProviderIDs.contains(providerID)
+            })
+        }
         return result
     }
 

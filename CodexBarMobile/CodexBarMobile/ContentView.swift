@@ -3666,6 +3666,8 @@ private enum MobileReleaseNotesCatalog {
                             localized: "More useful balances — ZoomMate shows credit history, xAI shows prepaid balance and daily spend, Notion AI shows the active workspace, and Claude shows prepaid credits when available."),
                         String(
                             localized: "Richer z.ai history — switch between the last 24 hours, 7 days, and 30 days of model token usage."),
+                        String(
+                            localized: "More durable Ollama sync — when Ollama's browser session is unavailable, the API fallback keeps the last known Cloud quota on Mac and iPhone instead of clearing it."),
                     ]),
             ]),
         ReleaseNotesVersion(

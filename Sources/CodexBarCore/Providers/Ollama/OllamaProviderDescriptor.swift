@@ -189,7 +189,8 @@ struct OllamaAPIFetchStrategy: ProviderFetchStrategy {
         let snapshot = try await OllamaAPIUsageFetcher.fetchUsage(apiKey: apiKey)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "api")
+            sourceLabel: "api",
+            diagnostic: OllamaAPIUsageSnapshot.cloudQuotaDiagnostic)
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {

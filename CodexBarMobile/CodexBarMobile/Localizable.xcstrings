@@ -28,6 +28,15 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "更豐富的 z.ai 歷史 — 可切換查看最近 24 小時、7 天和 30 天的模型 Token 用量。" } }
       }
     },
+    "More durable Ollama sync — when Ollama's browser session is unavailable, the API fallback keeps the last known Cloud quota on Mac and iPhone instead of clearing it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "More durable Ollama sync — when Ollama's browser session is unavailable, the API fallback keeps the last known Cloud quota on Mac and iPhone instead of clearing it." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Ollama の同期をより安定化 — Ollama のブラウザーセッションが利用できない場合でも、API フォールバックが Mac と iPhone の最後に確認できた Cloud クォータを消去せず保持します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更稳定的 Ollama 同步 — Ollama 浏览器会话不可用时，API 备用路径会保留 Mac 和 iPhone 上最后已知的 Cloud 配额，而不会将其清空。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更穩定的 Ollama 同步 — Ollama 瀏覽器工作階段無法使用時，API 備援路徑會保留 Mac 和 iPhone 上最後已知的 Cloud 配額，不會將其清除。" } }
+      }
+    },
     "iPhone 1.20 adds Qwen Cloud, ZoomMate, xAI, and Notion AI, with richer z.ai and Claude details.": {
       "extractionState": "manual",
       "localizations": {
