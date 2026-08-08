@@ -151,6 +151,21 @@ enum CloudSyncSnapshotReconciliation {
     }
 }
 
+enum CloudSyncSnapshotPublicationRevisionGate {
+    static func acceptedProviders(
+        claimedProviders: Set<UsageProvider>,
+        sourceRevisions: [UsageProvider: UInt64],
+        currentRevisions: [UsageProvider: UInt64]) -> Set<UsageProvider>
+    {
+        Set(claimedProviders.filter { provider in
+            guard let sourceRevision = sourceRevisions[provider],
+                  let currentRevision = currentRevisions[provider]
+            else { return false }
+            return sourceRevision == currentRevision
+        })
+    }
+}
+
 enum CloudSyncSnapshotConfigurationReconciliation {
     struct State {
         let candidateSnapshots: [String: AccountSnapshotSyncPayload]
@@ -1232,8 +1247,8 @@ extension CloudSyncEngine {
 
     func queueSnapshots(
         _ snapshots: [AccountSnapshotSyncPayload],
-        enabledProviders: Set<UsageProvider>,
         authoritativeProviders: Set<UsageProvider>,
+        sourceProviderConfigRevisions: [UsageProvider: UInt64],
         tokenAccountIDsByRecordName: [String: UUID]) async
     {
         guard self.enabled, self.engine != nil else { return }
@@ -1245,32 +1260,51 @@ extension CloudSyncEngine {
                 needsAppUpdate: self.state.status.needsAppUpdate)
         }
         guard options.enabled, !options.lowPower, !options.needsAppUpdate else { return }
-        let activeTokenAccountIDs = Set(self.lastKnownProviderConfigs.values.flatMap {
-            $0.tokenAccounts?.accounts.map(\.id) ?? []
-        })
+        let sourceProviders = Set(sourceProviderConfigRevisions.keys)
+        let currentPublicationState = await MainActor.run {
+            (
+                enabledProviders: Set(self.settings.enabledProvidersOrdered(
+                    metadataByProvider: ProviderDescriptorRegistry.metadata)),
+                providerConfigRevisions: Dictionary(uniqueKeysWithValues: sourceProviders.map {
+                    ($0, self.settings.providerConfigRevision(for: $0))
+                }),
+                activeTokenAccountIDs: Set(self.settings.configSnapshot.providers.flatMap {
+                    $0.tokenAccounts?.accounts.map(\.id) ?? []
+                }))
+        }
+        let acceptedPublicationProviders = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+            claimedProviders: sourceProviders,
+            sourceRevisions: sourceProviderConfigRevisions,
+            currentRevisions: currentPublicationState.providerConfigRevisions)
+        let acceptedAuthoritativeProviders = authoritativeProviders.intersection(acceptedPublicationProviders)
+        let currentSnapshots = snapshots.filter { acceptedPublicationProviders.contains($0.provider) }
+        let currentRecordNames = Set(currentSnapshots.map(\.recordName))
+        let currentTokenAccountIDsByRecordName = tokenAccountIDsByRecordName.filter { recordName, _ in
+            currentRecordNames.contains(recordName)
+        }
         let intentPlan = CloudSyncSnapshotDeletionIntentReconciliation.plan(
-            snapshots: snapshots,
-            tokenAccountIDsByRecordName: tokenAccountIDsByRecordName,
-            authoritativeProviders: authoritativeProviders,
-            activeTokenAccountIDs: activeTokenAccountIDs,
+            snapshots: currentSnapshots,
+            tokenAccountIDsByRecordName: currentTokenAccountIDsByRecordName,
+            authoritativeProviders: acceptedAuthoritativeProviders,
+            activeTokenAccountIDs: currentPublicationState.activeTokenAccountIDs,
             pendingRecordNames: self.persistenceEnvelope.snapshotDeletionRecordNames)
         self.persistenceEnvelope.snapshotDeletionRecordNames = intentPlan.pendingRecordNames
         for recordName in intentPlan.recordNamesToCancel {
             self.engine?.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
         }
-        let publishableSnapshots = snapshots.filter { !intentPlan.blockedRecordNames.contains($0.recordName) }
+        let publishableSnapshots = currentSnapshots.filter { !intentPlan.blockedRecordNames.contains($0.recordName) }
         for payload in publishableSnapshots {
             self.persistenceEnvelope.snapshotOwnershipKnownRecordNames.insert(payload.recordName)
-            if let tokenAccountID = tokenAccountIDsByRecordName[payload.recordName] {
+            if let tokenAccountID = currentTokenAccountIDsByRecordName[payload.recordName] {
                 self.persistenceEnvelope.snapshotTokenAccountIDs[payload.recordName] = tokenAccountID
             } else {
                 self.persistenceEnvelope.snapshotTokenAccountIDs.removeValue(forKey: payload.recordName)
             }
         }
         self.pendingSnapshots = publishableSnapshots
-        self.pendingSnapshotEnabledProviders = enabledProviders
-        self.pendingSnapshotAuthoritativeProviders = authoritativeProviders
-        self.pendingSnapshotTokenAccountIDs = tokenAccountIDsByRecordName.filter {
+        self.pendingSnapshotEnabledProviders = currentPublicationState.enabledProviders
+        self.pendingSnapshotAuthoritativeProviders = acceptedAuthoritativeProviders
+        self.pendingSnapshotTokenAccountIDs = currentTokenAccountIDsByRecordName.filter {
             !intentPlan.blockedRecordNames.contains($0.key)
         }
         self.persistEnvelope()

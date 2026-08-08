@@ -53,8 +53,8 @@ final class CloudSyncCoordinator {
                 guard let self else { return }
                 await self.engine.queueSnapshots(
                     event.snapshots,
-                    enabledProviders: event.enabledProviders,
                     authoritativeProviders: event.authoritativeProviders,
+                    sourceProviderConfigRevisions: event.providerConfigRevisions,
                     tokenAccountIDsByRecordName: event.tokenAccountIDsByRecordName)
             }
         }

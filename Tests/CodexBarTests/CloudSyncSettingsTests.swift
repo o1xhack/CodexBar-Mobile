@@ -335,6 +335,16 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `stale provider revision cannot restore snapshot authority after configuration change`() {
+        let accepted = CloudSyncSnapshotPublicationRevisionGate.acceptedProviders(
+            claimedProviders: [.openai, .claude],
+            sourceRevisions: [.openai: 4, .claude: 7],
+            currentRevisions: [.openai: 5, .claude: 7])
+
+        #expect(accepted == [.claude])
+    }
+
+    @Test
     func `snapshot publication carries local token account ownership without changing the wire payload`() throws {
         let fixture = try self.makeFixture("snapshot-token-owner")
         fixture.store.addTokenAccount(provider: .openai, label: "person@example.com", token: "test-token")

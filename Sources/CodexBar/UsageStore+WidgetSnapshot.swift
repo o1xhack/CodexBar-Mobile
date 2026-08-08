@@ -28,14 +28,19 @@ extension UsageStore {
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
         self.lastQueuedWidgetSnapshot = snapshot
         let cloudSyncPublication = self.cloudSyncAccountSnapshotPublication()
+        let authoritativeProviders = self.cloudSyncAuthoritativeSnapshotProviders(
+            cloudSyncPublication.snapshots,
+            reason: reason)
+        let publicationProviders = Set(cloudSyncPublication.snapshots.map(\.provider))
+        let providerConfigRevisions = Dictionary(uniqueKeysWithValues: publicationProviders.map {
+            ($0, self.settings.providerConfigRevision(for: $0))
+        })
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(
                 snapshots: cloudSyncPublication.snapshots,
-                enabledProviders: Set(self.enabledProvidersForDisplay()),
-                authoritativeProviders: self.cloudSyncAuthoritativeSnapshotProviders(
-                    cloudSyncPublication.snapshots,
-                    reason: reason),
+                authoritativeProviders: authoritativeProviders,
+                providerConfigRevisions: providerConfigRevisions,
                 tokenAccountIDsByRecordName: cloudSyncPublication.tokenAccountIDsByRecordName))
         let previousTask = self.widgetSnapshotPersistTask
         self.widgetSnapshotPersistTask = Task { @MainActor in

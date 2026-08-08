@@ -108,6 +108,10 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   删除，账号恢复或 authoritative fallback 接管同一 record 时取消 tombstone 与未发送 delete。
   配置删除同时撤销受影响 provider 的旧 queued authority，避免被裁掉的旧 batch 在 timer
   触发时把“空集”误解释成整个 provider 的 authoritative absence；下一次成功 refresh 再授予。
+  snapshot publication 额外携带生成时的 per-provider `configRevision`；engine 消费时只接受
+  revision 仍与当前配置相等的 provider snapshots/authority，并现场读取当前 enabled
+  providers。这样删除/禁用前已生成但延迟到达的 notification 既不能重存旧 snapshot，
+  也不能恢复旧 authority 或重发已禁用 provider。
   旧 cache 的 ownership 回填只接受稳定 account key（token account UUID 或 provider
   external identifier），不再用可编辑 display label 猜测归属，避免同名 OAuth/cookie
   fallback 被错误 tombstone。

@@ -17,19 +17,19 @@ extension Notification.Name {
 
 final class UsageSnapshotsDidChangeEvent: NSObject, @unchecked Sendable {
     let snapshots: [AccountSnapshotSyncPayload]
-    let enabledProviders: Set<UsageProvider>
     let authoritativeProviders: Set<UsageProvider>
+    let providerConfigRevisions: [UsageProvider: UInt64]
     let tokenAccountIDsByRecordName: [String: UUID]
 
     init(
         snapshots: [AccountSnapshotSyncPayload],
-        enabledProviders: Set<UsageProvider>,
         authoritativeProviders: Set<UsageProvider>,
+        providerConfigRevisions: [UsageProvider: UInt64],
         tokenAccountIDsByRecordName: [String: UUID])
     {
         self.snapshots = snapshots
-        self.enabledProviders = enabledProviders
         self.authoritativeProviders = authoritativeProviders
+        self.providerConfigRevisions = providerConfigRevisions
         self.tokenAccountIDsByRecordName = tokenAccountIDsByRecordName
     }
 }
