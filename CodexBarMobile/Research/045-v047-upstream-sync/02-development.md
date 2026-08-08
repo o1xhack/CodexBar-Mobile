@@ -102,7 +102,7 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   snapshot：publication 会在本地持久化 record→token-account ownership，配置 diff 只为明确
   移除账号对应的 record 写入 durable local tombstone 并 enqueue delete；同 provider 的
   OAuth/cookie/env/claude-swap fallback records 不受影响。旧 persistence 没有 ownership index
-  时先按唯一 account key 或 publication `displayLabel` 回填 record ownership；配置变更时把
+  时只在 account key 与 token account UUID 或 external identifier 唯一匹配时回填；配置变更时把
   120 秒 throttle 中尚未入 `fleetSnapshots` 的 queued snapshots 与其 ownership 一并纳入
   tombstone 计算，避免“先排队、后删账号、timer 再上传”的 ghost record。离线/重启后继续
   删除，账号恢复或 authoritative fallback 接管同一 record 时取消 tombstone 与未发送 delete。
