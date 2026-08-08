@@ -136,7 +136,9 @@ enum CloudSyncSnapshotReconciliation {
         enabledProviders: Set<UsageProvider>,
         authoritativeProviders: Set<UsageProvider>) -> Plan
     {
-        let currentRecordNames = Set(currentSnapshots.map(\.recordName))
+        let currentRecordNames = Set(currentSnapshots.lazy
+            .filter { enabledProviders.contains($0.provider) }
+            .map(\.recordName))
         let recordNamesToDelete = Set<String>(persistedSnapshots.compactMap { recordName, snapshot in
             guard snapshot.deviceID == deviceID, !currentRecordNames.contains(recordName) else { return nil }
             guard !enabledProviders.contains(snapshot.provider) || authoritativeProviders.contains(snapshot.provider)
@@ -500,9 +502,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         guard let engine = self.engine else { return }
         guard await MainActor.run(body: { !self.state.status.needsAppUpdate }) else { return }
         do {
-            let snapshots = self.pendingSnapshots
             let enabledProviders = self.pendingSnapshotEnabledProviders
             let authoritativeProviders = self.pendingSnapshotAuthoritativeProviders
+            let snapshots = self.pendingSnapshots.filter { enabledProviders.contains($0.provider) }
             let deviceID = await MainActor.run { self.settings.macFleetSyncDeviceID }
             let reconciliation = CloudSyncSnapshotReconciliation.plan(
                 currentSnapshots: snapshots,

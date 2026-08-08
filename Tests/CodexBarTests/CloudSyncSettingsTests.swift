@@ -343,13 +343,14 @@ struct CloudSyncSettingsTests {
         ]
 
         let plan = CloudSyncSnapshotReconciliation.plan(
-            currentSnapshots: [],
+            currentSnapshots: [first],
             persistedSnapshots: persisted,
             deviceID: "this-mac",
             enabledProviders: [],
             authoritativeProviders: [])
 
         #expect(plan.recordNamesToDelete == [first.recordName, second.recordName])
+        #expect(plan.recordNamesToCancelPendingDeletes.isEmpty)
         #expect(!plan.recordNamesToDelete.contains(remote.recordName))
     }
 

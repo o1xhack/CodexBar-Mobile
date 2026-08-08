@@ -27,7 +27,7 @@ Production 的命令不在未单独授权的自动测试中运行。
 | Mac full tests | `swift test --no-parallel` | pass；post-review rerun 8340 tests / 812 suites / 0 issue / 363.739s；log `/tmp/codexbar-v047-full-test-postreview.log` |
 | Multi-account/device | `swift test --skip-build --filter 'AccountIdentity\|MultiAccount\|DualZoneReader'` | pass；106 tests / 12 suites；截图生成器因未设输出目录 skip 1 |
 | Fleet CloudSync | `CloudSyncSettingsTests`、engine/model/persistence tests（full suite） | pass；toggle/key、first-contact、dirty set、secret gate 均覆盖 |
-| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；第二轮 18/18 focused；此前 full 8342 tests / 812 suites；覆盖 authoritative stale delete、transient refresh failure/非 refresh publication 不具删除权限、non-authoritative empty preservation、provider disable delete、pending delete cancellation plan、保留其他 Mac；最新 full CI 等待新 SHA |
+| Fleet snapshot deletion review fix | `swift test --filter CloudSyncSettingsTests` + post-fix full gate | pass；第二轮 18/18 focused；此前 full 8342 tests / 812 suites；覆盖 authoritative stale delete、transient refresh failure/非 refresh publication 不具删除权限、non-authoritative empty preservation、provider disable 即使残留内存 snapshot 仍 delete、pending delete cancellation plan、保留其他 Mac；最新 full CI 等待新 SHA |
 | Linux warm-cache Final CI fix | `CostUsageCacheTests` + x64/arm64 `CodexWarmCacheResumeLinuxTests` | local pass / CI pending；20/20 macOS cache tests；旧 PR 两个 Linux 架构均复现 cache replace 后目标文件消失，等待 fix PR manual/full CI |
 | Shared/four-provider wire | `SyncCoordinatorV047MapperTests`、`V047MobileEnvelopeCompatibilityTests`、mock/provider contracts | pass；5 + 2 focused tests；含 ZoomMate history 失败仍保留 structured status |
 | Alibaba regression | `AlibabaTokenPlanPersonalTests` | pass；4 tests |
