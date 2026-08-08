@@ -850,7 +850,7 @@ struct CloudSyncSettingsTests {
         #expect(backoff.nextDelay(serverRetryAfter: 30) == 30)
     }
 
-    private func makeFixture(_ name: String) throws -> (store: SettingsStore, defaults: UserDefaults) {
+    func makeFixture(_ name: String) throws -> (store: SettingsStore, defaults: UserDefaults) {
         let suite = "CloudSyncSettingsTests-\(name)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -865,13 +865,13 @@ struct CloudSyncSettingsTests {
         return (store, defaults)
     }
 
-    private func makePersistence(_ name: String) -> CloudSyncPersistence {
+    func makePersistence(_ name: String) -> CloudSyncPersistence {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("CloudSyncDirtyTests-\(name)-\(UUID().uuidString)", isDirectory: true)
         return CloudSyncPersistence(fileURL: directory.appendingPathComponent("engine-state.json"))
     }
 
-    private static func snapshot(
+    static func snapshot(
         provider: UsageProvider = .codex,
         accountKey: String,
         deviceID: String,

@@ -60,69 +60,6 @@ enum CloudSyncBatchRecordProvider {
     }
 }
 
-enum CloudSyncDirtyState {
-    private static let providerIntentPrefix = "intent-"
-
-    static func configurationRecordNamesToQueue(
-        envelope: CloudSyncPersistence.Envelope,
-        configuredProviders: [UsageProvider]) -> Set<String>
-    {
-        var recordNames = Set(configuredProviders.compactMap { provider in
-            envelope.dirtyProviders.contains(provider.rawValue)
-                ? ProviderIntentPayload.recordName(for: provider)
-                : nil
-        })
-        if envelope.preferencesDirty {
-            recordNames.insert(PreferencesSyncPayload.recordName)
-        }
-        return recordNames
-    }
-
-    static func markBootstrapDirtyIfNeeded(
-        configuredProviders: [UsageProvider],
-        envelope: inout CloudSyncPersistence.Envelope)
-    {
-        guard !envelope.recordMetadata.keys.contains(where: { $0.hasPrefix(self.providerIntentPrefix) }) else {
-            return
-        }
-        envelope.dirtyProviders.formUnion(configuredProviders.map(\.rawValue))
-        envelope.preferencesDirty = true
-    }
-
-    static func clearSavedRecords(
-        _ recordNames: some Sequence<String>,
-        envelope: inout CloudSyncPersistence.Envelope)
-    {
-        for recordName in recordNames {
-            if recordName == PreferencesSyncPayload.recordName {
-                envelope.preferencesDirty = false
-            } else if recordName.hasPrefix(self.providerIntentPrefix) {
-                envelope.dirtyProviders.remove(String(recordName.dropFirst(self.providerIntentPrefix.count)))
-            }
-        }
-    }
-
-    static func providerSyncContentChanged(
-        from previous: ProviderConfig,
-        previousSuppressedEnableIntents: Set<String>,
-        to current: ProviderConfig,
-        currentSuppressedEnableIntents: Set<String>) throws -> Bool
-    {
-        let previousPayload = CloudSyncEngine.providerIntentPayload(
-            config: previous,
-            suppressedEnableIntents: previousSuppressedEnableIntents)
-        let currentPayload = CloudSyncEngine.providerIntentPayload(
-            config: current,
-            suppressedEnableIntents: currentSuppressedEnableIntents)
-        guard try CanonicalSyncJSON.encode(previousPayload) == CanonicalSyncJSON.encode(currentPayload) else {
-            return true
-        }
-        let previousSecrets = try ProviderIntentPayload.secretFields(for: previous, includeSecrets: true)
-        let currentSecrets = try ProviderIntentPayload.secretFields(for: current, includeSecrets: true)
-        return previousSecrets != currentSecrets
-    }
-}
-
 enum CloudSyncSnapshotReconciliation {
     struct Plan: Equatable {
         let recordNamesToCancelPendingDeletes: Set<String>
@@ -279,6 +216,7 @@ enum CloudSyncSnapshotConfigurationReconciliation {
     static func plan(
         previousConfigs: [UsageProvider: ProviderConfig],
         currentConfig: CodexBarConfig,
+        authoritativeProviders: Set<UsageProvider> = Set(UsageProvider.allCases),
         state: State) -> Plan
     {
         let currentConfigs = Dictionary(uniqueKeysWithValues: currentConfig.providers.map { ($0.id, $0) })
@@ -288,7 +226,9 @@ enum CloudSyncSnapshotConfigurationReconciliation {
             currentAccounts: currentAccounts,
             state: state)
         let newlyRemovedRecordNames = Set<String>(state.candidateSnapshots.compactMap { recordName, snapshot in
-            guard snapshot.deviceID == state.deviceID else { return nil }
+            guard snapshot.deviceID == state.deviceID,
+                  authoritativeProviders.contains(snapshot.provider)
+            else { return nil }
             guard ownership.knownRecordNames.contains(recordName),
                   let accountID = ownership.tokenAccountIDsByRecordName[recordName]
             else { return nil }
@@ -299,6 +239,7 @@ enum CloudSyncSnapshotConfigurationReconciliation {
             guard let provider = self.provider(
                 for: recordName,
                 candidateSnapshots: state.candidateSnapshots),
+                authoritativeProviders.contains(provider),
                 let accounts = currentAccounts[provider],
                 !accounts.isEmpty
             else { return false }
@@ -393,6 +334,16 @@ enum CloudSyncSnapshotConfigurationReconciliation {
               !value.isEmpty
         else { return nil }
         return value
+    }
+}
+
+enum CloudSyncStartupSnapshotDeletionAuthority {
+    static func loadConfiguration(from store: CodexBarConfigStore) -> CodexBarConfig? {
+        do {
+            return try store.load()
+        } catch {
+            return nil
+        }
     }
 }
 
@@ -528,6 +479,23 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             return
         }
         do {
+            // Snapshot deletion is destructive, so only repair removals from a configuration
+            // that was decoded from disk successfully. SettingsStore intentionally falls back
+            // to defaults when its startup load fails; that fallback is not removal evidence.
+            let startupConfiguration = await MainActor.run {
+                (
+                    config: CloudSyncStartupSnapshotDeletionAuthority.loadConfiguration(
+                        from: self.settings.configStore),
+                    deviceID: self.settings.macFleetSyncDeviceID)
+            }
+            if let startupConfig = startupConfiguration.config {
+                _ = self.stageSnapshotConfigurationReconciliation(
+                    previousConfigs: self.lastKnownProviderConfigs,
+                    currentConfig: startupConfig,
+                    authoritativeProviders: Set(startupConfig.providers.map(\.id)),
+                    deviceID: startupConfiguration.deviceID)
+                self.persistEnvelope()
+            }
             let initialized = try await self.initializeEngineIfNeeded()
             guard self.engine != nil else { return }
             // First sync on this device: apply the fleet's existing state before composing
@@ -536,17 +504,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             if !self.persistenceEnvelope.recordMetadata.keys.contains(where: { $0.hasPrefix("intent-") }) {
                 await self.fetchChanges()
             }
-            let currentConfiguration = await MainActor.run {
-                (
-                    config: self.settings.configSnapshot,
-                    deviceID: self.settings.macFleetSyncDeviceID)
-            }
-            _ = self.stageSnapshotConfigurationReconciliation(
-                previousConfigs: self.lastKnownProviderConfigs,
-                currentConfig: currentConfiguration.config,
-                deviceID: currentConfiguration.deviceID)
+            let currentConfiguration = await MainActor.run { self.settings.configSnapshot }
             CloudSyncDirtyState.markBootstrapDirtyIfNeeded(
-                configuredProviders: currentConfiguration.config.providers.map(\.id),
+                configuredProviders: currentConfiguration.providers.map(\.id),
                 envelope: &self.persistenceEnvelope)
             self.persistEnvelope()
             try await self.queueCurrentConfigurationAndPreferences()
@@ -1343,10 +1303,29 @@ extension CloudSyncEngine {
             await MainActor.run { self.settings.macFleetSyncDeviceID }
         }
         let previousConfigs = self.lastKnownProviderConfigs
-        let snapshotPlan = self.stageSnapshotConfigurationReconciliation(
+        let snapshotPlan = self.stageLocalConfigurationChanges(
             previousConfigs: previousConfigs,
             currentConfig: config,
             deviceID: resolvedDeviceID)
+        self.lastKnownProviderConfigs = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
+        self.persistEnvelope()
+        await self.applySnapshotConfigurationDeletionIntents(
+            recordNamesToDelete: snapshotPlan.recordNamesToDelete,
+            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+    }
+
+    private func stageLocalConfigurationChanges(
+        previousConfigs: [UsageProvider: ProviderConfig],
+        currentConfig config: CodexBarConfig,
+        deviceID: String) -> CloudSyncSnapshotConfigurationReconciliation.Plan
+    {
+        let snapshotPlan = self.stageSnapshotConfigurationReconciliation(
+            previousConfigs: previousConfigs,
+            currentConfig: config,
+            authoritativeProviders: self.providersWithChangedTokenAccounts(
+                previousConfigs: previousConfigs,
+                currentConfig: config),
+            deviceID: deviceID)
         let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
         for providerConfig in config.providers {
             if let previous = previousConfigs[providerConfig.id],
@@ -1372,11 +1351,7 @@ extension CloudSyncEngine {
                 self.logger.error("Failed to compare provider sync content: \(error)")
             }
         }
-        self.lastKnownProviderConfigs = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
-        self.persistEnvelope()
-        await self.applySnapshotConfigurationDeletionIntents(
-            recordNamesToDelete: snapshotPlan.recordNamesToDelete,
-            recordNamesToCancel: snapshotPlan.recordNamesToCancel)
+        return snapshotPlan
     }
 
     func externalConfigurationDidChange(
@@ -1387,9 +1362,19 @@ extension CloudSyncEngine {
     {
         guard self.acceptConfigurationRevision(revision) else { return }
         let previousConfigs = Dictionary(uniqueKeysWithValues: previousConfig.providers.map { ($0.id, $0) })
+        // A remote apply can overtake a queued local notification. Preserve any local delta
+        // already present in the remote transition's previousConfig before advancing the
+        // baseline to the newer external revision.
+        _ = self.stageLocalConfigurationChanges(
+            previousConfigs: self.lastKnownProviderConfigs,
+            currentConfig: previousConfig,
+            deviceID: deviceID)
         let snapshotPlan = self.stageSnapshotConfigurationReconciliation(
             previousConfigs: previousConfigs,
             currentConfig: currentConfig,
+            authoritativeProviders: self.providersWithChangedTokenAccounts(
+                previousConfigs: previousConfigs,
+                currentConfig: currentConfig),
             deviceID: deviceID)
         self.lastKnownProviderConfigs = Dictionary(
             uniqueKeysWithValues: currentConfig.providers.map { ($0.id, $0) })
@@ -1409,6 +1394,7 @@ extension CloudSyncEngine {
     private func stageSnapshotConfigurationReconciliation(
         previousConfigs: [UsageProvider: ProviderConfig],
         currentConfig: CodexBarConfig,
+        authoritativeProviders: Set<UsageProvider>,
         deviceID: String) -> CloudSyncSnapshotConfigurationReconciliation.Plan
     {
         var candidateSnapshots = self.persistenceEnvelope.fleetSnapshots
@@ -1422,6 +1408,7 @@ extension CloudSyncEngine {
         let snapshotPlan = CloudSyncSnapshotConfigurationReconciliation.plan(
             previousConfigs: previousConfigs,
             currentConfig: currentConfig,
+            authoritativeProviders: authoritativeProviders,
             state: .init(
                 candidateSnapshots: candidateSnapshots,
                 ownershipKnownRecordNames: ownershipKnownRecordNames,
@@ -1433,6 +1420,18 @@ extension CloudSyncEngine {
         self.persistenceEnvelope.snapshotTokenAccountIDs = snapshotPlan.tokenAccountIDsByRecordName
         self.pendingSnapshotAuthoritativeProviders.subtract(snapshotPlan.providersRequiringFreshAuthority)
         return snapshotPlan
+    }
+
+    private func providersWithChangedTokenAccounts(
+        previousConfigs: [UsageProvider: ProviderConfig],
+        currentConfig: CodexBarConfig) -> Set<UsageProvider>
+    {
+        let currentConfigs = Dictionary(uniqueKeysWithValues: currentConfig.providers.map { ($0.id, $0) })
+        return Set(previousConfigs.keys).union(currentConfigs.keys).filter { provider in
+            let previousIDs = Set(previousConfigs[provider]?.tokenAccounts?.accounts.map(\.id) ?? [])
+            let currentIDs = Set(currentConfigs[provider]?.tokenAccounts?.accounts.map(\.id) ?? [])
+            return previousIDs != currentIDs
+        }
     }
 
     func queueSnapshots(
