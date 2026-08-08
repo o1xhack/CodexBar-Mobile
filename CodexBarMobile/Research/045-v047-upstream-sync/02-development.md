@@ -128,9 +128,9 @@ release 证据统一记录在 `03-testing.md`，避免本文件复制同一批�
   当前账号都实际成功且有有效 snapshot 时才取得 receipt；错误被抑制、enrichment、cost、
   settings display 等 publication 仍可更新 last-good data，但绝无 destructive authority。
   以上 provenance/tombstone 仅在 Mac 本地 persistence，不改变 CloudKit wire/schema。
-- 上述最终代码提交 `6cf207c4041f86c3a034c9c6f250d3471c35a209` 完成 focused
-  29/29、local full 8356 tests / 812 suites / 0 failure；PR #71 reviewer 对该 exact SHA
-  明确返回 “Didn't find any major issues”，所有 review threads 已 resolve，阻塞问题为 0。
+- `6cf207c4041f86c3a034c9c6f250d3471c35a209` 是 publication provenance 阶段的 clean
+  checkpoint：focused 29/29、local full 8356 tests / 812 suites / 0 failure；后续仍继续按
+  exact-SHA review 循环，不把该中间结论当作最终关闭。
 - PR #69 Final CI 的 x64/arm64 Linux jobs 同时暴露 `FileManager.replaceItemAt` 在 Linux
   上删除 destination 后失败的问题；cost cache 改用同目录 POSIX `rename(2)` 原子覆盖，
   与 repo 已有 credential atomic-publish contract 一致，避免 warm scan 第二次写入后
@@ -142,10 +142,43 @@ Packaging preflight 发现 Xcode Widget extension 的 SwiftPM artifact resolver 
 `-packageAuthorizationProvider netrc`，避免 headless release 进入交互式 Keychain prompt；
 `test_package_signing.sh` 增加 contract guard。
 
-最终从 clean HEAD `151a17ae43c3e1be9070d852efca2749e49ca719` 重新执行
+## Round 7 — Exact-SHA review continuation
+
+- 文档一致性 review 先修正了 legacy ownership 只允许稳定 `accountKey`（token account
+  UUID / external identifier）回填、绝不以可编辑 `displayLabel` 猜测的证据描述；
+- 外部 CloudKit intent / config-file reload 现在都携带 exact previous/current config 与 revision，
+  在覆盖 baseline 前执行同一套 record-scoped reconciliation；离线期间的 removal 由启动 repair
+  补齐；
+- 启动期 destructive authority 只来自成功 decode 且与当前内存配置 encode-identical 的磁盘
+  config；malformed、不可读或仍处于 350ms debounce 的旧磁盘配置均不能授权删除；
+- 较新的 external revision 在吞掉较早 local notification 前，会先把其 previousConfig 相对当前
+  baseline 的本地 delta 标记 dirty；overtaken local plan 与 external plan 的 cancellation 取 union，
+  避免恢复账号仍被旧 pending delete 删除；
+- snapshot delete cancellation 新增 local-only durable persistence：清 tombstone 前先落盘 cancellation，
+  CKSyncEngine 初始化后立即重放；初始化、fetch、queue 或 `needsAppUpdate` 提前退出均不会丢失，
+  后续 authoritative delete 会显式覆盖旧 cancellation；不改变 CloudKit wire/schema；
+- review-fix commits 依次为 `a948cb99e`、`a98cac24f`、`57351687a`、`c2622aafd`；最后一轮
+  `CloudSyncSettingsTests` 36/36、lint 0 violations、local full 8363 tests / 812 suites /
+  0 failure（339.093s）；Codex 对 exact SHA `c2622aafd9` 明确返回
+  “Didn't find any major issues”，unresolved threads 为 0。
+- 随后的 manual Final CI 在 Linux arm64 通过、x64 暴露 test-only FD reuse race：测试以
+  `fcntl(F_GETFD) == -1` 断言刚关闭的 descriptor number 保持空闲，但并发 suite 已合法复用
+  该数字。`71772e15e` 改为比较 `/proc/self/fd/<n>` symlink 是否仍指向原 pipe，继续验证旧
+  read end 已关闭，同时允许 descriptor number 被复用；双架构 Linux 重跑均通过；
+- 同轮 macOS shard 2 在 build 后的 `swift test list` 成功退出，但只返回一行损坏的 discovery
+  output，原 runner 因无法识别而在 0 个测试已执行时失败。`50277b4d9` 先加入 malformed/empty
+  retry；后续 exact-SHA review 继续指出 syntactically valid truncation 仍可能漏过 parser，且“两次
+  相同”不能排除前两次稳定截断。`29f2da8fb`、`15a77b70f` 最终收紧为固定执行 4 次 discovery：
+  最多容忍 1 次完全无法解析的瞬时输出，但任何两次有效 selection set 不一致都立即 hard fail，
+  并要求至少 3 次有效结果；harness 覆盖 malformed-once 与“前两次稳定截断、第三次完整”。当前
+  release code SHA `15a77b70f` 已重跑 `CloudSyncSettingsTests` 36/36 与 full 8363 tests /
+  812 suites / 0 failure（336.143s）。
+
+当时从 clean HEAD `151a17ae43c3e1be9070d852efca2749e49ca719` 执行
 `Scripts/sign-and-notarize.sh` 成功：Widget、CLI、watchdog 和主程序均打入 universal
 candidate；Developer ID 签名通过；Apple notarization submission
 `ad29f441-b170-422c-8cef-a440724156d2` 返回 `Accepted`；staple、Gatekeeper、distribution
 和 direct-launch smoke 全部通过。生成 ZIP 与 dSYM ZIP，并以不创建 Git tag、不 push 的
 方式上传到 GitHub draft。完整 hash、UUID、entitlement 与远端 readback 见
-`03-testing.md`。
+`03-testing.md`。该 draft 早于 Round 7 review fixes，live 前必须从最终 merged commit
+重新签名、公证、生成 appcast/资产并替换旧 draft assets，不能直接发布旧 candidate。
