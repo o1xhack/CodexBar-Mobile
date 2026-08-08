@@ -137,9 +137,10 @@ def parse_swift_test_list(output: str) -> list[TestSelection]:
 
 
 def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
-    parsed_results: dict[tuple[TestSelection, ...], int] = {}
+    expected_selections: tuple[TestSelection, ...] | None = None
+    valid_results = 0
     parse_errors: list[str] = []
-    for attempt in range(3):
+    for attempt in range(4):
         command = [*swift_command, "test", "list"]
         if attempt > 0:
             command.append("--skip-build")
@@ -162,22 +163,21 @@ def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
             )
             continue
 
-        parsed_results[selections] = parsed_results.get(selections, 0) + 1
-        if parsed_results[selections] >= 2:
-            return list(selections)
-        if attempt == 1:
-            print(
-                "::warning::Swift test discovery results do not yet have a matching confirmation; "
-                "retrying with --skip-build",
-                flush=True,
+        valid_results += 1
+        if expected_selections is None:
+            expected_selections = selections
+        elif selections != expected_selections:
+            raise RuntimeError(
+                "Swift test discovery changed between valid attempts "
+                f"({len(expected_selections)} selections, then {len(selections)}); "
+                "refusing to run an incomplete shard"
             )
 
-    result_sizes = ", ".join(str(len(selections)) for selections in parsed_results) or "none"
-    error_suffix = f"; parse errors: {' | '.join(parse_errors)}" if parse_errors else ""
-    raise RuntimeError(
-        "Swift test discovery did not produce two identical valid results "
-        f"after 3 attempts (distinct selection counts: {result_sizes}){error_suffix}"
-    )
+    if expected_selections is not None and valid_results >= 3:
+        return list(expected_selections)
+
+    error_suffix = f": {' | '.join(parse_errors)}" if parse_errors else ""
+    raise RuntimeError(f"Swift test discovery produced only {valid_results} valid results after 4 attempts{error_suffix}")
 
 
 def append_github_summary(stats: RunStats) -> None:
