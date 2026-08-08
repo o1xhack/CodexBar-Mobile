@@ -96,20 +96,10 @@ def run_command(command: list[str], timeout: int | None = None) -> int:
         return 124
 
 
-def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
-    command = [*swift_command, "test", "list"]
-    try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as error:
-        print(f"+ {swift_command[0]} test list", flush=True)
-        if error.stdout:
-            print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
-        if error.stderr:
-            print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
-        raise
+def parse_swift_test_list(output: str) -> list[TestSelection]:
     selections: set[TestSelection] = set()
     unknown: list[str] = []
-    for line in result.stdout.splitlines():
+    for line in output.splitlines():
         top_level = re.fullmatch(r"(?P<module>[^.]+)\.(?:`(?P<display>.+)`|(?P<function>[^()/]+))\(\)", line)
         if top_level is not None:
             module = top_level.group("module")
@@ -141,7 +131,35 @@ def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
     if unknown:
         rendered = "\n".join(f"- {line}" for line in unknown)
         raise RuntimeError(f"Unrecognized `swift test list` output:\n{rendered}")
+    if not selections:
+        raise RuntimeError("`swift test list` returned no test selections")
     return sorted(selections, key=lambda selection: selection.name)
+
+
+def swift_test_list(swift_command: list[str]) -> list[TestSelection]:
+    for attempt in range(2):
+        command = [*swift_command, "test", "list"]
+        if attempt > 0:
+            command.append("--skip-build")
+        try:
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            print(f"+ {' '.join(command)}", flush=True)
+            if error.stdout:
+                print(error.stdout, end="" if error.stdout.endswith("\n") else "\n", flush=True)
+            if error.stderr:
+                print(error.stderr, end="" if error.stderr.endswith("\n") else "\n", file=sys.stderr, flush=True)
+            raise
+        try:
+            return parse_swift_test_list(result.stdout)
+        except RuntimeError as error:
+            if attempt > 0:
+                raise
+            print(
+                f"::warning::Malformed Swift test discovery output; retrying with --skip-build: {error}",
+                flush=True,
+            )
+    raise AssertionError("unreachable")
 
 
 def append_github_summary(stats: RunStats) -> None:

@@ -10,12 +10,17 @@ IFS= read -r -d '' FAKE_SWIFT_SCRIPT <<'EOF' || true
 set -euo pipefail
 
 printf '%s\n' "$*" >> "${FAKE_SWIFT_LOG}"
-if [[ "$*" == "test list" ]]; then
+if [[ "$*" == test\ list* ]]; then
   if [[ "${FAKE_SWIFT_MODE:-success}" == "list_fail" ]]; then
     sleep 0.25
     printf 'test-list stdout marker\n'
     printf 'test-list stderr marker\n' >&2
     exit 42
+  fi
+  if [[ "${FAKE_SWIFT_MODE:-success}" == "list_malformed_once" && ! -f "${FAKE_SWIFT_STATE}" ]]; then
+    printf 'malformed\n' > "${FAKE_SWIFT_STATE}"
+    printf 'CodexBarTeward compat)\n'
+    exit 0
   fi
   printf '%s\n' \
     "CodexBarTests.Alpha/test_one()" \
@@ -238,5 +243,14 @@ grep -Fq "test-list stdout marker" "${TEMP_DIR}/list-failure.log"
 grep -Fq "test-list stderr marker" "${TEMP_DIR}/list-failure.log"
 grep -Eq -- '- Discovery seconds: 0\.[1-9]' "${TEMP_DIR}/list-failure.log"
 grep -Fq '| Discovered selections | `0` |' "${GITHUB_STEP_SUMMARY}"
+
+reset_case list-malformed-retry
+export FAKE_SWIFT_MODE=list_malformed_once
+run_harness --group-size 1 --timeout 10 --list-only > "${TEMP_DIR}/list-malformed-retry.log"
+grep -Fq "Malformed Swift test discovery output; retrying with --skip-build" \
+  "${TEMP_DIR}/list-malformed-retry.log"
+grep -Fxq "test list" "${FAKE_SWIFT_LOG}"
+grep -Fxq "test list --skip-build" "${FAKE_SWIFT_LOG}"
+grep -Fq 'CodexBarTests.Alpha' "${TEMP_DIR}/list-malformed-retry.log"
 
 echo "Swift test sharding tests passed."
