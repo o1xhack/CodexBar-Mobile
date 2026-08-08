@@ -514,7 +514,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let operation = CKModifyRecordsOperation(
             recordsToSave: [record],
             recordIDsToDelete: nil)
-        operation.savePolicy = .ifServerRecordUnchanged
+        // The legacy device snapshot is a Mac-authored, iPhone-read
+        // projection. A concurrent writer should merge the fields in this
+        // fresh snapshot instead of rejecting the whole write on an old
+        // change tag. The per-provider path already uses `.changedKeys`;
+        // keeping the legacy record on the same policy avoids the repeated
+        // `client oplock error updating record` failures seen in the sync log.
+        operation.savePolicy = .changedKeys
         let resultBox = LockedResultBox<CKRecord>()
         operation.perRecordSaveBlock = { _, result in
             resultBox.set(result)

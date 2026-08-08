@@ -2,6 +2,15 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Ollama Cloud sync durability** — An empty API-key verification response no
+  longer clears the last usable Ollama quota snapshot or deletes its Mac-to-
+  iPhone provider record. Legacy iCloud snapshot writes also tolerate stale
+  server change tags instead of failing with a client oplock conflict.
+
 ## [1.20.0 (192)] — 2026-08-03 — CodexBar 0.47 upstream sync
 
 ### Added

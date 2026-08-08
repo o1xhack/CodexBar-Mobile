@@ -648,13 +648,16 @@ extension UsageStore {
         context: ProviderRefreshOutcomeContext) async
     {
         let rawScoped = result.usage.scoped(to: provider)
-        if provider == .codex,
-           let codexExpectedGuard = context.codexExpectedGuard,
-           !self.shouldApplyCodexUsageResult(expectedGuard: codexExpectedGuard, usage: rawScoped)
+        if self.applyPreservedOllamaSnapshotIfNeeded(
+            provider: provider,
+            result: result,
+            usage: rawScoped,
+            attempts: attempts,
+            generation: context.generation)
         {
-            self.retireCodexStateIfRefreshOwnerChanged(
-                expectedGuard: codexExpectedGuard,
-                generation: context.generation)
+            return
+        }
+        guard self.shouldApplyProviderRefreshSuccess(provider: provider, usage: rawScoped, context: context) else {
             return
         }
         let scoped = Self.codexUsageWithExpectedEmailIfMissing(
@@ -676,13 +679,7 @@ extension UsageStore {
             guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else {
                 return nil
             }
-            if provider == .codex,
-               let codexExpectedGuard = context.codexExpectedGuard,
-               !self.shouldApplyCodexUsageResult(expectedGuard: codexExpectedGuard, usage: rawScoped)
-            {
-                self.retireCodexStateIfRefreshOwnerChanged(
-                    expectedGuard: codexExpectedGuard,
-                    generation: context.generation)
+            guard self.shouldApplyProviderRefreshSuccess(provider: provider, usage: rawScoped, context: context) else {
                 return nil
             }
             self.lastFetchAttempts[provider] = attempts
@@ -792,6 +789,24 @@ extension UsageStore {
             provider: provider,
             snapshot: backfilled,
             generation: context.generation)
+    }
+
+    private func shouldApplyProviderRefreshSuccess(
+        provider: UsageProvider,
+        usage: UsageSnapshot,
+        context: ProviderRefreshOutcomeContext) -> Bool
+    {
+        guard provider == .codex,
+              let codexExpectedGuard = context.codexExpectedGuard,
+              !self.shouldApplyCodexUsageResult(expectedGuard: codexExpectedGuard, usage: usage)
+        else {
+            return true
+        }
+
+        self.retireCodexStateIfRefreshOwnerChanged(
+            expectedGuard: codexExpectedGuard,
+            generation: context.generation)
+        return false
     }
 
     private func applyProviderRefreshFailure(

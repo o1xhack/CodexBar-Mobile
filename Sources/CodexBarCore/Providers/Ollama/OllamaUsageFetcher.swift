@@ -932,6 +932,13 @@ public struct OllamaAPISettingsReader: Sendable {
 }
 
 public struct OllamaAPIUsageSnapshot: Sendable {
+    /// The API validates the credential and lists models, but Ollama does not
+    /// expose Cloud quota windows through this endpoint. Keep this diagnostic
+    /// with the result so callers can preserve a previously fetched web quota
+    /// instead of treating an empty API response as fresh usage data.
+    public static let cloudQuotaDiagnostic =
+        "API key verified. Cloud quotas need browser cookies. Sign in to Ollama."
+
     public let modelCount: Int
     public let updatedAt: Date
 
