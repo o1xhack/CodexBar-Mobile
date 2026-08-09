@@ -38,21 +38,23 @@ enum ProviderCookieRefreshAction {
         provider: UsageProvider,
         operation: () async -> Bool) async -> Outcome
     {
-        await ProviderInteractionContext.$current.withValue(.userInitiated) {
-            guard let gate = CookieHeaderCache.beginRefreshReadSuppression(provider: provider) else {
-                return .failed
+        await BrowserCookieAccessGate.withExplicitRetry {
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                guard let gate = CookieHeaderCache.beginRefreshReadSuppression(provider: provider) else {
+                    return .failed
+                }
+                defer { CookieHeaderCache.endRefreshReadSuppression(gate) }
+
+                let validated = await operation()
+                guard validated, !Task.isCancelled else { return .failed }
+
+                let commit = CookieHeaderCache.commitRefreshReadSuppression(gate)
+                guard commit.stagedCount > 0,
+                      commit.committedCount == commit.stagedCount,
+                      commit.failedCount == 0
+                else { return .failed }
+                return .refreshed
             }
-            defer { CookieHeaderCache.endRefreshReadSuppression(gate) }
-
-            let validated = await operation()
-            guard validated, !Task.isCancelled else { return .failed }
-
-            let commit = CookieHeaderCache.commitRefreshReadSuppression(gate)
-            guard commit.stagedCount > 0,
-                  commit.committedCount == commit.stagedCount,
-                  commit.failedCount == 0
-            else { return .failed }
-            return .refreshed
         }
     }
 

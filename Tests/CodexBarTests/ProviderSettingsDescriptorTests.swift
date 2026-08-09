@@ -26,6 +26,23 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `provider cookie refresh enables explicit browser retry`() async {
+        var browserRetryAllowed = false
+
+        let outcome = await KeychainAccessGate.withTaskOverrideForTesting(false) {
+            await BrowserCookieAccessGate.withDeniedBrowsersForTesting([.chrome]) {
+                await ProviderCookieRefreshAction.refresh(provider: .ollama) {
+                    browserRetryAllowed = BrowserCookieAccessGate.shouldAttempt(.chrome)
+                    return false
+                }
+            }
+        }
+
+        #expect(outcome == .failed)
+        #expect(browserRetryAllowed)
+    }
+
+    @Test
     func `toggle I ds are unique across providers`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-unique")
         var seenToggleIDs: Set<String> = []
