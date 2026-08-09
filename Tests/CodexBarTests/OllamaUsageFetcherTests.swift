@@ -526,6 +526,32 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
+    func `background keychain interaction surfaces recovery hint`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ProviderInteractionContext.$current.withValue(.background) {
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting {
+                    _, _ in .interactionRequired
+                } operation: {
+                    var accessError: OllamaUsageError?
+                    let shouldAttempt = OllamaCookieImporter.shouldAttemptCookieSource(
+                        .chrome,
+                        accessError: &accessError)
+                    #expect(!shouldAttempt)
+                    guard case .browserCookieDecryptionDenied("Chrome") = accessError else {
+                        Issue
+                            .record(
+                                "Expected Chrome Keychain recovery hint, got \(String(describing: accessError))")
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     func `manual refresh bypasses browser denial cooldown`() async {
         await BrowserCookieAccessGate.withDeniedBrowsersForTesting([.brave]) {
             KeychainAccessGate.withTaskOverrideForTesting(false) {

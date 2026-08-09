@@ -353,7 +353,12 @@ public enum OllamaCookieImporter {
         if KeychainAccessGate.isDisabled {
             return .browserCookieDecryptionDisabled(browser.displayName)
         }
-        guard BrowserCookieAccessGate.hasActiveDenial(for: browser, now: now) else { return nil }
+        if BrowserCookieAccessGate.hasActiveDenial(for: browser, now: now) {
+            return .browserCookieDecryptionDenied(browser.displayName)
+        }
+        guard ProviderInteractionContext.current == .background else { return nil }
+        guard !BrowserCookieAccessGate.hasActiveDenialCooldown(for: browser, now: now) else { return nil }
+        guard BrowserCookieAccessGate.requiresKeychainInteraction(for: browser) else { return nil }
         return .browserCookieDecryptionDenied(browser.displayName)
     }
 

@@ -9,6 +9,7 @@
 - Fork release: combine upstream v0.46.0-v0.47.0 into Mac `0.47.0.1` (`111.1.1.20.0` Sparkle build) and iOS `1.20.0`.
 
 ### Fixed
+- Ollama: surface the Chrome Safe Storage authorization recovery hint during background refresh instead of reporting a signed-in browser as missing a session cookie.
 - Fork integration: preserve Production CloudKit, mobile sync defaults, collision-safe versioning, signing, appcast, and fork CI policy while incorporating all upstream fixes through v0.47.0.
 - Mac fleet sync: remove this Mac's stale CloudKit account snapshots only after confirmed account/provider changes, preserving last-good data through transient refresh failures and snapshots owned by other Macs.
 - Linux CLI: atomically replace the persisted Codex cost cache without deleting the prior cache when Foundation replacement fails.

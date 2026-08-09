@@ -142,6 +142,18 @@ public enum BrowserCookieAccessGate {
         return true
     }
 
+    /// Returns whether a no-UI preflight currently needs user interaction before this browser's
+    /// Keychain-backed cookie store can be read. This is diagnostic-only: callers must still use
+    /// shouldAttempt to enforce the no-prompt boundary.
+    static func requiresKeychainInteraction(for browser: Browser) -> Bool {
+        guard browser.usesKeychainForCookieDecryption,
+              !KeychainAccessGate.isDisabled
+        else {
+            return false
+        }
+        return self.chromiumKeychainRequiresInteraction(for: browser)
+    }
+
     public static func withExplicitRetry<T>(_ operation: () throws -> T) rethrows -> T {
         try self.$explicitRetryScope.withValue(ExplicitRetryScope()) {
             try operation()
@@ -312,7 +324,7 @@ public enum BrowserCookieAccessGate {
     /// Read-only check for an active per-browser or Chromium-family denial cooldown. Mirrors the
     /// suppression window enforced on the user-initiated path without mutating persisted state, so a
     /// scheduled refresh stays side-effect free.
-    private static func hasActiveDenialCooldown(for browser: Browser, now: Date) -> Bool {
+    static func hasActiveDenialCooldown(for browser: Browser, now: Date) -> Bool {
         self.lock.withLock { state in
             self.loadIfNeeded(&state)
             if let blockedUntil = state.deniedUntilByBrowser[browser.rawValue], blockedUntil > now {
