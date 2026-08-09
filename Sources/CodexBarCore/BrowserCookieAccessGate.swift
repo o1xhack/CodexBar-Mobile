@@ -265,6 +265,10 @@ public enum BrowserCookieAccessGate {
         return retryScope.claimCookieRead(for: browser)
     }
 
+    static func allowsInteractiveKeychainReadForExplicitRetry(for browser: Browser) -> Bool {
+        ProviderInteractionContext.current == .userInitiated && self.explicitRetryScope?.contains(browser) == true
+    }
+
     public static func resetForTesting() {
         self.lock.withLock { state in
             state.loaded = true

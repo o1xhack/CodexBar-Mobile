@@ -114,6 +114,7 @@ public enum OllamaUsageError: LocalizedError, Sendable {
     case safariCookieAccessDenied
     case browserCookieDecryptionDenied(String)
     case browserCookieDecryptionDisabled(String)
+    case browserCookieProfileAccessDenied(String)
 
     public var errorDescription: String? {
         switch self {
@@ -138,6 +139,8 @@ public enum OllamaUsageError: LocalizedError, Sendable {
                 "Open the provider card and click Refresh (⌘R) to request Keychain access again."
         case let .browserCookieDecryptionDisabled(browserName):
             "\(browserName) cookie decryption is disabled in CodexBar; enable Keychain access and refresh."
+        case let .browserCookieProfileAccessDenied(details):
+            details
         }
     }
 }
@@ -392,7 +395,16 @@ public enum OllamaCookieImporter {
         accessError: inout OllamaUsageError?) -> [Browser]
     {
         var sources: [Browser] = []
-        for browser in browserOrder where browserDetection.isCookieSourceAvailable(browser) {
+        for browser in browserOrder {
+            guard browserDetection.isCookieSourceAvailable(browser) else {
+                if let issue = browserDetection.cookieSourceProfileAccessIssue(browser) {
+                    let details = OpenAIDashboardBrowserCookieImporter.browserProfileAccessHint(
+                        for: browser,
+                        issue: issue)
+                    accessError = accessError ?? .browserCookieProfileAccessDenied(details)
+                }
+                continue
+            }
             guard self.shouldAttemptCookieSource(browser, accessError: &accessError) else { continue }
             sources.append(browser)
         }

@@ -135,6 +135,22 @@ struct AlibabaCodingPlanCookieImporterTests {
         #expect(candidates.first == .safari)
         #expect(candidates.contains(.chrome) == false)
     }
+
+    @Test
+    func `explicit foreground retry permits selected chromium keychain read`() async {
+        BrowserCookieAccessGate.resetForTesting()
+
+        await KeychainAccessGate.withTaskOverrideForTesting(false) {
+            await BrowserCookieAccessGate.withDeniedBrowsersForTesting([.chrome]) {
+                BrowserCookieAccessGate.withExplicitRetry {
+                    ProviderInteractionContext.$current.withValue(.userInitiated) {
+                        #expect(BrowserCookieAccessGate.shouldAttempt(.chrome))
+                        #expect(BrowserCookieAccessGate.allowsInteractiveKeychainReadForExplicitRetry(for: .chrome))
+                    }
+                }
+            }
+        }
+    }
 }
 
 #else

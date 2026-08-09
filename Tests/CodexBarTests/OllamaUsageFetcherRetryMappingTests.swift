@@ -85,6 +85,24 @@ struct OllamaUsageFetcherRetryMappingTests {
     }
 
     @Test
+    func `web strategy preserves browser recovery errors instead of masking them with api key failure`() {
+        let context = self.makeContext(
+            sourceMode: .auto,
+            env: ["OLLAMA_API_KEY": "ollama-test"])
+        let strategy = OllamaStatusFetchStrategy()
+        let recoveryErrors: [OllamaUsageError] = [
+            .safariCookieAccessDenied,
+            .browserCookieDecryptionDenied("Chrome"),
+            .browserCookieDecryptionDisabled("Chrome"),
+            .browserCookieProfileAccessDenied("Chrome profile access denied"),
+        ]
+
+        for error in recoveryErrors {
+            #expect(!strategy.shouldFallback(on: error, context: context))
+        }
+    }
+
+    @Test
     func `automatic web fetch reuses validated cached cookie without browser import`() async throws {
         let cached = CookieHeaderCache.Entry(
             cookieHeader: "session=cached",

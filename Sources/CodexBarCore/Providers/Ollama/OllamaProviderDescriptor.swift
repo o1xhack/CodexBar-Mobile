@@ -112,9 +112,20 @@ struct OllamaStatusFetchStrategy: ProviderFetchStrategy {
             sourceLabel: "web")
     }
 
-    func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        context.sourceMode == .auto
-            && ProviderTokenResolver.ollamaToken(environment: context.env) != nil
+    func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
+        guard context.sourceMode == .auto,
+              ProviderTokenResolver.ollamaToken(environment: context.env) != nil
+        else { return false }
+
+        switch error {
+        case OllamaUsageError.safariCookieAccessDenied,
+             OllamaUsageError.browserCookieDecryptionDenied,
+             OllamaUsageError.browserCookieDecryptionDisabled,
+             OllamaUsageError.browserCookieProfileAccessDenied:
+            return false
+        default:
+            return true
+        }
     }
 
     static func manualCookieHeader(from context: ProviderFetchContext) -> String? {

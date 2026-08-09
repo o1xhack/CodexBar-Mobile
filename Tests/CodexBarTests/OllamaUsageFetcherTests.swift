@@ -368,6 +368,37 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
+    func `chrome profile denial surfaces full disk access recovery instead of sign in`() {
+        let home = "/fixture-home"
+        let profile = "\(home)/Library/Application Support/Google/Chrome"
+        let detection = BrowserDetection(
+            homeDirectory: home,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                path == "/Applications/Google Chrome.app" || path == profile
+            },
+            directoryContents: { _ in nil },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { path in path == profile ? .accessDenied : nil })
+
+        do {
+            _ = try OllamaCookieImporter.importSessions(
+                browserDetection: detection,
+                preferredBrowsers: [.chrome],
+                allowFallbackBrowsers: false)
+            Issue.record("Expected a Chrome profile access error")
+        } catch let error as OllamaUsageError {
+            let message = error.localizedDescription
+            #expect(message.contains("Chrome profile access"))
+            #expect(message.contains("Full Disk Access"))
+            #expect(!message.contains("Please sign in"))
+        } catch {
+            Issue.record("Expected an Ollama profile access error, got \(error)")
+        }
+    }
+
+    @Test
     func `multi browser import skips safari access error after chrome was read`() {
         BrowserCookieAccessGate.resetForTesting()
         defer { BrowserCookieAccessGate.resetForTesting() }

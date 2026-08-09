@@ -152,15 +152,23 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         var sawDenied = false
 
         for label in browser.safeStorageLabels {
+            var allowInteraction = false
             switch KeychainAccessPreflight.checkGenericPassword(service: label.service, account: label.account) {
             case .interactionRequired:
-                sawDenied = true
-                continue
+                guard BrowserCookieAccessGate.allowsInteractiveKeychainReadForExplicitRetry(for: browser) else {
+                    sawDenied = true
+                    continue
+                }
+                allowInteraction = true
             case .allowed, .notFound, .failure:
                 break
             }
 
-            if let password = self.safeStoragePassword(service: label.service, account: label.account) {
+            if let password = self.safeStoragePassword(
+                service: label.service,
+                account: label.account,
+                allowInteraction: allowInteraction)
+            {
                 keys.append(self.deriveKey(from: password))
             }
         }
@@ -174,7 +182,11 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
         throw ImportError.keyUnavailable(browser: browser)
     }
 
-    private static func safeStoragePassword(service: String, account: String) -> String? {
+    private static func safeStoragePassword(
+        service: String,
+        account: String,
+        allowInteraction: Bool) -> String?
+    {
         // The preflight classifies prompt-requiring items as .interactionRequired, but its
         // .notFound (gate disabled) and .failure outcomes still reach this read. Honor the
         // access gate and keep the read strictly non-interactive so it can never prompt.
@@ -186,7 +198,9 @@ enum AliyunOneConsoleChromiumCookieFallbackImporter {
             kSecMatchLimit as String: kSecMatchLimitOne,
             kSecReturnData as String: true,
         ]
-        KeychainNoUIQuery.apply(to: &query)
+        if !allowInteraction {
+            KeychainNoUIQuery.apply(to: &query)
+        }
 
         var result: AnyObject?
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
