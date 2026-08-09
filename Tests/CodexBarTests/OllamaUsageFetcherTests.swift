@@ -552,6 +552,35 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
+    func `foreground refresh reports keychain denial when encrypted store yields no sessions`() {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ProviderInteractionContext.$current.withValue(.userInitiated) {
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting {
+                    _, _ in .interactionRequired
+                } operation: {
+                    BrowserCookieAccessGate.withExplicitRetry {
+                        do {
+                            _ = try OllamaCookieImporter.importSessions(
+                                preferredSources: [.chrome],
+                                allowFallbackBrowsers: false,
+                                loadFallbackSources: { _ in [] },
+                                loadSessions: { _, _ in [] })
+                            Issue.record("Expected a Chrome Keychain recovery error")
+                        } catch let OllamaUsageError.browserCookieDecryptionDenied(browserName) {
+                            #expect(browserName == "Chrome")
+                        } catch {
+                            Issue.record("Expected Chrome Keychain recovery error, got \(error)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     func `manual refresh bypasses browser denial cooldown`() async {
         await BrowserCookieAccessGate.withDeniedBrowsersForTesting([.brave]) {
             KeychainAccessGate.withTaskOverrideForTesting(false) {

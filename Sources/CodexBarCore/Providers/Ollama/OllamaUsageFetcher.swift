@@ -214,8 +214,11 @@ public enum OllamaCookieImporter {
             return try self.selectSessionInfos(from: preferredImport.candidates, logger: log)
         } catch OllamaUsageError.noSessionCookie {
             guard allowFallbackBrowsers else {
+                let preferredAccessError = self.explicitRetryAccessError(
+                    existing: accessError,
+                    browsers: preferredSources)
                 throw self.surfacedAccessError(
-                    accessError,
+                    preferredAccessError,
                     successfullyReadBrowsers: successfullyReadBrowsers) ?? OllamaUsageError.noSessionCookie
             }
         }
@@ -233,7 +236,9 @@ public enum OllamaCookieImporter {
             suppressSafariAccessErrors: true,
             loadSessions: loadSessions)
         successfullyReadBrowsers.append(contentsOf: fallbackImport.successfullyReadBrowsers)
-        accessError = accessError ?? self.surfacedFallbackAccessError(fallbackAccessError)
+        accessError = accessError
+            ?? self.surfacedFallbackAccessError(fallbackAccessError)
+            ?? self.explicitRetryAccessError(existing: nil, browsers: fallbackSources)
         do {
             return try self.selectSessionInfos(from: fallbackImport.candidates, logger: log)
         } catch OllamaUsageError.noSessionCookie {
@@ -360,6 +365,25 @@ public enum OllamaCookieImporter {
         guard !BrowserCookieAccessGate.hasActiveDenialCooldown(for: browser, now: now) else { return nil }
         guard BrowserCookieAccessGate.requiresKeychainInteraction(for: browser) else { return nil }
         return .browserCookieDecryptionDenied(browser.displayName)
+    }
+
+    /// An explicit retry may get an empty cookie list instead of a typed access-denied error when the
+    /// current executable is not yet trusted by the browser's Safe Storage ACL. Re-check the no-UI
+    /// preflight after selection fails so the UI reports an actionable Keychain recovery hint instead of
+    /// incorrectly claiming that the user is signed out.
+    static func explicitRetryAccessError(
+        existing: OllamaUsageError?,
+        browsers: [Browser]) -> OllamaUsageError?
+    {
+        guard existing == nil,
+              ProviderInteractionContext.current == .userInitiated
+        else { return existing }
+        for browser in browsers where browser.usesKeychainForCookieDecryption {
+            if BrowserCookieAccessGate.requiresKeychainInteraction(for: browser) {
+                return .browserCookieDecryptionDenied(browser.displayName)
+            }
+        }
+        return nil
     }
 
     private static func cookieSources(
