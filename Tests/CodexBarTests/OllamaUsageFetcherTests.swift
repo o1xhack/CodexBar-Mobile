@@ -563,8 +563,8 @@ struct OllamaUsageFetcherTests {
 
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             ProviderInteractionContext.$current.withValue(.background) {
-                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting {
-                    _, _ in .interactionRequired
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    .interactionRequired
                 } operation: {
                     var accessError: OllamaUsageError?
                     let shouldAttempt = OllamaCookieImporter.shouldAttemptCookieSource(
@@ -589,8 +589,8 @@ struct OllamaUsageFetcherTests {
 
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             ProviderInteractionContext.$current.withValue(.userInitiated) {
-                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting {
-                    _, _ in .interactionRequired
+                KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
+                    .interactionRequired
                 } operation: {
                     BrowserCookieAccessGate.withExplicitRetry {
                         do {
