@@ -1,6 +1,6 @@
 # v0.49.2 Upstream Sync + iOS 1.21.0 概览
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-11
 Branch: `upstream-sync/v0.49.2-mobile.1.21.0`
 Open issues:
@@ -156,3 +156,14 @@ publish、TestFlight/App Store upload 和 CloudKit Production deploy。
 运行 `Scripts/sign-and-notarize.sh`，再用 GitHub draft API 创建 untagged draft、上传 ZIP
 和 dSYM。`target_commitish=mobile-dev` 只是 draft 占位，最终 publish 前必须从真实 merged
 commit 重打包并替换资产。绝不运行 `release.sh --finalize`。
+
+## 完成结论
+
+本轮已在目标分支完成单 train 同步、Shared/iOS bridge、版本与 4 语言文案、全量回归、
+Production CloudKit `NO_DEPLOY` 审计、签名公证和 GitHub draft。代码候选 HEAD 为
+`37d46edec`；Mac `8796` tests / `851` suites、iOS xcresult `632` tests 均为 0 failure。
+GitHub draft 为
+[`untagged-d5c3a3e0664b621f548b`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-d5c3a3e0664b621f548b)，
+保持 `draft=true` / `published_at=null`。本地/远端 candidate tag、远端同步分支、appcast
+变更、live release、TestFlight 与 CloudKit deploy 均为 0；没有 merge 到 `mobile-dev`，也
+没有 push branch/tag。本轮唯一 merge 是任务分支内的 provenance merge `a75be5a4b`。
