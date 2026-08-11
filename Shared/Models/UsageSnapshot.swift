@@ -297,6 +297,11 @@ public struct SyncPerplexityCreditSummary: Codable, Sendable, Equatable {
 /// model in Shared lets iOS decode first-party and custom-plugin details
 /// without linking the Mac provider runtime.
 public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
+    public static let maximumSectionsPerSnapshot = 8
+    public static let maximumRowsPerSection = 24
+    public static let maximumPointsPerChart = 120
+    public static let maximumStringLength = 120
+
     public struct Row: Codable, Sendable, Equatable {
         public let label: String
         public let value: String
@@ -306,6 +311,25 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
             self.label = label
             self.value = value
             self.secondaryValue = secondaryValue
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case label
+            case value
+            case secondaryValue
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.label = try SyncProviderDetailSection.requiredString(
+                container.decode(String.self, forKey: .label),
+                path: "row.label")
+            self.value = try SyncProviderDetailSection.requiredString(
+                container.decode(String.self, forKey: .value),
+                path: "row.value")
+            self.secondaryValue = try SyncProviderDetailSection.optionalString(
+                container.decodeIfPresent(String.self, forKey: .secondaryValue),
+                path: "row.secondaryValue")
         }
     }
 
@@ -323,6 +347,23 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
                 self.label = label
                 self.value = value
             }
+
+            private enum CodingKeys: String, CodingKey {
+                case label
+                case value
+            }
+
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.label = try SyncProviderDetailSection.requiredString(
+                    container.decode(String.self, forKey: .label),
+                    path: "chart.point.label")
+                let value = try container.decode(Double.self, forKey: .value)
+                guard value.isFinite else {
+                    throw SyncProviderDetailValidationError("chart.point.value must be finite")
+                }
+                self.value = value
+            }
         }
 
         public let kind: Kind
@@ -336,6 +377,31 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
             self.unit = unit
             self.points = points
         }
+
+        private enum CodingKeys: String, CodingKey {
+            case kind
+            case title
+            case unit
+            case points
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            guard container.contains(.points) else {
+                throw SyncProviderDetailValidationError("chart.points is required")
+            }
+            self.kind = try container.decode(Kind.self, forKey: .kind)
+            self.title = try SyncProviderDetailSection.optionalString(
+                container.decodeIfPresent(String.self, forKey: .title),
+                path: "chart.title")
+            self.unit = try SyncProviderDetailSection.optionalString(
+                container.decodeIfPresent(String.self, forKey: .unit),
+                path: "chart.unit")
+            self.points = try container.decodeLossyBoundedArray(
+                Point.self,
+                forKey: .points,
+                maximumCount: SyncProviderDetailSection.maximumPointsPerChart)
+        }
     }
 
     public let title: String?
@@ -346,6 +412,96 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
         self.title = title
         self.rows = rows
         self.chart = chart
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title
+        case rows
+        case chart
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        guard container.contains(.rows) else {
+            throw SyncProviderDetailValidationError("section.rows is required")
+        }
+        self.title = try Self.optionalString(
+            container.decodeIfPresent(String.self, forKey: .title),
+            path: "section.title")
+        self.rows = try container.decodeLossyBoundedArray(
+            Row.self,
+            forKey: .rows,
+            maximumCount: Self.maximumRowsPerSection)
+
+        if container.contains(.chart), try !container.decodeNil(forKey: .chart) {
+            self.chart = try? container.decode(Chart.self, forKey: .chart)
+        } else {
+            self.chart = nil
+        }
+    }
+
+    private static func requiredString(_ rawValue: String, path: String) throws -> String {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else {
+            throw SyncProviderDetailValidationError("\(path) must not be empty")
+        }
+        guard value.count <= Self.maximumStringLength else {
+            throw SyncProviderDetailValidationError(
+                "\(path) exceeds \(Self.maximumStringLength) characters")
+        }
+        return value
+    }
+
+    private static func optionalString(_ rawValue: String?, path: String) throws -> String? {
+        guard let rawValue else { return nil }
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.count <= Self.maximumStringLength else {
+            throw SyncProviderDetailValidationError(
+                "\(path) exceeds \(Self.maximumStringLength) characters")
+        }
+        return value.isEmpty ? nil : value
+    }
+}
+
+private struct SyncProviderDetailValidationError: Error {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+}
+
+/// Decodes one unkeyed element without propagating that element's failure to
+/// its siblings. The outer unkeyed container still advances exactly once.
+private struct LossyDecodedElement<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: Decoder) {
+        self.value = try? Value(from: decoder)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    /// Reads at most `maximumCount` raw entries and drops malformed entries
+    /// inside that bounded prefix. Capping raw entries (rather than only valid
+    /// results) also bounds work for adversarial CloudKit payloads.
+    func decodeLossyBoundedArray<Value: Decodable>(
+        _ type: Value.Type,
+        forKey key: Key,
+        maximumCount: Int) throws -> [Value]
+    {
+        guard self.contains(key), try !self.decodeNil(forKey: key) else { return [] }
+        var container = try self.nestedUnkeyedContainer(forKey: key)
+        var values: [Value] = []
+        var inspectedCount = 0
+        while !container.isAtEnd, inspectedCount < maximumCount {
+            let decoded = try container.decode(LossyDecodedElement<Value>.self)
+            if let value = decoded.value {
+                values.append(value)
+            }
+            inspectedCount += 1
+        }
+        return values
     }
 }
 
@@ -913,7 +1069,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.providerAmount = try container.decodeIfPresent(SyncProviderAmount.self, forKey: .providerAmount)
         self.accountRecordKey = try container.decodeIfPresent(String.self, forKey: .accountRecordKey)
         self.zoomMateCredits = try container.decodeIfPresent(SyncZoomMateCredits.self, forKey: .zoomMateCredits)
-        self.details = try container.decodeIfPresent([SyncProviderDetailSection].self, forKey: .details) ?? []
+        self.details = try container.decodeLossyBoundedArray(
+            SyncProviderDetailSection.self,
+            forKey: .details,
+            maximumCount: SyncProviderDetailSection.maximumSectionsPerSnapshot)
         self.providerIconMonogram = try container.decodeIfPresent(String.self, forKey: .providerIconMonogram)
         self.providerIconTintHex = try container.decodeIfPresent(String.self, forKey: .providerIconTintHex)
     }

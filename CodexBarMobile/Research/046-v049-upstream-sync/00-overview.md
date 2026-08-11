@@ -67,6 +67,11 @@ non-merge commits、954 个文件，约 144,444 行新增 / 21,873 行删除。�
 QuickJS 与 provider plugin runtime，必须用 provenance-preserving merge，不能用少量
 cherry-pick 冒充完整同步。
 
+上游 tag 历史有一个已核验的非线性例外：`v0.48.1` peel `226085b80f24…` 不是最终
+`v0.49.2` HEAD 的祖先；最终 release line 使用 replay commit `44a6c69726…`，两者的 appcast
+patch-id 均为 `4699dfda…`。因此内容没有缺失，但不能声称五个 release tag commits 全部
+线性可达。`v0.48.0`、`v0.49.0`、`v0.49.1`、`v0.49.2` peel 均为 candidate HEAD 祖先。
+
 `git merge-tree --write-tree HEAD refs/upstream-tags/v0.49.2` 预演得到 50 个 conflicts：
 fork `AGENTS.md` / CI / lint / release / changelog / appcast / version、23 个 Mac locale、
 CloudSync、provider declarative details、parser/cache/SQLite、widget bridge 及相关 tests。

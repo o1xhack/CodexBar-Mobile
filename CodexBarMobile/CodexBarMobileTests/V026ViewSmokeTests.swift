@@ -82,6 +82,21 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
 
+    func testUsageCardRendersUnavailableIBMBobBudgetWithoutTreatingZeroAsKnown() throws {
+        let view = UsageCardView(
+            label: "Monthly",
+            window: SyncRateWindow(
+                usedPercent: 0,
+                usageKnown: false,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "12.50 Bobcoins used"),
+            tintColor: Self.tintColor)
+        let image = self.renderToImage(view)
+        XCTAssertNotNil(image)
+        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+    }
+
     func testAntigravityAccountSwitcherRenders() throws {
         let view = AntigravityAccountSwitcher(
             accounts: PreviewData.antigravityMultiAccountProvider.antigravityAccounts!,

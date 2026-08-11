@@ -63,6 +63,19 @@ public struct IBMBobUsageSnapshot: Sendable, Equatable {
         let summary = limit.map { "\(Self.bobcoins(used)) / \(Self.bobcoins($0)) Bobcoins" }
             ?? "\(Self.bobcoins(used)) Bobcoins used"
         let planNames = Array(Set(self.teams.compactMap(\.planName))).sorted()
+        let monthlyWindow = RateWindow(
+            usedPercent: usedPercent ?? 0,
+            windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
+            resetsAt: reset,
+            resetDescription: summary)
+        // `RateWindow` predates the usage-known bit. When IBM Bob omits every
+        // team budget, carry the monthly lane as a named window so the existing
+        // Mac-to-Mobile mapper can preserve `usageKnown=false` without treating
+        // the placeholder 0% as real quota usage.
+        let primary = usedPercent == nil ? nil : monthlyWindow
+        let extraRateWindows = usedPercent == nil
+            ? [NamedRateWindow(id: "primary", title: "Monthly", window: monthlyWindow, usageKnown: false)]
+            : nil
 
         let rows = self.teams.map { team in
             let value = team.limitBobcoins.map {
@@ -78,12 +91,9 @@ public struct IBMBobUsageSnapshot: Sendable, Equatable {
         }
 
         return UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: usedPercent ?? 0,
-                windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
-                resetsAt: reset,
-                resetDescription: summary),
+            primary: primary,
             secondary: nil,
+            extraRateWindows: extraRateWindows,
             details: [.makeSection(title: "Bobcoin usage", rows: rows)],
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(

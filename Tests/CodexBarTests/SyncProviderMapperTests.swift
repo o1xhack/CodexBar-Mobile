@@ -25,6 +25,7 @@ struct SyncProviderMapperTests {
         azure: AzureOpenAIUsageSnapshot? = nil,
         alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
         providerCost: ProviderCostSnapshot? = nil,
+        identity: ProviderIdentitySnapshot? = nil,
         dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
     {
         UsageSnapshot(
@@ -35,6 +36,7 @@ struct SyncProviderMapperTests {
             alibabaTokenPlanUsage: alibaba,
             mistralUsage: mistral,
             updatedAt: Self.now,
+            identity: identity,
             dataConfidence: dataConfidence)
     }
 
@@ -85,6 +87,141 @@ struct SyncProviderMapperTests {
             provider: .claude,
             snapshot: self.snapshot(providerCost: cost),
             providerCost: cost) == nil)
+    }
+
+    @Test
+    func `Fireworks zero-limit cost maps to spend instead of quota`() throws {
+        let cost = ProviderCostSnapshot(
+            used: 27.40,
+            limit: 0,
+            currencyCode: "USD",
+            period: "Last 30 days",
+            updatedAt: Self.now)
+        let mapped = try #require(SyncCoordinator.mapProviderAmount(
+            provider: .fireworks,
+            snapshot: self.snapshot(providerCost: cost, dataConfidence: .exact),
+            providerCost: cost))
+
+        #expect(mapped.kind == "spend")
+        #expect(mapped.amount == 27.40)
+        #expect(mapped.period == "Last 30 days")
+        #expect(!mapped.isEstimated)
+    }
+
+    @Test
+    func `custom plugin cost bridge preserves limit spend and balance semantics`() throws {
+        let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
+        let limited = SyncCoordinator.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: self.snapshot(providerCost: ProviderCostSnapshot(
+                used: 30,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly",
+                updatedAt: Self.now)),
+            error: nil,
+            deviceID: "MAC-A")
+        #expect(limited.budget?.usedAmount == 30)
+        #expect(limited.budget?.limitAmount == 100)
+        #expect(limited.providerAmount == nil)
+
+        let spend = SyncCoordinator.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: self.snapshot(
+                providerCost: ProviderCostSnapshot(
+                    used: 12.25,
+                    limit: 0,
+                    currencyCode: "EUR",
+                    period: "Last 7 days",
+                    updatedAt: Self.now),
+                dataConfidence: .estimated),
+            error: nil,
+            deviceID: "MAC-A")
+        #expect(spend.budget == nil)
+        #expect(spend.providerAmount?.kind == "spend")
+        #expect(spend.providerAmount?.amount == 12.25)
+        #expect(spend.providerAmount?.isEstimated == true)
+
+        let balance = SyncCoordinator.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: self.snapshot(providerCost: ProviderCostSnapshot(
+                used: 10,
+                limit: 50,
+                currencyCode: "GBP",
+                period: "Monthly",
+                balance: 40,
+                updatedAt: Self.now)),
+            error: nil,
+            deviceID: "MAC-A")
+        #expect(balance.budget?.limitAmount == 50)
+        #expect(balance.providerAmount?.kind == "balance")
+        #expect(balance.providerAmount?.amount == 40)
+    }
+
+    @Test
+    func `custom plugin account ID wins over email and merges only matching accounts`() throws {
+        let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
+        func mapped(accountID: String, email: String, deviceID: String) -> ProviderUsageSnapshot {
+            let identity = ProviderIdentitySnapshot(
+                providerID: instanceID,
+                accountEmail: email,
+                accountOrganization: nil,
+                loginMethod: "API key",
+                accountID: accountID)
+            return SyncCoordinator.mapPluginProviderUsageSnapshot(
+                instanceID: instanceID,
+                snapshot: self.snapshot(identity: identity),
+                error: nil,
+                deviceID: deviceID)
+        }
+
+        let first = mapped(accountID: "Account A", email: "shared@example.com", deviceID: "MAC-A")
+        let same = mapped(accountID: " account a ", email: "renamed@example.com", deviceID: "MAC-B")
+        let different = mapped(accountID: "Account B", email: "shared@example.com", deviceID: "MAC-B")
+
+        #expect(first.accountIdentities?.first == "acme-meter:account:account%20a")
+        #expect(first.accountIdentities?.first == same.accountIdentities?.first)
+        #expect(first.accountIdentities?.first != different.accountIdentities?.first)
+        #expect(first.accountIdentities?.contains("acme-meter:email:shared@example.com") == false)
+        #expect(first.accountRecordKey != same.accountRecordKey)
+    }
+
+    @Test
+    func `custom plugin falls back from real email to device without treating labels as email`() throws {
+        let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
+        func mapped(identity: ProviderIdentitySnapshot?, deviceID: String) -> ProviderUsageSnapshot {
+            SyncCoordinator.mapPluginProviderUsageSnapshot(
+                instanceID: instanceID,
+                snapshot: self.snapshot(identity: identity),
+                error: nil,
+                deviceID: deviceID)
+        }
+
+        let emailIdentity = ProviderIdentitySnapshot(
+            providerID: instanceID,
+            accountEmail: " SAME@Example.com ",
+            accountOrganization: nil,
+            loginMethod: nil)
+        let emailA = mapped(identity: emailIdentity, deviceID: "MAC-A")
+        let emailB = mapped(identity: emailIdentity, deviceID: "MAC-B")
+        #expect(emailA.accountIdentities?.first == "acme-meter:email:same@example.com")
+        #expect(emailA.accountIdentities?.first == emailB.accountIdentities?.first)
+
+        let accountlessA = mapped(identity: nil, deviceID: "MAC-A")
+        let accountlessB = mapped(identity: nil, deviceID: "MAC-B")
+        #expect(accountlessA.accountIdentities == ["acme-meter:record:device-mac-a"])
+        #expect(accountlessB.accountIdentities == ["acme-meter:record:device-mac-b"])
+
+        let fallbackLabel = ProviderIdentitySnapshot(
+            providerID: instanceID,
+            accountEmail: "Production workspace",
+            accountOrganization: nil,
+            loginMethod: "Token",
+            accountEmailIsFallbackLabel: true)
+        let fallback = mapped(identity: fallbackLabel, deviceID: "MAC-A")
+        #expect(fallback.accountEmail == "Production workspace")
+        #expect(fallback.accountIdentities == ["acme-meter:record:device-mac-a"])
+        #expect(fallback.accountIdentities?.contains(where: { $0.contains(":email:") }) == false)
     }
 
     @Test

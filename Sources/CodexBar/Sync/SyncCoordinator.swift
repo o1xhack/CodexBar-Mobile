@@ -1,4 +1,4 @@
-// swiftlint:disable type_body_length
+// swiftlint:disable file_length type_body_length
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.8.0
 // build 134 when 5 v0.27 existing-provider mappers were added
@@ -752,7 +752,21 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?,
         error: String?) -> ProviderUsageSnapshot
     {
-        let plugin = UserProviderPluginRegistry.plugin(for: instanceID)
+        Self.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: snapshot,
+            error: error,
+            deviceID: self.deviceID,
+            plugin: UserProviderPluginRegistry.plugin(for: instanceID))
+    }
+
+    static func mapPluginProviderUsageSnapshot(
+        instanceID: ProviderInstanceID,
+        snapshot: UsageSnapshot?,
+        error: String?,
+        deviceID: String,
+        plugin: UserProviderPlugin? = nil) -> ProviderUsageSnapshot
+    {
         var rateWindows: [SyncRateWindow] = []
         if let window = snapshot?.primary {
             rateWindows.append(Self.syncRateWindow(
@@ -780,7 +794,49 @@ final class SyncCoordinator {
                 usageKnown: extra.usageKnown))
         }
 
-        let accountRecordKey = "device-\(self.deviceID.lowercased())"
+        let providerCost = snapshot?.providerCost
+        let budget: SyncBudgetSnapshot? = providerCost.flatMap { cost in
+            guard cost.limit > 0 else { return nil }
+            return SyncBudgetSnapshot(
+                usedAmount: cost.used,
+                limitAmount: cost.limit,
+                currencyCode: cost.currencyCode,
+                period: cost.period,
+                resetsAt: cost.resetsAt)
+        }
+        let providerAmount: SyncProviderAmount? = providerCost.flatMap { cost in
+            let kind: String
+            let amount: Double
+            if let balance = cost.balance {
+                kind = "balance"
+                amount = balance
+            } else {
+                guard cost.limit <= 0 else { return nil }
+                kind = "spend"
+                amount = cost.used
+            }
+            let confidence = snapshot?.dataConfidence ?? .unknown
+            return SyncProviderAmount(
+                kind: kind,
+                amount: amount,
+                currencyCode: cost.currencyCode,
+                period: cost.period,
+                isEstimated: confidence == .estimated || confidence == .percentOnly)
+        }
+
+        let accountRecordKey = "device-\(deviceID.lowercased())"
+        let accountIdentities: [String] = {
+            let recordIdentity = "\(instanceID.rawValue):record:\(accountRecordKey)"
+            if let accountID = AccountIdentityComputer.normalize(snapshot?.identity?.accountID) {
+                return ["\(instanceID.rawValue):account:\(accountID)", recordIdentity]
+            }
+            if snapshot?.identity?.accountEmailIsFallbackLabel != true,
+               let email = AccountIdentityComputer.normalize(snapshot?.identity?.accountEmail)
+            {
+                return ["\(instanceID.rawValue):email:\(email)", recordIdentity]
+            }
+            return [recordIdentity]
+        }()
         return ProviderUsageSnapshot(
             providerID: instanceID.rawValue,
             providerName: plugin?.manifest.name ?? instanceID.rawValue,
@@ -791,11 +847,13 @@ final class SyncCoordinator {
             statusMessage: error,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
+            budget: budget,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
             rateWindows: rateWindows,
-            accountIdentities: ["\(instanceID.rawValue):record:\(accountRecordKey)"],
+            accountIdentities: accountIdentities,
             usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot),
+            providerAmount: providerAmount,
             accountRecordKey: accountRecordKey,
             accountOrganization: snapshot?.identity?.accountOrganization,
             details: Self.mapDetails(snapshot?.details ?? []),
@@ -1082,7 +1140,7 @@ final class SyncCoordinator {
             guard providerCost.limit <= 0 else { return nil }
             kind = "balance"
             amount = providerCost.used
-        case .aiand:
+        case .aiand, .fireworks:
             guard providerCost.limit <= 0 else { return nil }
             kind = "spend"
             amount = providerCost.used
@@ -2214,4 +2272,4 @@ final class SyncCoordinator {
     }
 }
 
-// swiftlint:enable type_body_length
+// swiftlint:enable file_length type_body_length

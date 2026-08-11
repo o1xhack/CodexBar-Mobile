@@ -1,6 +1,25 @@
 import CodexBarSync
 import SwiftUI
 
+enum MobileLocalizedString {
+    static func value(
+        _ key: String,
+        defaultValue: String,
+        locale: Locale = .current) -> String
+    {
+        let localization = Bundle.preferredLocalizations(
+            from: Bundle.main.localizations,
+            forPreferences: [locale.identifier]).first
+        guard let localization,
+              let path = Bundle.main.path(forResource: localization, ofType: "lproj"),
+              let bundle = Bundle(path: path)
+        else {
+            return Bundle.main.localizedString(forKey: key, value: defaultValue, table: nil)
+        }
+        return bundle.localizedString(forKey: key, value: defaultValue, table: nil)
+    }
+}
+
 enum ProviderWindowLabel {
     static func localizationKey(for label: String?) -> String? {
         switch label {
@@ -9,6 +28,7 @@ enum ProviderWindowLabel {
         case "Daily": "v045_window_daily"
         case "Weekly": "v045_window_weekly"
         case "Monthly": "v045_window_monthly"
+        case "Monthly Bobcoins": "v049_window_monthly_bobcoins"
         case "Additional": "v045_window_additional"
         case "5 hour limit": "v045_window_5_hour_limit"
         case "Daily limit": "v045_window_daily_limit"
@@ -21,46 +41,77 @@ enum ProviderWindowLabel {
         }
     }
 
-    static func localized(_ label: String?, fallback: String) -> String {
+    static func localized(
+        _ label: String?,
+        fallback: String,
+        locale: Locale = .current) -> String
+    {
         if let label,
            label.hasSuffix(" only"),
            label.count > " only".count
         {
             let model = String(label.dropLast(" only".count))
             return String(
-                format: String(localized: "v045_window_model_only_format", defaultValue: "%@ only"),
-                model)
+                format: MobileLocalizedString.value(
+                    "v045_window_model_only_format",
+                    defaultValue: "%@ only",
+                    locale: locale),
+                locale: locale,
+                arguments: [model])
         }
         guard let key = localizationKey(for: label) else {
             return label ?? fallback
         }
         switch key {
         case "5-hour":
-            return String(localized: "5-hour")
+            return MobileLocalizedString.value("5-hour", defaultValue: "5-hour", locale: locale)
         case "Credits":
-            return String(localized: "Credits", defaultValue: "Credits")
+            return MobileLocalizedString.value("Credits", defaultValue: "Credits", locale: locale)
         case "v045_window_daily":
-            return String(localized: "v045_window_daily", defaultValue: "Daily")
+            return MobileLocalizedString.value("v045_window_daily", defaultValue: "Daily", locale: locale)
         case "v045_window_weekly":
-            return String(localized: "v045_window_weekly", defaultValue: "Weekly")
+            return MobileLocalizedString.value("v045_window_weekly", defaultValue: "Weekly", locale: locale)
         case "v045_window_monthly":
-            return String(localized: "v045_window_monthly", defaultValue: "Monthly")
+            return MobileLocalizedString.value("v045_window_monthly", defaultValue: "Monthly", locale: locale)
+        case "v049_window_monthly_bobcoins":
+            return MobileLocalizedString.value(
+                "v049_window_monthly_bobcoins",
+                defaultValue: "Monthly Bobcoins",
+                locale: locale)
         case "v045_window_additional":
-            return String(localized: "v045_window_additional", defaultValue: "Additional")
+            return MobileLocalizedString.value("v045_window_additional", defaultValue: "Additional", locale: locale)
         case "v045_window_5_hour_limit":
-            return String(localized: "v045_window_5_hour_limit", defaultValue: "5-hour limit")
+            return MobileLocalizedString.value(
+                "v045_window_5_hour_limit",
+                defaultValue: "5-hour limit",
+                locale: locale)
         case "v045_window_daily_limit":
-            return String(localized: "v045_window_daily_limit", defaultValue: "Daily limit")
+            return MobileLocalizedString.value(
+                "v045_window_daily_limit",
+                defaultValue: "Daily limit",
+                locale: locale)
         case "v045_window_7_day_limit":
-            return String(localized: "v045_window_7_day_limit", defaultValue: "7-day limit")
+            return MobileLocalizedString.value(
+                "v045_window_7_day_limit",
+                defaultValue: "7-day limit",
+                locale: locale)
         case "v045_window_designs":
-            return String(localized: "v045_window_designs", defaultValue: "Designs")
+            return MobileLocalizedString.value("v045_window_designs", defaultValue: "Designs", locale: locale)
         case "v045_window_daily_routines":
-            return String(localized: "v045_window_daily_routines", defaultValue: "Daily routines")
+            return MobileLocalizedString.value(
+                "v045_window_daily_routines",
+                defaultValue: "Daily routines",
+                locale: locale)
         case "v045_window_web_sonnet":
-            return String(localized: "v045_window_web_sonnet", defaultValue: "Web Sonnet")
+            return MobileLocalizedString.value(
+                "v045_window_web_sonnet",
+                defaultValue: "Web Sonnet",
+                locale: locale)
         default:
-            return String(localized: "v045_window_extra_usage", defaultValue: "Extra usage")
+            return MobileLocalizedString.value(
+                "v045_window_extra_usage",
+                defaultValue: "Extra usage",
+                locale: locale)
         }
     }
 }

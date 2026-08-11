@@ -2,6 +2,55 @@ import Charts
 import CodexBarSync
 import SwiftUI
 
+enum LegacyProviderDetailCard: Hashable {
+    case kiroCredits
+    case zaiHourlyUsage
+    case zoomMateCredits
+    case openAIAPIDashboard
+    case deepgramUsage
+    case groqMetrics
+    case openRouterStats
+    case deepSeekUsage
+    case sub2APIUsage
+    case wayfinderUsage
+    case claudeAdminUsage
+    case miniMaxBilling
+}
+
+/// Resolves the transition from provider-specific payload cards to the generic
+/// `details` envelope. The key deliberately uses provider identity plus a typed
+/// card lane; localized section titles and row labels are presentation data and
+/// are not stable enough to decide whether two cards represent the same data.
+enum ProviderDetailPresentationPolicy {
+    private static let genericDetailsCardsByProvider: [String: Set<LegacyProviderDetailCard>] = [
+        "kiro": [.kiroCredits],
+        "zai": [.zaiHourlyUsage],
+        "zoommate": [.zoomMateCredits],
+        "openai": [.openAIAPIDashboard],
+        "deepgram": [.deepgramUsage],
+        "groq": [.groqMetrics],
+        "openrouter": [.openRouterStats],
+        "deepseek": [.deepSeekUsage],
+        "sub2api": [.sub2APIUsage],
+        "wayfinder": [.wayfinderUsage],
+        "claude": [.claudeAdminUsage],
+        "minimax": [.miniMaxBilling],
+    ]
+
+    static func shouldRenderLegacyCard(
+        _ card: LegacyProviderDetailCard,
+        providerID: String,
+        hasGenericDetails: Bool) -> Bool
+    {
+        guard hasGenericDetails,
+              let supersededCards = self.genericDetailsCardsByProvider[providerID]
+        else {
+            return true
+        }
+        return !supersededCards.contains(card)
+    }
+}
+
 struct ProviderDetailView: View {
     /// All accounts for the provider whose row the user tapped. When
     /// `group.hasMultipleAccounts`, a segmented control at the top of
@@ -69,6 +118,7 @@ struct ProviderDetailView: View {
 
                 if !self.provider.details.isEmpty {
                     ProviderDetailsView(
+                        providerID: self.provider.providerID,
                         sections: self.provider.details,
                         tintColor: self.providerColor)
                 }
@@ -80,6 +130,7 @@ struct ProviderDetailView: View {
                 // data falls through silently to the generic sections
                 // below.
                 if self.provider.providerID == "kiro",
+                   self.shouldRenderLegacyCard(.kiroCredits),
                    let kiroCredits = self.provider.kiroCredits
                 {
                     KiroCreditsCard(credits: kiroCredits, tintColor: self.providerColor)
@@ -95,16 +146,19 @@ struct ProviderDetailView: View {
                     MoonshotBalanceCard(balance: moonshotBalance, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "zai",
+                   self.shouldRenderLegacyCard(.zaiHourlyUsage),
                    let zaiHourly = self.provider.zaiHourlyUsage
                 {
                     ZaiHourlyChart(usage: zaiHourly, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "zoommate",
+                   self.shouldRenderLegacyCard(.zoomMateCredits),
                    let zoomMateCredits = self.provider.zoomMateCredits
                 {
                     ZoomMateCreditsCard(credits: zoomMateCredits, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "openai",
+                   self.shouldRenderLegacyCard(.openAIAPIDashboard),
                    let openAIDashboard = self.provider.openAIAPIDashboard
                 {
                     OpenAIDashboardSection(dashboard: openAIDashboard, tintColor: self.providerColor)
@@ -132,11 +186,13 @@ struct ProviderDetailView: View {
                     ElevenLabsCreditsCard(credits: elevenLabsCredits, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "deepgram",
+                   self.shouldRenderLegacyCard(.deepgramUsage),
                    let deepgramUsage = self.provider.deepgramUsage
                 {
                     DeepgramUsageCard(usage: deepgramUsage, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "groq",
+                   self.shouldRenderLegacyCard(.groqMetrics),
                    let groqMetrics = self.provider.groqMetrics
                 {
                     GroqMetricsCard(metrics: groqMetrics, tintColor: self.providerColor)
@@ -148,6 +204,7 @@ struct ProviderDetailView: View {
                 }
                 // iOS 1.9.0 — parity gap D: OpenRouter balance / credits / usage.
                 if self.provider.providerID == "openrouter",
+                   self.shouldRenderLegacyCard(.openRouterStats),
                    let openRouterStats = self.provider.openRouterStats
                 {
                     OpenRouterStatsCard(stats: openRouterStats, tintColor: self.providerColor)
@@ -166,6 +223,7 @@ struct ProviderDetailView: View {
                 }
                 // iOS 1.10.0 — DeepSeek web-session usage + cost (v0.30.0 #1166).
                 if self.provider.providerID == "deepseek",
+                   self.shouldRenderLegacyCard(.deepSeekUsage),
                    let deepSeekUsage = self.provider.deepSeekUsage
                 {
                     DeepSeekUsageCard(usage: deepSeekUsage, tintColor: self.providerColor)
@@ -179,11 +237,13 @@ struct ProviderDetailView: View {
                 // iOS 1.19.0 — v0.42-v0.45 providers whose useful data
                 // does not fit entirely in generic quota/cost cards.
                 if self.provider.providerID == "sub2api",
+                   self.shouldRenderLegacyCard(.sub2APIUsage),
                    let sub2APIUsage = self.provider.sub2APIUsage
                 {
                     Sub2APIUsageCard(usage: sub2APIUsage, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "wayfinder",
+                   self.shouldRenderLegacyCard(.wayfinderUsage),
                    let wayfinderUsage = self.provider.wayfinderUsage
                 {
                     WayfinderUsageCard(usage: wayfinderUsage, tintColor: self.providerColor)
@@ -196,6 +256,7 @@ struct ProviderDetailView: View {
                 // extensions. Same dispatch pattern: provider ID
                 // match + envelope field present.
                 if self.provider.providerID == "claude",
+                   self.shouldRenderLegacyCard(.claudeAdminUsage),
                    let claudeAdmin = self.provider.claudeAdminUsage
                 {
                     ClaudeAdminUsageCard(usage: claudeAdmin, tintColor: self.providerColor)
@@ -211,6 +272,7 @@ struct ProviderDetailView: View {
                     OpenCodeGoZenBalanceCard(balance: zenBalance, tintColor: self.providerColor)
                 }
                 if self.provider.providerID == "minimax",
+                   self.shouldRenderLegacyCard(.miniMaxBilling),
                    let minimaxBilling = self.provider.minimaxBilling
                 {
                     MiniMaxBillingCard(billing: minimaxBilling, tintColor: self.providerColor)
@@ -388,7 +450,7 @@ struct ProviderDetailView: View {
 
     private var providerHasDedicatedPrimaryCard: Bool {
         switch self.provider.providerID {
-        case "kiro" where self.provider.kiroCredits != nil:
+        case "kiro" where self.provider.kiroCredits != nil && self.shouldRenderLegacyCard(.kiroCredits):
             true
         case "bedrock" where self.provider.bedrockCost != nil:
             true
@@ -397,6 +459,13 @@ struct ProviderDetailView: View {
         default:
             false
         }
+    }
+
+    private func shouldRenderLegacyCard(_ card: LegacyProviderDetailCard) -> Bool {
+        ProviderDetailPresentationPolicy.shouldRenderLegacyCard(
+            card,
+            providerID: self.provider.providerID,
+            hasGenericDetails: !self.provider.details.isEmpty)
     }
 
     // MARK: - Rate Limits

@@ -84,6 +84,35 @@ struct IBMBobUsageFetcherTests {
     }
 
     @Test
+    func `missing budget keeps Bobcoin usage visible but marks quota unknown`() async throws {
+        let transport = ProviderHTTPTransportHandler { request in
+            let data = request.url?.path == "/admin/v1/profile"
+                ? Self.missingBudgetProfileData
+                : Data(#"{"usage":12.5}"#.utf8)
+            let response = try HTTPURLResponse(
+                url: #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil)!
+            return (data, response)
+        }
+
+        let snapshot = try await IBMBobUsageFetcher._fetchUsageForTesting(
+            apiKey: "fixture-key",
+            transport: transport)
+        let usage = snapshot.toUsageSnapshot()
+        let monthly = try #require(usage.extraRateWindows?.first)
+
+        #expect(snapshot.limitBobcoins == nil)
+        #expect(usage.primary == nil)
+        #expect(monthly.id == "primary")
+        #expect(monthly.title == "Monthly")
+        #expect(monthly.window.usedPercent == 0)
+        #expect(monthly.window.resetDescription == "12.50 Bobcoins used")
+        #expect(!monthly.usageKnown)
+    }
+
+    @Test
     func `uses bearer authorization for JWT credentials`() async throws {
         let token = "header.eyJzdWIiOiJ1c2VyIn0.signature"
         let recorder = IBMBobRequestRecorder()
@@ -222,6 +251,19 @@ struct IBMBobUsageFetcherTests {
             "refresh_at": 1788220800,
             "region_domain": "us-east.bob.ibm.com",
             "teams": [{"id": "team-one", "name": "Solo", "budget_limit": 40, "usage": 10}]
+          }]
+        }
+        """.utf8)
+
+    private static let missingBudgetProfileData = Data(
+        """
+        {
+          "instances": [{
+            "instance_id": "instance-one",
+            "instance_name": "Personal",
+            "user_id": "user-one",
+            "region_domain": "us-east.bob.ibm.com",
+            "teams": [{"id": "team-one", "name": "Solo"}]
           }]
         }
         """.utf8)

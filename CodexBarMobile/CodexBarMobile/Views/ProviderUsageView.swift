@@ -83,7 +83,9 @@ struct ProviderUsageView: View {
                 if self.provider.allRateWindows.isEmpty,
                    let section = self.provider.details.first
                 {
-                    ProviderDetailsTeaserView(section: section)
+                    ProviderDetailsTeaserView(
+                        providerID: self.provider.providerID,
+                        section: section)
                 }
             }
             .padding(.horizontal, 16)

@@ -23,6 +23,12 @@ struct V049SyncCompatTests {
         let statusMessage: String?
         let isError: Bool
         let lastUpdated: Date
+        let providerAmount: SyncProviderAmount?
+
+        var hasUsableSignal: Bool {
+            self.primary != nil || self.secondary != nil || self.providerAmount != nil
+                || self.isError || self.statusMessage?.isEmpty == false
+        }
     }
 
     private struct LegacySnapshot: Codable {
@@ -36,9 +42,22 @@ struct V049SyncCompatTests {
     }
 
     private struct PhoneResult: Equatable {
-        let providerIDs: Set<String>
+        let providerIDs: [String]
+        let cardIdentityKeys: [String]
         let seesDetails: Bool
         let seesPluginBranding: Bool
+        let seesFireworksSpend: Bool
+        let seesIBMBobWindow: Bool
+    }
+
+    private struct MatrixWriter {
+        let legacyPayload: Data
+        let envelopePayloads: [Data]
+    }
+
+    private enum NewReaderPath {
+        case fullFetch
+        case delta
     }
 
     private static let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -75,6 +94,95 @@ struct V049SyncCompatTests {
         #expect(provider.details.isEmpty)
         #expect(provider.providerIconMonogram == nil)
         #expect(provider.providerIconTintHex == nil)
+    }
+
+    @Test
+    func `generic detail decoder bounds sections rows points and strings`() throws {
+        let boundaryString = String(repeating: "x", count: 120)
+        let rows = (0..<26).map { index in
+            let label = index == 0 ? boundaryString : "Row \(index)"
+            return #"{"label":"\#(label)","value":"Value \#(index)"}"#
+        }.joined(separator: ",")
+        let points = (0..<122).map { index in
+            let label = index == 0 ? boundaryString : "Point \(index)"
+            return #"{"label":"\#(label)","value":\#(index)}"#
+        }.joined(separator: ",")
+        let sections = (0..<10).map { index in
+            let title = index == 0 ? boundaryString : "Section \(index)"
+            return """
+            {"title":"\(title)","rows":[\(rows)],"chart":{"kind":"line","points":[\(points)]}}
+            """
+        }.joined(separator: ",")
+
+        let provider = try Self.decodeDetailsProvider(sections)
+
+        #expect(provider.details.count == SyncProviderDetailSection.maximumSectionsPerSnapshot)
+        #expect(provider.details[0].rows.count == SyncProviderDetailSection.maximumRowsPerSection)
+        #expect(provider.details[0].chart?.points.count == SyncProviderDetailSection.maximumPointsPerChart)
+        #expect(provider.details[0].title == boundaryString)
+        #expect(provider.details[0].rows[0].label == boundaryString)
+        #expect(provider.details[0].chart?.points[0].label == boundaryString)
+    }
+
+    @Test
+    func `generic detail decoder drops empty overlong and malformed siblings lossily`() throws {
+        let overlong = String(repeating: "y", count: 121)
+        let sections = """
+        {"title":" Keep ","rows":[
+          {"label":" Plan ","value":" Pro "},
+          {"label":"   ","value":"bad"},
+          {"label":"Too long","value":"\(overlong)"},
+          {"label":"Balance","value":" 42 "}
+        ],"chart":{"kind":"bars","points":[
+          {"label":" First ","value":1},
+          {"label":"   ","value":2},
+          {"label":"\(overlong)","value":3},
+          {"label":"Last","value":4}
+        ]}},
+        {"title":"\(overlong)","rows":[]},
+        {"title":"   ","rows":[]},
+        {"title":"Broken rows","rows":"not-an-array"},
+        {"title":"Sibling","rows":[{"label":"Status","value":"OK"}]}
+        """
+
+        let provider = try Self.decodeDetailsProvider(sections)
+
+        #expect(provider.providerName == "Detail Fixture")
+        #expect(provider.details.count == 3)
+        #expect(provider.details[0].title == "Keep")
+        #expect(provider.details[0].rows.map(\.label) == ["Plan", "Balance"])
+        #expect(provider.details[0].rows.map(\.value) == ["Pro", "42"])
+        #expect(provider.details[0].chart?.points.map(\.label) == ["First", "Last"])
+        #expect(provider.details[1].title == nil)
+        #expect(provider.details[2].title == "Sibling")
+    }
+
+    @Test
+    func `generic detail decoder drops nonfinite points without losing chart or payload`() throws {
+        let sections = """
+        {"title":"Chart","rows":[],"chart":{"kind":"line","points":[
+          {"label":"One","value":1},
+          {"label":"Positive","value":"Infinity"},
+          {"label":"NaN","value":"NaN"},
+          {"label":"Negative","value":"-Infinity"},
+          {"label":"Two","value":2}
+        ]}},
+        {"title":"Sibling","rows":[{"label":"Status","value":"OK"}]}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        decoder.nonConformingFloatDecodingStrategy = .convertFromString(
+            positiveInfinity: "Infinity",
+            negativeInfinity: "-Infinity",
+            nan: "NaN")
+
+        let provider = try decoder.decode(
+            ProviderUsageSnapshot.self,
+            from: Self.detailsProviderPayload(sections))
+
+        #expect(provider.details.count == 2)
+        #expect(provider.details[0].chart?.points.map(\.value) == [1, 2])
+        #expect(provider.details[1].rows.first?.value == "OK")
     }
 
     @Test
@@ -132,7 +240,7 @@ struct V049SyncCompatTests {
 
         let cached = try #require(cache.buildDeviceSnapshots().first)
         let retained = try #require(cached.providers.first)
-        #expect(retained.providerID == "user:matrix-plugin")
+        #expect(retained.providerID == "matrix-plugin")
         #expect(retained.details == provider.details)
     }
 
@@ -207,50 +315,75 @@ struct V049SyncCompatTests {
         let iPhoneANew = mask & 0b0010 != 0
         let iPhoneBNew = mask & 0b0001 != 0
 
-        let payloads = try [
-            Self.makeWriterPayload(
+        let writers = try [
+            Self.makeMatrixWriter(
                 deviceID: "matrix-mac-a",
                 isNew: macANew,
                 timestamp: Self.timestamp),
-            Self.makeWriterPayload(
+            Self.makeMatrixWriter(
                 deviceID: "matrix-mac-b",
                 isNew: macBNew,
                 timestamp: Self.timestamp.addingTimeInterval(60)),
         ]
-        let phoneA = try Self.readPhone(isNew: iPhoneANew, payloads: payloads)
-        let phoneB = try Self.readPhone(isNew: iPhoneBNew, payloads: payloads)
-        let expectedIDs: Set = ["user:matrix-plugin"]
+        let phoneA = try Self.readPhone(isNew: iPhoneANew, writers: writers, path: .fullFetch)
+        let phoneB = try Self.readPhone(isNew: iPhoneBNew, writers: writers, path: .delta)
         let hasNewWriter = macANew || macBNew
+        var expectedIDs = ["codex"]
+        if hasNewWriter {
+            expectedIDs += ["fireworks", "ibmbob"]
+            if iPhoneANew { expectedIDs.append("matrix-plugin") }
+        }
+        expectedIDs.sort()
 
         #expect(phoneA.providerIDs == expectedIDs)
-        #expect(phoneB.providerIDs == expectedIDs)
+        var phoneBExpectedIDs = ["codex"]
+        if hasNewWriter {
+            phoneBExpectedIDs += ["fireworks", "ibmbob"]
+            if iPhoneBNew { phoneBExpectedIDs.append("matrix-plugin") }
+        }
+        phoneBExpectedIDs.sort()
+        #expect(phoneB.providerIDs == phoneBExpectedIDs)
+        #expect(Set(phoneA.cardIdentityKeys).count == phoneA.cardIdentityKeys.count)
+        #expect(Set(phoneB.cardIdentityKeys).count == phoneB.cardIdentityKeys.count)
         #expect(phoneA.seesDetails == (iPhoneANew && hasNewWriter))
         #expect(phoneB.seesDetails == (iPhoneBNew && hasNewWriter))
         #expect(phoneA.seesPluginBranding == (iPhoneANew && hasNewWriter))
         #expect(phoneB.seesPluginBranding == (iPhoneBNew && hasNewWriter))
+        #expect(phoneA.seesFireworksSpend == hasNewWriter)
+        #expect(phoneB.seesFireworksSpend == hasNewWriter)
+        #expect(phoneA.seesIBMBobWindow == hasNewWriter)
+        #expect(phoneB.seesIBMBobWindow == hasNewWriter)
         if iPhoneANew == iPhoneBNew {
             #expect(phoneA == phoneB)
         }
     }
 
-    private static func makeWriterPayload(
+    private static func makeMatrixWriter(
         deviceID: String,
         isNew: Bool,
-        timestamp: Date) throws -> Data
+        timestamp: Date) throws -> MatrixWriter
     {
         if isNew {
-            return try self.encoder.encode(self.makeNewSnapshot(
-                deviceID: deviceID,
-                timestamp: timestamp,
-                providerName: "Matrix Plugin",
-                monogram: "MP",
-                tint: "#3366CC"))
+            let snapshot = self.makeMatrixNewSnapshot(deviceID: deviceID, timestamp: timestamp)
+            let envelopes = try snapshot.providers.map { provider in
+                try self.encoder.encode(ProviderUsageEnvelope(
+                    deviceID: deviceID,
+                    deviceName: deviceID,
+                    appVersion: "0.49.2.1",
+                    mobileVersion: "1.21.0",
+                    syncTimestamp: timestamp,
+                    notificationPushEnabled: true,
+                    provider: provider))
+            }
+            return MatrixWriter(
+                legacyPayload: try self.encoder.encode(snapshot),
+                envelopePayloads: envelopes)
         }
 
         let legacy = LegacySnapshot(
             providers: [LegacyProvider(
-                providerID: "user:matrix-plugin",
-                providerName: "Matrix Plugin",
+                providerID: "codex",
+                providerName: "Codex",
                 primary: LegacyRateWindow(
                     usedPercent: 25,
                     windowMinutes: 300,
@@ -258,41 +391,180 @@ struct V049SyncCompatTests {
                     resetDescription: nil),
                 secondary: nil,
                 accountEmail: "matrix@example.com",
-                loginMethod: "plugin",
+                loginMethod: "OAuth",
                 statusMessage: nil,
                 isError: false,
-                lastUpdated: timestamp)],
+                lastUpdated: timestamp,
+                providerAmount: nil)],
             syncTimestamp: timestamp,
             deviceName: deviceID,
             deviceID: deviceID,
             appVersion: "0.47.0.1",
             mobileVersion: "1.20.0",
             notificationPushEnabled: true)
-        return try Self.encoder.encode(legacy)
+        return MatrixWriter(
+            legacyPayload: try Self.encoder.encode(legacy),
+            envelopePayloads: [])
     }
 
-    private static func readPhone(isNew: Bool, payloads: [Data]) throws -> PhoneResult {
+    private static func readPhone(
+        isNew: Bool,
+        writers: [MatrixWriter],
+        path: NewReaderPath) throws -> PhoneResult
+    {
         if !isNew {
-            let snapshots = try payloads.map {
-                try Self.decoder.decode(LegacySnapshot.self, from: $0)
+            let snapshots = try writers.map {
+                try Self.decoder.decode(LegacySnapshot.self, from: $0.legacyPayload)
             }
-            let providers = snapshots.flatMap(\.providers)
+            var latestByIdentity: [String: LegacyProvider] = [:]
+            for provider in snapshots.flatMap(\.providers) where provider.hasUsableSignal {
+                let key = "\(provider.providerID)|\(provider.accountEmail ?? "")"
+                if (latestByIdentity[key]?.lastUpdated ?? Date.distantPast) < provider.lastUpdated {
+                    latestByIdentity[key] = provider
+                }
+            }
+            let providers = latestByIdentity.values.sorted { $0.providerID < $1.providerID }
             return PhoneResult(
-                providerIDs: Set(providers.map(\.providerID)),
+                providerIDs: providers.map(\.providerID),
+                cardIdentityKeys: latestByIdentity.keys.sorted(),
                 seesDetails: false,
-                seesPluginBranding: false)
+                seesPluginBranding: false,
+                seesFireworksSpend: providers.contains {
+                    $0.providerID == "fireworks" && $0.providerAmount?.kind == "spend"
+                },
+                seesIBMBobWindow: providers.contains {
+                    $0.providerID == "ibmbob" && $0.primary != nil
+                })
         }
 
-        let snapshots = try payloads.map {
-            try Self.decoder.decode(SyncedUsageSnapshot.self, from: $0)
+        let legacySnapshots = try writers.map {
+            try Self.decoder.decode(SyncedUsageSnapshot.self, from: $0.legacyPayload)
         }
-        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(snapshots))
-        let provider = try #require(merged.providers.first)
+        let envelopes = try writers.flatMap(\.envelopePayloads).map {
+            try Self.decoder.decode(ProviderUsageEnvelope.self, from: $0)
+        }
+        var cache = SnapshotCache()
+        switch path {
+        case .fullFetch:
+            let perProviderSnapshots = legacySnapshots.filter { $0.appVersion == "0.49.2.1" }
+            cache.replaceFromFullFetch(
+                perProviderSnapshots: perProviderSnapshots,
+                legacySnapshots: legacySnapshots)
+        case .delta:
+            cache.replaceFromFullFetch(perProviderSnapshots: [], legacySnapshots: legacySnapshots)
+            cache.applyDelta(upserted: Array(envelopes.reversed()), deletedRecordNames: [])
+        }
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(cache.buildDeviceSnapshots()))
+        let plugin = merged.providers.first { $0.providerID == "matrix-plugin" }
+        let identities = merged.providers.map(\.cardIdentityKey).sorted()
         return PhoneResult(
-            providerIDs: Set(merged.providers.map(\.providerID)),
-            seesDetails: !provider.details.isEmpty,
-            seesPluginBranding: provider.providerIconMonogram != nil
-                && provider.providerIconTintHex != nil)
+            providerIDs: merged.providers.map(\.providerID).sorted(),
+            cardIdentityKeys: identities,
+            seesDetails: plugin?.details.isEmpty == false,
+            seesPluginBranding: plugin?.providerIconMonogram != nil
+                && plugin?.providerIconTintHex != nil,
+            seesFireworksSpend: merged.providers.contains {
+                $0.providerID == "fireworks" && $0.providerAmount?.kind == "spend"
+            },
+            seesIBMBobWindow: merged.providers.contains {
+                $0.providerID == "ibmbob" && $0.primary != nil
+            })
+    }
+
+    private static func makeMatrixNewSnapshot(
+        deviceID: String,
+        timestamp: Date) -> SyncedUsageSnapshot
+    {
+        let codex = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: SyncRateWindow(
+                label: "5-hour",
+                usedPercent: 30,
+                windowMinutes: 300,
+                resetsAt: timestamp.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "matrix@example.com",
+            loginMethod: "OAuth",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: timestamp,
+            accountIdentities: ["codex:email:matrix@example.com"])
+        let fireworks = ProviderUsageSnapshot(
+            providerID: "fireworks",
+            providerName: "Fireworks AI",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API key",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: timestamp,
+            providerAmount: SyncProviderAmount(
+                kind: "spend",
+                amount: 42,
+                currencyCode: "USD",
+                period: "Current month",
+                isEstimated: false))
+        let ibmBob = ProviderUsageSnapshot(
+            providerID: "ibmbob",
+            providerName: "IBM Bob",
+            primary: SyncRateWindow(
+                id: "monthly-bobcoins",
+                label: "Monthly Bobcoins",
+                usedPercent: 40,
+                windowMinutes: 43200,
+                resetsAt: timestamp.addingTimeInterval(10 * 86400),
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "bob@matrix.example",
+            loginMethod: "API key",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: timestamp,
+            details: [SyncProviderDetailSection(
+                title: "Bobcoin usage",
+                rows: [.init(label: "Plan", value: "Team")])])
+        let ghost = ProviderUsageSnapshot(
+            providerID: "ghost-provider",
+            providerName: "Ghost Provider",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: timestamp)
+        return SyncedUsageSnapshot(
+            providers: [codex, fireworks, ibmBob, self.makeNewProvider(timestamp: timestamp), ghost],
+            syncTimestamp: timestamp,
+            deviceName: deviceID,
+            deviceID: deviceID,
+            appVersion: "0.49.2.1",
+            mobileVersion: "1.21.0",
+            notificationPushEnabled: true)
+    }
+
+    private static func decodeDetailsProvider(_ sections: String) throws -> ProviderUsageSnapshot {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return try decoder.decode(
+            ProviderUsageSnapshot.self,
+            from: self.detailsProviderPayload(sections))
+    }
+
+    private static func detailsProviderPayload(_ sections: String) -> Data {
+        Data(
+            """
+            {
+              "providerID":"detail-fixture",
+              "providerName":"Detail Fixture",
+              "isError":false,
+              "lastUpdated":0,
+              "details":[\(sections)]
+            }
+            """.utf8)
     }
 
     private static func makeNewSnapshot(
@@ -324,7 +596,7 @@ struct V049SyncCompatTests {
     {
         SyncedUsageSnapshot(
             providers: [ProviderUsageSnapshot(
-                providerID: "user:matrix-plugin",
+                providerID: "matrix-plugin",
                 providerName: "Matrix Plugin",
                 primary: nil,
                 secondary: nil,
@@ -333,7 +605,7 @@ struct V049SyncCompatTests {
                 statusMessage: nil,
                 isError: false,
                 lastUpdated: timestamp,
-                accountIdentities: ["user:matrix-plugin:email:matrix%40example.com"],
+                accountIdentities: ["matrix-plugin:email:matrix@example.com"],
                 details: details,
                 providerIconMonogram: "MP",
                 providerIconTintHex: "#3366CC")],
@@ -352,7 +624,7 @@ struct V049SyncCompatTests {
         tint: String = "#3366CC") -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
-            providerID: "user:matrix-plugin",
+            providerID: "matrix-plugin",
             providerName: providerName,
             primary: nil,
             secondary: nil,
@@ -361,7 +633,7 @@ struct V049SyncCompatTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: timestamp,
-            accountIdentities: ["user:matrix-plugin:email:matrix%40example.com"],
+            accountIdentities: ["matrix-plugin:email:matrix@example.com"],
             details: [SyncProviderDetailSection(
                 title: "Plugin details",
                 rows: [.init(label: "Plan", value: providerName)],

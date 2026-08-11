@@ -19776,6 +19776,210 @@
     "v045_period_prepaid_balance": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
     } },
+    "v049_window_monthly_bobcoins": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Monthly Bobcoins" } }, "ja": { "stringUnit": { "state": "translated", "value": "月間 Bobcoin" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每月 Bobcoin" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每月 Bobcoin" } }
+    } },
+    "Usage summary": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Usage summary" } }, "ja": { "stringUnit": { "state": "translated", "value": "使用量の概要" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "用量概览" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "用量概覽" } }
+    } },
+    "Detailed usage": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Detailed usage" } }, "ja": { "stringUnit": { "state": "translated", "value": "使用量の詳細" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "详细用量" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "詳細用量" } }
+    } },
+    "Bobcoin usage": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Bobcoin usage" } }, "ja": { "stringUnit": { "state": "translated", "value": "Bobcoin 使用量" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Bobcoin 用量" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "Bobcoin 用量" } }
+    } },
+    "Quota services": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Quota services" } }, "ja": { "stringUnit": { "state": "translated", "value": "クォータ対象サービス" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额度服务" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額度服務" } }
+    } },
+    "Billing history": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Billing history" } }, "ja": { "stringUnit": { "state": "translated", "value": "請求履歴" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "账单历史" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "帳單記錄" } }
+    } },
+    "Cost items": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cost items" } }, "ja": { "stringUnit": { "state": "translated", "value": "コスト項目" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "费用项目" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "費用項目" } }
+    } },
+    "Models": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Models" } }, "ja": { "stringUnit": { "state": "translated", "value": "モデル" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "模型" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "模型" } }
+    } },
+    "Extra usage": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Extra usage" } }, "ja": { "stringUnit": { "state": "translated", "value": "追加使用量" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额外用量" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額外用量" } }
+    } },
+    "Quota details": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Quota details" } }, "ja": { "stringUnit": { "state": "translated", "value": "クォータの詳細" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额度详情" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額度詳情" } }
+    } },
+    "Billing summary": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Billing summary" } }, "ja": { "stringUnit": { "state": "translated", "value": "請求の概要" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "账单概览" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "帳單概覽" } }
+    } },
+    "API credits": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API credits" } }, "ja": { "stringUnit": { "state": "translated", "value": "API クレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 額度" } }
+    } },
+    "API key": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API key" } }, "ja": { "stringUnit": { "state": "translated", "value": "API キー" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 密钥" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 金鑰" } }
+    } },
+    "Points": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Points" } }, "ja": { "stringUnit": { "state": "translated", "value": "ポイント" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "积分" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "點數" } }
+    } },
+    "Daily spend": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "日別支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日支出" } }
+    } },
+    "Daily tokens": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily tokens" } }, "ja": { "stringUnit": { "state": "translated", "value": "日別トークン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日令牌" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日權杖" } }
+    } },
+    "Daily credits": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily credits" } }, "ja": { "stringUnit": { "state": "translated", "value": "日別クレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日額度" } }
+    } },
+    "Daily points": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Daily points" } }, "ja": { "stringUnit": { "state": "translated", "value": "日別ポイント" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "每日积分" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "每日點數" } }
+    } },
+    "Key spend": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Key spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "キー別支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "密钥支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "金鑰支出" } }
+    } },
+    "Credits used": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Credits used" } }, "ja": { "stringUnit": { "state": "translated", "value": "使用済みクレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已用额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "已用額度" } }
+    } },
+    "Balance": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "餘額" } }
+    } },
+    "Individual credits": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Individual credits" } }, "ja": { "stringUnit": { "state": "translated", "value": "個人クレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "个人额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "個人額度" } }
+    } },
+    "Request quota": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Request quota" } }, "ja": { "stringUnit": { "state": "translated", "value": "リクエスト上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "请求额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "請求額度" } }
+    } },
+    "Gateway": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Gateway" } }, "ja": { "stringUnit": { "state": "translated", "value": "ゲートウェイ" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "网关" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "閘道" } }
+    } },
+    "Routed": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Routed" } }, "ja": { "stringUnit": { "state": "translated", "value": "ルーティング済み" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已路由" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "已路由" } }
+    } },
+    "Saved": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Saved" } }, "ja": { "stringUnit": { "state": "translated", "value": "節約" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已节省" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "已節省" } }
+    } },
+    "Avg decision": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Avg decision" } }, "ja": { "stringUnit": { "state": "translated", "value": "平均判定時間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "平均决策时间" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "平均決策時間" } }
+    } },
+    "Requests": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Requests" } }, "ja": { "stringUnit": { "state": "translated", "value": "リクエスト" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "请求" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "請求" } }
+    } },
+    "Cached input": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cached input" } }, "ja": { "stringUnit": { "state": "translated", "value": "キャッシュ済み入力" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "缓存输入" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "快取輸入" } }
+    } },
+    "Today spend": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Today spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "今日の支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "今日支出" } }
+    } },
+    "7d spend": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "7d spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去7日間の支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "7 天支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "7 天支出" } }
+    } },
+    "30d spend": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "30d spend" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間の支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天支出" } }
+    } },
+    "Today tokens": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Today tokens" } }, "ja": { "stringUnit": { "state": "translated", "value": "今日のトークン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日令牌" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "今日權杖" } }
+    } },
+    "30d tokens": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "30d tokens" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間のトークン" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天令牌" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天權杖" } }
+    } },
+    "Cache read": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cache read" } }, "ja": { "stringUnit": { "state": "translated", "value": "キャッシュ読み取り" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "缓存读取" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "快取讀取" } }
+    } },
+    "This week": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "This week" } }, "ja": { "stringUnit": { "state": "translated", "value": "今週" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "本周" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "本週" } }
+    } },
+    "This month": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "This month" } }, "ja": { "stringUnit": { "state": "translated", "value": "今月" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "本月" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "本月" } }
+    } },
+    "Top model": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Top model" } }, "ja": { "stringUnit": { "state": "translated", "value": "上位モデル" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "首要模型" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "首要模型" } }
+    } },
+    "Cache-hit input": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cache-hit input" } }, "ja": { "stringUnit": { "state": "translated", "value": "キャッシュヒット入力" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "缓存命中输入" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "快取命中輸入" } }
+    } },
+    "Cache-miss input": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cache-miss input" } }, "ja": { "stringUnit": { "state": "translated", "value": "キャッシュミス入力" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "缓存未命中输入" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "快取未命中輸入" } }
+    } },
+    "Output": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Output" } }, "ja": { "stringUnit": { "state": "translated", "value": "出力" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "输出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "輸出" } }
+    } },
+    "Today cash": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Today cash" } }, "ja": { "stringUnit": { "state": "translated", "value": "今日の現金支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日现金支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "今日現金支出" } }
+    } },
+    "Top method": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Top method" } }, "ja": { "stringUnit": { "state": "translated", "value": "上位メソッド" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "首要方法" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "首要方法" } }
+    } },
+    "30d cash": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "30d cash" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間の現金支出" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天现金支出" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天現金支出" } }
+    } },
+    "Pace": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Pace" } }, "ja": { "stringUnit": { "state": "translated", "value": "使用ペース" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "使用节奏" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "使用節奏" } }
+    } },
+    "Remaining": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Remaining" } }, "ja": { "stringUnit": { "state": "translated", "value": "残り" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘" } }
+    } },
+    "Total added": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Total added" } }, "ja": { "stringUnit": { "state": "translated", "value": "追加合計" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "累计添加" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "累計新增" } }
+    } },
+    "API key budget": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API key budget" } }, "ja": { "stringUnit": { "state": "translated", "value": "API キー予算" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 密钥预算" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 金鑰預算" } }
+    } },
+    "API key remaining": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API key remaining" } }, "ja": { "stringUnit": { "state": "translated", "value": "API キー残額" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 密钥剩余额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 金鑰剩餘額度" } }
+    } },
+    "API key used": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "API key used" } }, "ja": { "stringUnit": { "state": "translated", "value": "API キー使用額" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "API 密钥已用额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "API 金鑰已用額度" } }
+    } },
+    "Reset window": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Reset window" } }, "ja": { "stringUnit": { "state": "translated", "value": "リセット期間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "重置周期" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "重設週期" } }
+    } },
+    "Rate limit": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Rate limit" } }, "ja": { "stringUnit": { "state": "translated", "value": "レート制限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "速率限制" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "速率限制" } }
+    } },
+    "Available": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Available" } }, "ja": { "stringUnit": { "state": "translated", "value": "利用可能" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "可用" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "可用" } }
+    } },
+    "Granted": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Granted" } }, "ja": { "stringUnit": { "state": "translated", "value": "付与済み" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "已授予" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "已授予" } }
+    } },
+    "Prepaid balance": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Prepaid balance" } }, "ja": { "stringUnit": { "state": "translated", "value": "プリペイド残高" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预付余额" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預付餘額" } }
+    } },
+    "Last 30 days": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Last 30 days" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "过去 30 天" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "過去 30 天" } }
+    } },
+    "Last 30 days (partial)": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Last 30 days (partial)" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間（一部）" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "过去 30 天（部分数据）" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "過去 30 天（部分資料）" } }
+    } },
+    "Actual cost": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Actual cost" } }, "ja": { "stringUnit": { "state": "translated", "value": "実コスト" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "实际费用" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "實際費用" } }
+    } },
+    "Budget ledger": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Budget ledger" } }, "ja": { "stringUnit": { "state": "translated", "value": "予算台帳" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "预算账本" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "預算帳本" } }
+    } },
+    "Audio": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Audio" } }, "ja": { "stringUnit": { "state": "translated", "value": "音声" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "音频" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "音訊" } }
+    } },
+    "Agent hours": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Agent hours" } }, "ja": { "stringUnit": { "state": "translated", "value": "エージェント時間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Agent 小时数" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "Agent 小時數" } }
+    } },
+    "TTS characters": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "TTS characters" } }, "ja": { "stringUnit": { "state": "translated", "value": "TTS 文字数" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "TTS 字符数" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "TTS 字元數" } }
+    } },
+    "Credit quota": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Credit quota" } }, "ja": { "stringUnit": { "state": "translated", "value": "クレジット上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额度上限" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額度上限" } }
+    } },
+    "Token quota": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Token quota" } }, "ja": { "stringUnit": { "state": "translated", "value": "トークン上限" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "令牌上限" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "權杖上限" } }
+    } },
+    "Chart range": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Chart range" } }, "ja": { "stringUnit": { "state": "translated", "value": "グラフ期間" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "图表范围" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "圖表範圍" } }
+    } },
+    "30d credits": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "30d credits" } }, "ja": { "stringUnit": { "state": "translated", "value": "過去30日間のクレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天額度" } }
+    } },
+    "credits": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "credits" } }, "ja": { "stringUnit": { "state": "translated", "value": "クレジット" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "额度" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "額度" } }
+    } },
+    "points": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "points" } }, "ja": { "stringUnit": { "state": "translated", "value": "ポイント" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "积分" } }, "zh-Hant": { "stringUnit": { "state": "translated", "value": "點數" } }
+    } },
     "Fixes for Alibaba Token Plan and Subscription Utilization.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Fixes for Alibaba Token Plan and Subscription Utilization." } },
       "ja": { "stringUnit": { "state": "translated", "value": "Alibaba Token Plan とサブスクリプション使用率の修正。" } },
