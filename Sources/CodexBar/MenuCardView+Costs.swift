@@ -90,22 +90,6 @@ extension UsageMenuCardView.Model.ProviderCostSection {
 }
 
 extension UsageMenuCardView.Model {
-    static func sakanaPayAsYouGoSection(
-        _ usage: SakanaPayAsYouGoSnapshot?,
-        preferredCurrencyCode: String = "auto") -> ProviderCostSection?
-    {
-        guard let usage else { return nil }
-        return ProviderCostSection(
-            title: L("Extra usage"),
-            percentUsed: nil,
-            spendLine: "\(L("Balance")): \(usage.balanceDetail)",
-            percentLine: usage.periodUsageTotal.map { value in
-                let cost = UsageFormatter.convertedCostString(
-                    value, preferredCurrency: preferredCurrencyCode, providerCurrency: "USD")
-                return "\(L("Usage")): \(cost)"
-            })
-    }
-
     static func isRequiredOpenCodeZenBalance(_ snapshot: UsageSnapshot?) -> Bool {
         snapshot?.primary == nil &&
             snapshot?.secondary == nil &&
@@ -127,12 +111,12 @@ extension UsageMenuCardView.Model {
         preferredCurrencyCode: String = "auto") -> String?
     {
         guard metadata.supportsCredits else { return nil }
-        if metadata.id == .codex, credits == nil, error == nil { return nil }
-        if metadata.id == .amp,
-           let ampUsage = snapshot?.ampUsage,
-           let ampCredits = self.ampCreditsLine(ampUsage, preferredCurrencyCode: preferredCurrencyCode)
+        let visibility = ProviderDescriptorRegistry.descriptor(for: metadata.id).presentation.menuCard.creditsVisibility
+        if visibility == .hidden ||
+            (visibility == .requiresValueOrError && credits == nil && error == nil) ||
+            (visibility == .hiddenWhenUsageSnapshotPresent && snapshot != nil)
         {
-            return ampCredits
+            return nil
         }
         if let credits {
             if let creditLimit = credits.codexCreditLimit {
@@ -166,27 +150,10 @@ extension UsageMenuCardView.Model {
         return parts.joined(separator: " · ")
     }
 
-    private static func ampCreditsLine(
-        _ usage: AmpUsageDetails,
-        preferredCurrencyCode: String = "auto") -> String?
-    {
-        var lines: [String] = []
-        if let individualCredits = usage.individualCredits {
-            let cost = UsageFormatter.convertedCostString(
-                individualCredits, preferredCurrency: preferredCurrencyCode, providerCurrency: "USD")
-            lines.append("\(L("Individual credits")): \(cost)")
-        }
-        lines.append(contentsOf: usage.workspaceBalances.map { workspace in
-            "\(L("Workspace")) \(workspace.name): " +
-                UsageFormatter.convertedCostString(
-                    workspace.remaining, preferredCurrency: preferredCurrencyCode, providerCurrency: "USD")
-        })
-        return lines.isEmpty ? nil : lines.joined(separator: "\n")
-    }
-
     static func tokenUsageSection(
         provider: UsageProvider,
         enabled: Bool,
+        isRefreshing: Bool = false,
         comparisonPeriodsEnabled: Bool,
         snapshot: CostUsageTokenSnapshot?,
         error: String?,
@@ -253,6 +220,7 @@ extension UsageMenuCardView.Model {
         }
         let err = (error?.isEmpty ?? true) ? nil : error
         return TokenUsageSection(
+            isRefreshing: isRefreshing,
             sessionLine: sessionLine,
             monthLine: monthLine,
             meteredLine: meteredLine,
@@ -301,21 +269,12 @@ extension UsageMenuCardView.Model {
     }
 
     static func tokenUsageHintLines(provider: UsageProvider) -> [String] {
-        switch provider {
-        case .codex:
-            [L("codex_api_estimate_hint")]
-        case .claude, .cursor:
-            [UsageFormatter.costEstimateHint(provider: provider)]
-        case .vertexai:
-            [L("cost_estimate_hint")]
-        case .bedrock:
-            [L("AWS Cost Explorer billing can lag.")]
-        case .openai:
-            [L("Reported by OpenAI Admin API organization usage.")]
-        case .mistral:
-            [L("Reported by Mistral billing usage.")]
-        default:
-            []
+        ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.menuHintLines.map { hint in
+            switch hint {
+            case let .localized(key): L(key)
+            case .estimate: UsageFormatter.costEstimateHint(provider: provider)
+            case let .literal(text): L(text)
+            }
         }
     }
 
@@ -338,13 +297,19 @@ extension UsageMenuCardView.Model {
             return (entry, dayKey)
         }
         .max { lhs, rhs in
-            if lhs.dayKey != rhs.dayKey { return lhs.dayKey < rhs.dayKey }
+            if lhs.dayKey != rhs.dayKey {
+                return lhs.dayKey < rhs.dayKey
+            }
             let lCost = lhs.entry.costUSD ?? -1
             let rCost = rhs.entry.costUSD ?? -1
-            if lCost != rCost { return lCost < rCost }
+            if lCost != rCost {
+                return lCost < rCost
+            }
             let lTokens = lhs.entry.totalTokens ?? -1
             let rTokens = rhs.entry.totalTokens ?? -1
-            if lTokens != rTokens { return lTokens < rTokens }
+            if lTokens != rTokens {
+                return lTokens < rTokens
+            }
             return lhs.entry.date < rhs.entry.date
         }?.entry
     }
@@ -396,8 +361,12 @@ extension UsageMenuCardView.Model {
     private static func daysInBedrockBillingMonth(_ month: Int, year: Int) -> Int {
         switch month {
         case 2:
-            if year.isMultiple(of: 400) { return 29 }
-            if year.isMultiple(of: 100) { return 28 }
+            if year.isMultiple(of: 400) {
+                return 29
+            }
+            if year.isMultiple(of: 100) {
+                return 28
+            }
             return year.isMultiple(of: 4) ? 29 : 28
         case 4, 6, 9, 11:
             return 30
@@ -407,16 +376,13 @@ extension UsageMenuCardView.Model {
     }
 
     static func providerCostSection(
-        provider: UsageProvider,
         cost: ProviderCostSnapshot?,
+        style: ProviderCostMenuCardStyle,
         isClaudeAdminAPI: Bool = false,
         preferredCurrencyCode: String = "auto") -> ProviderCostSection?
     {
-        if provider == .manus {
-            return nil
-        }
+        guard style != .hidden else { return nil }
         guard let cost else { return nil }
-        guard provider != .synthetic else { return nil }
 
         /// Formats a cost value using the user's currency preference.
         func formatCost(_ value: Double, providerCurrency: String? = nil) -> String {
@@ -426,7 +392,7 @@ extension UsageMenuCardView.Model {
                 providerCurrency: providerCurrency ?? cost.currencyCode)
         }
 
-        if provider == .factory || provider == .devin, cost.period == "Extra usage balance" {
+        if style == .extraUsageBalance {
             let balance = formatCost(cost.used)
             return ProviderCostSection(
                 title: L("Extra usage"),
@@ -435,7 +401,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .opencodego, cost.period == "Zen balance" {
+        if style == .zenBalance {
             let balance = formatCost(cost.used)
             return ProviderCostSection(
                 title: L("Zen balance"),
@@ -444,7 +410,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .minimax, cost.period == "MiniMax points balance" {
+        if style == .pointsBalance {
             let balance = String(format: "%.0f", cost.used)
             return ProviderCostSection(
                 title: L("Credits"),
@@ -453,7 +419,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .xai, cost.period == "Prepaid credits" {
+        if style == .prepaidCredits {
             let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             return ProviderCostSection(
                 title: L("Credits"),
@@ -462,7 +428,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .zenmux || provider == .neuralwatt {
+        if style == .payAsYouGoBalance {
             let balance = formatCost(cost.used)
             return ProviderCostSection(
                 title: L("metric_mistral_payg"),
@@ -471,7 +437,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .claude {
+        if style == .claude {
             if isClaudeAdminAPI {
                 let spend = formatCost(cost.used)
                 let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")
@@ -510,9 +476,7 @@ extension UsageMenuCardView.Model {
                 showsInProviderDetails: false)
         }
 
-        if provider == .openai || provider == .litellm || provider == .aiand,
-           cost.limit <= 0
-        {
+        if style == .apiSpend {
             let spend = formatCost(cost.used)
             let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")
             return ProviderCostSection(
@@ -522,11 +486,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .litellm {
-            return nil
-        }
-
-        if provider == .clawrouter, cost.limit <= 0 {
+        if style == .clawRouter, cost.limit <= 0 {
             let spend = formatCost(cost.used)
             return ProviderCostSection(
                 title: "ClawRouter spend",
@@ -541,7 +501,7 @@ extension UsageMenuCardView.Model {
         let limit: String
         let title: String
 
-        if provider == .clawrouter {
+        if style == .clawRouter {
             title = "Monthly budget"
             used = formatCost(cost.used)
             limit = formatCost(cost.limit)

@@ -17,7 +17,8 @@ struct UsageCardView: View {
     /// (provider, window) enable flag.
     var quotaWarningsEnabled: Bool = true
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode
+            .remaining.rawValue
     /// Global "hide warning markers" toggle (iOS 1.7.0, mirrors upstream
     /// PR #918). The quota-warning notification is unaffected — only the
     /// tick-mark on the usage bar is hidden when true.
@@ -49,11 +50,18 @@ struct UsageCardView: View {
             // minimum-touch-target hint on iOS but still compact enough to
             // fit inside the card's 12pt vertical spacing. Removing this
             // makes the bar near-invisible on Retina displays.
-            ProgressView(value: self.displayMode.progressFraction(for: self.window))
+            ProgressView(value: self.window.usageKnown
+                ? self.displayMode.progressFraction(for: self.window)
+                : 0)
                 .tint(self.usageColor)
+                .opacity(self.window.usageKnown ? 1 : 0.35)
                 .scaleEffect(y: 2, anchor: .center)
                 .overlay(alignment: .leading) {
-                    if self.quotaWarningsEnabled, !self.hideQuotaWarningMarkers, !self.markerUsedPercents.isEmpty {
+                    if self.window.usageKnown,
+                       self.quotaWarningsEnabled,
+                       !self.hideQuotaWarningMarkers,
+                       !self.markerUsedPercents.isEmpty
+                    {
                         GeometryReader { geo in
                             ForEach(self.markerUsedPercents, id: \.self) { usedPercent in
                                 Rectangle()
@@ -93,26 +101,34 @@ struct UsageCardView: View {
 
     @ViewBuilder
     private var percentageLabel: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(self.displayMode.percentageValueText(for: self.window))
-                    .font(.title2.monospacedDigit())
-                    .fontWeight(.bold)
+        if self.window.usageKnown {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(self.displayMode.percentageValueText(for: self.window))
+                        .font(.title2.monospacedDigit())
+                        .fontWeight(.bold)
 
-                Text(self.displayMode.percentSuffix)
-                    .font(.title3)
-                    .fontWeight(.bold)
-            }
-            .foregroundColor(self.usageColor)
-            .fixedSize(horizontal: true, vertical: false)
-
-            Text(self.displayMode.percentageText(for: self.window))
-                .font(.title3.monospacedDigit())
-                .fontWeight(.bold)
+                    Text(self.displayMode.percentSuffix)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                }
                 .foregroundColor(self.usageColor)
                 .fixedSize(horizontal: true, vertical: false)
+
+                Text(self.displayMode.percentageText(for: self.window))
+                    .font(.title3.monospacedDigit())
+                    .fontWeight(.bold)
+                    .foregroundColor(self.usageColor)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .layoutPriority(1)
+        } else {
+            Text(String(localized: "Usage unavailable"))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: true, vertical: false)
         }
-        .layoutPriority(1)
     }
 
     private var displayMode: UsagePercentDisplayMode {
@@ -127,11 +143,10 @@ struct UsageCardView: View {
     /// render even if the wire payload contains out-of-range values
     /// from a future Mac config schema.
     private var markerUsedPercents: [Int] {
-        let raw: [Int]
-        if let configured = self.quotaWarningThresholds {
-            raw = configured
+        let raw: [Int] = if let configured = self.quotaWarningThresholds {
+            configured
         } else {
-            raw = SyncQuotaWarningConfig.macDefaults
+            SyncQuotaWarningConfig.macDefaults
         }
         let mapped = raw
             .map { 100 - max(0, min(100, $0)) }
@@ -143,6 +158,7 @@ struct UsageCardView: View {
     /// matches Mac's notification firing semantics where the lowest
     /// remaining-percent threshold is the highest used-percent position.
     private var shouldShowWarningIcon: Bool {
+        guard self.window.usageKnown else { return false }
         guard self.quotaWarningsEnabled else { return false }
         guard let maxMarker = self.markerUsedPercents.max() else { return false }
         return Int(self.window.usedPercent.rounded()) >= maxMarker
@@ -158,11 +174,11 @@ struct UsageCardView: View {
         // always reads as "getting close" and "red" as "critical".
         // Changing here requires changing BudgetProgressView symmetrically.
         if self.window.usedPercent >= 90 {
-            return .red
+            .red
         } else if self.window.usedPercent >= 70 {
-            return .orange
+            .orange
         } else {
-            return self.tintColor
+            self.tintColor
         }
     }
 }
@@ -170,7 +186,6 @@ struct UsageCardView: View {
 private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
     let identifier: String?
 
-    @ViewBuilder
     func body(content: Content) -> some View {
         if let identifier {
             content.accessibilityIdentifier(identifier)
@@ -192,7 +207,7 @@ private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
             resetDescription: nil),
         tintColor: Color(red: 0.82, green: 0.55, blue: 0.28),
         quotaWarningThresholds: [50, 20])
-    .padding()
+        .padding()
 }
 
 #Preview("High Usage") {
@@ -200,12 +215,12 @@ private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
         label: "Weekly",
         window: SyncRateWindow(
             usedPercent: 92,
-            windowMinutes: 10_080,
+            windowMinutes: 10080,
             resetsAt: Date().addingTimeInterval(3600 * 24),
             resetDescription: nil),
         tintColor: .purple,
         quotaWarningThresholds: [50, 20])
-    .padding()
+        .padding()
 }
 
 #Preview("Custom Thresholds") {
@@ -218,5 +233,5 @@ private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
             resetDescription: nil),
         tintColor: .indigo,
         quotaWarningThresholds: [70, 40, 10])
-    .padding()
+        .padding()
 }

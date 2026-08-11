@@ -1,3 +1,4 @@
+import CodexBarSync
 import SwiftUI
 
 /// Single source of truth for provider-card tint colors.
@@ -13,6 +14,24 @@ import SwiftUI
 /// `"opencodego"`) — not the display name. The function lowercases + strips
 /// spaces defensively so passing a display name still works, but prefer ID.
 enum ProviderColorPalette {
+    static func color(for provider: ProviderUsageSnapshot) -> Color {
+        if let tint = provider.providerIconTintHex,
+           let color = self.color(fromHex: tint)
+        {
+            return color
+        }
+        return self.color(for: provider.providerID)
+    }
+
+    private static func color(fromHex value: String) -> Color? {
+        let hex = value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let rgb = UInt64(hex, radix: 16) else { return nil }
+        return Color(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255)
+    }
+
     /// Returns the brand-aligned tint color for a provider.
     ///
     /// New provider additions MUST check the specificity ordering — narrower
@@ -280,6 +299,13 @@ enum ProviderColorPalette {
         }
         if normalized.contains("notion") {
             return Color(red: 0.36, green: 0.36, blue: 0.40)
+        }
+        // iOS 1.21.0 — upstream v0.48-v0.49 providers.
+        if normalized.contains("fireworks") {
+            return Color(red: 0.94, green: 0.27, blue: 0.20)
+        }
+        if normalized.contains("ibmbob") || normalized.contains("ibm-bob") {
+            return Color(red: 0.10, green: 0.34, blue: 0.72)
         }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.

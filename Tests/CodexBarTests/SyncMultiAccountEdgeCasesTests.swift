@@ -60,7 +60,7 @@ struct SyncMultiAccountEdgeCasesTests {
             secondary: nil,
             updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
-                providerID: provider,
+                providerID: provider.instanceID,
                 accountEmail: accountEmail,
                 accountOrganization: nil,
                 loginMethod: "oauth"))
@@ -295,7 +295,7 @@ struct SyncMultiAccountEdgeCasesTests {
                 enabled: true)
         }
         let store = self.makeUsageStore(settings: settings)
-        let actuallyEnabled = store.enabledProviders()
+        let actuallyEnabled = store.enabledProviders().compactMap(\.firstPartyProvider)
 
         for provider in actuallyEnabled {
             let active = self.makeTokenAccountUsageSnapshot(
@@ -307,7 +307,7 @@ struct SyncMultiAccountEdgeCasesTests {
                 label: "\(provider.rawValue)-other",
                 accountEmail: "\(provider.rawValue)-b@x.com")
             store._setSnapshotForTesting(active.snapshot, provider: provider)
-            store.accountSnapshots[provider] = [active, other]
+            store.accountSnapshots[provider.instanceID] = [active, other]
         }
 
         let mock = MockSyncPusher()
@@ -344,7 +344,7 @@ struct SyncMultiAccountEdgeCasesTests {
                 provider: provider, metadata: meta, enabled: true)
         }
         let store = self.makeUsageStore(settings: settings)
-        let enabled = store.enabledProviders()
+        let enabled = store.enabledProviders().compactMap(\.firstPartyProvider)
         for provider in enabled {
             store._setSnapshotForTesting(
                 self.makeUsageSnapshot(

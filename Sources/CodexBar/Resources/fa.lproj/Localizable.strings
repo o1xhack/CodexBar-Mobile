@@ -672,6 +672,8 @@
 "copyright" = "© ۲۰۲۶ پیتر استاینبرگر. MIT مجوز.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "استفاده از JavaScriptCore برای افزونه‌های ارائه‌دهنده";
+"use_javascriptcore_plugin_engine_subtitle" = "فقط برای بازگشت سازگاری. برای اعمال CodexBar را بازراه‌اندازی کنید؛ CODEXBAR_PLUGIN_ENGINE این تنظیم را لغو می‌کند.";
 "section_logging" = "چوب بری";
 "enable_file_logging" = "فعال سازی ثبت فایل";
 "enable_file_logging_subtitle" = "لاگ ها را برای %@ برای اشکال زدایی بنویسید.";
@@ -845,7 +847,7 @@
 "Pace: %@" = "سرعت: %@";
 "Pace: %@ · %@" = "سرعت: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% خطر تمام شدن";
+"(%d%% risk)" = "(%d%% خطر تمام شدن)";
 "%d%% in deficit" = "%d%% در کسری بودجه";
 "%d%% in reserve" = "%d%% در ذخیره";
 "usage_percent_suffix_left" = "باقی مانده";
@@ -1350,6 +1352,7 @@
 "menu_bar_layout_token_account" = "حساب";
 "menu_bar_layout_token_session" = "جلسه %";
 "menu_bar_layout_token_weekly" = "هفتگی %";
+"menu_bar_layout_token_scoped_weekly" = "هفتگی با دامنه %";
 "menu_bar_layout_token_auto" = "درصد خودکار";
 "menu_bar_layout_token_session_pace" = "سرعت جلسه";
 "menu_bar_layout_token_weekly_pace" = "سرعت هفتگی";
@@ -1456,3 +1459,53 @@
 "weekly_limit_confetti_subtitle" = "وقتی استفاده هفتگی ریست می شود، کنفتی تمام صفحه را پخش کنید.";
 "weekly_limit_confetti_title" = "کنفتی محدود هفتگی";
 "∞ Unlimited" = "∞ نامحدود";
+"Cumulative" = "تجمعی";
+"Token activity" = "فعالیت توکن";
+"View" = "نمایش";
+"in the last year" = "در سال گذشته";
+"No activity in the last 12 months" = "هیچ فعالیتی در ۱۲ ماه گذشته وجود ندارد";
+"Each column = 1 week" = "هر ستون = ۱ هفته";
+"Running total" = "مجموع تجمعی";
+"Less" = "کمتر";
+"More" = "بیشتر";
+
+/* Provider Plugins */
+"Install…" = "نصب…";
+"Install plugin" = "نصب افزونه";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "یک فایل JavaScript یا TypeScript را در پوشهٔ افزونه‌ها کپی می‌کند.";
+"Show in Finder" = "نمایش در Finder";
+"Plugins directory" = "پوشهٔ افزونه‌ها";
+"Provider Plugins" = "افزونه‌های ارائه‌دهنده";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "افزونه‌ها فایل‌های محلی JavaScript یا TypeScript هستند. دسترسی به شبکه و کوکی‌ها نیاز به تأیید دارد.";
+"No Plugins Installed" = "هیچ افزونه‌ای نصب نشده است";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "یک فایل .js یا .ts را در پوشهٔ افزونه‌ها رها کنید، یا «نصب…» را انتخاب کنید.";
+"Delete Plugin?" = "افزونه حذف شود؟";
+"Delete" = "حذف";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "با این کار فایل افزونه، کش ترنسپایل، تأیید، تنظیمات و اطلاعات محرمانهٔ ذخیره‌شده و تاریخچه حذف می‌شوند.";
+"Plugin Error" = "خطای افزونه";
+"Needs approval" = "نیاز به تأیید";
+"File" = "فایل";
+"Origins" = "مبدأها";
+"Configure endpoint settings" = "پیکربندی تنظیمات نقطهٔ پایانی";
+"Capabilities" = "قابلیت‌ها";
+"Network" = "شبکه";
+"Cookie domains" = "دامنه‌های کوکی";
+"Approve…" = "تأیید…";
+"Delete…" = "حذف…";
+"Unknown validation error" = "خطای اعتبارسنجی ناشناخته";
+"Approve Plugin" = "تأیید افزونه";
+"Install and Approve Plugin" = "نصب و تأیید افزونه";
+"Network authority" = "مجوز شبکه";
+"Auth: %@" = "احراز هویت: %@";
+"Capabilities: %@" = "قابلیت‌ها: %@";
+"network" = "شبکه";
+"Secrets: %@" = "اطلاعات محرمانه: %@";
+"none" = "هیچ‌کدام";
+"Cookie domains: %@" = "دامنه‌های کوکی: %@";
+"Type %@ to confirm" = "برای تأیید، %@ را تایپ کنید";
+"Enter every endpoint setting to review the exact network origins." = "همهٔ تنظیمات نقطهٔ پایانی را وارد کنید تا مبدأهای دقیق شبکه را بررسی کنید.";
+"Approve" = "تأیید";
+"Install" = "نصب";
+"5-hour usage" = "مصرف ۵ ساعته";
+"7-day usage" = "مصرف ۷ روزه";
+"Total usage" = "مصرف کل";

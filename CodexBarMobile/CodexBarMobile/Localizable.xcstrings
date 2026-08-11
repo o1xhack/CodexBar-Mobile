@@ -19835,6 +19835,36 @@
       "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac の CodexBar を 0.45.2.1 以降に更新してください。iPhone 1.19 は古い Mac 版のデータも引き続き表示できます。" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可继续读取旧版 Mac 的数据。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "要查看全部新詳情，請將 Mac 上的 CodexBar 更新到 0.45.2.1 或更高版本。iPhone 1.19 仍可繼續讀取舊版 Mac 的資料。" } }
+    } },
+    "iPhone 1.21 brings provider details from Mac, Fireworks and IBM Bob, and safer multi-Mac sync.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 brings provider details from Mac, Fireworks and IBM Bob, and safer multi-Mac sync." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 では、Mac のプロバイダー詳細、Fireworks と IBM Bob、より安全な複数 Mac 同期が利用できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 带来 Mac 端提供商详情、Fireworks 和 IBM Bob，以及更安全的多 Mac 同步。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 帶來 Mac 端提供者詳情、Fireworks 和 IBM Bob，以及更安全的多 Mac 同步。" } }
+    } },
+    "More provider details — balances, credits, billing, charts, and plugin data from newer Mac versions now appear in one consistent layout.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "More provider details — balances, credits, billing, charts, and plugin data from newer Mac versions now appear in one consistent layout." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より多くのプロバイダー詳細 — 新しい Mac 版の残高、クレジット、請求、チャート、プラグインデータを統一されたレイアウトで表示します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更多提供商详情——新版 Mac 的余额、额度、账单、图表和插件数据现在会以统一布局显示。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更多提供者詳情——新版 Mac 的餘額、額度、帳單、圖表和外掛程式資料現在會以統一佈局顯示。" } }
+    } },
+    "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "2 つのプロバイダーを追加 — Fireworks と IBM Bob が専用カラーと使用量詳細に対応しました。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "新增两个提供商——Fireworks 和 IBM Bob 现在拥有各自的颜色和用量详情。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "新增兩個提供者——Fireworks 和 IBM Bob 現在擁有各自的顏色和用量詳情。" } }
+    } },
+    "Usage unavailable": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Usage unavailable" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "使用量を取得できません" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "用量不可用" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "用量無法使用" } }
+    } },
+    "Safer sync across Macs — provider accounts merge deterministically while separate accounts and custom plugins stay distinct.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Safer sync across Macs — provider accounts merge deterministically while separate accounts and custom plugins stay distinct." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Mac 間の同期をより安全に — プロバイダーアカウントは安定して統合され、別のアカウントとカスタムプラグインは区別されたままです。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更安全的多 Mac 同步——提供商账户会稳定合并，同时独立账户和自定义插件保持区分。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更安全的多 Mac 同步——提供者帳戶會穩定合併，同時獨立帳戶和自訂外掛程式保持區分。" } }
     } }
   },
   "version": "1.0"

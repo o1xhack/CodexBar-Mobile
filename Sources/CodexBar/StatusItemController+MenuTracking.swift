@@ -336,18 +336,21 @@ extension StatusItemController {
         var parts: [String] = []
         for target in providers {
             parts.append(target.rawValue)
-            parts.append(self.providerIdentitySignature(self.store.snapshot(for: target)?.identity(for: target)))
+            parts.append(self.providerIdentitySignature(
+                self.store.snapshot(for: target.instanceID)?.identity(for: target.instanceID)))
 
+            // Provider-specific by design: Codex managed profiles and Claude swap accounts contribute extra identity
+            // sources beyond the generic provider snapshot/account fallback.
             if target != .codex, self.store.metadata(for: target).usesAccountFallback {
                 let account = self.store.accountInfo(for: target)
                 parts.append(Self.menuIdentityField(account.email))
                 parts.append(Self.menuIdentityField(account.plan))
             }
 
-            for accountSnapshot in self.store.accountSnapshots[target] ?? [] {
+            for accountSnapshot in self.store.accountSnapshots[target.instanceID] ?? [] {
                 parts.append(accountSnapshot.account.id.uuidString)
                 parts.append(Self.menuIdentityField(accountSnapshot.account.label))
-                parts.append(self.providerIdentitySignature(accountSnapshot.snapshot?.identity(for: target)))
+                parts.append(self.providerIdentitySignature(accountSnapshot.snapshot?.identity(for: target.instanceID)))
             }
 
             if target == .codex {
@@ -362,14 +365,17 @@ extension StatusItemController {
                 }
                 for accountSnapshot in self.store.codexAccountSnapshots {
                     parts.append(Self.menuIdentityField(accountSnapshot.id))
-                    parts.append(self.providerIdentitySignature(accountSnapshot.snapshot?.identity(for: target)))
+                    parts.append(self.providerIdentitySignature(
+                        accountSnapshot.snapshot?.identity(for: target.instanceID)))
                 }
             }
 
             if target == .kilo {
                 for scopeSnapshot in self.store.kiloScopeSnapshots {
                     parts.append(Self.menuIdentityField(scopeSnapshot.id))
-                    parts.append(self.providerIdentitySignature(scopeSnapshot.snapshot?.identity(for: target)))
+                    parts
+                        .append(self
+                            .providerIdentitySignature(scopeSnapshot.snapshot?.identity(for: target.instanceID)))
                 }
             }
 
@@ -378,7 +384,8 @@ extension StatusItemController {
                 for accountSnapshot in self.store.claudeSwapAccountSnapshots {
                     parts.append(Self.menuIdentityField(accountSnapshot.id.opaqueID))
                     parts.append(accountSnapshot.isActive ? "active" : "inactive")
-                    parts.append(self.providerIdentitySignature(accountSnapshot.snapshot?.identity(for: target)))
+                    parts.append(self.providerIdentitySignature(
+                        accountSnapshot.snapshot?.identity(for: target.instanceID)))
                 }
             }
         }

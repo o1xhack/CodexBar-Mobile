@@ -672,6 +672,8 @@
 "copyright" = "© 2026 بيتر ستاينبرجر. MIT الرخصة.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "استخدام JavaScriptCore لإضافات المزوّد";
+"use_javascriptcore_plugin_engine_subtitle" = "للرجوع المتوافق فقط. أعد تشغيل CodexBar للتطبيق؛ يتجاوز CODEXBAR_PLUGIN_ENGINE هذا الإعداد.";
 "section_logging" = "قطع الأشجار";
 "enable_file_logging" = "تمكين تسجيل الملفات";
 "enable_file_logging_subtitle" = "اكتب السجلات إلى %@ للتصحيح.";
@@ -845,7 +847,7 @@
 "Pace: %@" = "الوتيرة: %@";
 "Pace: %@ · %@" = "الوتيرة: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% خطر الانتهاء";
+"(%d%% risk)" = "(%d%% خطر الانتهاء)";
 "%d%% in deficit" = "%d%% في العجز";
 "%d%% in reserve" = "%d%% في الاحتياط";
 "usage_percent_suffix_left" = "متبقٍ";
@@ -1350,6 +1352,7 @@
 "menu_bar_layout_token_account" = "الحساب";
 "menu_bar_layout_token_session" = "الجلسة %";
 "menu_bar_layout_token_weekly" = "الأسبوعي %";
+"menu_bar_layout_token_scoped_weekly" = "أسبوعي محدد النطاق %";
 "menu_bar_layout_token_auto" = "نسبة تلقائية";
 "menu_bar_layout_token_session_pace" = "وتيرة الجلسة";
 "menu_bar_layout_token_weekly_pace" = "الوتيرة الأسبوعية";
@@ -1456,3 +1459,53 @@
 "weekly_limit_confetti_subtitle" = "شغل ورق الورق الورقية بملء الشاشة عند إعادة ضبط الاستخدام الأسبوعي.";
 "weekly_limit_confetti_title" = "قصاصات كونفيتي أسبوعية محدودة";
 "∞ Unlimited" = "∞ غير محدود";
+"Cumulative" = "تراكمي";
+"Token activity" = "نشاط الرموز";
+"View" = "عرض";
+"in the last year" = "في العام الماضي";
+"No activity in the last 12 months" = "لا يوجد نشاط في آخر 12 شهرًا";
+"Each column = 1 week" = "كل عمود = أسبوع واحد";
+"Running total" = "الإجمالي التراكمي";
+"Less" = "أقل";
+"More" = "أكثر";
+
+/* Provider Plugins */
+"Install…" = "تثبيت…";
+"Install plugin" = "تثبيت إضافة";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "ينسخ ملف JavaScript أو TypeScript إلى مجلد الإضافات.";
+"Show in Finder" = "إظهار في Finder";
+"Plugins directory" = "مجلد الإضافات";
+"Provider Plugins" = "إضافات المزوّدين";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "الإضافات هي ملفات JavaScript أو TypeScript محلية. يتطلب الوصول إلى الشبكة وملفات تعريف الارتباط موافقة.";
+"No Plugins Installed" = "لا توجد إضافات مثبتة";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "أفلت ملف .js أو .ts في مجلد الإضافات، أو اختر «تثبيت…»";
+"Delete Plugin?" = "هل تريد حذف الإضافة؟";
+"Delete" = "حذف";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "يؤدي هذا إلى حذف ملف الإضافة وذاكرة التخزين المؤقت للتحويل البرمجي والموافقة والإعدادات والأسرار المحفوظة والسجل.";
+"Plugin Error" = "خطأ في الإضافة";
+"Needs approval" = "يتطلب موافقة";
+"File" = "الملف";
+"Origins" = "أصول الشبكة";
+"Configure endpoint settings" = "تهيئة إعدادات نقاط النهاية";
+"Capabilities" = "الإمكانات";
+"Network" = "الشبكة";
+"Cookie domains" = "نطاقات ملفات تعريف الارتباط";
+"Approve…" = "موافقة…";
+"Delete…" = "حذف…";
+"Unknown validation error" = "خطأ تحقق غير معروف";
+"Approve Plugin" = "الموافقة على الإضافة";
+"Install and Approve Plugin" = "تثبيت الإضافة والموافقة عليها";
+"Network authority" = "صلاحيات الشبكة";
+"Auth: %@" = "المصادقة: %@";
+"Capabilities: %@" = "الإمكانات: %@";
+"network" = "الشبكة";
+"Secrets: %@" = "الأسرار: %@";
+"none" = "لا شيء";
+"Cookie domains: %@" = "نطاقات ملفات تعريف الارتباط: %@";
+"Type %@ to confirm" = "اكتب %@ للتأكيد";
+"Enter every endpoint setting to review the exact network origins." = "أدخل جميع إعدادات نقاط النهاية لمراجعة أصول الشبكة الدقيقة.";
+"Approve" = "موافقة";
+"Install" = "تثبيت";
+"5-hour usage" = "الاستخدام خلال 5 ساعات";
+"7-day usage" = "الاستخدام خلال 7 أيام";
+"Total usage" = "إجمالي الاستخدام";

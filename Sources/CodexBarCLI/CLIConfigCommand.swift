@@ -120,6 +120,7 @@ extension CodexBarCLI {
     }
 
     static func unsupportedAPIKeyErrorMessage(for provider: UsageProvider, rawProvider: String) -> String {
+        // Provider-specific by design: Codex users are redirected to the separate OpenAI Platform provider ID.
         if provider == .codex {
             "\(rawProvider) does not support config API keys. For OpenAI Platform API keys, use '--provider openai'."
         } else {
@@ -185,7 +186,7 @@ extension CodexBarCLI {
 
         let result = ConfigSetAPIKeyResult(
             provider: provider.rawValue,
-            enabled: config.providerConfig(for: provider)?.enabled ?? false,
+            enabled: config.providerConfig(for: provider.instanceID)?.enabled ?? false,
             configPath: store.fileURL.path)
 
         switch output.format {
@@ -226,7 +227,7 @@ extension CodexBarCLI {
         accountOptions: ConfigAPIKeyAccountOptions? = nil) -> CodexBarConfig
     {
         var updated = config.normalized()
-        var providerConfig = updated.providerConfig(for: provider) ?? ProviderConfig(id: provider)
+        var providerConfig = updated.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
         if let accountOptions {
             let existing = providerConfig.tokenAccounts
             let accounts = existing?.accounts ?? []
@@ -251,6 +252,10 @@ extension CodexBarCLI {
             return updated
         }
         providerConfig.apiKey = apiKey
+        // Provider-specific by design: legacy Moonshot config binds a newly set key to its existing/default region.
+        if provider == .moonshot {
+            providerConfig.apiKeyRegion = providerConfig.sanitizedRegion ?? MoonshotRegion.international.rawValue
+        }
         if enableProvider {
             providerConfig.enabled = true
         }
@@ -279,6 +284,7 @@ extension CodexBarCLI {
             cleanedWorkspaceID != nil
         guard hasAccountOptions else { return nil }
 
+        // Provider-specific by design: z.ai team tokens alone accept organization, workspace, and usage-scope fields.
         guard provider == .zai else {
             throw CLIArgumentError("Token-account options are only supported for --provider zai.")
         }
@@ -306,7 +312,7 @@ extension CodexBarCLI {
         enabled: Bool) -> CodexBarConfig
     {
         var updated = config.normalized()
-        var providerConfig = updated.providerConfig(for: provider) ?? ProviderConfig(id: provider)
+        var providerConfig = updated.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
         providerConfig.enabled = enabled
         updated.setProviderConfig(providerConfig)
         return updated
@@ -315,7 +321,8 @@ extension CodexBarCLI {
     static func configProviderStatuses(_ config: CodexBarConfig) -> [ConfigProviderStatusResult] {
         let metadata = ProviderDescriptorRegistry.metadata
         return config.normalized().providers.map { providerConfig in
-            let meta = metadata[providerConfig.id]
+            let provider = providerConfig.id.firstPartyProvider
+            let meta = provider.flatMap { metadata[$0] }
             let defaultEnabled = meta?.defaultEnabled ?? false
             return ConfigProviderStatusResult(
                 provider: providerConfig.id.rawValue,

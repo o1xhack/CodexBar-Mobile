@@ -19,7 +19,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 69 after the v0.47 catch-up")
+    @Test("Total count is 70 after the v0.49 catch-up")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -34,14 +34,15 @@ struct QuotaProviderListTests {
         // 57 in iOS 1.17.0 (Sakana AI, Qoder, CrossModel, ClawRouter
         // from upstream v0.38.0-v0.39.0) → 65 in iOS 1.19.0
         // (8 new providers from upstream v0.42.0-v0.45.2) → 69 in
-        // iOS 1.20.0 (Qwen Cloud, ZoomMate, xAI, Notion AI from v0.46-v0.47).
+        // iOS 1.20.0 (Qwen Cloud, ZoomMate, xAI, Notion AI from v0.46-v0.47) →
+        // 70 in iOS 1.21.0 (IBM Bob from v0.49; Fireworks has spend only).
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 69)
+        #expect(QuotaProviderList.providers.count == 70)
     }
 
-    @Test("Subscription zone count is 207 (69 providers × 3 states)")
+    @Test("Subscription zone count is 210 (70 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -60,10 +61,11 @@ struct QuotaProviderListTests {
         // +wayfinder, +zenmux, +aiand).
         // iOS 1.20.0 / Mac 0.47.0.1: 69 × 3 = 207 zones
         // (+qwencloud, +zoommate, +xai, +notion).
+        // iOS 1.21.0 / Mac 0.49.2.1: 70 × 3 = 210 zones (+ibmbob).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 207)
+        #expect(QuotaProviderList.providers.count * 3 == 210)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -136,7 +138,7 @@ struct QuotaProviderListTests {
     /// previously-existing ones would shift CK subscription IDs and
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
-    @Test("Cause: new providers through v0.47 are appended at the tail")
+    @Test("Cause: new providers through v0.49 are appended at the tail")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
@@ -149,7 +151,8 @@ struct QuotaProviderListTests {
         //  - iOS 1.13.0 appended 4 v0.36 providers (positions [49..52]).
         //  - iOS 1.17.0 appended 4 v0.38/v0.39 providers (positions [53..56]).
         //  - iOS 1.19.0 appended 8 v0.42-v0.45 providers (positions [57..64]).
-        let tail = providers.suffix(29).map(\.id)
+        //  - iOS 1.21.0 appended IBM Bob after the v0.46/v0.47 tail.
+        let tail = providers.suffix(30).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "devin",
@@ -157,8 +160,8 @@ struct QuotaProviderListTests {
             "sakana", "qoder", "crossmodel", "clawrouter",
             "clinepass", "deepinfra", "neuralwatt", "longcat",
             "sub2api", "wayfinder", "zenmux", "aiand",
-            "qwencloud", "zoommate", "xai", "notion",
-        ], "provider catch-up additions through v0.47 must stay at the tail in this order")
+            "qwencloud", "zoommate", "xai", "notion", "ibmbob",
+        ], "provider catch-up additions through v0.49 must stay at the tail in this order")
     }
 
     @Test("Sakana AI present (v0.38)")
@@ -310,10 +313,18 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 69/207 numbers match the actual list")
+    @Test("Cause: catalog 70/210 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 69)
-        #expect(QuotaProviderList.providers.count * 3 == 207)
+        #expect(QuotaProviderList.providers.count == 70)
+        #expect(QuotaProviderList.providers.count * 3 == 210)
+    }
+
+    @Test("IBM Bob is appended for v0.49 monthly quota pushes")
+    func ibmBobPresent() {
+        let bob = QuotaProviderList.providers.last
+        #expect(bob?.id == "ibmbob")
+        #expect(bob?.displayName == "IBM Bob")
+        #expect(!QuotaProviderList.providers.contains(where: { $0.id == "fireworks" }))
     }
 
     @Test("Devin present (v0.34.0)")

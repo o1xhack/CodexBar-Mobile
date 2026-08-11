@@ -25,7 +25,7 @@ struct SyncCoordinatorV026MapperTests {
         loginMethod: String? = nil) -> ProviderIdentitySnapshot
     {
         ProviderIdentitySnapshot(
-            providerID: provider,
+            providerID: provider.instanceID,
             accountEmail: nil,
             accountOrganization: nil,
             loginMethod: loginMethod)
@@ -127,137 +127,6 @@ struct SyncCoordinatorV026MapperTests {
             provider: .openai, snapshot: snapshot)
         #expect((result?.topModels.count ?? 0) <= 8)
         #expect((result?.topLineItems.count ?? 0) <= 8)
-    }
-
-    // MARK: - mapZaiHourlyUsage
-
-    private static func makeZaiSnapshot(modelUsage: ZaiModelUsageData?) -> UsageSnapshot {
-        let zai = ZaiUsageSnapshot(
-            tokenLimit: nil,
-            timeLimit: nil,
-            planName: nil,
-            modelUsage: modelUsage,
-            updatedAt: Self.now)
-        return UsageSnapshot(
-            primary: nil, secondary: nil,
-            zaiUsage: zai,
-            updatedAt: Self.now)
-    }
-
-    @Test
-    func `z.ai mapper: returns nil when provider != .zai`() {
-        let snapshot = Self.makeZaiSnapshot(modelUsage: nil)
-        let result = SyncCoordinator.mapZaiHourlyUsage(
-            provider: .claude, snapshot: snapshot)
-        #expect(result == nil)
-    }
-
-    @Test
-    func `z.ai mapper: returns nil when modelUsage is missing`() {
-        let snapshot = Self.makeZaiSnapshot(modelUsage: nil)
-        let result = SyncCoordinator.mapZaiHourlyUsage(
-            provider: .zai, snapshot: snapshot)
-        #expect(result == nil)
-    }
-
-    @Test
-    func `z.ai mapper: parses ISO8601 timestamps with fractional seconds`() {
-        let modelUsage = ZaiModelUsageData(
-            xTime: ["2026-05-15T00:00:00.000Z", "2026-05-15T01:00:00.000Z"],
-            modelDataList: [
-                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [1000, 2500]),
-            ])
-        let snapshot = Self.makeZaiSnapshot(modelUsage: modelUsage)
-        let result = SyncCoordinator.mapZaiHourlyUsage(
-            provider: .zai, snapshot: snapshot)
-        #expect(result?.xTime.count == 2)
-        #expect(result?.modelSeries.count == 1)
-        #expect(result?.modelSeries.first?.modelName == "glm-4.6")
-    }
-
-    @Test
-    func `z.ai mapper: drops rows where the upstream model name is nil`() {
-        let modelUsage = ZaiModelUsageData(
-            xTime: ["2026-05-15T00:00:00Z"],
-            modelDataList: [
-                ZaiModelDataItem(modelName: nil, tokensUsage: [42]),
-                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [1000]),
-            ])
-        let snapshot = Self.makeZaiSnapshot(modelUsage: modelUsage)
-        let result = SyncCoordinator.mapZaiHourlyUsage(
-            provider: .zai, snapshot: snapshot)
-        #expect(result?.modelSeries.count == 1)
-        #expect(result?.modelSeries.first?.modelName == "glm-4.6")
-    }
-
-    // MARK: - mapKiroCredits
-
-    private static func makeKiroDetails(
-        plan: String = "pro",
-        displayPlan: String = "Pro",
-        used: Double = 250,
-        total: Double = 1000,
-        bonusUsed: Double? = nil,
-        bonusTotal: Double? = nil,
-        bonusExpiryDays: Int? = nil) -> KiroUsageDetails
-    {
-        KiroUsageDetails(
-            planName: plan,
-            displayPlanName: displayPlan,
-            creditsUsed: used,
-            creditsTotal: total,
-            creditsRemaining: max(total - used, 0),
-            bonusCreditsUsed: bonusUsed,
-            bonusCreditsTotal: bonusTotal,
-            bonusCreditsRemaining: (bonusTotal ?? 0) - (bonusUsed ?? 0),
-            bonusExpiryDays: bonusExpiryDays,
-            overagesStatus: nil,
-            overageCreditsUsed: nil,
-            estimatedOverageCostUSD: nil,
-            manageURL: nil,
-            contextUsage: nil)
-    }
-
-    @Test
-    func `Kiro mapper: returns nil when provider != .kiro`() {
-        let snapshot = UsageSnapshot(
-            primary: nil, secondary: nil,
-            kiroUsage: Self.makeKiroDetails(),
-            updatedAt: Self.now)
-        let result = SyncCoordinator.mapKiroCredits(
-            provider: .claude, snapshot: snapshot)
-        #expect(result == nil)
-    }
-
-    @Test
-    func `Kiro mapper: derives credits percent when total is positive`() {
-        let kiro = Self.makeKiroDetails(
-            used: 250, total: 1000,
-            bonusUsed: 20, bonusTotal: 100, bonusExpiryDays: 14)
-        let snapshot = UsageSnapshot(
-            primary: nil, secondary: nil,
-            kiroUsage: kiro,
-            updatedAt: Self.now)
-        let result = SyncCoordinator.mapKiroCredits(
-            provider: .kiro, snapshot: snapshot)
-        #expect(result?.planName == "Pro")
-        #expect(result?.creditsPercent == 25.0)
-        #expect(result?.creditsTotal == 1000)
-        #expect(result?.bonusTotal == 100)
-        #expect(result?.bonusExpiryDays == 14)
-    }
-
-    @Test
-    func `Kiro mapper: omits creditsTotal + percent when upstream total is 0`() {
-        let kiro = Self.makeKiroDetails(used: 0, total: 0)
-        let snapshot = UsageSnapshot(
-            primary: nil, secondary: nil,
-            kiroUsage: kiro,
-            updatedAt: Self.now)
-        let result = SyncCoordinator.mapKiroCredits(
-            provider: .kiro, snapshot: snapshot)
-        #expect(result?.creditsTotal == nil)
-        #expect(result?.creditsPercent == nil)
     }
 
     // MARK: - mapBedrockCost

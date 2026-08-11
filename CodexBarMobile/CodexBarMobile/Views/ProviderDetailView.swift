@@ -67,6 +67,12 @@ struct ProviderDetailView: View {
                 // Rate limit cards (or Perplexity credit breakdown when available)
                 self.primaryUsageSection
 
+                if !self.provider.details.isEmpty {
+                    ProviderDetailsView(
+                        sections: self.provider.details,
+                        tintColor: self.providerColor)
+                }
+
                 // v0.26 dedicated cards — dispatched by providerID +
                 // typed envelope field. iOS 1.7.0 fold-in. Each card
                 // is only rendered when both the providerID matches
@@ -627,7 +633,7 @@ struct ProviderDetailView: View {
     // MARK: - Helpers
 
     private var providerColor: Color {
-        ProviderColorPalette.color(for: self.provider.providerID)
+        ProviderColorPalette.color(for: self.provider)
     }
 
     private func defaultLabel(at index: Int) -> String {

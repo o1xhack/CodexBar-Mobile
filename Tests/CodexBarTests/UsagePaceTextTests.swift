@@ -16,7 +16,7 @@ struct UsagePaceTextTests {
         "Runs out now",
         "Runs out in %@",
         "1.5× headroom",
-        "≈ %d%% run-out risk",
+        "(%d%% risk)",
         "%@ left",
         "session quota",
         "session quotas",
@@ -173,11 +173,11 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "Runs out in 2d · ≈ 70% run-out risk")
+        #expect(detail.rightLabel == "Runs out in 2d (70% risk)")
     }
 
     @Test
-    func `weekly pace detail does not combine lasts until reset with run out risk`() {
+    func `weekly pace detail combines reserve outcome with risk`() {
         let now = Date(timeIntervalSince1970: 0)
         let pace = UsagePace(
             stage: .slightlyBehind,
@@ -191,7 +191,7 @@ struct UsagePaceTextTests {
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
         #expect(detail.leftLabel == "9% in reserve")
-        #expect(detail.rightLabel == "≈ 45% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset (45% risk)")
     }
 
     @Test
@@ -209,11 +209,11 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "Lasts until reset · 1.5× headroom · ≈ 0% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset · 1.5× headroom (0% risk)")
     }
 
     @Test
-    func `weekly pace detail prefers risk over lasts until reset when rounded risk is material`() {
+    func `weekly pace detail keeps outcome beside material risk`() {
         let now = Date(timeIntervalSince1970: 0)
         let pace = UsagePace(
             stage: .slightlyBehind,
@@ -226,7 +226,7 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "≈ 5% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset (5% risk)")
     }
 
     // MARK: - Session pace (5-hour window)
@@ -280,6 +280,25 @@ struct UsagePaceTextTests {
         let detail = UsagePaceText.sessionDetail(provider: .codex, window: window, now: now)
 
         #expect(detail?.rightLabel == "Lasts until reset · 1.5× headroom")
+    }
+
+    @Test
+    func `Codex session pace suppressed for weekly and monthly durations but kept for fallback shapes`() {
+        let now = Date(timeIntervalSince1970: 0)
+        func window(minutes: Int?) -> RateWindow {
+            RateWindow(
+                usedPercent: 50,
+                windowMinutes: minutes,
+                resetsAt: now.addingTimeInterval(2 * 3600),
+                resetDescription: nil)
+        }
+
+        #expect(UsagePaceText.sessionPace(provider: .codex, window: window(minutes: 10080), now: now) == nil)
+        #expect(UsagePaceText.sessionPace(provider: .codex, window: window(minutes: 43200), now: now) == nil)
+        // Unknown durations fall back to the session lane and must keep their pre-existing pace.
+        #expect(UsagePaceText.sessionPace(provider: .codex, window: window(minutes: 540), now: now) != nil)
+        #expect(UsagePaceText.sessionPace(provider: .codex, window: window(minutes: nil), now: now) != nil)
+        #expect(UsagePaceText.sessionPace(provider: .codex, window: window(minutes: 300), now: now) != nil)
     }
 
     @Test
@@ -363,9 +382,23 @@ struct UsagePaceTextTests {
             resetsAt: now.addingTimeInterval(2 * 3600),
             resetDescription: nil)
 
-        let detail = UsagePaceText.sessionDetail(provider: .zai, window: window, now: now)
+        let detail = UsagePaceText.sessionDetail(provider: .deepseek, window: window, now: now)
 
         #expect(detail == nil)
+    }
+
+    @Test
+    func `session pace detail shows for zai five-hour window`() {
+        let now = Date(timeIntervalSince1970: 0)
+        let window = RateWindow(
+            usedPercent: 50,
+            windowMinutes: 300,
+            resetsAt: now.addingTimeInterval(2 * 3600),
+            resetDescription: nil)
+
+        let detail = UsagePaceText.sessionDetail(provider: .zai, window: window, now: now)
+
+        #expect(detail != nil)
     }
 
     @Test

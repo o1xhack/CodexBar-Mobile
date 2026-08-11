@@ -2003,7 +2003,8 @@ private enum BreakdownPalette {
 }
 
 private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
-    ProviderColorPalette.color(for: provider?.providerID ?? "")
+    guard let provider else { return ProviderColorPalette.color(for: "") }
+    return ProviderColorPalette.color(for: provider)
 }
 
 // MARK: - Setting Tab
@@ -3652,8 +3653,25 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.20.0",
+            version: "1.21.0",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "iPhone 1.21 brings provider details from Mac, Fireworks and IBM Bob, and safer multi-Mac sync."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "More provider details — balances, credits, billing, charts, and plugin data from newer Mac versions now appear in one consistent layout."),
+                        String(
+                            localized: "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details."),
+                        String(
+                            localized: "Safer sync across Macs — provider accounts merge deterministically while separate accounts and custom plugins stay distinct."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.20.0",
+            status: "",
             summary: String(
                 localized: "iPhone 1.20 adds Qwen Cloud, ZoomMate, xAI, and Notion AI, with richer z.ai and Claude details."),
             sections: [

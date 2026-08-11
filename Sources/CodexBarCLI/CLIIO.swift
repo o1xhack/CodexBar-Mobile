@@ -33,6 +33,8 @@ extension CodexBarCLI {
             print(Self.costHelp(version: version))
         case "sessions", "focus":
             print(Self.sessionsHelp(version: version))
+        case "dashboard":
+            print(Self.dashboardHelp(version: version))
         case "serve":
             print(Self.serveHelp(version: version))
         case "config", "validate", "dump":
@@ -47,6 +49,8 @@ extension CodexBarCLI {
             print(Self.diagnoseHelp(version: version))
         case "guard":
             print(Self.guardHelp(version: version))
+        case "plugins":
+            print(Self.pluginsHelp(version: version))
         default:
             print(Self.rootHelp(version: version))
         }

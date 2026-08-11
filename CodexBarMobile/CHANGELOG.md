@@ -2,6 +2,48 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.21.0 (193)] — 2026-08-11 — CodexBar 0.49.2 upstream sync
+
+### Added
+
+- **Generic provider details** — New Mac payloads can send bounded rows and
+  bar/line charts through the existing provider payload, allowing iPhone to
+  display balances, credits, billing, routing, and plugin-specific information
+  after upstream removed several provider-specific snapshot fields.
+- **Custom provider plugins** — Unknown provider instance IDs now retain their
+  manifest name, monogram, tint, rate windows, and details in a safe generic
+  iPhone card without syncing plugin settings or secrets.
+- **Fireworks and IBM Bob** — Added distinct iPhone colors, mock coverage, and
+  generic usage detail support; IBM Bob also joins the append-only monthly
+  quota notification catalog while spend-only Fireworks stays out of it.
+
+### Changed
+
+- **Rate-window fidelity** — Sync now preserves stable window IDs, unknown-usage
+  state, rolling regeneration percentage, and synthetic-placeholder state;
+  iPhone labels unknown values as unavailable and hides layout-only placeholders.
+- **Multi-Mac merge determinism** — Equal-time provider snapshots use stable
+  device identity as a tie-breaker. Old Macs cannot erase additive details,
+  while an explicit empty details set from a new Mac authoritatively clears them.
+
+### Fixed
+
+- **Details-only providers** — Snapshots with useful detail rows or charts are
+  no longer classified as empty and removed from the iPhone cache.
+- **Provider instance safety** — Mac snapshot publication, dirty state, config
+  reconciliation, and Mobile projection now use `ProviderInstanceID` consistently,
+  keeping custom plugins distinct from first-party providers.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.49.2.1` / build `116.1`, composite Sparkle version
+  `116.1.1.21.0`, and upstream `steipete/CodexBar` `v0.49.2`.
+- iOS `MARKETING_VERSION`: `1.20.0` → `1.21.0`.
+- iOS `CURRENT_PROJECT_VERSION`: `192` → `193`.
+- Payload additions live in the existing opaque `DeviceProviderSnapshot.payload`;
+  no CloudKit record type, field, index, or schema version is added. IBM Bob
+  reuses the existing per-provider quota-zone/subscription pattern.
+
 ## [1.20.0 (192)] — 2026-08-03 — CodexBar 0.47 upstream sync
 
 ### Added

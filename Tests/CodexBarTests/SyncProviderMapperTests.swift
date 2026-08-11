@@ -22,11 +22,8 @@ struct SyncProviderMapperTests {
     /// Minimal `UsageSnapshot` carrying at most one provider-native block.
     private func snapshot(
         mistral: MistralUsageSnapshot? = nil,
-        openRouter: OpenRouterUsageSnapshot? = nil,
         azure: AzureOpenAIUsageSnapshot? = nil,
         alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
-        sub2API: Sub2APIUsageDetails? = nil,
-        wayfinder: WayfinderUsageSnapshot? = nil,
         providerCost: ProviderCostSnapshot? = nil,
         dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
     {
@@ -34,12 +31,9 @@ struct SyncProviderMapperTests {
             primary: nil,
             secondary: nil,
             providerCost: providerCost,
-            openRouterUsage: openRouter,
-            sub2APIUsage: sub2API,
-            wayfinderUsage: wayfinder,
-            mistralUsage: mistral,
             azureOpenAIUsage: azure,
             alibabaTokenPlanUsage: alibaba,
+            mistralUsage: mistral,
             updatedAt: Self.now,
             dataConfidence: dataConfidence)
     }
@@ -52,56 +46,6 @@ struct SyncProviderMapperTests {
         #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: 10080) == "Weekly")
         #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: 43200) == "Monthly")
         #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: nil) == "Additional")
-    }
-
-    @Test
-    func `mapSub2APIUsage preserves wallet and request totals`() throws {
-        let native = Sub2APIUsageDetails(
-            kind: .subscription,
-            balance: 61.6,
-            unit: "USD",
-            today: .init(requests: 84, totalTokens: 12467, actualCostUSD: 0.27),
-            total: .init(requests: 3166, totalTokens: 260_000, actualCostUSD: 5.37))
-        let mapped = try #require(SyncCoordinator.mapSub2APIUsage(
-            provider: .sub2api,
-            snapshot: self.snapshot(sub2API: native)))
-        #expect(mapped.kind == "subscription")
-        #expect(mapped.balance == 61.6)
-        #expect(mapped.today?.requests == 84)
-        #expect(mapped.total?.totalTokens == 260_000)
-        #expect(SyncCoordinator.mapSub2APIUsage(
-            provider: .codex,
-            snapshot: self.snapshot(sub2API: native)) == nil)
-    }
-
-    @Test
-    func `mapWayfinderUsage preserves routing and savings evidence`() throws {
-        let native = WayfinderUsageSnapshot(
-            gatewayStatus: "healthy",
-            offline: false,
-            dryRun: false,
-            missingKeys: [],
-            modelCount: 6,
-            requests: 1420,
-            tokens: 8_600_000,
-            realized: 7.84,
-            baseline: 12.68,
-            saved: 4.84,
-            savedPct: 38.2,
-            priced: true,
-            routes: [.init(name: "local", requests: 960, saved: 3.61, tokens: 5_900_000)],
-            avgDecisionMs: 7.4,
-            updatedAt: Self.now)
-        let mapped = try #require(SyncCoordinator.mapWayfinderUsage(
-            provider: .wayfinder,
-            snapshot: self.snapshot(wayfinder: native)))
-        #expect(mapped.modelCount == 6)
-        #expect(mapped.savedPercent == 38.2)
-        #expect(mapped.routes.first?.name == "local")
-        #expect(mapped.averageDecisionMilliseconds == 7.4)
-        #expect(SyncCoordinator.mapWayfinderUsage(
-            provider: .codex,
-            snapshot: self.snapshot(wayfinder: native)) == nil)
     }
 
     @Test(arguments: [UsageProvider.neuralwatt, .zenmux])
@@ -161,7 +105,7 @@ struct SyncProviderMapperTests {
     @Test
     func `mapper uses opaque identity when account email is an editable label`() {
         let identity = ProviderIdentitySnapshot(
-            providerID: .claude,
+            providerID: UsageProvider.claude.instanceID,
             accountEmail: "Shared production",
             accountOrganization: nil,
             loginMethod: "Token",
@@ -179,7 +123,7 @@ struct SyncProviderMapperTests {
     @Test
     func `mapper keeps real email identity ahead of per-Mac opaque key`() {
         let identity = ProviderIdentitySnapshot(
-            providerID: .cursor,
+            providerID: UsageProvider.cursor.instanceID,
             accountEmail: "same@example.com",
             accountOrganization: nil,
             loginMethod: "Token")
@@ -253,45 +197,6 @@ struct SyncProviderMapperTests {
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
-    }
-
-    // MARK: - D: OpenRouter stats
-
-    private func openRouterFixture() -> OpenRouterUsageSnapshot {
-        OpenRouterUsageSnapshot(
-            totalCredits: 50, totalUsage: 42.5, balance: 7.5, usedPercent: 85,
-            keyLimit: 100, keyUsage: 42.5,
-            keyUsageDaily: 1.25, keyUsageWeekly: 8, keyUsageMonthly: 30,
-            rateLimit: OpenRouterRateLimit(requests: 20, interval: "10s"),
-            updatedAt: Self.now)
-    }
-
-    @Test
-    func `mapOpenRouter: nil for a non-openrouter provider`() {
-        #expect(SyncCoordinator.mapOpenRouter(
-            provider: .codex, snapshot: self.snapshot(openRouter: self.openRouterFixture())) == nil)
-    }
-
-    @Test
-    func `mapOpenRouter: nil when openrouter usage is absent`() {
-        #expect(SyncCoordinator.mapOpenRouter(
-            provider: .openrouter, snapshot: self.snapshot()) == nil)
-    }
-
-    @Test
-    func `mapOpenRouter: maps balance, credits, key windows, and rate limit`() throws {
-        let stats = try #require(SyncCoordinator.mapOpenRouter(
-            provider: .openrouter, snapshot: self.snapshot(openRouter: self.openRouterFixture())))
-        #expect(stats.balanceUSD == 7.5)
-        #expect(stats.totalCreditsUSD == 50)
-        #expect(stats.totalUsageUSD == 42.5)
-        #expect(stats.usedPercent == 85)
-        #expect(stats.keyUsageDailyUSD == 1.25)
-        #expect(stats.keyUsageWeeklyUSD == 8)
-        #expect(stats.keyUsageMonthlyUSD == 30)
-        #expect(stats.keyLimitUSD == 100)
-        #expect(stats.rateLimitRequests == 20)
-        #expect(stats.rateLimitInterval == "10s")
     }
 
     // MARK: - E: Azure OpenAI info

@@ -86,8 +86,9 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         else {
             return nil
         }
-        guard provider == .openrouter || provider == .mimo || provider == .moonshot || provider == .poe else {
-            return (label: L("Plan"), value: rawPlan)
+        let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow
+        guard presentation.stripsBalancePrefix else {
+            return (label: L(presentation.label), value: rawPlan)
         }
 
         let prefix = "Balance:"
@@ -95,13 +96,10 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
             let valueStart = rawPlan.index(rawPlan.startIndex, offsetBy: prefix.count)
             let trimmedValue = rawPlan[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedValue.isEmpty {
-                return (label: L("Balance"), value: trimmedValue)
+                return (label: L(presentation.balancePrefixedLabel), value: trimmedValue)
             }
         }
-        if provider == .mimo {
-            return (label: L("Plan"), value: rawPlan)
-        }
-        return (label: L("Balance"), value: rawPlan)
+        return (label: L(presentation.label), value: rawPlan)
     }
 
     private var menuBarSettingsPickers: [ProviderSettingsPickerDescriptor] {
@@ -135,7 +133,7 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                     model: self.model,
                     openAIWebDiagnostic: self.openAIWebDiagnostic,
                     isEnabled: self.isEnabled,
-                    isRefreshing: self.store.refreshingProviders.contains(self.provider))
+                    isRefreshing: self.store.refreshingProviders.contains(self.provider.instanceID))
             } header: {
                 Text(L("Usage"))
             }
@@ -255,7 +253,9 @@ private struct ProviderDetailHeaderRow: View {
         let first = lines[0]
         let rest = lines.dropFirst().joined(separator: "\n")
         let tail = rest.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tail.isEmpty { return String(first) }
+        if tail.isEmpty {
+            return String(first)
+        }
         return "\(first) • \(tail)"
     }
 }
@@ -301,8 +301,9 @@ private struct ProviderDetailInfoRows: View {
             ProviderDetailInfoRow(label: L("Account"), value: self.model.email)
         }
 
+        // Provider-specific by design: Kiro reports an auth method as a separate identity field, not a plan.
         if self.provider == .kiro,
-           let authMethod = self.store.snapshot(for: self.provider)?.loginMethod(for: .kiro),
+           let authMethod = self.store.snapshot(for: self.provider.instanceID)?.loginMethod(for: .kiro),
            !authMethod.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             ProviderDetailInfoRow(label: L("Auth"), value: authMethod)
@@ -317,10 +318,10 @@ private struct ProviderDetailInfoRows: View {
     }
 
     private var updatedText: String {
-        if let updated = self.store.snapshot(for: self.provider)?.updatedAt {
+        if let updated = self.store.snapshot(for: self.provider.instanceID)?.updatedAt {
             return UsageFormatter.updatedString(from: updated)
         }
-        if self.store.refreshingProviders.contains(self.provider) {
+        if self.store.refreshingProviders.contains(self.provider.instanceID) {
             return L("Refreshing")
         }
         if self.store.unavailableMessage(for: self.provider) != nil {
@@ -429,7 +430,10 @@ struct ProviderMetricsInlineView: View {
                     title: L("Cost"),
                     value: tokenUsage.sessionLine)
                 ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
-                if self.model.provider == .codex, let hint = tokenUsage.hintLine, !hint.isEmpty {
+                if ProviderDescriptorRegistry.descriptor(for: self.model.provider).tokenCost.showsHintInProviderDetails,
+                   let hint = tokenUsage.hintLine,
+                   !hint.isEmpty
+                {
                     ProviderMetricInlineTextRow(title: "", value: hint)
                 }
             }
@@ -477,15 +481,19 @@ private struct ProviderMetricInlineRow: View {
                         .foregroundStyle(.secondary)
                 }
             case .progress:
+                let presentation = self.metric.linePresentation(title: self.title)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(self.title)
+                    Text(presentation.titleText)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
+                        .layoutPriority(1)
                     Spacer(minLength: 8)
-                    Text(self.metric.percentLabel)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    if let resetText = presentation.resetText {
+                        Text(resetText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
 
                 UsageProgressBar(
@@ -498,34 +506,12 @@ private struct ProviderMetricInlineRow: View {
                     workdayMarkerPercents: self.metric.workdayMarkerPercents)
                     .frame(maxWidth: .infinity)
 
-                let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
-                let hasRightDetail = self.metric.detailRightText?.isEmpty == false
-                let resetText = self.metric.resetText ?? ""
-                if hasLeftDetail || hasRightDetail || !resetText.isEmpty {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
-                            Text(leftDetail)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 8)
-                        if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
-                            Text(rightDetail)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        } else if !resetText.isEmpty {
-                            Text(resetText)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if hasRightDetail, !resetText.isEmpty {
-                    Text(resetText)
+                if let metaText = presentation.metaText {
+                    Text(metaText)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
                 if let detail = self.metric.detailText, !detail.isEmpty {

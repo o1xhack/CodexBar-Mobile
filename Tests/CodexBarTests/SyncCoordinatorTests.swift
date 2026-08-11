@@ -1077,7 +1077,7 @@ struct SyncCoordinatorUpstreamV041Tests {
     }
 
     @Test
-    func `Kimi quota lanes preserve Weekly, Rate Limit, Monthly, Code 7-day order for iOS`() async throws {
+    func `Kimi quota lanes preserve official 7-day, 5-hour, Monthly, Code 7-day order for iOS`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-v041-kimi-order")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -1124,7 +1124,9 @@ struct SyncCoordinatorUpstreamV041Tests {
         await coordinator.pushCurrentSnapshot()
 
         let provider = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "kimi" })
-        #expect(provider.rateWindows.compactMap(\.label) == ["Weekly", "Rate Limit", "Monthly", "Code 7-day"])
+        #expect(provider.rateWindows.compactMap(\.label) == [
+            "7-day usage", "5-hour usage", "Monthly", "Code 7-day",
+        ])
         #expect(provider.rateWindows.map(\.usedPercent) == [25, 40, 42, 17])
     }
 

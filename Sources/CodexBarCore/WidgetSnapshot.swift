@@ -16,7 +16,7 @@ public struct WidgetSnapshot: Codable, Sendable {
     }
 
     public struct ProviderEntry: Codable, Sendable {
-        public let provider: UsageProvider
+        public let provider: ProviderInstanceID
         public let updatedAt: Date
         public let primary: RateWindow?
         public let secondary: RateWindow?
@@ -28,6 +28,34 @@ public struct WidgetSnapshot: Codable, Sendable {
         public let dailyUsage: [DailyUsagePoint]
         public let providerCost: ProviderCostSnapshot?
         public let quotaOwnerKey: String?
+
+        public init(
+            instanceID: ProviderInstanceID,
+            updatedAt: Date,
+            primary: RateWindow?,
+            secondary: RateWindow?,
+            tertiary: RateWindow?,
+            usageRows: [WidgetUsageRowSnapshot]? = nil,
+            creditsRemaining: Double?,
+            codeReviewRemainingPercent: Double?,
+            tokenUsage: TokenUsageSummary?,
+            dailyUsage: [DailyUsagePoint],
+            providerCost: ProviderCostSnapshot? = nil,
+            quotaOwnerKey: String? = nil)
+        {
+            self.provider = instanceID
+            self.updatedAt = updatedAt
+            self.primary = primary
+            self.secondary = secondary
+            self.tertiary = tertiary
+            self.usageRows = usageRows
+            self.creditsRemaining = creditsRemaining
+            self.codeReviewRemainingPercent = codeReviewRemainingPercent
+            self.tokenUsage = tokenUsage
+            self.dailyUsage = dailyUsage
+            self.providerCost = providerCost
+            self.quotaOwnerKey = quotaOwnerKey
+        }
 
         public init(
             provider: UsageProvider,
@@ -43,18 +71,19 @@ public struct WidgetSnapshot: Codable, Sendable {
             providerCost: ProviderCostSnapshot? = nil,
             quotaOwnerKey: String? = nil)
         {
-            self.provider = provider
-            self.updatedAt = updatedAt
-            self.primary = primary
-            self.secondary = secondary
-            self.tertiary = tertiary
-            self.usageRows = usageRows
-            self.creditsRemaining = creditsRemaining
-            self.codeReviewRemainingPercent = codeReviewRemainingPercent
-            self.tokenUsage = tokenUsage
-            self.dailyUsage = dailyUsage
-            self.providerCost = providerCost
-            self.quotaOwnerKey = quotaOwnerKey
+            self.init(
+                instanceID: provider.instanceID,
+                updatedAt: updatedAt,
+                primary: primary,
+                secondary: secondary,
+                tertiary: tertiary,
+                usageRows: usageRows,
+                creditsRemaining: creditsRemaining,
+                codeReviewRemainingPercent: codeReviewRemainingPercent,
+                tokenUsage: tokenUsage,
+                dailyUsage: dailyUsage,
+                providerCost: providerCost,
+                quotaOwnerKey: quotaOwnerKey)
         }
     }
 
@@ -142,13 +171,13 @@ public struct WidgetSnapshot: Codable, Sendable {
     }
 
     public let entries: [ProviderEntry]
-    public let enabledProviders: [UsageProvider]
+    public let enabledProviders: [ProviderInstanceID]
     public let usageBarsShowUsed: Bool
     public let generatedAt: Date
 
     public init(
         entries: [ProviderEntry],
-        enabledProviders: [UsageProvider]? = nil,
+        enabledProviders: [ProviderInstanceID]? = nil,
         usageBarsShowUsed: Bool = false,
         generatedAt: Date)
     {
@@ -169,7 +198,7 @@ public struct WidgetSnapshot: Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.entries = try container.decode([ProviderEntry].self, forKey: .entries)
         self.generatedAt = try container.decode(Date.self, forKey: .generatedAt)
-        self.enabledProviders = try container.decodeIfPresent([UsageProvider].self, forKey: .enabledProviders)
+        self.enabledProviders = try container.decodeIfPresent([ProviderInstanceID].self, forKey: .enabledProviders)
             ?? self.entries.map(\.provider)
         self.usageBarsShowUsed = try container.decodeIfPresent(Bool.self, forKey: .usageBarsShowUsed) ?? false
     }
@@ -184,22 +213,130 @@ public struct WidgetSnapshot: Codable, Sendable {
 }
 
 public enum WidgetSnapshotStore {
+    @usableFromInline
+    static let defaultLoadTimeout: TimeInterval = 2.0
+
+    @usableFromInline
+    static let defaultSaveTimeout: TimeInterval = 10.0
+
     private static let filename = AppGroupSupport.widgetSnapshotFilename
+    private static let boundedIOExecutionLock = NSLock()
+    private static let boundedIOStateLock = NSLock()
+    private nonisolated(unsafe) static var boundedIOCircuitBreakerTripped = false
+    private static let log = CodexBarLog.logger("widget-snapshot")
+
+    /// Access is synchronized by `lock`, so detached worker threads can safely publish a result.
+    private final class BoundedResultBox<Value: Sendable>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value: Value?
+
+        func set(_ value: Value?) {
+            self.lock.lock()
+            self.value = value
+            self.lock.unlock()
+        }
+
+        func get() -> Value? {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return self.value
+        }
+    }
 
     public static func load(bundleID: String? = Bundle.main.bundleIdentifier) -> WidgetSnapshot? {
-        let url = self.snapshotURL(bundleID: bundleID)
-        guard let data = try? Data(contentsOf: url) else { return nil }
+        guard !self.isBoundedIOCircuitBreakerTripped() else { return nil }
+        return self.load(from: self.snapshotURL(bundleID: bundleID))
+    }
+
+    public static func load(
+        from url: URL,
+        timeout: TimeInterval = WidgetSnapshotStore.defaultLoadTimeout) -> WidgetSnapshot?
+    {
+        guard let data: Data = self.performBounded(label: "load", timeout: timeout, operation: {
+            try? Data(contentsOf: url)
+        }) else { return nil }
         return try? self.decoder.decode(WidgetSnapshot.self, from: data)
     }
 
     public static func save(_ snapshot: WidgetSnapshot, bundleID: String? = Bundle.main.bundleIdentifier) {
-        let url = self.snapshotURL(bundleID: bundleID)
-        do {
-            let data = try self.encoder.encode(snapshot)
-            try data.write(to: url, options: [.atomic])
-        } catch {
-            return
+        guard !self.isBoundedIOCircuitBreakerTripped() else { return }
+        self.save(snapshot, to: self.snapshotURL(bundleID: bundleID))
+    }
+
+    public static func save(
+        _ snapshot: WidgetSnapshot,
+        to url: URL,
+        timeout: TimeInterval = WidgetSnapshotStore.defaultSaveTimeout)
+    {
+        guard !self.isBoundedIOCircuitBreakerTripped(),
+              let data = try? self.encoder.encode(snapshot)
+        else { return }
+
+        _ = self.performBounded(label: "save", timeout: timeout) {
+            do {
+                try data.write(to: url, options: [.atomic])
+                return true
+            } catch {
+                return nil
+            }
         }
+    }
+
+    static func _test_performBounded<T: Sendable>(
+        timeout: TimeInterval,
+        operation: @escaping @Sendable () -> T?) -> T?
+    {
+        self.performBounded(label: "test", timeout: timeout, operation: operation)
+    }
+
+    static func _test_resetBoundedIOState() {
+        self.boundedIOStateLock.lock()
+        self.boundedIOCircuitBreakerTripped = false
+        self.boundedIOStateLock.unlock()
+    }
+
+    private static func performBounded<T: Sendable>(
+        label: String,
+        timeout: TimeInterval,
+        operation: @escaping @Sendable () -> T?) -> T?
+    {
+        guard !self.isBoundedIOCircuitBreakerTripped() else { return nil }
+        self.boundedIOExecutionLock.lock()
+        defer { self.boundedIOExecutionLock.unlock() }
+        guard !self.isBoundedIOCircuitBreakerTripped() else { return nil }
+
+        let result = BoundedResultBox<T>()
+        let completion = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            result.set(operation())
+            completion.signal()
+        }
+        thread.name = "CodexBar.widget-snapshot.\(label)"
+        thread.start()
+
+        guard completion.wait(timeout: .now() + timeout) == .success else {
+            self.tripBoundedIOCircuitBreaker(label: label, timeout: timeout)
+            return nil
+        }
+        return result.get()
+    }
+
+    private static func isBoundedIOCircuitBreakerTripped() -> Bool {
+        self.boundedIOStateLock.lock()
+        defer { self.boundedIOStateLock.unlock() }
+        return self.boundedIOCircuitBreakerTripped
+    }
+
+    private static func tripBoundedIOCircuitBreaker(label: String, timeout: TimeInterval) {
+        self.boundedIOStateLock.lock()
+        let didTrip = !self.boundedIOCircuitBreakerTripped
+        self.boundedIOCircuitBreakerTripped = true
+        self.boundedIOStateLock.unlock()
+
+        guard didTrip else { return }
+        self.log.warning(
+            "Widget snapshot I/O timed out; disabling container access for this process",
+            metadata: ["operation": label, "timeoutSeconds": String(timeout)])
     }
 
     private static func snapshotURL(bundleID: String?) -> URL {
@@ -226,18 +363,25 @@ public enum WidgetSnapshotStore {
 public enum WidgetSelectionStore {
     private static let selectedProviderKey = "widgetSelectedProvider"
 
-    public static func loadSelectedProvider(bundleID: String? = Bundle.main.bundleIdentifier) -> UsageProvider? {
+    public static func loadSelectedProvider(bundleID: String? = Bundle.main.bundleIdentifier) -> ProviderInstanceID? {
         let defaults = self.sharedDefaults(bundleID: bundleID)
         guard let raw = defaults.string(forKey: self.selectedProviderKey) else { return nil }
-        return UsageProvider(rawValue: raw)
+        return ProviderInstanceID(rawValue: raw)
+    }
+
+    public static func saveSelectedProvider(
+        instanceID: ProviderInstanceID,
+        bundleID: String? = Bundle.main.bundleIdentifier)
+    {
+        let defaults = self.sharedDefaults(bundleID: bundleID)
+        defaults.set(instanceID.rawValue, forKey: self.selectedProviderKey)
     }
 
     public static func saveSelectedProvider(
         _ provider: UsageProvider,
         bundleID: String? = Bundle.main.bundleIdentifier)
     {
-        let defaults = self.sharedDefaults(bundleID: bundleID)
-        defaults.set(provider.rawValue, forKey: self.selectedProviderKey)
+        self.saveSelectedProvider(instanceID: provider.instanceID, bundleID: bundleID)
     }
 
     private static func sharedDefaults(bundleID: String?) -> UserDefaults {

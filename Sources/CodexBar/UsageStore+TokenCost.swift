@@ -25,15 +25,16 @@ extension UsageStore {
     }
 
     func prepareCursorCostCookie(for provider: UsageProvider) -> CursorCostCookiePreparation {
+        // Provider-specific by design: Cursor's dashboard cost fetch consumes its manually selected browser cookie.
         guard provider == .cursor, self.settings.cursorCookieSource == .manual else {
             return .proceed(nil)
         }
         guard let header = CookieHeaderNormalizer.normalize(self.settings.cursorCookieHeader) else {
-            self.lastTokenFetchAt.removeValue(forKey: provider)
-            self.lastTokenFetchScope.removeValue(forKey: provider)
+            self.lastTokenFetchAt.removeValue(forKey: provider.instanceID)
+            self.lastTokenFetchScope.removeValue(forKey: provider.instanceID)
             self.clearTokenSnapshot(for: provider)
-            self.tokenErrors[provider] = "Cursor cost requires a non-empty Manual cookie header."
-            self.tokenFailureGates[provider]?.reset()
+            self.tokenErrors[provider.instanceID] = "Cursor cost requires a non-empty Manual cookie header."
+            self.tokenFailureGates[provider.instanceID]?.reset()
             return .reject
         }
         return .proceed(header)
@@ -53,6 +54,7 @@ extension UsageStore {
 
         let fetcher = self.costUsageFetcher
         let timeoutSeconds = self.tokenFetchTimeout
+        // Provider-specific by design: the Codex ledger owns pricing refresh while Bedrock resolves AWS environment.
         let allowPricingRefresh = provider != .codex || !self.settings.codexLocalSessionCostLedgerEnabled
         let environment = provider == .bedrock
             ? ProviderRegistry.makeEnvironment(
@@ -86,7 +88,7 @@ extension UsageStore {
     }
 
     func tokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
-        self.tokenSnapshots[provider]
+        self.tokenSnapshots[provider.instanceID]
     }
 
     func tokenSnapshotForCurrentProviderConfig(
@@ -103,7 +105,7 @@ extension UsageStore {
     func tokenSnapshotPublicationForCurrentProviderConfig(
         for provider: UsageProvider) -> CurrentProviderConfigTokenPublication?
     {
-        guard let publication = self.tokenSnapshotPublications[provider],
+        guard let publication = self.tokenSnapshotPublications[provider.instanceID],
               publication.providerConfigRevision == self.settings.providerConfigRevision(for: provider),
               publication.scopeSignature == self.tokenSnapshotScopeSignature(for: provider)
         else { return nil }
@@ -113,22 +115,22 @@ extension UsageStore {
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
-        self.tokenSnapshotPublicationRevisions[provider] ?? 0
+        self.tokenSnapshotPublicationRevisions[provider.instanceID] ?? 0
     }
 
     func publishTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
-        self.tokenSnapshots[provider] = snapshot
+        self.tokenSnapshots[provider.instanceID] = snapshot
         self.publishTokenSnapshotState(snapshot, for: provider)
     }
 
     func publishConfirmedEmptyTokenSnapshot(for provider: UsageProvider) {
-        self.tokenSnapshots.removeValue(forKey: provider)
+        self.tokenSnapshots.removeValue(forKey: provider.instanceID)
         self.publishTokenSnapshotState(nil, for: provider)
     }
 
     private func publishTokenSnapshotState(_ snapshot: CostUsageTokenSnapshot?, for provider: UsageProvider) {
-        self.tokenSnapshotPublicationRevisions[provider, default: 0] &+= 1
-        self.tokenSnapshotPublications[provider] = TokenSnapshotPublication(
+        self.tokenSnapshotPublicationRevisions[provider.instanceID, default: 0] &+= 1
+        self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
@@ -136,8 +138,8 @@ extension UsageStore {
     }
 
     func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
-        self.tokenSnapshots[provider] = snapshot
-        self.tokenSnapshotPublications[provider] = TokenSnapshotPublication(
+        self.tokenSnapshots[provider.instanceID] = snapshot
+        self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
@@ -145,8 +147,8 @@ extension UsageStore {
     }
 
     func clearTokenSnapshot(for provider: UsageProvider) {
-        self.tokenSnapshots.removeValue(forKey: provider)
-        self.tokenSnapshotPublications.removeValue(forKey: provider)
+        self.tokenSnapshots.removeValue(forKey: provider.instanceID)
+        self.tokenSnapshotPublications.removeValue(forKey: provider.instanceID)
     }
 
     func clearTokenSnapshots() {
@@ -161,8 +163,8 @@ extension UsageStore {
         } else {
             self.clearTokenSnapshot(for: provider)
         }
-        self.tokenErrors[provider] = nil
-        self.tokenFailureGates[provider]?.recordSuccess()
+        self.tokenErrors[provider.instanceID] = nil
+        self.tokenFailureGates[provider.instanceID]?.recordSuccess()
     }
 
     func publishProviderDerivedTokenSnapshot(from snapshot: UsageSnapshot, for provider: UsageProvider) {
@@ -172,15 +174,15 @@ extension UsageStore {
         } else {
             self.publishConfirmedEmptyTokenSnapshot(for: provider)
         }
-        self.tokenErrors[provider] = nil
-        self.tokenFailureGates[provider]?.recordSuccess()
+        self.tokenErrors[provider.instanceID] = nil
+        self.tokenFailureGates[provider.instanceID]?.recordSuccess()
     }
 
     func resetProviderDerivedTokenSnapshot(for provider: UsageProvider) {
         guard Self.tokenCostRequiresProviderSnapshot(provider) else { return }
         self.clearTokenSnapshot(for: provider)
-        self.tokenErrors[provider] = nil
-        self.tokenFailureGates[provider]?.reset()
+        self.tokenErrors[provider.instanceID] = nil
+        self.tokenFailureGates[provider.instanceID]?.reset()
     }
 
     func clearProviderDerivedTokenSnapshot(for provider: UsageProvider) {
@@ -189,15 +191,16 @@ extension UsageStore {
     }
 
     func tokenError(for provider: UsageProvider) -> String? {
-        self.tokenErrors[provider]
+        self.tokenErrors[provider.instanceID]
     }
 
     func tokenLastAttemptAt(for provider: UsageProvider) -> Date? {
-        self.lastTokenFetchAt[provider]
+        self.lastTokenFetchAt[provider.instanceID]
     }
 
     @discardableResult
     func hydrateCachedTokenSnapshots(now: Date = Date()) -> Task<Void, Never>? {
+        // Provider-specific by design: only the Codex local ledger hydrates a cached snapshot before the first scan.
         guard self.settings.isCostUsageEffectivelyEnabled(for: .codex) else { return nil }
         guard self.settings.enabledProvidersOrdered(metadataByProvider: self.providerMetadata).contains(.codex) else {
             return nil
@@ -265,7 +268,14 @@ extension UsageStore {
     }
 
     func isTokenRefreshInFlight(for provider: UsageProvider) -> Bool {
-        self.tokenRefreshInFlight.contains(provider)
+        self.tokenRefreshInFlight.contains(provider.instanceID)
+    }
+
+    func tokenCostRefreshIsActive(for provider: UsageProvider) -> Bool {
+        if self.tokenRefreshInFlight.contains(provider.instanceID) {
+            return true
+        }
+        return provider == .codex && self.codexCostCatchUpActivity?.phase == .indexing
     }
 
     func tokenCostScope(for provider: UsageProvider) -> (codexHomePath: String?, signature: String) {
@@ -347,8 +357,8 @@ extension UsageStore {
         costScopeSignature: String) -> Bool
     {
         guard self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider) != nil,
-              let last = self.lastTokenFetchAt[provider],
-              self.lastTokenFetchScope[provider] == costScopeSignature
+              let last = self.lastTokenFetchAt[provider.instanceID],
+              self.lastTokenFetchScope[provider.instanceID] == costScopeSignature
         else {
             return false
         }

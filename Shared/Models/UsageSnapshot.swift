@@ -2,37 +2,54 @@ import Foundation
 
 /// A single rate-limit window snapshot for iCloud sync.
 public struct SyncRateWindow: Codable, Sendable, Equatable {
+    public let id: String?
     public let label: String?
     public let usedPercent: Double
+    public let usageKnown: Bool
     public let windowMinutes: Int?
     public let resetsAt: Date?
     public let resetDescription: String?
+    public let nextRegenPercent: Double?
+    public let isSyntheticPlaceholder: Bool
 
     public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
     }
 
     public init(
+        id: String? = nil,
         label: String? = nil,
         usedPercent: Double,
+        usageKnown: Bool = true,
         windowMinutes: Int?,
         resetsAt: Date?,
-        resetDescription: String?)
+        resetDescription: String?,
+        nextRegenPercent: Double? = nil,
+        isSyntheticPlaceholder: Bool = false)
     {
+        self.id = id
         self.label = label
         self.usedPercent = usedPercent
+        self.usageKnown = usageKnown
         self.windowMinutes = windowMinutes
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
+        self.nextRegenPercent = nextRegenPercent
+        self.isSyntheticPlaceholder = isSyntheticPlaceholder
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id)
         self.label = try container.decodeIfPresent(String.self, forKey: .label)
         self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
+        self.usageKnown = try container.decodeIfPresent(Bool.self, forKey: .usageKnown) ?? true
         self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
+        self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
+        self.isSyntheticPlaceholder =
+            try container.decodeIfPresent(Bool.self, forKey: .isSyntheticPlaceholder) ?? false
     }
 }
 
@@ -276,6 +293,62 @@ public struct SyncPerplexityCreditSummary: Codable, Sendable, Equatable {
     }
 }
 
+/// Shared-owned mirror of CodexBarCore's provider detail wire. Keeping this
+/// model in Shared lets iOS decode first-party and custom-plugin details
+/// without linking the Mac provider runtime.
+public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
+    public struct Row: Codable, Sendable, Equatable {
+        public let label: String
+        public let value: String
+        public let secondaryValue: String?
+
+        public init(label: String, value: String, secondaryValue: String? = nil) {
+            self.label = label
+            self.value = value
+            self.secondaryValue = secondaryValue
+        }
+    }
+
+    public struct Chart: Codable, Sendable, Equatable {
+        public enum Kind: String, Codable, Sendable, Equatable {
+            case bars
+            case line
+        }
+
+        public struct Point: Codable, Sendable, Equatable {
+            public let label: String
+            public let value: Double
+
+            public init(label: String, value: Double) {
+                self.label = label
+                self.value = value
+            }
+        }
+
+        public let kind: Kind
+        public let title: String?
+        public let unit: String?
+        public let points: [Point]
+
+        public init(kind: Kind, title: String? = nil, unit: String? = nil, points: [Point]) {
+            self.kind = kind
+            self.title = title
+            self.unit = unit
+            self.points = points
+        }
+    }
+
+    public let title: String?
+    public let rows: [Row]
+    public let chart: Chart?
+
+    public init(title: String? = nil, rows: [Row] = [], chart: Chart? = nil) {
+        self.title = title
+        self.rows = rows
+        self.chart = chart
+    }
+}
+
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let providerID: String
@@ -306,6 +379,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// providers and for older Mac clients — iOS falls back to the generic
     /// `rateWindows` rendering in that case.
     public let perplexityCredits: SyncPerplexityCreditSummary?
+    /// Generic first-party or plugin-defined detail sections from Mac v0.48+.
+    public let details: [SyncProviderDetailSection]
+    public let providerIconMonogram: String?
+    public let providerIconTintHex: String?
 
     /// Mac-side stable identifiers for the logical account this snapshot
     /// represents. iOS uses these as grouping evidence: any two snapshots
@@ -545,10 +622,16 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// ZoomMate credit status and optional 30-day history.
     public let zoomMateCredits: SyncZoomMateCredits?
 
-    /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
+    /// All real rate windows. Prefers `rateWindows` if non-empty, otherwise
+    /// falls back to primary/secondary. Mac-generated layout placeholders
+    /// are intentionally omitted from iOS quota cards.
     public var allRateWindows: [SyncRateWindow] {
-        if !self.rateWindows.isEmpty { return self.rateWindows }
-        return [self.primary, self.secondary].compactMap(\.self)
+        if !self.rateWindows.isEmpty {
+            return self.rateWindows.filter { !$0.isSyntheticPlaceholder }
+        }
+        return [self.primary, self.secondary]
+            .compactMap(\.self)
+            .filter { !$0.isSyntheticPlaceholder }
     }
 
     /// Whether the snapshot carries data that can render a meaningful card.
@@ -567,6 +650,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             || self.subscriptionRenewsAt != nil
             || self.utilizationHistory?.isEmpty == false
             || self.perplexityCredits != nil
+            || !self.details.isEmpty
             || self.openAIAPIDashboard != nil
             || self.zaiHourlyUsage != nil
             || self.kiroCredits != nil
@@ -644,7 +728,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         providerAmount: SyncProviderAmount? = nil,
         accountRecordKey: String? = nil,
         accountOrganization: String? = nil,
-        zoomMateCredits: SyncZoomMateCredits? = nil)
+        zoomMateCredits: SyncZoomMateCredits? = nil,
+        details: [SyncProviderDetailSection] = [],
+        providerIconMonogram: String? = nil,
+        providerIconTintHex: String? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -693,6 +780,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.providerAmount = providerAmount
         self.accountRecordKey = accountRecordKey
         self.zoomMateCredits = zoomMateCredits
+        self.details = details
+        self.providerIconMonogram = providerIconMonogram
+        self.providerIconTintHex = providerIconTintHex
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -747,7 +837,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             providerAmount: self.providerAmount,
             accountRecordKey: self.accountRecordKey,
             accountOrganization: self.accountOrganization,
-            zoomMateCredits: self.zoomMateCredits)
+            zoomMateCredits: self.zoomMateCredits,
+            details: self.details,
+            providerIconMonogram: self.providerIconMonogram,
+            providerIconTintHex: self.providerIconTintHex)
     }
 
     /// Backward-compatible decoder: old payloads without
@@ -820,6 +913,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.providerAmount = try container.decodeIfPresent(SyncProviderAmount.self, forKey: .providerAmount)
         self.accountRecordKey = try container.decodeIfPresent(String.self, forKey: .accountRecordKey)
         self.zoomMateCredits = try container.decodeIfPresent(SyncZoomMateCredits.self, forKey: .zoomMateCredits)
+        self.details = try container.decodeIfPresent([SyncProviderDetailSection].self, forKey: .details) ?? []
+        self.providerIconMonogram = try container.decodeIfPresent(String.self, forKey: .providerIconMonogram)
+        self.providerIconTintHex = try container.decodeIfPresent(String.self, forKey: .providerIconTintHex)
     }
 }
 

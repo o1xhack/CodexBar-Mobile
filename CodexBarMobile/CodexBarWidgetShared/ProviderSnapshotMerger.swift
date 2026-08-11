@@ -31,10 +31,13 @@ enum ProviderSnapshotMerger {
         let providersForSnapshot = providerFilter ?? { $0.providers }
         var allProviders: [ProviderUsageSnapshot] = []
         var sourceAppVersions: [String?] = []
+        var sourceDeviceIDs: [String] = []
         for snapshot in snapshots {
             let providers = providersForSnapshot(snapshot)
             allProviders.append(contentsOf: providers)
             sourceAppVersions.append(contentsOf: repeatElement(snapshot.appVersion, count: providers.count))
+            let deviceID = snapshot.deviceID ?? "legacy:\(snapshot.deviceName)"
+            sourceDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
         }
 
         let effectiveIdentifiers: [[String]] = allProviders.map(Self.effectiveIdentifiers(for:))
@@ -95,6 +98,7 @@ enum ProviderSnapshotMerger {
                     self.mergeProviderEntries(
                         group,
                         sourceAppVersions: indices.map { sourceAppVersions[$0] },
+                        sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
                         sumLocalCosts: sumLocalCostsAcrossDevices),
                     sortIdentity))
             }
@@ -228,11 +232,19 @@ enum ProviderSnapshotMerger {
 
     private static func latestNonNil<T>(
         _ entries: [ProviderUsageSnapshot],
+        sourceDeviceIDs: [String],
         _ keyPath: KeyPath<ProviderUsageSnapshot, T?>) -> T?
     {
-        entries
-            .sorted(by: { $0.lastUpdated > $1.lastUpdated })
-            .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
+        precondition(entries.count == sourceDeviceIDs.count)
+        return entries.indices
+            .sorted { lhs, rhs in
+                if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                    return entries[lhs].lastUpdated > entries[rhs].lastUpdated
+                }
+                return sourceDeviceIDs[lhs] > sourceDeviceIDs[rhs]
+            }
+            .first(where: { entries[$0][keyPath: keyPath] != nil })
+            .flatMap { entries[$0][keyPath: keyPath] }
     }
 
     /// A pre-v0.41 Mac reports both Claude Max tiers as a generic label. During
@@ -241,10 +253,17 @@ enum ProviderSnapshotMerger {
     /// generic value remains authoritative so a real plan change cannot go stale.
     private static func mergedLoginMethod(
         _ entries: [ProviderUsageSnapshot],
-        sourceAppVersions: [String?]) -> String?
+        sourceAppVersions: [String?],
+        sourceDeviceIDs: [String]) -> String?
     {
+        precondition(entries.count == sourceDeviceIDs.count)
         let newestNonNilIndex = entries.indices
-            .sorted(by: { entries[$0].lastUpdated > entries[$1].lastUpdated })
+            .sorted { lhs, rhs in
+                if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                    return entries[lhs].lastUpdated > entries[rhs].lastUpdated
+                }
+                return sourceDeviceIDs[lhs] > sourceDeviceIDs[rhs]
+            }
             .first(where: { entries[$0].loginMethod != nil })
         guard let newestNonNilIndex else { return nil }
 
@@ -258,9 +277,14 @@ enum ProviderSnapshotMerger {
         }
 
         let specificMaxLabels: Set = ["Claude Max 5x", "Claude Max 20x"]
-        return entries
-            .sorted(by: { $0.lastUpdated > $1.lastUpdated })
-            .compactMap(\.loginMethod)
+        return entries.indices
+            .sorted { lhs, rhs in
+                if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                    return entries[lhs].lastUpdated > entries[rhs].lastUpdated
+                }
+                return sourceDeviceIDs[lhs] > sourceDeviceIDs[rhs]
+            }
+            .compactMap { entries[$0].loginMethod }
             .first(where: specificMaxLabels.contains) ?? latest
     }
 
@@ -320,6 +344,38 @@ enum ProviderSnapshotMerger {
         }.map(\.element)
     }
 
+    /// A pre-v0.48 writer decodes the additive `details` field as an empty
+    /// array, so it must not erase data from a newer Mac during a rolling
+    /// upgrade. Conversely, an empty array emitted by a v0.48+ writer is an
+    /// authoritative clear and must not revive stale detail cards.
+    private static func mergedDetails(
+        _ entries: [ProviderUsageSnapshot],
+        sourceAppVersions: [String?],
+        sourceDeviceIDs: [String]) -> [SyncProviderDetailSection]
+    {
+        precondition(entries.count == sourceAppVersions.count)
+        precondition(entries.count == sourceDeviceIDs.count)
+
+        let detailsCapableIndices = entries.indices.filter { index in
+            if !entries[index].details.isEmpty {
+                // Non-empty wire data proves capability even when legacy
+                // records omitted or misreported the app version.
+                return true
+            }
+            guard let sourceVersion = sourceAppVersions[index] else {
+                return false
+            }
+            return !Self.semverLessThan(sourceVersion, "0.48.0")
+        }
+
+        return detailsCapableIndices.max { lhs, rhs in
+            if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                return entries[lhs].lastUpdated < entries[rhs].lastUpdated
+            }
+            return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
+        }.map { entries[$0].details } ?? []
+    }
+
     private static func normalizedRateWindowLabel(_ window: SyncRateWindow) -> String? {
         guard let label = window.label?.trimmingCharacters(in: .whitespacesAndNewlines),
               !label.isEmpty
@@ -332,14 +388,22 @@ enum ProviderSnapshotMerger {
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
         sourceAppVersions: [String?],
+        sourceDeviceIDs: [String],
         sumLocalCosts: Bool = true) -> ProviderUsageSnapshot
     {
-        let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
+        precondition(entries.count == sourceDeviceIDs.count)
+        let baseIndex = entries.indices.max { lhs, rhs in
+            if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                return entries[lhs].lastUpdated < entries[rhs].lastUpdated
+            }
+            return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
+        }!
+        let base = entries[baseIndex]
         let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
         let mergedCost: SyncCostSummary? = if isLocalCost, sumLocalCosts {
             self.mergeCostSummaries(entries.compactMap(\.costSummary))
         } else {
-            Self.latestNonNil(entries, \.costSummary)
+            Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.costSummary)
         }
 
         let mergedUtilization = Self.mergeUtilizationHistories(
@@ -353,48 +417,59 @@ enum ProviderSnapshotMerger {
             accountEmail: base.accountEmail,
             loginMethod: Self.mergedLoginMethod(
                 entries,
-                sourceAppVersions: sourceAppVersions),
+                sourceAppVersions: sourceAppVersions,
+                sourceDeviceIDs: sourceDeviceIDs),
             statusMessage: base.statusMessage,
             isError: base.isError,
             lastUpdated: base.lastUpdated,
             costSummary: mergedCost,
-            budget: Self.latestNonNil(entries, \.budget),
-            subscriptionExpiresAt: Self.latestNonNil(entries, \.subscriptionExpiresAt),
-            subscriptionRenewsAt: Self.latestNonNil(entries, \.subscriptionRenewsAt),
+            budget: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.budget),
+            subscriptionExpiresAt: Self.latestNonNil(
+                entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionExpiresAt),
+            subscriptionRenewsAt: Self.latestNonNil(
+                entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionRenewsAt),
             rateWindows: Self.mergedRateWindows(entries, base: base),
             utilizationHistory: mergedUtilization,
-            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
-            accountIdentities: Self.latestNonNil(entries, \.accountIdentities),
-            quotaWarnings: Self.latestNonNil(entries, \.quotaWarnings),
-            openAIAPIDashboard: Self.latestNonNil(entries, \.openAIAPIDashboard),
-            zaiHourlyUsage: Self.latestNonNil(entries, \.zaiHourlyUsage),
-            kiroCredits: Self.latestNonNil(entries, \.kiroCredits),
-            bedrockCost: Self.latestNonNil(entries, \.bedrockCost),
-            moonshotBalance: Self.latestNonNil(entries, \.moonshotBalance),
-            antigravityAccounts: Self.latestNonNil(entries, \.antigravityAccounts),
-            grokBilling: Self.latestNonNil(entries, \.grokBilling),
-            elevenLabsCredits: Self.latestNonNil(entries, \.elevenLabsCredits),
-            deepgramUsage: Self.latestNonNil(entries, \.deepgramUsage),
-            groqMetrics: Self.latestNonNil(entries, \.groqMetrics),
-            llmProxyStats: Self.latestNonNil(entries, \.llmProxyStats),
-            claudeAdminUsage: Self.latestNonNil(entries, \.claudeAdminUsage),
-            claudeExtraUsage: Self.latestNonNil(entries, \.claudeExtraUsage),
-            openCodeGoZenBalance: Self.latestNonNil(entries, \.openCodeGoZenBalance),
-            minimaxBilling: Self.latestNonNil(entries, \.minimaxBilling),
-            codexWorkspace: Self.latestNonNil(entries, \.codexWorkspace),
-            openRouterStats: Self.latestNonNil(entries, \.openRouterStats),
-            azureOpenAIInfo: Self.latestNonNil(entries, \.azureOpenAIInfo),
-            alibabaTokenPlan: Self.latestNonNil(entries, \.alibabaTokenPlan),
-            deepSeekUsage: Self.latestNonNil(entries, \.deepSeekUsage),
-            codexResetCredits: Self.latestNonNil(entries, \.codexResetCredits),
-            usageDataConfidence: Self.latestNonNil(entries, \.usageDataConfidence),
-            crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage),
-            wayfinderUsage: Self.latestNonNil(entries, \.wayfinderUsage),
-            sub2APIUsage: Self.latestNonNil(entries, \.sub2APIUsage),
-            providerAmount: Self.latestNonNil(entries, \.providerAmount),
-            accountRecordKey: Self.latestNonNil(entries, \.accountRecordKey),
-            accountOrganization: Self.latestNonNil(entries, \.accountOrganization),
-            zoomMateCredits: Self.latestNonNil(entries, \.zoomMateCredits))
+            perplexityCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.perplexityCredits),
+            accountIdentities: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountIdentities),
+            quotaWarnings: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.quotaWarnings),
+            openAIAPIDashboard: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.openAIAPIDashboard),
+            zaiHourlyUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.zaiHourlyUsage),
+            kiroCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.kiroCredits),
+            bedrockCost: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.bedrockCost),
+            moonshotBalance: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.moonshotBalance),
+            antigravityAccounts: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.antigravityAccounts),
+            grokBilling: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.grokBilling),
+            elevenLabsCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.elevenLabsCredits),
+            deepgramUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.deepgramUsage),
+            groqMetrics: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.groqMetrics),
+            llmProxyStats: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.llmProxyStats),
+            claudeAdminUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.claudeAdminUsage),
+            claudeExtraUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.claudeExtraUsage),
+            openCodeGoZenBalance: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.openCodeGoZenBalance),
+            minimaxBilling: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.minimaxBilling),
+            codexWorkspace: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.codexWorkspace),
+            openRouterStats: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.openRouterStats),
+            azureOpenAIInfo: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.azureOpenAIInfo),
+            alibabaTokenPlan: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.alibabaTokenPlan),
+            deepSeekUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.deepSeekUsage),
+            codexResetCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.codexResetCredits),
+            usageDataConfidence: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.usageDataConfidence),
+            crossModelUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.crossModelUsage),
+            wayfinderUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.wayfinderUsage),
+            sub2APIUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.sub2APIUsage),
+            providerAmount: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.providerAmount),
+            accountRecordKey: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountRecordKey),
+            accountOrganization: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountOrganization),
+            zoomMateCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.zoomMateCredits),
+            details: Self.mergedDetails(
+                entries,
+                sourceAppVersions: sourceAppVersions,
+                sourceDeviceIDs: sourceDeviceIDs),
+            providerIconMonogram: Self.latestNonNil(
+                entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconMonogram),
+            providerIconTintHex: Self.latestNonNil(
+                entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconTintHex))
     }
 
     private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {

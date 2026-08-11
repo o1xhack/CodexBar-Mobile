@@ -4,6 +4,78 @@ import Testing
 
 struct CostUsageFetcherCacheSnapshotTests {
     @Test
+    func `cached token activity derives buckets and partial coverage from the shared scan cache`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-04-06"
+        cache.scanUntilKey = "2026-04-08"
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        let fixtureDays = [
+            "2026-04-06": ["gpt-5.4": [10, 4, 2]],
+            "2026-04-08": [
+                "gpt-5.4": [20, 7, 3],
+                "gpt-5.3-codex": [5, 1, 1],
+            ],
+        ]
+        cache.files[env.codexSessionsRoot.appendingPathComponent("fixture.jsonl").path] =
+            CostUsageScanner.makeFileUsage(
+                mtimeUnixMs: Int64(now.timeIntervalSince1970 * 1000),
+                size: 1,
+                days: fixtureDays,
+                parsedBytes: 1,
+                codexScanComplete: true)
+        cache.days = fixtureDays
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+
+        let activity = await CostUsageFetcher.loadCachedCodexTokenActivity(
+            now: now,
+            maximumDays: 365,
+            scannerOptions: options)
+
+        #expect(activity?.coverageSinceKey == "2026-04-06")
+        #expect(activity?.coverageUntilKey == "2026-04-08")
+        #expect(activity?.daily.map(\.date) == ["2026-04-06", "2026-04-08"])
+        #expect(activity?.daily.map(\.totalTokens) == [12, 29])
+    }
+
+    @Test
+    func `empty shared scan cache preserves established coverage`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-04-08"
+        cache.scanUntilKey = "2026-04-08"
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+
+        let activity = await CostUsageFetcher.loadCachedCodexTokenActivity(
+            now: now,
+            maximumDays: 365,
+            scannerOptions: options)
+
+        #expect(activity?.coverageSinceKey == "2026-04-08")
+        #expect(activity?.coverageUntilKey == "2026-04-08")
+        #expect(activity?.daily.isEmpty == true)
+    }
+
+    @Test
     func `cached codex token snapshot loads from existing cache without rescanning`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -36,47 +108,6 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
-    func `cached codex token snapshot exposes an incompatible producer as stale upgrade data`() async throws {
-        let env = try CostUsageTestEnvironment()
-        defer { env.cleanup() }
-
-        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
-        try Self.writeCodexSessionFile(
-            homeRoot: env.codexHomeRoot,
-            env: env,
-            day: day,
-            filename: "cached.jsonl",
-            tokens: 42)
-
-        let options = CostUsageScanner.Options(
-            codexSessionsRoot: env.codexSessionsRoot,
-            cacheRoot: env.cacheRoot)
-        _ = try await CostUsageFetcher.loadTokenSnapshot(
-            provider: .codex,
-            now: day,
-            historyDays: 1,
-            scannerOptions: options)
-
-        let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
-        let scanTime = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
-        CostUsageCacheIO.save(
-            provider: .codex,
-            cache: cache,
-            cacheRoot: env.cacheRoot,
-            producerKey: "codex:cu:pupgrade-fixture")
-
-        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
-            now: day.addingTimeInterval(60),
-            historyDays: 1,
-            scannerOptions: options)
-
-        #expect(cached?.snapshot.sessionTokens == 42)
-        #expect(cached?.snapshot.updatedAt == scanTime)
-        #expect(cached?.lastRefreshAt == nil)
-        #expect(cached?.staleSnapshotUpdatedAt == scanTime)
-    }
-
-    @Test
     func `cached codex token snapshot keeps the cache scan time as updatedAt`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -98,7 +129,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             historyDays: 1,
             scannerOptions: options)
 
-        let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(cache.lastScanUnixMs > 0)
         let scanTime = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
 
@@ -142,7 +173,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options,
             piScannerOptions: piOptions)
 
-        let nativeCache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         var piCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         #expect(nativeCache.lastScanUnixMs > 0)
         #expect(piCache.lastScanUnixMs > 0)
@@ -232,7 +263,7 @@ struct CostUsageFetcherCacheSnapshotTests {
         piCache.lastScanUnixMs = 0
         PiSessionCostCacheIO.save(cache: piCache, cacheRoot: env.cacheRoot)
 
-        let nativeCache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        let nativeCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(nativeCache.lastScanUnixMs > 0)
         let nativeScanTime = Date(
             timeIntervalSince1970: TimeInterval(nativeCache.lastScanUnixMs) / 1000)
@@ -312,9 +343,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options)
         #expect(current?.projects.count == 1)
 
-        var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         cache.codexProjectMetadataVersion = nil
-        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: env.cacheRoot)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
 
         let legacy = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
@@ -346,9 +377,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             historyDays: 1,
             scannerOptions: options)
 
-        var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         cache.roots = [env.root.appendingPathComponent("other/sessions", isDirectory: true).path: 0]
-        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: env.cacheRoot)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
 
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
@@ -456,9 +487,9 @@ struct CostUsageFetcherCacheSnapshotTests {
             scannerOptions: options,
             piScannerOptions: piOptions)
 
-        var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         cache.roots = [env.root.appendingPathComponent("other/sessions", isDirectory: true).path: 0]
-        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: env.cacheRoot)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
 
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,

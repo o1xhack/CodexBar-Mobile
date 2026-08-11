@@ -231,11 +231,11 @@ final class SettingsStore {
     var providerDetailSettingsRevision: Int = 0
     var backgroundWorkSettingsRevision: Int = 0
     var costUsageSettingsRevision: UInt64 = 0
-    var providerOrder: [UsageProvider] = []
-    var providerEnablement: [UsageProvider: Bool] = [:]
-    @ObservationIgnored var providerEnablementRevisions: [UsageProvider: UInt64] = [:]
-    @ObservationIgnored var providerConfigRevisions: [UsageProvider: UInt64] = [:]
-    @ObservationIgnored var providerConfigFingerprints: [UsageProvider: Data] = [:]
+    var providerOrder: [ProviderInstanceID] = []
+    var providerEnablement: [ProviderInstanceID: Bool] = [:]
+    @ObservationIgnored var providerEnablementRevisions: [ProviderInstanceID: UInt64] = [:]
+    @ObservationIgnored var providerConfigRevisions: [ProviderInstanceID: UInt64] = [:]
+    @ObservationIgnored var providerConfigFingerprints: [ProviderInstanceID: Data] = [:]
 
     static func shouldBridgeSharedDefaults(for userDefaults: UserDefaults) -> Bool {
         if !self.isRunningTests {
@@ -284,6 +284,9 @@ final class SettingsStore {
         antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore = AntigravityOAuthCredentialsStore(),
         performInitialProviderDetection: Bool = !SettingsStore.isRunningTests)
     {
+        if !Self.isRunningTests {
+            _ = UserProviderPluginRegistry.refresh()
+        }
         // Capture this before app-group/config migrations can create prior-installation state.
         let hadExistingConfig = (try? configStore.load()) != nil
         let hadPreviousInstallationState = hadExistingConfig || Self.hadPreviousAppLaunch(userDefaults: userDefaults)
@@ -407,6 +410,7 @@ extension SettingsStore {
         config: CodexBarConfig,
         hadExistingConfig: Bool) -> Bool
     {
+        // Provider-specific by design: the legacy OpenAI web-access flag was inferred from Codex's cookie config.
         guard let codex = config.providerConfig(for: .codex) else { return false }
         if let cookieSource = codex.cookieSource {
             return cookieSource.isEnabled
@@ -491,6 +495,9 @@ extension SettingsStore {
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
         let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
         let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
+        // Explicit consent for reading Claude Code's Keychain item (#2634). Default OFF; never enabled silently.
+        let claudeOAuthDirectKeychainReadAllowed = userDefaults.object(
+            forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey) as? Bool ?? false
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
         let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
@@ -610,6 +617,7 @@ extension SettingsStore {
             menuBarShowsHighestUsage: menuBarShowsHighestUsage,
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
+            claudeOAuthDirectKeychainReadAllowed: claudeOAuthDirectKeychainReadAllowed,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: claudeDailyRoutinesUsageVisible,
@@ -738,6 +746,7 @@ extension SettingsStore {
 
         // Tagged builds through v0.35 used primary=Claude, secondary=Gemini Pro,
         // and tertiary=Gemini Flash. Remap those meanings once to the two-pool schema.
+        // Provider-specific by design: this one-time migration rewrites Antigravity's historical persisted lanes.
         var migrated = preferences
         switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? "") {
         case .primary:
@@ -874,21 +883,36 @@ extension SettingsStore {
         let rawOrder = config.providers.map(\.id.rawValue)
         self.providerOrder = Self.effectiveProviderOrder(raw: rawOrder)
         let metadata = ProviderDescriptorRegistry.metadata
-        var enablement: [UsageProvider: Bool] = [:]
+        var enablement: [ProviderInstanceID: Bool] = [:]
         enablement.reserveCapacity(metadata.count)
         for provider in UsageProvider.allCases {
+            let instanceID = provider.instanceID
             let defaultEnabled = metadata[provider]?.defaultEnabled ?? false
-            let providerConfig = config.providerConfig(for: provider) ?? ProviderConfig(id: provider)
+            let providerConfig = config.providerConfig(for: instanceID) ?? ProviderConfig(id: instanceID)
             let isEnabled = providerConfig.enabled ?? defaultEnabled
-            if let previous = self.providerEnablement[provider], previous != isEnabled {
-                self.providerEnablementRevisions[provider, default: 0] &+= 1
+            if let previous = self.providerEnablement[instanceID], previous != isEnabled {
+                self.providerEnablementRevisions[instanceID, default: 0] &+= 1
             }
             let fingerprint = Self.providerConfigFingerprint(providerConfig)
-            if let previous = self.providerConfigFingerprints[provider], previous != fingerprint {
-                self.providerConfigRevisions[provider, default: 0] &+= 1
+            if let previous = self.providerConfigFingerprints[instanceID], previous != fingerprint {
+                self.providerConfigRevisions[instanceID, default: 0] &+= 1
             }
-            self.providerConfigFingerprints[provider] = fingerprint
-            enablement[provider] = isEnabled
+            self.providerConfigFingerprints[instanceID] = fingerprint
+            enablement[instanceID] = isEnabled
+        }
+        for plugin in UserProviderPluginRegistry.all {
+            let instanceID = plugin.manifest.id
+            let providerConfig = config.providerConfig(for: instanceID) ?? ProviderConfig(id: instanceID)
+            let isEnabled = providerConfig.enabled ?? true
+            if let previous = self.providerEnablement[instanceID], previous != isEnabled {
+                self.providerEnablementRevisions[instanceID, default: 0] &+= 1
+            }
+            let fingerprint = Self.providerConfigFingerprint(providerConfig)
+            if let previous = self.providerConfigFingerprints[instanceID], previous != fingerprint {
+                self.providerConfigRevisions[instanceID, default: 0] &+= 1
+            }
+            self.providerConfigFingerprints[instanceID] = fingerprint
+            enablement[instanceID] = isEnabled
         }
         self.providerEnablement = enablement
     }
@@ -900,18 +924,26 @@ extension SettingsStore {
     }
 
     func providerEnablementRevision(for provider: UsageProvider) -> UInt64 {
-        self.providerEnablementRevisions[provider, default: 0]
+        self.providerEnablementRevisions[provider.instanceID, default: 0]
     }
 
     func providerConfigRevision(for provider: UsageProvider) -> UInt64 {
-        self.providerConfigRevisions[provider, default: 0]
+        self.providerConfigRevisions[provider.instanceID, default: 0]
     }
 
-    func orderedProviders() -> [UsageProvider] {
+    func providerInstanceConfigRevision(for instanceID: ProviderInstanceID) -> UInt64 {
+        self.providerConfigRevisions[instanceID, default: 0]
+    }
+
+    func orderedProviders() -> [ProviderInstanceID] {
         if self.providerOrder.isEmpty {
             self.updateProviderState(config: self.configSnapshot)
         }
         return self.providerOrder
+    }
+
+    func orderedFirstPartyProviders() -> [UsageProvider] {
+        self.orderedProviders().compactMap(\.firstPartyProvider)
     }
 
     func moveProvider(fromOffsets: IndexSet, toOffset: Int) {
@@ -921,7 +953,7 @@ extension SettingsStore {
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        self.providerEnablement[provider] ?? metadata.defaultEnabled
+        self.providerEnablement[provider.instanceID] ?? metadata.defaultEnabled
     }
 
     func isProviderEnabledCached(
@@ -929,10 +961,10 @@ extension SettingsStore {
         metadataByProvider: [UsageProvider: ProviderMetadata]) -> Bool
     {
         let defaultEnabled = metadataByProvider[provider]?.defaultEnabled ?? false
-        return self.providerEnablement[provider] ?? defaultEnabled
+        return self.providerEnablement[provider.instanceID] ?? defaultEnabled
     }
 
-    func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
+    func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [ProviderInstanceID] {
         _ = metadataByProvider
         return self.orderedProviders().filter { self.providerEnablement[$0] ?? false }
     }
@@ -944,8 +976,35 @@ extension SettingsStore {
         self.updateProviderConfig(provider: provider) { entry in
             entry.enabled = enabled
         }
-        if !enabled, self.selectedMenuProvider == provider {
+        if !enabled, self.selectedMenuProvider == provider.instanceID {
             self.selectedMenuProvider = nil
+        }
+    }
+
+    func isPluginEnabled(_ instanceID: ProviderInstanceID) -> Bool {
+        self.providerEnablement[instanceID] ?? false
+    }
+
+    func setPluginEnabled(_ instanceID: ProviderInstanceID, enabled: Bool) {
+        self.updatePluginConfig(instanceID: instanceID) { $0.enabled = enabled }
+        if !enabled, self.selectedMenuProvider == instanceID {
+            self.selectedMenuProvider = nil
+        }
+    }
+
+    func pluginConfig(_ instanceID: ProviderInstanceID) -> ProviderConfig? {
+        self.configSnapshot.providerConfig(for: instanceID)
+    }
+
+    func updatePluginConfig(instanceID: ProviderInstanceID, mutate: (inout ProviderConfig) -> Void) {
+        self.updateConfig(reason: "plugin-\(instanceID.rawValue)", affectsBackgroundWork: true) { config in
+            if let index = config.providers.firstIndex(where: { $0.id == instanceID }) {
+                mutate(&config.providers[index])
+            } else {
+                var entry = ProviderConfig(id: instanceID, enabled: true)
+                mutate(&entry)
+                config.providers.append(entry)
+            }
         }
     }
 
@@ -955,19 +1014,23 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
-    private static func effectiveProviderOrder(raw: [String]) -> [UsageProvider] {
-        var seen: Set<UsageProvider> = []
-        var ordered: [UsageProvider] = []
+    private static func effectiveProviderOrder(raw: [String]) -> [ProviderInstanceID] {
+        var seen: Set<ProviderInstanceID> = []
+        var ordered: [ProviderInstanceID] = []
 
         for rawValue in raw {
-            guard let provider = UsageProvider(rawValue: rawValue) else { continue }
-            guard !seen.contains(provider) else { continue }
-            seen.insert(provider)
-            ordered.append(provider)
+            guard let instanceID = ProviderInstanceID(rawValue: rawValue),
+                  instanceID.firstPartyProvider != nil || UserProviderPluginRegistry.plugin(for: instanceID) != nil
+            else {
+                continue
+            }
+            guard !seen.contains(instanceID) else { continue }
+            seen.insert(instanceID)
+            ordered.append(instanceID)
         }
 
         if ordered.isEmpty {
-            ordered = UsageProvider.allCases
+            ordered = UsageProvider.allCases.map(\.instanceID)
             seen = Set(ordered)
         }
 
@@ -982,8 +1045,13 @@ extension SettingsStore {
             seen.insert(.minimax)
         }
 
-        for provider in UsageProvider.allCases where !seen.contains(provider) {
-            ordered.append(provider)
+        for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
+            ordered.append(provider.instanceID)
+        }
+
+        for plugin in UserProviderPluginRegistry.all where !seen.contains(plugin.manifest.id) {
+            ordered.append(plugin.manifest.id)
+            seen.insert(plugin.manifest.id)
         }
 
         return ordered

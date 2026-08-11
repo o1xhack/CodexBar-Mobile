@@ -1,7 +1,7 @@
 import Foundation
 
 public struct ProviderIdentitySnapshot: Codable, Sendable {
-    public let providerID: UsageProvider?
+    public let providerID: ProviderInstanceID?
     public let accountEmail: String?
     public let accountOrganization: String?
     public let loginMethod: String?
@@ -12,7 +12,7 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
     public let accountEmailIsFallbackLabel: Bool?
 
     public init(
-        providerID: UsageProvider?,
+        providerID: ProviderInstanceID?,
         accountEmail: String?,
         accountOrganization: String?,
         loginMethod: String?,
@@ -27,17 +27,21 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
         self.accountEmailIsFallbackLabel = accountEmailIsFallbackLabel
     }
 
-    public func scoped(to provider: UsageProvider) -> ProviderIdentitySnapshot {
-        if self.providerID == provider {
+    public func scoped(to instanceID: ProviderInstanceID) -> ProviderIdentitySnapshot {
+        if self.providerID == instanceID {
             return self
         }
         return ProviderIdentitySnapshot(
-            providerID: provider,
+            providerID: instanceID,
             accountEmail: self.accountEmail,
             accountOrganization: self.accountOrganization,
             loginMethod: self.loginMethod,
             accountID: self.accountID,
             accountEmailIsFallbackLabel: self.accountEmailIsFallbackLabel)
+    }
+
+    public func scoped(to provider: UsageProvider) -> ProviderIdentitySnapshot {
+        self.scoped(to: provider.instanceID)
     }
 }
 

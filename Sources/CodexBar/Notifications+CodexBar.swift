@@ -12,6 +12,7 @@ extension Notification.Name {
     static let codexbarWeeklyLimitReset = Notification.Name("codexbarWeeklyLimitReset")
     static let codexbarProviderConfigDidChange = Notification.Name("codexbarProviderConfigDidChange")
     static let codexbarExternalProviderConfigDidChange = Notification.Name("codexbarExternalProviderConfigDidChange")
+    static let codexbarLocalConfigFileDidChange = Notification.Name("codexbarLocalConfigFileDidChange")
     static let codexbarUsageSnapshotsDidChange = Notification.Name("codexbarUsageSnapshotsDidChange")
     static let codexbarQuotaWarningDidPost = Notification.Name("codexbarQuotaWarningDidPost")
 }
@@ -30,16 +31,16 @@ final class ExternalProviderConfigDidChangeEvent: NSObject, @unchecked Sendable 
 
 final class UsageSnapshotsDidChangeEvent: NSObject, @unchecked Sendable {
     let snapshots: [AccountSnapshotSyncPayload]
-    let authoritativeProviders: Set<UsageProvider>
-    let providerConfigRevisions: [UsageProvider: UInt64]
-    let providerPublicationGenerations: [UsageProvider: UInt64]
+    let authoritativeProviders: Set<ProviderInstanceID>
+    let providerConfigRevisions: [ProviderInstanceID: UInt64]
+    let providerPublicationGenerations: [ProviderInstanceID: UInt64]
     let tokenAccountIDsByRecordName: [String: UUID]
 
     init(
         snapshots: [AccountSnapshotSyncPayload],
-        authoritativeProviders: Set<UsageProvider>,
-        providerConfigRevisions: [UsageProvider: UInt64],
-        providerPublicationGenerations: [UsageProvider: UInt64],
+        authoritativeProviders: Set<ProviderInstanceID>,
+        providerConfigRevisions: [ProviderInstanceID: UInt64],
+        providerPublicationGenerations: [ProviderInstanceID: UInt64],
         tokenAccountIDsByRecordName: [String: UUID])
     {
         self.snapshots = snapshots

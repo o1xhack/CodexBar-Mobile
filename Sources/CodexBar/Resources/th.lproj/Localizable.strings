@@ -672,6 +672,8 @@
 "copyright" = "© 2026 ปีเตอร์ สไตน์เบอร์เกอร์ ใบอนุญาต MIT";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "ใช้ JavaScriptCore สำหรับปลั๊กอินผู้ให้บริการ";
+"use_javascriptcore_plugin_engine_subtitle" = "ใช้เพื่อย้อนกลับด้านความเข้ากันได้เท่านั้น เริ่ม CodexBar ใหม่เพื่อใช้ค่า; CODEXBAR_PLUGIN_ENGINE จะแทนที่การตั้งค่านี้";
 "section_logging" = "การบันทึก";
 "enable_file_logging" = "เปิดใช้งานการบันทึกไฟล์";
 "enable_file_logging_subtitle" = "เขียนบันทึกไปยัง %@ เพื่อแก้ไขข้อบกพร่อง";
@@ -845,7 +847,7 @@
 "Pace: %@" = "ก้าว: %@";
 "Pace: %@ · %@" = "เพซ: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% ความเสี่ยงในการหมด";
+"(%d%% risk)" = "(%d%% ความเสี่ยงในการหมด)";
 "%d%% in deficit" = "%d%% ขาดดุล";
 "%d%% in reserve" = "%d%% สํารอง";
 "usage_percent_suffix_left" = "คงเหลือ";
@@ -1350,6 +1352,7 @@
 "menu_bar_layout_token_account" = "บัญชี";
 "menu_bar_layout_token_session" = "เซสชั่น %";
 "menu_bar_layout_token_weekly" = "รายสัปดาห์ %";
+"menu_bar_layout_token_scoped_weekly" = "รายสัปดาห์ตามขอบเขต %";
 "menu_bar_layout_token_auto" = "% อัตโนมัติ";
 "menu_bar_layout_token_session_pace" = "อัตราเซสชั่น";
 "menu_bar_layout_token_weekly_pace" = "อัตรารายสัปดาห์";
@@ -1456,3 +1459,53 @@
 "weekly_limit_confetti_subtitle" = "เล่นลูกปาแบบเต็มหน้าจอเมื่อรีเซ็ตการใช้งานรายสัปดาห์";
 "weekly_limit_confetti_title" = "ลูกปาจํากัดรายสัปดาห์";
 "∞ Unlimited" = "∞ ไม่จำกัด";
+"Cumulative" = "สะสม";
+"Token activity" = "กิจกรรมโทเทน";
+"View" = "มุมมอง";
+"in the last year" = "ในปีที่ผ่านมา";
+"No activity in the last 12 months" = "ไม่มีกิจกรรมในช่วง 12 เดือนที่ผ่านมา";
+"Each column = 1 week" = "แต่ละคอลัมน์ = 1 สัปดาห์";
+"Running total" = "ยอดรวมสะสม";
+"Less" = "น้อย";
+"More" = "มาก";
+
+/* Provider Plugins */
+"Install…" = "ติดตั้ง…";
+"Install plugin" = "ติดตั้งปลั๊กอิน";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "คัดลอกไฟล์ JavaScript หรือ TypeScript ไปยังโฟลเดอร์ปลั๊กอิน";
+"Show in Finder" = "แสดงใน Finder";
+"Plugins directory" = "โฟลเดอร์ปลั๊กอิน";
+"Provider Plugins" = "ปลั๊กอินผู้ให้บริการ";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "ปลั๊กอินคือไฟล์ JavaScript หรือ TypeScript ในเครื่อง การเข้าถึงเครือข่ายและคุกกี้ต้องได้รับการอนุมัติ";
+"No Plugins Installed" = "ยังไม่ได้ติดตั้งปลั๊กอิน";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "วางไฟล์ .js หรือ .ts ลงในโฟลเดอร์ปลั๊กอิน หรือเลือก ติดตั้ง…";
+"Delete Plugin?" = "ลบปลั๊กอินหรือไม่";
+"Delete" = "ลบ";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "การดำเนินการนี้จะลบไฟล์ปลั๊กอิน แคชการแปลงโค้ด การอนุมัติ การตั้งค่าและข้อมูลลับที่บันทึกไว้ รวมถึงประวัติ";
+"Plugin Error" = "ข้อผิดพลาดของปลั๊กอิน";
+"Needs approval" = "ต้องได้รับการอนุมัติ";
+"File" = "ไฟล์";
+"Origins" = "ต้นทาง";
+"Configure endpoint settings" = "กำหนดค่าปลายทาง";
+"Capabilities" = "ความสามารถ";
+"Network" = "เครือข่าย";
+"Cookie domains" = "โดเมนคุกกี้";
+"Approve…" = "อนุมัติ…";
+"Delete…" = "ลบ…";
+"Unknown validation error" = "ข้อผิดพลาดในการตรวจสอบที่ไม่ทราบสาเหตุ";
+"Approve Plugin" = "อนุมัติปลั๊กอิน";
+"Install and Approve Plugin" = "ติดตั้งและอนุมัติปลั๊กอิน";
+"Network authority" = "สิทธิ์การเข้าถึงเครือข่าย";
+"Auth: %@" = "การตรวจสอบสิทธิ์: %@";
+"Capabilities: %@" = "ความสามารถ: %@";
+"network" = "เครือข่าย";
+"Secrets: %@" = "ข้อมูลลับ: %@";
+"none" = "ไม่มี";
+"Cookie domains: %@" = "โดเมนคุกกี้: %@";
+"Type %@ to confirm" = "พิมพ์ %@ เพื่อยืนยัน";
+"Enter every endpoint setting to review the exact network origins." = "กรอกการตั้งค่าปลายทางทุกค่าเพื่อตรวจสอบต้นทางเครือข่ายที่แน่นอน";
+"Approve" = "อนุมัติ";
+"Install" = "ติดตั้ง";
+"5-hour usage" = "การใช้งาน 5 ชั่วโมง";
+"7-day usage" = "การใช้งาน 7 วัน";
+"Total usage" = "การใช้งานทั้งหมด";

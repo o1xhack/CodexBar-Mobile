@@ -15,7 +15,7 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -75,7 +75,7 @@ struct StatusItemAnimationSignatureTests {
         settings.selectedMenuProvider = .antigravity
         settings.menuBarShowsBrandIconWithPercent = false
         settings.usageBarsShowUsed = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let antigravityMeta = registry.metadata[.antigravity] {
@@ -152,7 +152,7 @@ struct StatusItemAnimationSignatureTests {
         settings.selectedMenuProvider = .mistral
         settings.menuBarShowsBrandIconWithPercent = false
         settings.usageBarsShowUsed = true
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
         settings.setMenuBarMetricPreference(.monthlyPlan, for: .mistral)
 
         let registry = ProviderRegistry.shared
@@ -248,7 +248,7 @@ struct StatusItemAnimationSignatureTests {
         settings.menuBarShowsBrandIconWithPercent = true
         settings.menuBarDisplayMode = .percent
         settings.usageBarsShowUsed = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -434,7 +434,7 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {
@@ -545,7 +545,7 @@ struct StatusItemAnimationSignatureTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
         settings.setProviderOrder([.synthetic, .codex])
 
         let registry = ProviderRegistry.shared
@@ -655,7 +655,7 @@ struct StatusItemAnimationSignatureTests {
         settings.setMergedOverviewProviderSelection(
             provider: .claude,
             isSelected: false,
-            activeProviders: store.enabledProvidersForDisplay())
+            activeProviders: store.enabledFirstPartyProvidersForDisplay())
         let controller = StatusItemController(
             store: store,
             settings: settings,
@@ -709,7 +709,7 @@ struct StatusItemAnimationSignatureTests {
         settings.setMergedOverviewProviderSelection(
             provider: .claude,
             isSelected: false,
-            activeProviders: store.enabledProvidersForDisplay())
+            activeProviders: store.enabledFirstPartyProvidersForDisplay())
         let controller = StatusItemController(
             store: store,
             settings: settings,
@@ -763,7 +763,7 @@ struct StatusItemAnimationSignatureTests {
             fetcher: fetcher,
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        let activeProviders = store.enabledProvidersForDisplay()
+        let activeProviders = store.enabledFirstPartyProvidersForDisplay()
         settings.setMergedOverviewProviderSelection(
             provider: .codex,
             isSelected: false,
@@ -781,7 +781,8 @@ struct StatusItemAnimationSignatureTests {
             statusBar: testStatusBar())
         defer { controller.releaseStatusItemsForTesting() }
 
-        #expect(settings.resolvedMergedOverviewProviders(activeProviders: store.enabledProvidersForDisplay()) == [])
+        #expect(settings.resolvedMergedOverviewProviders(
+            activeProviders: store.enabledFirstPartyProvidersForDisplay()) == [])
         #expect(controller.primaryProviderForUnifiedIcon() == .claude)
     }
 
@@ -827,11 +828,13 @@ struct StatusItemAnimationSignatureTests {
         store._setSnapshotForTesting(snapshot, provider: .claude)
 
         #expect(store.enabledProvidersForDisplay().prefix(3) == [.cursor, .codex, .claude])
-        #expect(settings.resolvedMergedOverviewProviders(activeProviders: store.enabledProvidersForDisplay()) == [
+        let expectedProviders: [UsageProvider] = [
             .cursor,
             .codex,
             .claude,
-        ])
+        ]
+        #expect(settings.resolvedMergedOverviewProviders(
+            activeProviders: store.enabledFirstPartyProvidersForDisplay()) == expectedProviders)
 
         controller.applyIcon(phase: nil)
 

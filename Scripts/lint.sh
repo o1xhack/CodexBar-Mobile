@@ -119,8 +119,28 @@ audit_parser_version() {
   return 1
 }
 
+ensure_oxlint() {
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh" oxlint
+}
+
+ensure_oxfmt() {
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh" oxfmt
+}
+
+ensure_typescript() {
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh" typescript
+}
+
 check_codex_parser_hash() {
   "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
+}
+
+check_provider_manifests() {
+  "${ROOT_DIR}/Scripts/regenerate-provider-manifests.sh" --check
+}
+
+check_plugin_javascript() {
+  "${ROOT_DIR}/Scripts/regenerate-plugin-js.sh" --check
 }
 
 check_package_product_paths() {
@@ -172,6 +192,10 @@ check_ci_policy() {
   "${ROOT_DIR}/Scripts/test_ci_policy.sh"
 }
 
+check_homebrew_tap_wait() {
+  "${ROOT_DIR}/Scripts/test_wait_for_homebrew_tap_update.sh"
+}
+
 check_repository_size() {
   "${ROOT_DIR}/Scripts/check_repository_size.sh"
   "${ROOT_DIR}/Scripts/test_repository_size.sh"
@@ -208,6 +232,8 @@ check_llms_index() {
 
 run_portable_checks() {
   check_codex_parser_hash
+  check_provider_manifests
+  check_plugin_javascript
   check_package_product_paths
   check_package_strip
   check_package_signing
@@ -220,6 +246,7 @@ run_portable_checks() {
   check_ci_path_gate
   check_ci_upstream_check_gate
   check_ci_policy
+  check_homebrew_tap_wait
   check_repository_size
   check_shell_scripts
   check_documentation_links
@@ -237,12 +264,54 @@ run_swiftlint() {
   "${BIN_DIR}/swiftlint" --strict
 }
 
+collect_javascript_files() {
+  JAVASCRIPT_FILES=("${ROOT_DIR}/docs/site.js")
+  local file
+  for file in "${ROOT_DIR}"/Scripts/*.mjs "${ROOT_DIR}"/Sources/CodexBarCore/Resources/Plugins/*.js \
+    "${ROOT_DIR}"/Sources/CodexBarCore/Resources/Plugins/*.ts
+  do
+    [[ -f "$file" ]] || continue
+    case "$(basename "$file")" in
+      sucrase-*.min.js) continue ;;
+    esac
+    JAVASCRIPT_FILES+=("$file")
+  done
+}
+
+run_oxfmt_check() {
+  ensure_oxfmt
+  collect_javascript_files
+  "${BIN_DIR}/oxfmt" --config "${ROOT_DIR}/.oxfmtrc.json" --check "${JAVASCRIPT_FILES[@]}"
+}
+
+run_oxlint() {
+  ensure_oxlint
+  collect_javascript_files
+  "${BIN_DIR}/oxlint" \
+    --config "${ROOT_DIR}/.oxlintrc.json" \
+    --deny-warnings \
+    --report-unused-disable-directives \
+    "${JAVASCRIPT_FILES[@]}"
+}
+
+run_typescript_check() {
+  ensure_typescript
+  node "${ROOT_DIR}/.build/lint-tools/typescript/bin/tsc" --project "${ROOT_DIR}/tsconfig.plugins.json"
+}
+
+run_javascript_checks() {
+  run_oxfmt_check
+  run_oxlint
+  run_typescript_check
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
   lint)
     check_app_locales
     run_portable_checks
+    run_javascript_checks
     run_swiftformat_lint
     run_swiftlint
     audit_xcstrings
@@ -250,17 +319,23 @@ case "$cmd" in
     ;;
   lint-linux)
     run_portable_checks
+    run_javascript_checks
     run_swiftlint
     audit_parser_version
     ;;
   lint-macos)
     check_app_locales
+    run_javascript_checks
     run_swiftformat_lint
     audit_xcstrings
     ;;
   format)
     ensure_swiftformat
     "${BIN_DIR}/swiftformat" Sources Tests
+    ensure_oxfmt
+    collect_javascript_files
+    "${BIN_DIR}/oxfmt" --config "${ROOT_DIR}/.oxfmtrc.json" --write "${JAVASCRIPT_FILES[@]}"
+    "${ROOT_DIR}/Scripts/regenerate-plugin-js.sh" --write
     ;;
   audit-i18n)
     audit_xcstrings

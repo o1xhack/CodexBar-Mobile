@@ -143,7 +143,13 @@ struct CodexWeeklyResetConfirmation: Sendable {
                previousWeekly,
                capturedAt: previous.updatedAt)
         {
-            if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60) {
+            let confirmsManualReset = Self.confirmsManualResetCreditConsumption(
+                previous: previous,
+                initial: initial,
+                confirmation: confirmation)
+            if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60),
+               !confirmsManualReset
+            {
                 return .preservePrevious
             }
             guard initialBoundary.timeIntervalSince(previousBoundary) >= Self.resetEquivalenceToleranceSeconds,
@@ -153,6 +159,52 @@ struct CodexWeeklyResetConfirmation: Sendable {
             }
         }
         return .publishConfirmation
+    }
+
+    private static func confirmsManualResetCreditConsumption(
+        previous: UsageSnapshot,
+        initial: UsageSnapshot,
+        confirmation: UsageSnapshot) -> Bool
+    {
+        guard let previousCredits = previous.codexResetCredits,
+              let initialCredits = initial.codexResetCredits,
+              let confirmationCredits = confirmation.codexResetCredits,
+              self.isFinite(previousCredits.updatedAt),
+              self.isFinite(initialCredits.updatedAt),
+              self.isFinite(confirmationCredits.updatedAt),
+              initialCredits.updatedAt >= previousCredits.updatedAt,
+              confirmationCredits.updatedAt >= initialCredits.updatedAt
+        else {
+            return false
+        }
+        let previouslyAvailableCredits = previousCredits.availableCredits(at: previousCredits.updatedAt)
+        guard !previouslyAvailableCredits.isEmpty else { return false }
+        return previouslyAvailableCredits.contains { previousCredit in
+            Self.inventoryConfirmsConsumption(
+                previousCredit: previousCredit,
+                current: initialCredits,
+                previousAvailableCount: previousCredits.availableCount) &&
+                Self.inventoryConfirmsConsumption(
+                    previousCredit: previousCredit,
+                    current: confirmationCredits,
+                    previousAvailableCount: previousCredits.availableCount)
+        }
+    }
+
+    private static func inventoryConfirmsConsumption(
+        previousCredit: CodexRateLimitResetCredit,
+        current: CodexRateLimitResetCreditsSnapshot,
+        previousAvailableCount: Int) -> Bool
+    {
+        if let credit = current.credits.first(where: { $0.id == previousCredit.id }) {
+            return credit.status == .redeeming || credit.status == .redeemed
+        }
+        // A credit can disappear because it expired. Only treat omission as consumption while
+        // the previously available credit would still be valid at this inventory timestamp.
+        guard previousCredit.expiresAt.map({ $0 > current.updatedAt }) ?? true else { return false }
+        // The live provider omits a consumed credit instead of retaining a redeemed row, so the
+        // successful inventory's aggregate count must also corroborate the disappearance.
+        return current.availableCount < previousAvailableCount
     }
 
     private static func initialDecisionWithoutWeeklyBaseline(

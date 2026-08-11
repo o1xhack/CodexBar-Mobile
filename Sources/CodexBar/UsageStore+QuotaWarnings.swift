@@ -56,11 +56,12 @@ extension UsageStore {
             self.clearQuotaLowHookUsage(provider: provider)
         }
         guard notificationsEnabled || hooksActive else { return }
-        if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
 
         let accountContext = QuotaWarningAccountContext(
             discriminator: accountDiscriminator,
             displayName: self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot))
+        // Provider-specific by design: warning lanes follow Antigravity families, balance-only suppression, and
+        // provider-authored dynamic labels rather than the generic primary/secondary pair.
         let source: SessionQuotaWindowSource? = if provider == .antigravity {
             Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
                 ? .antigravityQuotaSummary
@@ -83,10 +84,10 @@ extension UsageStore {
             secondaryWindow = suppressWindows ? nil : snapshot.secondary
         }
         let primaryWindowDisplayLabel = provider == .amp
-            ? AmpProviderDescriptor.primaryLabel(details: snapshot.ampUsage)
+            ? AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
             : nil
         let secondaryWindowDisplayLabel = provider == .amp
-            ? AmpProviderDescriptor.secondaryLabel(details: snapshot.ampUsage)
+            ? AmpProviderDescriptor.secondaryLabel(snapshot: snapshot)
             : nil
         if notificationsEnabled {
             self.handleQuotaWarningTransition(

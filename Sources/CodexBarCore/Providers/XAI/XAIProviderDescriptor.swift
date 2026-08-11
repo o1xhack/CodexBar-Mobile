@@ -2,10 +2,16 @@ import Foundation
 
 public enum XAIProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: XAISettingsReader.apiKeyEnvironmentKey,
+        additionalProjections: [.workspaceID(XAISettingsReader.teamIDEnvironmentKey)],
+        resolve: XAISettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .xai,
+            credentials: self.credentials,
+            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 6),
             metadata: ProviderMetadata(
                 id: .xai,
                 displayName: "xAI",
@@ -19,6 +25,7 @@ public enum XAIProviderDescriptor {
                 cliName: "xai",
                 defaultEnabled: false,
                 widgetSelectable: false,
+                debugLogUnavailableMessage: "xAI debug log not yet implemented",
                 dashboardURL: "https://console.x.ai",
                 statusPageURL: nil,
                 statusLinkURL: "https://status.x.ai"),
@@ -34,37 +41,48 @@ public enum XAIProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "xAI spend history comes from the Management API billing endpoints." }),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [XAIAPIFetchStrategy()] })),
+            presentation: ProviderUsagePresentation(
+                identityPresenter: { provider, snapshot in
+                    guard let plan = snapshot.loginMethod(for: provider), !plan.isEmpty else {
+                        return ProviderIdentityPresentation(badge: nil, plan: nil)
+                    }
+                    let display = UsageFormatter.cleanPlanName(plan)
+                    return ProviderIdentityPresentation(badge: display, plan: display)
+                },
+                costPresenter: { snapshot in
+                    let showsFallback = snapshot.providerCost?.period != "Prepaid credits"
+                    let style: ProviderCostMenuCardStyle = showsFallback ? .generic : .prepaidCredits
+                    return ProviderCostPresentation(showsGenericFallback: showsFallback, menuCardStyle: style)
+                }),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "xai",
                 versionDetector: nil))
     }
-}
 
-struct XAIAPIFetchStrategy: ProviderFetchStrategy {
-    let id = "xai.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        XAISettingsReader.apiKey(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let key = XAISettingsReader.apiKey(environment: context.env) else {
-            throw XAIBillingError.notConfigured
-        }
-        guard let teamID = XAISettingsReader.teamID(environment: context.env) else {
-            throw XAIBillingError.missingTeamID
-        }
-        let usage = try await XAIBillingFetcher.fetchUsage(managementKey: key, teamID: teamID)
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                [ScriptFetchStrategy(
+                    id: "xai.js",
+                    provider: .xai,
+                    bundledPlugin: "xai",
+                    secretKey: XAISettingsReader.apiKeyEnvironmentKey,
+                    sourceLabel: "api",
+                    validateContext: { context in
+                        _ = try XAISettingsReader.validatedTeamID(environment: context.env)
+                    },
+                    resolveValues: { context in
+                        guard let key = XAISettingsReader.apiKey(environment: context.env) else { return nil }
+                        let settings = XAISettingsReader.teamID(environment: context.env).map {
+                            [XAISettingsReader.teamIDEnvironmentKey: $0]
+                        } ?? [:]
+                        return ScriptFetchStrategy.Values(
+                            settings: settings,
+                            secrets: [XAISettingsReader.apiKeyEnvironmentKey: key])
+                    },
+                    isEnabled: { _ in true })]
+            }))
     }
 }

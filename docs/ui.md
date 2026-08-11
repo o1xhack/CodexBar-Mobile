@@ -26,7 +26,7 @@ read_when:
 | Group | Tokens | Behavior |
 | --- | --- | --- |
 | Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
-| Usage | Session %, Weekly %, Auto %, Usage bar | Window percentage or a compact three-glyph usage bar |
+| Usage | Session %, Weekly %, Scoped weekly %, Auto %, Usage bar | Window percentage or a compact three-glyph usage bar |
 | Usage | Session pace, Weekly pace, Auto pace | Signed pace delta for that window |
 | Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
 | Money | Cost today, Cost 30d | Local cost estimate for the selected period |
@@ -42,6 +42,9 @@ Auto % uses the same provider-aware automatic-window resolution as the legacy me
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
 derive their first layout from the prior style, display mode, metric, and reset settings; those legacy keys remain
 untouched for downgrade safety, while a saved token layout takes precedence.
+
+Scoped weekly % selects the most constrained active model-specific weekly carve-out. The editor keeps a stable,
+model-generic token label while the rendered menu-bar prefix and accessibility label follow the active model title.
 
 ## Icon rendering
 - 18×18 template image.

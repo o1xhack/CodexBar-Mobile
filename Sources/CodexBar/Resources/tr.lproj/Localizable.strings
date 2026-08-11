@@ -672,6 +672,8 @@
 "copyright" = "© 2026 Peter Steinberger. MIT Lisansı.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Sağlayıcı eklentileri için JavaScriptCore kullan";
+"use_javascriptcore_plugin_engine_subtitle" = "Yalnızca uyumluluk geri dönüşü. Uygulamak için CodexBar’ı yeniden başlatın; CODEXBAR_PLUGIN_ENGINE bu ayarı geçersiz kılar.";
 "section_logging" = "Günlükleme";
 "enable_file_logging" = "Dosya günlüğünü etkinleştir";
 "enable_file_logging_subtitle" = "Hata ayıklama için günlükleri %@ konumuna yaz.";
@@ -841,7 +843,7 @@
 "Pace: %@" = "Hız: %@";
 "Pace: %@ · %@" = "Hız: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %%%d tükenme riski";
+"(%d%% risk)" = "(%d%% tükenme riski)";
 "%d%% in deficit" = "%%%d açıkta";
 "%d%% in reserve" = "%%%d rezervde";
 "usage_percent_suffix_left" = "kaldı";
@@ -1348,6 +1350,7 @@
 "menu_bar_layout_token_account" = "Hesap";
 "menu_bar_layout_token_session" = "Oturum %";
 "menu_bar_layout_token_weekly" = "Haftalık %";
+"menu_bar_layout_token_scoped_weekly" = "Kapsama göre haftalık %";
 "menu_bar_layout_token_auto" = "Otomatik %";
 "menu_bar_layout_token_session_pace" = "Oturum hızı";
 "menu_bar_layout_token_weekly_pace" = "Haftalık hız";
@@ -1454,3 +1457,53 @@
 "weekly_limit_confetti_subtitle" = "Haftalık kullanım sıfırlandığında tam ekran konfeti oynat.";
 "weekly_limit_confetti_title" = "Haftalık limit konfetisi";
 "∞ Unlimited" = "∞ Sınırsız";
+"Cumulative" = "Kümülatif";
+"Token activity" = "Token etkinliği";
+"View" = "Görünüm";
+"in the last year" = "son yılda";
+"No activity in the last 12 months" = "Son 12 ayda etkinlik yok";
+"Each column = 1 week" = "Her sütun = 1 hafta";
+"Running total" = "Birikimli toplam";
+"Less" = "Az";
+"More" = "Çok";
+
+/* Provider Plugins */
+"Install…" = "Yükle…";
+"Install plugin" = "Eklenti yükle";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Bir JavaScript veya TypeScript dosyasını eklentiler dizinine kopyalar.";
+"Show in Finder" = "Finder'da Göster";
+"Plugins directory" = "Eklentiler dizini";
+"Provider Plugins" = "Sağlayıcı Eklentileri";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Eklentiler yerel JavaScript veya TypeScript dosyalarıdır. Ağ ve çerez erişimi onay gerektirir.";
+"No Plugins Installed" = "Yüklü Eklenti Yok";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Bir .js veya .ts dosyasını eklentiler dizinine bırakın ya da Yükle… seçeneğini kullanın.";
+"Delete Plugin?" = "Eklenti Silinsin mi?";
+"Delete" = "Sil";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Bu işlem eklenti dosyasını, kod dönüştürme önbelleğini, onay kaydını, kaydedilmiş ayarları ve gizli bilgileri, ayrıca geçmişi siler.";
+"Plugin Error" = "Eklenti Hatası";
+"Needs approval" = "Onay gerekiyor";
+"File" = "Dosya";
+"Origins" = "Ağ kaynakları";
+"Configure endpoint settings" = "Uç nokta ayarlarını yapılandırın";
+"Capabilities" = "Yetenekler";
+"Network" = "Ağ";
+"Cookie domains" = "Çerez alan adları";
+"Approve…" = "Onayla…";
+"Delete…" = "Sil…";
+"Unknown validation error" = "Bilinmeyen doğrulama hatası";
+"Approve Plugin" = "Eklentiyi Onayla";
+"Install and Approve Plugin" = "Eklentiyi Yükle ve Onayla";
+"Network authority" = "Ağ yetkisi";
+"Auth: %@" = "Kimlik doğrulama: %@";
+"Capabilities: %@" = "Yetenekler: %@";
+"network" = "ağ";
+"Secrets: %@" = "Gizli bilgiler: %@";
+"none" = "yok";
+"Cookie domains: %@" = "Çerez alan adları: %@";
+"Type %@ to confirm" = "Onaylamak için %@ yazın";
+"Enter every endpoint setting to review the exact network origins." = "Kullanılacak ağ kaynaklarını tam olarak incelemek için tüm uç nokta ayarlarını girin.";
+"Approve" = "Onayla";
+"Install" = "Yükle";
+"5-hour usage" = "5 saatlik kullanım";
+"7-day usage" = "7 günlük kullanım";
+"Total usage" = "Toplam kullanım";

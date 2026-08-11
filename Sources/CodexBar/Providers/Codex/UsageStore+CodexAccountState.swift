@@ -69,7 +69,7 @@ extension UsageStore {
 
         self.persistWidgetSnapshot(
             reason: "codex-account-refresh",
-            successfulRefreshes: successfulRefresh.map { [.codex: $0] } ?? [:])
+            successfulRefreshes: successfulRefresh.map { [UsageProvider.codex.instanceID: $0] } ?? [:])
         phaseDidChange?(.completed)
     }
 

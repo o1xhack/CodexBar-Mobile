@@ -664,6 +664,8 @@
 "copyright" = "© 2026 Peter Steinberger. MIT-Lizenz.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "JavaScriptCore für Anbieter-Plugins verwenden";
+"use_javascriptcore_plugin_engine_subtitle" = "Nur als Kompatibilitäts-Rollback. CodexBar zum Anwenden neu starten; CODEXBAR_PLUGIN_ENGINE überschreibt diese Einstellung.";
 "section_logging" = "Protokollierung";
 "enable_file_logging" = "Aktivieren Sie die Dateiprotokollierung";
 "enable_file_logging_subtitle" = "Schreiben Sie Protokolle zum Debuggen in %@.";
@@ -837,7 +839,7 @@
 "Pace: %@" = "Tempo: %@";
 "Pace: %@ · %@" = "Tempo: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% Auslaufrisiko";
+"(%d%% risk)" = "(%d%% Auslaufrisiko)";
 "%d%% in deficit" = "%d%% im Defizit";
 "%d%% in reserve" = "%d%% in Reserve";
 "usage_percent_suffix_left" = "übrig";
@@ -1347,6 +1349,7 @@
 "menu_bar_layout_token_account" = "Konto";
 "menu_bar_layout_token_session" = "Sitzung %";
 "menu_bar_layout_token_weekly" = "Wöchentlich %";
+"menu_bar_layout_token_scoped_weekly" = "Wöchentlich nach Bereich %";
 "menu_bar_layout_token_auto" = "Automatisch %";
 "menu_bar_layout_token_session_pace" = "Sitzungstempo";
 "menu_bar_layout_token_weekly_pace" = "Wochentempo";
@@ -1453,3 +1456,53 @@
 "icloud_sync_phase_reconciling" = "Reconciling";
 "mobile_section_icloud_sync" = "iCloud Sync";
 "icloud_diagnostics_run" = "Run Read-Only Check";
+"Cumulative" = "Kumulativ";
+"Token activity" = "Token-Aktivität";
+"View" = "Ansicht";
+"in the last year" = "im letzten Jahr";
+"No activity in the last 12 months" = "Keine Aktivität in den letzten 12 Monaten";
+"Each column = 1 week" = "Jede Spalte = 1 Woche";
+"Running total" = "Laufende Summe";
+"Less" = "Weniger";
+"More" = "Mehr";
+
+/* Provider Plugins */
+"Install…" = "Installieren…";
+"Install plugin" = "Plugin installieren";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Kopiert eine JavaScript- oder TypeScript-Datei in das Plugin-Verzeichnis.";
+"Show in Finder" = "Im Finder anzeigen";
+"Plugins directory" = "Plugin-Verzeichnis";
+"Provider Plugins" = "Anbieter-Plugins";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Plugins sind lokale JavaScript- oder TypeScript-Dateien. Der Zugriff auf Netzwerk und Cookies muss genehmigt werden.";
+"No Plugins Installed" = "Keine Plugins installiert";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Legen Sie eine .js- oder .ts-Datei im Plugin-Verzeichnis ab oder wählen Sie „Installieren…“.";
+"Delete Plugin?" = "Plugin löschen?";
+"Delete" = "Löschen";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Dadurch werden die Plugin-Datei, der Transpilierungs-Cache, die Genehmigung, gespeicherte Einstellungen und Geheimnisse sowie der Verlauf entfernt.";
+"Plugin Error" = "Plugin-Fehler";
+"Needs approval" = "Genehmigung erforderlich";
+"File" = "Datei";
+"Origins" = "Ursprünge";
+"Configure endpoint settings" = "Endpunkt-Einstellungen konfigurieren";
+"Capabilities" = "Funktionen";
+"Network" = "Netzwerk";
+"Cookie domains" = "Cookie-Domains";
+"Approve…" = "Genehmigen…";
+"Delete…" = "Löschen…";
+"Unknown validation error" = "Unbekannter Validierungsfehler";
+"Approve Plugin" = "Plugin genehmigen";
+"Install and Approve Plugin" = "Plugin installieren und genehmigen";
+"Network authority" = "Netzwerkberechtigungen";
+"Auth: %@" = "Authentifizierung: %@";
+"Capabilities: %@" = "Funktionen: %@";
+"network" = "Netzwerk";
+"Secrets: %@" = "Geheimnisse: %@";
+"none" = "keine";
+"Cookie domains: %@" = "Cookie-Domains: %@";
+"Type %@ to confirm" = "Geben Sie zur Bestätigung %@ ein";
+"Enter every endpoint setting to review the exact network origins." = "Geben Sie alle Endpunkt-Einstellungen ein, um die genauen Netzwerkursprünge zu prüfen.";
+"Approve" = "Genehmigen";
+"Install" = "Installieren";
+"5-hour usage" = "5-Stunden-Nutzung";
+"7-day usage" = "7-Tage-Nutzung";
+"Total usage" = "Gesamtnutzung";

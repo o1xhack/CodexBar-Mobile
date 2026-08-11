@@ -217,60 +217,6 @@ struct V026EndToEndPipelineTests {
         #expect(mapped == nil)
     }
 
-    // MARK: - Kiro
-
-    @Test
-    func `Kiro end-to-end: upstream → mapper → encode → decode → credits + bonus preserved`() throws {
-        // Build a KiroUsageSnapshot the way the upstream fetcher
-        // would after a successful credentials probe, then convert
-        // via the same `toUsageDetails()` extension that lives on
-        // upstream. KiroUsageDetails is the type that lands in
-        // `UsageSnapshot.kiroUsage`.
-        let kiroDetails = KiroUsageDetails(
-            planName: "pro",
-            displayPlanName: "Pro",
-            creditsUsed: 320,
-            creditsTotal: 1000,
-            creditsRemaining: 680,
-            bonusCreditsUsed: 45,
-            bonusCreditsTotal: 200,
-            bonusCreditsRemaining: 155,
-            bonusExpiryDays: 19,
-            overagesStatus: nil,
-            overageCreditsUsed: nil,
-            estimatedOverageCostUSD: nil,
-            manageURL: nil,
-            contextUsage: nil)
-        let upstreamSnapshot = UsageSnapshot(
-            primary: nil, secondary: nil,
-            kiroUsage: kiroDetails,
-            updatedAt: Self.now)
-
-        let mapped = SyncCoordinator.mapKiroCredits(
-            provider: .kiro, snapshot: upstreamSnapshot)
-        let typed = try #require(mapped)
-
-        let envelope = ProviderUsageSnapshot(
-            providerID: "kiro", providerName: "Kiro",
-            primary: nil, secondary: nil,
-            accountEmail: nil, loginMethod: nil,
-            statusMessage: nil, isError: false,
-            lastUpdated: Self.now,
-            kiroCredits: typed)
-        let decoded = try Self.decoder.decode(
-            ProviderUsageSnapshot.self,
-            from: Self.encoder.encode(envelope))
-
-        let received = try #require(decoded.kiroCredits)
-        #expect(received.planName == "Pro")
-        #expect(received.creditsUsed == 320)
-        #expect(received.creditsTotal == 1000)
-        #expect(received.creditsPercent == 32)
-        #expect(received.bonusUsed == 45)
-        #expect(received.bonusTotal == 200)
-        #expect(received.bonusExpiryDays == 19)
-    }
-
     // MARK: - Wire-contract pin
 
     @Test
