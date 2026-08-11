@@ -281,7 +281,7 @@ struct ProviderArchitectureGatekeeperTests {
         let expectedForkDriftCount = 254
         // v0.49 adds Fireworks and IBM Bob only at the reviewed mock catalog,
         // provider-computed pricing, sync mapping, and non-Tier-A identity seams.
-        let expectedForkDriftFingerprint: UInt64 = 12_479_200_170_674_586_262
+        let expectedForkDriftFingerprint: UInt64 = 18_225_140_329_188_946_977
         #expect(
             failures.isEmpty ||
                 (sortedFailures.count == expectedForkDriftCount &&

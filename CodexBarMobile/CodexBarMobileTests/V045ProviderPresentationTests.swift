@@ -142,6 +142,30 @@ struct V049ProviderDetailPresentationTests {
                 "Enterprise Team A",
                 providerID: "ibmbob",
                 locale: locale) == "Enterprise Team A")
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "ibmbob",
+                context: .rowLabel(sectionTitle: "Bobcoin usage"),
+                locale: locale) == "Usage summary")
+            #expect(ProviderDetailLocalization.localized(
+                "Models",
+                providerID: "groq",
+                context: .rowLabel(sectionTitle: "Models"),
+                locale: locale) == "Models")
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "groq",
+                context: .rowLabel(sectionTitle: "Usage summary"),
+                locale: locale) == self.expectationsByLocale[identifier])
         }
+    }
+
+    private var expectationsByLocale: [String: String] {
+        [
+            "en": "Usage summary",
+            "ja": "使用量の概要",
+            "zh-Hans": "用量概览",
+            "zh-Hant": "用量概覽",
+        ]
     }
 }

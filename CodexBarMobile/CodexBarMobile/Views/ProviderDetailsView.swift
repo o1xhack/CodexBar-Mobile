@@ -4,6 +4,11 @@ import Foundation
 import SwiftUI
 
 enum ProviderDetailLocalization {
+    enum Context: Equatable {
+        case semantic
+        case rowLabel(sectionTitle: String?)
+    }
+
     /// Only labels emitted by bundled providers are localized. Custom plugin
     /// authors own their wording, so an arbitrary label must round-trip exactly.
     private static let firstPartyProviderIDs: Set<String> = [
@@ -34,17 +39,38 @@ enum ProviderDetailLocalization {
         "Used", "credits", "points", "tokens",
     ]
 
+    /// These sections deliberately use provider-returned account, team, model,
+    /// service, or cost-item names as row labels. Even if a customer-created
+    /// name happens to equal one of our semantic strings, it must stay verbatim.
+    private static let verbatimRowSections: [String: Set<String>] = [
+        "claude": ["Cost items"],
+        "groq": ["Models"],
+        "ibmbob": ["Bobcoin usage"],
+        "minimax": ["Quota services"],
+    ]
+
     static func localized(
         _ label: String,
         providerID: String,
+        context: Context = .semantic,
         locale: Locale = .current) -> String
     {
         guard self.firstPartyProviderIDs.contains(providerID),
-              self.semanticLabels.contains(label)
+              self.semanticLabels.contains(label),
+              self.shouldLocalize(context: context, providerID: providerID)
         else {
             return label
         }
         return MobileLocalizedString.value(label, defaultValue: label, locale: locale)
+    }
+
+    private static func shouldLocalize(context: Context, providerID: String) -> Bool {
+        switch context {
+        case .semantic:
+            true
+        case let .rowLabel(sectionTitle):
+            !self.verbatimRowSections[providerID, default: []].contains(sectionTitle ?? "")
+        }
     }
 }
 
@@ -63,7 +89,10 @@ struct ProviderDetailsView: View {
 
                 ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(ProviderDetailLocalization.localized(row.label, providerID: self.providerID))
+                        Text(ProviderDetailLocalization.localized(
+                            row.label,
+                            providerID: self.providerID,
+                            context: .rowLabel(sectionTitle: section.title)))
                             .foregroundStyle(.secondary)
                         Spacer(minLength: 12)
                         VStack(alignment: .trailing, spacing: 2) {
@@ -153,7 +182,10 @@ struct ProviderDetailsTeaserView: View {
             }
             ForEach(Array(self.section.rows.prefix(2).enumerated()), id: \.offset) { _, row in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(ProviderDetailLocalization.localized(row.label, providerID: self.providerID))
+                    Text(ProviderDetailLocalization.localized(
+                        row.label,
+                        providerID: self.providerID,
+                        context: .rowLabel(sectionTitle: self.section.title)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)

@@ -44,10 +44,17 @@ struct V049SyncCompatTests {
     private struct PhoneResult: Equatable {
         let providerIDs: [String]
         let cardIdentityKeys: [String]
+        let codexUsedPercent: Double?
+        let codexSourceDeviceID: String?
         let seesDetails: Bool
         let seesPluginBranding: Bool
         let seesFireworksSpend: Bool
         let seesIBMBobWindow: Bool
+    }
+
+    private struct LegacyCard {
+        let provider: LegacyProvider
+        let sourceDeviceID: String?
     }
 
     private struct MatrixWriter {
@@ -343,8 +350,17 @@ struct V049SyncCompatTests {
         }
         phoneBExpectedIDs.sort()
         #expect(phoneB.providerIDs == phoneBExpectedIDs)
-        #expect(Set(phoneA.cardIdentityKeys).count == phoneA.cardIdentityKeys.count)
-        #expect(Set(phoneB.cardIdentityKeys).count == phoneB.cardIdentityKeys.count)
+        let expectedCodexUsedPercent = macBNew ? 30.0 : 25.0
+        #expect(phoneA.cardIdentityKeys == Self.expectedIdentityKeys(
+            isNewReader: iPhoneANew,
+            hasNewWriter: hasNewWriter))
+        #expect(phoneB.cardIdentityKeys == Self.expectedIdentityKeys(
+            isNewReader: iPhoneBNew,
+            hasNewWriter: hasNewWriter))
+        #expect(phoneA.codexUsedPercent == expectedCodexUsedPercent)
+        #expect(phoneB.codexUsedPercent == expectedCodexUsedPercent)
+        #expect(phoneA.codexSourceDeviceID == "matrix-mac-b")
+        #expect(phoneB.codexSourceDeviceID == "matrix-mac-b")
         #expect(phoneA.seesDetails == (iPhoneANew && hasNewWriter))
         #expect(phoneB.seesDetails == (iPhoneBNew && hasNewWriter))
         #expect(phoneA.seesPluginBranding == (iPhoneANew && hasNewWriter))
@@ -375,8 +391,8 @@ struct V049SyncCompatTests {
                     notificationPushEnabled: true,
                     provider: provider))
             }
-            return MatrixWriter(
-                legacyPayload: try self.encoder.encode(snapshot),
+            return try MatrixWriter(
+                legacyPayload: self.encoder.encode(snapshot),
                 envelopePayloads: envelopes)
         }
 
@@ -402,8 +418,8 @@ struct V049SyncCompatTests {
             appVersion: "0.47.0.1",
             mobileVersion: "1.20.0",
             notificationPushEnabled: true)
-        return MatrixWriter(
-            legacyPayload: try Self.encoder.encode(legacy),
+        return try MatrixWriter(
+            legacyPayload: Self.encoder.encode(legacy),
             envelopePayloads: [])
     }
 
@@ -416,17 +432,25 @@ struct V049SyncCompatTests {
             let snapshots = try writers.map {
                 try Self.decoder.decode(LegacySnapshot.self, from: $0.legacyPayload)
             }
-            var latestByIdentity: [String: LegacyProvider] = [:]
-            for provider in snapshots.flatMap(\.providers) where provider.hasUsableSignal {
-                let key = "\(provider.providerID)|\(provider.accountEmail ?? "")"
-                if (latestByIdentity[key]?.lastUpdated ?? Date.distantPast) < provider.lastUpdated {
-                    latestByIdentity[key] = provider
+            var latestByIdentity: [String: LegacyCard] = [:]
+            for snapshot in snapshots {
+                for provider in snapshot.providers where provider.hasUsableSignal {
+                    let key = "\(provider.providerID)|\(provider.accountEmail ?? "")"
+                    if (latestByIdentity[key]?.provider.lastUpdated ?? Date.distantPast) < provider.lastUpdated {
+                        latestByIdentity[key] = LegacyCard(
+                            provider: provider,
+                            sourceDeviceID: snapshot.deviceID)
+                    }
                 }
             }
-            let providers = latestByIdentity.values.sorted { $0.providerID < $1.providerID }
+            let cards = latestByIdentity.values.sorted { $0.provider.providerID < $1.provider.providerID }
+            let providers = cards.map(\.provider)
+            let codex = cards.first { $0.provider.providerID == "codex" }
             return PhoneResult(
                 providerIDs: providers.map(\.providerID),
                 cardIdentityKeys: latestByIdentity.keys.sorted(),
+                codexUsedPercent: codex?.provider.primary?.usedPercent,
+                codexSourceDeviceID: codex?.sourceDeviceID,
                 seesDetails: false,
                 seesPluginBranding: false,
                 seesFireworksSpend: providers.contains {
@@ -454,12 +478,23 @@ struct V049SyncCompatTests {
             cache.replaceFromFullFetch(perProviderSnapshots: [], legacySnapshots: legacySnapshots)
             cache.applyDelta(upserted: Array(envelopes.reversed()), deletedRecordNames: [])
         }
-        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(cache.buildDeviceSnapshots()))
+        let deviceSnapshots = cache.buildDeviceSnapshots()
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(deviceSnapshots))
         let plugin = merged.providers.first { $0.providerID == "matrix-plugin" }
+        let codex = merged.providers.first { $0.providerID == "codex" }
+        let codexSourceDeviceID = deviceSnapshots
+            .filter { snapshot in snapshot.providers.contains { $0.providerID == "codex" } }
+            .max { lhs, rhs in
+                let lhsUpdated = lhs.providers.first { $0.providerID == "codex" }?.lastUpdated ?? .distantPast
+                let rhsUpdated = rhs.providers.first { $0.providerID == "codex" }?.lastUpdated ?? .distantPast
+                return lhsUpdated < rhsUpdated
+            }?.deviceID
         let identities = merged.providers.map(\.cardIdentityKey).sorted()
         return PhoneResult(
             providerIDs: merged.providers.map(\.providerID).sorted(),
             cardIdentityKeys: identities,
+            codexUsedPercent: codex?.primary?.usedPercent,
+            codexSourceDeviceID: codexSourceDeviceID,
             seesDetails: plugin?.details.isEmpty == false,
             seesPluginBranding: plugin?.providerIconMonogram != nil
                 && plugin?.providerIconTintHex != nil,
@@ -469,6 +504,18 @@ struct V049SyncCompatTests {
             seesIBMBobWindow: merged.providers.contains {
                 $0.providerID == "ibmbob" && $0.primary != nil
             })
+    }
+
+    private static func expectedIdentityKeys(
+        isNewReader: Bool,
+        hasNewWriter: Bool) -> [String]
+    {
+        var keys = ["codex|matrix@example.com"]
+        if hasNewWriter {
+            keys += ["fireworks|", "ibmbob|bob@matrix.example"]
+            if isNewReader { keys.append("matrix-plugin|matrix@example.com") }
+        }
+        return keys.sorted()
     }
 
     private static func makeMatrixNewSnapshot(
