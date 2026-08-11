@@ -1,6 +1,6 @@
 # v0.49.2 Upstream Sync + iOS 1.21.0 概览
 
-Status: `ready`
+Status: `in-progress`
 Date: 2026-08-11
 Branch: `upstream-sync/v0.49.2-mobile.1.21.0`
 Open issues:

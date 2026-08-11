@@ -1,6 +1,6 @@
 # v0.49.2 Upstream Sync 设计
 
-Status: `ready`
+Status: `in-progress`
 Date: 2026-08-11
 
 ## 设计原则
@@ -54,8 +54,9 @@ Production container，但 record families、master toggle、persistence 与 con
 
 - 保留现有 `ProviderUsageSnapshot` 及所有已发布 typed optional fields；
 - 新增 optional generic declarative details，字段名与 enum 采用 forward-compatible raw string；
-- 新 reader 对缺失 details 返回空集合；unknown row/chart kind 保留/忽略单项，不让整个
-  payload decode 失败；
+- 新 reader 对缺失 details 返回空集合；本轮已知 `rows` / `bars` / `line` kinds 均可读，
+  detail object 内未知 optional keys 会被 decoder 忽略。新增未知 chart kind 仍需后续 additive
+  iOS support，不能宣称当前 enum 可无损承载未来 kind；
 - old reader 忽略新 optional key；new reader 继续渲染 old typed payload；
 - provider instance raw ID 作为显示/identity hint，不替换现有 first-party `providerID`；
 - `providerPayloadVersion` 维持 `1`，避免无必要的全量 rewrite/CPU/network spike。

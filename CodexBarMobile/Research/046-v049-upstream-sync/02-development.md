@@ -1,6 +1,6 @@
 # v0.49.2 Upstream Sync 开发记录
 
-Status: `not-started`
+Status: `in-progress`
 Date: 2026-08-11
 
 ## 目标
@@ -27,45 +27,45 @@ Date: 2026-08-11
 
 ### Phase 1 — Upstream merge
 
-- [ ] merge annotated tag；
-- [ ] 解决 fork infrastructure/version/localization conflicts；
-- [ ] 解决 provider/details/CloudSync/parser/cache/tests conflicts；
-- [ ] 确认 unmerged paths = 0，merge parent 指向 tag peel commit；
-- [ ] merge build/lint/focused tests；
-- [ ] 独立 merge review 到 clean。
+- [x] merge annotated tag；
+- [x] 解决 fork infrastructure/version/localization conflicts；
+- [x] 解决 provider/details/CloudSync/parser/cache/tests conflicts；
+- [x] 确认 unmerged paths = 0，merge parent 指向 tag peel commit；
+- [x] merge build/lint/focused tests；
+- [x] 独立 merge review 到 clean。
 
 ### Phase 2 — Shared / Sync bridge
 
-- [ ] 保留 published Mobile typed wire；
-- [ ] generic declarative detail additive optional codec + redaction；
-- [ ] `ProviderInstanceID` first-party/plugin boundary；
-- [ ] Mobile/fleet record family 与 reducer隔离；
-- [ ] v0.49.2 account dedupe/ownership tests；
-- [ ] Fireworks/IBM Bob mappers、wire round-trip、unknown instance tests。
+- [x] 保留 published Mobile typed wire；
+- [x] generic declarative detail additive optional codec + redaction；
+- [x] `ProviderInstanceID` first-party/plugin boundary；
+- [x] Mobile/fleet record family 与 reducer隔离；
+- [x] v0.49.2 account dedupe/ownership tests；
+- [x] Fireworks/IBM Bob mappers、wire round-trip、unknown instance tests。
 
 ### Phase 3 — iOS product
 
-- [ ] first-party provider list tail entries；
-- [ ] mock profiles/count contracts；
-- [ ] color/identity/card/generic detail UI；
-- [ ] PreviewData card-type decision；
-- [ ] widgets/Cost dashboard dedupe and parity；
-- [ ] 4-language user-facing strings。
+- [x] first-party provider list tail entries；
+- [x] mock profiles/count contracts；
+- [x] color/identity/card/generic detail UI；
+- [x] PreviewData card-type decision；
+- [x] widgets/Cost dashboard dedupe and parity；
+- [x] 4-language user-facing strings。
 
 ### Phase 4 — Version / docs / CloudKit
 
-- [ ] `version.env` → `0.49.2.1 / 116.1 / 1.21.0 / v0.49.2 / 2026-08-11`；
-- [ ] `project.yml` 全 targets → `1.21.0 (193)` + `xcodegen generate`；
-- [ ] root/iOS CHANGELOG；
-- [ ] `MobileReleaseNotesCatalog` 1.21.0 + four locales；
-- [ ] parser version/hash audit；
-- [ ] CloudKit Production schema audit verdict。
+- [x] `version.env` → `0.49.2.1 / 116.1 / 1.21.0 / v0.49.2 / 2026-08-11`；
+- [x] `project.yml` 全 targets → `1.21.0 (193)` + `xcodegen generate`；
+- [x] root/iOS CHANGELOG；
+- [x] `MobileReleaseNotesCatalog` 1.21.0 + four locales；
+- [x] parser version/hash audit；
+- [x] CloudKit Production schema audit verdict：`NO_DEPLOY`。
 
 ### Phase 5 — Verification / draft / review
 
-- [ ] Mac build/lint/full/focused regressions；
-- [ ] iOS focused/full/Release build；
-- [ ] 16-case compatibility matrix；
+- [x] Mac build/lint/full/focused regressions；
+- [x] iOS focused/full/Release build；
+- [x] 16-case compatibility matrix（fixture/simulator substituted）；
 - [ ] signed/notarized/stapled candidate；
 - [ ] draft release + asset digest readback；
 - [ ] final iterative review/retest；
@@ -73,5 +73,24 @@ Date: 2026-08-11
 
 ## 实现日志
 
-后续每个 checkpoint 追加：commit SHA、关键文件、冲突取舍、命令与结果。禁止把 credential、
-token、cookie、真实账号标识或未脱敏日志写入本文。
+### 2026-08-11 checkpoint
+
+- Research commit `c246b1ca4`；provenance-preserving merge commit `a75be5a4b`，第二 parent
+  为 tag peel `330ae4384b182e531c483fa9d132ea85a74c204b`；50 个冲突全部解决。
+- 保留 fork `AGENTS.md`、`.mac-release.env`、CI trigger、Production entitlements、composite
+  version、appcast 与 no-push release 边界；22 个 Mac locale 做 key union。
+- CloudSync 的 dirty state、authority/revision/generation/reconciliation 统一迁到
+  `ProviderInstanceID`；custom plugin refresh 能产生 publication authority，同时继续隔离
+  Mac fleet 与 Mobile record family。
+- Mac `UsageSnapshot.details` 投影为 Shared optional generic details；旧 typed Mobile keys 保留。
+  `usageKnown`、synthetic-placeholder filter、plugin branding/device-scoped identity 与
+  deterministic `(lastUpdated, deviceID)` merge 均有 compatibility tests。
+- iOS generic rows/bar/line chart、explicit-clear semantics、unknown plugin generic card、
+  Fireworks spend-only 与 IBM Bob Bobcoin quota 已落地；Quota provider tail 仅 append，现为
+  70 providers / 210 subscriptions。
+- parser logic `10 → 11`，generated hash `834522608c1b0457`，commit `42d6dc331`。
+- 全量回归首次发现 provider architecture drift fingerprint 已因 Fireworks/IBM Bob catalog
+  seams 改变；审计完整 254 findings 后确认新增 ID 仅在 mock/pricing/sync/identity 边界，
+  更新精确 pin 并以 commit `bbcabda2b` 固化，architecture suite 38/38 与第二次全量均通过。
+
+禁止把 credential、token、cookie、真实账号标识或未脱敏日志写入本文。
