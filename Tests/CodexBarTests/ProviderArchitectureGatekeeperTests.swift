@@ -279,7 +279,9 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash("\n".utf8, into: &forkDriftFingerprint)
         }
         let expectedForkDriftCount = 254
-        let expectedForkDriftFingerprint: UInt64 = 10_515_991_334_262_274_078
+        // v0.49 adds Fireworks and IBM Bob only at the reviewed mock catalog,
+        // provider-computed pricing, sync mapping, and non-Tier-A identity seams.
+        let expectedForkDriftFingerprint: UInt64 = 12_479_200_170_674_586_262
         #expect(
             failures.isEmpty ||
                 (sortedFailures.count == expectedForkDriftCount &&
