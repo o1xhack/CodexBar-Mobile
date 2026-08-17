@@ -141,7 +141,15 @@ summary=$(jq -c '
   | ($allReviewEvents
       | map(select(.oid == $head))
       | sort_by(.at)) as $currentHeadEvents
-  | ($currentHeadEvents[-1] // null) as $latestCurrentHeadEvent
+  | (($currentHeadEvents | map(.at) | max) // null) as $latestCurrentHeadAt
+  | (if $latestCurrentHeadAt == null then null
+     else {
+       oid: $head,
+       at: $latestCurrentHeadAt,
+       clean: ([$currentHeadEvents[] | select(.at == $latestCurrentHeadAt)]
+         | all(.[]; .clean == true))
+     }
+     end) as $latestCurrentHeadEvent
   | ([((.comments.nodes // [])[])
       | select((is_codex | not))
       | select((.body // "") | test("(?im)^[ \\t]*@codex[ \\t]+review[ \\t]*$"))

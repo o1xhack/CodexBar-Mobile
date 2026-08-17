@@ -99,6 +99,16 @@ write_fixture same-second-review-in-flight '[]' \
   "${clean_comment%]} ,$same_second_request]" '[]'
 expect_fail same-second-review-in-flight
 
+tied_finding=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"Reviewed commit: `aaaaaaaaaa`",
+  submittedAt:"2026-08-17T00:00:06Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  comments:{nodes:[{body:"**[P2]** Finding tied with a clean event"}]}
+}]')
+write_fixture clean-finding-timestamp-tie "$tied_finding" "$clean_comment" '[]'
+expect_fail clean-finding-timestamp-tie
+
 environment_noise=$(jq -nc --argjson author "$codex" '[{
   author:$author,
   body:"",
