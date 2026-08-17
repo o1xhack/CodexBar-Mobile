@@ -87,32 +87,54 @@ summary=$(jq -c '
   def reviewed_oid:
     (.body // ""
       | try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null);
+  def is_clean:
+    ((.body // "") | contains("Didn\u0027t find any major issues"));
+  def normalize_oid($oid; $fullOids):
+    if $oid == null then null
+    elif ($oid | length) == 40 then $oid
+    else
+      ([$fullOids[] | select(startswith($oid))] | unique) as $matches
+      | if ($matches | length) == 1 then $matches[0] else $oid end
+    end;
   def has_audit_field($name):
     ((.body // "") | test("(?m)^" + $name + ":[ \\t]*[^ \\t\\r\\n]"));
 
   .headRefOid as $head
+  | ([$head] + [(.reviews.nodes // [])[].commit.oid]
+      | map(select(. != null and length == 40))
+      | unique) as $fullOids
   | [(.reviews.nodes // [])[]
       | select(is_codex)
-      | (.commit.oid // reviewed_oid) as $oid
-      | {oid: $oid, at: .submittedAt}
+      | (.commit.oid // reviewed_oid) as $rawOid
+      | {oid: normalize_oid($rawOid; $fullOids), at: .submittedAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $reviewEvents
   | [(.comments.nodes // [])[]
       | select(is_codex)
-      | reviewed_oid as $oid
-      | {oid: $oid, at: .createdAt}
+      | reviewed_oid as $rawOid
+      | {oid: normalize_oid($rawOid; $fullOids), at: .createdAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $commentEvents
-  | (($reviewEvents + $commentEvents)
+  | ($reviewEvents + $commentEvents) as $allReviewEvents
+  | ($allReviewEvents
       | group_by(.oid)
       | map(min_by(.at))
       | sort_by(.at)) as $distinctReviewEvents
   | ($distinctReviewEvents[5] // null) as $sixthReview
-  | [(.comments.nodes // [])[]
-      | select(is_codex)
-      | select((.body // "") | contains("Didn\u0027t find any major issues"))
-      | reviewed_oid
-      | select(. != null)
-      | . as $reviewed
-      | select($head | startswith($reviewed))] as $currentClean
+  | ($allReviewEvents
+      | map(select(.oid == $head))
+      | sort_by(.at)) as $currentHeadEvents
+  | ($currentHeadEvents[-1] // null) as $latestCurrentHeadEvent
+  | ([((.comments.nodes // [])[])
+      | select((is_codex | not))
+      | select((.body // "") | test("(?im)^[ \\t]*@codex[ \\t]+review[ \\t]*$"))
+      | .createdAt]
+      | sort
+      | .[-1] // null) as $latestReviewRequestAt
+  | (($latestReviewRequestAt != null)
+      and (($latestCurrentHeadEvent == null)
+        or ($latestReviewRequestAt > $latestCurrentHeadEvent.at))) as $reviewInFlight
+  | (($latestCurrentHeadEvent != null)
+      and ($latestCurrentHeadEvent.clean == true)
+      and ($reviewInFlight | not)) as $currentClean
   | [(.reviewThreads.nodes // [])[] | select(.isResolved != true)] as $unresolved
   | [(.comments.nodes // [])[]
       | select((is_codex | not))
@@ -131,7 +153,9 @@ summary=$(jq -c '
       isDraft,
       head: $head,
       rounds: ($distinctReviewEvents | length),
-      currentClean: (($currentClean | length) > 0),
+      currentClean: $currentClean,
+      reviewInFlight: $reviewInFlight,
+      latestCurrentHeadEvent: $latestCurrentHeadEvent,
       unresolvedCount: ($unresolved | length),
       unresolved: [$unresolved[] | {
         id,
@@ -154,6 +178,7 @@ failed=0
 state=$(jq -r '.state' <<< "$summary")
 is_draft=$(jq -r '.isDraft' <<< "$summary")
 current_clean=$(jq -r '.currentClean' <<< "$summary")
+review_in_flight=$(jq -r '.reviewInFlight' <<< "$summary")
 unresolved_count=$(jq -r '.unresolvedCount' <<< "$summary")
 audit_required=$(jq -r '.architectureAuditRequired' <<< "$summary")
 audit_recorded=$(jq -r '.architectureAuditRecorded' <<< "$summary")
@@ -167,7 +192,10 @@ if [[ "$is_draft" == "true" ]]; then
   echo "PR review gate failed: PR is still draft" >&2
   failed=1
 fi
-if [[ "$current_clean" != "true" ]]; then
+if [[ "$review_in_flight" == "true" ]]; then
+  echo "PR review gate failed: requested Codex review is still in flight" >&2
+  failed=1
+elif [[ "$current_clean" != "true" ]]; then
   echo "PR review gate failed: current head has no clean Codex review" >&2
   failed=1
 fi

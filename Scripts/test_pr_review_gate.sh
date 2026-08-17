@@ -58,6 +58,28 @@ stale_comment=$(jq -nc --arg body "$stale_body" \
 write_fixture stale-clean '[]' "$stale_comment" '[]'
 expect_fail stale-clean
 
+later_finding="[{\"author\":$codex,\"body\":\"Codex finding after clean\",\"submittedAt\":\"2026-08-17T00:00:07Z\",\"commit\":{\"oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}]"
+write_fixture later-finding-same-head "$later_finding" "$clean_comment" '[]'
+expect_fail later-finding-same-head
+
+review_request=$(jq -nc --argjson author "$owner" \
+  '{author:$author,body:"@codex review",createdAt:"2026-08-17T00:00:07Z"}')
+write_fixture review-still-in-flight '[]' "${clean_comment%]} ,$review_request]" '[]'
+expect_fail review-still-in-flight
+
+paired_reviews="[
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:01Z\",\"commit\":{\"oid\":\"1111111111111111111111111111111111111111\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:03Z\",\"commit\":{\"oid\":\"2222222222222222222222222222222222222222\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:05Z\",\"commit\":{\"oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}
+]"
+paired_comments=$(jq -nc --argjson author "$codex" '[
+  {author:$author,body:"Codex Review: Didn\u0027t find any major issues. **Reviewed commit:** `1111111111`",createdAt:"2026-08-17T00:00:02Z"},
+  {author:$author,body:"Codex Review: Didn\u0027t find any major issues. **Reviewed commit:** `2222222222`",createdAt:"2026-08-17T00:00:04Z"},
+  {author:$author,body:"Codex Review: Didn\u0027t find any major issues. **Reviewed commit:** `aaaaaaaaaa`",createdAt:"2026-08-17T00:00:06Z"}
+]')
+write_fixture full-short-pairs "$paired_reviews" "$paired_comments" '[]'
+expect_pass full-short-pairs
+
 unresolved="[{\"id\":\"thread-1\",\"isResolved\":false,\"isOutdated\":true,\"comments\":{\"nodes\":[{\"author\":$codex,\"body\":\"finding\",\"path\":\"README.md\",\"url\":\"https://example.test/thread-1\"}]}}]"
 write_fixture outdated-unresolved '[]' "$clean_comment" "$unresolved"
 expect_fail outdated-unresolved
