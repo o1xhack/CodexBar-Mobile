@@ -33,6 +33,9 @@ chmod +x "$asset_test_dir/gh"
 run_asset_check() (
   export PATH="$asset_test_dir:$PATH"
   export TEST_RELEASE_ASSETS=$1
+  # A parent release shell used to export this sentinel without exporting the
+  # helper functions, causing child lint tests to skip the helper definitions.
+  export CODEXBAR_SPARKLE_HELPERS_LOADED=1
   # shellcheck disable=SC1090
   source "$SPARKLE_HELPERS"
   check_assets "v1.2.3-mobile.4.5.6" "CodexBar-1.2.3-mobile.4.5.6"
