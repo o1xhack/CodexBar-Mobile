@@ -21,7 +21,9 @@ Open issues:
 
 目标版本为 Mac `0.49.2.1 (116.1)`、iOS `1.21.0 (193)`、Sparkle version
 `116.1.1.21.0`，candidate tag `v0.49.2.1-mobile.1.21.0`。所有调研、merge、实现、测试、
-签名公证、draft release 与 review 都只在上述 upstream-sync 分支进行。
+首次签名公证、draft release 与 review 都只在上述 upstream-sync 分支进行。2026-08-17
+用户另行明确授权正式发布后，候选通过 PR 合入 `mobile-dev`，并从最终合并 commit 重新构建、
+签名、公证和发布；发布后的证据文档收口在独立 release closeout 分支完成。
 
 ## 分支证据
 
@@ -34,9 +36,11 @@ git merge --ff-only origin/mobile-dev
 git switch -c upstream-sync/v0.49.2-mobile.1.21.0
 ```
 
-分支建立后才写 Research 与实现文件。Goal 已明确确认按单版本同步方案执行。push、merge、
-published tag、live Mac release、appcast publish、TestFlight upload、App Store submission
-和 CloudKit Production deploy 均不在授权范围。
+分支建立后才写 Research 与实现文件。Goal 已明确确认按单版本同步方案执行。Goal 初始阶段
+不授权 push、merge、published tag、live Mac release、appcast publish、TestFlight upload、
+App Store submission 和 CloudKit Production deploy。2026-08-17 用户明确追加授权“Mac 先发
+release，iOS 直接打包上传”，因此随后执行 branch push、PR/merge、Mac live release/appcast
+publish 与 iOS TestFlight upload；仍未授权 App Store submission 或 CloudKit Production deploy。
 
 ## 权威基线与目标
 
@@ -146,24 +150,34 @@ iPhone、新 Mac/旧 iPhone 和两台不同 writer 的组合均要进入 16-case
 - P2：16 组合若只能 substituted，silent push、真实 CloudKit propagation、background
   convergence 与旧 iOS binary 行为仍未实测。
 
-## 授权边界
+## 初始授权边界与后续追加授权
 
-本 Goal 授权本地分支、Research、merge、代码、测试、本地 commits、签名/公证 candidate、
-GitHub draft release 与资产上传。禁止 push、merge、published tag、live release、appcast
-publish、TestFlight/App Store upload 和 CloudKit Production deploy。
+本 Goal 初始授权本地分支、Research、任务分支内 upstream merge、代码、测试、本地 commits、
+签名/公证 candidate、GitHub draft release 与资产上传；当时禁止 push、合入 `mobile-dev`、
+published tag、live release、appcast publish、TestFlight/App Store upload 和 CloudKit
+Production deploy。
 
 `Scripts/release.sh` phase 1 会创建并 force-push tag，不适用于本轮 no-push 边界；候选应
 运行 `Scripts/sign-and-notarize.sh`，再用 GitHub draft API 创建 untagged draft、上传 ZIP
 和 dSYM。`target_commitish=mobile-dev` 只是 draft 占位，最终 publish 前必须从真实 merged
 commit 重打包并替换资产。绝不运行 `release.sh --finalize`。
 
+2026-08-17 用户明确追加授权“Mac 先发 release，iOS 直接打包上传”，因此上述 no-push /
+no-live 边界在发布阶段被精确放宽：候选通过 PR 合入 `mobile-dev`，从最终 merge commit
+重新运行 `Scripts/release.sh` phase 1 和 `--finalize`，并上传 iOS TestFlight build。App Store
+review submission、公开 App Store release 与 CloudKit Production deploy 仍未授权、未执行。
+
 ## 完成结论
 
 本轮已在目标分支完成单 train 同步、Shared/iOS bridge、版本与 4 语言文案、全量回归、
-Production CloudKit `NO_DEPLOY` 审计、签名公证和 GitHub draft。代码候选 HEAD 为
-`37d46edec`；Mac `8796` tests / `851` suites、iOS xcresult `632` tests 均为 0 failure。
-GitHub draft 为
-[`untagged-d5c3a3e0664b621f548b`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-d5c3a3e0664b621f548b)，
-保持 `draft=true` / `published_at=null`。本地/远端 candidate tag、远端同步分支、appcast
-变更、live release、TestFlight 与 CloudKit deploy 均为 0；没有 merge 到 `mobile-dev`，也
-没有 push branch/tag。本轮唯一 merge 是任务分支内的 provenance merge `a75be5a4b`。
+Production CloudKit `NO_DEPLOY` 审计、签名公证、draft 和循环 review。代码候选
+`37d46edec` 的 Mac `8796` tests / `851` suites、iOS xcresult `632` tests 均为 0 failure。
+
+2026-08-17 经用户追加授权，PR
+[#89](https://github.com/o1xhack/CodexBar-Mobile/pull/89) 将同步候选合入 `mobile-dev`；发布脚本
+child-shell helper 修复经 PR [#90](https://github.com/o1xhack/CodexBar-Mobile/pull/90) 合入。
+最终发布 commit `a88b71b27` 重新构建并生成 tag `v0.49.2.1-mobile.1.21.0`；Mac
+[0.49.2.1 live release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.49.2.1-mobile.1.21.0)
+及签名 appcast 已上线。iOS `1.21.0 (193)` 已 archive/upload，App Store Connect build
+`5f20e3c0-96cf-416e-ba21-8213151cdda2` 处理状态为 `VALID`。未执行 App Store review
+submission、公开 App Store 发布或 CloudKit Production deploy。
