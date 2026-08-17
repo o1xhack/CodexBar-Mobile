@@ -105,4 +105,34 @@ Date: 2026-08-11
 - 创建 GitHub untagged draft `368897158`，上传 app ZIP 与 dSYM；API digest 与本地 SHA-256
   逐字一致。没有创建/推送 tag、branch，也没有修改 appcast 或发布 live release。
 
+### 2026-08-17 release closeout
+
+- 用户明确追加授权 Mac live release 与 iOS 打包上传；同步分支通过 PR
+  [#89](https://github.com/o1xhack/CodexBar-Mobile/pull/89) 合入 `mobile-dev`，merge commit
+  `c1f448339`。PR Fast Checks `32051325391` 与 conservative full Final CI `32051437233`
+  均通过。
+- 首次从 merged `mobile-dev` 运行 `Scripts/release.sh` 时，lint child shell 因继承
+  `CODEXBAR_SPARKLE_HELPERS_LOADED=1`、但未继承 shell function，出现
+  `check_assets: command not found`。修复为 sentinel 只有在 `declare -F check_assets`
+  存在时才生效，且不再 export；回归测试显式覆盖 stale inherited sentinel。修复经 PR
+  [#90](https://github.com/o1xhack/CodexBar-Mobile/pull/90) 合入，merge commit
+  `a88b71b27`；PR Fast Checks `32054938333` 与 path-selected Final CI `32055053940` 通过。
+- 从最终 merge commit 强制重建 Mac universal app；notary submission
+  `fe3ad18e-2178-46dd-ab27-4d89a8e867a5` 为 `Accepted`，staple、Gatekeeper、direct launch、
+  Production CloudKit 与 ZIP readback 均通过。phase 1 创建正式 annotated tag 和新 draft，
+  phase 2 发布 live release、验证 Sparkle signature/length，并以 commit `f6772526b` 推送
+  `appcast.xml`。
+- Mac release：
+  <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.49.2.1-mobile.1.21.0>；
+  Mac Release Verify run `32056443141` 通过 Gatekeeper、stapler 与 release-asset launch。
+  Release CLI run `32056443142` 的 6 个 macOS/Linux glibc/musl jobs 全部通过 build、smoke、
+  package 和 upload；release 最终包含 app/dSYM 与 6 个 CLI tarball/checksum，共 14 个 assets。
+- `xcodegen generate` 后运行 `Scripts/upload_ios_testflight.sh`；1897 Swift files 0 lint
+  violations、四语 audit 通过，archive/export/upload 均成功。archive：
+  `/tmp/CodexBarMobile-20260817-114708.xcarchive`；主 App、Push Extension、Widget Extension
+  均为 `1.21.0 (193)`，CloudKit Production。
+- App Store Connect build `5f20e3c0-96cf-416e-ba21-8213151cdda2` 已绑定 iOS `1.21.0`，
+  processing state `VALID`，`expired=false`，`usesNonExemptEncryption=false`；source、archive
+  compiled 和 ASC CDN 三层 App icon 均完成尺寸/内容回读。未提交 App Store review。
+
 禁止把 credential、token、cookie、真实账号标识或未脱敏日志写入本文。

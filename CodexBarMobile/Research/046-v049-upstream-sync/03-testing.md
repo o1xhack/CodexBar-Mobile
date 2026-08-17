@@ -31,6 +31,11 @@ provider display/cache 与 cross-version rendering，因此
 | Signing/notarization | Developer ID `3TUERHN53E`; notary `da356aff…` Accepted; staple/distribution/direct launch pass | PASS |
 | Draft release | draft `368897158`; two uploaded assets size/digest match; no tag/no push | PASS |
 | Review | self diff + 3 independent agents + fixes/retest；本轮授权范围 P0/P1/P2/blocker 0 | PASS |
+| Merge/CI closeout | PR #89/#90；runs `32051325391`, `32051437233`, `32054938333`, `32055053940` | PASS |
+| Mac live release | tag `v0.49.2.1-mobile.1.21.0`; release/appcast readback; runs `32056443141`, `32056443142` | PASS |
+| iOS archive/upload | `/tmp/CodexBarMobile-20260817-114708.xcarchive`; `EXPORT SUCCEEDED` | PASS |
+| ASC processing | build `5f20e3c0-96cf-416e-ba21-8213151cdda2`; iOS `1.21.0 (193)` | `VALID` |
+| iOS App icon | source 1024, archive 120, ASC CDN 152；三层尺寸与视觉 readback | PASS |
 
 ## 2 Mac × 2 iPhone compatibility matrix
 
@@ -109,6 +114,29 @@ ZIP 解压复核：Mac short/build version `0.49.2.1 / 116.1.1.21.0`，CloudKit 
 Developer ID authority/team 正确；app、CLI、widget 都含 `x86_64 arm64`；app/dSYM 两组 UUID
 `A4292182…` / `527B7EE6…` 一致；无 AppleDouble entries。
 
+## Live release 与 TestFlight closeout（2026-08-17）
+
+用户在初始 Goal 后另行明确授权 live Mac release 与 iOS TestFlight upload。最终发布没有复用
+上面的 pre-merge draft artifact，而是从 merged `mobile-dev` commit `a88b71b27` 重新构建。
+
+| Item | Evidence | Result |
+|---|---|---|
+| Mac version/tag | `0.49.2.1`; Sparkle `116.1.1.21.0`; tag peel `a88b71b27` | PASS |
+| Notarization | submission `fe3ad18e-2178-46dd-ab27-4d89a8e867a5` `Accepted`; ZIP ticket validates | PASS |
+| Live app asset | 67,721,761 bytes; SHA-256 `a5b9cddf151f87f0c209e9d15a008ad8a51504be1c716aa1c384b124aa30efd0` | PASS |
+| Live dSYM asset | 52,743,103 bytes; SHA-256 `e8795a4af3e8acc88aef112a48b37e7aaf4c58c5f1d0dde08c7fe2d5b987eb07` | PASS |
+| Release | <https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.49.2.1-mobile.1.21.0>; published `2026-08-17T18:44:38Z` | LIVE |
+| Appcast | commit `f6772526b`; remote top entry/signature/length/URL match live asset | PASS |
+| Remote release QA | Mac Release Verify `32056443141`: Gatekeeper, stapler, 5-second launch | PASS |
+| CLI release assets | Release CLI `32056443142`; 6 jobs + tarball/checksum readback; 14 total assets | PASS |
+| iOS archive | main + two extensions `1.21.0 (193)`; CloudKit Production; compiled icon readable | PASS |
+| ASC/TestFlight | build `5f20e3c0-96cf-416e-ba21-8213151cdda2`; uploaded `2026-08-17T11:51:01-07:00`; `VALID` | PASS |
+
+ASC build attributes：minimum OS `17.0`、`expired=false`、
+`usesNonExemptEncryption=false`、`iconAssetToken` present；prerelease version
+`e685d3b3-440d-4425-8cc0-4a6772ab39a6` 为 iOS `1.21.0`。本次仅上传到
+App Store Connect/TestFlight，没有提交 App Store review 或公开 App Store release。
+
 ## Residual risk
 
 本轮没有 2 台真实 Mac + 2 台真实 iPhone，因此以下风险不冒充已验证：真实 CloudKit
@@ -117,7 +145,8 @@ iPhone 独立持久化，以及 published iOS 1.20.0 binary 对新 payload 的�
 fixture、production codec、cache/reducer 与 16 masks 已覆盖确定性兼容逻辑，但不能替代上述
 系统级链路。live provider/Keychain/browser cookie 测试也未获授权、未运行。
 
-既存 `.mac-release.env` 仍指向 upstream repo/Peter signing manifest。本轮 direct fork script
-不读取它，且未运行 `Scripts/mac-release`，所以不是本轮 draft finding；未来若启用该 wrapper
-或 live finalize，应先增加 fork guard 或修正 manifest。该前置条件不改变本轮授权范围内
-`P0/P1/P2/blocker=0` 的 review 结论。
+既存 `.mac-release.env` 仍指向 upstream repo/Peter signing manifest。本轮 direct fork
+`Scripts/release.sh` / `Scripts/sign-and-notarize.sh` 不读取它，且未运行
+`Scripts/mac-release`；实际 live ZIP 的 signer、feed、public key 与 fork bundle readback 均正确。
+未来若启用 `Scripts/mac-release` wrapper，应先增加 fork guard 或修正 manifest。该前置条件
+不改变本轮 `P0/P1/P2/blocker=0` 的 review 结论。
