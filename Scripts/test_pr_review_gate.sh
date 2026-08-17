@@ -72,11 +72,19 @@ six_reviews="[
 write_fixture six-rounds-no-audit "$six_reviews" "$clean_comment" '[]'
 expect_fail six-rounds-no-audit
 
-late_audit="{\"author\":$owner,\"body\":\"Codex review architecture audit\\nHead: aaaaaaaaaa\\nRoot issue and revised approach recorded.\",\"createdAt\":\"2026-08-17T00:00:07Z\"}"
+audit_body=$'Codex review architecture audit\nHead: aaaaaaaaaa\nRepeated finding pattern: Review findings share an ownership-boundary flaw.\nRoot design/requirements problem: The gate encoded comments without an explicit lifecycle.\nRevised approach: Model ordered review evidence and validate the pre-sixth checkpoint.'
+late_audit=$(jq -nc --argjson author "$owner" --arg body "$audit_body" \
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:07Z"}')
 write_fixture six-rounds-late-audit "$six_reviews" "${clean_comment%]} ,$late_audit]" '[]'
 expect_fail six-rounds-late-audit
 
-audit_comment="{\"author\":$owner,\"body\":\"Codex review architecture audit\\nHead: aaaaaaaaaa\\nRoot issue and revised approach recorded.\",\"createdAt\":\"2026-08-17T00:00:00Z\"}"
+marker_only=$(jq -nc --argjson author "$owner" \
+  '{author:$author,body:"Codex review architecture audit\nHead: aaaaaaaaaa",createdAt:"2026-08-17T00:00:00Z"}')
+write_fixture six-rounds-marker-only "$six_reviews" "${clean_comment%]} ,$marker_only]" '[]'
+expect_fail six-rounds-marker-only
+
+audit_comment=$(jq -nc --argjson author "$owner" --arg body "$audit_body" \
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:00Z"}')
 write_fixture six-rounds-with-audit "$six_reviews" "${clean_comment%]} ,$audit_comment]" '[]'
 expect_pass six-rounds-with-audit
 

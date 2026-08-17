@@ -189,6 +189,9 @@ then request another review. `PR Fast Checks` being green is not sufficient.
 Run `Scripts/check_pr_review_gate.sh <pr>` immediately before merge. If review
 exceeds five rounds, pause before round six to audit the shared root/design
 problem and revise the approach; do not keep stacking symptom-level patches.
+The PR comment must use the exact non-empty `Head`, `Repeated finding pattern`,
+`Root design/requirements problem`, and `Revised approach` fields documented in
+`$codexbar-git-workflow`.
 Release/tag/appcast/TestFlight work remains blocked until this gate passes.
 
 For large Goals, the agent may make staged Git commits when the Goal or user

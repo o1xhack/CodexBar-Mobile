@@ -87,6 +87,8 @@ summary=$(jq -c '
   def reviewed_oid:
     (.body // ""
       | try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null);
+  def has_audit_field($name):
+    ((.body // "") | test("(?m)^" + $name + ":[ \\t]*[^ \\t\\r\\n]"));
 
   .headRefOid as $head
   | [(.reviews.nodes // [])[]
@@ -116,7 +118,11 @@ summary=$(jq -c '
       | select((is_codex | not))
       | select((.body // "") | contains("Codex review architecture audit"))
       | select($sixthReview != null)
-      | select((.body // "") | contains($sixthReview.oid[0:10]))
+      | select((.body // "")
+          | test("(?m)^Head:[ \\t]*" + $sixthReview.oid[0:10] + "([ \\t]|$)"))
+      | select(has_audit_field("Repeated finding pattern"))
+      | select(has_audit_field("Root design/requirements problem"))
+      | select(has_audit_field("Revised approach"))
       | select(.createdAt < $sixthReview.at)] as $architectureAudits
   | {
       number,

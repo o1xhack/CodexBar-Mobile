@@ -184,6 +184,16 @@ root design/requirements problem, and revised approach. Re-plan or rewrite the
 affected slice, then resume the loop. The audit is not a merge override: the
 final current-head clean review and zero-thread gate still apply.
 
+Use these exact non-empty fields so the merge gate can validate the audit:
+
+```text
+Codex review architecture audit
+Head: <current head SHA>
+Repeated finding pattern: <what keeps recurring>
+Root design/requirements problem: <shared underlying cause>
+Revised approach: <what will be redesigned or rewritten>
+```
+
 For release/upstream-sync work, **merge, tag creation, Mac live release,
 appcast publication, and TestFlight upload are blocked until this PR review
 gate passes**. Review-fix and closeout PRs are not exceptions.
