@@ -28,6 +28,7 @@ write_fixture() {
   "reviewThreads": {"nodes": $threads}
 }
 EOF
+  jq empty "$FIXTURES/$name.json" || fail "$name fixture must be valid JSON"
 }
 
 expect_pass() {
@@ -35,9 +36,9 @@ expect_pass() {
 }
 
 expect_fail() {
-  if "$GATE" --fixture "$FIXTURES/$1.json" >/dev/null 2>&1; then
-    fail "$1 should fail"
-  fi
+  local exit_code=0
+  "$GATE" --fixture "$FIXTURES/$1.json" >/dev/null 2>&1 || exit_code=$?
+  [[ "$exit_code" == "1" ]] || fail "$1 should fail through the gate (exit 1), got exit $exit_code"
 }
 
 codex='{"login":"chatgpt-codex-connector"}'
@@ -51,7 +52,9 @@ expect_fail no-review
 write_fixture clean '[]' "$clean_comment" '[]'
 expect_pass clean
 
-stale_comment="[{\"author\":$codex,\"body\":\"Codex Review: Didn't find any major issues. **Reviewed commit:** \\\`bbbbbbbbbb\\\`\",\"createdAt\":\"2026-08-17T00:00:00Z\"}]"
+stale_body='Codex Review: Didn'"'"'t find any major issues. **Reviewed commit:** `bbbbbbbbbb`'
+stale_comment=$(jq -nc --arg body "$stale_body" \
+  '[{author:{login:"chatgpt-codex-connector"},body:$body,createdAt:"2026-08-17T00:00:00Z"}]')
 write_fixture stale-clean '[]' "$stale_comment" '[]'
 expect_fail stale-clean
 

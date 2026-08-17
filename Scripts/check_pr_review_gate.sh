@@ -102,7 +102,9 @@ summary=$(jq -c '
       | select(is_codex)
       | select((.body // "") | contains("Didn\u0027t find any major issues"))
       | reviewed_oid
-      | select(. != null and ($head | startswith(.)))] as $currentClean
+      | select(. != null)
+      | . as $reviewed
+      | select($head | startswith($reviewed))] as $currentClean
   | [(.reviewThreads.nodes // [])[] | select(.isResolved != true)] as $unresolved
   | [(.comments.nodes // [])[]
       | select((is_codex | not))
