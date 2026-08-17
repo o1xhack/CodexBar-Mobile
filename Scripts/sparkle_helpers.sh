@@ -12,8 +12,11 @@
 # Side effect: prepends the SPM-downloaded Sparkle binaries (generate_appcast,
 # sign_update, BinaryDelta) to PATH so callers don't have to.
 
-# Idempotent — safe to source multiple times.
-if [[ -n "${CODEXBAR_SPARKLE_HELPERS_LOADED:-}" ]]; then
+# Idempotent — safe to source multiple times. An exported sentinel can survive
+# into a child shell even though shell functions do not; only trust it when a
+# representative helper function is actually present in this shell.
+if [[ -n "${CODEXBAR_SPARKLE_HELPERS_LOADED:-}" ]] \
+   && declare -F check_assets >/dev/null 2>&1; then
   return 0 2>/dev/null || exit 0
 fi
 
@@ -211,4 +214,4 @@ check_assets() {
   echo "Release $tag assets OK (${basename}.zip + ${basename}.dSYM.zip present)."
 }
 
-export CODEXBAR_SPARKLE_HELPERS_LOADED=1
+CODEXBAR_SPARKLE_HELPERS_LOADED=1
