@@ -73,6 +73,27 @@ connector_noise="[{\"author\":$codex,\"body\":\"\",\"submittedAt\":\"2026-08-17T
 write_fixture review-still-in-flight "$connector_noise" "${clean_comment%]} ,$review_request]" '[]'
 expect_fail review-still-in-flight
 
+footerless_finding=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"",
+  submittedAt:"2026-08-17T00:00:07Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  comments:{nodes:[{body:"**[P1]** A substantive current-head finding"}]}
+}]')
+write_fixture footerless-finding-after-clean "$footerless_finding" "$clean_comment" '[]'
+expect_fail footerless-finding-after-clean
+
+environment_noise=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"",
+  submittedAt:"2026-08-17T00:00:08Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  comments:{nodes:[{body:"To use Codex here, create an environment for this repo."}]}
+}]')
+write_fixture environment-noise-still-in-flight "$environment_noise" \
+  "${clean_comment%]} ,$review_request]" '[]'
+expect_fail environment-noise-still-in-flight
+
 paired_reviews=$(jq -nc --argjson author "$codex" '[
   {author:$author,body:"Reviewed commit: `1111111111`",submittedAt:"2026-08-17T00:00:01Z",commit:{oid:"1111111111111111111111111111111111111111"}},
   {author:$author,body:"Reviewed commit: `2222222222`",submittedAt:"2026-08-17T00:00:03Z",commit:{oid:"2222222222222222222222222222222222222222"}},

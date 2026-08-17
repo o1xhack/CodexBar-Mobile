@@ -44,6 +44,10 @@ elif [[ -n "${1:-}" ]]; then
               submittedAt
               body
               commit { oid }
+              comments(first: 100) {
+                pageInfo { hasNextPage }
+                nodes { body }
+              }
             }
           }
           comments(first: 100) {
@@ -86,9 +90,13 @@ summary=$(jq -c '
     ((.author.login // "") | test("^chatgpt-codex-connector(\\[bot\\])?$"));
   def reviewed_oid:
     (.body // ""
-      | try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null);
+      | (try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null) // null);
   def is_clean:
     ((.body // "") | contains("Didn\u0027t find any major issues"));
+  def is_substantive_review_comment:
+    (.body // "") as $body
+    | (($body | length) > 0)
+      and (($body | startswith("To use Codex here,")) | not);
   def normalize_oid($oid; $fullOids):
     if $oid == null then null
     elif ($oid | length) == 40 then $oid
@@ -108,7 +116,13 @@ summary=$(jq -c '
       | unique) as $fullOids
   | [(.reviews.nodes // [])[]
       | select(is_codex)
-      | reviewed_oid as $rawOid
+      | reviewed_oid as $bodyOid
+      | ([((.comments.nodes // [])[]) | select(is_substantive_review_comment)]
+          | length > 0) as $hasFinding
+      | (if $bodyOid != null then $bodyOid
+         elif $hasFinding then .commit.oid
+         else null
+         end) as $rawOid
       | {oid: normalize_oid($rawOid; $fullOids), at: .submittedAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $reviewEvents
   | [(.comments.nodes // [])[]
@@ -174,7 +188,8 @@ summary=$(jq -c '
       truncated:
         ((.reviews.pageInfo.hasNextPage // false)
           or (.comments.pageInfo.hasNextPage // false)
-          or (.reviewThreads.pageInfo.hasNextPage // false))
+          or (.reviewThreads.pageInfo.hasNextPage // false)
+          or ([((.reviews.nodes // [])[].comments.pageInfo.hasNextPage // false)] | any))
     }
 ' <<< "$pr_json")
 
