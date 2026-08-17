@@ -109,6 +109,17 @@ tied_finding=$(jq -nc --argjson author "$codex" '[{
 write_fixture clean-finding-timestamp-tie "$tied_finding" "$clean_comment" '[]'
 expect_fail clean-finding-timestamp-tie
 
+misleading_body_finding=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"A quoted example says Reviewed commit: `bbbbbbbbbb`, before the canonical footer for this review.",
+  submittedAt:"2026-08-17T00:00:07Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  comments:{nodes:[{body:"**[P1]** The review commit OID is authoritative"}]}
+}]')
+write_fixture misleading-body-uses-review-commit "$misleading_body_finding" \
+  "$clean_comment" '[]'
+expect_fail misleading-body-uses-review-commit
+
 environment_noise=$(jq -nc --argjson author "$codex" '[{
   author:$author,
   body:"",

@@ -119,8 +119,7 @@ summary=$(jq -c '
       | reviewed_oid as $bodyOid
       | ([((.comments.nodes // [])[]) | select(is_substantive_review_comment)]
           | length > 0) as $hasFinding
-      | (if $bodyOid != null then $bodyOid
-         elif $hasFinding then .commit.oid
+      | (if ($bodyOid != null) or $hasFinding then .commit.oid
          else null
          end) as $rawOid
       | {oid: normalize_oid($rawOid; $fullOids),
