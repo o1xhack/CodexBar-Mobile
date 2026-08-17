@@ -98,6 +98,9 @@ summary=$(jq -c '
     end;
   def has_audit_field($name):
     ((.body // "") | test("(?m)^" + $name + ":[ \\t]*[^ \\t\\r\\n]"));
+  def audit_head_oid:
+    (.body // ""
+      | try capture("(?m)^Head:[ \\t]*(?<oid>[0-9a-f]{7,40})[ \\t]*$").oid catch null);
 
   .headRefOid as $head
   | ([$head] + [(.reviews.nodes // [])[].commit.oid]
@@ -105,7 +108,7 @@ summary=$(jq -c '
       | unique) as $fullOids
   | [(.reviews.nodes // [])[]
       | select(is_codex)
-      | (.commit.oid // reviewed_oid) as $rawOid
+      | reviewed_oid as $rawOid
       | {oid: normalize_oid($rawOid; $fullOids), at: .submittedAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $reviewEvents
   | [(.comments.nodes // [])[]
@@ -140,8 +143,9 @@ summary=$(jq -c '
       | select((is_codex | not))
       | select((.body // "") | contains("Codex review architecture audit"))
       | select($sixthReview != null)
-      | select((.body // "")
-          | test("(?m)^Head:[ \\t]*" + $sixthReview.oid[0:10] + "([ \\t]|$)"))
+      | audit_head_oid as $auditHead
+      | select($auditHead != null)
+      | select($sixthReview.oid | startswith($auditHead))
       | select(has_audit_field("Repeated finding pattern"))
       | select(has_audit_field("Root design/requirements problem"))
       | select(has_audit_field("Revised approach"))

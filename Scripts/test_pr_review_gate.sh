@@ -58,20 +58,26 @@ stale_comment=$(jq -nc --arg body "$stale_body" \
 write_fixture stale-clean '[]' "$stale_comment" '[]'
 expect_fail stale-clean
 
-later_finding="[{\"author\":$codex,\"body\":\"Codex finding after clean\",\"submittedAt\":\"2026-08-17T00:00:07Z\",\"commit\":{\"oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}]"
+later_finding=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"Codex finding after clean. Reviewed commit: `aaaaaaaaaa`",
+  submittedAt:"2026-08-17T00:00:07Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+}]')
 write_fixture later-finding-same-head "$later_finding" "$clean_comment" '[]'
 expect_fail later-finding-same-head
 
 review_request=$(jq -nc --argjson author "$owner" \
   '{author:$author,body:"@codex review",createdAt:"2026-08-17T00:00:07Z"}')
-write_fixture review-still-in-flight '[]' "${clean_comment%]} ,$review_request]" '[]'
+connector_noise="[{\"author\":$codex,\"body\":\"\",\"submittedAt\":\"2026-08-17T00:00:08Z\",\"commit\":{\"oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}]"
+write_fixture review-still-in-flight "$connector_noise" "${clean_comment%]} ,$review_request]" '[]'
 expect_fail review-still-in-flight
 
-paired_reviews="[
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:01Z\",\"commit\":{\"oid\":\"1111111111111111111111111111111111111111\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:03Z\",\"commit\":{\"oid\":\"2222222222222222222222222222222222222222\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:05Z\",\"commit\":{\"oid\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}}
-]"
+paired_reviews=$(jq -nc --argjson author "$codex" '[
+  {author:$author,body:"Reviewed commit: `1111111111`",submittedAt:"2026-08-17T00:00:01Z",commit:{oid:"1111111111111111111111111111111111111111"}},
+  {author:$author,body:"Reviewed commit: `2222222222`",submittedAt:"2026-08-17T00:00:03Z",commit:{oid:"2222222222222222222222222222222222222222"}},
+  {author:$author,body:"Reviewed commit: `aaaaaaaaaa`",submittedAt:"2026-08-17T00:00:05Z",commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+]')
 paired_comments=$(jq -nc --argjson author "$codex" '[
   {author:$author,body:"Codex Review: Didn\u0027t find any major issues. **Reviewed commit:** `1111111111`",createdAt:"2026-08-17T00:00:02Z"},
   {author:$author,body:"Codex Review: Didn\u0027t find any major issues. **Reviewed commit:** `2222222222`",createdAt:"2026-08-17T00:00:04Z"},
@@ -84,13 +90,13 @@ unresolved="[{\"id\":\"thread-1\",\"isResolved\":false,\"isOutdated\":true,\"com
 write_fixture outdated-unresolved '[]' "$clean_comment" "$unresolved"
 expect_fail outdated-unresolved
 
-six_reviews="[
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:01Z\",\"commit\":{\"oid\":\"1111111111111111111111111111111111111111\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:02Z\",\"commit\":{\"oid\":\"2222222222222222222222222222222222222222\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:03Z\",\"commit\":{\"oid\":\"3333333333333333333333333333333333333333\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:04Z\",\"commit\":{\"oid\":\"4444444444444444444444444444444444444444\"}},
-  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:05Z\",\"commit\":{\"oid\":\"5555555555555555555555555555555555555555\"}}
-]"
+six_reviews=$(jq -nc --argjson author "$codex" '[
+  {author:$author,body:"Reviewed commit: `1111111111`",submittedAt:"2026-08-17T00:00:01Z",commit:{oid:"1111111111111111111111111111111111111111"}},
+  {author:$author,body:"Reviewed commit: `2222222222`",submittedAt:"2026-08-17T00:00:02Z",commit:{oid:"2222222222222222222222222222222222222222"}},
+  {author:$author,body:"Reviewed commit: `3333333333`",submittedAt:"2026-08-17T00:00:03Z",commit:{oid:"3333333333333333333333333333333333333333"}},
+  {author:$author,body:"Reviewed commit: `4444444444`",submittedAt:"2026-08-17T00:00:04Z",commit:{oid:"4444444444444444444444444444444444444444"}},
+  {author:$author,body:"Reviewed commit: `5555555555`",submittedAt:"2026-08-17T00:00:05Z",commit:{oid:"5555555555555555555555555555555555555555"}}
+]')
 write_fixture six-rounds-no-audit "$six_reviews" "$clean_comment" '[]'
 expect_fail six-rounds-no-audit
 
@@ -109,6 +115,13 @@ audit_comment=$(jq -nc --argjson author "$owner" --arg body "$audit_body" \
   '{author:$author,body:$body,createdAt:"2026-08-17T00:00:00Z"}')
 write_fixture six-rounds-with-audit "$six_reviews" "${clean_comment%]} ,$audit_comment]" '[]'
 expect_pass six-rounds-with-audit
+
+full_head_audit=${audit_body/Head: aaaaaaaaaa/Head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+full_head_comment=$(jq -nc --argjson author "$owner" --arg body "$full_head_audit" \
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:00Z"}')
+write_fixture six-rounds-with-full-head-audit "$six_reviews" \
+  "${clean_comment%]} ,$full_head_comment]" '[]'
+expect_pass six-rounds-with-full-head-audit
 
 cp "$FIXTURES/clean.json" "$FIXTURES/truncated.json"
 jq '.reviewThreads.pageInfo.hasNextPage = true' "$FIXTURES/truncated.json" \
