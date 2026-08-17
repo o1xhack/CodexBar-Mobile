@@ -141,9 +141,11 @@ fork-owned invariant is documented in `docs/ci-policy.md`:
 - Use manual Final CI with `full=true` only for unresolved provenance, risky
   conflict resolution, or an explicitly requested complete rerun.
 
-Code review may therefore finish before heavy CI exists on the PR. After merge,
-check Final CI before release; a failure is fixed forward and release remains
-blocked until the relevant final gate passes.
+Code review may therefore finish before heavy CI exists on the PR. PR Fast
+Checks and Codex Code Review are independent gates: a green check run never
+means review is complete. After merge, check Final CI before release; a failure
+is fixed forward and release remains blocked until the relevant final gate
+passes.
 
 After pushing or opening a PR, check status from GitHub, not memory:
 
@@ -159,7 +161,32 @@ gh run view --repo o1xhack/CodexBar-Mobile <run-id> --log-failed
 git push
 ```
 
-For PR review work, do not rely only on flat comments. Check unresolved review state and active threads when available, then iterate until blocking review comments are addressed and CI is green.
+For every PR, including docs-only, review-fix, and release-closeout PRs:
+
+1. Record the current `headRefOid`, trigger `@codex review`, and keep polling.
+   Do not merge while the requested review is still in flight.
+2. Inspect thread-aware review state, not only checks or flat comments. Every
+   finding must be fixed and retested.
+3. Reply to the finding with the fix commit/evidence, explicitly resolve the
+   GitHub review thread, then push and request another Codex review.
+4. Any new push invalidates the previous clean result. The final clean review
+   must name the exact current head, and every thread—including outdated
+   threads—must show `isResolved=true`.
+5. Run `Scripts/check_pr_review_gate.sh <pr>` immediately before merge. A pass
+   requires the current-head `Didn't find any major issues` result and zero
+   unresolved threads. CI must also be green.
+
+The loop is `review -> fix -> test -> reply -> resolve -> push -> review` until
+clean. After five review rounds, do not continue making narrow patches by
+reflex. Before a sixth review, stop and write a `Codex review architecture
+audit` PR comment that includes the current head, repeated finding pattern,
+root design/requirements problem, and revised approach. Re-plan or rewrite the
+affected slice, then resume the loop. The audit is not a merge override: the
+final current-head clean review and zero-thread gate still apply.
+
+For release/upstream-sync work, **merge, tag creation, Mac live release,
+appcast publication, and TestFlight upload are blocked until this PR review
+gate passes**. Review-fix and closeout PRs are not exceptions.
 
 ## Todoist Handoff
 

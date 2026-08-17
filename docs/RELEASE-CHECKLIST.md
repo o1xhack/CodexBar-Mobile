@@ -51,9 +51,14 @@
 
 ## 6. CR（每一大轮）
 - [ ] merge 轮 / bridge 轮 / iOS 轮 各跑一次 **Opus 4.7 agent CR**，循环到 clean，findings 全修（含 stale 注释 / @Test 标题）
+- [ ] 每个 GitHub PR（含 docs/review-fix/release-closeout PR）必须在**当前 `headRefOid`** 上完成 Codex Code Review；Fast Checks 绿不代表 review 完成
+- [ ] 每个 finding：修复并复测 → 在线程回复 commit/证据 → 明确 Resolve conversation → push → 再次 `@codex review`
+- [ ] merge 前运行 `Scripts/check_pr_review_gate.sh <pr>`：当前 head 必须收到 `Didn't find any major issues`，所有 thread（含 outdated）必须 `isResolved=true`
+- [ ] 第 5 轮后仍有新 finding：第 6 轮前停止补小洞，在 PR 写 `Codex review architecture audit`（当前 head、重复 finding 模式、根因、修订方案），重审方向后再继续；audit 不能替代最终 clean review
+- [ ] 上述 gate 未通过时，禁止 merge、tag、Mac live release/appcast publish 与 TestFlight upload
 
 ## 7. 发布（在用户 Mac 上实跑）
-- [ ] merge sync 分支 → `mobile-dev`（release + appcast 都从 mobile-dev 出）
+- [ ] `Scripts/check_pr_review_gate.sh <pr>` + PR CI 均通过后，才 merge sync 分支 → `mobile-dev`（release + appcast 都从 mobile-dev 出）
 - [ ] Sparkle 工具加进 PATH：`export PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH"`
 - [ ] `./Scripts/release.sh`（phase1：build + sign + notarize + draft GitHub release）
 - [ ] iOS：`xcodegen generate` → Archive（`-allowProvisioningUpdates`）→ export/upload 到 App Store Connect（TestFlight）
