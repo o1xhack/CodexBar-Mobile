@@ -2,6 +2,23 @@ import CodexBarCore
 import Foundation
 
 extension UsageStore {
+    var statusChecksEnabled: Bool {
+        self.settings.statusChecksEnabled
+    }
+
+    /// Compile-time implementation kinds for provider-specific fetch and bespoke UI boundaries.
+    func enabledFirstPartyProviders() -> [UsageProvider] {
+        self.enabledProviders().compactMap(\.firstPartyProvider)
+    }
+
+    func enabledFirstPartyProvidersForDisplay() -> [UsageProvider] {
+        self.enabledProvidersForDisplay().compactMap(\.firstPartyProvider)
+    }
+
+    func enabledFirstPartyProvidersForBackgroundWork() -> [UsageProvider] {
+        self.enabledProvidersForBackgroundWork().compactMap(\.firstPartyProvider)
+    }
+
     struct DeepSeekProfileTransition {
         var snapshot: UsageSnapshot
         let accountID: UUID?
@@ -9,25 +26,28 @@ extension UsageStore {
     }
 
     func version(for provider: UsageProvider) -> String? {
-        self.versions[provider]
+        self.versions[provider.instanceID]
     }
 
     var codexSnapshot: UsageSnapshot? {
+        // Provider-specific by design: dedicated Codex consumers require the reconciled primary-account snapshot.
         self.snapshots[.codex]
     }
 
     var claudeSnapshot: UsageSnapshot? {
+        // Provider-specific by design: Claude swap/account consumers require the active Claude snapshot directly.
         self.snapshots[.claude]
     }
 
     func presentationSnapshot(for provider: UsageProvider) -> UsageSnapshot? {
+        // Provider-specific by design: DeepSeek profile transitions and Codex dashboard attachment overlay live state.
         if provider == .deepseek,
            let transition = self.deepseekProfileTransition,
            transition.accountID == self.settings.selectedTokenAccount(for: .deepseek)?.id
         {
             return transition.snapshot
         }
-        if let snapshot = self.snapshots[provider] {
+        if let snapshot = self.snapshots[provider.instanceID] {
             if provider == .codex {
                 if self.openAIDashboardAttachmentAuthorized,
                    let dashboard = self.openAIDashboard,
@@ -52,8 +72,8 @@ extension UsageStore {
             }
             return snapshot
         }
-        guard provider == .deepseek, self.refreshingProviders.contains(provider) else { return nil }
-        return self.lastKnownResetSnapshots[provider]
+        guard provider == .deepseek, self.refreshingProviders.contains(provider.instanceID) else { return nil }
+        return self.lastKnownResetSnapshots[provider.instanceID]
     }
 
     func beginDeepSeekProfileTransition(preservingBalance: Bool = true) {
@@ -99,6 +119,7 @@ extension UsageStore {
     }
 
     var lastCodexError: String? {
+        // Provider-specific by design: Codex dashboard and credits surfaces expose separate app-owned error lanes.
         self.errors[.codex]
     }
 
@@ -115,19 +136,20 @@ extension UsageStore {
     }
 
     var lastClaudeError: String? {
+        // Provider-specific by design: Claude swap/account surfaces consume the active Claude error lane directly.
         self.errors[.claude]
     }
 
     func error(for provider: UsageProvider) -> String? {
-        self.errors[provider]
+        self.errors[provider.instanceID]
     }
 
     func diagnostic(for provider: UsageProvider) -> String? {
-        self.diagnostics[provider]
+        self.diagnostics[provider.instanceID]
     }
 
     func userFacingError(for provider: UsageProvider) -> String? {
-        if let raw = self.errors[provider] {
+        if let raw = self.errors[provider.instanceID] {
             switch provider {
             case .codex:
                 return CodexUIErrorMapper.userFacingMessage(raw)
@@ -137,60 +159,36 @@ extension UsageStore {
                 return raw
             }
         }
-        if let diagnostic = self.diagnostics[provider] {
+        if let diagnostic = self.diagnostics[provider.instanceID] {
             return diagnostic
         }
         return self.unavailableMessage(for: provider)
     }
 
     func unavailableMessage(for provider: UsageProvider) -> String? {
-        guard self.enabledProvidersForDisplay().contains(provider),
+        guard self.enabledProvidersForDisplay().contains(provider.instanceID),
               !self.isProviderAvailable(provider)
         else {
             return nil
         }
 
-        switch provider {
-        case .synthetic:
-            return SyntheticSettingsError.missingToken.errorDescription
-        case .zai:
-            return ZaiSettingsError.missingToken.errorDescription
-        case .openrouter:
-            return OpenRouterSettingsError.missingToken.errorDescription
-        case .clawrouter:
-            return ClawRouterUsageError.missingCredentials.errorDescription
-        case .sub2api:
+        if let adapter = ProviderDescriptorRegistry.descriptor(for: provider).credentials {
             let environment = ProviderRegistry.makeEnvironment(
                 base: self.environmentBase,
                 provider: provider,
                 settings: self.settings,
                 tokenOverride: nil)
-            if Sub2APISettingsReader.apiKey(environment: environment) == nil {
-                return Sub2APIUsageError.missingCredentials.errorDescription
+            if let message = adapter.unavailableMessage(environment: environment) {
+                return message
             }
-            return Sub2APIUsageError.missingBaseURL.errorDescription
-        case .azureopenai:
-            return AzureOpenAISettingsError.missingAPIKey.errorDescription
-        case .elevenlabs:
-            return ElevenLabsUsageError.missingCredentials.errorDescription
-        case .deepseek:
-            return DeepSeekUsageError.missingCredentials.errorDescription
-        case .deepinfra:
-            return DeepInfraUsageError.missingCredentials.errorDescription
-        case .perplexity:
-            return PerplexityAPIError.missingToken.errorDescription
-        case .minimax:
-            return MiniMaxAPISettingsError.missingToken.errorDescription
-        case .kimi:
-            return KimiAPIError.missingToken.errorDescription
-        default:
-            return "\(self.metadata(for: provider).displayName) is unavailable in the current environment."
         }
+
+        return "\(self.metadata(for: provider).displayName) is unavailable in the current environment."
     }
 
     func status(for provider: UsageProvider) -> ProviderStatus? {
         guard self.statusChecksEnabled else { return nil }
-        return self.statuses[provider]
+        return self.statuses[provider.instanceID]
     }
 
     func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
@@ -199,19 +197,20 @@ extension UsageStore {
 
     func statusComponents(for provider: UsageProvider) -> [ProviderStatusComponent] {
         guard self.statusChecksEnabled else { return [] }
-        return self.statusComponents[provider] ?? []
+        return self.statusComponents[provider.instanceID] ?? []
     }
 
     func accountInfo(for provider: UsageProvider) -> AccountInfo {
         let now = Date()
         let configRevision = self.settings.configRevision
-        if let cached = self.accountInfoCache[provider],
+        if let cached = self.accountInfoCache[provider.instanceID],
            cached.isValid(now: now, configRevision: configRevision)
         {
             return cached.account
         }
 
         let account: AccountInfo
+        // Provider-specific by design: Codex account info must be loaded through its selected filesystem scope.
         if provider == .codex {
             let env = ProviderRegistry.makeEnvironment(
                 base: self.environmentBase,
@@ -223,7 +222,7 @@ extension UsageStore {
         } else {
             account = self.codexFetcher.loadAccountInfo()
         }
-        self.accountInfoCache[provider] = AccountInfoCacheEntry(
+        self.accountInfoCache[provider.instanceID] = AccountInfoCacheEntry(
             account: account,
             configRevision: configRevision,
             expiresAt: now.addingTimeInterval(self.accountInfoCacheTTL))

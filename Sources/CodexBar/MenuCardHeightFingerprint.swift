@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 
 extension UsageMenuCardView.Model {
@@ -22,6 +23,7 @@ extension UsageMenuCardView.Model {
             "codexResetCredits=\(self.codexResetCredits?.heightFingerprint ?? "")",
             "metrics=\(MenuCardHeightFingerprint.join(self.metrics.map(\.heightFingerprint)))",
             "notes=\(notesFingerprint)",
+            "providerDetails=\(self.providerDetails.heightFingerprint)",
             "dashboard=\(self.inlineUsageDashboard?.heightFingerprint ?? "")",
             "providerCost=\(self.providerCost?.heightFingerprint ?? "")",
             "tokenUsage=\(self.tokenUsage?.heightFingerprint ?? "")",
@@ -31,6 +33,31 @@ extension UsageMenuCardView.Model {
 
     static func heightFingerprintField(_ name: String, _ value: String?) -> String {
         MenuCardHeightFingerprint.field(name, value)
+    }
+}
+
+extension [ProviderDetailSection] {
+    fileprivate var heightFingerprint: String {
+        MenuCardHeightFingerprint.join(self.map { section in
+            MenuCardHeightFingerprint.join([
+                MenuCardHeightFingerprint.field("title", section.title),
+                MenuCardHeightFingerprint.join(section.rows.map { row in
+                    MenuCardHeightFingerprint.join([
+                        MenuCardHeightFingerprint.field("label", row.label),
+                        MenuCardHeightFingerprint.field("value", row.value),
+                        MenuCardHeightFingerprint.field("secondary", row.secondaryValue),
+                    ])
+                }),
+                section.chart.map { chart in
+                    MenuCardHeightFingerprint.join([
+                        chart.kind.rawValue,
+                        MenuCardHeightFingerprint.field("title", chart.title),
+                        MenuCardHeightFingerprint.field("unit", chart.unit),
+                        "points=\(chart.points.count)",
+                    ])
+                } ?? "chart=nil",
+            ])
+        })
     }
 }
 
@@ -76,22 +103,20 @@ extension UsageMenuCardView.Model.SubtitleStyle {
 
 extension UsageMenuCardView.Model.Metric {
     fileprivate var heightFingerprint: String {
-        MenuCardHeightFingerprint.join([
+        let presentation = self.linePresentation(title: self.title)
+        return MenuCardHeightFingerprint.join([
             self.id,
-            MenuCardHeightFingerprint.field("title", self.title),
-            "percent=\(Int(self.percent.rounded()))",
-            "percentStyle=\(self.percentStyle.rawValue)",
-            MenuCardHeightFingerprint.field("status", self.statusText),
-            MenuCardHeightFingerprint.field("reset", self.resetText),
-            MenuCardHeightFingerprint.field("detail", self.detailText),
-            MenuCardHeightFingerprint.field("detailLeft", self.detailLeftText),
-            MenuCardHeightFingerprint.field("detailRight", self.detailRightText),
-            MenuCardHeightFingerprint.field(
-                "sessionEquivalentLeft",
-                self.sessionEquivalentDetail?.leftText),
-            MenuCardHeightFingerprint.field(
-                "sessionEquivalentRight",
-                self.sessionEquivalentDetail?.rightText),
+            self.statusText == nil ? "status=0" : "status=1",
+            // The title shares horizontal space with a wrapping reset label. Track it only
+            // when that label exists so ordinary percentage ticks keep the fixed-row cache.
+            presentation.resetText == nil
+                ? "title=fixed"
+                : MenuCardHeightFingerprint.field("title", presentation.titleText),
+            // Reset and meta rows may wrap to a second line, so their text
+            // content (not just presence) can change the measured card height.
+            MenuCardHeightFingerprint.field("reset", presentation.resetText),
+            MenuCardHeightFingerprint.field("meta", presentation.metaText),
+            self.detailText == nil ? "detail=0" : "detail=1",
             self.pacePercent == nil ? "pace=0" : "pace=1",
             self.paceOnTop ? "paceTop=1" : "paceTop=0",
             self.cardStyle ? "card=1" : "card=0",

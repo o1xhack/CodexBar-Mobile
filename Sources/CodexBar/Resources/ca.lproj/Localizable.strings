@@ -650,6 +650,8 @@
 "copyright" = "© 2026 Peter Steinberger. Llicència MIT.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Utilitza JavaScriptCore per als connectors de proveïdor";
+"use_javascriptcore_plugin_engine_subtitle" = "Només com a reversió de compatibilitat. Reinicieu CodexBar per aplicar-ho; CODEXBAR_PLUGIN_ENGINE substitueix aquest ajust.";
 "section_logging" = "Registre";
 "enable_file_logging" = "Activeu el registre en fitxer";
 "enable_file_logging_subtitle" = "Escriu els registres a %@ per a la depuració.";
@@ -1245,7 +1247,7 @@
 "usage_percent_suffix_used" = "usat";
 "Weekly" = "Setmanal";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "No s'ha trobat el token d'API de z.ai. Definiu apiKey a ~/.codexbar/config.json o Z_AI_API_KEY.";
-"≈ %d%% run-out risk" = "≈ %d%% risc d'esgotament";
+"(%d%% risk)" = "(%d%% risc d'esgotament)";
 
 /* Settings sidebar redesign */
 "Enable" = "Activa";
@@ -1349,6 +1351,7 @@
 "menu_bar_layout_token_account" = "Compte";
 "menu_bar_layout_token_session" = "Sessió %";
 "menu_bar_layout_token_weekly" = "Setmanal %";
+"menu_bar_layout_token_scoped_weekly" = "Setmanal amb àmbit %";
 "menu_bar_layout_token_auto" = "% automàtic";
 "menu_bar_layout_token_session_pace" = "Ritme de sessió";
 "menu_bar_layout_token_weekly_pace" = "Ritme setmanal";
@@ -1455,3 +1458,53 @@
 "icloud_sync_phase_reconciling" = "Reconciling";
 "mobile_section_icloud_sync" = "iCloud Sync";
 "icloud_diagnostics_run" = "Run Read-Only Check";
+"Cumulative" = "Acumulat";
+"Token activity" = "Activitat de tokens";
+"View" = "Vista";
+"in the last year" = "l'últim any";
+"No activity in the last 12 months" = "Sense activitat en els últims 12 mesos";
+"Each column = 1 week" = "Cada columna = 1 setmana";
+"Running total" = "Total acumulat";
+"Less" = "Menys";
+"More" = "Més";
+
+/* Provider Plugins */
+"Install…" = "Instal·la…";
+"Install plugin" = "Instal·la el plugin";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Copia un fitxer de JavaScript o TypeScript al directori de plugins.";
+"Show in Finder" = "Mostra al Finder";
+"Plugins directory" = "Directori de plugins";
+"Provider Plugins" = "Plugins de proveïdors";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Els plugins són fitxers locals de JavaScript o TypeScript. L’accés a la xarxa i a les galetes requereix aprovació.";
+"No Plugins Installed" = "No hi ha cap plugin instal·lat";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Deixa anar un fitxer .js o .ts al directori de plugins, o tria «Instal·la…»";
+"Delete Plugin?" = "Voleu eliminar el plugin?";
+"Delete" = "Elimina";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Això elimina el fitxer del plugin, la memòria cau de transpilació, l’aprovació, la configuració desada, els secrets desats i l’historial.";
+"Plugin Error" = "Error del plugin";
+"Needs approval" = "Requereix aprovació";
+"File" = "Fitxer";
+"Origins" = "Orígens";
+"Configure endpoint settings" = "Configura els paràmetres dels endpoints";
+"Capabilities" = "Capacitats";
+"Network" = "Xarxa";
+"Cookie domains" = "Dominis de galetes";
+"Approve…" = "Aprova…";
+"Delete…" = "Elimina…";
+"Unknown validation error" = "Error de validació desconegut";
+"Approve Plugin" = "Aprova el plugin";
+"Install and Approve Plugin" = "Instal·la i aprova el plugin";
+"Network authority" = "Permisos de xarxa";
+"Auth: %@" = "Autenticació: %@";
+"Capabilities: %@" = "Capacitats: %@";
+"network" = "xarxa";
+"Secrets: %@" = "Secrets: %@";
+"none" = "cap";
+"Cookie domains: %@" = "Dominis de galetes: %@";
+"Type %@ to confirm" = "Escriu %@ per confirmar";
+"Enter every endpoint setting to review the exact network origins." = "Introdueix tots els paràmetres dels endpoints per revisar els orígens de xarxa exactes.";
+"Approve" = "Aprova";
+"Install" = "Instal·la";
+"5-hour usage" = "Ús de 5 hores";
+"7-day usage" = "Ús de 7 dies";
+"Total usage" = "Ús total";

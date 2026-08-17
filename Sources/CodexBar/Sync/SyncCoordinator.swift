@@ -304,9 +304,17 @@ final class SyncCoordinator {
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
-        for provider in enabledProviders {
-            let snapshot = self.store.snapshots[provider]
-            let error = self.store.errors[provider]
+        for instanceID in enabledProviders {
+            let snapshot = self.store.snapshots[instanceID]
+            let error = self.store.errors[instanceID]
+
+            guard let provider = instanceID.firstPartyProvider else {
+                providerSnapshots.append(self.buildPluginProviderUsageSnapshot(
+                    instanceID: instanceID,
+                    snapshot: snapshot,
+                    error: error))
+                continue
+            }
             let meta = self.store.providerMetadata[provider]
 
             // Per-provider shared data (computed once, reused across all
@@ -343,7 +351,7 @@ final class SyncCoordinator {
         // so the push covers all known accounts. iOS merges by
         // (providerID, accountEmail), so distinct emails produce distinct
         // cards. See `SyncMultiAccountSnapshotCache.swift` for rationale.
-        let enabledSet = Set(enabledProviders)
+        let enabledSet = Set(enabledProviders.compactMap(\.firstPartyProvider))
         self.captureAndExpandMultiAccountSnapshots(
             into: &providerSnapshots, enabledSet: enabledSet)
 
@@ -694,6 +702,165 @@ final class SyncCoordinator {
         return confidence.rawValue
     }
 
+    private static func syncRateWindow(
+        id: String?,
+        label: String?,
+        window: RateWindow,
+        usageKnown: Bool = true) -> SyncRateWindow
+    {
+        SyncRateWindow(
+            id: id,
+            label: label,
+            usedPercent: window.usedPercent,
+            usageKnown: usageKnown,
+            windowMinutes: window.windowMinutes,
+            resetsAt: window.resetsAt,
+            resetDescription: window.resetDescription,
+            nextRegenPercent: window.nextRegenPercent,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder)
+    }
+
+    static func mapDetails(_ sections: [ProviderDetailSection]) -> [SyncProviderDetailSection] {
+        sections.map { section in
+            let chart = section.chart.map { chart in
+                let kind: SyncProviderDetailSection.Chart.Kind = switch chart.kind {
+                case .bars: .bars
+                case .line: .line
+                }
+                return SyncProviderDetailSection.Chart(
+                    kind: kind,
+                    title: chart.title,
+                    unit: chart.unit,
+                    points: chart.points.map {
+                        SyncProviderDetailSection.Chart.Point(label: $0.label, value: $0.value)
+                    })
+            }
+            return SyncProviderDetailSection(
+                title: section.title,
+                rows: section.rows.map {
+                    SyncProviderDetailSection.Row(
+                        label: $0.label,
+                        value: $0.value,
+                        secondaryValue: $0.secondaryValue)
+                },
+                chart: chart)
+        }
+    }
+
+    private func buildPluginProviderUsageSnapshot(
+        instanceID: ProviderInstanceID,
+        snapshot: UsageSnapshot?,
+        error: String?) -> ProviderUsageSnapshot
+    {
+        Self.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: snapshot,
+            error: error,
+            deviceID: self.deviceID,
+            plugin: UserProviderPluginRegistry.plugin(for: instanceID))
+    }
+
+    static func mapPluginProviderUsageSnapshot(
+        instanceID: ProviderInstanceID,
+        snapshot: UsageSnapshot?,
+        error: String?,
+        deviceID: String,
+        plugin: UserProviderPlugin? = nil) -> ProviderUsageSnapshot
+    {
+        var rateWindows: [SyncRateWindow] = []
+        if let window = snapshot?.primary {
+            rateWindows.append(Self.syncRateWindow(
+                id: "primary",
+                label: Self.additionalWindowLabel(windowMinutes: window.windowMinutes),
+                window: window))
+        }
+        if let window = snapshot?.secondary {
+            rateWindows.append(Self.syncRateWindow(
+                id: "secondary",
+                label: Self.additionalWindowLabel(windowMinutes: window.windowMinutes),
+                window: window))
+        }
+        if let window = snapshot?.tertiary {
+            rateWindows.append(Self.syncRateWindow(
+                id: "tertiary",
+                label: Self.additionalWindowLabel(windowMinutes: window.windowMinutes),
+                window: window))
+        }
+        for extra in snapshot?.extraRateWindows ?? [] {
+            rateWindows.append(Self.syncRateWindow(
+                id: extra.id,
+                label: extra.title,
+                window: extra.window,
+                usageKnown: extra.usageKnown))
+        }
+
+        let providerCost = snapshot?.providerCost
+        let budget: SyncBudgetSnapshot? = providerCost.flatMap { cost in
+            guard cost.limit > 0 else { return nil }
+            return SyncBudgetSnapshot(
+                usedAmount: cost.used,
+                limitAmount: cost.limit,
+                currencyCode: cost.currencyCode,
+                period: cost.period,
+                resetsAt: cost.resetsAt)
+        }
+        let providerAmount: SyncProviderAmount? = providerCost.flatMap { cost in
+            let kind: String
+            let amount: Double
+            if let balance = cost.balance {
+                kind = "balance"
+                amount = balance
+            } else {
+                guard cost.limit <= 0 else { return nil }
+                kind = "spend"
+                amount = cost.used
+            }
+            let confidence = snapshot?.dataConfidence ?? .unknown
+            return SyncProviderAmount(
+                kind: kind,
+                amount: amount,
+                currencyCode: cost.currencyCode,
+                period: cost.period,
+                isEstimated: confidence == .estimated || confidence == .percentOnly)
+        }
+
+        let accountRecordKey = "device-\(deviceID.lowercased())"
+        let accountIdentities: [String] = {
+            let recordIdentity = "\(instanceID.rawValue):record:\(accountRecordKey)"
+            if let accountID = AccountIdentityComputer.normalize(snapshot?.identity?.accountID) {
+                return ["\(instanceID.rawValue):account:\(accountID)", recordIdentity]
+            }
+            if snapshot?.identity?.accountEmailIsFallbackLabel != true,
+               let email = AccountIdentityComputer.normalize(snapshot?.identity?.accountEmail)
+            {
+                return ["\(instanceID.rawValue):email:\(email)", recordIdentity]
+            }
+            return [recordIdentity]
+        }()
+        return ProviderUsageSnapshot(
+            providerID: instanceID.rawValue,
+            providerName: plugin?.manifest.name ?? instanceID.rawValue,
+            primary: rateWindows.first,
+            secondary: rateWindows.dropFirst().first,
+            accountEmail: snapshot?.identity?.accountEmail,
+            loginMethod: snapshot?.identity?.loginMethod,
+            statusMessage: error,
+            isError: error != nil,
+            lastUpdated: snapshot?.updatedAt ?? Date(),
+            budget: budget,
+            subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
+            subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
+            rateWindows: rateWindows,
+            accountIdentities: accountIdentities,
+            usageDataConfidence: Self.mapUsageDataConfidence(snapshot: snapshot),
+            providerAmount: providerAmount,
+            accountRecordKey: accountRecordKey,
+            accountOrganization: snapshot?.identity?.accountOrganization,
+            details: Self.mapDetails(snapshot?.details ?? []),
+            providerIconMonogram: plugin?.manifest.icon.monogram,
+            providerIconTintHex: plugin?.manifest.icon.tint)
+    }
+
     // swiftlint:disable:next function_body_length
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
@@ -713,12 +880,7 @@ final class SyncCoordinator {
                     window: p,
                     fallback: metadata?.sessionLabel ?? "Credits")
                 : metadata?.sessionLabel
-            let window = SyncRateWindow(
-                label: label,
-                usedPercent: p.usedPercent,
-                windowMinutes: p.windowMinutes,
-                resetsAt: p.resetsAt,
-                resetDescription: p.resetDescription)
+            let window = Self.syncRateWindow(id: "primary", label: label, window: p)
             rateWindows.append(window)
             semanticWindows.primary = window
         }
@@ -728,12 +890,7 @@ final class SyncCoordinator {
                     window: s,
                     fallback: metadata?.weeklyLabel ?? "Usage")
                 : metadata?.weeklyLabel
-            let window = SyncRateWindow(
-                label: label,
-                usedPercent: s.usedPercent,
-                windowMinutes: s.windowMinutes,
-                resetsAt: s.resetsAt,
-                resetDescription: s.resetDescription)
+            let window = Self.syncRateWindow(id: "secondary", label: label, window: s)
             rateWindows.append(window)
             semanticWindows.secondary = window
         }
@@ -747,22 +904,16 @@ final class SyncCoordinator {
             } else {
                 Self.additionalWindowLabel(windowMinutes: t.windowMinutes)
             }
-            rateWindows.append(SyncRateWindow(
-                label: label,
-                usedPercent: t.usedPercent,
-                windowMinutes: t.windowMinutes,
-                resetsAt: t.resetsAt,
-                resetDescription: t.resetDescription))
+            rateWindows.append(Self.syncRateWindow(id: "tertiary", label: label, window: t))
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
         // Routines / Web Sonnet, Cursor Extra usage, etc.
         for extra in snapshot?.extraRateWindows ?? [] {
-            rateWindows.append(SyncRateWindow(
+            rateWindows.append(Self.syncRateWindow(
+                id: extra.id,
                 label: extra.title,
-                usedPercent: extra.window.usedPercent,
-                windowMinutes: extra.window.windowMinutes,
-                resetsAt: extra.window.resetsAt,
-                resetDescription: extra.window.resetDescription))
+                window: extra.window,
+                usageKnown: extra.usageKnown))
         }
 
         // Legacy primary/secondary for backward compat with older iOS builds.
@@ -932,7 +1083,8 @@ final class SyncCoordinator {
             providerAmount: providerAmount,
             accountRecordKey: accountRecordKey,
             accountOrganization: snapshot?.identity?.accountOrganization,
-            zoomMateCredits: zoomMateCredits)
+            zoomMateCredits: zoomMateCredits,
+            details: Self.mapDetails(snapshot?.details ?? []))
     }
 
     static func syncAccountIdentities(
@@ -988,7 +1140,7 @@ final class SyncCoordinator {
             guard providerCost.limit <= 0 else { return nil }
             kind = "balance"
             amount = providerCost.used
-        case .aiand:
+        case .aiand, .fireworks:
             guard providerCost.limit <= 0 else { return nil }
             kind = "spend"
             amount = providerCost.used
@@ -998,7 +1150,7 @@ final class SyncCoordinator {
             amount = balance
         case .xai:
             kind = "balance"
-            amount = snapshot?.xaiUsage?.balanceUSD ?? providerCost.balance ?? providerCost.used
+            amount = providerCost.balance ?? providerCost.used
         default:
             return nil
         }
@@ -1015,50 +1167,16 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncSub2APIUsage?
     {
-        guard provider == .sub2api, let usage = snapshot?.sub2APIUsage else { return nil }
-        func mapTotals(_ totals: Sub2APIUsageDetails.Totals?) -> SyncSub2APIUsage.Totals? {
-            totals.map {
-                SyncSub2APIUsage.Totals(
-                    requests: $0.requests,
-                    totalTokens: $0.totalTokens,
-                    actualCostUSD: $0.actualCostUSD)
-            }
-        }
-        return SyncSub2APIUsage(
-            kind: usage.kind.rawValue,
-            balance: usage.balance,
-            unit: usage.unit,
-            today: mapTotals(usage.today),
-            total: mapTotals(usage.total))
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapWayfinderUsage(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncWayfinderUsage?
     {
-        guard provider == .wayfinder, let usage = snapshot?.wayfinderUsage else { return nil }
-        return SyncWayfinderUsage(
-            gatewayStatus: usage.gatewayStatus,
-            offline: usage.offline,
-            dryRun: usage.dryRun,
-            missingKeyCount: usage.missingKeys.count,
-            modelCount: usage.modelCount,
-            requests: usage.requests,
-            tokens: usage.tokens,
-            realized: usage.realized,
-            baseline: usage.baseline,
-            saved: usage.saved,
-            savedPercent: usage.savedPct,
-            priced: usage.priced,
-            routes: usage.routes.map {
-                SyncWayfinderUsage.Route(
-                    name: $0.name,
-                    requests: $0.requests,
-                    saved: $0.saved,
-                    tokens: $0.tokens)
-            },
-            averageDecisionMilliseconds: usage.avgDecisionMs,
-            updatedAt: usage.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1116,103 +1234,24 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncZaiHourlyUsage?
     {
-        guard provider == .zai, let usage = snapshot?.zaiUsage else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-        fallback.formatOptions = [.withInternetDateTime]
-
-        func makeFormatter(_ format: String) -> DateFormatter {
-            let value = DateFormatter()
-            value.locale = Locale(identifier: "en_US_POSIX")
-            value.timeZone = TimeZone.current
-            value.dateFormat = format
-            return value
-        }
-
-        let hourlyFormatter = makeFormatter("yyyy-MM-dd HH:mm")
-        let dailyFormatter = makeFormatter("yyyy-MM-dd")
-        func parse(_ raw: String) -> Date? {
-            formatter.date(from: raw)
-                ?? fallback.date(from: raw)
-                ?? hourlyFormatter.date(from: raw)
-                ?? dailyFormatter.date(from: raw)
-        }
-
-        func mapModel(_ model: ZaiModelUsageData?) -> ([Date], [SyncZaiModelSeries]) {
-            guard let model else { return ([], []) }
-            let dates = model.xTime.compactMap(parse)
-            guard dates.count == model.xTime.count else { return ([], []) }
-            let series = model.modelDataList.compactMap { row -> SyncZaiModelSeries? in
-                guard let name = row.modelName, !name.isEmpty else { return nil }
-                return SyncZaiModelSeries(modelName: name, tokens: row.tokensUsage)
-            }
-            return (dates, series)
-        }
-
-        let hourly = mapModel(usage.modelUsage)
-        let daily = mapModel(usage.dailyModelUsage)
-        guard !hourly.0.isEmpty || !daily.0.isEmpty else { return nil }
-        return SyncZaiHourlyUsage(
-            xTime: hourly.0,
-            modelSeries: hourly.1,
-            dailyXTime: daily.0,
-            dailyModelSeries: daily.1)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapZoomMateCredits(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncZoomMateCredits?
     {
-        guard provider == .zoommate, let snapshot else { return nil }
-        let history = snapshot.zoommateCreditsHistory
-        guard let status = history?.creditStatus ?? snapshot.zoommateCreditStatus else { return nil }
-        func date(milliseconds: Int64?) -> Date? {
-            guard let milliseconds, milliseconds > 0 else { return nil }
-            return Date(timeIntervalSince1970: Double(milliseconds) / 1000)
-        }
-        let now = history?.updatedAt ?? snapshot.updatedAt
-        let daily = history?.dailyBreakdown(now: now).map {
-            SyncZoomMateDailyPoint(dayKey: $0.day, creditsUsed: $0.totalCreditsUsed)
-        } ?? []
-        return SyncZoomMateCredits(
-            budgetCap: status.budgetCap,
-            usedCredits: status.usedCredit,
-            remainingCredits: status.remainingCredit,
-            overageCredits: status.overageCredit,
-            allowsOverage: status.allowOverage,
-            cycleStartAt: date(milliseconds: status.cycleStartDate),
-            cycleEndAt: date(milliseconds: status.cycleEndDate),
-            isQuotaAvailable: status.isQuotaAvailable,
-            isUnlimited: status.isUnlimited,
-            todayCreditsUsed: history?.todayCreditsUsed(now: now),
-            daily: daily,
-            updatedAt: now)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapKiroCredits(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncKiroCredits?
     {
-        guard provider == .kiro, let k = snapshot?.kiroUsage else { return nil }
-        // Percent: prefer Mac-computed; otherwise derive used / total.
-        let percent: Double? = {
-            if k.creditsTotal > 0 {
-                return (k.creditsUsed / k.creditsTotal) * 100
-            }
-            return nil
-        }()
-        return SyncKiroCredits(
-            planName: k.displayPlanName,
-            creditsUsed: k.creditsUsed,
-            creditsTotal: k.creditsTotal > 0 ? k.creditsTotal : nil,
-            creditsPercent: percent,
-            bonusUsed: k.bonusCreditsUsed,
-            bonusTotal: k.bonusCreditsTotal,
-            bonusExpiryDays: k.bonusExpiryDays,
-            resetsAt: nil,
-            overageCreditsUsed: k.overageCreditsUsed,
-            estimatedOverageCostUSD: k.estimatedOverageCostUSD)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapBedrockCost(
@@ -1364,18 +1403,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncDeepgramUsage?
     {
-        guard provider == .deepgram, let d = snapshot?.deepgramUsage else { return nil }
-        return SyncDeepgramUsage(
-            projectName: d.projectName,
-            projectCount: d.projectCount,
-            speechHours: d.hours,
-            totalHours: d.totalHours,
-            agentHours: d.agentHours,
-            requests: d.requests,
-            tokensIn: d.tokensIn,
-            tokensOut: d.tokensOut,
-            ttsCharacters: d.ttsCharacters,
-            updatedAt: d.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapGroqMetrics(
@@ -1422,37 +1451,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncClaudeAdminUsage?
     {
-        guard provider == .claude, let a = snapshot?.claudeAdminAPIUsage else { return nil }
-
-        func mapWindow(_ s: ClaudeAdminAPIUsageSnapshot.Summary) -> SyncClaudeAdminWindowSummary {
-            SyncClaudeAdminWindowSummary(
-                costUSD: s.costUSD,
-                totalTokens: s.totalTokens,
-                inputTokens: s.inputTokens,
-                outputTokens: s.outputTokens,
-                cacheCreationInputTokens: s.cacheCreationInputTokens,
-                cacheReadInputTokens: s.cacheReadInputTokens)
-        }
-
-        // Skip when there's literally no usage in the last 30 days —
-        // iOS hides the Admin section in that case so we don't render
-        // an empty card.
-        let last30 = mapWindow(a.last30Days)
-        if last30.totalTokens == 0, last30.costUSD == 0 { return nil }
-
-        let topModels = Array(a.topModels.prefix(8)).map { m in
-            SyncClaudeAdminModelBreakdown(name: m.name, totalTokens: m.totalTokens)
-        }
-        let topCostItems = Array(a.topCostItems.prefix(8)).map { c in
-            SyncClaudeAdminCostItem(name: c.name, costUSD: c.costUSD)
-        }
-        return SyncClaudeAdminUsage(
-            last30Days: last30,
-            last7Days: mapWindow(a.last7Days),
-            latestDay: a.daily.isEmpty ? nil : mapWindow(a.latestDay),
-            topModels: topModels,
-            topCostItems: topCostItems,
-            updatedAt: a.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     static func mapClaudeExtraUsage(
@@ -1524,32 +1524,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncMiniMaxBillingHistory?
     {
-        guard provider == .minimax,
-              let b = snapshot?.minimaxUsage?.billingSummary
-        else { return nil }
-        let daily = b.daily.map { d in
-            SyncMiniMaxBillingDay(day: d.day, tokens: d.tokens, cashUSD: d.cash)
-        }
-        let methods = b.topMethods.prefix(3).map { m in
-            SyncMiniMaxBillingBreakdown(name: m.name, tokens: m.tokens, cashUSD: m.cash)
-        }
-        let models = b.topModels.prefix(3).map { m in
-            SyncMiniMaxBillingBreakdown(name: m.name, tokens: m.tokens, cashUSD: m.cash)
-        }
-        // Skip when there's no signal at all — iOS keeps the existing
-        // generic prompts card and we save wire bytes.
-        if b.last30DaysTokens == 0, (b.last30DaysCash ?? 0) == 0, daily.isEmpty {
-            return nil
-        }
-        return SyncMiniMaxBillingHistory(
-            todayTokens: b.todayTokens,
-            last30DaysTokens: b.last30DaysTokens,
-            todayCashUSD: b.todayCash,
-            last30DaysCashUSD: b.last30DaysCash,
-            daily: daily,
-            topMethods: Array(methods),
-            topModels: Array(models),
-            updatedAt: b.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     func mapCodexWorkspace(
@@ -1689,7 +1665,7 @@ final class SyncCoordinator {
                     livingAccountIDs: [])
                 continue
             }
-            guard let entries = self.store.accountSnapshots[tokenProvider],
+            guard let entries = self.store.accountSnapshots[tokenProvider.instanceID],
                   entries.count >= 2
             else { continue }
 
@@ -1964,7 +1940,7 @@ final class SyncCoordinator {
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
-        let tokenSnapshot = self.store.tokenSnapshots[provider]
+        let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
         let serviceBreakdownsByDay = self.dashboardServiceBreakdowns(for: provider)
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }
@@ -2056,26 +2032,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncCostSummary?
     {
-        guard provider == .xai, let usage = snapshot?.xaiUsage, !usage.daily.isEmpty else {
-            return nil
-        }
-        return SyncCostSummary(
-            sessionCostUSD: nil,
-            sessionTokens: nil,
-            last30DaysCostUSD: usage.windowCostUSD,
-            last30DaysTokens: nil,
-            daily: usage.daily.map {
-                SyncDailyPoint(
-                    dayKey: $0.day,
-                    costUSD: $0.costUSD,
-                    totalTokens: 0,
-                    modelBreakdowns: [],
-                    serviceBreakdowns: [],
-                    isEstimated: usage.limitReached ? true : nil)
-            },
-            isEstimated: usage.limitReached ? true : nil,
-            historyDays: usage.historyDays,
-            currencyCode: "USD")
+        // Upstream v0.48 migrated xAI's rich history to the generic details lane.
+        nil
     }
 
     /// Maps OpenRouter's native balance/credits + per-key usage windows into
@@ -2086,19 +2044,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncOpenRouterStats?
     {
-        guard provider == .openrouter, let o = snapshot?.openRouterUsage else { return nil }
-        return SyncOpenRouterStats(
-            balanceUSD: o.balance,
-            totalCreditsUSD: o.totalCredits,
-            totalUsageUSD: o.totalUsage,
-            usedPercent: o.usedPercent,
-            keyUsageDailyUSD: o.keyUsageDaily,
-            keyUsageWeeklyUSD: o.keyUsageWeekly,
-            keyUsageMonthlyUSD: o.keyUsageMonthly,
-            keyLimitUSD: o.keyLimit,
-            rateLimitRequests: o.rateLimit?.requests,
-            rateLimitInterval: o.rateLimit?.interval,
-            updatedAt: o.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     /// Maps Azure OpenAI deployment identity into the wire envelope (gap E).
@@ -2147,27 +2094,8 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncDeepSeekUsage?
     {
-        guard provider == .deepseek, let ds = snapshot?.deepseekUsage else { return nil }
-        return SyncDeepSeekUsage(
-            todayTokens: ds.todayTokens,
-            monthTokens: ds.currentMonthTokens,
-            todayCost: ds.todayCost,
-            monthCost: ds.currentMonthCost,
-            todayRequests: ds.requestCount,
-            monthRequests: ds.currentMonthRequestCount,
-            topModel: ds.topModel,
-            currency: ds.currency,
-            totalBalanceUSD: nil,
-            grantedBalanceUSD: nil,
-            toppedUpBalanceUSD: nil,
-            daily: ds.daily.map {
-                SyncDeepSeekDaily(
-                    dayKey: $0.date,
-                    totalTokens: $0.totalTokens,
-                    cost: $0.cost,
-                    requestCount: $0.requestCount)
-            },
-            updatedAt: ds.updatedAt)
+        // Upstream v0.48 migrated this provider to the generic details lane.
+        nil
     }
 
     private func modelBreakdowns(
@@ -2246,7 +2174,7 @@ final class SyncCoordinator {
              .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
              // Upstream v0.46.0-v0.47.0 providers expose provider-computed
              // quota, credit, balance, or workspace allowance values.
-             .qwencloud, .zoommate, .xai, .notion:
+             .qwencloud, .zoommate, .xai, .notion, .fireworks, .ibmbob:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
@@ -2277,7 +2205,7 @@ final class SyncCoordinator {
     }
 
     private func makeUtilizationHistory(for provider: UsageProvider) -> [SyncUtilizationSeries]? {
-        let buckets = self.store.planUtilizationHistory[provider]
+        let buckets = self.store.planUtilizationHistory[provider.instanceID]
         guard let buckets, !buckets.isEmpty else { return nil }
 
         // Use preferred account or unscoped history
@@ -2344,4 +2272,4 @@ final class SyncCoordinator {
     }
 }
 
-// swiftlint:enable type_body_length
+// swiftlint:enable file_length type_body_length

@@ -667,6 +667,8 @@
 "copyright" = "© 2026 Peter Steinberger. Лицензия MIT.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Использовать JavaScriptCore для плагинов провайдеров";
+"use_javascriptcore_plugin_engine_subtitle" = "Только для отката совместимости. Перезапустите CodexBar; CODEXBAR_PLUGIN_ENGINE переопределяет эту настройку.";
 "section_logging" = "Журналирование";
 "enable_file_logging" = "Включить запись логов";
 "enable_file_logging_subtitle" = "Записывать логи в %@ для отладки.";
@@ -840,7 +842,7 @@
 "Pace: %@ · %@" = "Темп: %@ · %@";
 "1.5× headroom" = "Запас 1,5×";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% риск исчерпания";
+"(%d%% risk)" = "(%d%% риск исчерпания)";
 "%d%% in deficit" = "%d%% в дефиците";
 "%d%% in reserve" = "%d%% в резерве";
 "usage_percent_suffix_left" = "осталось";
@@ -1348,6 +1350,7 @@
 "menu_bar_layout_token_account" = "Аккаунт";
 "menu_bar_layout_token_session" = "Сеанс %";
 "menu_bar_layout_token_weekly" = "Недельный %";
+"menu_bar_layout_token_scoped_weekly" = "Недельный по области %";
 "menu_bar_layout_token_auto" = "Авто %";
 "menu_bar_layout_token_session_pace" = "Темп сеанса";
 "menu_bar_layout_token_weekly_pace" = "Недельный темп";
@@ -1454,3 +1457,53 @@
 "mobile_section_icloud_sync" = "iCloud Sync";
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Renews: %@" = "Renews: %@";
+"Cumulative" = "Накопительно";
+"Token activity" = "Активность токенов";
+"View" = "Вид";
+"in the last year" = "за последний год";
+"No activity in the last 12 months" = "Нет активности за последние 12 месяцев";
+"Each column = 1 week" = "Каждый столбец = 1 неделя";
+"Running total" = "Накопленный итог";
+"Less" = "Меньше";
+"More" = "Больше";
+
+/* Provider Plugins */
+"Install…" = "Установить…";
+"Install plugin" = "Установить плагин";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Копирует файл JavaScript или TypeScript в каталог плагинов.";
+"Show in Finder" = "Показать в Finder";
+"Plugins directory" = "Каталог плагинов";
+"Provider Plugins" = "Плагины провайдеров";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Плагины — это локальные файлы JavaScript или TypeScript. Для доступа к сети и cookie требуется одобрение.";
+"No Plugins Installed" = "Плагины не установлены";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Перетащите файл .js или .ts в каталог плагинов либо выберите «Установить…»";
+"Delete Plugin?" = "Удалить плагин?";
+"Delete" = "Удалить";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "При этом будут удалены файл плагина, кэш транспиляции, одобрение, сохранённые настройки и секреты, а также история.";
+"Plugin Error" = "Ошибка плагина";
+"Needs approval" = "Требуется одобрение";
+"File" = "Файл";
+"Origins" = "Источники";
+"Configure endpoint settings" = "Настроить параметры эндпоинта";
+"Capabilities" = "Разрешения";
+"Network" = "Сеть";
+"Cookie domains" = "Домены cookie";
+"Approve…" = "Одобрить…";
+"Delete…" = "Удалить…";
+"Unknown validation error" = "Неизвестная ошибка проверки";
+"Approve Plugin" = "Одобрить плагин";
+"Install and Approve Plugin" = "Установить и одобрить плагин";
+"Network authority" = "Область сетевого доступа";
+"Auth: %@" = "Авторизация: %@";
+"Capabilities: %@" = "Разрешения: %@";
+"network" = "сеть";
+"Secrets: %@" = "Секреты: %@";
+"none" = "нет";
+"Cookie domains: %@" = "Домены cookie: %@";
+"Type %@ to confirm" = "Введите %@ для подтверждения";
+"Enter every endpoint setting to review the exact network origins." = "Укажите все параметры эндпоинта, чтобы просмотреть точные сетевые источники.";
+"Approve" = "Одобрить";
+"Install" = "Установить";
+"5-hour usage" = "Использование за 5 часов";
+"7-day usage" = "Использование за 7 дней";
+"Total usage" = "Общее использование";

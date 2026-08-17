@@ -15,6 +15,7 @@ extension SettingsPane {
         case .advanced: "advanced"
         case .mobile: "mobile"
         case .hooks: "hooks"
+        case .plugins: "plugins"
         case .about: "about"
         case .debug: "debug"
         case let .provider(provider): "provider:\(provider.rawValue)"
@@ -34,16 +35,19 @@ extension SettingsPane {
         case "advanced": self = .advanced
         case "mobile": self = .mobile
         case "hooks": self = .hooks
+        case "plugins": self = .plugins
         case "about": self = .about
         case "debug": self = .debug
         default:
             let providerPrefix = "provider:"
             guard persistenceToken.hasPrefix(providerPrefix),
-                  let provider = UsageProvider(rawValue: String(persistenceToken.dropFirst(providerPrefix.count)))
+                  let instanceID = ProviderInstanceID(
+                      rawValue: String(persistenceToken.dropFirst(providerPrefix.count))),
+                  instanceID.firstPartyProvider != nil || UserProviderPluginRegistry.plugin(for: instanceID) != nil
             else {
                 return nil
             }
-            self = .provider(provider)
+            self = .provider(instanceID)
         }
     }
 }

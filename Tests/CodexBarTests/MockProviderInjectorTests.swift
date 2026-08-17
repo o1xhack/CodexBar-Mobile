@@ -58,9 +58,10 @@ struct MockProviderInjectorTests {
         // iOS 1.17.0 adds Sakana AI, Qoder, CrossModel, and ClawRouter. 65 → 69.
         // iOS 1.19.0 adds 8 v0.42-v0.45 provider mocks. 69 → 77.
         // iOS 1.20.0 adds 4 v0.46-v0.47 provider mocks. 77 → 81.
+        // iOS 1.21.0 adds Fireworks and IBM Bob. 81 → 83.
         #expect(
-            MockProviderInjector.allMocks().count == 81,
-            "iOS 1.20.0: 77 → 81 (+4 v0.46-v0.47 simple mocks).")
+            MockProviderInjector.allMocks().count == 83,
+            "iOS 1.21.0: 81 → 83 (+Fireworks and IBM Bob).")
     }
 
     @Test
@@ -118,6 +119,20 @@ struct MockProviderInjectorTests {
                 email.hasSuffix(MockProviderInjector.mockEmailTLD),
                 "mock email must use `.test` TLD (RFC 6761 reserved); got: \(email)")
         }
+    }
+
+    @Test
+    func `v049 provider mocks exercise spend and generic details`() throws {
+        let snapshots = MockProviderInjector.allMocks()
+        let fireworks = try #require(snapshots.first { $0.providerID == "fireworks" })
+        let bob = try #require(snapshots.first { $0.providerID == "ibmbob" })
+
+        #expect(fireworks.primary == nil)
+        #expect(fireworks.providerAmount?.kind == "spend")
+        #expect(fireworks.providerAmount?.amount == 27.40)
+        #expect(bob.primary?.windowMinutes == 43200)
+        #expect(bob.details.first?.title == "Bobcoin usage")
+        #expect(bob.details.first?.rows.first?.value == "3,700 / 10,000 Bobcoins")
     }
 
     @Test
@@ -286,7 +301,7 @@ struct MockProviderInjectorTests {
                 "antigravity", "ollama", "elevenlabs",
                 "azureopenai", "alibabatokenplan", "t3chat",
                 "poe", "sakana", "qoder", "clinepass", "neuralwatt",
-                "longcat", "wayfinder", "zenmux", "qwencloud", "zoommate", "notion",
+                "longcat", "wayfinder", "zenmux", "qwencloud", "zoommate", "notion", "ibmbob",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

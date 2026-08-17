@@ -90,6 +90,159 @@ struct UsageMenuCardLayoutTests {
             UsageMenuCardLayout.sectionBottomPadding)
     }
 
+    @Test
+    func `metric line presentation keeps remaining percent and reset in title row`() {
+        let metric = UsageMenuCardView.Model.Metric(
+            id: "weekly",
+            title: "Weekly",
+            percent: 69,
+            percentStyle: .left,
+            resetText: "Resets Jul 22, 8:33 AM",
+            detailText: nil,
+            detailLeftText: "26% in deficit",
+            detailRightText: "Runs out in 19h 7m (85% risk)",
+            pacePercent: 43,
+            paceOnTop: true,
+            sessionEquivalentDetail: .init(
+                leftText: "Est. 2 session quotas left",
+                rightText: "6 windows until reset",
+                accessibilityLabel: "Est. 2 session quotas left · 6 windows until reset"))
+
+        let presentation = metric.linePresentation(title: metric.title)
+
+        #expect(presentation.titleText == "Weekly 69% left")
+        #expect(presentation.resetText == "Resets Jul 22, 8:33 AM")
+        #expect(presentation.metaText ==
+            "26% in deficit · Runs out in 19h 7m (85% risk) · " +
+            "Est. 2 session quotas left · 6 windows until reset")
+    }
+
+    @Test
+    func `metric title follows configured percent style`() {
+        let leftMetric = UsageMenuCardView.Model.Metric(
+            id: "weekly",
+            title: "Weekly",
+            percent: 69,
+            percentStyle: .left,
+            resetText: nil,
+            detailText: nil,
+            detailLeftText: nil,
+            detailRightText: nil,
+            pacePercent: nil,
+            paceOnTop: true)
+        let usedMetric = UsageMenuCardView.Model.Metric(
+            id: "weekly",
+            title: "Weekly",
+            percent: 31,
+            percentStyle: .used,
+            resetText: nil,
+            detailText: nil,
+            detailLeftText: nil,
+            detailRightText: nil,
+            pacePercent: nil,
+            paceOnTop: true)
+
+        #expect(leftMetric.linePresentation(title: leftMetric.title).titleText == "Weekly 69% left")
+        #expect(usedMetric.linePresentation(title: usedMetric.title).titleText == "Weekly 31% used")
+    }
+
+    @Test
+    func `metric detail wraps to a second row instead of truncating as pace content grows`() {
+        let width: CGFloat = 296
+        func card(
+            detailRightText: String,
+            forecast: UsagePaceText.SessionEquivalentDetail? = nil) -> UsageMenuCardView
+        {
+            UsageMenuCardView(model: Self.model(metrics: [
+                UsageMenuCardView.Model.Metric(
+                    id: "weekly",
+                    title: "Weekly",
+                    percent: 69,
+                    percentStyle: .left,
+                    resetText: "Resets Jul 22, 8:33 AM",
+                    detailText: nil,
+                    detailLeftText: "26% in deficit",
+                    detailRightText: detailRightText,
+                    pacePercent: 43,
+                    paceOnTop: true,
+                    sessionEquivalentDetail: forecast),
+            ]), width: width)
+        }
+        let shortHeight = NSHostingController(rootView: card(detailRightText: "Runs out in 19h"))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let longHeight = NSHostingController(rootView: card(
+            detailRightText: "Runs out in 19h 7m (85% risk)",
+            forecast: .init(
+                leftText: "Est. 2 session quotas left",
+                rightText: "6 windows until reset",
+                accessibilityLabel: "Est. 2 session quotas left · 6 windows until reset")))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+
+        // The meta line may wrap to two lines so tail content stays readable
+        // instead of truncating; the card grows by roughly one text line.
+        #expect(longHeight - shortHeight > Self.heightTolerance)
+        #expect(longHeight - shortHeight < 20)
+    }
+
+    @Test
+    func `metric reset wraps to a bounded second line at standard width`() {
+        let width: CGFloat = 296
+        func card(resetText: String) -> UsageMenuCardView {
+            UsageMenuCardView(model: Self.model(metrics: [
+                UsageMenuCardView.Model.Metric(
+                    id: "weekly",
+                    title: "Weekly",
+                    percent: 69,
+                    percentStyle: .left,
+                    resetText: resetText,
+                    detailText: nil,
+                    detailLeftText: nil,
+                    detailRightText: nil,
+                    pacePercent: nil,
+                    paceOnTop: true),
+            ]), width: width)
+        }
+
+        let shortHeight = NSHostingController(rootView: card(resetText: "Resets in 2h"))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let longHeight = NSHostingController(rootView: card(
+            resetText: "Resets Wednesday, August 14 at 11:59 PM"))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+
+        #expect(longHeight - shortHeight > Self.heightTolerance)
+        #expect(longHeight - shortHeight < 20)
+    }
+
+    @Test
+    func `mixed language metric header falls back to one compact extra row at standard width`() {
+        let width: CGFloat = 296
+        func card(title: String, resetText: String) -> UsageMenuCardView {
+            UsageMenuCardView(model: Self.model(metrics: [
+                UsageMenuCardView.Model.Metric(
+                    id: "weekly",
+                    title: title,
+                    percent: 69,
+                    percentStyle: .left,
+                    resetText: resetText,
+                    detailText: nil,
+                    detailLeftText: nil,
+                    detailRightText: nil,
+                    pacePercent: nil,
+                    paceOnTop: true),
+            ]), width: width)
+        }
+
+        let shortHeight = NSHostingController(rootView: card(title: "Weekly", resetText: "Resets in 2h"))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let fallbackHeight = NSHostingController(rootView: card(
+            title: "利用限度 Wöchentlich",
+            resetText: "Réinitialisation demain à 23:59"))
+            .sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+
+        #expect(fallbackHeight - shortHeight > Self.heightTolerance)
+        #expect(fallbackHeight - shortHeight < 24)
+    }
+
     private static func model(
         metrics: [UsageMenuCardView.Model.Metric] = [],
         usageNotes: [String] = [],

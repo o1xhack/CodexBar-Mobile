@@ -1,5 +1,3 @@
-// Shared provider fetch protocols and result types intentionally remain in one
-// compatibility surface; provider implementations live in their own files.
 import Foundation
 
 public struct RateWindow: Codable, Equatable, Sendable {
@@ -148,40 +146,23 @@ public struct UsageSnapshot: Codable, Sendable {
     public let tertiary: RateWindow?
     public let extraRateWindows: [NamedRateWindow]?
     public let providerCost: ProviderCostSnapshot?
-    public let kiroUsage: KiroUsageDetails?
-    public let ampUsage: AmpUsageDetails?
-    public let zaiUsage: ZaiUsageSnapshot?
-    public let zoommateCreditStatus: ZoomMateCreditStatus?
-    public let zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot?
-    public let minimaxUsage: MiniMaxUsageSnapshot?
-    public let deepseekUsage: DeepSeekUsageSummary?
+    public let details: [ProviderDetailSection]
     public let deepseekDetailedUsageState: DeepSeekDetailedUsageState
     public let deepseekPlatformProfiles: [DeepSeekPlatformProfile]
     public let opencodegoUsage: OpenCodeGoUsageSnapshot?
-    public let mimoUsage: MiMoUsageSnapshot?
-    public let openRouterUsage: OpenRouterUsageSnapshot?
+    /// Fork-only live bridge fields. These remain intentionally transient: upstream's
+    /// stable Codable schema is `details`, while the Mac-to-iOS mapper can still use
+    /// rich native results produced by providers that have not migrated to details.
     public let perplexityUsage: PerplexityUsageSnapshot?
-    public let sakanaPayAsYouGo: SakanaPayAsYouGoSnapshot?
-    public let clawRouterUsage: ClawRouterUsageSnapshot?
-    public let sub2APIUsage: Sub2APIUsageDetails?
-    public let wayfinderUsage: WayfinderUsageSnapshot?
-    public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
-    public let groqConsoleUsage: GroqConsoleUsageSnapshot?
-    public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
-    public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
-    public let mistralUsage: MistralUsageSnapshot?
-    public let deepgramUsage: DeepgramUsageSnapshot?
-    public let poeUsage: PoeUsageHistorySnapshot?
-    // Fork iOS bridge: rich v0.27+ provider data is preserved here so
-    // SyncCoordinator can thread it into the mobile envelope.
     public let grokUsage: GrokUsageSnapshot?
     public let elevenLabsUsage: ElevenLabsUsageSnapshot?
     public let groqUsage: GroqUsageSnapshot?
     public let llmProxyUsage: LLMProxyUsageSnapshot?
-    public let xaiUsage: XAIUsageSnapshot?
-    public let cursorRequests: CursorRequestUsage?
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
+    public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
+    public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
+    public let mistralUsage: MistralUsageSnapshot?
     /// Live-only marker for optional Command Code subscription lookup failure.
     public let commandCodeSubscriptionEnrichmentUnavailable: Bool
     /// Live-only marker that Command Code returned a recognized subscription plan.
@@ -200,25 +181,10 @@ public struct UsageSnapshot: Codable, Sendable {
         case tertiary
         case extraRateWindows
         case providerCost
-        case kiroUsage
-        case ampUsage
-        case mimoUsage
-        case openRouterUsage
-        case sakanaPayAsYouGo
-        case clawRouterUsage
-        case sub2APIUsage
-        case wayfinderUsage
+        case details
         case openAIAPIUsage
-        case groqConsoleUsage
         case codexResetCredits
-        case claudeAdminAPIUsage
         case mistralUsage
-        case deepgramUsage
-        case poeUsage
-        case elevenLabsUsage
-        case groqUsage
-        case llmProxyUsage
-        case xaiUsage
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case updatedAt
@@ -234,39 +200,21 @@ public struct UsageSnapshot: Codable, Sendable {
         secondary: RateWindow?,
         tertiary: RateWindow? = nil,
         extraRateWindows: [NamedRateWindow]? = nil,
-        kiroUsage: KiroUsageDetails? = nil,
-        ampUsage: AmpUsageDetails? = nil,
         providerCost: ProviderCostSnapshot? = nil,
-        zaiUsage: ZaiUsageSnapshot? = nil,
-        zoommateCreditStatus: ZoomMateCreditStatus? = nil,
-        zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot? = nil,
-        minimaxUsage: MiniMaxUsageSnapshot? = nil,
-        deepseekUsage: DeepSeekUsageSummary? = nil,
+        details: [ProviderDetailSection] = [],
         deepseekDetailedUsageState: DeepSeekDetailedUsageState = .notRequested,
         deepseekPlatformProfiles: [DeepSeekPlatformProfile] = [],
         opencodegoUsage: OpenCodeGoUsageSnapshot? = nil,
-        mimoUsage: MiMoUsageSnapshot? = nil,
-        openRouterUsage: OpenRouterUsageSnapshot? = nil,
         perplexityUsage: PerplexityUsageSnapshot? = nil,
-        sakanaPayAsYouGo: SakanaPayAsYouGoSnapshot? = nil,
-        clawRouterUsage: ClawRouterUsageSnapshot? = nil,
-        sub2APIUsage: Sub2APIUsageDetails? = nil,
-        wayfinderUsage: WayfinderUsageSnapshot? = nil,
-        openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
-        groqConsoleUsage: GroqConsoleUsageSnapshot? = nil,
-        codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
-        claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
-        mistralUsage: MistralUsageSnapshot? = nil,
-        deepgramUsage: DeepgramUsageSnapshot? = nil,
-        poeUsage: PoeUsageHistorySnapshot? = nil,
         grokUsage: GrokUsageSnapshot? = nil,
         elevenLabsUsage: ElevenLabsUsageSnapshot? = nil,
         groqUsage: GroqUsageSnapshot? = nil,
         llmProxyUsage: LLMProxyUsageSnapshot? = nil,
-        xaiUsage: XAIUsageSnapshot? = nil,
-        cursorRequests: CursorRequestUsage? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
+        openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
+        codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
+        mistralUsage: MistralUsageSnapshot? = nil,
         commandCodeSubscriptionEnrichmentUnavailable: Bool = false,
         commandCodeHasSubscriptionPlan: Bool = false,
         commandCodeMonthlyGrantDepleted: Bool = false,
@@ -276,43 +224,28 @@ public struct UsageSnapshot: Codable, Sendable {
         identity: ProviderIdentitySnapshot? = nil,
         dataConfidence: UsageDataConfidence = .unknown)
     {
+        precondition(
+            details.count <= ProviderDetailSection.maximumSectionsPerSnapshot,
+            "UsageSnapshot details exceeds \(ProviderDetailSection.maximumSectionsPerSnapshot) sections")
         self.primary = primary
         self.secondary = secondary
         self.tertiary = tertiary
         self.extraRateWindows = extraRateWindows
-        self.kiroUsage = kiroUsage
-        self.ampUsage = ampUsage
         self.providerCost = providerCost
-        self.zaiUsage = zaiUsage
-        self.zoommateCreditStatus = zoommateCreditStatus
-        self.zoommateCreditsHistory = zoommateCreditsHistory
-        self.minimaxUsage = minimaxUsage
-        self.deepseekUsage = deepseekUsage
+        self.details = details
         self.deepseekDetailedUsageState = deepseekDetailedUsageState
         self.deepseekPlatformProfiles = deepseekPlatformProfiles
         self.opencodegoUsage = opencodegoUsage
-        self.mimoUsage = mimoUsage
-        self.openRouterUsage = openRouterUsage
         self.perplexityUsage = perplexityUsage
-        self.sakanaPayAsYouGo = sakanaPayAsYouGo
-        self.clawRouterUsage = clawRouterUsage
-        self.sub2APIUsage = sub2APIUsage
-        self.wayfinderUsage = wayfinderUsage
-        self.openAIAPIUsage = openAIAPIUsage
-        self.groqConsoleUsage = groqConsoleUsage
-        self.codexResetCredits = codexResetCredits
-        self.claudeAdminAPIUsage = claudeAdminAPIUsage
-        self.mistralUsage = mistralUsage
-        self.deepgramUsage = deepgramUsage
-        self.poeUsage = poeUsage
         self.grokUsage = grokUsage
         self.elevenLabsUsage = elevenLabsUsage
         self.groqUsage = groqUsage
         self.llmProxyUsage = llmProxyUsage
-        self.xaiUsage = xaiUsage
-        self.cursorRequests = cursorRequests
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
+        self.openAIAPIUsage = openAIAPIUsage
+        self.codexResetCredits = codexResetCredits
+        self.mistralUsage = mistralUsage
         self.commandCodeSubscriptionEnrichmentUnavailable = commandCodeSubscriptionEnrichmentUnavailable
         self.commandCodeHasSubscriptionPlan = commandCodeHasSubscriptionPlan
         self.commandCodeMonthlyGrantDepleted = commandCodeMonthlyGrantDepleted
@@ -343,6 +276,10 @@ public struct UsageSnapshot: Codable, Sendable {
             secondary: .value(secondary))
     }
 
+    public func with(tertiary: RateWindow?) -> UsageSnapshot {
+        self.replacing(tertiary: .value(tertiary))
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.primary = try container.decodeIfPresent(RateWindow.self, forKey: .primary)
@@ -350,46 +287,23 @@ public struct UsageSnapshot: Codable, Sendable {
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.extraRateWindows = try container.decodeIfPresent([NamedRateWindow].self, forKey: .extraRateWindows)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
-        self.kiroUsage = try container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
-        self.ampUsage = try container.decodeIfPresent(AmpUsageDetails.self, forKey: .ampUsage)
-        self.zaiUsage = nil // Not persisted, fetched fresh each time
-        self.zoommateCreditStatus = nil // Not persisted, fetched fresh each time
-        self.zoommateCreditsHistory = nil // Not persisted, fetched fresh each time
-        self.minimaxUsage = nil // Not persisted, fetched fresh each time
-        self.deepseekUsage = nil // Not persisted, fetched fresh each time
+        self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
+        try ProviderDetailSection.validateSections(self.details)
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
         self.deepseekPlatformProfiles = [] // Live-only browser profile catalog
         self.opencodegoUsage = nil // Not persisted, fetched fresh each time
-        self.mimoUsage = try container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
-        self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
-        self.perplexityUsage = nil // Not persisted, fetched fresh each time
-        self.sakanaPayAsYouGo = try container.decodeIfPresent(
-            SakanaPayAsYouGoSnapshot.self,
-            forKey: .sakanaPayAsYouGo)
-        self.clawRouterUsage = try container.decodeIfPresent(ClawRouterUsageSnapshot.self, forKey: .clawRouterUsage)
-        self.sub2APIUsage = try container.decodeIfPresent(Sub2APIUsageDetails.self, forKey: .sub2APIUsage)
-        self.wayfinderUsage = try container.decodeIfPresent(WayfinderUsageSnapshot.self, forKey: .wayfinderUsage)
+        self.perplexityUsage = nil // Live-only fork bridge
+        self.grokUsage = nil // Live-only fork bridge
+        self.elevenLabsUsage = nil // Live-only fork bridge
+        self.groqUsage = nil // Live-only fork bridge
+        self.llmProxyUsage = nil // Live-only fork bridge
+        self.azureOpenAIUsage = nil // Live-only fork bridge
+        self.alibabaTokenPlanUsage = nil // Live-only fork bridge
         self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
-        self.groqConsoleUsage = try container.decodeIfPresent(
-            GroqConsoleUsageSnapshot.self,
-            forKey: .groqConsoleUsage)
         self.codexResetCredits = try container.decodeIfPresent(
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
-        self.claudeAdminAPIUsage = try container.decodeIfPresent(
-            ClaudeAdminAPIUsageSnapshot.self,
-            forKey: .claudeAdminAPIUsage)
         self.mistralUsage = try container.decodeIfPresent(MistralUsageSnapshot.self, forKey: .mistralUsage)
-        self.deepgramUsage = try container.decodeIfPresent(DeepgramUsageSnapshot.self, forKey: .deepgramUsage)
-        self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
-        self.grokUsage = nil // Not persisted, fetched fresh each time
-        self.elevenLabsUsage = try container.decodeIfPresent(ElevenLabsUsageSnapshot.self, forKey: .elevenLabsUsage)
-        self.groqUsage = try container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
-        self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
-        self.xaiUsage = try container.decodeIfPresent(XAIUsageSnapshot.self, forKey: .xaiUsage)
-        self.cursorRequests = nil // Not persisted, fetched fresh each time
-        self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
-        self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
         self.commandCodeSubscriptionEnrichmentUnavailable = false // Live-only fetch state
         self.commandCodeHasSubscriptionPlan = false // Live-only fetch state
         self.commandCodeMonthlyGrantDepleted = false // Live-only fetch state
@@ -427,25 +341,12 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encode(self.tertiary, forKey: .tertiary)
         try container.encodeIfPresent(self.extraRateWindows, forKey: .extraRateWindows)
         try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
-        try container.encodeIfPresent(self.kiroUsage, forKey: .kiroUsage)
-        try container.encodeIfPresent(self.ampUsage, forKey: .ampUsage)
-        try container.encodeIfPresent(self.mimoUsage, forKey: .mimoUsage)
-        try container.encodeIfPresent(self.openRouterUsage, forKey: .openRouterUsage)
-        try container.encodeIfPresent(self.sakanaPayAsYouGo, forKey: .sakanaPayAsYouGo)
-        try container.encodeIfPresent(self.clawRouterUsage, forKey: .clawRouterUsage)
-        try container.encodeIfPresent(self.sub2APIUsage, forKey: .sub2APIUsage)
-        try container.encodeIfPresent(self.wayfinderUsage, forKey: .wayfinderUsage)
+        if !self.details.isEmpty {
+            try container.encode(self.details, forKey: .details)
+        }
         try container.encodeIfPresent(self.openAIAPIUsage, forKey: .openAIAPIUsage)
-        try container.encodeIfPresent(self.groqConsoleUsage, forKey: .groqConsoleUsage)
         try container.encodeIfPresent(self.codexResetCredits, forKey: .codexResetCredits)
-        try container.encodeIfPresent(self.claudeAdminAPIUsage, forKey: .claudeAdminAPIUsage)
         try container.encodeIfPresent(self.mistralUsage, forKey: .mistralUsage)
-        try container.encodeIfPresent(self.deepgramUsage, forKey: .deepgramUsage)
-        try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
-        try container.encodeIfPresent(self.elevenLabsUsage, forKey: .elevenLabsUsage)
-        try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
-        try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
-        try container.encodeIfPresent(self.xaiUsage, forKey: .xaiUsage)
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
@@ -458,8 +359,8 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.identity?.loginMethod, forKey: .loginMethod)
     }
 
-    public func identity(for provider: UsageProvider) -> ProviderIdentitySnapshot? {
-        guard let identity, identity.providerID == provider else { return nil }
+    public func identity(for instanceID: ProviderInstanceID) -> ProviderIdentitySnapshot? {
+        guard let identity, identity.providerID == instanceID else { return nil }
         return identity
     }
 
@@ -486,20 +387,24 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public func accountEmail(for provider: UsageProvider) -> String? {
-        self.identity(for: provider)?.accountEmail
+        self.identity(for: provider.instanceID)?.accountEmail
     }
 
     public func accountOrganization(for provider: UsageProvider) -> String? {
-        self.identity(for: provider)?.accountOrganization
+        self.identity(for: provider.instanceID)?.accountOrganization
     }
 
     public func loginMethod(for provider: UsageProvider) -> String? {
-        self.identity(for: provider)?.loginMethod
+        self.identity(for: provider.instanceID)?.loginMethod
     }
 
     public var hasRateLimitWindows: Bool {
         self.primary != nil || self.secondary != nil || self.tertiary != nil ||
             !(self.extraRateWindows?.isEmpty ?? true)
+    }
+
+    public func detailRow(label: String) -> ProviderDetailSection.Row? {
+        self.details.lazy.flatMap(\.rows).first { $0.label == label }
     }
 
     public func rateLimitsUnavailable(for provider: UsageProvider) -> Bool {
@@ -528,6 +433,7 @@ public struct UsageSnapshot: Codable, Sendable {
         guard Self.identitiesMatch(self.identity, cached.identity) else { return self }
         // Amp's percentage-based daily quota supersedes the legacy rolling-replenishment cadence. Do not attach
         // that older exact reset to the new daily window; other providers retain the shared backfill behavior.
+        // Provider-specific by design: Amp daily quotas must not inherit its obsolete rolling-reset cadence.
         let cachedPrimary: RateWindow? = if self.identity?.providerID == .amp,
                                             self.primary?.resetDescription == "resets daily"
         {
@@ -589,7 +495,7 @@ public struct UsageSnapshot: Codable, Sendable {
         secondary: Replacement<RateWindow?> = .unchanged,
         tertiary: Replacement<RateWindow?> = .unchanged,
         extraRateWindows: Replacement<[NamedRateWindow]?> = .unchanged,
-        deepseekUsage: Replacement<DeepSeekUsageSummary?> = .unchanged,
+        details: Replacement<[ProviderDetailSection]> = .unchanged,
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
         codexResetCredits: Replacement<CodexRateLimitResetCreditsSnapshot?> = .unchanged,
@@ -603,39 +509,21 @@ public struct UsageSnapshot: Codable, Sendable {
             secondary: secondary.resolving(self.secondary),
             tertiary: tertiary.resolving(self.tertiary),
             extraRateWindows: extraRateWindows.resolving(self.extraRateWindows),
-            kiroUsage: self.kiroUsage,
-            ampUsage: self.ampUsage,
             providerCost: self.providerCost,
-            zaiUsage: self.zaiUsage,
-            zoommateCreditStatus: self.zoommateCreditStatus,
-            zoommateCreditsHistory: self.zoommateCreditsHistory,
-            minimaxUsage: self.minimaxUsage,
-            deepseekUsage: deepseekUsage.resolving(self.deepseekUsage),
+            details: details.resolving(self.details),
             deepseekDetailedUsageState: deepseekDetailedUsageState.resolving(self.deepseekDetailedUsageState),
             deepseekPlatformProfiles: deepseekPlatformProfiles.resolving(self.deepseekPlatformProfiles),
             opencodegoUsage: self.opencodegoUsage,
-            mimoUsage: self.mimoUsage,
-            openRouterUsage: self.openRouterUsage,
             perplexityUsage: self.perplexityUsage,
-            sakanaPayAsYouGo: self.sakanaPayAsYouGo,
-            clawRouterUsage: self.clawRouterUsage,
-            sub2APIUsage: self.sub2APIUsage,
-            wayfinderUsage: self.wayfinderUsage,
-            openAIAPIUsage: self.openAIAPIUsage,
-            groqConsoleUsage: self.groqConsoleUsage,
-            codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
-            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
-            mistralUsage: self.mistralUsage,
-            deepgramUsage: self.deepgramUsage,
-            poeUsage: self.poeUsage,
             grokUsage: self.grokUsage,
             elevenLabsUsage: self.elevenLabsUsage,
             groqUsage: self.groqUsage,
             llmProxyUsage: self.llmProxyUsage,
-            xaiUsage: self.xaiUsage,
-            cursorRequests: self.cursorRequests,
             azureOpenAIUsage: self.azureOpenAIUsage,
             alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            openAIAPIUsage: self.openAIAPIUsage,
+            codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
+            mistralUsage: self.mistralUsage,
             commandCodeSubscriptionEnrichmentUnavailable: self.commandCodeSubscriptionEnrichmentUnavailable,
             commandCodeHasSubscriptionPlan: self.commandCodeHasSubscriptionPlan,
             commandCodeMonthlyGrantDepleted: self.commandCodeMonthlyGrantDepleted,
@@ -713,6 +601,8 @@ public enum UsageLimitsAvailability: Equatable, Sendable {
         account: AccountInfo? = nil,
         lastErrorDescription: String? = nil) -> Self
     {
+        // Provider-specific by design: Claude error text, Codex identity, and Doubao/Antigravity identities signal
+        // whether a successful payload actually contains subscription limits.
         if provider == .claude {
             guard snapshot == nil else { return .available }
             return ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(lastErrorDescription)
@@ -722,7 +612,7 @@ public enum UsageLimitsAvailability: Equatable, Sendable {
 
         if provider == .doubao || provider == .antigravity {
             guard let snapshot,
-                  snapshot.identity(for: provider) != nil
+                  snapshot.identity(for: provider.instanceID) != nil
             else {
                 return .available
             }
@@ -732,7 +622,7 @@ public enum UsageLimitsAvailability: Equatable, Sendable {
         guard provider == .codex else { return .available }
 
         if let snapshot {
-            guard snapshot.identity(for: provider) != nil else { return .available }
+            guard snapshot.identity(for: provider.instanceID) != nil else { return .available }
             return snapshot.hasRateLimitWindows ? .available : .unavailable
         }
 
@@ -981,7 +871,8 @@ enum RPCWireError: Error, LocalizedError {
 
 /// RPC helper used on background tasks; safe because we confine it to the owning task.
 private final class CodexRPCClient: @unchecked Sendable {
-    private static let log = CodexBarLog.logger(LogCategories.codexRPC)
+    // Provider-specific by design: Codex RPC owns its dedicated subprocess log category.
+    private static let log = CodexBarLog.logger(LogCategories.provider(.codex, scope: "rpc"))
     private let process = Process()
     private let stdinPipe = Pipe()
     private let stdoutPipe = Pipe()
@@ -999,7 +890,7 @@ private final class CodexRPCClient: @unchecked Sendable {
     }
 
     init(
-        executable: String = "codex",
+        executable: String = "codex", // Provider-specific by design: this RPC client launches Codex app-server.
         arguments: [String] = ["-s", "read-only", "-a", "untrusted", "app-server"],
         environment: [String: String] = ProcessInfo.processInfo.environment,
         initializeTimeoutSeconds: TimeInterval = 8.0,
@@ -1294,6 +1185,7 @@ public struct UsageFetcher: Sendable {
             let limits = limitsResponse.rateLimits
             let account = try? await rpc.fetchAccount()
             let rateLimitsPlan = Self.normalizedCodexAccountField(limits.planType)
+            // Provider-specific by design: Codex app-server responses construct Codex reconciled identity.
             let identity = ProviderIdentitySnapshot(
                 providerID: .codex,
                 accountEmail: account?.account.flatMap { details in
@@ -1514,6 +1406,7 @@ public struct UsageFetcher: Sendable {
     }
 
     private static func recoverUsageFromRPCError(_ error: Error) -> UsageSnapshot? {
+        // Provider-specific by design: Codex RPC error bodies can still carry authoritative rate-limit payloads.
         guard let body = self.decodeRateLimitsErrorBody(from: error) else { return nil }
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

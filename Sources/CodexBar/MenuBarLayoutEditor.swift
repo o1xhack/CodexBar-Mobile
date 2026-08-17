@@ -190,7 +190,7 @@ struct MenuBarLayoutEditor: View {
     }
 
     private var providers: [UsageProvider] {
-        self.store.enabledProvidersForDisplay()
+        self.store.enabledFirstPartyProvidersForDisplay()
     }
 
     private var scopedProvider: UsageProvider? {
@@ -244,6 +244,7 @@ struct MenuBarLayoutEditor: View {
                 tokens: [
                     .percent(window: .session),
                     .percent(window: .weekly),
+                    .percent(window: .scopedWeekly),
                     .percent(window: .automatic),
                     .usageBar,
                     .pace(window: .session),
@@ -408,7 +409,7 @@ struct MenuBarLayoutEditor: View {
                         self.selectedPosition = position
                     } label: {
                         MenuBarLayoutChipLabel(
-                            title: token.editorLabel,
+                            title: token.editorLabel(provider: self.persistenceProvider),
                             systemImage: token.editorSystemImage,
                             isSelected: self.selectedPosition == position)
                     }
@@ -422,7 +423,7 @@ struct MenuBarLayoutEditor: View {
                     .dropDestination(for: MenuBarLayoutDragItem.self) { items, _ in
                         self.insert(items.first, at: position)
                     }
-                    .accessibilityLabel(token.editorAccessibilityLabel)
+                    .accessibilityLabel(token.editorAccessibilityLabel(provider: self.persistenceProvider))
                     .accessibilityHint(L("menu_bar_layout_chip_hint"))
                     .accessibilityAction(named: L("Remove")) {
                         self.remove(at: position)
@@ -493,7 +494,7 @@ struct MenuBarLayoutEditor: View {
                         self.write(MenuBarLayoutEditorMutations.append(token, to: self.layout))
                     } label: {
                         MenuBarLayoutChipLabel(
-                            title: token.editorLabel,
+                            title: token.editorLabel(provider: self.persistenceProvider),
                             systemImage: token.editorSystemImage,
                             isSelected: false)
                     }
@@ -504,7 +505,7 @@ struct MenuBarLayoutEditor: View {
                         return .handled
                     }
                     .draggable(MenuBarLayoutDragItem.palette(token))
-                    .accessibilityLabel(token.editorAccessibilityLabel)
+                    .accessibilityLabel(token.editorAccessibilityLabel(provider: self.persistenceProvider))
                     .accessibilityHint(L("menu_bar_layout_palette_hint"))
                 }
                 if group.includesLineBreak {
@@ -616,7 +617,7 @@ private struct MenuBarLayoutChipLabel: View {
 }
 
 @MainActor
-private struct MenuBarLayoutPreview: View {
+struct MenuBarLayoutPreview: View {
     let layout: MenuBarLayout
     let provider: UsageProvider?
     @Bindable var settings: SettingsStore
@@ -626,7 +627,7 @@ private struct MenuBarLayoutPreview: View {
 
     var body: some View {
         let provider = self.provider ?? .codex
-        let snapshot = self.store.snapshot(for: provider)
+        let snapshot = self.store.snapshot(for: provider.instanceID)
         let data = snapshot.map { self.liveData(provider: provider, snapshot: $0) }
             ?? self.representativeData(provider: provider)
         let icon = ProviderBrandIcon.image(for: provider)
@@ -645,11 +646,11 @@ private struct MenuBarLayoutPreview: View {
         MenuBarLayoutPreviewText(rendered: rendered)
     }
 
-    private func liveData(provider: UsageProvider, snapshot: UsageSnapshot) -> MenuBarLayoutRenderData {
+    func liveData(provider: UsageProvider, snapshot: UsageSnapshot) -> MenuBarLayoutRenderData {
         let now = Date()
         let session: RateWindow?
         let weekly: RateWindow?
-        let automatic: RateWindow?
+        let rawAutomatic: RateWindow?
         if provider == .codex,
            let projection = self.store.codexConsumerProjectionIfNeeded(
                for: provider,
@@ -659,16 +660,14 @@ private struct MenuBarLayoutPreview: View {
         {
             session = projection.menuBarSelectableRateWindow(for: .session)
             weekly = projection.menuBarSelectableRateWindow(for: .weekly)
-            automatic = projection.visibleRateLanes.lazy
-                .compactMap { projection.menuBarSelectableRateWindow(for: $0) }
-                .first
+            rawAutomatic = projection.automaticMenuBarWindow()
         } else {
             let semanticWindows = MenuBarLayoutSemanticWindowResolver.windows(
                 provider: provider,
                 snapshot: snapshot)
             session = semanticWindows.session
             weekly = semanticWindows.weekly
-            automatic = MenuBarMetricWindowResolver.rateWindow(
+            rawAutomatic = MenuBarMetricWindowResolver.rateWindow(
                 preference: .automatic,
                 provider: provider,
                 snapshot: snapshot,
@@ -676,6 +675,11 @@ private struct MenuBarLayoutPreview: View {
                 antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
                 now: now)
         }
+        let automatic = MenuBarLayoutAutomaticWindowDisplayNormalizer.normalized(
+            provider: provider,
+            snapshot: snapshot,
+            window: rawAutomatic)
+        let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
         let paceWindow = weekly ?? automatic
         let runsOut = paceWindow
             .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
@@ -683,11 +687,14 @@ private struct MenuBarLayoutPreview: View {
         let cost = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let costToday = MenuBarLayoutCostResolver.todayCostUSD(snapshot: cost, now: now)
         return MenuBarLayoutRenderData(
+            provider: provider,
             iconKey: provider.rawValue,
             providerName: L(self.store.metadata(for: provider).displayName),
             accountLabel: self.settings.hidePersonalInfo ? nil : snapshot.accountEmail(for: provider),
             session: MenuBarLayoutRenderWindow(session),
             weekly: MenuBarLayoutRenderWindow(weekly),
+            scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),
+            scopedWeeklyTitle: scopedNamed?.title,
             automatic: MenuBarLayoutRenderWindow(automatic),
             sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: session, now: now),
             weeklyPace: self.store.menuBarLayoutPaceText(provider: provider, window: weekly, now: now),
@@ -713,17 +720,25 @@ private struct MenuBarLayoutPreview: View {
             windowMinutes: 10080,
             resetsAt: now.addingTimeInterval(3 * 24 * 60 * 60),
             resetDescription: nil)
+        let scopedWeekly = RateWindow(
+            usedPercent: 45,
+            windowMinutes: 10080,
+            resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
+            resetDescription: nil)
         // Sample pace comes straight from the pure calculation rather than the store, so the palette
         // preview stays deterministic before any snapshot has been fetched.
         let samplePace = { (window: RateWindow) -> String? in
             MenuBarDisplayText.paceText(pace: UsagePace.weekly(window: window, now: now))
         }
         return MenuBarLayoutRenderData(
+            provider: provider,
             iconKey: "\(provider.rawValue)-representative",
             providerName: L(self.store.metadata(for: provider).displayName),
             accountLabel: self.settings.hidePersonalInfo ? nil : L("menu_bar_layout_sample_account"),
             session: MenuBarLayoutRenderWindow(session),
             weekly: MenuBarLayoutRenderWindow(weekly),
+            scopedWeekly: MenuBarLayoutRenderWindow(scopedWeekly),
+            scopedWeeklyTitle: "Fable only",
             automatic: MenuBarLayoutRenderWindow(session),
             sessionPace: samplePace(session),
             weeklyPace: samplePace(weekly),
@@ -735,7 +750,7 @@ private struct MenuBarLayoutPreview: View {
 }
 
 @MainActor
-private struct MenuBarLayoutPreviewText: NSViewRepresentable {
+struct MenuBarLayoutPreviewText: NSViewRepresentable {
     let rendered: MenuBarLayoutRenderedTitle
 
     func makeNSView(context: Context) -> NSTextField {
@@ -784,16 +799,38 @@ extension MenuBarLayoutGap {
 }
 
 extension MenuBarLayoutToken {
-    var editorLabel: String {
+    func editorLabel(provider: UsageProvider?) -> String {
+        if let providerLabel = self.providerEditorLabel(provider: provider) {
+            return providerLabel
+        }
+        return self.defaultEditorLabel
+    }
+
+    private func providerEditorLabel(provider: UsageProvider?) -> String? {
+        guard let provider,
+              let secondaryLabel = ProviderDescriptorRegistry.descriptor(for: provider).presentation
+                  .menuBarLayoutSecondaryLabel
+        else { return nil }
+        let localizedLabel = L(secondaryLabel)
+        return switch self {
+        case .percent(window: .weekly): L("%@ %@", localizedLabel, "%")
+        case .pace(window: .weekly): L("%@ %@", localizedLabel, L("display_mode_pace").lowercased())
+        default: nil
+        }
+    }
+
+    private var defaultEditorLabel: String {
         switch self {
         case .icon: L("menu_bar_layout_token_icon")
         case .providerName: L("menu_bar_layout_token_provider")
         case .accountLabel: L("menu_bar_layout_token_account")
         case .percent(window: .session): L("menu_bar_layout_token_session")
         case .percent(window: .weekly): L("menu_bar_layout_token_weekly")
+        case .percent(window: .scopedWeekly): L("menu_bar_layout_token_scoped_weekly")
         case .percent(window: .automatic): L("menu_bar_layout_token_auto")
         case .pace(window: .session): L("menu_bar_layout_token_session_pace")
         case .pace(window: .weekly): L("menu_bar_layout_token_weekly_pace")
+        case .pace(window: .scopedWeekly): L("menu_bar_layout_token_weekly_pace")
         case .pace(window: .automatic): L("menu_bar_layout_token_auto_pace")
         case .usageBar: L("menu_bar_layout_token_bar")
         case .resetCountdown: L("menu_bar_layout_token_resets_in")
@@ -806,10 +843,10 @@ extension MenuBarLayoutToken {
         }
     }
 
-    var editorAccessibilityLabel: String {
+    func editorAccessibilityLabel(provider: UsageProvider?) -> String {
         switch self {
         case .separatorDot: L("menu_bar_layout_token_separator_accessibility")
-        default: self.editorLabel
+        default: self.editorLabel(provider: provider)
         }
     }
 

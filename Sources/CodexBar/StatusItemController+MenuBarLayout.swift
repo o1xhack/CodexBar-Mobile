@@ -27,7 +27,6 @@ extension StatusItemController {
             snapshot: snapshot,
             warningFlash: warningFlash,
             now: now)
-        let minute = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970 / 60) * 60)
         let appearanceName = button.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])?.rawValue ?? "default"
         let options = MenuBarLayoutRenderOptions(
             size: self.settings.menuBarLayoutSize,
@@ -35,7 +34,7 @@ extension StatusItemController {
             showUsed: self.settings.usageBarsShowUsed,
             appearanceName: appearanceName,
             isDebugApp: Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier),
-            now: minute)
+            now: now)
         let rendered = self.menuBarLayoutRenderer.render(
             layout: resolution.layout,
             data: data,
@@ -56,6 +55,7 @@ extension StatusItemController {
         -> MenuBarLayoutRenderData
     {
         let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: now)
+        let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
         let paceWindow = windows.weekly ?? windows.automatic
         let runsOut = paceWindow
             .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
@@ -65,11 +65,14 @@ extension StatusItemController {
         let accountLabel = self.menuBarLayoutAccountLabel(provider: provider, snapshot: snapshot)
 
         return MenuBarLayoutRenderData(
+            provider: provider,
             iconKey: "\(provider.rawValue):\(warningFlash ? "warning" : "normal")",
             providerName: providerName,
             accountLabel: accountLabel,
             session: MenuBarLayoutRenderWindow(windows.session),
             weekly: MenuBarLayoutRenderWindow(windows.weekly),
+            scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),
+            scopedWeeklyTitle: scopedNamed?.title,
             automatic: MenuBarLayoutRenderWindow(windows.automatic),
             sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.session, now: now),
             weeklyPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.weekly, now: now),
@@ -129,10 +132,7 @@ extension StatusItemController {
         {
             let session = projection.menuBarSelectableRateWindow(for: .session)
             let weekly = projection.menuBarSelectableRateWindow(for: .weekly)
-            let automatic = projection.visibleRateLanes
-                .lazy
-                .compactMap { projection.menuBarSelectableRateWindow(for: $0) }
-                .first
+            let automatic = projection.automaticMenuBarWindow()
             return (session, weekly, automatic)
         }
 
@@ -146,7 +146,13 @@ extension StatusItemController {
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
             antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
             now: now)
-        return (semanticWindows.session, semanticWindows.weekly, automatic)
+        return (
+            semanticWindows.session,
+            semanticWindows.weekly,
+            MenuBarLayoutAutomaticWindowDisplayNormalizer.normalized(
+                provider: provider,
+                snapshot: snapshot,
+                window: automatic))
     }
 
     private func setButtonLayoutContent(

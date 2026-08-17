@@ -2,10 +2,16 @@ import Foundation
 
 public enum CrofProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
+        precedence: .environment,
+        environmentHasValue: { CrofSettingsReader.apiKey(environment: $0) != nil },
+        resolve: CrofSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .crof,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .crof,
                 displayName: "Crof",
@@ -21,6 +27,7 @@ public enum CrofProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                usesDetailBackedWindow: true,
                 browserCookieOrder: nil,
                 dashboardURL: "https://crof.ai/dashboard",
                 statusPageURL: nil,
@@ -33,21 +40,49 @@ public enum CrofProviderDescriptor {
                     ProviderColor(hex: 0x0A0A0A),
                     ProviderColor(hex: 0x8B7CFF),
                     ProviderColor(hex: 0xA99FFF),
-                ]),
+                ],
+                widgetColor: ProviderColor(red: 46 / 255, green: 171 / 255, blue: 148 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Crof cost summary is not available via API." }),
-            fetchPlan: .apiToken(
-                strategyID: "crof.api",
-                resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },
-                missingCredentialsError: { CrofUsageError.missingCredentials },
-                loadUsage: { apiKey, _ in
-                    try await CrofUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-                }),
+            presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: Self.primaryLabel(snapshot: snapshot),
+                        secondary: metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
+                },
+                menuCard: ProviderMenuCardPresentation(
+                    primaryDescriptionPlacement: .detailBySecondaryPresence,
+                    hidesPrimaryResetWithoutSecondary: true,
+                    movePrimaryDetailToStatus: { $0?.secondary == nil }),
+                menu: ProviderMenuDescriptorPresentation(
+                    primaryDescriptionIsDetail: { $0.secondary == nil },
+                    duplicatesPrimaryDetailWhenResetDatePresent: true,
+                    secondaryDescriptionMode: .resetOverride)),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "crof",
                 aliases: ["crofai"],
                 versionDetector: nil))
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                [ScriptFetchStrategy(
+                    id: "crof.js",
+                    provider: .crof,
+                    bundledPlugin: "crof",
+                    secretKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
+                    sourceLabel: "api",
+                    resolveSecret: { environment in
+                        self.credentials.resolveToken(environment: environment)?.token
+                    },
+                    isEnabled: { _ in true })]
+            }))
     }
 
     public static func primaryLabel(snapshot: UsageSnapshot) -> String {

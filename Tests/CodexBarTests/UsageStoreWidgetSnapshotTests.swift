@@ -146,7 +146,7 @@ struct UsageStoreWidgetSnapshotTests {
                         resetDescription: nil)),
                 NamedRateWindow(
                     id: "kimi-monthly",
-                    title: "Monthly",
+                    title: "Total usage",
                     window: RateWindow(
                         usedPercent: 75,
                         windowMinutes: nil,
@@ -171,7 +171,7 @@ struct UsageStoreWidgetSnapshotTests {
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .kimi })
         // Widgets preserve persisted lane order; menu-only presentation may reorder these lanes.
         #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", "kimi-monthly", "kimi-code-7d"])
-        #expect(entry.usageRows?.map(\.title) == ["Weekly", "Rate Limit", "Monthly", "Code 7-day"])
+        #expect(entry.usageRows?.map(\.title) == ["7-day usage", "5-hour usage", "Total usage", "Code 7-day"])
         #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 50, 25, 90])
     }
 
@@ -747,12 +747,14 @@ struct UsageStoreWidgetSnapshotTests {
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
-        store._setSnapshotForTesting(
+        try store._setSnapshotForTesting(
             UsageSnapshot(
                 primary: RateWindow(usedPercent: 40, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
                 secondary: nil,
                 tertiary: nil,
-                cursorRequests: CursorRequestUsage(used: 200, limit: 500),
+                details: [ProviderDetailSection(rows: [
+                    ProviderDetailSection.Row(label: "Request quota", value: "200 / 500"),
+                ])],
                 updatedAt: Date()),
             provider: .cursor)
 

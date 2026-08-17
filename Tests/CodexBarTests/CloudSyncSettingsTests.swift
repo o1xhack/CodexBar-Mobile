@@ -7,6 +7,9 @@ import Testing
 
 @Suite(.serialized)
 @MainActor
+// The serialized suite shares CloudKit fixture state and intentionally keeps
+// the fork's configuration/snapshot reconciliation cases in one audit surface.
+// swiftlint:disable:next type_body_length
 struct CloudSyncSettingsTests {
     @Test
     func `fleet sync uses the fork CloudKit container and state namespace`() {
@@ -185,6 +188,69 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `CLI style file edit queues exactly that provider`() async throws {
+        let fixture = try self.makeFixture("dirty-file-provider")
+        let persistence = self.makePersistence("dirty-file-provider")
+        let coordinator = CloudSyncCoordinator(settings: fixture.store, persistence: persistence)
+        coordinator.start()
+        defer { coordinator.stop() }
+        try fixture.store.configStore.save(fixture.store.configSnapshot)
+        try await Task.sleep(for: .milliseconds(500))
+
+        var updated = fixture.store.configSnapshot
+        var claude = try #require(updated.providerConfig(for: .claude))
+        claude.extrasEnabled = !(claude.extrasEnabled ?? false)
+        updated.setProviderConfig(claude)
+        try fixture.store.configStore.save(updated)
+
+        for _ in 0..<100 where persistence.load().dirtyProviders.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        let envelope = persistence.load()
+        let recordNames = CloudSyncDirtyState.configurationRecordNamesToQueue(
+            envelope: envelope,
+            configuredProviders: updated.providers.map(\.id))
+        #expect(recordNames == [ProviderIntentPayload.recordName(for: .claude)])
+    }
+
+    @Test
+    func `config apply emits exactly one notification for its origin`() throws {
+        let fixture = try self.makeFixture("config-origin-notification")
+        let localFileNotifications = LockedCounter()
+        let externalSyncNotifications = LockedCounter()
+        let center = NotificationCenter.default
+        let localToken = center.addObserver(
+            forName: .codexbarLocalConfigFileDidChange,
+            object: fixture.store,
+            queue: nil)
+        { _ in localFileNotifications.increment() }
+        let externalToken = center.addObserver(
+            forName: .codexbarExternalProviderConfigDidChange,
+            object: fixture.store,
+            queue: nil)
+        { _ in externalSyncNotifications.increment() }
+        defer {
+            center.removeObserver(localToken)
+            center.removeObserver(externalToken)
+        }
+
+        fixture.store.applyExternalConfig(
+            fixture.store.configSnapshot,
+            reason: "local-file",
+            origin: .localFile)
+        #expect(localFileNotifications.value == 1)
+        #expect(externalSyncNotifications.value == 0)
+
+        fixture.store.applyExternalConfig(
+            fixture.store.configSnapshot,
+            reason: "external-sync",
+            origin: .externalSync)
+        #expect(localFileNotifications.value == 1)
+        #expect(externalSyncNotifications.value == 1)
+    }
+
+    @Test
     func `machine local provider edit does not become dirty`() async throws {
         let fixture = try self.makeFixture("machine-local-provider")
         let persistence = self.makePersistence("machine-local-provider")
@@ -236,10 +302,15 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
-    func `remote provider apply does not become dirty`() async throws {
+    func `remote provider apply writes config without becoming dirty`() async throws {
         let fixture = try self.makeFixture("remote-provider")
         let persistence = self.makePersistence("remote-provider")
         let initial = fixture.store.configSnapshot
+        let coordinator = CloudSyncCoordinator(settings: fixture.store, persistence: persistence)
+        coordinator.start()
+        defer { coordinator.stop() }
+        try fixture.store.configStore.save(initial)
+        try await Task.sleep(for: .milliseconds(500))
         let engine = CloudSyncEngine(
             settings: fixture.store,
             state: CloudSyncState(),
@@ -256,7 +327,10 @@ struct CloudSyncSettingsTests {
         record["payload"] = try CanonicalSyncJSON.string(ProviderIntentPayload(config: remoteConfig)) as CKRecordValue
 
         await engine.applyFetchedRecords([record])
+        try await Task.sleep(for: .milliseconds(500))
 
+        let savedConfig = try #require(try fixture.store.configStore.load())
+        #expect(savedConfig.providerConfig(for: .claude)?.extrasEnabled == remoteConfig.extrasEnabled)
         #expect(persistence.load().dirtyProviders.isEmpty)
     }
 
@@ -512,6 +586,41 @@ struct CloudSyncSettingsTests {
         #expect(first.authoritativeProviders == [.openai])
         #expect(second.providerPublicationGenerations[.openai] == 2)
         #expect(second.authoritativeProviders.isEmpty)
+    }
+
+    @Test
+    func `successful custom plugin refresh can publish destructive authority`() throws {
+        let fixture = try self.makeFixture("plugin-snapshot-publication")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: fixture.store)
+        let pluginID = try #require(ProviderInstanceID(rawValue: "publication-test"))
+        store.snapshots[pluginID] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 25,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date(timeIntervalSince1970: 2000))
+        let source = ProviderSnapshotPublicationSource(
+            provider: pluginID,
+            refreshGeneration: 1,
+            configRevision: fixture.store.providerInstanceConfigRevision(for: pluginID))
+        store.providerSnapshotPublicationSources[pluginID] = source
+        store._test_widgetSnapshotSaveOverride = { _ in }
+        let events = UsageSnapshotPublicationEventRecorder()
+        defer { events.stop() }
+
+        store.persistWidgetSnapshot(
+            reason: "plugin-authoritative-test",
+            successfulRefreshes: [pluginID: source])
+
+        let event = try #require(events.values.last)
+        #expect(event.authoritativeProviders == [pluginID])
+        #expect(event.providerConfigRevisions[pluginID] == source.configRevision)
+        #expect(event.providerPublicationGenerations[pluginID] == 1)
     }
 
     @Test
@@ -890,7 +999,7 @@ struct CloudSyncSettingsTests {
         displayLabel: String = "person@example.com") -> AccountSnapshotSyncPayload
     {
         AccountSnapshotSyncPayload(
-            provider: provider,
+            provider: provider.instanceID,
             deviceID: deviceID,
             accountKey: accountKey,
             fetchedAt: Date(timeIntervalSince1970: 1000),

@@ -10,10 +10,11 @@ extension UsageStore {
     {
         let candidateSet = candidateProviders.map(Set.init)
         var highest: (provider: UsageProvider, usedPercent: Double)?
-        for provider in self.enabledProviders()
-            where candidateSet?.contains(provider) ?? true
-        {
-            guard let snapshot = self.snapshots[provider] else { continue }
+        for instanceID in self.enabledProviders() {
+            guard let provider = instanceID.firstPartyProvider,
+                  candidateSet?.contains(provider) ?? true,
+                  let snapshot = self.menuBarSnapshot(for: instanceID)
+            else { continue }
             guard let window = self.menuBarMetricWindowForHighestUsage(
                 provider: provider,
                 snapshot: snapshot,
@@ -43,6 +44,7 @@ extension UsageStore {
         now: Date) -> RateWindow?
     {
         let effectivePreference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+        // Provider-specific by design: these paths depend on live Codex projection and Antigravity user policy.
         if provider == .antigravity,
            effectivePreference == .automatic,
            !self.settings.antigravityPrioritizeExhaustedQuotas
@@ -70,6 +72,7 @@ extension UsageStore {
     {
         let effectivePreference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
         guard metricPercent >= 100 else { return false }
+        // Provider-specific by design: exclusion mirrors each provider's multi-lane resolver and optional quotas.
         if provider == .codex || provider == .claude, effectivePreference == .primaryAndSecondary {
             if provider == .codex,
                self.codexConsumerProjection(

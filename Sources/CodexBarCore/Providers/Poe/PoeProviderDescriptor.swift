@@ -2,10 +2,14 @@ import Foundation
 
 public enum PoeProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: PoeSettingsReader.apiKeyEnvironmentKey,
+        resolve: PoeSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .poe,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .poe,
                 displayName: "Poe",
@@ -21,6 +25,7 @@ public enum PoeProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                balanceOnly: true,
                 browserCookieOrder: nil,
                 dashboardURL: "https://poe.com/api/keys",
                 statusPageURL: nil,
@@ -37,39 +42,30 @@ public enum PoeProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Poe usage history is unavailable." }),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [PoeAPIFetchStrategy()] })),
+            presentation: ProviderUsagePresentation(
+                menuCard: ProviderMenuCardPresentation(primaryDetailKind: .poeBalance),
+                planRow: ProviderPlanRowPresentation(label: "Balance", stripsBalancePrefix: true)),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "poe",
                 aliases: [],
                 versionDetector: nil))
     }
-}
 
-struct PoeAPIFetchStrategy: ProviderFetchStrategy {
-    let id: String = "poe.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        Self.resolveToken(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = Self.resolveToken(environment: context.env) else {
-            throw PoeUsageError.missingCredentials
-        }
-        let usage = try await PoeUsageFetcher.fetchUsage(apiKey: apiKey)
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
-    }
-
-    private static func resolveToken(environment: [String: String]) -> String? {
-        ProviderTokenResolver.poeToken(environment: environment)
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                [ScriptFetchStrategy(
+                    id: "poe.js",
+                    provider: .poe,
+                    bundledPlugin: "poe",
+                    secretKey: PoeSettingsReader.apiKeyEnvironmentKey,
+                    sourceLabel: "api",
+                    resolveSecret: { environment in
+                        self.credentials.resolveToken(environment: environment)?.token
+                    },
+                    isEnabled: { _ in true })]
+            }))
     }
 }

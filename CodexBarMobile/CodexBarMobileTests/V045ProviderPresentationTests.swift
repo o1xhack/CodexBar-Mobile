@@ -60,3 +60,112 @@ struct V045ProviderPresentationTests {
         #expect(WayfinderUsageCard.statusLabel(for: usage) == String(localized: String.LocalizationValue(input.key)))
     }
 }
+
+@Suite("v0.49 generic detail presentation")
+struct V049ProviderDetailPresentationTests {
+    @Test
+    func `generic details supersede only the matching legacy provider card`() {
+        let migratedCards: [(String, LegacyProviderDetailCard)] = [
+            ("kiro", .kiroCredits),
+            ("zai", .zaiHourlyUsage),
+            ("zoommate", .zoomMateCredits),
+            ("openai", .openAIAPIDashboard),
+            ("deepgram", .deepgramUsage),
+            ("groq", .groqMetrics),
+            ("openrouter", .openRouterStats),
+            ("deepseek", .deepSeekUsage),
+            ("sub2api", .sub2APIUsage),
+            ("wayfinder", .wayfinderUsage),
+            ("claude", .claudeAdminUsage),
+            ("minimax", .miniMaxBilling),
+        ]
+
+        for (providerID, card) in migratedCards {
+            #expect(ProviderDetailPresentationPolicy.shouldRenderLegacyCard(
+                card,
+                providerID: providerID,
+                hasGenericDetails: false))
+            #expect(!ProviderDetailPresentationPolicy.shouldRenderLegacyCard(
+                card,
+                providerID: providerID,
+                hasGenericDetails: true))
+        }
+
+        // A provider-level details envelope must not hide another typed lane,
+        // nor may a custom provider accidentally claim a bundled card lane.
+        #expect(ProviderDetailPresentationPolicy.shouldRenderLegacyCard(
+            .kiroCredits,
+            providerID: "claude",
+            hasGenericDetails: true))
+        #expect(ProviderDetailPresentationPolicy.shouldRenderLegacyCard(
+            .openRouterStats,
+            providerID: "plugin:team-dashboard",
+            hasGenericDetails: true))
+    }
+
+    @Test
+    func `first party detail semantics and IBM Bob window localize in all four languages`() {
+        let expectations: [(locale: String, bobcoin: String, summary: String, monthly: String)] = [
+            ("en", "Bobcoin usage", "Usage summary", "Monthly Bobcoins"),
+            ("ja", "Bobcoin 使用量", "使用量の概要", "月間 Bobcoin"),
+            ("zh-Hans", "Bobcoin 用量", "用量概览", "每月 Bobcoin"),
+            ("zh-Hant", "Bobcoin 用量", "用量概覽", "每月 Bobcoin"),
+        ]
+
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderDetailLocalization.localized(
+                "Bobcoin usage",
+                providerID: "ibmbob",
+                locale: locale) == expectation.bobcoin)
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "openai",
+                locale: locale) == expectation.summary)
+            #expect(ProviderWindowLabel.localized(
+                "Monthly Bobcoins",
+                fallback: "Limit",
+                locale: locale) == expectation.monthly)
+        }
+        #expect(ProviderWindowLabel.localizationKey(for: "Monthly Bobcoins") == "v049_window_monthly_bobcoins")
+    }
+
+    @Test
+    func `custom plugin and dynamic first party labels remain verbatim`() {
+        for identifier in ["en", "ja", "zh-Hans", "zh-Hant"] {
+            let locale = Locale(identifier: identifier)
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "plugin:team-dashboard",
+                locale: locale) == "Usage summary")
+            #expect(ProviderDetailLocalization.localized(
+                "Enterprise Team A",
+                providerID: "ibmbob",
+                locale: locale) == "Enterprise Team A")
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "ibmbob",
+                context: .rowLabel(sectionTitle: "Bobcoin usage"),
+                locale: locale) == "Usage summary")
+            #expect(ProviderDetailLocalization.localized(
+                "Models",
+                providerID: "groq",
+                context: .rowLabel(sectionTitle: "Models"),
+                locale: locale) == "Models")
+            #expect(ProviderDetailLocalization.localized(
+                "Usage summary",
+                providerID: "groq",
+                context: .rowLabel(sectionTitle: "Usage summary"),
+                locale: locale) == self.expectationsByLocale[identifier])
+        }
+    }
+
+    private var expectationsByLocale: [String: String] {
+        [
+            "en": "Usage summary",
+            "ja": "使用量の概要",
+            "zh-Hans": "用量概览",
+            "zh-Hant": "用量概覽",
+        ]
+    }
+}

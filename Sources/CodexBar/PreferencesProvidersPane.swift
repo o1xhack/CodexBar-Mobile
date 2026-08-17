@@ -30,6 +30,7 @@ struct ProvidersPane: View {
     @State private var isAuthenticatingLiveCodexAccount = false
 
     init(
+        // Provider-specific by design: Codex is the historical settings selection when no provider is supplied.
         provider: UsageProvider = .codex,
         settings: SettingsStore,
         store: UsageStore,
@@ -151,6 +152,7 @@ struct ProvidersPane: View {
     private func triggerRefresh(for provider: UsageProvider) {
         Task { @MainActor in
             await ProviderSettingsRefreshInteraction.perform {
+                // Provider-specific by design: Codex account reconciliation must refresh managed profile state too.
                 if provider == .codex {
                     await self.store.refreshCodexAccountScopedState(allowDisabled: true)
                 } else {
@@ -208,7 +210,9 @@ struct ProvidersPane: View {
             L("usage_not_fetched_yet")
         }
 
-        let detailLine: String = if let sourceLabel = self.store.lastSourceLabels[provider], !sourceLabel.isEmpty {
+        let detailLine: String = if let sourceLabel = self.store.lastSourceLabels[provider.instanceID],
+                                    !sourceLabel.isEmpty
+        {
             sourceLabel
         } else if let version = self.store.version(for: provider), !version.isEmpty {
             "\(meta.cliName) \(version)"
@@ -220,6 +224,8 @@ struct ProvidersPane: View {
     }
 
     func codexAccountsSectionState(for provider: UsageProvider) -> CodexAccountsSectionState? {
+        // Provider-specific by design: managed Codex profiles own app-only account promotion and reauthentication
+        // state.
         guard provider == .codex else { return nil }
         let projection = self.settings.codexVisibleAccountProjection
         let degradedNotice: CodexAccountsSectionNotice? = if projection.hasUnreadableAddedAccountStore {
@@ -388,6 +394,7 @@ struct ProvidersPane: View {
     func tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
         guard let support = TokenAccountSupportCatalog.support(for: provider) else { return nil }
         let context = self.makeSettingsContext(provider: provider)
+        let implementation = ProviderCatalog.implementation(for: provider)
         return ProviderSettingsTokenAccountsDescriptor(
             id: "token-accounts-\(provider.rawValue)",
             title: support.title,
@@ -413,8 +420,8 @@ struct ProvidersPane: View {
                     }
                 }
             },
-            showsOrganizationField: provider == .claude,
-            showsTeamModeControls: provider == .zai,
+            showsOrganizationField: support.showsOrganizationField,
+            showsTeamModeControls: support.showsTeamModeControls,
             addAccount: { label, token, usageScope, organizationID, workspaceID in
                 self.settings.addTokenAccount(
                     provider: provider,
@@ -450,13 +457,13 @@ struct ProvidersPane: View {
                     }
                 }
             },
-            primaryAddActionTitle: provider == .copilot ? "Add Account" : nil,
-            primaryAddAction: provider == .copilot ? {
-                await CopilotLoginFlow.run(settings: self.settings)
+            primaryAddActionTitle: support.primaryAddActionTitle,
+            primaryAddAction: support.primaryAddActionTitle.map { _ in {
+                await implementation?.runTokenAccountPrimaryAction(context: context)
                 await ProviderInteractionContext.$current.withValue(.userInitiated) {
                     await self.store.refreshProvider(provider, allowDisabled: true)
                 }
-            } : nil,
+            } },
             openConfigFile: {
                 self.settings.openTokenAccountsFile()
             },
@@ -550,8 +557,9 @@ struct ProvidersPane: View {
             tokenError = nil
         }
 
-        // Abacus and Kimi carry their long-cadence window in primary rather than secondary.
-        let paceWindow = provider == .abacus || provider == .kimi ? snapshot?.primary : snapshot?.secondary
+        let paceWindow = snapshot.flatMap {
+            ProviderDescriptorRegistry.descriptor(for: provider).presentation.semanticWindows(snapshot: $0).weekly
+        }
         let weeklyPace = if let codexProjection,
                             let weekly = codexProjection.rateWindow(for: .weekly)
         {
@@ -573,7 +581,7 @@ struct ProvidersPane: View {
             tokenSnapshot: tokenSnapshot,
             tokenError: tokenError,
             account: self.store.accountInfo(for: provider),
-            isRefreshing: self.store.refreshingProviders.contains(provider),
+            isRefreshing: self.store.refreshingProviders.contains(provider.instanceID),
             lastError: codexProjection?.userFacingErrors.usage ?? self.store.userFacingError(for: provider),
             limitsAvailability: self.store.knownLimitsAvailability(for: provider),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
@@ -600,6 +608,7 @@ struct ProvidersPane: View {
     }
 
     func openAIWebDiagnostic(for provider: UsageProvider) -> String? {
+        // Provider-specific by design: the OpenAI dashboard diagnostic comes from Codex's app-only web session.
         guard provider == .codex else { return nil }
         let diagnostic = self.store.codexConsumerProjectionIfNeeded(
             for: provider,

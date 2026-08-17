@@ -662,6 +662,8 @@
 "copyright" = "© 2026 Peter Steinberger. Giấy phép MIT.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Dùng JavaScriptCore cho phần bổ trợ nhà cung cấp";
+"use_javascriptcore_plugin_engine_subtitle" = "Chỉ dùng để quay lui tương thích. Khởi động lại CodexBar để áp dụng; CODEXBAR_PLUGIN_ENGINE ghi đè cài đặt này.";
 "section_logging" = "Ghi nhật ký";
 "enable_file_logging" = "Cho phép ghi nhật ký tệp";
 "enable_file_logging_subtitle" = "Ghi nhật ký vào %@ để gỡ lỗi.";
@@ -835,7 +837,7 @@
 "Pace: %@" = "Tốc độ: %@";
 "Pace: %@ · %@" = "Pace: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d %% rủi ro cạn kiệt";
+"(%d%% risk)" = "(%d %% rủi ro cạn kiệt)";
 "%d%% in deficit" = "%d %% thâm hụt";
 "%d%% in reserve" = "%d %% dự trữ";
 "usage_percent_suffix_left" = "left";
@@ -1347,6 +1349,7 @@
 "menu_bar_layout_token_account" = "Tài khoản";
 "menu_bar_layout_token_session" = "Phiên %";
 "menu_bar_layout_token_weekly" = "Hàng tuần %";
+"menu_bar_layout_token_scoped_weekly" = "Hàng tuần theo phạm vi %";
 "menu_bar_layout_token_auto" = "% tự động";
 "menu_bar_layout_token_session_pace" = "Tốc độ phiên";
 "menu_bar_layout_token_weekly_pace" = "Tốc độ hàng tuần";
@@ -1453,3 +1456,53 @@
 "icloud_sync_phase_reconciling" = "Reconciling";
 "mobile_section_icloud_sync" = "iCloud Sync";
 "icloud_diagnostics_run" = "Run Read-Only Check";
+"Cumulative" = "Tích lũy";
+"Token activity" = "Hoạt động token";
+"View" = "Chế độ xem";
+"in the last year" = "trong năm qua";
+"No activity in the last 12 months" = "Không có hoạt động trong 12 tháng qua";
+"Each column = 1 week" = "Mỗi cột = 1 tuần";
+"Running total" = "Tổng lũy kế";
+"Less" = "Ít";
+"More" = "Nhiều";
+
+/* Provider Plugins */
+"Install…" = "Cài đặt…";
+"Install plugin" = "Cài đặt plugin";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Sao chép tệp JavaScript hoặc TypeScript vào thư mục plugin.";
+"Show in Finder" = "Hiển thị trong Finder";
+"Plugins directory" = "Thư mục plugin";
+"Provider Plugins" = "Plugin nhà cung cấp";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Plugin là các tệp JavaScript hoặc TypeScript cục bộ. Quyền truy cập mạng và cookie cần được phê duyệt.";
+"No Plugins Installed" = "Chưa cài đặt plugin";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Thả tệp .js hoặc .ts vào thư mục plugin, hoặc chọn Cài đặt…";
+"Delete Plugin?" = "Xóa plugin?";
+"Delete" = "Xóa";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Thao tác này sẽ xóa tệp plugin, bộ nhớ đệm chuyển mã, trạng thái phê duyệt, các cài đặt và thông tin bí mật đã lưu, cùng lịch sử.";
+"Plugin Error" = "Lỗi plugin";
+"Needs approval" = "Cần phê duyệt";
+"File" = "Tệp";
+"Origins" = "Nguồn mạng";
+"Configure endpoint settings" = "Định cấu hình điểm cuối";
+"Capabilities" = "Khả năng";
+"Network" = "Mạng";
+"Cookie domains" = "Miền cookie";
+"Approve…" = "Phê duyệt…";
+"Delete…" = "Xóa…";
+"Unknown validation error" = "Lỗi kiểm tra tính hợp lệ không xác định";
+"Approve Plugin" = "Phê duyệt plugin";
+"Install and Approve Plugin" = "Cài đặt và phê duyệt plugin";
+"Network authority" = "Quyền truy cập mạng";
+"Auth: %@" = "Xác thực: %@";
+"Capabilities: %@" = "Khả năng: %@";
+"network" = "mạng";
+"Secrets: %@" = "Thông tin bí mật: %@";
+"none" = "không có";
+"Cookie domains: %@" = "Miền cookie: %@";
+"Type %@ to confirm" = "Nhập %@ để xác nhận";
+"Enter every endpoint setting to review the exact network origins." = "Nhập đầy đủ các cài đặt điểm cuối để xem chính xác các nguồn mạng.";
+"Approve" = "Phê duyệt";
+"Install" = "Cài đặt";
+"5-hour usage" = "Mức sử dụng 5 giờ";
+"7-day usage" = "Mức sử dụng 7 ngày";
+"Total usage" = "Tổng mức sử dụng";

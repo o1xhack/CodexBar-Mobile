@@ -72,41 +72,28 @@ struct MenuDescriptorPoeTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
 
-        let now = Date()
-        let calendar = Calendar.current
-        // Fixed calendar-day fixtures keep this stable around midnight.
-        let today = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: now) ?? now
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? now.addingTimeInterval(-86400)
-        let history = PoeUsageHistorySnapshot(
-            entries: [
-                .init(
-                    id: "a",
-                    createdAt: today,
-                    model: "GPT-4o",
-                    usageType: "chat",
-                    points: 100,
-                    costUSD: nil),
-                .init(
-                    id: "b",
-                    createdAt: yesterday,
-                    model: "Claude-3.7-Sonnet",
-                    usageType: "chat",
-                    points: 200,
-                    costUSD: nil),
-            ],
-            daily: [
-                .init(day: "2026-05-30", points: 200, requests: 1, costUSD: nil),
-                .init(day: "2026-05-31", points: 100, requests: 1, costUSD: nil),
-            ],
-            updatedAt: now)
-
+        let rows = try [
+            ProviderDetailSection.Row(label: "Today", value: "100 points", secondaryValue: "1 requests"),
+            ProviderDetailSection.Row(label: "Last 7 days", value: "300 points", secondaryValue: "2 requests"),
+            ProviderDetailSection.Row(label: "Last 30 days", value: "300 points", secondaryValue: "2 requests"),
+            ProviderDetailSection.Row(
+                label: "Top model",
+                value: "Claude-3.7-Sonnet",
+                secondaryValue: "200 points"),
+            ProviderDetailSection.Row(label: "Usage mix", value: "chat: 300 points"),
+            ProviderDetailSection.Row(
+                label: "Recent activity",
+                value: "05-31 12:00 · GPT-4o",
+                secondaryValue: "100 points"),
+        ]
+        let details = try [ProviderDetailSection(title: "Points", rows: rows)]
         let snapshot = UsageSnapshot(
             primary: nil,
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
-            poeUsage: history,
-            updatedAt: now,
+            details: details,
+            updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
                 providerID: .poe,
                 accountEmail: nil,
@@ -129,10 +116,10 @@ struct MenuDescriptorPoeTests {
                 return text
             }
 
-        #expect(textLines.contains(where: { $0.contains("Today: 100 points") }))
-        #expect(textLines.contains(where: { $0.contains("7d: 300 points") }))
-        #expect(textLines.contains(where: { $0.contains("30d: 300 points") }))
-        #expect(textLines.contains(where: { $0.contains("Top model: Claude-3.7-Sonnet") }))
+        #expect(textLines.contains(where: { $0.contains("Today: 100 points · 1 requests") }))
+        #expect(textLines.contains(where: { $0.contains("Last 7 days: 300 points · 2 requests") }))
+        #expect(textLines.contains(where: { $0.contains("Last 30 days: 300 points · 2 requests") }))
+        #expect(textLines.contains(where: { $0.contains("Top model: Claude-3.7-Sonnet · 200 points") }))
         #expect(textLines.contains(where: { $0.contains("Usage mix: chat: 300 points") }))
         #expect(textLines.contains(where: { $0.contains("Recent activity:") }))
     }

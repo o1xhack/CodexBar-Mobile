@@ -109,16 +109,15 @@ enum MockProviderInjector {
     /// `isEnabled` state, which doesn't isolate cleanly across
     /// parallel `@MainActor` test suites.
     ///
-    /// **Composition** (Mac 0.45.2.1+):
+    /// **Composition** (Mac 0.49.2.1+):
     /// - 8 rich mocks (codex × 3 multi-account + claude × 2 multi-account
     ///   + perplexity 3-credit-segment + 2 synthetic `_mock_*` fallback
     ///   error/rich) — exercise the high-traffic UI paths.
-    /// - 69 simple snapshots cover all real-borrowed provider IDs and the
-    ///   seven extra multi-account tabs, including the eight v0.42-v0.45
-    ///   providers added for iOS 1.19.0.
+    /// - 75 simple snapshots cover all real-borrowed provider IDs and the
+    ///   seven extra multi-account tabs, including Fireworks and IBM Bob.
     ///
-    /// Total: **77 ProviderUsageSnapshot entries across 67 distinct
-    /// providerIDs** (63 current + 2 legacy-compatibility + 2 synthetic).
+    /// Total: **83 ProviderUsageSnapshot entries across 73 distinct
+    /// providerIDs** (69 current + 2 legacy-compatibility + 2 synthetic).
     /// iOS 1.9.0 bumps a few
     /// headline providers to realistic heavy spend + synthesizes ~55-day daily
     /// histories so the CWL ledger / Cost dashboard are testable at scale; the
@@ -234,6 +233,8 @@ enum MockProviderInjector {
         "sub2api", "wayfinder", "zenmux", "aiand",
         // iOS 1.20.0 catch-up (upstream v0.46.0-v0.47.0 new providers).
         "qwencloud", "zoommate", "xai", "notion",
+        // iOS 1.21.0 catch-up (upstream v0.49.0 new providers).
+        "fireworks", "ibmbob",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1564,6 +1565,25 @@ enum MockProviderInjector {
             primaryResetDescription: "Monthly · 28% used",
             secondary: nil,
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // iOS 1.21.0 — upstream v0.49.0 new providers.
+        .init(
+            providerID: "fireworks", providerName: "Fireworks",
+            accountLocal: "billing", loginMethod: "API key",
+            primaryUsage: nil, primaryLabel: "Spend",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 27.40, sessionCostUSD: 0.91),
+        .init(
+            providerID: "ibmbob", providerName: "IBM Bob",
+            accountLocal: "team", loginMethod: "API key",
+            primaryUsage: 37, primaryLabel: "Monthly Bobcoins",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "3,700 / 10,000 Bobcoins",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1846,6 +1866,22 @@ enum MockProviderInjector {
                 isEstimated: false))
         case "notion":
             return V026MockExtras(accountOrganization: "Design Workspace")
+        case "fireworks":
+            return V026MockExtras(providerAmount: SyncProviderAmount(
+                kind: "spend",
+                amount: 27.40,
+                currencyCode: "USD",
+                period: "Last 30 days",
+                isEstimated: false))
+        case "ibmbob":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Bobcoin usage",
+                rows: [
+                    .init(
+                        label: "Development Team",
+                        value: "3,700 / 10,000 Bobcoins",
+                        secondaryValue: "Standard"),
+                ])])
         default:
             return nil
         }
@@ -1875,6 +1911,7 @@ enum MockProviderInjector {
         var zoomMateCredits: SyncZoomMateCredits?
         var providerAmount: SyncProviderAmount?
         var accountOrganization: String?
+        var details: [SyncProviderDetailSection]
 
         init(
             openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -1891,7 +1928,8 @@ enum MockProviderInjector {
             sub2APIUsage: SyncSub2APIUsage? = nil,
             zoomMateCredits: SyncZoomMateCredits? = nil,
             providerAmount: SyncProviderAmount? = nil,
-            accountOrganization: String? = nil)
+            accountOrganization: String? = nil,
+            details: [SyncProviderDetailSection] = [])
         {
             self.openAIAPIDashboard = openAIAPIDashboard
             self.zaiHourlyUsage = zaiHourlyUsage
@@ -1908,6 +1946,7 @@ enum MockProviderInjector {
             self.zoomMateCredits = zoomMateCredits
             self.providerAmount = providerAmount
             self.accountOrganization = accountOrganization
+            self.details = details
         }
     }
 
@@ -2038,7 +2077,8 @@ enum MockProviderInjector {
             sub2APIUsage: extras?.sub2APIUsage,
             providerAmount: extras?.providerAmount,
             accountOrganization: extras?.accountOrganization,
-            zoomMateCredits: extras?.zoomMateCredits)
+            zoomMateCredits: extras?.zoomMateCredits,
+            details: extras?.details ?? [])
     }
 }
 

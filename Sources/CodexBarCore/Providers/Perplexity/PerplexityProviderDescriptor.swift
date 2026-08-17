@@ -2,10 +2,27 @@ import Foundation
 
 public enum PerplexityProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary, let token = Self.resolveSessionToken(environment: environment) else {
+                return nil
+            }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        authDetector: { environment, _ in
+            PerplexitySettingsReader.sessionToken(environment: environment) == nil ? [] : ["web"]
+        },
+        missingCredentialMessage: { _ in PerplexityAPIError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .perplexity,
+            menuBarMetrics: ProviderMenuBarMetricCapabilities(
+                supported: [.automatic, .primary, .secondary, .tertiary]),
+            settingsSection: .init(
+                PerplexityProviderSettingsKey.self,
+                cookieSettings: PerplexityProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .perplexity,
                 displayName: "Perplexity",
@@ -22,6 +39,7 @@ public enum PerplexityProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                sharePlanLabels: ["pro": "Pro", "max": "Max"],
                 browserCookieOrder: nil,
                 dashboardURL: "https://www.perplexity.ai/account/usage",
                 statusPageURL: nil,
@@ -38,13 +56,61 @@ public enum PerplexityProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Perplexity cost tracking is not supported." }),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .web],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [PerplexityWebFetchStrategy()] })),
+            presentation: ProviderUsagePresentation(
+                iconWindowResolver: { context in
+                    let windows = context.snapshot.orderedPerplexityDisplayWindows()
+                    return ProviderUsageWindowPair(primary: windows.first, secondary: windows.dropFirst().first)
+                },
+                requestedMenuBarLaneOrders: [
+                    .primary: [.primary, .secondary, .tertiary],
+                    .secondary: [.secondary, .tertiary, .primary],
+                    .tertiary: [.tertiary, .secondary, .primary],
+                ],
+                automaticSelectionPrioritizesExhaustedWindow: false,
+                menuBarWindowResolver: { context in
+                    guard context.metric == .automatic else { return .unhandled }
+                    return .resolved(context.snapshot.automaticPerplexityWindow())
+                },
+                menu: ProviderMenuDescriptorPresentation(
+                    secondaryDescriptionMode: .resetOverride,
+                    tertiaryDescriptionOverridesReset: true)),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "perplexity",
                 aliases: [],
                 versionDetector: nil))
+    }
+
+    private static func resolveSessionToken(environment: [String: String]) -> String? {
+        if let token = PerplexitySettingsReader.sessionToken(environment: environment) {
+            return token
+        }
+        #if os(macOS)
+        return try? PerplexityCookieImporter.importSession().sessionToken
+        #else
+        return nil
+        #endif
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        ProviderFetchPlan(
+            sourceModes: [.auto, .web],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
+                let swift = PerplexityWebFetchStrategy()
+                guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
+                return [
+                    ScriptFetchStrategy(
+                        id: "perplexity.js",
+                        provider: .perplexity,
+                        bundledPlugin: "perplexity",
+                        kind: .web,
+                        resolveValues: { context in
+                            guard context.settings?.perplexity?.cookieSource != .off else { return nil }
+                            return ScriptFetchStrategy.Values()
+                        }),
+                    swift,
+                ]
+            }))
     }
 }
 
@@ -75,7 +141,9 @@ struct PerplexityWebFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         guard context.settings?.perplexity?.cookieSource != .off else { return false }
-        if context.settings?.perplexity?.cookieSource == .manual { return true }
+        if context.settings?.perplexity?.cookieSource == .manual {
+            return true
+        }
 
         // Priority order mirrors resolveSessionCookie: manual override → cache → browser import → env var
         if PerplexityCookieHeader.resolveCookieOverride(context: context) != nil {
@@ -88,7 +156,9 @@ struct PerplexityWebFetchStrategy: ProviderFetchStrategy {
 
         #if os(macOS)
         if context.settings?.perplexity?.cookieSource != .off {
-            if PerplexityCookieImporter.hasSession() { return true }
+            if PerplexityCookieImporter.hasSession() {
+                return true
+            }
         }
         #endif
 
@@ -129,9 +199,15 @@ struct PerplexityWebFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
-        if case PerplexityAPIError.missingToken = error { return false }
-        if case PerplexityAPIError.invalidCookie = error { return false }
-        if case PerplexityAPIError.invalidToken = error { return false }
+        if case PerplexityAPIError.missingToken = error {
+            return false
+        }
+        if case PerplexityAPIError.invalidCookie = error {
+            return false
+        }
+        if case PerplexityAPIError.invalidToken = error {
+            return false
+        }
         return true
     }
 

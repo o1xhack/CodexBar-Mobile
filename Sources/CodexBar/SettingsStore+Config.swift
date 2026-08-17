@@ -1,13 +1,88 @@
 import CodexBarCore
 import Foundation
+import SwiftUI
+
+enum ProviderConfigStringField: Sendable, Equatable {
+    case apiKey
+    case secretKey
+    case region
+    case endpoint
+    case workspace
+    case secretWorkspace(logField: String)
+    case cookieHeader
+
+    fileprivate func read(from config: ProviderConfig?) -> String {
+        switch self {
+        case .apiKey: config?.sanitizedAPIKey ?? ""
+        case .secretKey: config?.sanitizedSecretKey ?? ""
+        case .region: config?.sanitizedRegion ?? ""
+        case .endpoint: config?.sanitizedEnterpriseHost ?? ""
+        case .workspace, .secretWorkspace: config?.sanitizedWorkspaceID ?? ""
+        case .cookieHeader: config?.sanitizedCookieHeader ?? ""
+        }
+    }
+
+    fileprivate func write(_ value: String?, to config: inout ProviderConfig) {
+        switch self {
+        case .apiKey: config.apiKey = value
+        case .secretKey: config.secretKey = value
+        case .region: config.region = value
+        case .endpoint: config.enterpriseHost = value
+        case .workspace, .secretWorkspace: config.workspaceID = value
+        case .cookieHeader: config.cookieHeader = value
+        }
+    }
+
+    fileprivate var secretLogField: String? {
+        switch self {
+        case .apiKey: "apiKey"
+        case .secretKey: "secretKey"
+        case .cookieHeader: "cookieHeader"
+        case let .secretWorkspace(logField): logField
+        case .region, .endpoint, .workspace: nil
+        }
+    }
+}
 
 extension SettingsStore {
+    subscript(providerConfig provider: UsageProvider, field field: ProviderConfigStringField) -> String {
+        get {
+            field.read(from: self.configSnapshot.providerConfig(for: provider.instanceID))
+        }
+        set {
+            self.updateProviderConfig(provider: provider) { entry in
+                field.write(self.normalizedConfigValue(newValue), to: &entry)
+            }
+            if let logField = field.secretLogField {
+                self.logSecretUpdate(provider: provider, field: logField, value: newValue)
+            }
+        }
+    }
+
+    func providerConfigBinding(provider: UsageProvider, field: ProviderConfigStringField) -> Binding<String> {
+        Binding(
+            get: { self[providerConfig: provider, field: field] },
+            set: { self[providerConfig: provider, field: field] = $0 })
+    }
+
+    func providerCookieSourceBinding(
+        provider: UsageProvider,
+        fallback: ProviderCookieSource) -> Binding<ProviderCookieSource>
+    {
+        Binding(
+            get: { self.resolvedCookieSource(provider: provider, fallback: fallback) },
+            set: { newValue in
+                self.updateProviderConfig(provider: provider) { $0.cookieSource = newValue }
+                self.logProviderModeChange(provider: provider, field: "cookieSource", value: newValue.rawValue)
+            })
+    }
+
     func providerConfig(for provider: UsageProvider) -> ProviderConfig? {
-        self.configSnapshot.providerConfig(for: provider)
+        self.configSnapshot.providerConfig(for: provider.instanceID)
     }
 
     func quotaWarningConfig(for provider: UsageProvider) -> QuotaWarningConfig {
-        self.configSnapshot.providerConfig(for: provider)?.quotaWarnings ?? QuotaWarningConfig()
+        self.configSnapshot.providerConfig(for: provider.instanceID)?.quotaWarnings ?? QuotaWarningConfig()
     }
 
     func resolvedQuotaWarningThresholds(provider: UsageProvider, window: QuotaWarningWindow) -> [Int] {
@@ -154,8 +229,10 @@ extension SettingsStore {
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         get {
             Dictionary(uniqueKeysWithValues: self.configSnapshot.providers.compactMap { entry in
-                guard let accounts = entry.tokenAccounts else { return nil }
-                return (entry.id, accounts)
+                guard let provider = entry.id.firstPartyProvider,
+                      let accounts = entry.tokenAccounts
+                else { return nil }
+                return (provider, accounts)
             })
         }
         set {
@@ -184,7 +261,7 @@ extension SettingsStore {
         provider: UsageProvider,
         fallback: ProviderCookieSource) -> ProviderCookieSource
     {
-        let source = self.configSnapshot.providerConfig(for: provider)?.cookieSource ?? fallback
+        let source = self.configSnapshot.providerConfig(for: provider.instanceID)?.cookieSource ?? fallback
         guard self.debugDisableKeychainAccess == false else { return source == .off ? .off : .manual }
         return source
     }

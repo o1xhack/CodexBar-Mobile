@@ -80,6 +80,13 @@ struct ProviderUsageView: View {
                 if let amount = self.provider.providerAmount {
                     ProviderAmountCard(amount: amount, tintColor: self.providerColor)
                 }
+                if self.provider.allRateWindows.isEmpty,
+                   let section = self.provider.details.first
+                {
+                    ProviderDetailsTeaserView(
+                        providerID: self.provider.providerID,
+                        section: section)
+                }
             }
             .padding(.horizontal, 16)
 
@@ -207,7 +214,7 @@ struct ProviderUsageView: View {
     // MARK: - Helpers
 
     private var providerColor: Color {
-        ProviderColorPalette.color(for: self.provider.providerID)
+        ProviderColorPalette.color(for: self.provider)
     }
 
     /// Selects the subtitle string under the provider name. Prefers the

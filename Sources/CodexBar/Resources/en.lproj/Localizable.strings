@@ -649,6 +649,8 @@
 "copyright" = "© 2026 Peter Steinberger. MIT License.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Use JavaScriptCore for provider plugins";
+"use_javascriptcore_plugin_engine_subtitle" = "Compatibility rollback only. Restart CodexBar to apply; CODEXBAR_PLUGIN_ENGINE overrides this setting.";
 "section_logging" = "Logging";
 "enable_file_logging" = "Enable file logging";
 "enable_file_logging_subtitle" = "Write logs to %@ for debugging.";
@@ -822,7 +824,7 @@
 "Pace: %@" = "Pace: %@";
 "Pace: %@ · %@" = "Pace: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d%% run-out risk";
+"(%d%% risk)" = "(%d%% risk)";
 "%d%% in deficit" = "%d%% in deficit";
 "%d%% in reserve" = "%d%% in reserve";
 "usage_percent_suffix_left" = "left";
@@ -1328,6 +1330,7 @@
 "menu_bar_layout_token_account" = "Account";
 "menu_bar_layout_token_session" = "Session %";
 "menu_bar_layout_token_weekly" = "Weekly %";
+"menu_bar_layout_token_scoped_weekly" = "Scoped weekly %";
 "menu_bar_layout_token_auto" = "Auto %";
 "menu_bar_layout_token_session_pace" = "Session pace";
 "menu_bar_layout_token_weekly_pace" = "Weekly pace";
@@ -1457,3 +1460,53 @@
 "weekly_limit_confetti_subtitle" = "Play full-screen confetti when weekly usage resets.";
 "weekly_limit_confetti_title" = "Weekly limit confetti";
 "∞ Unlimited" = "∞ Unlimited";
+"Cumulative" = "Cumulative";
+"Token activity" = "Token activity";
+"View" = "View";
+"in the last year" = "in the last year";
+"No activity in the last 12 months" = "No activity in the last 12 months";
+"Each column = 1 week" = "Each column = 1 week";
+"Running total" = "Running total";
+"Less" = "Less";
+"More" = "More";
+
+/* Provider Plugins */
+"Install…" = "Install…";
+"Install plugin" = "Install plugin";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Copies a JavaScript or TypeScript file into the plugins directory.";
+"Show in Finder" = "Show in Finder";
+"Plugins directory" = "Plugins directory";
+"Provider Plugins" = "Provider Plugins";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Plugins are local JavaScript or TypeScript files. Network and cookie access require approval.";
+"No Plugins Installed" = "No Plugins Installed";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Drop a .js or .ts file into the plugins directory, or choose Install…";
+"Delete Plugin?" = "Delete Plugin?";
+"Delete" = "Delete";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "This removes the plugin file, transpile cache, approval, saved settings and secrets, and history.";
+"Plugin Error" = "Plugin Error";
+"Needs approval" = "Needs approval";
+"File" = "File";
+"Origins" = "Origins";
+"Configure endpoint settings" = "Configure endpoint settings";
+"Capabilities" = "Capabilities";
+"Network" = "Network";
+"Cookie domains" = "Cookie domains";
+"Approve…" = "Approve…";
+"Delete…" = "Delete…";
+"Unknown validation error" = "Unknown validation error";
+"Approve Plugin" = "Approve Plugin";
+"Install and Approve Plugin" = "Install and Approve Plugin";
+"Network authority" = "Network authority";
+"Auth: %@" = "Auth: %@";
+"Capabilities: %@" = "Capabilities: %@";
+"network" = "network";
+"Secrets: %@" = "Secrets: %@";
+"none" = "none";
+"Cookie domains: %@" = "Cookie domains: %@";
+"Type %@ to confirm" = "Type %@ to confirm";
+"Enter every endpoint setting to review the exact network origins." = "Enter every endpoint setting to review the exact network origins.";
+"Approve" = "Approve";
+"Install" = "Install";
+"5-hour usage" = "5-hour usage";
+"7-day usage" = "7-day usage";
+"Total usage" = "Total usage";

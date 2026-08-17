@@ -665,6 +665,8 @@
 "copyright" = "© 2026 Peter Steinberger. MIT-licens.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Använd JavaScriptCore för leverantörsinsticksfiler";
+"use_javascriptcore_plugin_engine_subtitle" = "Endast kompatibilitetsåterställning. Starta om CodexBar för att tillämpa; CODEXBAR_PLUGIN_ENGINE åsidosätter inställningen.";
 "section_logging" = "Loggning";
 "enable_file_logging" = "Aktivera filloggning";
 "enable_file_logging_subtitle" = "Skriv loggar till %@ för felsökning.";
@@ -838,7 +840,7 @@
 "Pace: %@" = "Takt: %@";
 "Pace: %@ · %@" = "Takt: %@ · %@";
 "%@ · %@" = "%@ · %@";
-"≈ %d%% run-out risk" = "≈ %d %% risk att ta slut";
+"(%d%% risk)" = "(%d %% risk att ta slut)";
 "%d%% in deficit" = "%d %% underskott";
 "%d%% in reserve" = "%d %% reserv";
 "usage_percent_suffix_left" = "kvar";
@@ -1345,6 +1347,7 @@
 "menu_bar_layout_token_account" = "Konto";
 "menu_bar_layout_token_session" = "Session %";
 "menu_bar_layout_token_weekly" = "Vecka %";
+"menu_bar_layout_token_scoped_weekly" = "Avgränsad vecka %";
 "menu_bar_layout_token_auto" = "Automatiskt %";
 "menu_bar_layout_token_session_pace" = "Sessionstakt";
 "menu_bar_layout_token_weekly_pace" = "Veckotakt";
@@ -1451,3 +1454,53 @@
 "icloud_sync_phase_reconciling" = "Reconciling";
 "mobile_section_icloud_sync" = "iCloud Sync";
 "icloud_diagnostics_run" = "Run Read-Only Check";
+"Cumulative" = "Kumulativt";
+"Token activity" = "Token-aktivitet";
+"View" = "Vy";
+"in the last year" = "det senaste året";
+"No activity in the last 12 months" = "Ingen aktivitet de senaste 12 månaderna";
+"Each column = 1 week" = "Varje kolumn = 1 vecka";
+"Running total" = "Löpande summa";
+"Less" = "Mindre";
+"More" = "Mer";
+
+/* Provider Plugins */
+"Install…" = "Installera…";
+"Install plugin" = "Installera plugin";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Kopierar en JavaScript- eller TypeScript-fil till pluginmappen.";
+"Show in Finder" = "Visa i Finder";
+"Plugins directory" = "Pluginmapp";
+"Provider Plugins" = "Leverantörsplugin";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Plugin är lokala JavaScript- eller TypeScript-filer. Åtkomst till nätverk och cookies kräver godkännande.";
+"No Plugins Installed" = "Inga plugin installerade";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Släpp en .js- eller .ts-fil i pluginmappen eller välj Installera…";
+"Delete Plugin?" = "Ta bort plugin?";
+"Delete" = "Ta bort";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Detta tar bort pluginfilen, transpileringscachen, godkännandet, sparade inställningar och hemligheter samt historiken.";
+"Plugin Error" = "Pluginfel";
+"Needs approval" = "Kräver godkännande";
+"File" = "Fil";
+"Origins" = "Ursprungsadresser";
+"Configure endpoint settings" = "Konfigurera slutpunktsinställningar";
+"Capabilities" = "Behörigheter";
+"Network" = "Nätverk";
+"Cookie domains" = "Cookie-domäner";
+"Approve…" = "Godkänn…";
+"Delete…" = "Ta bort…";
+"Unknown validation error" = "Okänt valideringsfel";
+"Approve Plugin" = "Godkänn plugin";
+"Install and Approve Plugin" = "Installera och godkänn plugin";
+"Network authority" = "Omfattning av nätverksåtkomst";
+"Auth: %@" = "Autentisering: %@";
+"Capabilities: %@" = "Behörigheter: %@";
+"network" = "nätverk";
+"Secrets: %@" = "Hemligheter: %@";
+"none" = "inga";
+"Cookie domains: %@" = "Cookie-domäner: %@";
+"Type %@ to confirm" = "Skriv %@ för att bekräfta";
+"Enter every endpoint setting to review the exact network origins." = "Ange alla slutpunktsinställningar för att granska de exakta ursprungsadresserna.";
+"Approve" = "Godkänn";
+"Install" = "Installera";
+"5-hour usage" = "5-timmarsanvändning";
+"7-day usage" = "7-dagarsanvändning";
+"Total usage" = "Total användning";
