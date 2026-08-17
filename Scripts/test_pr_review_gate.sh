@@ -44,7 +44,7 @@ expect_fail() {
 codex='{"login":"chatgpt-codex-connector"}'
 owner='{"login":"o1xhack"}'
 clean_body='Codex Review: Didn'"'"'t find any major issues. Hooray! **Reviewed commit:** `aaaaaaaaaa`'
-clean_comment="[{\"author\":$codex,\"body\":\"$clean_body\",\"createdAt\":\"2026-08-17T00:00:00Z\"}]"
+clean_comment="[{\"author\":$codex,\"body\":\"$clean_body\",\"createdAt\":\"2026-08-17T00:00:06Z\"}]"
 
 write_fixture no-review '[]' '[]' '[]'
 expect_fail no-review
@@ -63,16 +63,20 @@ write_fixture outdated-unresolved '[]' "$clean_comment" "$unresolved"
 expect_fail outdated-unresolved
 
 six_reviews="[
-  {\"author\":$codex,\"commit\":{\"oid\":\"1111111111111111111111111111111111111111\"}},
-  {\"author\":$codex,\"commit\":{\"oid\":\"2222222222222222222222222222222222222222\"}},
-  {\"author\":$codex,\"commit\":{\"oid\":\"3333333333333333333333333333333333333333\"}},
-  {\"author\":$codex,\"commit\":{\"oid\":\"4444444444444444444444444444444444444444\"}},
-  {\"author\":$codex,\"commit\":{\"oid\":\"5555555555555555555555555555555555555555\"}}
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:01Z\",\"commit\":{\"oid\":\"1111111111111111111111111111111111111111\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:02Z\",\"commit\":{\"oid\":\"2222222222222222222222222222222222222222\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:03Z\",\"commit\":{\"oid\":\"3333333333333333333333333333333333333333\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:04Z\",\"commit\":{\"oid\":\"4444444444444444444444444444444444444444\"}},
+  {\"author\":$codex,\"submittedAt\":\"2026-08-17T00:00:05Z\",\"commit\":{\"oid\":\"5555555555555555555555555555555555555555\"}}
 ]"
 write_fixture six-rounds-no-audit "$six_reviews" "$clean_comment" '[]'
 expect_fail six-rounds-no-audit
 
-audit_comment="{\"author\":$owner,\"body\":\"Codex review architecture audit\\nHead: aaaaaaaaaa\\nRoot issue and revised approach recorded.\",\"createdAt\":\"2026-08-17T00:01:00Z\"}"
+late_audit="{\"author\":$owner,\"body\":\"Codex review architecture audit\\nHead: aaaaaaaaaa\\nRoot issue and revised approach recorded.\",\"createdAt\":\"2026-08-17T00:00:07Z\"}"
+write_fixture six-rounds-late-audit "$six_reviews" "${clean_comment%]} ,$late_audit]" '[]'
+expect_fail six-rounds-late-audit
+
+audit_comment="{\"author\":$owner,\"body\":\"Codex review architecture audit\\nHead: aaaaaaaaaa\\nRoot issue and revised approach recorded.\",\"createdAt\":\"2026-08-17T00:00:00Z\"}"
 write_fixture six-rounds-with-audit "$six_reviews" "${clean_comment%]} ,$audit_comment]" '[]'
 expect_pass six-rounds-with-audit
 

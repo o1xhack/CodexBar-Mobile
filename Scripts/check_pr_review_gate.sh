@@ -89,15 +89,21 @@ summary=$(jq -c '
       | try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null);
 
   .headRefOid as $head
-  | $head[0:10] as $short
   | [(.reviews.nodes // [])[]
       | select(is_codex)
-      | (.commit.oid // reviewed_oid)
-      | select(. != null)] as $reviewOids
+      | (.commit.oid // reviewed_oid) as $oid
+      | {oid: $oid, at: .submittedAt}
+      | select(.oid != null and .at != null)] as $reviewEvents
   | [(.comments.nodes // [])[]
       | select(is_codex)
-      | reviewed_oid
-      | select(. != null)] as $commentOids
+      | reviewed_oid as $oid
+      | {oid: $oid, at: .createdAt}
+      | select(.oid != null and .at != null)] as $commentEvents
+  | (($reviewEvents + $commentEvents)
+      | group_by(.oid)
+      | map(min_by(.at))
+      | sort_by(.at)) as $distinctReviewEvents
+  | ($distinctReviewEvents[5] // null) as $sixthReview
   | [(.comments.nodes // [])[]
       | select(is_codex)
       | select((.body // "") | contains("Didn\u0027t find any major issues"))
@@ -109,14 +115,16 @@ summary=$(jq -c '
   | [(.comments.nodes // [])[]
       | select((is_codex | not))
       | select((.body // "") | contains("Codex review architecture audit"))
-      | select((.body // "") | contains($short))] as $architectureAudits
+      | select($sixthReview != null)
+      | select((.body // "") | contains($sixthReview.oid[0:10]))
+      | select(.createdAt < $sixthReview.at)] as $architectureAudits
   | {
       number,
       url,
       state,
       isDraft,
       head: $head,
-      rounds: (($reviewOids + $commentOids) | unique | length),
+      rounds: ($distinctReviewEvents | length),
       currentClean: (($currentClean | length) > 0),
       unresolvedCount: ($unresolved | length),
       unresolved: [$unresolved[] | {
@@ -126,8 +134,9 @@ summary=$(jq -c '
         path: (.comments.nodes[0].path // null)
       }],
       architectureAuditRequired:
-        ((($reviewOids + $commentOids) | unique | length) > 5),
+        (($distinctReviewEvents | length) > 5),
       architectureAuditRecorded: (($architectureAudits | length) > 0),
+      sixthReview: $sixthReview,
       truncated:
         ((.reviews.pageInfo.hasNextPage // false)
           or (.comments.pageInfo.hasNextPage // false)
