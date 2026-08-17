@@ -123,7 +123,9 @@ summary=$(jq -c '
          elif $hasFinding then .commit.oid
          else null
          end) as $rawOid
-      | {oid: normalize_oid($rawOid; $fullOids), at: .submittedAt, clean: is_clean}
+      | {oid: normalize_oid($rawOid; $fullOids),
+         at: .submittedAt,
+         clean: (is_clean and ($hasFinding | not))}
       | select(.oid != null and .at != null)] as $reviewEvents
   | [(.comments.nodes // [])[]
       | select(is_codex)
@@ -148,7 +150,7 @@ summary=$(jq -c '
       | .[-1] // null) as $latestReviewRequestAt
   | (($latestReviewRequestAt != null)
       and (($latestCurrentHeadEvent == null)
-        or ($latestReviewRequestAt > $latestCurrentHeadEvent.at))) as $reviewInFlight
+        or ($latestReviewRequestAt >= $latestCurrentHeadEvent.at))) as $reviewInFlight
   | (($latestCurrentHeadEvent != null)
       and ($latestCurrentHeadEvent.clean == true)
       and ($reviewInFlight | not)) as $currentClean

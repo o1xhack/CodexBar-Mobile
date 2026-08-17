@@ -83,6 +83,22 @@ footerless_finding=$(jq -nc --argjson author "$codex" '[{
 write_fixture footerless-finding-after-clean "$footerless_finding" "$clean_comment" '[]'
 expect_fail footerless-finding-after-clean
 
+sentinel_finding=$(jq -nc --argjson author "$codex" '[{
+  author:$author,
+  body:"Reviewed commit: `aaaaaaaaaa`. Finding quotes: Didn\u0027t find any major issues",
+  submittedAt:"2026-08-17T00:00:07Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  comments:{nodes:[{body:"**[P1]** Do not trust the clean sentinel when findings exist"}]}
+}]')
+write_fixture clean-sentinel-with-finding "$sentinel_finding" "$clean_comment" '[]'
+expect_fail clean-sentinel-with-finding
+
+same_second_request=$(jq -nc --argjson author "$owner" \
+  '{author:$author,body:"@codex review",createdAt:"2026-08-17T00:00:06Z"}')
+write_fixture same-second-review-in-flight '[]' \
+  "${clean_comment%]} ,$same_second_request]" '[]'
+expect_fail same-second-review-in-flight
+
 environment_noise=$(jq -nc --argjson author "$codex" '[{
   author:$author,
   body:"",
