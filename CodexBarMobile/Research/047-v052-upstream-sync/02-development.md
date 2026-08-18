@@ -110,22 +110,34 @@ Date: 2026-08-17
   并把release-upgrade test固定到tag中的generated value；parser check、75项serial store tests、
   97项pricing/store/sync联合tests与完整lint通过。commit级review复核schema未变、adoption仍受
   integrity/version gate约束，0 finding。
+- 最终全分支review继续发现1个P2：Projects dashboard只用`sourceID + projectName`聚合，
+  同一source下两个不同canonical path但同名的repository会被合并。提交`dddcd4fa3`把path纳入
+  aggregation key，并用length-prefixed `sourceID + path + name`生成collision-safe SwiftUI ID；
+  同名冲突时UI才显示中间截断的tilde path与完整hover文本。review随后指出两个split row仍会
+  视觉同名、以及test把`/Users/example`误当作固定非HOME路径；两项均在同一提交中修复，普通与
+  `CFFIXED_USER_HOME=/Users/example`两种环境各40项`SpendDashboardModelTests`通过，最终
+  commit review为0 finding。
+- 该UI新增行使三个provider architecture exact anchor顺延。完整gate在第56/77组稳定失败后，
+  没有接受新drift fingerprint，而是逐条把`PreferencesSpendDashboardPane`的254/365重定位到
+  264/375、`SpendDashboardModel`的808重定位到820；提交`c7b244dbb`后architecture 38项通过，
+  原reviewed drift count/fingerprint保持不变。随后从头重跑923 selections / 77 groups，全部
+  first-pass通过，0 retry / 0 timeout。
 
 ## Draft release工件
 
-- build commit：`34857a41c`；notary submission：
-  `4f9c891d-e75c-4477-bd08-d461551fee34`，status `Accepted`；
+- build commit：`c7b244dbb`；notary submission：
+  `5e20a449-eb85-4f41-9113-9410885a3fad`，status `Accepted`；
 - app：`0.52.0.1`，Sparkle/CFBundleVersion `124.1.1.21.0`，universal
   `arm64 + x86_64`，stapled ticket、`codesign --deep --strict`、`spctl`均通过；
-- ZIP为`69570094` bytes，SHA-256：
-  `7b2f913fed116f4474243f467adb6385471f598265dcafbad9ba970acc78dbfe`；dSYM为
-  `53834088` bytes，SHA-256：
-  `165c5ed680d7d0af2c24425a6ce031a4ff572ac2e4b0fe1ea318fc2ccad9048d`；
-- app/dSYM UUID一致：x86_64 `ED8F558A-AC4A-34DA-B5DF-C31E0A303EA2`，arm64
-  `7F0A6E73-E69D-3145-A7AE-190AFBBB6915`；
+- ZIP为`69578333` bytes，SHA-256：
+  `9b6f39899b3473db24349c8ee07b723a4d2ac93ad9b55b1a22319579de47f26a`；dSYM为
+  `53854621` bytes，SHA-256：
+  `4800d120e15d60a4443f245121dbcb620a18026a80e98c40947f48fb70040c5f`；
+- app/dSYM UUID一致：x86_64 `BAF595AF-C610-3A0A-9747-CF3633DE47EA`，arm64
+  `873BB4CC-FC1F-3A64-868D-C8D7A86D074A`；
 - draft release ID `372056029`，两个asset均为`uploaded`且GitHub digest/size回读与本地一致；
   readback后remote branch/tag仍不存在；
-- 临时candidate appcast位于`/tmp/codexbar-appcast-final.cGsavV`，完整candidate tag URL、length
-  `69570094`、Sparkle version `124.1.1.21.0`与EdDSA signature验证通过；repo
+- candidate appcast在detached `c7b244dbb`临时worktree生成并在验证后移除；完整candidate tag
+  URL、length `69578333`、Sparkle version `124.1.1.21.0`与EdDSA signature验证通过；repo
   `appcast.xml` hash仍为`e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`，
   未执行publication。
