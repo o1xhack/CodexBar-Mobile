@@ -26,14 +26,4 @@ public enum ModelFallbackPricing {
     public static func isCodexModelKnown(_ raw: String) -> Bool {
         CostUsagePricing.isCodexModelKnown(raw)
     }
-
-    /// `true` iff Codex pricing came from either an exact bundled row or an exact models.dev
-    /// lookup for the model's own route. Unlike `isCodexModelKnown`, this recognizes routed
-    /// Codex-compatible models without treating a family fallback as authoritative pricing.
-    public static func hasExactCodexPricing(
-        _ raw: String,
-        modelsDevCacheRoot: URL? = nil) -> Bool
-    {
-        CostUsagePricing.hasExactCodexPricing(raw, modelsDevCacheRoot: modelsDevCacheRoot)
-    }
 }

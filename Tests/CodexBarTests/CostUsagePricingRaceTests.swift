@@ -148,6 +148,53 @@ struct CostUsagePricingRaceTests {
 
         #expect(report.summary?.totalCostUSD == 42)
         #expect(report.data.first?.modelBreakdowns?.first?.costUSD == 42)
+        #expect(report.data.first?.modelBreakdowns?.first?.isEstimated == nil)
+    }
+
+    @Test
+    func `pricing provenance stays attached to the catalog used for the report`() throws {
+        let environment = try CostUsageTestEnvironment()
+        defer { environment.cleanup() }
+        let day = try environment.makeLocalNoon(year: 2026, month: 8, day: 7)
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        let dayKey = range.sinceKey
+        let model = "gpt-5.7"
+        let usage = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: Int64(day.timeIntervalSince1970 * 1000),
+            size: 1,
+            days: [dayKey: [model: [100, 0, 10]]],
+            parsedBytes: 1,
+            codexRows: [CostUsageScanner.CodexUsageRow(
+                day: dayKey,
+                model: model,
+                turnID: nil,
+                eventIndex: 0,
+                input: 100,
+                cached: 0,
+                output: 10)],
+            codexScanComplete: true)
+        var cache = CostUsageCache()
+        cache.files["/synthetic/fallback.jsonl"] = usage
+        cache.days = usage.days
+
+        let fallbackCatalog = ModelsDevCatalog(providers: [:])
+        let fallbackReport = CostUsageScanner.buildCodexReportFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCatalog: fallbackCatalog)
+        let fallbackBreakdown = try #require(fallbackReport.data.first?.modelBreakdowns?.first)
+        #expect(fallbackBreakdown.costUSD != nil)
+        #expect(fallbackBreakdown.isEstimated == true)
+
+        let exactCatalog = try Self.catalog(model: model, input: 9, output: 19, cacheRead: 0.9)
+        let exactReport = CostUsageScanner.buildCodexReportFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCatalog: exactCatalog)
+        #expect(exactReport.data.first?.modelBreakdowns?.first?.isEstimated == nil)
+
+        // A later catalog refresh must not relabel an amount that was already computed via fallback.
+        #expect(fallbackBreakdown.isEstimated == true)
     }
 
     fileprivate static func catalog(

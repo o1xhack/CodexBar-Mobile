@@ -87,6 +87,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var priorityCostUSD: Double?
         var standardTokens: Int?
         var priorityTokens: Int?
+        var isEstimated: Bool?
 
         init(_ breakdown: CostUsageDailyReport.ModelBreakdown) {
             self.modelName = breakdown.modelName
@@ -97,10 +98,22 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.priorityCostUSD = breakdown.priorityCostUSD
             self.standardTokens = breakdown.standardTokens
             self.priorityTokens = breakdown.priorityTokens
+            // Persist an explicit false for exact costs. A missing value then remains a reliable
+            // marker for predecessor payloads that predate pricing provenance.
+            self.isEstimated = breakdown.costUSD == nil ? nil : breakdown.isEstimated == true
         }
 
         var dailyReportValue: CostUsageDailyReport.ModelBreakdown {
-            CostUsageDailyReport.ModelBreakdown(
+            let restoredIsEstimated: Bool? = if self.costUSD == nil {
+                nil
+            } else if let isEstimated = self.isEstimated {
+                isEstimated ? true : nil
+            } else {
+                // Legacy cached costs cannot prove which catalog produced them. Treat them as
+                // estimated until the catch-up scan replaces the predecessor report.
+                true
+            }
+            return CostUsageDailyReport.ModelBreakdown(
                 modelName: self.modelName,
                 costUSD: self.costUSD,
                 totalTokens: self.totalTokens,
@@ -108,7 +121,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 standardCostUSD: self.standardCostUSD,
                 priorityCostUSD: self.priorityCostUSD,
                 standardTokens: self.standardTokens,
-                priorityTokens: self.priorityTokens)
+                priorityTokens: self.priorityTokens,
+                isEstimated: restoredIsEstimated)
         }
     }
 

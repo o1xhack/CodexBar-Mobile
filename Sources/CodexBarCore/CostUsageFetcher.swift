@@ -1296,6 +1296,7 @@ public struct CostUsageFetcher: Sendable {
         var sawTotalTokens = false
         var costUSD: Double = 0
         var sawCost = false
+        var hasEstimatedCost = false
 
         mutating func add(_ breakdown: CostUsageDailyReport.ModelBreakdown) {
             if let totalTokens = breakdown.totalTokens {
@@ -1306,13 +1307,15 @@ public struct CostUsageFetcher: Sendable {
                 self.costUSD += costUSD
                 self.sawCost = true
             }
+            self.hasEstimatedCost = self.hasEstimatedCost || breakdown.isEstimated == true
         }
 
         func build(modelName: String) -> CostUsageDailyReport.ModelBreakdown {
             CostUsageDailyReport.ModelBreakdown(
                 modelName: modelName,
                 costUSD: self.sawCost ? self.costUSD : nil,
-                totalTokens: self.sawTotalTokens ? self.totalTokens : nil)
+                totalTokens: self.sawTotalTokens ? self.totalTokens : nil,
+                isEstimated: self.hasEstimatedCost ? true : nil)
         }
     }
 

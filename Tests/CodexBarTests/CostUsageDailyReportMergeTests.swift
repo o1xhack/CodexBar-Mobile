@@ -53,7 +53,8 @@ struct CostUsageDailyReportMergeTests {
                             standardCostUSD: 0.25,
                             priorityCostUSD: 0.50,
                             standardTokens: 20,
-                            priorityTokens: 47),
+                            priorityTokens: 47,
+                            isEstimated: true),
                     ]),
             ],
             summary: CostUsageDailyReport.Summary(
@@ -80,7 +81,8 @@ struct CostUsageDailyReportMergeTests {
                 standardCostUSD: 1.0,
                 priorityCostUSD: 1.0,
                 standardTokens: 100,
-                priorityTokens: 97),
+                priorityTokens: 97,
+                isEstimated: true),
         ])
         #expect(merged.summary?.totalTokens == 197)
         #expect(abs((merged.summary?.totalCostUSD ?? 0) - 2.0) < 0.000001)

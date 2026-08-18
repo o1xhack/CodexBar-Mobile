@@ -885,20 +885,20 @@ enum CostUsagePricing {
         return self.codex[key] != nil
     }
 
-    /// Returns true when the model resolves to a concrete pricing row without using the
-    /// family-fallback ladder. Provider-qualified Codex-compatible routes are exact only when
-    /// their own models.dev provider contains the model; they must never inherit OpenAI pricing.
+    /// Returns true when the model resolves to a concrete pricing row in this immutable pricing
+    /// snapshot without using the family-fallback ladder. Provider-qualified Codex-compatible
+    /// routes are exact only when their own models.dev provider contains the model.
     static func hasExactCodexPricing(
         _ raw: String,
-        modelsDevCatalog: ModelsDevCatalog? = nil,
-        modelsDevCacheRoot: URL? = nil) -> Bool
+        modelsDevCatalog: ModelsDevCatalog?) -> Bool
     {
         let key = self.normalizeCodexModel(raw)
         guard key != self.codexUnattributedModel else { return false }
+        let immutableCatalog = modelsDevCatalog ?? ModelsDevCatalog(providers: [:])
         if self.codexModelsDevLookup(
             model: raw,
-            catalog: modelsDevCatalog,
-            cacheRoot: modelsDevCacheRoot) != nil
+            catalog: immutableCatalog,
+            cacheRoot: nil) != nil
         {
             return true
         }
@@ -1023,6 +1023,25 @@ enum CostUsagePricing {
 
     static func isClaudeModelKnown(_ raw: String) -> Bool {
         let key = self.normalizeClaudeModel(raw)
+        return self.claude[key] != nil
+    }
+
+    /// Returns true when Claude pricing resolves exactly in the same immutable catalog used to
+    /// compute the amount. Family fallbacks remain estimates even if a newer cache later appears.
+    static func hasExactClaudePricing(
+        _ raw: String,
+        modelsDevCatalog: ModelsDevCatalog?) -> Bool
+    {
+        let key = self.normalizeClaudeModel(raw)
+        let immutableCatalog = modelsDevCatalog ?? ModelsDevCatalog(providers: [:])
+        if self.modelsDevLookup(
+            providerID: self.claudeModelsDevProviderID,
+            model: raw,
+            catalog: immutableCatalog,
+            cacheRoot: nil) != nil
+        {
+            return true
+        }
         return self.claude[key] != nil
     }
 

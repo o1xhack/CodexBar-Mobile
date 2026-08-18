@@ -216,6 +216,7 @@ extension CostUsageScanner {
         var sawStandardTokens = false
         var priorityTokens = 0
         var sawPriorityTokens = false
+        var hasEstimatedCost = false
 
         mutating func add(_ breakdown: CostUsageDailyReport.ModelBreakdown) {
             if let totalTokens = breakdown.totalTokens {
@@ -242,6 +243,7 @@ extension CostUsageScanner {
                 self.priorityTokens += priorityTokens
                 self.sawPriorityTokens = true
             }
+            self.hasEstimatedCost = self.hasEstimatedCost || breakdown.isEstimated == true
         }
 
         func build(modelName: String) -> CostUsageDailyReport.ModelBreakdown {
@@ -252,7 +254,8 @@ extension CostUsageScanner {
                 standardCostUSD: self.sawStandardCost ? self.standardCostUSD : nil,
                 priorityCostUSD: self.sawPriorityCost ? self.priorityCostUSD : nil,
                 standardTokens: self.sawStandardTokens ? self.standardTokens : nil,
-                priorityTokens: self.sawPriorityTokens ? self.priorityTokens : nil)
+                priorityTokens: self.sawPriorityTokens ? self.priorityTokens : nil,
+                isEstimated: self.hasEstimatedCost ? true : nil)
         }
     }
 

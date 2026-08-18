@@ -122,12 +122,10 @@ struct CostUsagePricingTests {
         #expect(opencodeFree == 0)
         #expect(kimi == 0)
         #expect(deepseek == (100.0 * 0.14e-6) + (5.0 * 0.28e-6))
+        let catalog = try #require(ModelsDevCache.load(cacheRoot: root).artifact?.catalog)
         #expect(CostUsagePricing.hasExactCodexPricing(
             "opencode-go/deepseek-v4-flash",
-            modelsDevCacheRoot: root))
-        #expect(ModelFallbackPricing.hasExactCodexPricing(
-            "opencode-go/deepseek-v4-flash",
-            modelsDevCacheRoot: root))
+            modelsDevCatalog: catalog))
         #expect(!CostUsagePricing.isCodexModelKnown("opencode-go/deepseek-v4-flash"))
     }
 
@@ -164,9 +162,10 @@ struct CostUsagePricingTests {
             modelsDevCacheRoot: root)
 
         #expect(cost == nil)
-        #expect(!ModelFallbackPricing.hasExactCodexPricing(
+        let catalog = try #require(ModelsDevCache.load(cacheRoot: root).artifact?.catalog)
+        #expect(!CostUsagePricing.hasExactCodexPricing(
             "unlisted-route/deepseek-v4-flash",
-            modelsDevCacheRoot: root))
+            modelsDevCatalog: catalog))
     }
 
     @Test

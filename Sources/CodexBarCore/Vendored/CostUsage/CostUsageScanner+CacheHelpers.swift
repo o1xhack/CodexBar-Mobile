@@ -103,102 +103,6 @@ extension CostUsageScanner {
         return out
     }
 
-    struct CodexRowCostBreakdown {
-        var standardCostUSD: Double = 0
-        var priorityCostUSD: Double = 0
-        var standardTokens: Int = 0
-        var priorityTokens: Int = 0
-        var sawStandardCost = false
-        var sawPriorityCost = false
-        var hasUnstableTokenRows = false
-        var hasTokenOverflow = false
-        var hasIncompletePricing = false
-
-        var optionalStandardCostUSD: Double? {
-            self.sawStandardCost ? self.standardCostUSD : nil
-        }
-
-        var optionalPriorityCostUSD: Double? {
-            self.sawPriorityCost ? self.priorityCostUSD : nil
-        }
-
-        var optionalStandardTokens: Int? {
-            self.standardTokens > 0 ? self.standardTokens : nil
-        }
-
-        var optionalPriorityTokens: Int? {
-            self.priorityTokens > 0 ? self.priorityTokens : nil
-        }
-
-        var totalCostUSD: Double? {
-            guard self.sawStandardCost || self.sawPriorityCost else { return nil }
-            return self.standardCostUSD + self.priorityCostUSD
-        }
-
-        var hasModeSplit: Bool {
-            self.sawPriorityCost || self.priorityTokens > 0
-        }
-
-        func isTrusted(canonicalTotalTokens: Int) -> Bool {
-            let (rowTokenTotal, overflow) = self.standardTokens.addingReportingOverflow(self.priorityTokens)
-            return !self.hasUnstableTokenRows
-                && !self.hasTokenOverflow
-                && !self.hasIncompletePricing
-                && !overflow
-                && rowTokenTotal == canonicalTotalTokens
-        }
-    }
-
-    static func codexRowCostBreakdown(
-        rows: [CodexUsageRow],
-        priorityTurns: [String: CodexPriorityTurnMetadata],
-        modelsDevCatalog: ModelsDevCatalog?,
-        modelsDevCacheRoot: URL?) -> CodexRowCostBreakdown
-    {
-        var breakdown = CodexRowCostBreakdown()
-        for row in rows {
-            let (tokenCount, tokenOverflow) = max(0, row.input).addingReportingOverflow(max(0, row.output))
-            let hasTokens = row.input > 0 || row.cached > 0 || row.output > 0
-            if tokenOverflow {
-                breakdown.hasTokenOverflow = true
-            }
-            if hasTokens, row.eventIndex == nil {
-                breakdown.hasUnstableTokenRows = true
-            }
-            if (row.unpricedTokens ?? 0) > 0 {
-                breakdown.hasIncompletePricing = true
-            }
-            let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
-            let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
-            if isPriority {
-                let (total, overflow) = breakdown.priorityTokens.addingReportingOverflow(tokenCount)
-                breakdown.priorityTokens = overflow ? breakdown.priorityTokens : total
-                breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
-            } else {
-                let (total, overflow) = breakdown.standardTokens.addingReportingOverflow(tokenCount)
-                breakdown.standardTokens = overflow ? breakdown.standardTokens : total
-                breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
-            }
-            guard let cost = self.codexResolvedCostUSD(
-                for: row,
-                priorityTurns: priorityTurns,
-                modelsDevCatalog: modelsDevCatalog,
-                modelsDevCacheRoot: modelsDevCacheRoot)
-            else {
-                breakdown.hasIncompletePricing = breakdown.hasIncompletePricing || hasTokens
-                continue
-            }
-            if isPriority {
-                breakdown.priorityCostUSD += cost
-                breakdown.sawPriorityCost = true
-            } else {
-                breakdown.standardCostUSD += cost
-                breakdown.sawStandardCost = true
-            }
-        }
-        return breakdown
-    }
-
     // MARK: - File cache construction
 
     static func makeFileUsage(
@@ -1394,6 +1298,9 @@ extension CostUsageScanner {
         let catalogResolver = CodexModelsDevCatalogResolver(
             catalog: modelsDevCatalog,
             cacheRoot: modelsDevCacheRoot)
+        // Resolve once for the entire report. The computed amount and its provenance must use the
+        // same immutable snapshot even if models.dev refreshes while sync is still in progress.
+        let pricingCatalog = catalogResolver.load(modelsDevCatalogLoader)
         var reportCache = cache
         for (path, usage) in cache.files where self.needsCodexPricingMetadata(usage, range: range) {
             reportCache.files[path] = self.codexFileUsageWithPricingMetadata(
@@ -1426,7 +1333,7 @@ extension CostUsageScanner {
                 usage: usage,
                 range: range,
                 priorityTurns: priorityTurns,
-                modelsDevCatalog: catalogResolver.load(modelsDevCatalogLoader),
+                modelsDevCatalog: pricingCatalog,
                 modelsDevCacheRoot: modelsDevCacheRoot))
             for row in usage.codexRows ?? [] where (row.knownCostNanos ?? 0) != 0 {
                 authoritativeCostEvidenceGroups.insert(CodexDayModelKey(day: row.day, model: row.model))
@@ -1466,7 +1373,7 @@ extension CostUsageScanner {
                 let rowCost = rows.isEmpty ? nil : Self.codexRowCostBreakdown(
                     rows: rows,
                     priorityTurns: priorityTurns,
-                    modelsDevCatalog: catalogResolver.load(modelsDevCatalogLoader),
+                    modelsDevCatalog: pricingCatalog,
                     modelsDevCacheRoot: modelsDevCacheRoot)
                 let group = CodexDayModelKey(day: day, model: model)
                 let rowCostIsTrusted = !unresolvedRowGroups.contains(group)
@@ -1482,12 +1389,18 @@ extension CostUsageScanner {
                         inputTokens: input,
                         cachedInputTokens: cached,
                         outputTokens: output,
-                        modelsDevCatalog: catalogResolver.load(modelsDevCatalogLoader),
+                        modelsDevCatalog: pricingCatalog,
                         modelsDevCacheRoot: modelsDevCacheRoot)
                 let cost = rowCostIsTrusted
                     ? rowCost?.totalCostUSD ?? aggregateCost
                     : aggregateCost
                 let hasModeSplit = rowCostIsTrusted && rowCost?.hasModeSplit == true
+                let isEstimated = self.codexPricingIsEstimated(
+                    model: model,
+                    cost: cost,
+                    rowCost: rowCost,
+                    rowCostIsTrusted: rowCostIsTrusted,
+                    modelsDevCatalog: pricingCatalog)
                 breakdown.append(
                     CostUsageDailyReport.ModelBreakdown(
                         modelName: model,
@@ -1496,7 +1409,8 @@ extension CostUsageScanner {
                         standardCostUSD: hasModeSplit ? rowCost?.optionalStandardCostUSD : nil,
                         priorityCostUSD: hasModeSplit ? rowCost?.optionalPriorityCostUSD : nil,
                         standardTokens: hasModeSplit ? rowCost?.optionalStandardTokens : nil,
-                        priorityTokens: hasModeSplit ? rowCost?.optionalPriorityTokens : nil))
+                        priorityTokens: hasModeSplit ? rowCost?.optionalPriorityTokens : nil,
+                        isEstimated: isEstimated ? true : nil))
                 if let cost {
                     dayCost += cost
                     dayCostSeen = true

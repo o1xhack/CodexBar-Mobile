@@ -298,6 +298,10 @@ public struct CostUsageDailyReport: Sendable, Decodable {
         public let priorityCostUSD: Double?
         public let standardTokens: Int?
         public let priorityTokens: Int?
+        /// True only when this amount was computed through a family fallback rather than an
+        /// exact bundled or models.dev pricing row. Kept with the computed amount so later sync
+        /// stages never have to infer provenance from a mutable pricing catalog.
+        public let isEstimated: Bool?
 
         private enum CodingKeys: String, CodingKey {
             case modelName
@@ -310,6 +314,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             case priorityCostUSD
             case standardTokens
             case priorityTokens
+            case isEstimated
         }
 
         public init(from decoder: Decoder) throws {
@@ -326,6 +331,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.priorityCostUSD = try container.decodeIfPresent(Double.self, forKey: .priorityCostUSD)
             self.standardTokens = try container.decodeIfPresent(Int.self, forKey: .standardTokens)
             self.priorityTokens = try container.decodeIfPresent(Int.self, forKey: .priorityTokens)
+            self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
         }
 
         public init(
@@ -336,7 +342,8 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             standardCostUSD: Double? = nil,
             priorityCostUSD: Double? = nil,
             standardTokens: Int? = nil,
-            priorityTokens: Int? = nil)
+            priorityTokens: Int? = nil,
+            isEstimated: Bool? = nil)
         {
             self.modelName = modelName
             self.costUSD = costUSD
@@ -346,6 +353,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.priorityCostUSD = priorityCostUSD
             self.standardTokens = standardTokens
             self.priorityTokens = priorityTokens
+            self.isEstimated = isEstimated
         }
     }
 
@@ -556,6 +564,7 @@ extension CostUsageDailyReport {
         var sawStandardTokens = false
         var priorityTokens: Int = 0
         var sawPriorityTokens = false
+        var hasEstimatedCost = false
 
         mutating func add(_ breakdown: ModelBreakdown) {
             if let totalTokens = breakdown.totalTokens {
@@ -582,6 +591,7 @@ extension CostUsageDailyReport {
                 self.priorityTokens += priorityTokens
                 self.sawPriorityTokens = true
             }
+            self.hasEstimatedCost = self.hasEstimatedCost || breakdown.isEstimated == true
         }
 
         func build(modelName: String) -> ModelBreakdown {
@@ -592,7 +602,8 @@ extension CostUsageDailyReport {
                 standardCostUSD: self.sawStandardCost ? self.standardCostUSD : nil,
                 priorityCostUSD: self.sawPriorityCost ? self.priorityCostUSD : nil,
                 standardTokens: self.sawStandardTokens ? self.standardTokens : nil,
-                priorityTokens: self.sawPriorityTokens ? self.priorityTokens : nil)
+                priorityTokens: self.sawPriorityTokens ? self.priorityTokens : nil,
+                isEstimated: self.hasEstimatedCost ? true : nil)
         }
     }
 

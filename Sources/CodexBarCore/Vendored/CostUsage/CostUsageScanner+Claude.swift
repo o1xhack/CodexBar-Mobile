@@ -22,6 +22,7 @@ extension CostUsageScanner {
         var total: Double = 0
         var sampleCount: Int = 0
         var unresolved = false
+        var hasEstimatedPricing = false
     }
 
     static func defaultClaudeProjectsRoots(
@@ -923,6 +924,10 @@ extension CostUsageScanner {
             }
             if let cost {
                 aggregate.total += cost
+                aggregate.hasEstimatedPricing = aggregate.hasEstimatedPricing
+                    || !CostUsagePricing.hasExactClaudePricing(
+                        row.model,
+                        modelsDevCatalog: modelsDevCatalog)
             } else {
                 aggregate.unresolved = true
             }
@@ -975,7 +980,8 @@ extension CostUsageScanner {
                     CostUsageDailyReport.ModelBreakdown(
                         modelName: model,
                         costUSD: cost,
-                        totalTokens: totalTokens))
+                        totalTokens: totalTokens,
+                        isEstimated: cost != nil && repricedCost?.hasEstimatedPricing == true ? true : nil))
                 if let cost {
                     dayCost += cost
                     dayCostSeen = true

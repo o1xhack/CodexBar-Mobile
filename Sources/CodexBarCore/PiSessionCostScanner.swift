@@ -61,7 +61,7 @@ enum PiSessionCostScanner {
     }
 
     private struct ModelsDevPricingContext {
-        let catalog: ModelsDevCatalog?
+        let catalog: ModelsDevCatalog
         let cacheRoot: URL?
         let pricingKey: String
     }
@@ -250,7 +250,7 @@ enum PiSessionCostScanner {
     private static func pricingContext(now: Date, cacheRoot: URL?) -> ModelsDevPricingContext {
         let modelsDevArtifact = ModelsDevCache.load(now: now, cacheRoot: cacheRoot).artifact
         return ModelsDevPricingContext(
-            catalog: modelsDevArtifact?.catalog,
+            catalog: modelsDevArtifact?.catalog ?? ModelsDevCatalog(providers: [:]),
             cacheRoot: cacheRoot,
             pricingKey: CostUsagePricingKey.codex(
                 modelsDevArtifact: modelsDevArtifact,
@@ -941,10 +941,23 @@ extension PiSessionCostScanner {
                 let costNanos = hasCompleteCachedCost
                     ? packed.costNanos
                     : currentPricingCost.map { Int64(($0 * self.costScale).rounded()) }
+                let hasExactPricing = switch provider {
+                case .codex:
+                    CostUsagePricing.hasExactCodexPricing(
+                        modelName,
+                        modelsDevCatalog: pricingContext?.catalog)
+                case .claude:
+                    CostUsagePricing.hasExactClaudePricing(
+                        modelName,
+                        modelsDevCatalog: pricingContext?.catalog)
+                default:
+                    true
+                }
                 breakdown.append(CostUsageDailyReport.ModelBreakdown(
                     modelName: modelName,
                     costUSD: costNanos.map { Double($0) / Self.costScale },
-                    totalTokens: modelTotalTokens > 0 ? modelTotalTokens : nil))
+                    totalTokens: modelTotalTokens > 0 ? modelTotalTokens : nil,
+                    isEstimated: costNanos != nil && !hasExactPricing ? true : nil))
                 dayInput += packed.inputTokens
                 dayOutput += packed.outputTokens
                 dayCacheRead += packed.cacheReadTokens
