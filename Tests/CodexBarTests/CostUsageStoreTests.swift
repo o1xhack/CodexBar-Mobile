@@ -1006,6 +1006,7 @@ extension CostUsageStoreTests {
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
             "1bd2d8ec2fd2dcf2",
+            "834522608c1b0457",
             "98da5914d2f6a9cd",
             "43609cc56f76a003",
             "b975eb705f905b9a",
@@ -1122,10 +1123,12 @@ extension CostUsageStoreTests {
     }
 
     @Test
-    func `v0_49_2 parser hash upgrades without rebuilding completed files`() async throws {
+    func `published v0_49_2_1 parser hash upgrades without rebuilding completed files`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
-        let previousParserHash = "b975eb705f905b9a"
+        // Keep this pinned to the generated hash from the actual published release tag, not a
+        // nearby development producer: users reach this upgrade from the shipped cache marker.
+        let previousParserHash = "834522608c1b0457"
         let previousSchemaVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: previousParserHash)
