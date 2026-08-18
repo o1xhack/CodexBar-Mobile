@@ -1,6 +1,6 @@
 # v0.52.0 Upstream Sync + iOS 1.21.0 概览
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-17
 Branch: `upstream-sync/v0.52.0-mobile.1.21.0`
 
@@ -19,6 +19,13 @@ Goal 启动时上游已正式发布尚无 monitor issue 的
 `124.1.1.21.0`，candidate tag `v0.52.0.1-mobile.1.21.0`。iOS `MARKETING_VERSION`
 继续使用尚未完成 public release 的 `1.21.0`；本轮新增内容合并进既有 1.21.0 release
 notes block，只增加 `CURRENT_PROJECT_VERSION`，不创建 1.22.0。
+
+本轮已在目标分支完成 merge、Mac/Shared/iOS integration、Mac 与 iOS 测试、CloudKit
+Production schema 审计、16-case substituted compatibility gate、循环 review、Developer ID
+签名与 Apple notarization，并创建仅 draft 的 GitHub release：
+[`CodexBar 0.52.0.1-Mobile 1.21.0`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)。
+没有 push branch、merge、创建/推送 tag、发布 live release、更新 live appcast、上传 TestFlight
+或执行 CloudKit deploy；issues #82–#88 留待最终 merge/publication 后再关闭。
 
 ## 分支证据
 
@@ -131,4 +138,3 @@ predicate 或 `providerPayloadVersion` bump，结论升级为 `DEPLOY_REQUIRED` 
 - P1：same-version iOS notes 被错误拆成 1.22.0 或重复 1.21.0 block；
 - P2：16-case matrix 若只能 substituted，真实 silent push、CloudKit propagation、background
   convergence 与旧 binary 行为仍有硬件残余风险。
-

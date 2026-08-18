@@ -1,6 +1,6 @@
 # v0.52.0 Upstream Sync 设计
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-17
 
 ## 设计决策
@@ -93,4 +93,3 @@ CloudKit与release pipeline，因此 train首发为 `.1`。iOS按用户要求不
 - 16-case matrix全部列出；硬件不可得时必须用 old/new fixture、dual-writer reducer、cache/delete/
   ghost、simulator与代码审计 substitution，并写剩余风险；
 - 每个 merge/bridge/iOS/release阶段自查 diff与独立 code review能力，修复后复测直至 blocker 0。
-

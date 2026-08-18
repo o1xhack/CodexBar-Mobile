@@ -1,6 +1,6 @@
 # v0.52.0 Upstream Sync 测试证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-17
 
 ## 版本与范围
@@ -15,18 +15,86 @@ Date: 2026-08-17
 
 | Gate | 结果 | Evidence / Notes |
 |---|---|---|
-| Merge provenance / fork conflict audit | pending | `v0.52.0` merge parent、14 conflict paths/types |
-| Mac build + lint + full tests | pending | — |
-| Provider/cost/keychain/PTY/settings/sync focused regression | pending | — |
-| Parser fingerprint/hash | pending | — |
-| Packaged signed/notarized candidate | pending | — |
-| codesign / spctl / CLI / launch smoke | pending | — |
-| iOS build + full tests | pending | — |
-| Widget/cost/provider display parity | pending | — |
-| Four-language localization | pending | — |
-| CloudKit Production schema audit | pending | expected `NO_DEPLOY` |
-| Draft release asset/readback | pending | no live publish/tag/appcast |
-| Final review blockers | pending | target 0 |
+| Merge provenance / fork conflict audit | pass | merge `25f81f26f`；upstream parent/tag peel `dc3ea3206c...`；14 conflicts逐项记录在`02-development.md` |
+| Mac build + lint + full tests | pass | `swift build`；final lint：SwiftFormat 1965 files / 0 formatting、SwiftLint 1964 files / 0 violations、i18n 302 keys全覆盖；post-review CI-style grouped gate 923 selections / 77 groups全部首轮成功，0 failed / 0 retry / 0 timeout |
+| Provider/cost/keychain/PTY/settings/sync focused regression | pass | pre-1.2/v0.26/v0.27/v0.29/v0.30/v0.37 wire、fleet/Mobile、多账号138 tests；architecture 38；UsageStore 34；bounded cost 10；Kiro/PTY 57，全部0 failed |
+| Parser fingerprint/hash | pass | `parserLogicVersion=12`；final `CodexParserHash=a5a0cf92c6361f6e`；architecture 38 tests与lint audit通过 |
+| Packaged signed/notarized candidate | pass | notary `312da05a-decd-4183-805d-d82b1fb397e7` Accepted；stapled ZIP 66 MB，SHA-256 `cd66a77e...d9c`；dSYM 51 MB，SHA-256 `ffa64b40...112` |
+| codesign / spctl / CLI / launch smoke | pass | extracted release ZIP：Developer ID、deep strict verify、Gatekeeper Notarized Developer ID、stapler validate、Production entitlement、universal main/CLI/widget、direct launch均通过；embedded commit `c07a49caf` |
+| iOS build + full tests | pass | `xcodegen generate`；Release simulator build成功；signed iPhone 16e / iOS 26.2 Simulator完整`CodexBarMobileTests` 633 tests、0 failed |
+| Widget/cost/provider display parity | pass | CloudKit merge、dual-zone、widget、device lifecycle、cache、multi-account、provider labels focused 110 tests、0 failed |
+| Four-language localization | pass | `jq empty`；i18n 302 source keys present；en/zh-Hans/zh-Hant/ja均translated |
+| CloudKit Production schema audit | pass — `NO_DEPLOY` | last live tag `v0.49.2.1-mobile.1.21.0`到candidate：CloudConstants零diff、UsageSnapshot public fields零diff、schema keyword零source hit；Production readback仍10 types |
+| Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69570276` bytes、dSYM `53834275` bytes均uploaded；remote tag不存在，live appcast未改 |
+| Final review blockers | pass | pricing commit `864e4df63` clean；architecture commit `11026c86b`的唯一P2由`c07a49caf`修复；fix commit复审clean；blocker 0 |
+
+首轮CI-style grouped gate执行`CODEXBAR_TEST_GROUP_SIZE=12
+CODEXBAR_TEST_SUITE_TIMEOUT=240 bash Scripts/test.sh`：发现923个selection、77组，全部first-pass
+成功，0 failure / 0 retry / 0 timeout，execution 739.4s / total 745.8s。唯一skip为需要显式设置
+`CODEXBAR_ACCENT_SCREENSHOT_DIR`的截图渲染fixture；provider accent逻辑、配置、refresh revision
+tests均实际运行通过。首轮全分支Codex review的唯一P2（routed exact pricing被误标estimated）已
+修复；63个`CostUsagePricingTests`与`SyncCostIsEstimatedTests`通过，lint随之要求并完成parser
+hash重生。最终post-fix grouped gate重新发现923个selection并完成77组：77 first-pass success、
+0 first-pass failure、0 full-group retry、0 timeout、0 isolated retry，discovery 65.5s、execution
+749.3s、total 814.8s。review提出的comment-only predecessor迁移P2修复后，失败用例隔离
+`--no-parallel`通过，完整`CostUsageStoreTests` 75 tests与architecture 38 tests均通过。
+
+首次iOS focused test曾用`CODE_SIGNING_ALLOWED=NO`，runner在bootstrap前因CloudKit/KVS
+entitlement缺失退出，0个断言执行；这不是产品失败。改用正常Simulator签名后focused与full tests
+均通过。Release simulator build可在无签名模式产出，但所有运行型sync测试使用正常签名产物。
+
+## CloudKit Production schema审计
+
+基线由GitHub published release只读查询确定为`v0.49.2.1-mobile.1.21.0`。执行文档定义的三组
+diff audit后，排除Research文案的source结果均为空：
+
+- `Shared/iCloud/CloudConstants.swift`：零diff；
+- `Shared/Models/UsageSnapshot.swift`：无新增/删除`public let`；
+- 无新增record type、field、index、zone、subscription、query、encoding version或
+  `providerPayloadVersion` bump；
+- Mac package与iOS entitlement均明确
+  `com.apple.developer.icloud-container-environment = Production`。
+
+只读执行`xcrun cktool export-schema --team-id 3TUERHN53E --container-id
+iCloud.com.o1xhack.codexbar --environment production`成功，回读5829 bytes，仍为既有10 types：
+`AccountSnapshot`、`Device`、`DeviceLifecycleEvent`、`DeviceProviderSnapshot`、
+`DeviceSnapshot`、`Preferences`、`ProviderAccountLinkage`、`ProviderIntent`、
+`QuotaTransition`、`Users`。因此结论是`NO_DEPLOY`，未执行任何CloudKit deploy。
+
+## 签名、公证、draft与Sparkle证据
+
+- `./Scripts/sign-and-notarize.sh`完成双架构production build、widget extension、deep signing、
+  offline resource/launch smoke、Apple notarization与stapling；submission
+  `312da05a-decd-4183-805d-d82b1fb397e7`为`Accepted`；
+- 从最终release ZIP重新解压验证，`xcrun stapler validate`、`spctl --assess`、
+  `codesign --verify --deep --strict`全部成功；Info.plist为`0.52.0.1 / 124.1.1.21.0`、
+  embedded commit `c07a49caf`，CloudKit environment仍为Production；
+- app/dSYM两架构UUID逐一相同；asset SHA-256与GitHub draft readback size记录在
+  `02-development.md`；
+- GitHub draft保持`draft=true`、`prerelease=false`，tag name为
+  `v0.52.0.1-mobile.1.21.0`但remote Git ref不存在；没有live publication；
+- candidate appcast只在`/tmp`生成，enclosure URL使用完整candidate tag，length
+  `69570276`、Sparkle version `124.1.1.21.0`、EdDSA signature均验证成功；repo live
+  `appcast.xml` hash保持不变。
+
+## compatibility substitution evidence
+
+本机无法提供2台Mac与2台iPhone、并对4台设备反复安装old/new binaries；16行不能标成实机
+pass。以下替代证据组合用于每行：
+
+- **S1 — old/new wire + writers（138 tests）**：`SyncWireFormatRoundTripTests`、v0.26/
+  v0.27/v0.29/v0.30/v0.37 old fixtures、`CloudSyncSettingsTests`、
+  `SyncCoordinatorMobileBridgeTests`、`SyncCoordinatorMultiAccountTests`、
+  `SyncMultiAccountEdgeCasesTests`、`AccountIdentityComputerTests`；serial，0 failed。
+- **S2 — independent readers/merge/cache（110 tests）**：iOS `CloudKitMergeTests`、
+  `DualZoneReaderTests`、`DeviceLifecycleEventTests`、`WidgetSnapshotBuilderTests`、
+  `ViewCacheIdentityTests`、`MultiAccountForEachIdentityTests`、provider label tests；0 failed。
+- **S3 — all-new consumer regression（633 tests）**：完整iOS test target在signed iPhone 16e /
+  iOS 26.2 Simulator运行，0 failed。
+- **S4 — lifecycle/producer audit**：AppDelegate start/stop test、Mobile bridge tests、
+  `providerPayloadVersion=1`、Shared/CloudConstants零diff、project/session path不在Mobile producer。
+- **S5 — server contract**：Production schema只读回读10 types，candidate无schema diff，
+  `NO_DEPLOY`。
 
 ## 2 Mac × 2 iPhone old/new compatibility matrix
 
@@ -35,22 +103,22 @@ rendering有变化，因此 gate适用。每一行后续必须填 pass/fail/subs
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
-| 1 | old | old | old | old | pending | — | published baseline control |
-| 2 | old | old | old | new | pending | — | new reader / old writers |
-| 3 | old | old | new | old | pending | — | independent iPhone caches |
-| 4 | old | old | new | new | pending | — | new readers / old writers |
-| 5 | old | new | old | old | pending | — | mixed writers / old readers |
-| 6 | old | new | old | new | pending | — | mixed all roles |
-| 7 | old | new | new | old | pending | — | mixed all roles reversed readers |
-| 8 | old | new | new | new | pending | — | mixed writers / new readers |
-| 9 | new | old | old | old | pending | — | writer order reversed |
-| 10 | new | old | old | new | pending | — | writer/reader asymmetry |
-| 11 | new | old | new | old | pending | — | writer/reader asymmetry reversed |
-| 12 | new | old | new | new | pending | — | mixed writers / new readers |
-| 13 | new | new | old | old | pending | — | new payload / old readers |
-| 14 | new | new | old | new | pending | — | independent reader versions |
-| 15 | new | new | new | old | pending | — | independent reader versions reversed |
-| 16 | new | new | new | new | pending | — | all-new convergence |
+| 1 | old | old | old | old | substituted | S1 old fixtures + S5 | published-format control；无四实机重放 |
+| 2 | old | old | old | new | substituted | S1 + S2 + S3 | new reader解old payload；silent push未实测 |
+| 3 | old | old | new | old | substituted | S1 + S2 | 两reader cache路径分离；第二iPhone未实测 |
+| 4 | old | old | new | new | substituted | S1 + S2 + S3 | new readers merge old writers；真实传播未实测 |
+| 5 | old | new | old | old | substituted | S1 + S4 + S5 | mixed writer/delete/identity；old binary硬件未实测 |
+| 6 | old | new | old | new | substituted | S1 + S2 + S4 | 全角色混合；background delivery未实测 |
+| 7 | old | new | new | old | substituted | S1 + S2 + S4 | reader顺序反转由deterministic merge覆盖 |
+| 8 | old | new | new | new | substituted | S1 + S2 + S3 + S4 | mixed writer/new readers；真实push未实测 |
+| 9 | new | old | old | old | substituted | S1 + S4 + S5 | writer顺序反转由device-ID/timestamp tests覆盖 |
+| 10 | new | old | old | new | substituted | S1 + S2 + S4 | 非对称reader；第二实机未实测 |
+| 11 | new | old | new | old | substituted | S1 + S2 + S4 | 非对称reader反转；第二实机未实测 |
+| 12 | new | old | new | new | substituted | S1 + S2 + S3 + S4 | mixed writers/new readers；真实传播未实测 |
+| 13 | new | new | old | old | substituted | S1 + S4 + S5 | new producer复用旧wire；old iOS binary未实测 |
+| 14 | new | new | old | new | substituted | S1 + S2 + S3 + S4 | reader版本独立；silent push未实测 |
+| 15 | new | new | new | old | substituted | S1 + S2 + S3 + S4 | reader版本反转；silent push未实测 |
+| 16 | new | new | new | new | substituted | S1 + S2 + S3 + S4 + S5 | all-new simulator/fixture convergence；四实机未实测 |
 
 ## 每个 case 的验收语义
 
@@ -70,3 +138,7 @@ rendering有变化，因此 gate适用。每一行后续必须填 pass/fail/subs
    simulator或代码审计路径；
 3. silent push、真实Production传播、background delivery与旧binary行为的剩余用户风险。
 
+本轮16行全部完成substitution，未发现功能/serialization/schema blocker。gate结论为
+**substituted pass**，不是real-device pass。剩余风险集中在真实Production CloudKit传播延迟、
+silent push与background delivery、两个独立iPhone cache最终收敛，以及old iOS 193 binary读取
+new Mac producer的真实设备行为；这些风险在live/TestFlight授权前无法消除，不被伪装成已实测。
