@@ -127,6 +127,9 @@ Date: 2026-08-17
   Factory/Alibaba、Cursor等实际已分裂的cluster拆成独立精确条目。最终reviewed fork-only drift
   从261项收敛为83项并锁定新排序fingerprint；提交`90c687939`后architecture 38项通过，完整
   lint通过，再从头跑923 selections / 77 groups，全部first-pass通过，0 retry / 0 timeout。
+- 最终`codex review --base mobile-dev`重新审计完整branch diff与fork lifecycle、sync、pricing、
+  cache、project aggregation路径，并运行focused checks；正式verdict为
+  `No actionable regressions were identified in the diff`，blocker保持0。
 
 ## Draft release工件
 

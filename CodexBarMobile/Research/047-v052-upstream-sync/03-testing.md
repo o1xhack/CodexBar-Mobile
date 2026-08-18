@@ -26,7 +26,7 @@ Date: 2026-08-17
 | Four-language localization | pass | `jq empty`；i18n 302 source keys present；en/zh-Hans/zh-Hant/ja均translated |
 | CloudKit Production schema audit | pass — `NO_DEPLOY` | last live tag `v0.49.2.1-mobile.1.21.0`到candidate：CloudConstants零diff、UsageSnapshot public fields零diff、schema keyword零source hit；Production readback仍10 types |
 | Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69578142` bytes、dSYM `53855298` bytes均uploaded且digest匹配；remote branch/tag不存在，live appcast未改 |
-| Final review blockers | pass | pricing provenance、published-tag cache迁移、same-name project identity/UI、multi-account attribution findings均修复并复审clean；architecture exact anchors由混杂261项收敛为reviewed 83项；当前blocker 0 |
+| Final review blockers | pass | pricing provenance、published-tag cache迁移、same-name project identity/UI、multi-account attribution findings均修复并复审clean；architecture exact anchors由混杂261项收敛为reviewed 83项；最终whole-branch review为`No actionable regressions`，当前blocker 0 |
 
 首轮CI-style grouped gate执行`CODEXBAR_TEST_GROUP_SIZE=12
 CODEXBAR_TEST_SUITE_TIMEOUT=240 bash Scripts/test.sh`：发现923个selection、77组，全部first-pass
