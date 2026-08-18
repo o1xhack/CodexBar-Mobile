@@ -63,7 +63,12 @@ struct SpendDashboardModel: Equatable, Sendable {
         let totalCost: Double?
 
         var id: String {
-            "\(self.sourceID):\(self.projectName)"
+            // Length-prefix every component so separators inside account IDs, paths, or names
+            // cannot collide. The canonical path distinguishes same-named repositories.
+            let path = self.path ?? ""
+            return "\(self.sourceID.utf8.count):\(self.sourceID)|"
+                + "\(path.utf8.count):\(path)|"
+                + "\(self.projectName.utf8.count):\(self.projectName)"
         }
     }
 
@@ -380,6 +385,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         struct Key: Hashable {
             let sourceID: String
             let name: String
+            let path: String?
         }
 
         struct Accumulator {
@@ -402,11 +408,11 @@ struct SpendDashboardModel: Equatable, Sendable {
             for project in input.snapshot.projects {
                 let name = project.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty else { continue }
-                let key = Key(sourceID: input.id, name: name)
+                let key = Key(sourceID: input.id, name: name, path: project.path)
                 var aggregate = aggregates[key] ?? Accumulator(
                     provider: input.provider,
                     providerName: input.modelProviderName,
-                    path: project.path,
+                    path: key.path,
                     tokens: 0,
                     cost: 0)
                 for entry in project.daily {
@@ -467,7 +473,13 @@ struct SpendDashboardModel: Equatable, Sendable {
                     if lhs.providerName != rhs.providerName {
                         return lhs.providerName < rhs.providerName
                     }
-                    return lhs.projectName < rhs.projectName
+                    if lhs.projectName != rhs.projectName {
+                        return lhs.projectName < rhs.projectName
+                    }
+                    if lhs.path != rhs.path {
+                        return (lhs.path ?? "") < (rhs.path ?? "")
+                    }
+                    return lhs.sourceID < rhs.sourceID
                 }
             }
             .enumerated()

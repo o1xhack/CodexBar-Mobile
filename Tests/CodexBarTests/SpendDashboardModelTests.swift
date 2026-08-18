@@ -1102,8 +1102,51 @@ extension SpendDashboardModelTests {
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
         #expect(group.projects.map(\.totalCost) == [7, 5])
-        #expect(Set(group.projects.map(\.id)) == ["codex-a:shared", "codex-b:shared"])
+        #expect(Set(group.projects.map(\.sourceID)) == ["codex-a", "codex-b"])
+        #expect(Set(group.projects.map(\.id)).count == 2)
         #expect(group.projects[0].providerName == "Codex · #2")
+    }
+
+    @Test
+    func `same named projects in one source stay separated by canonical path`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 12)],
+                        projects: [
+                            Self.project(
+                                name: "app",
+                                path: "/Users/example/work/app",
+                                days: [("2026-07-15", 5)]),
+                            Self.project(
+                                name: "app",
+                                path: "/Users/example/personal/app",
+                                days: [("2026-07-15", 7)]),
+                        ])),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let projects = try #require(model.groups.first?.projects)
+        #expect(projects.count == 2)
+        #expect(projects.map(\.totalCost) == [7, 5])
+        #expect(Set(projects.compactMap(\.path)) == [
+            "/Users/example/personal/app",
+            "/Users/example/work/app",
+        ])
+        #expect(Set(projects.map(\.id)).count == 2)
+        let expectedDisplayPaths = Set(projects.compactMap(\.path).map {
+            ($0 as NSString).abbreviatingWithTildeInPath
+        })
+        #expect(Set(projects.compactMap {
+            spendDashboardProjectDisambiguationPath(for: $0, projects: projects)
+        }) == expectedDisplayPaths)
     }
 
     @Test
@@ -1179,12 +1222,13 @@ extension SpendDashboardModelTests {
 
     private static func project(
         name: String,
+        path: String? = nil,
         days: [(String, Double?)],
         tokens: Int? = 10) -> CostUsageProjectBreakdown
     {
         CostUsageProjectBreakdown(
             name: name,
-            path: "/tmp/\(name)",
+            path: path ?? "/tmp/\(name)",
             totalTokens: nil,
             totalCostUSD: nil,
             daily: days.map { day, cost in

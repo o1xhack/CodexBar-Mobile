@@ -27,6 +27,16 @@ func spendDashboardCoverageText(covered: Int, requested: Int) -> String {
     "\(L("Coverage")): \(codexBarLocalizedInteger(covered)) / \(codexBarLocalizedInteger(requested))"
 }
 
+func spendDashboardProjectDisambiguationPath(
+    for row: SpendDashboardModel.ProjectRow,
+    projects: [SpendDashboardModel.ProjectRow]) -> String?
+{
+    guard let path = row.path,
+          projects.lazy.filter({ $0.projectName == row.projectName }).prefix(2).count > 1
+    else { return nil }
+    return (path as NSString).abbreviatingWithTildeInPath
+}
+
 func codexCostCatchUpProgressText(_ activity: CodexCostCatchUpActivity) -> String {
     if activity.totalBytes > 0 {
         let processed = ByteCountFormatter.string(
@@ -604,6 +614,17 @@ private struct SpendProjectPanel: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.projectName).lineLimit(1)
                             Text(row.providerName).font(.caption).foregroundStyle(.secondary)
+                            if let path = spendDashboardProjectDisambiguationPath(
+                                for: row,
+                                projects: self.group.projects)
+                            {
+                                Text(path)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(row.path ?? path)
+                            }
                         }
                         Spacer()
                         Text(row.totalCost.map {
