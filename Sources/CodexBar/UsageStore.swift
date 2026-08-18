@@ -41,7 +41,6 @@ extension UsageStore {
             }
         }
     }
-
 }
 
 @MainActor

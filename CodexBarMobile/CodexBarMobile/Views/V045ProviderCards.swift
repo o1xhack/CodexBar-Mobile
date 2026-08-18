@@ -25,6 +25,12 @@ enum ProviderWindowLabel {
         switch label {
         case "5-hour": "5-hour"
         case "Credits": "Credits"
+        case "Requests": "Requests"
+        case "Tokens": "Tokens"
+        case "Renews": "Renews"
+        case "Total": "v052_window_total"
+        case "Third Party": "v052_window_third_party"
+        case "On-demand": "v052_window_on_demand"
         case "Daily": "v045_window_daily"
         case "Weekly": "v045_window_weekly"
         case "Monthly": "v045_window_monthly"
@@ -67,6 +73,24 @@ enum ProviderWindowLabel {
             return MobileLocalizedString.value("5-hour", defaultValue: "5-hour", locale: locale)
         case "Credits":
             return MobileLocalizedString.value("Credits", defaultValue: "Credits", locale: locale)
+        case "Requests":
+            return MobileLocalizedString.value("Requests", defaultValue: "Requests", locale: locale)
+        case "Tokens":
+            return MobileLocalizedString.value("Tokens", defaultValue: "Tokens", locale: locale)
+        case "Renews":
+            return MobileLocalizedString.value("Renews", defaultValue: "Renews", locale: locale)
+        case "v052_window_total":
+            return MobileLocalizedString.value("v052_window_total", defaultValue: "Total", locale: locale)
+        case "v052_window_third_party":
+            return MobileLocalizedString.value(
+                "v052_window_third_party",
+                defaultValue: "Third Party",
+                locale: locale)
+        case "v052_window_on_demand":
+            return MobileLocalizedString.value(
+                "v052_window_on_demand",
+                defaultValue: "On-demand",
+                locale: locale)
         case "v045_window_daily":
             return MobileLocalizedString.value("v045_window_daily", defaultValue: "Daily", locale: locale)
         case "v045_window_weekly":

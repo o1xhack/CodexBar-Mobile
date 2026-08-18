@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.21.0 (193)] — 2026-08-11 — CodexBar 0.49.2 upstream sync
+## [1.21.0 (194)] — 2026-08-17 — CodexBar 0.52.0 upstream sync roll-up
 
 ### Added
 
@@ -22,6 +22,10 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Rate-window fidelity** — Sync now preserves stable window IDs, unknown-usage
   state, rolling regeneration percentage, and synthetic-placeholder state;
   iPhone labels unknown values as unavailable and hides layout-only placeholders.
+- **Upstream provider catch-up** — New Mac snapshots now carry Claude model-scoped
+  weekly limits, Cursor Total / Cursor / Third Party lanes, recovered Vertex
+  quotas, OpenCode Go estimate confidence, and resolved Grok plans through the
+  existing generic payload. Canonical quota labels are localized on iPhone.
 - **Multi-Mac merge determinism** — Equal-time provider snapshots use stable
   device identity as a tie-breaker. Old Macs cannot erase additive details,
   while an explicit empty details set from a new Mac authoritatively clears them.
@@ -33,16 +37,20 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Provider instance safety** — Mac snapshot publication, dirty state, config
   reconciliation, and Mobile projection now use `ProviderInstanceID` consistently,
   keeping custom plugins distinct from first-party providers.
+- **Mac producer lifecycle** — Mobile snapshot observation now starts and stops
+  with the Mac application delegate, preserving Mac→iPhone publication after
+  upstream removed the hidden Mission Control window.
 
 ### Notes
 
-- Pairs with Mac CodexBar `0.49.2.1` / build `116.1`, composite Sparkle version
-  `116.1.1.21.0`, and upstream `steipete/CodexBar` `v0.49.2`.
-- iOS `MARKETING_VERSION`: `1.20.0` → `1.21.0`.
-- iOS `CURRENT_PROJECT_VERSION`: `192` → `193`.
+- Pairs with Mac CodexBar `0.52.0.1` / build `124.1`, composite Sparkle version
+  `124.1.1.21.0`, and upstream `steipete/CodexBar` `v0.52.0`.
+- iOS `MARKETING_VERSION` remains `1.21.0`; this build rolls the unpublished
+  upstream catch-up into the existing 1.21 release train.
+- iOS `CURRENT_PROJECT_VERSION`: `193` → `194`.
 - Payload additions live in the existing opaque `DeviceProviderSnapshot.payload`;
-  no CloudKit record type, field, index, or schema version is added. IBM Bob
-  reuses the existing per-provider quota-zone/subscription pattern.
+  no CloudKit record type, field, index, zone, query, or schema version is added.
+  IBM Bob reuses the existing per-provider quota-zone/subscription pattern.
 
 ## [1.20.0 (192)] — 2026-08-03 — CodexBar 0.47 upstream sync
 

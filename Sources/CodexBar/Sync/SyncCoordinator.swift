@@ -875,11 +875,15 @@ final class SyncCoordinator {
         var rateWindows: [SyncRateWindow] = []
         var semanticWindows: (primary: SyncRateWindow?, secondary: SyncRateWindow?) = (nil, nil)
         if let p = snapshot?.primary {
-            let label = provider == .alibabatokenplan
-                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+            let label: String? = if provider == .alibabatokenplan {
+                AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
                     window: p,
                     fallback: metadata?.sessionLabel ?? "Credits")
-                : metadata?.sessionLabel
+            } else if provider == .grok {
+                GrokProviderDescriptor.displayLabel(window: p) ?? metadata?.sessionLabel
+            } else {
+                metadata?.sessionLabel
+            }
             let window = Self.syncRateWindow(id: "primary", label: label, window: p)
             rateWindows.append(window)
             semanticWindows.primary = window

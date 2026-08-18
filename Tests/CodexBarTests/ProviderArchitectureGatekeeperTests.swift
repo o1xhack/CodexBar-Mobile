@@ -278,10 +278,11 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(failure.utf8, into: &forkDriftFingerprint)
             Self.hash("\n".utf8, into: &forkDriftFingerprint)
         }
-        let expectedForkDriftCount = 254
-        // v0.49 adds Fireworks and IBM Bob only at the reviewed mock catalog,
-        // provider-computed pricing, sync mapping, and non-Tier-A identity seams.
-        let expectedForkDriftFingerprint: UInt64 = 18_225_140_329_188_946_977
+        let expectedForkDriftCount = 260
+        // v0.52 keeps the reviewed Mobile publication, mock-provider, pricing,
+        // and non-Tier-A identity seams while rebasing the exact upstream
+        // anchors through project-cost and provider-presentation changes.
+        let expectedForkDriftFingerprint: UInt64 = 13_724_266_320_659_269_145
         #expect(
             failures.isEmpty ||
                 (sortedFailures.count == expectedForkDriftCount &&
