@@ -147,6 +147,7 @@ Date: 2026-08-17
   readback后remote branch/tag仍不存在；
 - candidate appcast在detached `90c687939`临时worktree生成并在验证后移除；完整candidate tag
   URL、length `69578142`、Sparkle version `124.1.1.21.0`与`sign_update`重算EdDSA signature
-  验证通过；repo
-  `appcast.xml` hash仍为`e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`，
+  验证通过；candidate未写入branch。branch内保留published feed内容、只补终止newline，hash为
+  `e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`；远端`mobile-dev`
+  live feed仍为基线hash `dc50741bcdaa85e25862c7e88697e2b13c3a3877ed7c55390b4130c4dafbdc92`，
   未执行publication。
