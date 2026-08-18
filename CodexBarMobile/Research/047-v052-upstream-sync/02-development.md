@@ -104,17 +104,28 @@ Date: 2026-08-17
   `1bd2d8ec2fd2dcf2`列为compatible predecessor，可能让候选构建升级时重建兼容SQLite历史。
   提交`c07a49caf`加入迁移白名单与test expectation；失败的writer-lock用例按与CI一致的
   `--no-parallel`条件隔离及整suite复跑后通过。该修复的commit review确认安全、0 finding。
+- 最终upgrade-path审计继续以实际published tag而非版本名推断迁移来源，确认
+  `v0.49.2.1-mobile.1.21.0`内嵌parser hash为`834522608c1b0457`，而既有白名单中的
+  `b975eb705f905b9a`只是pre-release 0.49.x producer。提交`34857a41c`加入真实公开hash，
+  并把release-upgrade test固定到tag中的generated value；parser check、75项serial store tests、
+  97项pricing/store/sync联合tests与完整lint通过。commit级review复核schema未变、adoption仍受
+  integrity/version gate约束，0 finding。
 
 ## Draft release工件
 
-- build commit：`c07a49caf`；notary submission：
-  `312da05a-decd-4183-805d-d82b1fb397e7`，status `Accepted`；
+- build commit：`34857a41c`；notary submission：
+  `4f9c891d-e75c-4477-bd08-d461551fee34`，status `Accepted`；
 - app：`0.52.0.1`，Sparkle/CFBundleVersion `124.1.1.21.0`，universal
   `arm64 + x86_64`，stapled ticket、`codesign --deep --strict`、`spctl`均通过；
-- ZIP SHA-256：`cd66a77ee190b22206cd508b7fd54554c28b83b13e970c961c161a39b6fb6d9c`；
-  dSYM SHA-256：`ffa64b405c8a8b6a727d10797089c5fc96c798c6b47fdc34a00413ff2cdf9112`；
-- app/dSYM UUID一致：x86_64 `0D1B7A0D-472F-355F-98B7-C8F2318E355C`，arm64
-  `2D7E8D40-EB3C-3EB2-A201-CE27AFA8284E`；
-- draft release ID `372056029`，两个asset均为`uploaded`；readback后remote tag仍不存在；
-- 临时candidate appcast的URL、length `69570276`、Sparkle version与EdDSA signature验证通过；
-  repo `appcast.xml`未改动，也未执行publication。
+- ZIP为`69570094` bytes，SHA-256：
+  `7b2f913fed116f4474243f467adb6385471f598265dcafbad9ba970acc78dbfe`；dSYM为
+  `53834088` bytes，SHA-256：
+  `165c5ed680d7d0af2c24425a6ce031a4ff572ac2e4b0fe1ea318fc2ccad9048d`；
+- app/dSYM UUID一致：x86_64 `ED8F558A-AC4A-34DA-B5DF-C31E0A303EA2`，arm64
+  `7F0A6E73-E69D-3145-A7AE-190AFBBB6915`；
+- draft release ID `372056029`，两个asset均为`uploaded`且GitHub digest/size回读与本地一致；
+  readback后remote branch/tag仍不存在；
+- 临时candidate appcast位于`/tmp/codexbar-appcast-final.cGsavV`，完整candidate tag URL、length
+  `69570094`、Sparkle version `124.1.1.21.0`与EdDSA signature验证通过；repo
+  `appcast.xml` hash仍为`e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`，
+  未执行publication。

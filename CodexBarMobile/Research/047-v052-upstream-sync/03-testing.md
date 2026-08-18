@@ -19,14 +19,14 @@ Date: 2026-08-17
 | Mac build + lint + full tests | pass | `swift build`；final lint：SwiftFormat 1965 files / 0 formatting、SwiftLint 1964 files / 0 violations、i18n 302 keys全覆盖；post-review CI-style grouped gate 923 selections / 77 groups全部首轮成功，0 failed / 0 retry / 0 timeout |
 | Provider/cost/keychain/PTY/settings/sync focused regression | pass | pre-1.2/v0.26/v0.27/v0.29/v0.30/v0.37 wire、fleet/Mobile、多账号138 tests；architecture 38；UsageStore 34；bounded cost 10；Kiro/PTY 57，全部0 failed |
 | Parser fingerprint/hash | pass | `parserLogicVersion=12`；final `CodexParserHash=a5a0cf92c6361f6e`；architecture 38 tests与lint audit通过 |
-| Packaged signed/notarized candidate | pass | notary `312da05a-decd-4183-805d-d82b1fb397e7` Accepted；stapled ZIP 66 MB，SHA-256 `cd66a77e...d9c`；dSYM 51 MB，SHA-256 `ffa64b40...112` |
-| codesign / spctl / CLI / launch smoke | pass | extracted release ZIP：Developer ID、deep strict verify、Gatekeeper Notarized Developer ID、stapler validate、Production entitlement、universal main/CLI/widget、direct launch均通过；embedded commit `c07a49caf` |
+| Packaged signed/notarized candidate | pass | notary `4f9c891d-e75c-4477-bd08-d461551fee34` Accepted；stapled ZIP 66 MB，SHA-256 `7b2f913f...fe`；dSYM 51 MB，SHA-256 `165c5ed6...48d` |
+| codesign / spctl / CLI / launch smoke | pass | extracted release ZIP：Developer ID、deep strict verify、Gatekeeper Notarized Developer ID、stapler validate、Production entitlement、universal main/CLI/widget、direct launch均通过；embedded commit `34857a41c` |
 | iOS build + full tests | pass | `xcodegen generate`；Release simulator build成功；signed iPhone 16e / iOS 26.2 Simulator完整`CodexBarMobileTests` 633 tests、0 failed |
 | Widget/cost/provider display parity | pass | CloudKit merge、dual-zone、widget、device lifecycle、cache、multi-account、provider labels focused 110 tests、0 failed |
 | Four-language localization | pass | `jq empty`；i18n 302 source keys present；en/zh-Hans/zh-Hant/ja均translated |
 | CloudKit Production schema audit | pass — `NO_DEPLOY` | last live tag `v0.49.2.1-mobile.1.21.0`到candidate：CloudConstants零diff、UsageSnapshot public fields零diff、schema keyword零source hit；Production readback仍10 types |
-| Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69570276` bytes、dSYM `53834275` bytes均uploaded；remote tag不存在，live appcast未改 |
-| Final review blockers | pass | pricing commit `864e4df63` clean；architecture commit `11026c86b`的唯一P2由`c07a49caf`修复；fix commit复审clean；blocker 0 |
+| Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69570094` bytes、dSYM `53834088` bytes均uploaded且digest匹配；remote branch/tag不存在，live appcast未改 |
+| Final review blockers | pass | pricing commit `864e4df63` clean；architecture P2由`c07a49caf`修复；published-tag cache迁移缺口由`34857a41c`修复；各fix commit复审clean；blocker 0 |
 
 首轮CI-style grouped gate执行`CODEXBAR_TEST_GROUP_SIZE=12
 CODEXBAR_TEST_SUITE_TIMEOUT=240 bash Scripts/test.sh`：发现923个selection、77组，全部first-pass
@@ -38,6 +38,10 @@ hash重生。最终post-fix grouped gate重新发现923个selection并完成77�
 0 first-pass failure、0 full-group retry、0 timeout、0 isolated retry，discovery 65.5s、execution
 749.3s、total 814.8s。review提出的comment-only predecessor迁移P2修复后，失败用例隔离
 `--no-parallel`通过，完整`CostUsageStoreTests` 75 tests与architecture 38 tests均通过。
+最终upgrade-path审计从实际published tag读取generated parser hash
+`834522608c1b0457`，发现既有0.49.x marker并非公开build marker；`34857a41c`补齐真实迁移来源，
+并以tag value跑过75项serial store tests及97项pricing/store/sync联合tests。commit review确认
+SQLite schema未变且adoption的hash、version、quick-check与auto-vacuum gates仍完整，0 finding。
 
 首次iOS focused test曾用`CODE_SIGNING_ALLOWED=NO`，runner在bootstrap前因CloudKit/KVS
 entitlement缺失退出，0个断言执行；这不是产品失败。改用正常Simulator签名后focused与full tests
@@ -65,16 +69,16 @@ iCloud.com.o1xhack.codexbar --environment production`成功，回读5829 bytes�
 
 - `./Scripts/sign-and-notarize.sh`完成双架构production build、widget extension、deep signing、
   offline resource/launch smoke、Apple notarization与stapling；submission
-  `312da05a-decd-4183-805d-d82b1fb397e7`为`Accepted`；
+  `4f9c891d-e75c-4477-bd08-d461551fee34`为`Accepted`；
 - 从最终release ZIP重新解压验证，`xcrun stapler validate`、`spctl --assess`、
   `codesign --verify --deep --strict`全部成功；Info.plist为`0.52.0.1 / 124.1.1.21.0`、
-  embedded commit `c07a49caf`，CloudKit environment仍为Production；
+  embedded commit `34857a41c`，CloudKit environment仍为Production；
 - app/dSYM两架构UUID逐一相同；asset SHA-256与GitHub draft readback size记录在
   `02-development.md`；
 - GitHub draft保持`draft=true`、`prerelease=false`，tag name为
   `v0.52.0.1-mobile.1.21.0`但remote Git ref不存在；没有live publication；
 - candidate appcast只在`/tmp`生成，enclosure URL使用完整candidate tag，length
-  `69570276`、Sparkle version `124.1.1.21.0`、EdDSA signature均验证成功；repo live
+  `69570094`、Sparkle version `124.1.1.21.0`、EdDSA signature均验证成功；repo live
   `appcast.xml` hash保持不变。
 
 ## compatibility substitution evidence
