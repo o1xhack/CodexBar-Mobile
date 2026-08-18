@@ -19,14 +19,14 @@ Date: 2026-08-17
 | Mac build + lint + full tests | pass | `swift build`；final lint：SwiftFormat 1965 files / 0 formatting、SwiftLint 1964 files / 0 violations、i18n 302 keys全覆盖；post-review CI-style grouped gate 923 selections / 77 groups全部首轮成功，0 failed / 0 retry / 0 timeout |
 | Provider/cost/keychain/PTY/settings/sync focused regression | pass | pre-1.2/v0.26/v0.27/v0.29/v0.30/v0.37 wire、fleet/Mobile、多账号138 tests；architecture 38；UsageStore 34；bounded cost 10；Kiro/PTY 57，全部0 failed |
 | Parser fingerprint/hash | pass | `parserLogicVersion=12`；final `CodexParserHash=a5a0cf92c6361f6e`；architecture 38 tests与lint audit通过 |
-| Packaged signed/notarized candidate | pass | notary `5e20a449-eb85-4f41-9113-9410885a3fad` Accepted；stapled ZIP 66 MB，SHA-256 `9b6f3989...f26a`；dSYM 51 MB，SHA-256 `4800d120...c5f` |
-| codesign / spctl / CLI / launch smoke | pass | extracted release ZIP：Developer ID、deep strict verify、Gatekeeper Notarized Developer ID、stapler validate、Production entitlement、universal main/CLI/widget、direct launch均通过；embedded commit `c7b244dbb` |
+| Packaged signed/notarized candidate | pass | notary `da55b536-c3ea-4d45-a6cc-cdb7a4a71507` Accepted；stapled ZIP 66 MB，SHA-256 `15fdd2ea...0976`；dSYM 51 MB，SHA-256 `7ac90a4a...0d8d` |
+| codesign / spctl / CLI / launch smoke | pass | extracted release ZIP：Developer ID、deep strict verify、Gatekeeper Notarized Developer ID、stapler validate、Production entitlement、universal main/CLI/widget、direct launch均通过；embedded commit `90c687939` |
 | iOS build + full tests | pass | `xcodegen generate`；Release simulator build成功；signed iPhone 16e / iOS 26.2 Simulator完整`CodexBarMobileTests` 633 tests、0 failed |
 | Widget/cost/provider display parity | pass | CloudKit merge、dual-zone、widget、device lifecycle、cache、multi-account、provider labels focused 110 tests、0 failed |
 | Four-language localization | pass | `jq empty`；i18n 302 source keys present；en/zh-Hans/zh-Hant/ja均translated |
 | CloudKit Production schema audit | pass — `NO_DEPLOY` | last live tag `v0.49.2.1-mobile.1.21.0`到candidate：CloudConstants零diff、UsageSnapshot public fields零diff、schema keyword零source hit；Production readback仍10 types |
-| Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69578333` bytes、dSYM `53854621` bytes均uploaded且digest匹配；remote branch/tag不存在，live appcast未改 |
-| Final review blockers | pass | pricing provenance、published-tag cache迁移、same-name project identity/UI三轮finding均修复并复审clean；architecture exact anchors恢复原指纹；当前blocker 0 |
+| Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69578142` bytes、dSYM `53855298` bytes均uploaded且digest匹配；remote branch/tag不存在，live appcast未改 |
+| Final review blockers | pass | pricing provenance、published-tag cache迁移、same-name project identity/UI、multi-account attribution findings均修复并复审clean；architecture exact anchors由混杂261项收敛为reviewed 83项；当前blocker 0 |
 
 首轮CI-style grouped gate执行`CODEXBAR_TEST_GROUP_SIZE=12
 CODEXBAR_TEST_SUITE_TIMEOUT=240 bash Scripts/test.sh`：发现923个selection、77组，全部first-pass
@@ -46,11 +46,17 @@ SQLite schema未变且adoption的hash、version、quick-check与auto-vacuum gate
 最终全分支review发现same-name project在相同source下按名称合并的P2。`dddcd4fa3`将canonical
 path纳入aggregation与collision-safe ID，且只在同名冲突时显示path。后续两轮精确review继续
 发现视觉不可区分与HOME-dependent test expectation，均修复后普通HOME和
-`CFFIXED_USER_HOME=/Users/example`各40项测试通过，commit review clean。该改动使三个
-provider architecture exact anchor行号顺延；首次完整gate在第56/77组失败并稳定重现，
-`c7b244dbb`只重定位三个anchor而不放宽原261项drift fingerprint。最终从头运行同一命令，
-923 selections / 77 groups全部first-pass成功，0 failed / 0 retry / 0 timeout / 0 isolated retry，
-discovery 6.2s、execution 754.7s、total 760.8s。
+`CFFIXED_USER_HOME=/Users/example`各40项测试通过，commit review clean。后续whole-branch review
+又发现同repo跨两个Codex账号时row仍显示generic provider name的P2；`1ae439e46`改用account-aware
+display name，40项focused tests与commit review clean。
+
+最终完整gate在第56/77组失败并稳定重现。审计确认大量allowlist/suppression anchor在上游合并后
+仍是旧行号，并被混入原261项drift hash；本轮逐项重定位全部unique/duplicate anchor，拆分实际
+cluster并复核变化后的fingerprint，而不是直接放宽总hash。`90c687939`将真实fork-only drift收敛
+到83项；architecture 38 tests通过，随后从头运行同一命令，923 selections / 77 groups全部
+first-pass成功，0 failed / 0 retry / 0 timeout / 0 isolated retry，discovery 6.2s、execution
+753.1s、total 759.3s。最终lint同时通过22 catalogs / 1486 English keys、SwiftFormat 1965 files、
+SwiftLint 1964 files与iOS 302 source keys四语言检查。
 
 首次iOS focused test曾用`CODE_SIGNING_ALLOWED=NO`，runner在bootstrap前因CloudKit/KVS
 entitlement缺失退出，0个断言执行；这不是产品失败。改用正常Simulator签名后focused与full tests
@@ -78,17 +84,18 @@ iCloud.com.o1xhack.codexbar --environment production`成功，回读5829 bytes�
 
 - `./Scripts/sign-and-notarize.sh`完成双架构production build、widget extension、deep signing、
   offline resource/launch smoke、Apple notarization与stapling；submission
-  `5e20a449-eb85-4f41-9113-9410885a3fad`为`Accepted`；
+  `da55b536-c3ea-4d45-a6cc-cdb7a4a71507`为`Accepted`；
 - 从最终release ZIP重新解压验证，`xcrun stapler validate`、`spctl --assess`、
   `codesign --verify --deep --strict`全部成功；Info.plist为`0.52.0.1 / 124.1.1.21.0`、
-  embedded commit `c7b244dbb`，CloudKit environment仍为Production；
-- app/dSYM UUID逐一相同：x86_64 `BAF595AF-C610-3A0A-9747-CF3633DE47EA`、arm64
-  `873BB4CC-FC1F-3A64-868D-C8D7A86D074A`；asset SHA-256与GitHub draft readback size记录在
+  embedded commit `90c687939`，CloudKit environment仍为Production；
+- app/dSYM UUID逐一相同：x86_64 `31392159-0BB9-379E-8035-037FB7F7981C`、arm64
+  `353F365B-21A7-32AE-90FA-B80802CE8529`；asset SHA-256与GitHub draft readback size记录在
   `02-development.md`；
 - GitHub draft保持`draft=true`、`prerelease=false`，tag name为
   `v0.52.0.1-mobile.1.21.0`但remote Git ref不存在；没有live publication；
 - candidate appcast只在detached临时worktree生成并在验证后移除，enclosure URL使用完整
-  candidate tag，length `69578333`、Sparkle version `124.1.1.21.0`、EdDSA signature均验证成功；repo live
+  candidate tag，length `69578142`、Sparkle version `124.1.1.21.0`、`sign_update`重算的EdDSA
+  signature均验证成功；repo live
   `appcast.xml` hash保持不变。
 
 ## compatibility substitution evidence

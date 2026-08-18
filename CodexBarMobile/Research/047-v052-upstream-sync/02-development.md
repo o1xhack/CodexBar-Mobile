@@ -117,27 +117,33 @@ Date: 2026-08-17
   视觉同名、以及test把`/Users/example`误当作固定非HOME路径；两项均在同一提交中修复，普通与
   `CFFIXED_USER_HOME=/Users/example`两种环境各40项`SpendDashboardModelTests`通过，最终
   commit review为0 finding。
-- 该UI新增行使三个provider architecture exact anchor顺延。完整gate在第56/77组稳定失败后，
-  没有接受新drift fingerprint，而是逐条把`PreferencesSpendDashboardPane`的254/365重定位到
-  264/375、`SpendDashboardModel`的808重定位到820；提交`c7b244dbb`后architecture 38项通过，
-  原reviewed drift count/fingerprint保持不变。随后从头重跑923 selections / 77 groups，全部
-  first-pass通过，0 retry / 0 timeout。
+- 后续whole-branch review继续发现1个P2：同一repository分属两个Codex账号时，Projects row
+  虽然identity已分开，但仍都显示generic `Codex`，用户无法判断归属。提交`1ae439e46`让row使用
+  account-aware `displayName`，同时把test输入固定为generic model provider name，证明显示结果
+  仍为`Codex · #1/#2`；focused 40 tests与该commit review均clean。
+- 最终完整gate在第56/77组稳定失败，确认不是产品回归，而是上游/本轮插入分支后大量
+  provider architecture exact anchor仍指向旧行号，过去被混入261项fork drift整体hash。没有
+  直接接受新hash：先机械重定位63个唯一文本anchor，再按局部结构定位重复文本anchor，并把
+  Factory/Alibaba、Cursor等实际已分裂的cluster拆成独立精确条目。最终reviewed fork-only drift
+  从261项收敛为83项并锁定新排序fingerprint；提交`90c687939`后architecture 38项通过，完整
+  lint通过，再从头跑923 selections / 77 groups，全部first-pass通过，0 retry / 0 timeout。
 
 ## Draft release工件
 
-- build commit：`c7b244dbb`；notary submission：
-  `5e20a449-eb85-4f41-9113-9410885a3fad`，status `Accepted`；
+- build commit：`90c687939`；notary submission：
+  `da55b536-c3ea-4d45-a6cc-cdb7a4a71507`，status `Accepted`；
 - app：`0.52.0.1`，Sparkle/CFBundleVersion `124.1.1.21.0`，universal
   `arm64 + x86_64`，stapled ticket、`codesign --deep --strict`、`spctl`均通过；
-- ZIP为`69578333` bytes，SHA-256：
-  `9b6f39899b3473db24349c8ee07b723a4d2ac93ad9b55b1a22319579de47f26a`；dSYM为
-  `53854621` bytes，SHA-256：
-  `4800d120e15d60a4443f245121dbcb620a18026a80e98c40947f48fb70040c5f`；
-- app/dSYM UUID一致：x86_64 `BAF595AF-C610-3A0A-9747-CF3633DE47EA`，arm64
-  `873BB4CC-FC1F-3A64-868D-C8D7A86D074A`；
+- ZIP为`69578142` bytes，SHA-256：
+  `15fdd2ea501c5d16bc7aa60b5ce8e3b91bbc00a3c59b279cd09ceedaeb500976`；dSYM为
+  `53855298` bytes，SHA-256：
+  `7ac90a4a9b9ea057466aa5512fc0f26ea0f1e8963d43a03269c48e4c24a70d8d`；
+- app/dSYM UUID一致：x86_64 `31392159-0BB9-379E-8035-037FB7F7981C`，arm64
+  `353F365B-21A7-32AE-90FA-B80802CE8529`；
 - draft release ID `372056029`，两个asset均为`uploaded`且GitHub digest/size回读与本地一致；
   readback后remote branch/tag仍不存在；
-- candidate appcast在detached `c7b244dbb`临时worktree生成并在验证后移除；完整candidate tag
-  URL、length `69578333`、Sparkle version `124.1.1.21.0`与EdDSA signature验证通过；repo
+- candidate appcast在detached `90c687939`临时worktree生成并在验证后移除；完整candidate tag
+  URL、length `69578142`、Sparkle version `124.1.1.21.0`与`sign_update`重算EdDSA signature
+  验证通过；repo
   `appcast.xml` hash仍为`e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`，
   未执行publication。
