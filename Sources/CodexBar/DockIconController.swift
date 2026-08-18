@@ -27,15 +27,12 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
     var isRealWindow: Bool {
         guard self.isVisible, !self.isMiniaturized, self.canBecomeKey else { return false }
-        guard !self.isKeepaliveWindow, !self.isStatusBarWindow else { return false }
+        guard !self.isTinyWindow, !self.isStatusBarWindow else { return false }
         return true
     }
 
-    private var isKeepaliveWindow: Bool {
-        if self.identifier == "CodexBarLifecycleKeepalive" || self.title == "CodexBarLifecycleKeepalive" {
-            return true
-        }
-        return self.width <= 20 && self.height <= 20
+    private var isTinyWindow: Bool {
+        self.width <= 20 && self.height <= 20
     }
 
     private var isStatusBarWindow: Bool {
@@ -45,11 +42,22 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
 enum DockIconPolicyDecision {
     static func shouldUseRegularActivationPolicy(windows: [DockIconWindowDescriptor]) -> Bool {
-        windows.contains(where: \.isRealWindow)
+        windows.contains { window in
+            window.isRealWindow || (window.isSettingsWindow && window.isMiniaturized)
+        }
     }
 
     static func shouldPromoteForPresentedWindow(_ window: DockIconWindowDescriptor) -> Bool {
         window.isVisible && (window.isSettingsWindow || window.isSparkleWindow)
+    }
+
+    /// Windows that became eligible for Dock promotion since the last evaluation.
+    static func newlyPresentedWindowIDs(
+        current: Set<ObjectIdentifier>,
+        previous: Set<ObjectIdentifier>)
+        -> Set<ObjectIdentifier>
+    {
+        current.subtracting(previous)
     }
 }
 
@@ -97,9 +105,18 @@ final class DockIconController: NSObject {
         self.ensureRegularPolicy(activate: true)
     }
 
+    func prepareToOpenSettings() {
+        self.promote()
+        if let settingsWindow, settingsWindow.isMiniaturized {
+            SettingsWindowStageBehavior.present(settingsWindow)
+        }
+    }
+
     func registerSettingsWindow(_ window: NSWindow) {
+        SettingsWindowStageBehavior.applyCollectionBehavior(window)
         guard self.settingsWindow !== window else { return }
         self.settingsWindow = window
+        SettingsWindowStageBehavior.present(window)
         self.reevaluatePolicy()
     }
 
@@ -125,12 +142,26 @@ final class DockIconController: NSObject {
                 ? ObjectIdentifier(item.window)
                 : nil
         })
-        let hasNewPresentedWindow = !presentedWindowIDs.subtracting(self.presentedWindowIDs).isEmpty
+        // Capture the delta before updating stored state so we only key newly presented
+        // dialogs. Fronting every eligible window can re-key Settings over a Sparkle alert.
+        let newlyPresentedWindowIDs = DockIconPolicyDecision.newlyPresentedWindowIDs(
+            current: presentedWindowIDs,
+            previous: self.presentedWindowIDs)
+        let hasNewPresentedWindow = !newlyPresentedWindowIDs.isEmpty
         self.presentedWindowIDs = presentedWindowIDs
 
         if !presentedWindowIDs.isEmpty {
             self.isAwaitingPresentedWindow = false
             self.ensureRegularPolicy(activate: hasNewPresentedWindow)
+            if hasNewPresentedWindow {
+                for item in describedWindows where newlyPresentedWindowIDs.contains(ObjectIdentifier(item.window)) {
+                    if item.descriptor.isSettingsWindow {
+                        SettingsWindowStageBehavior.present(item.window)
+                    } else {
+                        item.window.makeKeyAndOrderFront(nil)
+                    }
+                }
+            }
         }
 
         guard self.isManagingRegularPolicy, !self.isAwaitingPresentedWindow else { return }

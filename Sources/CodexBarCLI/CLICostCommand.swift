@@ -47,16 +47,17 @@ extension CodexBarCLI {
             cursorCookieSettingsError = error
         }
         let groupBy = Self.decodeCostGroupBy(from: values)
-        if groupBy == .project {
-            // Provider-specific by design: only Codex JSONL sessions carry the local project attribution index.
-            let unsupportedProjectProviders = providers.filter { $0 != .codex }
-            if !unsupportedProjectProviders.isEmpty, !output.jsonOnly {
-                let names = unsupportedProjectProviders
-                    .map { ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName }
-                    .sorted()
-                    .joined(separator: ", ")
-                Self.writeStderr("Skipping project grouping for providers without Codex project data: \(names)\n")
-            }
+        Self.warnSkippedGroupingProviders(groupBy: groupBy, providers: providers, jsonOnly: output.jsonOnly)
+        // Provider-specific by design: this warning applies only when Codex is among the requested providers.
+        if providers.contains(.codex),
+           !output.jsonOnly,
+           let warning = Self.sessionGroupingPiOmissionWarning(
+               provider: .codex,
+               groupBy: groupBy,
+               format: format,
+               includePiSessions: includePiSessions)
+        {
+            Self.writeStderr("Warning: \(warning)\n")
         }
 
         let fetcher = CostUsageFetcher()
@@ -64,8 +65,8 @@ extension CodexBarCLI {
         var payload: [CostPayload] = []
         var exitCode: ExitCode = .success
 
-        // Provider-specific by design: project grouping is available only for Codex local session data.
-        for provider in providers where groupBy != .project || provider == .codex || format == .json {
+        // Provider-specific by design: project/session grouping is available only for Codex local session data.
+        for provider in Self.costProviders(providers, groupBy: groupBy, format: format) {
             if let error = Self.cursorCostAvailabilityError(
                 provider,
                 settings: cursorCookieSettings,
@@ -88,7 +89,11 @@ extension CodexBarCLI {
                     historyDays: historyDays,
                     cursorCookieHeaderOverride: Self.cursorCostHeaderOverride(provider, settings: cursorCookieSettings),
                     refreshPricingInBackground: false,
-                    includePiSessions: includePiSessions)
+                    includePiSessions: Self.costIncludePiSessions(
+                        provider: provider,
+                        groupBy: groupBy,
+                        format: format,
+                        includePiSessions: includePiSessions))
                 switch format {
                 case .text:
                     sections.append(Self.renderCostText(
@@ -126,6 +131,15 @@ extension CodexBarCLI {
     enum CostGroupBy: String {
         case none
         case project
+        case session
+
+        /// Groupings that depend on Codex-local session data and only apply to text output.
+        var requiresCodexLocalSessions: Bool {
+            switch self {
+            case .none: false
+            case .project, .session: true
+            }
+        }
     }
 
     static func renderCostText(
@@ -142,6 +156,9 @@ extension CodexBarCLI {
         let header = Self.costHeaderLine(title, useColor: useColor)
         if groupBy == .project, provider == .codex {
             return Self.renderProjectCostText(header: header, snapshot: snapshot)
+        }
+        if groupBy == .session, provider == .codex {
+            return Self.renderSessionCostText(header: header, snapshot: snapshot)
         }
 
         let todayCost = snapshot.sessionCostUSD
@@ -204,6 +221,67 @@ extension CodexBarCLI {
         return lines.joined(separator: "\n")
     }
 
+    private static func renderSessionCostText(header: String, snapshot: CostUsageTokenSnapshot) -> String {
+        let historyLabel = snapshot.historyLabel
+            ?? (snapshot.historyDays == 1 ? "Today" : "Last \(snapshot.historyDays) days")
+        var lines = [header, "Conversations (\(historyLabel)):"]
+        let historyIncomplete = snapshot.historyCoverageIsEstablished == false
+        if historyIncomplete {
+            lines.append("Conversation history is incomplete while the local scan catches up.")
+        }
+        guard !snapshot.sessions.isEmpty else {
+            if !historyIncomplete {
+                lines.append("—")
+            }
+            // Provider-specific by design: session output uses Codex's local estimate hint.
+            lines.append(Self.costEstimateHint(provider: .codex))
+            return lines.joined(separator: "\n")
+        }
+        for session in snapshot.sessions {
+            let cost = session.costUSD
+                .map { UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode) } ?? "—"
+            var summary = [cost]
+            if let tokens = session.totalTokens {
+                summary.append("\(UsageFormatter.tokenCountString(tokens)) tokens")
+            }
+            if let requests = session.requestCount {
+                summary.append("\(requests) requests")
+            }
+            lines.append("Session \(Self.shortSessionID(session.sessionID)): \(summary.joined(separator: " · "))")
+            let modelLabel = Self.sessionModelLabel(session.modelBreakdowns.map(\.modelName))
+            lines.append("\(modelLabel) · \(Self.sessionTimestampString(session.lastActivity))")
+        }
+        // Provider-specific by design: session output uses Codex's local estimate hint.
+        lines.append(Self.costEstimateHint(provider: .codex))
+        return lines.joined(separator: "\n")
+    }
+
+    /// Privacy-conscious shortened session identifier, matching the macOS cost-history UI convention.
+    static func shortSessionID(_ sessionID: String) -> String {
+        let trimmed = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 12 else { return trimmed }
+        return "\(trimmed.prefix(4))...\(trimmed.suffix(8))"
+    }
+
+    static func sessionModelLabel(_ models: [String]) -> String {
+        let labels = models.map(UsageFormatter.modelDisplayName)
+        return if labels.isEmpty {
+            "Unknown model"
+        } else if labels.count == 1 {
+            labels[0]
+        } else {
+            "\(labels[0]) +\(labels.count - 1) model\(labels.count > 2 ? "s" : "")"
+        }
+    }
+
+    private static func sessionTimestampString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "MMM d, HH:mm"
+        return formatter.string(from: date)
+    }
+
     private static func costEstimateHint(provider: UsageProvider) -> String {
         provider == .codex
             ? "Not a subscription bill or plan value · local usage × public API prices"
@@ -217,6 +295,69 @@ extension CodexBarCLI {
 
     static func costProviders(from selection: ProviderSelection) -> [UsageProvider] {
         selection.asList.filter { Self.costSupportedProviders.contains($0) }
+    }
+
+    /// Providers participating in a cost run: text-mode project/session grouping is Codex-only,
+    /// while JSON output always keeps every requested provider.
+    static func costProviders(
+        _ providers: [UsageProvider],
+        groupBy: CostGroupBy,
+        format: OutputFormat) -> [UsageProvider]
+    {
+        // Provider-specific by design: text grouping relies on Codex local indexes while JSON preserves all providers.
+        providers.filter { !groupBy.requiresCodexLocalSessions || $0 == .codex || format == .json }
+    }
+
+    /// Session text reports need native Codex rows, so keep Pi/OMP aggregate merging out of that path.
+    static func costIncludePiSessions(
+        provider: UsageProvider,
+        groupBy: CostGroupBy,
+        format: OutputFormat,
+        includePiSessions: Bool) -> Bool
+    {
+        // Provider-specific by design: only Codex local session text bypasses Pi/OMP merging.
+        guard provider == .codex, groupBy == .session, format == .text else { return includePiSessions }
+        return false
+    }
+
+    static func sessionGroupingPiOmissionWarning(
+        provider: UsageProvider,
+        groupBy: CostGroupBy,
+        format: OutputFormat,
+        includePiSessions: Bool) -> String?
+    {
+        // Provider-specific by design: only Codex local session text warns about omitted mirrors.
+        guard provider == .codex,
+              groupBy == .session,
+              format == .text,
+              includePiSessions
+        else { return nil }
+        return "Session grouping shows native Codex conversations only; Pi/OMP usage is omitted from this view. "
+            + "Use the default cost view for merged totals."
+    }
+
+    /// Provider-specific by design: only Codex JSONL sessions carry the local project/session indexes,
+    /// so text-mode grouping skips other providers with a concise stderr notice.
+    static func warnSkippedGroupingProviders(
+        groupBy: CostGroupBy,
+        providers: [UsageProvider],
+        jsonOnly: Bool)
+    {
+        guard !jsonOnly else { return }
+        let unsupported = providers.filter { $0 != .codex }
+        guard !unsupported.isEmpty else { return }
+        let names = unsupported
+            .map { ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName }
+            .sorted()
+            .joined(separator: ", ")
+        switch groupBy {
+        case .project:
+            Self.writeStderr("Skipping project grouping for providers without Codex project data: \(names)\n")
+        case .session:
+            Self.writeStderr("Skipping session grouping for providers without Codex session data: \(names)\n")
+        case .none:
+            break
+        }
     }
 
     static func makeCostPayload(
@@ -361,7 +502,7 @@ extension CodexBarCLI {
         !values.flags.contains("providerNativeOnly")
     }
 
-    private static func decodeCostGroupBy(from values: ParsedValues) -> CostGroupBy {
+    static func decodeCostGroupBy(from values: ParsedValues) -> CostGroupBy {
         guard let raw = values.options["groupBy"]?.last?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty
         else { return .none }
@@ -477,7 +618,7 @@ struct CostOptions: CommanderParsable {
     @Option(name: .long("days"), help: "Cost history window in days (1...365)")
     var days: Int?
 
-    @Option(name: .long("group-by"), help: "Group text output by: project")
+    @Option(name: .long("group-by"), help: "Group text output by: project | session")
     var groupBy: String?
 }
 

@@ -150,6 +150,50 @@ struct SettingsWindowAppearanceTests {
     }
 
     @Test
+    func `settings window joins the active Space for Stage Manager`() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false)
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenPrimary]
+
+        SettingsWindowStageBehavior.applyCollectionBehavior(window)
+
+        #expect(window.collectionBehavior == SettingsWindowStageBehavior.collectionBehavior)
+        #expect(window.collectionBehavior.contains(.moveToActiveSpace))
+        #expect(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        #expect(!window.collectionBehavior.contains(.canJoinAllSpaces))
+        #expect(!window.collectionBehavior.contains(.fullScreenPrimary))
+    }
+
+    @Test
+    func `presenting settings restores a miniaturized window`() {
+        let window = MiniaturizedWindowSpy()
+
+        SettingsWindowStageBehavior.present(window)
+
+        #expect(window.wasDeminiaturized)
+    }
+
+    @Test
+    func `bridge applies active-space collection behavior for Stage Manager`() {
+        let bridge = SettingsWindowAppearanceView()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false)
+        window.collectionBehavior = [.canJoinAllSpaces]
+
+        window.contentView = bridge
+
+        #expect(window.collectionBehavior.contains(.moveToActiveSpace))
+        #expect(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        #expect(!window.collectionBehavior.contains(.canJoinAllSpaces))
+    }
+
+    @Test
     func `settings window style remains resizable`() {
         let bridge = SettingsWindowAppearanceView()
         let window = NSWindow(
@@ -161,6 +205,22 @@ struct SettingsWindowAppearanceTests {
         window.contentView = bridge
 
         #expect(window.styleMask.contains(.resizable))
+    }
+
+    @Test
+    func `settings window style enables minimization`() {
+        let bridge = SettingsWindowAppearanceView()
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false)
+
+        window.contentView = bridge
+
+        #expect(window.styleMask.contains(.miniaturizable))
+        #expect(window.isMiniaturizable)
+        #expect(window.standardWindowButton(.miniaturizeButton)?.isEnabled == true)
     }
 
     @Test
@@ -206,6 +266,24 @@ struct SettingsWindowAppearanceTests {
 @MainActor
 private final class ResetCapture {
     var actions: [SettingsWindowAppearance.ResetAction] = []
+}
+
+@MainActor
+private final class MiniaturizedWindowSpy: NSWindow {
+    var wasDeminiaturized = false
+
+    override var isMiniaturized: Bool {
+        !self.wasDeminiaturized
+    }
+
+    override func deminiaturize(_ sender: Any?) {
+        _ = sender
+        self.wasDeminiaturized = true
+    }
+
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        _ = sender
+    }
 }
 
 extension NSEvent {

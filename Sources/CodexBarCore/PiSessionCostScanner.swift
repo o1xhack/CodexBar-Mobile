@@ -61,7 +61,7 @@ enum PiSessionCostScanner {
     }
 
     private struct ModelsDevPricingContext {
-        let catalog: ModelsDevCatalog?
+        let catalog: ModelsDevCatalog
         let cacheRoot: URL?
         let pricingKey: String
     }
@@ -75,7 +75,7 @@ enum PiSessionCostScanner {
 
     private static let costScale = 1_000_000_000.0
     /// Bump for Pi-only cost formula changes not represented by the parser or pricing fingerprints.
-    private static let costFormulaVersion = 1
+    private static let costFormulaVersion = 2
     private static let maxLineBytes = 16 * 1024 * 1024
     private static let maxSafeRoundedInt = Double(Int.max) - 1
     private static let sessionStartFilenameRegex = try? NSRegularExpression(
@@ -250,13 +250,13 @@ enum PiSessionCostScanner {
     private static func pricingContext(now: Date, cacheRoot: URL?) -> ModelsDevPricingContext {
         let modelsDevArtifact = ModelsDevCache.load(now: now, cacheRoot: cacheRoot).artifact
         return ModelsDevPricingContext(
-            catalog: modelsDevArtifact?.catalog,
+            catalog: modelsDevArtifact?.catalog ?? ModelsDevCatalog(providers: [:]),
             cacheRoot: cacheRoot,
             pricingKey: CostUsagePricingKey.codex(
                 modelsDevArtifact: modelsDevArtifact,
                 formulaVersion: Self.costFormulaVersion,
                 parserHash: CodexParserHash.value,
-                modelsDevProviderIDs: ["anthropic", "openai"]))
+                modelsDevProviderIDs: CostUsagePricing.codexModelsDevProviderIDs.union(["anthropic"])))
     }
 
     private static func requestedWindowExpandsCache(
@@ -937,14 +937,27 @@ extension PiSessionCostScanner {
                 let usageSampleCount = packed.usageSampleCount
                 let hasCompleteCachedCost = (usageSampleCount ?? 0) > 0
                     && packed.costSampleCount == usageSampleCount
-                // Cached costs are accumulated per message, which preserves Claude long-context threshold boundaries.
+                // Provider-specific by design: Pi exactness follows the same Codex/Claude catalog used for pricing.
                 let costNanos = hasCompleteCachedCost
                     ? packed.costNanos
                     : currentPricingCost.map { Int64(($0 * self.costScale).rounded()) }
+                let hasExactPricing = switch provider {
+                case .codex:
+                    CostUsagePricing.hasExactCodexPricing(
+                        modelName,
+                        modelsDevCatalog: pricingContext?.catalog)
+                case .claude:
+                    CostUsagePricing.hasExactClaudePricing(
+                        modelName,
+                        modelsDevCatalog: pricingContext?.catalog)
+                default:
+                    true
+                }
                 breakdown.append(CostUsageDailyReport.ModelBreakdown(
                     modelName: modelName,
                     costUSD: costNanos.map { Double($0) / Self.costScale },
-                    totalTokens: modelTotalTokens > 0 ? modelTotalTokens : nil))
+                    totalTokens: modelTotalTokens > 0 ? modelTotalTokens : nil,
+                    isEstimated: costNanos != nil && !hasExactPricing ? true : nil))
                 dayInput += packed.inputTokens
                 dayOutput += packed.outputTokens
                 dayCacheRead += packed.cacheReadTokens

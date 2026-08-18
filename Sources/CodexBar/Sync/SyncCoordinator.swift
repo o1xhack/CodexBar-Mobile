@@ -1,4 +1,4 @@
-// swiftlint:disable file_length type_body_length
+// swiftlint:disable type_body_length
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.8.0
 // build 134 when 5 v0.27 existing-provider mappers were added
@@ -7,9 +7,7 @@
 // assembler — pulling the mappers into a separate type would just
 // split the dispatch logic across files without changing the
 // structure. Scoped suppression matches the same pattern already
-// used in MockProviderInjector. The file-length rule is paired with the
-// existing type suppression because this fork-owned assembler also contains
-// the protocol-specific Mac-to-iOS mappers.
+// used in MockProviderInjector.
 import CodexBarCore
 import CodexBarSync
 import Foundation
@@ -875,11 +873,15 @@ final class SyncCoordinator {
         var rateWindows: [SyncRateWindow] = []
         var semanticWindows: (primary: SyncRateWindow?, secondary: SyncRateWindow?) = (nil, nil)
         if let p = snapshot?.primary {
-            let label = provider == .alibabatokenplan
-                ? AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
+            let label: String? = if provider == .alibabatokenplan {
+                AlibabaTokenPlanProviderDescriptor.rateWindowLabel(
                     window: p,
                     fallback: metadata?.sessionLabel ?? "Credits")
-                : metadata?.sessionLabel
+            } else if provider == .grok {
+                GrokProviderDescriptor.displayLabel(window: p) ?? metadata?.sessionLabel
+            } else {
+                metadata?.sessionLabel
+            }
             let window = Self.syncRateWindow(id: "primary", label: label, window: p)
             rateWindows.append(window)
             semanticWindows.primary = window
@@ -1950,7 +1952,7 @@ final class SyncCoordinator {
         let allDayKeys = Set(tokenEntriesByDay.keys).union(serviceBreakdownsByDay.keys).sorted()
         let daily = allDayKeys.map { dayKey -> SyncDailyPoint in
             let entry = tokenEntriesByDay[dayKey]
-            let modelBreakdowns = self.modelBreakdowns(from: entry, provider: provider)
+            let modelBreakdowns = self.modelBreakdowns(from: entry)
             let serviceBreakdowns = serviceBreakdownsByDay[dayKey] ?? []
 
             let fallbackCost =
@@ -2098,19 +2100,15 @@ final class SyncCoordinator {
         nil
     }
 
-    private func modelBreakdowns(
-        from entry: CostUsageDailyReport.Entry?,
-        provider: UsageProvider) -> [SyncCostBreakdown]
-    {
+    private func modelBreakdowns(from entry: CostUsageDailyReport.Entry?) -> [SyncCostBreakdown] {
         guard let breakdowns = entry?.modelBreakdowns else { return [] }
         return breakdowns
             .compactMap { breakdown in
                 guard let cost = breakdown.costUSD, cost > 0 else { return nil }
-                let estimated = Self.isModelEstimated(modelName: breakdown.modelName, provider: provider)
                 return SyncCostBreakdown(
                     label: breakdown.modelName,
                     costUSD: cost,
-                    isEstimated: estimated ? true : nil,
+                    isEstimated: breakdown.isEstimated,
                     // Carry the Codex standard/fast (priority) split through to
                     // iOS (#1070). nil for providers/builds without the split.
                     standardCostUSD: breakdown.standardCostUSD,
@@ -2124,62 +2122,6 @@ final class SyncCoordinator {
                 }
                 return lhs.costUSD > rhs.costUSD
             }
-    }
-
-    /// `true` when `modelName` is NOT in the local pricing table for its
-    /// provider — meaning the cost was computed via a fallback resolver
-    /// row. Used to flag `isEstimated` on the outbound `SyncCostBreakdown`
-    /// so iOS can render the estimated badge (P5).
-    private static func isModelEstimated(modelName: String, provider: UsageProvider) -> Bool {
-        switch provider {
-        case .claude, .vertexai:
-            !ModelFallbackPricing.isClaudeModelKnown(modelName)
-        case .codex:
-            !ModelFallbackPricing.isCodexModelKnown(modelName)
-        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
-             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
-             .openrouter, .warp, .perplexity, .abacus, .mistral,
-             // Upstream 0.24–0.25.1 providers — pre-computed costs from
-             // their own APIs, never go through the local Codex/Claude
-             // pricing tables, so never "estimated".
-             .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
-             .codebuff, .crof, .venice, .commandcode, .stepfun,
-             // Upstream v0.26.0 new providers. Moonshot/Kimi API balance
-             // and Bedrock Cost Explorer numbers come from their own APIs,
-             // never via the local pricing tables.
-             .moonshot, .bedrock,
-             // Upstream v0.27.0 new providers. Grok (web billing + CLI),
-             // GroqCloud (Prometheus), ElevenLabs (API key), Deepgram
-             // (project API), LLM Proxy (quota stats) all surface
-             // pre-computed numbers from their own APIs — never via the
-             // local Codex/Claude pricing tables.
-             .grok, .groq, .elevenlabs, .deepgram, .llmproxy,
-             // Upstream v0.28.0–v0.29.0 new providers. Azure OpenAI
-             // (deployment validation), Alibaba Token Plan (Bailian quota),
-             // and T3 Chat (web session) all surface pre-computed numbers
-             // from their own APIs — never via the local pricing tables.
-             .azureopenai, .alibabatokenplan, .t3chat,
-             // Upstream v0.36.0–v0.36.1 new providers. LiteLLM, Poe,
-             // Chutes, and Zed surface provider-computed usage/quota
-             // values (or no USD cost), not local Codex/Claude model
-             // pricing table estimates.
-             .litellm, .poe, .chutes, .zed,
-             // Upstream v0.38.0–v0.39.0 new providers. Sakana, Qoder,
-             // and ClawRouter surface provider-computed
-             // values (or no USD cost), not local Codex/Claude model
-             // pricing table estimates.
-             .sakana, .qoder, .clawrouter,
-             // Upstream v0.42.0–v0.45.2 providers likewise expose
-             // provider-computed quota, balance, or spend values.
-             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
-             // Upstream v0.46.0-v0.47.0 providers expose provider-computed
-             // quota, credit, balance, or workspace allowance values.
-             .qwencloud, .zoommate, .xai, .notion, .fireworks, .ibmbob:
-            // These providers never reach the local pricing table — their
-            // costs come pre-computed from upstream APIs (or don't exist).
-            // No fallback applies, so they are never "estimated".
-            false
-        }
     }
 
     private func dashboardServiceBreakdowns(for provider: UsageProvider) -> [String: [SyncCostBreakdown]] {
@@ -2272,4 +2214,4 @@ final class SyncCoordinator {
     }
 }
 
-// swiftlint:enable file_length type_body_length
+// swiftlint:enable type_body_length

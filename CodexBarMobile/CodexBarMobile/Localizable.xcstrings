@@ -20069,6 +20069,36 @@
       "ja": { "stringUnit": { "state": "translated", "value": "Mac 間の同期をより安全に — プロバイダーアカウントは安定して統合され、別のアカウントとカスタムプラグインは区別されたままです。" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "更安全的多 Mac 同步——提供商账户会稳定合并，同时独立账户和自定义插件保持区分。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "更安全的多 Mac 同步——提供者帳戶會穩定合併，同時獨立帳戶和自訂外掛程式保持區分。" } }
+    } },
+    "v052_window_total": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Total" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "合計" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "总计" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "總計" } }
+    } },
+    "v052_window_third_party": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Third Party" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "サードパーティ" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "第三方" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "第三方" } }
+    } },
+    "v052_window_on_demand": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "On-demand" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "オンデマンド" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "按需" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "隨選" } }
+    } },
+    "iPhone 1.21 brings richer provider details, Fireworks and IBM Bob, clearer quota labels, and safer multi-Mac sync.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 brings richer provider details, Fireworks and IBM Bob, clearer quota labels, and safer multi-Mac sync." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 では、より詳しいプロバイダー情報、Fireworks と IBM Bob、わかりやすいクォータラベル、より安全な複数 Mac 同期が利用できます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 带来更丰富的提供商详情、Fireworks 和 IBM Bob、更清晰的额度标签，以及更安全的多 Mac 同步。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 帶來更豐富的提供者詳情、Fireworks 和 IBM Bob、更清楚的額度標籤，以及更安全的多 Mac 同步。" } }
+    } },
+    "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より多くのプロバイダー詳細 — 新しい Mac 版の残高、クレジット、請求、チャート、Claude のモデル別上限、Cursor と Vertex のクォータラベル、OpenCode Go の推定値、Grok のプランを統一されたレイアウトで表示します。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更多提供商详情——新版 Mac 的余额、额度、账单、图表、Claude 模型范围限额、Cursor 与 Vertex 额度标签、OpenCode Go 估算值和 Grok 套餐现在会以统一布局显示。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更多提供者詳情——新版 Mac 的餘額、額度、帳單、圖表、Claude 模型範圍限額、Cursor 與 Vertex 額度標籤、OpenCode Go 估算值和 Grok 方案現在會以統一佈局顯示。" } }
     } }
   },
   "version": "1.0"

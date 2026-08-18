@@ -27,6 +27,8 @@ struct MenuBarLayoutTests {
                 .resetCountdown,
                 .resetAbsolute,
                 .runsOut,
+                .runsOutCompact,
+                .balance,
                 .costToday,
                 .cost30d,
                 .separatorDot,
@@ -38,6 +40,16 @@ struct MenuBarLayoutTests {
         let decoded = try JSONDecoder().decode(MenuBarLayout.self, from: data)
 
         #expect(decoded == layout)
+    }
+
+    @Test
+    func `run out token discriminators stay stable`() throws {
+        let labeled = try JSONEncoder().encode(MenuBarLayoutToken.runsOut)
+        let compact = try JSONEncoder().encode(MenuBarLayoutToken.runsOutCompact)
+
+        #expect(String(bytes: labeled, encoding: .utf8) == #"{"runsOut":{}}"#)
+        #expect(String(bytes: compact, encoding: .utf8) == #"{"runsOutCompact":{}}"#)
+        #expect(try JSONDecoder().decode(MenuBarLayoutToken.self, from: labeled) == .runsOut)
     }
 
     @Test
@@ -244,6 +256,47 @@ struct MenuBarLayoutTests {
             metricPreference: .secondary,
             resetTimeDisplayStyle: .countdown,
             provider: .kimi) == MenuBarLayout(lines: [[.icon, .percent(window: .session)]]))
+    }
+
+    @Test
+    func `migration preserves OpenRouter automatic balance for every display mode`() {
+        let expected = MenuBarLayout(lines: [[.icon, .balance]])
+
+        for displayMode in MenuBarDisplayMode.allCases {
+            #expect(MenuBarLayout.migrated(
+                iconStyle: .iconAndPercent,
+                displayMode: displayMode,
+                metricPreference: .automatic,
+                resetTimeDisplayStyle: .countdown,
+                provider: .openrouter) == expected)
+        }
+
+        #expect(MenuBarLayout.migrated(
+            iconStyle: .iconAndPercent,
+            displayMode: .percent,
+            metricPreference: .primary,
+            resetTimeDisplayStyle: .countdown,
+            provider: .openrouter) == MenuBarLayout(lines: [[.icon, .percent(window: .session)]]))
+    }
+
+    @Test
+    @MainActor
+    func `editing OpenRouter legacy automatic layout persists its balance`() {
+        let settings = testSettingsStore(suiteName: "MenuBarLayoutTests-openrouter-editor-migration")
+        settings.setMenuBarMetricPreference(.automatic, for: .openrouter)
+        let migrated = settings.menuBarLayout(for: .openrouter)
+
+        #expect(!settings.hasStoredMenuBarLayout)
+        #expect(migrated == MenuBarLayout(lines: [[.icon, .balance]]))
+
+        MenuBarLayoutEditorPersistence.setGap(
+            .tight,
+            activating: migrated,
+            for: .openrouter,
+            settings: settings)
+
+        #expect(settings.menuBarLayoutOverrides[.openrouter] == migrated)
+        #expect(settings.menuBarLayout(for: .openrouter) == migrated)
     }
 
     @Test

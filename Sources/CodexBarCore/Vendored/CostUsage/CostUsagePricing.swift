@@ -424,6 +424,20 @@ enum CostUsagePricing {
     ]
 
     private static let codexModelsDevProviderID = "openai"
+    /// Provider IDs emitted by Codex-compatible clients that have matching entries in models.dev.
+    ///
+    /// The route prefix is part of the model identity for local usage estimates. Keep both the
+    /// client-facing aliases and their models.dev provider IDs here so pricing-cache fingerprints
+    /// invalidate when any supported route's rates change.
+    static let codexModelsDevProviderIDs: Set<String> = [
+        "deepseek",
+        "kimi-coding",
+        "kimi-for-coding",
+        "openai",
+        "opencode",
+        "opencode-free",
+        "opencode-go",
+    ]
     private static let claudeModelsDevProviderID = "anthropic"
 
     /// Manual version constant for the parser logic (`parseCodexFile` /
@@ -439,6 +453,8 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `12` (0.52.0.1): merged upstream v0.49.3-v0.52.0 parser, project/session
+    ///   attribution, provider-qualified pricing, retention, and reconciliation changes.
     /// - `11` (0.49.2.1): merged upstream v0.48.0-v0.49.2 scanner and
     ///   pricing changes, including SQLite working-set migration, API Fast
     ///   token-class attribution, and Claude/Codex parser updates.
@@ -489,7 +505,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 11
+    static let parserLogicVersion = 12
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -553,6 +569,46 @@ enum CostUsagePricing {
         }.joined(separator: ",")
 
         return "v\(Self.parserLogicVersion)|codex=\(codexEntries)|claude=\(claudeEntries)"
+    }
+
+    /// Returns the provider/model identities that may price a Codex model. Keep this mapping
+    /// shared by direct lookup and unknown-price refresh so a newly downloaded catalog is checked
+    /// under the same identity that was used to resolve the model.
+    static func codexModelsDevPricingTargets(for rawModel: String) -> [(providerID: String, modelID: String)] {
+        let trimmed = rawModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        if let slash = trimmed.firstIndex(of: "/") {
+            let routeID = String(trimmed[..<slash]).lowercased()
+            let modelID = String(trimmed[trimmed.index(after: slash)...])
+            guard !routeID.isEmpty, !modelID.isEmpty,
+                  self.codexModelsDevProviderIDs.contains(routeID)
+            else { return [] }
+
+            var providerIDs = [routeID]
+            switch routeID {
+            case "kimi-coding":
+                providerIDs.append("kimi-for-coding")
+            case "opencode-free":
+                providerIDs.append("opencode")
+            default:
+                break
+            }
+            var targets = providerIDs.map { ($0, modelID) }
+            if routeID == self.codexModelsDevProviderID {
+                let normalized = self.normalizeCodexModel(modelID)
+                if normalized != modelID {
+                    targets.append((self.codexModelsDevProviderID, normalized))
+                }
+            }
+            return targets
+        }
+
+        let normalized = self.normalizeCodexModel(trimmed)
+        var targets = [(self.codexModelsDevProviderID, trimmed)]
+        if normalized != trimmed {
+            targets.append((self.codexModelsDevProviderID, normalized))
+        }
+        return targets
     }
 
     static func normalizeCodexModel(_ raw: String) -> String {
@@ -626,20 +682,59 @@ enum CostUsagePricing {
         modelsDevCatalog: ModelsDevCatalog? = nil,
         modelsDevCacheRoot: URL? = nil) -> Double?
     {
+        guard let pricing = self.resolvedCodexPricing(
+            model: model,
+            modelsDevCatalog: modelsDevCatalog,
+            modelsDevCacheRoot: modelsDevCacheRoot)
+        else { return nil }
+        return self.codexCostUSD(
+            pricing: pricing,
+            inputTokens: inputTokens,
+            cachedInputTokens: cachedInputTokens,
+            cacheWriteInputTokens: cacheWriteInputTokens,
+            outputTokens: outputTokens)
+    }
+
+    static func codexAggregateCostUSD(
+        model: String,
+        inputTokens: Int,
+        cachedInputTokens: Int,
+        outputTokens: Int,
+        cacheWriteInputTokens: Int = 0,
+        modelsDevCatalog: ModelsDevCatalog? = nil,
+        modelsDevCacheRoot: URL? = nil) -> Double?
+    {
+        guard let pricing = self.resolvedCodexPricing(
+            model: model,
+            modelsDevCatalog: modelsDevCatalog,
+            modelsDevCacheRoot: modelsDevCacheRoot)
+        else { return nil }
+        if let thresholdTokens = pricing.thresholdTokens,
+           max(0, inputTokens) > thresholdTokens
+        {
+            return nil
+        }
+        return self.codexCostUSD(
+            pricing: pricing,
+            inputTokens: inputTokens,
+            cachedInputTokens: cachedInputTokens,
+            cacheWriteInputTokens: cacheWriteInputTokens,
+            outputTokens: outputTokens)
+    }
+
+    private static func resolvedCodexPricing(
+        model: String,
+        modelsDevCatalog: ModelsDevCatalog?,
+        modelsDevCacheRoot: URL?) -> CodexPricing?
+    {
         let key = self.normalizeCodexModel(model)
         guard key != self.codexUnattributedModel else { return nil }
-        let modelsDevLookup = self.modelsDevLookup(
-            providerID: self.codexModelsDevProviderID,
+        let modelsDevLookup = self.codexModelsDevLookup(
             model: model,
             catalog: modelsDevCatalog,
             cacheRoot: modelsDevCacheRoot)
-            ?? (model == key ? nil : self.modelsDevLookup(
-                providerID: self.codexModelsDevProviderID,
-                model: key,
-                catalog: modelsDevCatalog,
-                cacheRoot: modelsDevCacheRoot))
         if let lookup = modelsDevLookup {
-            let bundled = self.codex[key]
+            let bundled = lookup.pricing.providerID == self.codexModelsDevProviderID ? self.codex[key] : nil
             // A missing catalog context block means models.dev has no long-context opinion, so use
             // the bundled tuple. Once the block exists, preserve its omissions and normal fallback
             // semantics instead of filling individual fields from a different pricing source.
@@ -656,44 +751,57 @@ enum CostUsagePricing {
                     ?? lookup.pricing.inputCostPerTokenAboveThreshold
                     ?? lookup.pricing.inputCostPerToken
                     : bundledLongContext?.cacheWriteInputCostPerTokenAboveThreshold)
-            return self.codexCostUSD(
-                pricing: lookup.pricing,
+            return CodexPricing(
+                inputCostPerToken: lookup.pricing.inputCostPerToken,
+                outputCostPerToken: lookup.pricing.outputCostPerToken,
+                cacheReadInputCostPerToken: lookup.pricing.cacheReadInputCostPerToken
+                    ?? bundled?.cacheReadInputCostPerToken,
+                displayLabel: nil,
+                cacheWriteInputCostPerToken: lookup.pricing.cacheCreationInputCostPerToken
+                    ?? bundled?.cacheWriteInputCostPerToken,
                 thresholdTokens: bundled?.thresholdTokens ?? lookup.pricing.thresholdTokens,
                 inputCostPerTokenAboveThreshold: lookup.pricing.inputCostPerTokenAboveThreshold
                     ?? bundledLongContext?.inputCostPerTokenAboveThreshold,
                 outputCostPerTokenAboveThreshold: lookup.pricing.outputCostPerTokenAboveThreshold
                     ?? bundledLongContext?.outputCostPerTokenAboveThreshold,
-                cacheReadInputCostPerToken: lookup.pricing.cacheReadInputCostPerToken
-                    ?? bundled?.cacheReadInputCostPerToken,
                 cacheReadInputCostPerTokenAboveThreshold: cacheReadAboveThreshold,
-                cacheWriteInputCostPerToken: lookup.pricing.cacheCreationInputCostPerToken
-                    ?? bundled?.cacheWriteInputCostPerToken,
-                cacheWriteInputCostPerTokenAboveThreshold: cacheWriteAboveThreshold,
-                inputTokens: inputTokens,
-                cachedInputTokens: cachedInputTokens,
-                cacheWriteInputTokens: cacheWriteInputTokens,
-                outputTokens: outputTokens)
+                cacheWriteInputCostPerTokenAboveThreshold: cacheWriteAboveThreshold)
         }
 
-        // 2) Exact local-table hit.
         if let pricing = self.codex[key] {
-            return self.codexCostUSD(
-                pricing: pricing,
-                inputTokens: inputTokens,
-                cachedInputTokens: cachedInputTokens,
-                cacheWriteInputTokens: cacheWriteInputTokens,
-                outputTokens: outputTokens)
+            return pricing
         }
 
-        // 3) Fork's family-fallback ladder (Research/018 fix — keeps
-        //    unknown gpt-X.Y names from collapsing to $0). Last-resort.
-        guard let pricing = self.resolveCodexPricing(model: model) else { return nil }
-        return self.codexCostUSD(
-            pricing: pricing,
-            inputTokens: inputTokens,
-            cachedInputTokens: cachedInputTokens,
-            cacheWriteInputTokens: cacheWriteInputTokens,
-            outputTokens: outputTokens)
+        // Preserve the fork's family fallback for unqualified OpenAI models while keeping
+        // upstream's provider-qualified pricing isolation. A routed DeepSeek/Kimi/OpenCode
+        // model must never fall through to an OpenAI family rate.
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let slash = trimmed.firstIndex(of: "/") {
+            let routeID = String(trimmed[..<slash]).lowercased()
+            guard routeID == self.codexModelsDevProviderID else { return nil }
+        }
+        return self.resolveCodexPricing(model: model)
+    }
+
+    /// Resolves the provider-qualified model IDs written by Codex-compatible clients without
+    /// falling back to OpenAI pricing for an unrelated route. Unqualified model IDs retain the
+    /// historical OpenAI behavior, including the gpt-5.6 alias lookup.
+    private static func codexModelsDevLookup(
+        model rawModel: String,
+        catalog: ModelsDevCatalog?,
+        cacheRoot: URL?) -> ModelsDevPricingLookup?
+    {
+        for target in self.codexModelsDevPricingTargets(for: rawModel) {
+            if let lookup = self.modelsDevLookup(
+                providerID: target.providerID,
+                model: target.modelID,
+                catalog: catalog,
+                cacheRoot: cacheRoot)
+            {
+                return lookup
+            }
+        }
+        return nil
     }
 
     static func codexPriorityCostUSD(
@@ -772,58 +880,31 @@ enum CostUsagePricing {
             + (Double(max(0, outputTokens)) * outputRate)
     }
 
-    private static func codexCostUSD(
-        pricing: ModelsDevPricingInfo,
-        thresholdTokens: Int? = nil,
-        inputCostPerTokenAboveThreshold: Double? = nil,
-        outputCostPerTokenAboveThreshold: Double? = nil,
-        cacheReadInputCostPerToken: Double? = nil,
-        cacheReadInputCostPerTokenAboveThreshold: Double? = nil,
-        cacheWriteInputCostPerToken: Double? = nil,
-        cacheWriteInputCostPerTokenAboveThreshold: Double? = nil,
-        inputTokens: Int,
-        cachedInputTokens: Int,
-        cacheWriteInputTokens: Int = 0,
-        outputTokens: Int) -> Double
-    {
-        self.codexCostUSD(
-            pricing: CodexPricing(
-                inputCostPerToken: pricing.inputCostPerToken,
-                outputCostPerToken: pricing.outputCostPerToken,
-                cacheReadInputCostPerToken: cacheReadInputCostPerToken
-                    ?? pricing.cacheReadInputCostPerToken,
-                displayLabel: nil,
-                cacheWriteInputCostPerToken: cacheWriteInputCostPerToken
-                    ?? pricing.cacheCreationInputCostPerToken,
-                thresholdTokens: thresholdTokens ?? pricing.thresholdTokens,
-                inputCostPerTokenAboveThreshold: inputCostPerTokenAboveThreshold
-                    ?? pricing.inputCostPerTokenAboveThreshold,
-                outputCostPerTokenAboveThreshold: outputCostPerTokenAboveThreshold
-                    ?? pricing.outputCostPerTokenAboveThreshold,
-                cacheReadInputCostPerTokenAboveThreshold: cacheReadInputCostPerTokenAboveThreshold
-                    ?? pricing.cacheReadInputCostPerTokenAboveThreshold,
-                cacheWriteInputCostPerTokenAboveThreshold: cacheWriteInputCostPerTokenAboveThreshold
-                    ?? pricing.cacheCreationInputCostPerTokenAboveThreshold),
-            inputTokens: inputTokens,
-            cachedInputTokens: cachedInputTokens,
-            cacheWriteInputTokens: cacheWriteInputTokens,
-            outputTokens: outputTokens)
-    }
-
-    /// Returns true iff the given raw Codex model name maps to an exact
-    /// row in the local pricing table (after standard normalization).
-    /// SyncCoordinator uses this in P4 to flag `isEstimated` on outbound
-    /// per-model breakdowns when the cost came from a fallback row.
     static func isCodexModelKnown(_ raw: String) -> Bool {
         let key = self.normalizeCodexModel(raw)
         return self.codex[key] != nil
     }
 
-    /// Resolve a Codex pricing row, walking the fallback ladder when the
-    /// model name isn't in the local table. Returns nil only when the
-    /// name doesn't even match the `gpt-X.Y` grammar — for any parseable
-    /// Codex name we fall through to `gpt-5` rather than dropping the
-    /// row to $0 (the bug Research/018 exists to fix).
+    /// Provider-specific by design: Codex exactness uses its own bundled table and models.dev routes.
+    /// Family fallbacks remain estimates for unqualified models.
+    /// Provider-qualified routes are exact only in their own models.dev provider.
+    static func hasExactCodexPricing(
+        _ raw: String,
+        modelsDevCatalog: ModelsDevCatalog?) -> Bool
+    {
+        let key = self.normalizeCodexModel(raw)
+        guard key != self.codexUnattributedModel else { return false }
+        let immutableCatalog = modelsDevCatalog ?? ModelsDevCatalog(providers: [:])
+        if self.codexModelsDevLookup(
+            model: raw,
+            catalog: immutableCatalog,
+            cacheRoot: nil) != nil
+        {
+            return true
+        }
+        return self.codex[key] != nil
+    }
+
     private static func resolveCodexPricing(model: String) -> CodexPricing? {
         let key = self.normalizeCodexModel(model)
         if let exact = self.codex[key] { return exact }
@@ -831,9 +912,6 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.codex)
         else { return nil }
-        // Fire-and-forget diagnostic record. The actor handles dedup +
-        // log rate-limiting; we don't wait so the per-row cost loop
-        // stays sync.
         let strategy = fallback.strategy.rawValue
         let fallbackKey = fallback.key
         Task { @Sendable in
@@ -864,7 +942,6 @@ enum CostUsagePricing {
             cacheCreation1h: cacheCreationInputTokens1h,
             output: outputTokens)
         let key = self.normalizeClaudeModel(model)
-
         if let pricingDate,
            let historicalPricing = self.claudeHistoricalLongContext[key],
            let currentPricing = self.claude[key]
@@ -875,8 +952,6 @@ enum CostUsagePricing {
                     : currentPricing,
                 tokens: tokens)
         }
-
-        // 1) models.dev catalog (upstream 0.25).
         if let lookup = self.modelsDevLookup(
             providerID: self.claudeModelsDevProviderID,
             model: model,
@@ -888,16 +963,12 @@ enum CostUsagePricing {
                 tokens: tokens)
         }
 
-        // 2) Exact local-table hit.
         if let pricing = self.claude[key] {
             return self.claudeCostUSD(pricing: pricing, tokens: tokens)
         }
 
-        // 3) Fork's family-fallback ladder (Research/018).
         guard let pricing = self.resolveClaudePricing(model: model) else { return nil }
-        return self.claudeCostUSD(
-            pricing: pricing,
-            tokens: tokens)
+        return self.claudeCostUSD(pricing: pricing, tokens: tokens)
     }
 
     private static func claudeCostUSD(
@@ -950,20 +1021,30 @@ enum CostUsagePricing {
             tokens: tokens)
     }
 
-    /// Returns true iff the given raw Claude model name maps to an exact
-    /// row in the local pricing table (after standard normalization).
-    /// Used by SyncCoordinator to mark `isEstimated` on outbound model
-    /// breakdowns when cost came from a fallback row.
     static func isClaudeModelKnown(_ raw: String) -> Bool {
         let key = self.normalizeClaudeModel(raw)
         return self.claude[key] != nil
     }
 
-    /// Resolve a Claude pricing row, walking the fallback ladder when the
-    /// model name isn't in the local table. Returns nil only when the
-    /// name doesn't match the `claude-{family}-…` grammar — for any
-    /// parseable Claude name we fall through to family flagship rather
-    /// than dropping the row to $0 (the bug Research/018 exists to fix).
+    /// Provider-specific by design: Claude exactness uses its own bundled table and models.dev catalog.
+    /// Family fallbacks remain estimates even if a newer cache later appears.
+    static func hasExactClaudePricing(
+        _ raw: String,
+        modelsDevCatalog: ModelsDevCatalog?) -> Bool
+    {
+        let key = self.normalizeClaudeModel(raw)
+        let immutableCatalog = modelsDevCatalog ?? ModelsDevCatalog(providers: [:])
+        if self.modelsDevLookup(
+            providerID: self.claudeModelsDevProviderID,
+            model: raw,
+            catalog: immutableCatalog,
+            cacheRoot: nil) != nil
+        {
+            return true
+        }
+        return self.claude[key] != nil
+    }
+
     private static func resolveClaudePricing(model: String) -> ClaudePricing? {
         let key = self.normalizeClaudeModel(model)
         if let exact = self.claude[key] { return exact }
@@ -971,9 +1052,6 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.claude)
         else { return nil }
-        // Fire-and-forget diagnostic record. The actor handles dedup +
-        // log rate-limiting; we don't wait so the per-row cost loop
-        // stays sync.
         let strategy = fallback.strategy.rawValue
         let fallbackKey = fallback.key
         Task { @Sendable in

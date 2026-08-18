@@ -51,6 +51,124 @@ struct CostUsagePricingTests {
     }
 
     @Test
+    func `codex cost resolves OpenCodex provider qualified models`() throws {
+        let root = try Self.seedModelsDevCache("""
+        {
+          "deepseek": {
+            "id": "deepseek",
+            "models": {
+              "deepseek-v4-flash": {
+                "id": "deepseek-v4-flash",
+                "cost": { "input": 0.14, "output": 0.28 }
+              }
+            }
+          },
+          "kimi-for-coding": {
+            "id": "kimi-for-coding",
+            "models": {
+              "k3": {
+                "id": "k3",
+                "cost": { "input": 0, "output": 0 }
+              }
+            }
+          },
+          "opencode": {
+            "id": "opencode",
+            "models": {
+              "deepseek-v4-flash-free": {
+                "id": "deepseek-v4-flash-free",
+                "cost": { "input": 0, "output": 0 }
+              }
+            }
+          },
+          "opencode-go": {
+            "id": "opencode-go",
+            "models": {
+              "deepseek-v4-flash": {
+                "id": "deepseek-v4-flash",
+                "cost": { "input": 0.07, "output": 0.14 }
+              }
+            }
+          }
+        }
+        """)
+
+        let opencodeGo = CostUsagePricing.codexCostUSD(
+            model: "opencode-go/deepseek-v4-flash",
+            inputTokens: 100,
+            cachedInputTokens: 10,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
+        let opencodeFree = CostUsagePricing.codexCostUSD(
+            model: "opencode-free/deepseek-v4-flash-free",
+            inputTokens: 100,
+            cachedInputTokens: 10,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
+        let kimi = CostUsagePricing.codexCostUSD(
+            model: "kimi-coding/k3",
+            inputTokens: 100,
+            cachedInputTokens: 10,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
+        let deepseek = CostUsagePricing.codexCostUSD(
+            model: "deepseek/deepseek-v4-flash",
+            inputTokens: 100,
+            cachedInputTokens: 10,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
+
+        #expect(opencodeGo == (100.0 * 0.07e-6) + (5.0 * 0.14e-6))
+        #expect(opencodeFree == 0)
+        #expect(kimi == 0)
+        #expect(deepseek == (100.0 * 0.14e-6) + (5.0 * 0.28e-6))
+        let catalog = try #require(ModelsDevCache.load(cacheRoot: root).artifact?.catalog)
+        #expect(CostUsagePricing.hasExactCodexPricing(
+            "opencode-go/deepseek-v4-flash",
+            modelsDevCatalog: catalog))
+        #expect(!CostUsagePricing.isCodexModelKnown("opencode-go/deepseek-v4-flash"))
+    }
+
+    @Test
+    func `codex cost does not cross charge an unknown provider prefix`() throws {
+        let root = try Self.seedModelsDevCache("""
+        {
+          "openai": {
+            "id": "openai",
+            "models": {
+              "deepseek-v4-flash": {
+                "id": "deepseek-v4-flash",
+                "cost": { "input": 99, "output": 199 }
+              }
+            }
+          },
+          "unlisted-route": {
+            "id": "unlisted-route",
+            "models": {
+              "deepseek-v4-flash": {
+                "id": "deepseek-v4-flash",
+                "cost": { "input": 1, "output": 1 }
+              }
+            }
+          }
+        }
+        """)
+
+        let cost = CostUsagePricing.codexCostUSD(
+            model: "unlisted-route/deepseek-v4-flash",
+            inputTokens: 100,
+            cachedInputTokens: 0,
+            outputTokens: 5,
+            modelsDevCacheRoot: root)
+
+        #expect(cost == nil)
+        let catalog = try #require(ModelsDevCache.load(cacheRoot: root).artifact?.catalog)
+        #expect(!CostUsagePricing.hasExactCodexPricing(
+            "unlisted-route/deepseek-v4-flash",
+            modelsDevCatalog: catalog))
+    }
+
+    @Test
     func `codex cost supports gpt51 codex max`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.1-codex-max",
@@ -614,6 +732,71 @@ struct CostUsagePricingTests {
 
         #expect(atBoundary == (272_000.0 * 5e-6) + (10.0 * 3e-5))
         #expect(aboveBoundary == (272_001.0 * 1e-5) + (10.0 * 4.5e-5))
+    }
+
+    @Test
+    func `codex aggregate pricing uses safe base rates and rejects aggregates above thresholds`() throws {
+        let emptyRoot = try Self.cacheRoot()
+        let bundledBelowThreshold = CostUsagePricing.codexAggregateCostUSD(
+            model: "gpt-5.6-sol",
+            inputTokens: 200_000,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            modelsDevCacheRoot: emptyRoot)
+        let bundledAtThreshold = CostUsagePricing.codexAggregateCostUSD(
+            model: "gpt-5.6-sol",
+            inputTokens: 272_000,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            modelsDevCacheRoot: emptyRoot)
+        let bundledAboveThreshold = CostUsagePricing.codexAggregateCostUSD(
+            model: "gpt-5.6-sol",
+            inputTokens: 400_000,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            modelsDevCacheRoot: emptyRoot)
+        let linear = CostUsagePricing.codexAggregateCostUSD(
+            model: "gpt-5.4-mini",
+            inputTokens: 400_000,
+            cachedInputTokens: 100_000,
+            outputTokens: 100,
+            modelsDevCacheRoot: emptyRoot)
+        let catalogThresholdRoot = try Self.seedModelsDevCache("""
+        {
+          "openai": {
+            "id": "openai",
+            "models": {
+              "aggregate-threshold-model": {
+                "id": "aggregate-threshold-model",
+                "cost": {
+                  "input": 5,
+                  "output": 30,
+                  "context_over_200k": { "input": 10, "output": 45 }
+                }
+              }
+            }
+          }
+        }
+        """)
+        let catalogAtThreshold = CostUsagePricing.codexAggregateCostUSD(
+            model: "aggregate-threshold-model",
+            inputTokens: 200_000,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            modelsDevCacheRoot: catalogThresholdRoot)
+        let catalogAboveThreshold = CostUsagePricing.codexAggregateCostUSD(
+            model: "aggregate-threshold-model",
+            inputTokens: 200_001,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            modelsDevCacheRoot: catalogThresholdRoot)
+
+        #expect(bundledBelowThreshold == (200_000.0 * 5e-6) + (100.0 * 30e-6))
+        #expect(bundledAtThreshold == (272_000.0 * 5e-6) + (100.0 * 30e-6))
+        #expect(bundledAboveThreshold == nil)
+        #expect(linear == (300_000.0 * 7.5e-7) + (100_000.0 * 7.5e-8) + (100.0 * 4.5e-6))
+        #expect(catalogAtThreshold == (200_000.0 * 5e-6) + (100.0 * 30e-6))
+        #expect(catalogAboveThreshold == nil)
     }
 
     @Test

@@ -25,6 +25,90 @@ struct SyncCoordinatorMobileBridgeTests {
     }
 
     @Test
+    func `v052 provider semantics reuse the existing Mobile envelope`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v052-provider-semantics")
+        settings.iCloudSyncEnabled = true
+        for provider in [UsageProvider.claude, .cursor, .opencodego, .grok] {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderDefaults.metadata[provider]),
+                enabled: true)
+        }
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        let window = RateWindow(
+            usedPercent: 25,
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: pinned.addingTimeInterval(86400),
+            resetDescription: nil)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: window,
+                secondary: window,
+                tertiary: window,
+                extraRateWindows: [
+                    NamedRateWindow(id: "model:opus", title: "Opus only", window: window),
+                ],
+                updatedAt: pinned,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .cursor,
+                    accountEmail: "cursor@example.test",
+                    accountOrganization: nil,
+                    loginMethod: "Cursor Pro")),
+            provider: .cursor)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: window,
+                secondary: window,
+                extraRateWindows: [
+                    NamedRateWindow(id: "model:sonnet", title: "Sonnet only", window: window),
+                ],
+                updatedAt: pinned),
+            provider: .claude)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: window,
+                secondary: window,
+                tertiary: window,
+                updatedAt: pinned,
+                dataConfidence: .estimated),
+            provider: .opencodego)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: window,
+                secondary: window,
+                updatedAt: pinned,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .grok,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: "SuperGrok Heavy")),
+            provider: .grok)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let providers = try #require(mock.lastSnapshot?.providers)
+        let cursor = try #require(providers.first { $0.providerID == "cursor" })
+        #expect(cursor.allRateWindows.map(\.label) == ["Total", "Cursor", "Third Party", "Opus only"])
+        #expect(cursor.allRateWindows.map(\.id) == ["primary", "secondary", "tertiary", "model:opus"])
+        #expect(cursor.loginMethod == "Cursor Pro")
+
+        let claude = try #require(providers.first { $0.providerID == "claude" })
+        #expect(claude.allRateWindows.last?.id == "model:sonnet")
+        #expect(claude.allRateWindows.last?.label == "Sonnet only")
+
+        let openCodeGo = try #require(providers.first { $0.providerID == "opencodego" })
+        #expect(openCodeGo.usageDataConfidence == "estimated")
+        #expect(openCodeGo.allRateWindows.map(\.label) == ["5-hour", "Weekly", "Monthly"])
+
+        let grok = try #require(providers.first { $0.providerID == "grok" })
+        #expect(grok.loginMethod == "SuperGrok Heavy")
+        #expect(grok.allRateWindows.map(\.label) == ["Weekly", "On-demand"])
+    }
+
+    @Test
     func `Fireworks cost-only snapshot survives ghost filtering as spend without quota`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-fireworks-cost-only")
         settings.iCloudSyncEnabled = true

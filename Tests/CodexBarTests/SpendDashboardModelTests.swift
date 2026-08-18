@@ -797,77 +797,6 @@ struct SpendDashboardModelTests {
         #expect(exact.authFileWasReadable)
         #expect(exact.cacheIdentity != request.cacheIdentity)
     }
-
-    private static func input(
-        id: String,
-        provider: UsageProvider,
-        currency: String,
-        cost: Double) -> SpendDashboardModel.ProviderInput
-    {
-        SpendDashboardModel.ProviderInput(
-            id: id,
-            provider: provider,
-            displayName: provider.rawValue,
-            snapshot: self.snapshot(currency: currency, entries: [self.entry(day: "2026-07-16", cost: cost)]))
-    }
-
-    private static func snapshot(
-        currency: String,
-        entries: [CostUsageDailyReport.Entry],
-        historyDays: Int = 30,
-        updatedAt: Date = now) -> CostUsageTokenSnapshot
-    {
-        CostUsageTokenSnapshot(
-            sessionTokens: nil,
-            sessionCostUSD: nil,
-            last30DaysTokens: nil,
-            last30DaysCostUSD: nil,
-            currencyCode: currency,
-            historyDays: historyDays,
-            daily: entries,
-            updatedAt: updatedAt)
-    }
-
-    private static func entry(
-        day: String,
-        cost: Double?,
-        tokens: Int? = 10,
-        model: String? = "test-model") -> CostUsageDailyReport.Entry
-    {
-        CostUsageDailyReport.Entry(
-            date: day,
-            inputTokens: nil,
-            outputTokens: nil,
-            totalTokens: tokens,
-            costUSD: cost,
-            modelsUsed: nil,
-            modelBreakdowns: model.map {
-                [.init(modelName: $0, costUSD: cost, totalTokens: tokens)]
-            })
-    }
-
-    private static func entryWithBreakdowns(
-        day: String,
-        totalCost: Double = 0,
-        totalTokens: Int = 0,
-        breakdowns: [CostUsageDailyReport.ModelBreakdown]) -> CostUsageDailyReport.Entry
-    {
-        CostUsageDailyReport.Entry(
-            date: day,
-            inputTokens: nil,
-            outputTokens: nil,
-            totalTokens: totalTokens,
-            costUSD: totalCost,
-            modelsUsed: nil,
-            modelBreakdowns: breakdowns)
-    }
-
-    private static let now = Date(timeIntervalSince1970: 1_784_179_200) // 2026-07-16 00:00:00 UTC
-    private static var calendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar
-    }
 }
 
 extension SpendDashboardModelTests {
@@ -1060,5 +989,336 @@ extension SpendDashboardModelTests {
         #expect(knownZeroGroup.modelHistoryCompleteness == .complete)
         #expect(knownZeroGroup.models.isEmpty)
         #expect(spendDashboardModelHistoryPresentation(knownZeroGroup) == .empty)
+    }
+}
+
+extension SpendDashboardModelTests {
+    @Test
+    func `project rows aggregate windowed entries and rank by cost`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: CostUsageTokenSnapshot(
+                        sessionTokens: nil,
+                        sessionCostUSD: nil,
+                        last30DaysTokens: nil,
+                        last30DaysCostUSD: nil,
+                        currencyCode: "USD",
+                        historyDays: 30,
+                        daily: [
+                            Self.entry(day: "2026-07-15", cost: 30),
+                            Self.entry(day: "2026-07-16", cost: 10),
+                        ],
+                        projects: [
+                            Self.project(name: "alpha", days: [
+                                ("2026-07-15", 20),
+                                ("2026-07-16", 5),
+                            ]),
+                            Self.project(name: "beta", days: [
+                                ("2026-07-16", 10),
+                            ]),
+                        ],
+                        updatedAt: Self.now)),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let group = try #require(model.groups.first)
+        #expect(group.projects.count == 2)
+        #expect(group.projects[0].projectName == "alpha")
+        #expect(group.projects[0].rank == 1)
+        #expect(group.projects[0].totalCost == 25)
+        #expect(group.projects[0].totalTokens == 20)
+        #expect(group.projects[0].path == "/tmp/alpha")
+        #expect(group.projects[1].projectName == "beta")
+        #expect(group.projects[1].rank == 2)
+        #expect(group.projects[1].totalCost == 10)
+        #expect(group.projects[1].totalTokens == 10)
+    }
+
+    @Test
+    func `project rows exclude days outside the requested window`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: CostUsageTokenSnapshot(
+                        sessionTokens: nil,
+                        sessionCostUSD: nil,
+                        last30DaysTokens: nil,
+                        last30DaysCostUSD: nil,
+                        currencyCode: "USD",
+                        historyDays: 30,
+                        daily: [Self.entry(day: "2026-07-15", cost: 3)],
+                        projects: [
+                            Self.project(name: "alpha", days: [
+                                ("2026-07-01", 100),
+                                ("2026-07-15", 3),
+                            ]),
+                        ],
+                        updatedAt: Self.now)),
+            ],
+            requestedDays: 7,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let group = try #require(model.groups.first)
+        #expect(group.projects.count == 1)
+        #expect(group.projects[0].totalCost == 3)
+        #expect(group.projects[0].totalTokens == 10)
+    }
+
+    @Test
+    func `project rows stay attributed per source`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex · #1",
+                    modelProviderName: "Codex",
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 5)],
+                        projects: [Self.project(name: "shared", days: [("2026-07-15", 5)])])),
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-b",
+                    provider: .codex,
+                    displayName: "Codex · #2",
+                    modelProviderName: "Codex",
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 7)],
+                        projects: [Self.project(name: "shared", days: [("2026-07-15", 7)])])),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let group = try #require(model.groups.first)
+        #expect(group.projects.count == 2)
+        #expect(group.projects.map(\.totalCost) == [7, 5])
+        #expect(Set(group.projects.map(\.sourceID)) == ["codex-a", "codex-b"])
+        #expect(Set(group.projects.map(\.id)).count == 2)
+        #expect(group.projects.map(\.providerName) == ["Codex · #2", "Codex · #1"])
+    }
+
+    @Test
+    func `same named projects in one source stay separated by canonical path`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 12)],
+                        projects: [
+                            Self.project(
+                                name: "app",
+                                path: "/Users/example/work/app",
+                                days: [("2026-07-15", 5)]),
+                            Self.project(
+                                name: "app",
+                                path: "/Users/example/personal/app",
+                                days: [("2026-07-15", 7)]),
+                        ])),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let projects = try #require(model.groups.first?.projects)
+        #expect(projects.count == 2)
+        #expect(projects.map(\.totalCost) == [7, 5])
+        #expect(Set(projects.compactMap(\.path)) == [
+            "/Users/example/personal/app",
+            "/Users/example/work/app",
+        ])
+        #expect(Set(projects.map(\.id)).count == 2)
+        let expectedDisplayPaths = Set(projects.compactMap(\.path).map {
+            ($0 as NSString).abbreviatingWithTildeInPath
+        })
+        #expect(Set(projects.compactMap {
+            spendDashboardProjectDisambiguationPath(for: $0, projects: projects)
+        }) == expectedDisplayPaths)
+    }
+
+    @Test
+    func `project rows drop projects without attributable window days`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: CostUsageTokenSnapshot(
+                        sessionTokens: nil,
+                        sessionCostUSD: nil,
+                        last30DaysTokens: nil,
+                        last30DaysCostUSD: nil,
+                        currencyCode: "USD",
+                        historyDays: 30,
+                        daily: [Self.entry(day: "2026-07-15", cost: 1)],
+                        projects: [
+                            Self.project(name: "stale", days: [("2026-05-01", 50)]),
+                        ],
+                        updatedAt: Self.now)),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let group = try #require(model.groups.first)
+        #expect(group.projects.isEmpty)
+    }
+
+    @Test
+    func `project rows report unknown aggregates as nil but keep known ones`() throws {
+        let model = SpendDashboardModel.build(
+            inputs: [
+                SpendDashboardModel.ProviderInput(
+                    id: "codex-a",
+                    provider: .codex,
+                    displayName: "Codex",
+                    snapshot: CostUsageTokenSnapshot(
+                        sessionTokens: nil,
+                        sessionCostUSD: nil,
+                        last30DaysTokens: nil,
+                        last30DaysCostUSD: nil,
+                        currencyCode: "USD",
+                        historyDays: 30,
+                        daily: [Self.entry(day: "2026-07-15", cost: 9)],
+                        projects: [
+                            Self.project(name: "unknown-cost", days: [
+                                ("2026-07-15", 4),
+                                ("2026-07-16", nil),
+                            ]),
+                            Self.project(
+                                name: "unknown-tokens",
+                                days: [("2026-07-15", 4)],
+                                tokens: nil),
+                        ],
+                        updatedAt: Self.now)),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar)
+
+        let group = try #require(model.groups.first)
+        #expect(group.projects.count == 2)
+        let unknownCost = try #require(group.projects.first { $0.projectName == "unknown-cost" })
+        #expect(unknownCost.totalCost == nil)
+        #expect(unknownCost.totalTokens == 20)
+        let unknownTokens = try #require(group.projects.first { $0.projectName == "unknown-tokens" })
+        #expect(unknownTokens.totalCost == 4)
+        #expect(unknownTokens.totalTokens == nil)
+    }
+
+    private static func project(
+        name: String,
+        path: String? = nil,
+        days: [(String, Double?)],
+        tokens: Int? = 10) -> CostUsageProjectBreakdown
+    {
+        CostUsageProjectBreakdown(
+            name: name,
+            path: path ?? "/tmp/\(name)",
+            totalTokens: nil,
+            totalCostUSD: nil,
+            daily: days.map { day, cost in
+                CostUsageDailyReport.Entry(
+                    date: day,
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: tokens,
+                    costUSD: cost,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)
+            },
+            modelBreakdowns: nil)
+    }
+}
+
+extension SpendDashboardModelTests {
+    /// Shared fixture helpers for dashboard model tests.
+    private static func input(
+        id: String,
+        provider: UsageProvider,
+        currency: String,
+        cost: Double) -> SpendDashboardModel.ProviderInput
+    {
+        SpendDashboardModel.ProviderInput(
+            id: id,
+            provider: provider,
+            displayName: provider.rawValue,
+            snapshot: self.snapshot(currency: currency, entries: [self.entry(day: "2026-07-16", cost: cost)]))
+    }
+
+    private static func snapshot(
+        currency: String,
+        entries: [CostUsageDailyReport.Entry],
+        historyDays: Int = 30,
+        projects: [CostUsageProjectBreakdown] = [],
+        updatedAt: Date = now) -> CostUsageTokenSnapshot
+    {
+        CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: nil,
+            last30DaysCostUSD: nil,
+            currencyCode: currency,
+            historyDays: historyDays,
+            daily: entries,
+            projects: projects,
+            updatedAt: updatedAt)
+    }
+
+    private static func entry(
+        day: String,
+        cost: Double?,
+        tokens: Int? = 10,
+        model: String? = "test-model") -> CostUsageDailyReport.Entry
+    {
+        CostUsageDailyReport.Entry(
+            date: day,
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: tokens,
+            costUSD: cost,
+            modelsUsed: nil,
+            modelBreakdowns: model.map {
+                [.init(modelName: $0, costUSD: cost, totalTokens: tokens)]
+            })
+    }
+
+    private static func entryWithBreakdowns(
+        day: String,
+        totalCost: Double = 0,
+        totalTokens: Int = 0,
+        breakdowns: [CostUsageDailyReport.ModelBreakdown]) -> CostUsageDailyReport.Entry
+    {
+        CostUsageDailyReport.Entry(
+            date: day,
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: totalTokens,
+            costUSD: totalCost,
+            modelsUsed: nil,
+            modelBreakdowns: breakdowns)
+    }
+
+    private static let now = Date(timeIntervalSince1970: 1_784_179_200) // 2026-07-16 00:00:00 UTC
+    private static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
     }
 }

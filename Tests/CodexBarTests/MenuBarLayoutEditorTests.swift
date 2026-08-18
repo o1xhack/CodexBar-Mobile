@@ -7,6 +7,12 @@ import UniformTypeIdentifiers
 
 struct MenuBarLayoutEditorTests {
     @Test
+    func `time palette lists the compact run out token with a clear label`() {
+        #expect(MenuBarLayoutPaletteTokens.time.contains(.runsOutCompact))
+        #expect(MenuBarLayoutToken.runsOutCompact.editorLabel(provider: .codex) == "Runs out (compact)")
+    }
+
+    @Test
     func `Notion secondary editor labels use monthly cadence`() {
         let percent = MenuBarLayoutToken.percent(window: .weekly)
         let pace = MenuBarLayoutToken.pace(window: .weekly)
@@ -144,7 +150,7 @@ struct MenuBarLayoutEditorTests {
 
     @Test
     func `drag payload codable round trips`() throws {
-        let layout = MenuBarLayout(lines: [[.icon], [.providerName, .space, .percent(window: .automatic)]])
+        let layout = MenuBarLayout(lines: [[.icon, .balance], [.providerName, .space, .percent(window: .automatic)]])
         let payload = MenuBarLayoutDragItem.placed(
             .percent(window: .automatic),
             at: MenuBarLayoutPosition(line: 1, index: 2),
@@ -167,5 +173,20 @@ struct MenuBarLayoutEditorTests {
             importing: data,
             contentType: .codexBarMenuLayoutItem)
         #expect(decoded == payload)
+    }
+
+    @Test
+    func `balance token is provider aware`() throws {
+        let row = try ProviderDetailSection.Row(label: "Remaining", value: "$12.34")
+        let section = try ProviderDetailSection(title: "Credits", rows: [row])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [section],
+            updatedAt: Date())
+
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .openrouter, snapshot: snapshot) == "$12.34")
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .codex, snapshot: snapshot) == nil)
+        #expect(MenuBarLayoutToken.balance.editorLabel(provider: .openrouter) == L("Balance"))
     }
 }

@@ -282,7 +282,7 @@ public struct AntigravityStatusSnapshot: Sendable {
         }
     }
 
-    static func isQuotaSummaryWindowID(_ id: String) -> Bool {
+    public static func isQuotaSummaryWindowID(_ id: String) -> Bool {
         id.hasPrefix(self.quotaSummaryWindowIDPrefix)
     }
 
@@ -808,6 +808,23 @@ public struct AntigravityStatusProbe: Sendable {
         "/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
     private static let unleashPath = "/exa.language_server_pb.LanguageServerService/GetUnleashData"
     private static let log = CodexBarLog.logger(LogCategories.provider(.antigravity))
+    private static let localhostDelegate = LocalhostSessionDelegate()
+    /// Reuse one process-lifetime session. Per-request invalidation exercises a FoundationNetworking/libdispatch
+    /// socket-teardown race on Linux that can manifest as a use-after-free.
+    /// See #2243 and swiftlang/swift-corelibs-foundation#4791.
+    private static let localhostSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 120
+        #if !os(Linux)
+        config.waitsForConnectivity = false
+        #endif
+        return URLSession(configuration: config, delegate: Self.localhostDelegate, delegateQueue: nil)
+    }()
+
+    static var localhostSessionForTesting: URLSession {
+        self.localhostSession
+    }
 
     public init(timeout: TimeInterval = 8.0, processScope: ProcessScope = .ideAndCLI) {
         self.timeout = timeout
@@ -1212,6 +1229,9 @@ public struct AntigravityStatusProbe: Sendable {
     private static func isAntigravityCommandLine(_ command: String) -> Bool {
         if command.contains("--app_data_dir") && command.contains("antigravity") { return true }
         if command.contains("antigravity.app/") || command.contains("antigravity.app\\") { return true }
+        // The renamed Gemini desktop app (#2836). Require a leading path
+        // separator so unrelated names like "notgemini.app" cannot match.
+        if command.contains("/gemini.app/") || command.contains("\\gemini.app\\") { return true }
         if command.contains("antigravity ide.app/") || command.contains("antigravity ide.app\\") { return true }
         if command.contains("/antigravity/") || command.contains("\\antigravity\\") { return true }
         return false
@@ -1582,7 +1602,7 @@ public struct AntigravityStatusProbe: Sendable {
             deadline: context.deadline)
     }
 
-    private static func makeRequest(
+    static func makeRequest(
         payload: RequestPayload,
         context: RequestContext) async throws -> Data
     {
@@ -1670,18 +1690,7 @@ public struct AntigravityStatusProbe: Sendable {
             request.setValue(endpoint.csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
         }
 
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = timeout
-        config.timeoutIntervalForResource = timeout
-        #if !os(Linux)
-        config.waitsForConnectivity = false
-        #endif
-
-        let delegate = LocalhostSessionDelegate()
-        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-        defer { session.invalidateAndCancel() }
-
-        let (data, response) = try await delegate.data(for: request, session: session)
+        let (data, response) = try await self.localhostDelegate.data(for: request, session: self.localhostSession)
         guard let http = response as? HTTPURLResponse else {
             throw AntigravityStatusProbeError.apiError("Invalid response")
         }

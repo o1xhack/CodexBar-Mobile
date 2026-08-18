@@ -286,7 +286,24 @@ extension StatusItemController {
         guard let snapshot = self.tokenSnapshotForCostHistorySubmenu(provider: provider) else {
             return .text("none")
         }
-        return .costHistory(CostHistoryChartMenuView.renderFingerprint(from: snapshot, provider: provider))
+        let displayConversion = self.costHistoryDisplayConversion(for: snapshot)
+        return .costHistory(CostHistoryChartMenuView.renderFingerprint(
+            from: snapshot,
+            provider: provider,
+            displayCurrencyCode: displayConversion.currencyCode,
+            displayCostMultiplier: displayConversion.multiplier))
+    }
+
+    /// Resolves the user's preferred display currency for cost-history values, falling back to
+    /// the snapshot's native currency when no exchange rate is available.
+    private func costHistoryDisplayConversion(
+        for snapshot: CostUsageTokenSnapshot) -> (currencyCode: String, multiplier: Double)
+    {
+        let converted = UsageFormatter.convertedCost(
+            1,
+            preferredCurrency: self.settings.preferredCurrencyCode,
+            providerCurrency: snapshot.currencyCode)
+        return (converted.currencyCode, converted.value)
     }
 
     private func usageHistoryRenderSignature(for provider: UsageProvider) -> String {
@@ -412,12 +429,15 @@ extension StatusItemController {
             return true
         }
 
+        let displayConversion = self.costHistoryDisplayConversion(for: tokenSnapshot)
         let chartView = CostHistoryChartMenuView(
             provider: provider,
             daily: tokenSnapshot.daily,
             totalCostUSD: tokenSnapshot.last30DaysCostUSD,
-            currencyCode: tokenSnapshot.currencyCode,
+            currencyCode: displayConversion.currencyCode,
+            costMultiplier: displayConversion.multiplier,
             historyDays: tokenSnapshot.historyDays,
+            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],
             sessions: provider == .codex ? tokenSnapshot.sessions : [],

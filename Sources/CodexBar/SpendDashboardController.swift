@@ -293,7 +293,7 @@ enum SpendDashboardSource {
                         codexHomePath: context.account.homePath,
                         historyDays: context.historyDays,
                         includePiSessions: false,
-                        includeProjectAndSessionBreakdowns: false)
+                        includeProjectAndSessionBreakdowns: true)
             })
     }
 

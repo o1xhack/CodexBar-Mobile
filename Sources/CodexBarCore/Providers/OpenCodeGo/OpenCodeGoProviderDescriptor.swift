@@ -60,7 +60,11 @@ public enum OpenCodeGoProviderDescriptor {
                 noDataMessage: {
                     "No OpenCode Go local usage history found in ~/.local/share/opencode/opencode.db."
                 }),
-            pace: .calendarMonthResetWindow,
+            pace: ProviderPaceCapability(
+                resetWindowPace: .windowDuration(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes),
+                inferredMonthlyDuration: .windowDuration(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes),
+                primary: .session(maximumMinutes: 300),
+                secondary: .weekly),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 costPresenter: { snapshot in
@@ -157,6 +161,12 @@ struct OpenCodeGoLocalUsageFetchStrategy: ProviderFetchStrategy {
         let cachedEntry: CookieHeaderCache.Entry?
     }
 
+    private struct SnapshotResult {
+        let snapshot: OpenCodeGoUsageSnapshot
+        let webUsageApplied: Bool
+        let quotaIsAuthoritative: Bool
+    }
+
     init(
         localSnapshotLoader: @escaping LocalSnapshotLoader = { context in
             try OpenCodeGoLocalUsageReader().fetch(historyDays: context.costUsageHistoryDays)
@@ -172,22 +182,23 @@ struct OpenCodeGoLocalUsageFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let (snapshot, overlaid) = try await self.snapshot(context: context)
+        let result = try await self.snapshot(context: context)
+        let usage = result.snapshot.toUsageSnapshot()
         return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: overlaid ? "local+web" : "local")
+            usage: result.quotaIsAuthoritative ? usage : usage.withDataConfidence(.estimated),
+            sourceLabel: result.webUsageApplied ? "local+web" : "local")
     }
 
     func shouldFallback(on error: Error, context _: ProviderFetchContext) -> Bool {
         error is OpenCodeGoLocalUsageError
     }
 
-    private func snapshot(context: ProviderFetchContext) async throws -> (OpenCodeGoUsageSnapshot, Bool) {
+    private func snapshot(context: ProviderFetchContext) async throws -> SnapshotResult {
         let snapshot = try self.localSnapshotLoader(context)
         guard context.settings?.opencodego?.cookieSource != .off,
               let cookie = Self.cachedOrManualCookie(context: context)
         else {
-            return (snapshot, false)
+            return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
         }
 
         // The server knows the real billing-cycle anchors; the local monthly window is only an
@@ -204,20 +215,23 @@ struct OpenCodeGoLocalUsageFetchStrategy: ProviderFetchStrategy {
                 _ = CookieHeaderCache.clearIfCurrent(provider: .opencodego, expected: cached)
             }
             #endif
-            return (snapshot, false)
+            return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
         } catch {
-            return (snapshot, false)
+            return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
         }
         if let webSnapshot {
-            return (snapshot.applyingWebUsage(webSnapshot), true)
+            return SnapshotResult(
+                snapshot: snapshot.applyingWebUsage(webSnapshot),
+                webUsageApplied: true,
+                quotaIsAuthoritative: !webSnapshot.isBalanceOnly)
         }
 
         guard context.includeOptionalUsage else {
-            return (snapshot, false)
+            return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
         }
         let workspaceOverride = context.settings?.opencodego?.workspaceID
             ?? context.env["CODEXBAR_OPENCODEGO_WORKSPACE_ID"]
@@ -239,7 +253,10 @@ struct OpenCodeGoLocalUsageFetchStrategy: ProviderFetchStrategy {
             timeout: OpenCodeGoUsageFetcher.optionalZenBalanceJoinTimeout(
                 since: zenBalanceStart,
                 waitForZenBalance: OpenCodeGoUsageFetchStrategy.shouldWaitForZenBalance(context: context)))
-        return (snapshot.withZenBalanceUSD(zenBalance), false)
+        return SnapshotResult(
+            snapshot: snapshot.withZenBalanceUSD(zenBalance),
+            webUsageApplied: false,
+            quotaIsAuthoritative: false)
     }
 
     static func liveWebUsageOverlay(

@@ -1292,8 +1292,8 @@ extension StatusItemController {
                 width: width)
             let usageSubmenu = self.makeUsageSubmenu(
                 provider: provider,
-                snapshot: self.store.snapshot(for: provider.instanceID),
                 webItems: webItems,
+                hasInlineCostDashboard: layoutModel.inlineUsageDashboard != nil,
                 width: width)
             menu.addItem(self.makeMenuCardItem(
                 usageView,
@@ -1475,22 +1475,24 @@ extension StatusItemController {
 
     private func makeUsageSubmenu(
         provider: UsageProvider,
-        snapshot: UsageSnapshot?,
         webItems: OpenAIWebMenuItems,
+        hasInlineCostDashboard: Bool,
         width: CGFloat? = nil) -> NSMenu?
     {
         if webItems.hasUsageBreakdown {
             return self.makeUsageBreakdownSubmenu(width: width)
         }
         // Provider-specific by design: OpenAI and Mistral attach cost history to their provider usage row.
-        if provider == .openai {
+        if provider == .openai, self.settings.costSummaryShowsSubmenu(for: provider) {
             return self.makeOpenAIAPIUsageSubmenu(provider: provider, width: width)
         }
-        // Mistral's top usage pane has no rate-limit bars of its own, so its cost history hangs
-        // off this row instead. Other `tokenCostRequiresProviderSnapshot` providers (e.g.
-        // opencodego) show real rate-limit bars here and get their own "Cost" row instead
-        // (see `makeCostMenuCardItem`), matching Codex/Claude's structure.
-        if provider == .mistral {
+        // Mistral's top usage pane has no rate-limit bars of its own, so its cost history hangs off this row
+        // when the Cost Summary style permits it. Other inline cost dashboards follow the same submenu policy;
+        // Both still keeps the dedicated Cost row.
+        if provider == .mistral, self.settings.costSummaryShowsSubmenu(for: provider) {
+            return self.makeCostHistorySubmenu(provider: provider, width: width)
+        }
+        if hasInlineCostDashboard, self.settings.costSummaryShowsSubmenu(for: provider) {
             return self.makeCostHistorySubmenu(provider: provider, width: width)
         }
         return nil

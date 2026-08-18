@@ -11,6 +11,7 @@ struct AppDelegateTests {
         var factoryCalls = 0
         var ttyShutdowns = 0
         let dummyStatusController = DummyStatusController()
+        let mobileSyncCoordinator = DummyMobileSyncCoordinator()
         let managedCodexAccountCoordinator = ManagedCodexAccountCoordinator()
 
         let settings = SettingsStore(
@@ -43,6 +44,7 @@ struct AppDelegateTests {
             settings: settings,
             account: account,
             selection: PreferencesSelection(),
+            mobileSyncCoordinator: mobileSyncCoordinator,
             managedCodexAccountCoordinator: managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: promotionCoordinator))
         #expect(factoryCalls == 0)
@@ -50,15 +52,32 @@ struct AppDelegateTests {
         // construction happens once after launch
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(factoryCalls == 1)
+        #expect(mobileSyncCoordinator.starts == 1)
 
         // idempotent on subsequent calls
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(factoryCalls == 1)
+        #expect(mobileSyncCoordinator.starts == 1)
 
         // production termination should ask the status controller to detach AppKit status/menu state
         appDelegate.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
         #expect(dummyStatusController.shutdowns == 1)
+        #expect(mobileSyncCoordinator.stops == 1)
         #expect(ttyShutdowns == 1)
+    }
+}
+
+@MainActor
+private final class DummyMobileSyncCoordinator: MobileSyncCoordinating {
+    private(set) var starts = 0
+    private(set) var stops = 0
+
+    func startObserving() {
+        self.starts += 1
+    }
+
+    func stopObserving() {
+        self.stops += 1
     }
 }
 

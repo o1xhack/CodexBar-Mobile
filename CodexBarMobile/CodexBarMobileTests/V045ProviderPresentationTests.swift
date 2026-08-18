@@ -16,9 +16,35 @@ struct V045ProviderPresentationTests {
         #expect(ProviderWindowLabel.localizationKey(for: "5 hour limit") == "v045_window_5_hour_limit")
         #expect(ProviderWindowLabel.localizationKey(for: "Daily Routines") == "v045_window_daily_routines")
         #expect(ProviderWindowLabel.localizationKey(for: "Web Sonnet") == "v045_window_web_sonnet")
+        #expect(ProviderWindowLabel.localizationKey(for: "Total") == "v052_window_total")
+        #expect(ProviderWindowLabel.localizationKey(for: "Third Party") == "v052_window_third_party")
+        #expect(ProviderWindowLabel.localizationKey(for: "On-demand") == "v052_window_on_demand")
         #expect(ProviderWindowLabel.localizationKey(for: "Provider custom lane") == nil)
         #expect(ProviderWindowLabel.localized("Provider custom lane", fallback: "Limit") == "Provider custom lane")
         #expect(ProviderWindowLabel.localized("Fable only", fallback: "Limit").contains("Fable"))
+    }
+
+    @Test
+    func `v052 provider labels localize in all four languages`() {
+        let expectations: [(locale: String, total: String, thirdParty: String, onDemand: String)] = [
+            ("en", "Total", "Third Party", "On-demand"),
+            ("ja", "合計", "サードパーティ", "オンデマンド"),
+            ("zh-Hans", "总计", "第三方", "按需"),
+            ("zh-Hant", "總計", "第三方", "隨選"),
+        ]
+
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderWindowLabel.localized("Total", fallback: "Limit", locale: locale) == expectation.total)
+            #expect(ProviderWindowLabel.localized(
+                "Third Party",
+                fallback: "Limit",
+                locale: locale) == expectation.thirdParty)
+            #expect(ProviderWindowLabel.localized(
+                "On-demand",
+                fallback: "Limit",
+                locale: locale) == expectation.onDemand)
+        }
     }
 
     @Test

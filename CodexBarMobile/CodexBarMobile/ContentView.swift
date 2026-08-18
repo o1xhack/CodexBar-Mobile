@@ -3656,13 +3656,13 @@ private enum MobileReleaseNotesCatalog {
             version: "1.21.0",
             status: String(localized: "Latest"),
             summary: String(
-                localized: "iPhone 1.21 brings provider details from Mac, Fireworks and IBM Bob, and safer multi-Mac sync."),
+                localized: "iPhone 1.21 brings richer provider details, Fireworks and IBM Bob, clearer quota labels, and safer multi-Mac sync."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(
-                            localized: "More provider details — balances, credits, billing, charts, and plugin data from newer Mac versions now appear in one consistent layout."),
+                            localized: "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout."),
                         String(
                             localized: "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details."),
                         String(

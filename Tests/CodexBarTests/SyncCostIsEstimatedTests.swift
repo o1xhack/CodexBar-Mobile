@@ -253,7 +253,7 @@ struct SyncCostIsEstimatedTests {
                             .init(modelName: "claude-opus-4-7", costUSD: 1.80),
                             // Unknown: walks to opus-4-7 via fallback,
                             // marked isEstimated == true.
-                            .init(modelName: "claude-opus-4-99", costUSD: 0.60),
+                            .init(modelName: "claude-opus-4-99", costUSD: 0.60, isEstimated: true),
                         ]),
                 ],
                 updatedAt: Date()),

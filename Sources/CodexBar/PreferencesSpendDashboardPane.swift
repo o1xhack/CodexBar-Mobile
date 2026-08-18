@@ -27,6 +27,16 @@ func spendDashboardCoverageText(covered: Int, requested: Int) -> String {
     "\(L("Coverage")): \(codexBarLocalizedInteger(covered)) / \(codexBarLocalizedInteger(requested))"
 }
 
+func spendDashboardProjectDisambiguationPath(
+    for row: SpendDashboardModel.ProjectRow,
+    projects: [SpendDashboardModel.ProjectRow]) -> String?
+{
+    guard let path = row.path,
+          projects.lazy.filter({ $0.projectName == row.projectName }).prefix(2).count > 1
+    else { return nil }
+    return (path as NSString).abbreviatingWithTildeInPath
+}
+
 func codexCostCatchUpProgressText(_ activity: CodexCostCatchUpActivity) -> String {
     if activity.totalBytes > 0 {
         let processed = ByteCountFormatter.string(
@@ -452,6 +462,9 @@ private struct SpendCurrencySection: View {
 
             SpendProviderPanel(group: self.group)
             SpendModelPanel(group: self.group)
+            if !self.group.projects.isEmpty {
+                SpendProjectPanel(group: self.group)
+            }
             SpendDailyChart(group: self.group)
         }
     }
@@ -507,6 +520,9 @@ private struct SpendProviderPanel: View {
 
 private struct SpendModelPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
 
     var body: some View {
         SpendDashboardPanel {
@@ -529,7 +545,7 @@ private struct SpendModelPanel: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 6)
                     }
-                    ForEach(self.group.models.prefix(8)) { row in
+                    ForEach(self.visibleRows) { row in
                         if row.rank > 1 {
                             Divider()
                         }
@@ -558,8 +574,98 @@ private struct SpendModelPanel: View {
                         }
                         .padding(.vertical, 9)
                     }
+                    SpendPanelExpandButton(
+                        rowCount: self.group.models.count,
+                        collapsedRowCount: Self.collapsedRowCount,
+                        showsAllRows: self.$showsAllRows)
                 }
             }
+        }
+    }
+
+    private var visibleRows: ArraySlice<SpendDashboardModel.ModelRow> {
+        self.group.models.prefix(
+            self.showsAllRows ? self.group.models.count : Self.collapsedRowCount)
+    }
+}
+
+private struct SpendProjectPanel: View {
+    let group: SpendDashboardModel.CurrencyGroup
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
+
+    var body: some View {
+        SpendDashboardPanel {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(L("Projects")).font(.headline).padding(.bottom, 8)
+                ForEach(self.visibleRows) { row in
+                    if row.rank > 1 {
+                        Divider()
+                    }
+                    HStack(spacing: 10) {
+                        Text(spendDashboardRankText(row.rank))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 26, alignment: .leading)
+                        Image(systemName: "folder")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.projectName).lineLimit(1)
+                            Text(row.providerName).font(.caption).foregroundStyle(.secondary)
+                            if let path = spendDashboardProjectDisambiguationPath(
+                                for: row,
+                                projects: self.group.projects)
+                            {
+                                Text(path)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(row.path ?? path)
+                            }
+                        }
+                        Spacer()
+                        Text(row.totalCost.map {
+                            UsageFormatter.currencyString($0, currencyCode: self.group.currencyCode)
+                        } ?? "—")
+                            .monospacedDigit()
+                    }
+                    .padding(.vertical, 9)
+                }
+                SpendPanelExpandButton(
+                    rowCount: self.group.projects.count,
+                    collapsedRowCount: Self.collapsedRowCount,
+                    showsAllRows: self.$showsAllRows)
+            }
+        }
+    }
+
+    private var visibleRows: ArraySlice<SpendDashboardModel.ProjectRow> {
+        self.group.projects.prefix(
+            self.showsAllRows ? self.group.projects.count : Self.collapsedRowCount)
+    }
+}
+
+private struct SpendPanelExpandButton: View {
+    let rowCount: Int
+    let collapsedRowCount: Int
+    @Binding var showsAllRows: Bool
+
+    var body: some View {
+        if self.rowCount > self.collapsedRowCount {
+            Button {
+                self.showsAllRows.toggle()
+            } label: {
+                Text(
+                    self.showsAllRows
+                        ? L("Show less")
+                        : L("Show all (%d)", self.rowCount))
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 6)
         }
     }
 }
@@ -653,7 +759,7 @@ private struct SpendDailyChart: View {
     }
 
     private func providerColor(_ provider: UsageProvider) -> Color {
-        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        let color = ProviderAccentPalette.color(for: provider)
         return Color(red: color.red, green: color.green, blue: color.blue)
     }
 }

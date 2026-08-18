@@ -249,6 +249,7 @@ struct CostUsageDecodingTests {
         #expect(report.data[0].modelBreakdowns == [
             CostUsageDailyReport.ModelBreakdown(modelName: "gpt-5.2-codex", costUSD: 0.12, totalTokens: 30),
         ])
+        #expect(report.data[0].modelBreakdowns?.first?.isEstimated == nil)
     }
 
     @Test

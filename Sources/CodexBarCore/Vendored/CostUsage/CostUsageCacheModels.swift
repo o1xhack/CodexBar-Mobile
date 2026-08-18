@@ -2,7 +2,7 @@ import Foundation
 
 /// In-memory working set for one bounded scan. Codex persists this shape as normalized
 /// `CostUsageStore` rows; Claude and Vertex use their independent compact JSON cache.
-struct CostUsageCache: Codable, @unchecked Sendable {
+struct CostUsageCache: Codable, Equatable, @unchecked Sendable {
     var version: Int = 1
     var lastScanUnixMs: Int64 = 0
     var scanSinceKey: String?
@@ -18,6 +18,7 @@ struct CostUsageCache: Codable, @unchecked Sendable {
     var codexScanTotalBytes: Int64?
     var codexScanCompletedFiles: Int?
     var codexScanTotalFiles: Int?
+    var codexScanInventoryPaths: [String]?
     var codexPreviousReport: CostUsageCodexPreviousReport?
     var codexSessionDiscovery: CostUsageCodexSessionDiscovery?
     var codexActiveLookbackState: CostUsageCodexActiveLookbackState?
@@ -26,16 +27,23 @@ struct CostUsageCache: Codable, @unchecked Sendable {
     var roots: [String: Int64]?
 }
 
-struct CostUsageCodexActiveLookbackState: Codable {
+struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var scanSinceKey: String
     var rootPaths: [String]
     var nextDayKeyByRoot: [String: String] = [:]
+    var nextDirectoryOffsetByRoot: [String: Int64]?
     var completedRootPaths: [String] = []
     var pendingFilePaths: [String] = []
     var legacyRecursivePendingRootPaths: [String] = []
+    var currentWindowNextDayKeyByRoot: [String: String]?
+    var currentWindowDirectoryOffsetByRoot: [String: Int64]?
+    var completedCurrentWindowRootPaths: [String]?
+    var currentWindowFlatDirectoryOffsetByRoot: [String: Int64]?
+    var completedCurrentWindowFlatRootPaths: [String]?
+    var cacheWideMigrationQueueActive: Bool?
 }
 
-struct CostUsageCodexSessionDiscovery: Codable {
+struct CostUsageCodexSessionDiscovery: Codable, Equatable {
     struct DirectoryStamp: Codable, Equatable {
         var mtimeUnixMs: Int64
         var jsonlFileCount: Int
@@ -47,7 +55,7 @@ struct CostUsageCodexSessionDiscovery: Codable {
         var fileId: String?
     }
 
-    struct HeadScan: Codable {
+    struct HeadScan: Codable, Equatable {
         var path: String
         var offset: Int64
         var resumeState: CostUsageJsonl.ResumeState?
@@ -79,6 +87,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var priorityCostUSD: Double?
         var standardTokens: Int?
         var priorityTokens: Int?
+        var isEstimated: Bool?
 
         init(_ breakdown: CostUsageDailyReport.ModelBreakdown) {
             self.modelName = breakdown.modelName
@@ -89,10 +98,22 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.priorityCostUSD = breakdown.priorityCostUSD
             self.standardTokens = breakdown.standardTokens
             self.priorityTokens = breakdown.priorityTokens
+            // Persist an explicit false for exact costs. A missing value then remains a reliable
+            // marker for predecessor payloads that predate pricing provenance.
+            self.isEstimated = breakdown.costUSD == nil ? nil : breakdown.isEstimated == true
         }
 
         var dailyReportValue: CostUsageDailyReport.ModelBreakdown {
-            CostUsageDailyReport.ModelBreakdown(
+            let restoredIsEstimated: Bool? = if self.costUSD == nil {
+                nil
+            } else if let isEstimated = self.isEstimated {
+                isEstimated ? true : nil
+            } else {
+                // Legacy cached costs cannot prove which catalog produced them. Treat them as
+                // estimated until the catch-up scan replaces the predecessor report.
+                true
+            }
+            return CostUsageDailyReport.ModelBreakdown(
                 modelName: self.modelName,
                 costUSD: self.costUSD,
                 totalTokens: self.totalTokens,
@@ -100,7 +121,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 standardCostUSD: self.standardCostUSD,
                 priorityCostUSD: self.priorityCostUSD,
                 standardTokens: self.standardTokens,
-                priorityTokens: self.priorityTokens)
+                priorityTokens: self.priorityTokens,
+                isEstimated: restoredIsEstimated)
         }
     }
 
@@ -215,7 +237,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
     }
 }
 
-struct CostUsageFileUsage: Codable {
+struct CostUsageFileUsage: Codable, Equatable {
     var mtimeUnixMs: Int64
     var size: Int64
     var days: [String: [String: [Int]]]

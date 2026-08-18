@@ -23,6 +23,7 @@ extension UsageStore {
 
     private struct ProviderRefreshOutcomeContext {
         let generation: UInt64
+        let claudeUsesConsumerAutoPipeline: Bool
         let codexExpectedGuard: CodexAccountScopedRefreshGuard?
         let tokenAccount: ProviderTokenAccount?
         let priorTokenAccountSnapshot: TokenAccountUsageSnapshot?
@@ -363,22 +364,13 @@ extension UsageStore {
             self.scheduleClaudeSwapAccountRefresh(generation: generation)
         }
 
-        let tokenAccounts = self.tokenAccounts(for: provider)
-        if self.shouldFetchAllTokenAccounts(provider: provider, accounts: tokenAccounts) {
-            if await self.refreshTokenAccountsForSnapshotPublication(
-                provider: provider,
-                accounts: tokenAccounts,
-                generation: generation)
-            {
-                self.markProviderRefreshSuccessful(provider, generation: generation)
-            }
+        let tokenAccountPreparation = self.tokenAccountRefreshPreparation(for: provider)
+        if await self.refreshAllTokenAccountsForSnapshotPublicationIfNeeded(
+            provider: provider,
+            accounts: tokenAccountPreparation.accounts,
+            generation: generation)
+        {
             return nil
-        } else {
-            _ = await MainActor.run {
-                self.reconcileSelectedTokenAccountSnapshotBeforeRefresh(
-                    provider: provider,
-                    accounts: tokenAccounts)
-            }
         }
 
         let tokenAccount = self.settings.effectiveSelectedTokenAccount(for: provider)
@@ -401,7 +393,7 @@ extension UsageStore {
             : nil
         let priorTokenAccountSnapshot = self.tokenAccountSnapshot(provider: provider, account: tokenAccount)
         let descriptor = spec.descriptor
-        let codexResetCreditsFetcher = self.codexResetCreditsFetcher()
+        let codexResetCreditsFetcher = self.codexResetCreditsFetcher(workspaceAccountID: fetchContext.codexWorkspaceID)
         let previousCodexSnapshot = codexPreparation?.previousSnapshot
         let codexMissingWindowBackfillSnapshot = codexPreparation?.missingWindowBackfillSnapshot
         let fetchOutcome: @Sendable () async -> ProviderFetchOutcome = {
@@ -477,6 +469,12 @@ extension UsageStore {
             generation: generation))
         let outcomeContext = ProviderRefreshOutcomeContext(
             generation: generation,
+            claudeUsesConsumerAutoPipeline: Self.isClaudeConsumerAutoPipeline(
+                provider: provider,
+                context: fetchContext,
+                hasAdminAPIKey: claudeHasAdminAPIKey,
+                hasTokenAccount: tokenAccount != nil,
+                removedTokenAccountAuthority: tokenAccountPreparation.removesAccountAuthority),
             codexExpectedGuard: codexExpectedGuard,
             tokenAccount: tokenAccount,
             priorTokenAccountSnapshot: priorTokenAccountSnapshot,
@@ -488,6 +486,27 @@ extension UsageStore {
             outcome: outcome,
             reconciliation: claudeReconciliation,
             context: outcomeContext)
+    }
+
+    private func refreshAllTokenAccountsForSnapshotPublicationIfNeeded(
+        provider: UsageProvider,
+        accounts: [ProviderTokenAccount],
+        generation: UInt64) async -> Bool
+    {
+        guard self.shouldFetchAllTokenAccounts(provider: provider, accounts: accounts) else {
+            _ = await MainActor.run {
+                self.reconcileSelectedTokenAccountSnapshotBeforeRefresh(provider: provider, accounts: accounts)
+            }
+            return false
+        }
+        if await self.refreshTokenAccountsForSnapshotPublication(
+            provider: provider,
+            accounts: accounts,
+            generation: generation)
+        {
+            self.markProviderRefreshSuccessful(provider, generation: generation)
+        }
+        return true
     }
 
     private func completeProviderRefreshPass(
@@ -561,13 +580,17 @@ extension UsageStore {
                 .compactMap(\.self),
             shouldTrack: shouldTrackActiveAccount,
             environment: input.environment)
-        let credentialsChanged = shouldTrackActiveAccount && (
+        let successfulOAuth = Self.isSuccessfulClaudeOAuthOutcome(input.outcome)
+        let successfulOAuthCredentialOwner = Self.successfulClaudeOAuthCredentialOwner(input.outcome)
+        let successfulOAuthHasIndependentAuthority = successfulOAuth && (
+            successfulOAuthCredentialOwner == .environment || successfulOAuthCredentialOwner == .codexbar)
+        let activeAccountChangedDuringFetchForOutcome =
+            activeAccountChangedDuringFetch && !successfulOAuthHasIndependentAuthority
+        let credentialsChanged = shouldTrackActiveAccount && !successfulOAuthHasIndependentAuthority && (
             Self.claudeCredentialsChanged(
                 beforeFetch: input.beforeFetch,
                 changedDuringFetch: authChangedDuringFetch) || activeAccountReconciliation.changed)
-        let successfulOAuth = Self.isSuccessfulClaudeOAuthOutcome(input.outcome)
-        let successfulOAuthCredentialOwner = Self.successfulClaudeOAuthCredentialOwner(input.outcome)
-        let activeAccountMismatch = successfulOAuth && (
+        let activeAccountMismatch = successfulOAuth && successfulOAuthCredentialOwner == .claudeCLI && (
             activeAccountChangedDuringFetch || activeAccountReconciliation.changedFromPersistedIdentity)
         let quarantinedCredentialsFile = if successfulOAuthCredentialOwner == .claudeCLI {
             await Self.isClaudeCredentialsFileQuarantinedForOAuth(environment: input.environment)
@@ -588,7 +611,7 @@ extension UsageStore {
             }
         }
         let ownerCLIRecoverySucceeded = !input.ownerCLIRecoveryPass || Self.isSuccessfulClaudeCLIOutcome(input.outcome)
-        if !oauthAccountMismatch, !activeAccountChangedDuringFetch, ownerCLIRecoverySucceeded {
+        if !oauthAccountMismatch, !activeAccountChangedDuringFetchForOutcome, ownerCLIRecoverySucceeded {
             self.persistClaudeActiveAccountIdentity(
                 activeAccountReconciliation.newestIdentity,
                 environment: input.environment)
@@ -608,12 +631,12 @@ extension UsageStore {
 
         // Only the ambient CLI authority observes Claude's account/config files. Source-authority changes apply to
         // every Claude route, but retire only the live projection; configured token-account caches remain isolated.
-        if credentialsChanged || activeAccountChangedDuringFetch || sourceAuthorityChanged {
+        if credentialsChanged || activeAccountChangedDuringFetchForOutcome || sourceAuthorityChanged {
             self.clearClaudeCredentialDerivedStateForCredentialSwap()
         }
         let disposition: ClaudeRefreshDisposition = if oauthAccountMismatch {
             .retryOwnerCLI
-        } else if activeAccountChangedDuringFetch {
+        } else if activeAccountChangedDuringFetchForOutcome {
             .retry
         } else {
             .apply
@@ -738,7 +761,7 @@ extension UsageStore {
                 self.tokenErrors[provider.instanceID] = nil
             }
             self.lastSourceLabels[provider.instanceID] = result.sourceLabel
-            self.errors[provider.instanceID] = nil
+            self.recordProviderFetchSuccessErrorState(provider: provider)
             self.diagnostics[provider.instanceID] = result.diagnostic
             if let tokenAccount = currentTokenAccount {
                 self.cacheTokenAccountSnapshot(
@@ -765,8 +788,8 @@ extension UsageStore {
             return backfilled
         }
         guard let backfilled else { return }
-        let isClaudeOAuthSample = provider == .claude
-            && result.strategyKind == .oauth
+        self.refreshClaudeVersionAfterUserInitiatedCLIFetch(provider: provider, strategyKind: result.strategyKind)
+        let isClaudeOAuthSample = provider == .claude && result.strategyKind == .oauth
         let claudeOAuthPersistentRefHash: String? = if isClaudeOAuthSample,
                                                        result.claudeOAuthKeychainPersistentRefHash == context
                                                            .claudeOAuthHistoryPersistentRefHash
@@ -1291,6 +1314,7 @@ extension UsageStore {
         self.errors[.claude] = nil
         self.knownLimitsAvailabilityByProvider.removeValue(forKey: .claude)
         self.lastSourceLabels.removeValue(forKey: .claude)
+        self.claudeHistoryFallbackEligible = false
         self.clearTokenSnapshot(for: .claude)
         self.tokenErrors[.claude] = nil
         self.failureGates[.claude]?.reset()
@@ -1310,6 +1334,10 @@ extension UsageStore {
         await MainActor.run {
             guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
             self.diagnostics[provider.instanceID] = nil
+            let restoredClaudeHistory = self.prepareClaudeHistoryFallback(
+                provider: provider,
+                usesConsumerAutoPipeline: context.claudeUsesConsumerAutoPipeline,
+                accountStateWasStable: context.claudeOAuthActiveAccountObservation != .changed)
             if provider == .gemini, Self.isGeminiConsumerTierDeprecationError(error) {
                 // This is a durable provider migration signal, not a transient fetch failure.
                 // Surface it immediately so a cached snapshot cannot hide the required handoff.
@@ -1390,11 +1418,12 @@ extension UsageStore {
                 hadPriorData: hadPriorData) ||
                 (provider == .claude &&
                     hadPriorData &&
-                    (Self.isClaudeCLIRateLimitFailure(error) ||
+                    (context.claudeUsesConsumerAutoPipeline ||
+                        Self.isClaudeCLIRateLimitFailure(error) ||
                         isTerminalClaudeCLIParseFailure))
-            let shouldSurface =
+            let shouldSurface = restoredClaudeHistory ||
                 self.failureGates[provider.instanceID]?
-                    .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
+                .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
             let preservesClaudeWebSessionFailure =
                 provider == .claude &&
                 hadPriorData &&
@@ -1470,30 +1499,7 @@ extension UsageStore {
         }
     }
 
-    private static func shouldPreservePriorSnapshot(after error: Error, hadPriorData: Bool) -> Bool {
-        guard hadPriorData else { return false }
-        if error is CancellationError {
-            return true
-        }
-        if self.isPreservableNetworkTransportError(error) {
-            return true
-        }
-
-        let message = error.localizedDescription.lowercased()
-        return message.contains("timed out") ||
-            message.contains("timeout") ||
-            message.contains("cancelled") ||
-            message.contains("network connection was lost") ||
-            message.contains("not connected to the internet")
-    }
-
-    private static func lastAvailableFailedFetchKind(from attempts: [ProviderFetchAttempt]) -> ProviderFetchKind? {
-        attempts.last { attempt in
-            attempt.wasAvailable && attempt.errorDescription != nil
-        }?.kind
-    }
-
-    static func isPreservableNetworkTransportError(_ error: Error) -> Bool {
+    nonisolated static func isPreservableNetworkTransportError(_ error: Error) -> Bool {
         let nsError = error as NSError
         guard nsError.domain == NSURLErrorDomain else { return false }
         switch nsError.code {
@@ -1551,20 +1557,6 @@ extension UsageStore {
             return true
         }
         return error.localizedDescription == ClaudeStatusProbeError.timedOut.localizedDescription
-    }
-
-    private static func isClaudeCLIRateLimitFailure(_ error: Error) -> Bool {
-        ClaudeUsageFetcher.isCLIRateLimitError(error)
-    }
-
-    private static func isClaudeCLIUsageParseFailure(_ error: Error) -> Bool {
-        if case let ClaudeStatusProbeError.parseFailed(message) = error {
-            return !ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(message)
-        }
-        if case let ClaudeUsageError.parseFailed(message) = error {
-            return !ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(message)
-        }
-        return false
     }
 
     private static func isClaudeWebSessionRefreshFailure(_ error: Error) -> Bool {

@@ -111,8 +111,14 @@ extension CodexBarCLI {
     static func usageTextNotes(
         provider: UsageProvider,
         sourceMode: ProviderSourceMode,
-        resolvedSourceLabel: String) -> [String]
+        resolvedSourceLabel: String,
+        dataConfidence: UsageDataConfidence = .unknown) -> [String]
     {
+        // Provider-specific by design: OpenCode Go local quota windows need an explicit authority warning.
+        if provider == .opencodego, dataConfidence == .estimated {
+            return ["Quota estimated from local usage history"]
+        }
+
         // Provider-specific by design: Kilo automatic mode reports when its CLI fallback won strategy selection.
         guard provider == .kilo,
               sourceMode == .auto,
@@ -193,6 +199,22 @@ extension CodexBarCLI {
             }
         }
         return UserDefaults.standard.object(forKey: "weeklyProgressWorkDays") as? Int
+    }
+
+    /// The app's "Hide personal information" privacy toggle. Read per request so the
+    /// serve dashboard follows the setting without a restart, the same way reset style
+    /// and weekly work days already do.
+    static func hidePersonalInfoFromDefaults() -> Bool {
+        let domains = [
+            "com.steipete.codexbar",
+            "com.steipete.codexbar.debug",
+        ]
+        for domain in domains {
+            if let value = UserDefaults(suiteName: domain)?.object(forKey: "hidePersonalInfo") as? Bool {
+                return value
+            }
+        }
+        return UserDefaults.standard.object(forKey: "hidePersonalInfo") as? Bool ?? false
     }
 
     static func fetchProviderUsage(
@@ -418,6 +440,10 @@ extension CodexBarCLI {
 
     static func _decodeFormatForTesting(from values: ParsedValues) -> OutputFormat {
         self.decodeFormat(from: values)
+    }
+
+    static func _decodeCostGroupByForTesting(from values: ParsedValues) -> CostGroupBy {
+        self.decodeCostGroupBy(from: values)
     }
 
     static func _decodeWebTimeoutForTesting(from values: ParsedValues) throws -> TimeInterval? {

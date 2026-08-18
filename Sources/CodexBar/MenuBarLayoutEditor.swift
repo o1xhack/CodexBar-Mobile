@@ -43,6 +43,10 @@ struct MenuBarLayoutDragItem: Codable, Hashable, Transferable, Sendable {
     static let lineBreak = Self(content: .lineBreak, source: nil, sourceLayout: nil)
 }
 
+enum MenuBarLayoutPaletteTokens {
+    static let time: [MenuBarLayoutToken] = [.resetCountdown, .resetAbsolute, .runsOut, .runsOutCompact]
+}
+
 enum MenuBarLayoutEditorMutations {
     static func append(_ component: MenuBarLayoutToken, to layout: MenuBarLayout) -> MenuBarLayout {
         var lines = layout.lines
@@ -255,12 +259,12 @@ struct MenuBarLayoutEditor: View {
             MenuBarLayoutPaletteGroup(
                 id: "time",
                 title: L("menu_bar_layout_group_time"),
-                tokens: [.resetCountdown, .resetAbsolute, .runsOut],
+                tokens: MenuBarLayoutPaletteTokens.time,
                 includesLineBreak: false),
             MenuBarLayoutPaletteGroup(
                 id: "money",
                 title: L("menu_bar_layout_group_money"),
-                tokens: [.costToday, .cost30d],
+                tokens: [.balance, .costToday, .cost30d],
                 includesLineBreak: false),
             MenuBarLayoutPaletteGroup(
                 id: "structure",
@@ -412,6 +416,7 @@ struct MenuBarLayoutEditor: View {
                             title: token.editorLabel(provider: self.persistenceProvider),
                             systemImage: token.editorSystemImage,
                             isSelected: self.selectedPosition == position)
+                            .draggable(MenuBarLayoutDragItem.placed(token, at: position, in: self.layout))
                     }
                     .buttonStyle(.plain)
                     .focusable()
@@ -419,7 +424,6 @@ struct MenuBarLayoutEditor: View {
                         self.selectedPosition = position
                         return .handled
                     }
-                    .draggable(MenuBarLayoutDragItem.placed(token, at: position, in: self.layout))
                     .dropDestination(for: MenuBarLayoutDragItem.self) { items, _ in
                         self.insert(items.first, at: position)
                     }
@@ -548,6 +552,27 @@ struct MenuBarLayoutEditor: View {
             }
             .pickerStyle(.menu)
 
+            HStack(spacing: 8) {
+                Text(L("menu_bar_layout_vertical_adjustment"))
+                    .lineLimit(1)
+                    .fixedSize()
+
+                TextField(
+                    "",
+                    value: self.$settings.menuBarLayoutVerticalAdjustment,
+                    format: .number)
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(width: 44)
+
+                Stepper(value: self.$settings.menuBarLayoutVerticalAdjustment, in: -20...20, step: 1) {
+                    EmptyView()
+                }
+                .labelsHidden()
+            }
+
             Spacer()
 
             Text(L("menu_bar_layout_keyboard_hint"))
@@ -642,7 +667,8 @@ struct MenuBarLayoutPreview: View {
                 showUsed: self.settings.usageBarsShowUsed,
                 appearanceName: "preview",
                 isDebugApp: false,
-                now: minute))
+                now: minute,
+                verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment))
         MenuBarLayoutPreviewText(rendered: rendered)
     }
 
@@ -667,8 +693,12 @@ struct MenuBarLayoutPreview: View {
                 snapshot: snapshot)
             session = semanticWindows.session
             weekly = semanticWindows.weekly
+            // Provider-specific by design: Mistral's automatic lane can explicitly select its Monthly Plan window.
+            let automaticPreference = provider == .mistral
+                ? self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+                : .automatic
             rawAutomatic = MenuBarMetricWindowResolver.rateWindow(
-                preference: .automatic,
+                preference: automaticPreference,
                 provider: provider,
                 snapshot: snapshot,
                 supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
@@ -682,10 +712,16 @@ struct MenuBarLayoutPreview: View {
         let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
         let paceWindow = weekly ?? automatic
         let runsOut = paceWindow
-            .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
+            .flatMap {
+                self.store.weeklyPace(
+                    provider: provider,
+                    window: $0,
+                    now: now)
+            }
             .flatMap { UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now).rightLabel }
         let cost = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let costToday = MenuBarLayoutCostResolver.todayCostUSD(snapshot: cost, now: now)
+        let automaticRenderWindow = MenuBarLayoutRenderWindow(automatic)
         return MenuBarLayoutRenderData(
             provider: provider,
             iconKey: provider.rawValue,
@@ -695,11 +731,26 @@ struct MenuBarLayoutPreview: View {
             weekly: MenuBarLayoutRenderWindow(weekly),
             scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),
             scopedWeeklyTitle: scopedNamed?.title,
-            automatic: MenuBarLayoutRenderWindow(automatic),
-            sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: session, now: now),
-            weeklyPace: self.store.menuBarLayoutPaceText(provider: provider, window: weekly, now: now),
-            automaticPace: self.store.menuBarLayoutPaceText(provider: provider, window: automatic, now: now),
+            automatic: automaticRenderWindow,
+            // Provider-specific by design: Mistral uses spend text when its automatic lane has no percentage window.
+            automaticText: provider == .mistral && automaticRenderWindow == nil
+                ? StatusItemController.mistralSpendDisplayText(snapshot: snapshot)
+                : nil,
+            sessionPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: session,
+                now: now),
+            weeklyPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: weekly,
+                now: now,
+                minimumElapsedPercent: 1),
+            automaticPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: automatic,
+                now: now),
             runsOut: runsOut,
+            balance: MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot),
             costToday: costToday.map {
                 UsageFormatter.currencyString($0, currencyCode: cost?.currencyCode ?? "USD")
             },
@@ -740,10 +791,13 @@ struct MenuBarLayoutPreview: View {
             scopedWeekly: MenuBarLayoutRenderWindow(scopedWeekly),
             scopedWeeklyTitle: "Fable only",
             automatic: MenuBarLayoutRenderWindow(session),
+            automaticText: nil,
             sessionPace: samplePace(session),
             weeklyPace: samplePace(weekly),
             automaticPace: samplePace(session),
-            runsOut: L("menu_bar_layout_sample_runs_out"),
+            runsOut: L("Runs out in %@", "1d 16h"),
+            // Provider-specific by design: only OpenRouter previews the Balance palette token.
+            balance: provider == .openrouter ? "$12.34" : nil,
             costToday: "$1.25",
             cost30d: "$20.00")
     }
@@ -753,18 +807,40 @@ struct MenuBarLayoutPreview: View {
 struct MenuBarLayoutPreviewText: NSViewRepresentable {
     let rendered: MenuBarLayoutRenderedTitle
 
-    func makeNSView(context: Context) -> NSTextField {
+    func makeNSView(context: Context) -> NSStackView {
+        let stack = NSStackView()
+        self.configure(stack)
+        return stack
+    }
+
+    func updateNSView(_ stack: NSStackView, context: Context) {
+        self.configure(stack)
+    }
+
+    private func configure(_ stack: NSStackView) {
+        for subview in stack.arrangedSubviews {
+            stack.removeArrangedSubview(subview)
+            subview.removeFromSuperview()
+        }
+        stack.orientation = .horizontal
+        stack.spacing = 2
+        stack.alignment = .centerY
+        // The live status button renders an extracted leading icon as `button.image`; mirror that
+        // in the preview so an icon-leading (or icon-only) preset stays visible in Preferences.
+        if let icon = self.rendered.leadingIcon {
+            let imageView = NSImageView(image: icon)
+            imageView.imageScaling = .scaleProportionallyUpOrDown
+            imageView.contentTintColor = .labelColor
+            imageView.setContentHuggingPriority(.required, for: .horizontal)
+            stack.addArrangedSubview(imageView)
+        }
         let field = NSTextField(labelWithAttributedString: self.rendered.attributedTitle)
         field.alignment = .center
         field.lineBreakMode = .byClipping
         field.maximumNumberOfLines = 2
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        return field
-    }
-
-    func updateNSView(_ field: NSTextField, context: Context) {
-        field.attributedStringValue = self.rendered.attributedTitle
-        field.setAccessibilityLabel(self.rendered.accessibilityLabel)
+        stack.addArrangedSubview(field)
+        stack.setAccessibilityLabel(self.rendered.accessibilityLabel)
     }
 }
 
@@ -836,6 +912,8 @@ extension MenuBarLayoutToken {
         case .resetCountdown: L("menu_bar_layout_token_resets_in")
         case .resetAbsolute: L("menu_bar_layout_token_reset_at")
         case .runsOut: L("menu_bar_layout_token_runs_out")
+        case .runsOutCompact: "\(L("menu_bar_layout_token_runs_out")) (compact)"
+        case .balance: L("Balance")
         case .costToday: L("menu_bar_layout_token_cost_today")
         case .cost30d: L("menu_bar_layout_token_cost_30d")
         case .separatorDot: "·"
@@ -860,7 +938,8 @@ extension MenuBarLayoutToken {
         case .usageBar: "chart.bar.fill"
         case .resetCountdown: "timer"
         case .resetAbsolute: "clock"
-        case .runsOut: "hourglass.bottomhalf.filled"
+        case .runsOut, .runsOutCompact: "hourglass.bottomhalf.filled"
+        case .balance: "creditcard"
         case .costToday: "dollarsign.circle"
         case .cost30d: "calendar.badge.clock"
         case .separatorDot: "smallcircle.filled.circle"
