@@ -11,58 +11,12 @@ import SweetCookieKit
 
 @MainActor
 extension UsageStore {
-    var menuObservationToken: Int {
-        _ = self.snapshots
-        _ = self.errors
-        _ = self.diagnostics
-        _ = self.knownLimitsAvailabilityByProvider
-        _ = self.lastSourceLabels
-        _ = self.lastFetchAttempts
-        _ = (self.accountSnapshots, self.tokenAccountLiveStateProviders, self.codexAccountSnapshots)
-        _ = self.kiloScopeSnapshots
-        _ = self.claudeSwapAccountSnapshots
-        _ = self.claudeSwapLastError
-        _ = self.claudeSwapRevision
-        _ = self.tokenSnapshots
-        _ = self.tokenErrors
-        _ = self.tokenRefreshInFlight
-        _ = self.codexCostCatchUpActivity
-        _ = self.credits
-        _ = self.lastCreditsError
-        _ = self.openAIDashboard
-        _ = self.lastOpenAIDashboardError
-        _ = self.openAIDashboardRequiresLogin
-        _ = self.openAIDashboardAttachmentRevision
-        _ = self.versions
-        _ = self.isRefreshing
-        _ = self.hasForcedRefreshEnrichmentInFlight
-        _ = self.refreshingProviders
-        _ = self.pathDebugInfo
-        _ = self.statuses
-        _ = self.probeLogs
-        _ = self.historicalPaceRevision
-        _ = self.planUtilizationHistoryRevision
-        _ = self.providerStorageFootprints
-        return 0
-    }
-
-    var iconObservationToken: Int {
-        _ = self.snapshots
-        _ = self.claudeSwapAccountSnapshots
-        _ = self.claudeSwapRevision
-        _ = self.errors
-        _ = self.diagnostics
-        _ = self.knownLimitsAvailabilityByProvider
-        _ = self.credits
-        _ = self.lastCreditsError
-        _ = self.openAIDashboard
-        _ = self.lastOpenAIDashboardError
-        _ = self.openAIDashboardRequiresLogin
-        _ = self.refreshingProviders
-        _ = self.statuses
-        _ = self.tokenSnapshotPublications
-        _ = self.historicalPaceRevision
-        return 0
+    private static func isRunningTestsProcess() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let testKeys = ["XCTestConfigurationFilePath", "XCTestSessionIdentifier", "SWIFT_TESTING_ENABLED"]
+        return testKeys.contains(where: { environment[$0] != nil }) || CommandLine.arguments.contains { argument in
+            argument.contains("xctest") || argument.contains("swift-testing")
+        }
     }
 
     func observeSettingsChanges() {
@@ -88,50 +42,6 @@ extension UsageStore {
         }
     }
 
-    var backgroundWorkSettingsObservationToken: Int {
-        _ = self.settings.backgroundWorkSettingsRevision
-        return 0
-    }
-
-    var attachedOpenAIDashboardSnapshot: OpenAIDashboardSnapshot? {
-        guard self.openAIDashboardAttachmentAuthorized else { return nil }
-        return self.openAIDashboard
-    }
-
-    private static func isRunningTestsProcess() -> Bool {
-        let environment = ProcessInfo.processInfo.environment
-        let testKeys = ["XCTestConfigurationFilePath", "XCTestSessionIdentifier", "SWIFT_TESTING_ENABLED"]
-        return testKeys.contains(where: { environment[$0] != nil }) || CommandLine.arguments.contains { argument in
-            argument.contains("xctest") || argument.contains("swift-testing")
-        }
-    }
-
-    /// Returns the login method (plan type) for the specified provider, if available.
-    private func loginMethod(for provider: UsageProvider) -> String? {
-        self.snapshots[provider.instanceID]?.loginMethod(for: provider)
-    }
-
-    /// Returns true if the Claude account appears to be a subscription (Max, Pro, Ultra, Team).
-    /// Returns false for API users or when plan cannot be determined.
-    func isClaudeSubscription() -> Bool {
-        // Provider-specific by design: Claude subscription plans choose its consumer dashboard account action.
-        Self.isSubscriptionPlan(self.loginMethod(for: .claude))
-    }
-
-    /// Determines if a login method string indicates a Claude subscription plan.
-    /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
-    nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
-        ClaudePlan.isSubscriptionLoginMethod(loginMethod)
-    }
-
-    var preferredSnapshot: UsageSnapshot? {
-        for provider in self.enabledProviders() {
-            if let snap = self.snapshots[provider] {
-                return snap
-            }
-        }
-        return nil
-    }
 }
 
 @MainActor
@@ -201,6 +111,8 @@ final class UsageStore {
     var openAIDashboardCookieImportDebugLog: String?
     var versions: [ProviderInstanceID: String] = [:]
     @ObservationIgnored var versionDetectionProviders: Set<ProviderInstanceID> = []
+    @ObservationIgnored private(set) var versionDetectionTask: Task<Void, Never>?
+    @ObservationIgnored var claudeVersionRefreshTask: Task<Void, Never>?
     var isRefreshing = false
     var hasForcedRefreshEnrichmentInFlight = false
     var refreshingProviders: Set<ProviderInstanceID> = []
@@ -229,6 +141,7 @@ final class UsageStore {
     @ObservationIgnored var lastOpenAIDashboardTargetEmail: String?
     @ObservationIgnored var lastOpenAIDashboardTargetIsolationKey: String?
     @ObservationIgnored var lastOpenAIDashboardAttemptAt: Date?
+    @ObservationIgnored var lastOpenAIDashboardPageScrapeAt: Date?
     @ObservationIgnored var lastOpenAIDashboardCookieImportAttemptAt: Date?
     @ObservationIgnored var lastOpenAIDashboardCookieImportEmail: String?
     @ObservationIgnored var lastCodexAccountScopedRefreshGuard: CodexAccountScopedRefreshGuard?
@@ -362,12 +275,14 @@ final class UsageStore {
     @ObservationIgnored var codexCostCatchUpMode: CodexCostCatchUpMode = .automatic
     @ObservationIgnored var codexCostCatchUpStopRequested = false
     @ObservationIgnored var codexCostCatchUpPassIsRunning = false
+    @ObservationIgnored var codexCostCatchUpRestartRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpToken: UUID?
     @ObservationIgnored var spendDashboardCodexCostCatchUpScopeSignature: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpMode: CodexCostCatchUpMode = .automatic
     @ObservationIgnored var spendDashboardCodexCostCatchUpStopRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpPassIsRunning = false
+    @ObservationIgnored var spendDashboardCodexCostCatchUpRestartRequested = false
     @ObservationIgnored var forcedRefreshEnrichmentTask: Task<Void, Never>?
     @ObservationIgnored var forcedRefreshEnrichmentToken: UUID?
     @ObservationIgnored var pendingForcedRefreshEnrichmentTask: Task<Void, Never>?
@@ -401,6 +316,9 @@ final class UsageStore {
     @ObservationIgnored var codexHistoricalDataset: CodexHistoricalDataset?
     @ObservationIgnored var codexHistoricalDatasetAccountKey: String?
     @ObservationIgnored var lastKnownResetSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
+    /// A stable ambient Auto refresh failed after every live Claude source was exhausted, so persisted
+    /// plan-utilization history may safely supply a stale presentation snapshot for the same profile.
+    @ObservationIgnored var claudeHistoryFallbackEligible = false
     @ObservationIgnored var deepseekProfileTransition: DeepSeekProfileTransition?
     @ObservationIgnored var sessionQuotaTransitionStates: [ProviderInstanceID: SessionQuotaTransitionState] = [:]
     @ObservationIgnored var codexSessionQuotaBaselineRequirement: CodexSessionQuotaBaselineRequirement?
@@ -1391,9 +1309,13 @@ extension UsageStore {
         self.versionDetectionProviders = enabled
         let implementations = Self.versionDetectionImplementations(
             enabled: Set(enabled.compactMap(\.firstPartyProvider)))
+        // Provider-specific by design: only Claude's version probe is background-gated and needs recovery handling.
+        let probesClaude = implementations.contains { $0.id == .claude }
         let browserDetection = self.browserDetection
-        Task { @MainActor [weak self] in
-            let resolved = await Task.detached { () -> [UsageProvider: String] in
+        self.versionDetectionTask = Task { @MainActor [weak self] in
+            let detection = await Task.detached { () -> (
+                resolved: [UsageProvider: String],
+                claudeBinaryResolvable: Bool) in
                 var resolved: [UsageProvider: String] = [:]
                 await withTaskGroup(of: (UsageProvider, String?).self) { group in
                     for implementation in implementations {
@@ -1409,9 +1331,27 @@ extension UsageStore {
                         resolved[provider] = version
                     }
                 }
-                return resolved
+                // Provider-specific by design: disabled providers must not be probed (#2267), so the
+                // Claude binary resolves only when Claude was in this run and its probe returned nil.
+                let claudeBinaryResolvable = probesClaude
+                    && resolved[.claude] == nil
+                    && ProviderVersionDetector.claudeBinaryResolvable()
+                return (resolved, claudeBinaryResolvable)
             }.value
-            self?.versions = Dictionary(uniqueKeysWithValues: resolved.map { ($0.key.instanceID, $0.value) })
+            guard let self else { return }
+            let resolved = detection.resolved
+            var versions = Dictionary(uniqueKeysWithValues: resolved.map { ($0.key.instanceID, $0.value) })
+            let claudeID = UsageProvider.claude.instanceID
+            // A gated or failed Claude probe preserves a user-initiated recovery while the binary still resolves.
+            // A missing/uninstalled binary clears the version so stale data does not survive CLI removal.
+            if probesClaude,
+               resolved[.claude] == nil,
+               detection.claudeBinaryResolvable,
+               let recoveredClaudeVersion = self.versions[claudeID]
+            {
+                versions[claudeID] = recoveredClaudeVersion
+            }
+            self.versions = versions
         }
     }
 
@@ -1425,21 +1365,6 @@ extension UsageStore {
                 return
             }
             await self?.refreshPathDebugInfo()
-        }
-    }
-
-    private func runBackgroundSnapshot(
-        _ snapshot: @escaping @Sendable () async -> PathDebugSnapshot) async
-    {
-        let result = await snapshot()
-        await MainActor.run {
-            self.pathDebugInfo = result
-        }
-    }
-
-    private func refreshPathDebugInfo() async {
-        await self.runBackgroundSnapshot {
-            await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
         }
     }
 
@@ -1666,9 +1591,7 @@ extension UsageStore {
         }
         return true
     }
-}
 
-extension UsageStore {
     func retainCodingActivityIfNewer(_ date: Date) {
         if self.lastCodingActivityAt.map({ date > $0 }) ?? true {
             self.lastCodingActivityAt = date

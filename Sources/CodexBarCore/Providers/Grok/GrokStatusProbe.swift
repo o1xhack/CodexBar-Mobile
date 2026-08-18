@@ -8,6 +8,7 @@ public struct GrokUsageSnapshot: Sendable {
     public let cliVersion: String?
     public let diagnostic: String?
     public let updatedAt: Date
+    public let subscriptionTier: String?
 
     public init(
         billing: GrokBillingResponse?,
@@ -16,7 +17,8 @@ public struct GrokUsageSnapshot: Sendable {
         localSummary: GrokLocalSessionSummary?,
         cliVersion: String?,
         updatedAt: Date,
-        diagnostic: String? = nil)
+        diagnostic: String? = nil,
+        subscriptionTier: String? = nil)
     {
         self.billing = billing
         self.webBilling = webBilling
@@ -25,6 +27,7 @@ public struct GrokUsageSnapshot: Sendable {
         self.cliVersion = cliVersion
         self.diagnostic = diagnostic
         self.updatedAt = updatedAt
+        self.subscriptionTier = subscriptionTier
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
@@ -55,7 +58,9 @@ public struct GrokUsageSnapshot: Sendable {
             providerID: .grok,
             accountEmail: self.credentials?.email,
             accountOrganization: self.credentials?.teamId,
-            loginMethod: self.credentials?.loginMethod)
+            loginMethod: GrokPlan.loginMethod(
+                subscriptionTier: self.subscriptionTier ?? self.webBilling?.subscriptionTier,
+                credentials: self.credentials))
 
         return UsageSnapshot(
             primary: primary,
@@ -124,16 +129,19 @@ public struct GrokStatusProbe: Sendable {
                billingAttempted: billingAttempted,
                error: rpcError)
         {
+            let subscriptionTier = try await Self.loadSettingsTier(credentials: credentials)
             return Self.identityOnlySnapshot(
                 credentials: credentials,
                 localSummary: localSummary,
-                cliVersion: cliVersion)
+                cliVersion: cliVersion,
+                subscriptionTier: subscriptionTier)
         }
 
         if billing == nil {
             throw rpcError ?? GrokRPCError.notAuthenticated
         }
 
+        let subscriptionTier = try await Self.loadSettingsTier(credentials: credentials)
         return GrokUsageSnapshot(
             billing: billing,
             webBilling: nil,
@@ -143,14 +151,16 @@ public struct GrokStatusProbe: Sendable {
                 webBilling: nil),
             localSummary: localSummary,
             cliVersion: cliVersion,
-            updatedAt: Date())
+            updatedAt: Date(),
+            subscriptionTier: subscriptionTier)
     }
 
     static func identityOnlySnapshot(
         credentials: GrokCredentials,
         localSummary: GrokLocalSessionSummary?,
         cliVersion: String?,
-        updatedAt: Date = .init()) -> GrokUsageSnapshot
+        updatedAt: Date = .init(),
+        subscriptionTier: String? = nil) -> GrokUsageSnapshot
     {
         GrokUsageSnapshot(
             billing: nil,
@@ -159,7 +169,38 @@ public struct GrokStatusProbe: Sendable {
             localSummary: localSummary,
             cliVersion: cliVersion,
             updatedAt: updatedAt,
-            diagnostic: GrokStatusProbe.teamUsageUnavailableMessage)
+            diagnostic: GrokStatusProbe.teamUsageUnavailableMessage,
+            subscriptionTier: subscriptionTier)
+    }
+
+    static let settingsJoinGrace = Duration.seconds(2)
+
+    static func loadSettingsTier(
+        credentials: GrokCredentials?,
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> String?
+    {
+        guard let credentials, !credentials.isExpired else { return nil }
+        let sourceTask = Task<String?, Error> {
+            try await GrokCLISettingsFetcher.subscriptionTierDisplay(
+                credentials: credentials,
+                session: transport)
+        }
+        let outcome = await BoundedTaskJoin(sourceTask: sourceTask).value(joinGrace: Self.settingsJoinGrace)
+        try Task.checkCancellation()
+        switch outcome {
+        case let .value(tier):
+            return tier
+        case .timedOut:
+            return nil
+        case let .failure(error):
+            if error is CancellationError {
+                throw CancellationError()
+            }
+            if let urlError = error as? URLError, urlError.code == .cancelled {
+                throw urlError
+            }
+            return nil
+        }
     }
 
     static func isBillingMethodUnavailable(_ error: Error?) -> Bool {

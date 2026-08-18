@@ -116,7 +116,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-color] [--pretty] [--refresh] [--provider-native-only]
-                       [--days <days>] [--group-by project]
+                       [--days <days>] [--group-by project|session]
 
         Description:
           Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.
@@ -126,6 +126,7 @@ extension CodexBarCLI {
         Examples:
           codexbar cost
           codexbar cost --provider codex --group-by project
+          codexbar cost --provider codex --group-by session
           codexbar cost --provider claude --format json --pretty
         """
     }
@@ -458,7 +459,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--provider-native-only]
-                       [--days <days>] [--group-by project]
+                       [--days <days>] [--group-by project|session]
           codexbar sessions [--json|--json-v2] [--pretty]
           codexbar sessions focus <id>
           codexbar dashboard [--pretty] [--timeout <seconds>] [--output <path>]

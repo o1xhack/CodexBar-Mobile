@@ -104,21 +104,13 @@ struct CodexBarApp: App {
             settings: settings,
             account: account,
             selection: preferencesSelection,
+            mobileSyncCoordinator: self.syncCoordinator,
             managedCodexAccountCoordinator: managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: codexAccountPromotionCoordinator))
     }
 
     @SceneBuilder
     var body: some Scene {
-        // Hidden 1×1 window to keep SwiftUI's lifecycle alive so `Settings` scene
-        // shows the native toolbar tabs even though the UI is AppKit-based.
-        WindowGroup("CodexBarLifecycleKeepalive") {
-            HiddenWindowView()
-                .modifier(CloudSyncModifier(coordinator: self.syncCoordinator))
-        }
-        .defaultSize(width: 20, height: 20)
-        .windowStyle(.hiddenTitleBar)
-
         Settings {
             PreferencesView(
                 settings: self.settings,
@@ -135,22 +127,6 @@ struct CodexBarApp: App {
         }
         .defaultSize(width: SettingsPane.windowWidth, height: SettingsPane.windowHeight)
         .windowResizability(.contentMinSize)
-    }
-
-    private func openSettings(pane: SettingsPane) {
-        self.preferencesSelection.pane = pane
-        DockIconController.shared.promote()
-        NSApp.activate(ignoringOtherApps: true)
-        let outcome = SettingsWindowOpener.live().open(preferred: .appKit)
-        let logger = CodexBarLog.logger(LogCategories.app)
-        switch outcome {
-        case .preferred:
-            break
-        case .fallback:
-            logger.warning("Settings AppKit action was not handled; used notification fallback")
-        case .failed:
-            logger.error("Failed to open Settings; AppKit action and notification fallback unavailable")
-        }
     }
 
     private static func applyLanguagePreference(from settings: SettingsStore) {
@@ -381,12 +357,21 @@ private func makeUpdaterController() -> UpdaterProviding {
 #endif
 
 @MainActor
+protocol MobileSyncCoordinating: AnyObject {
+    func startObserving()
+    func stopObserving()
+}
+
+extension SyncCoordinator: MobileSyncCoordinating {}
+
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     struct Dependencies {
         let store: UsageStore
         let settings: SettingsStore
         let account: AccountInfo
         let selection: PreferencesSelection
+        let mobileSyncCoordinator: any MobileSyncCoordinating
         let managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
         let codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
     }
@@ -405,10 +390,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: SettingsStore?
     private var account: AccountInfo?
     private var preferencesSelection: PreferencesSelection?
+    private var mobileSyncCoordinator: (any MobileSyncCoordinating)?
     private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?
     private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
     private var cloudSyncCoordinator: CloudSyncCoordinator?
     private var hasInstalledLimitResetObservers = false
+    private var hasStartedMobileSync = false
     #if DEBUG
     private var debugMemoryPressureObserver: NSObjectProtocol?
     #endif
@@ -421,6 +408,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.settings = dependencies.settings
         self.account = dependencies.account
         self.preferencesSelection = dependencies.selection
+        self.mobileSyncCoordinator = dependencies.mobileSyncCoordinator
         self.managedCodexAccountCoordinator = dependencies.managedCodexAccountCoordinator
         self.codexAccountPromotionCoordinator = dependencies.codexAccountPromotionCoordinator
         self.cloudSyncCoordinator = CloudSyncCoordinator(settings: dependencies.settings, state: self.cloudSyncState)
@@ -438,6 +426,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         self.ensureStatusController()
         self.cloudSyncCoordinator?.start()
+        if !self.hasStartedMobileSync {
+            self.mobileSyncCoordinator?.startObserving()
+            self.hasStartedMobileSync = true
+        }
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let settings = self?.settings else { return }
@@ -474,6 +466,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         self.cloudSyncCoordinator?.stop()
+        if self.hasStartedMobileSync {
+            self.mobileSyncCoordinator?.stopObserving()
+            self.hasStartedMobileSync = false
+        }
         self.memoryPressureMonitor.stop()
         #if DEBUG
         self.removeDebugMemoryPressureObserver()

@@ -532,7 +532,8 @@ extension CodexBarCLI {
             let notes = Self.usageTextNotes(
                 provider: provider,
                 sourceMode: effectiveSourceMode,
-                resolvedSourceLabel: source) + (result.diagnostic.map { [$0] } ?? [])
+                resolvedSourceLabel: source,
+                dataConfidence: usage.dataConfidence) + (result.diagnostic.map { [$0] } ?? [])
 
             Self.appendSuccessRenderOutput(
                 UsageSuccessRenderInput(

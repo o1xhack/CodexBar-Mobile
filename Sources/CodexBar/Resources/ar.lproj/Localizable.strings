@@ -1,7 +1,15 @@
 /* Arabic localization for CodexBar */
 
 /* iCloud Sync */
+"+ %d more" = "+ %d أخرى";
+"Conversations (%@)" = "المحادثات (%@)";
+"Fast" = "سريع";
 "iCloud Sync" = "iCloud Sync";
+"Projects" = "المشاريع";
+"Session %@" = "الجلسة %@";
+"Std" = "قياسي";
+"Show all (%d)" = "إظهار الكل (%d)";
+"Show less" = "إظهار أقل";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";
@@ -485,6 +493,10 @@
 "quota_depleted_title" = "نفاد الحصة واستعادتها";
 "quota_warning_notifications_subtitle" = "يحذر عندما يتجاوز الحصة المتبقية من الجلسة أو الحصة الأسبوعية العتبات المكونة.";
 "threshold_warnings_title" = "تحذيرات العتبة";
+"provider_accent_color_title" = "لون التمييز";
+"provider_accent_color_footer" = "يحدد لون أشرطة الاستخدام والرسوم البيانية وعلامة التبديل لهذا المزود.";
+"provider_accent_color_hex_label" = "قيمة اللون السداسية";
+"provider_accent_color_reset" = "استخدام الافتراضي";
 "quota_warnings_title" = "تحذيرات الحصص";
 "quota_warning_session" = "الجلسة";
 "quota_warning_session_capitalized" = "الجلسة";
@@ -613,6 +625,11 @@
 "show_quota_warning_markers_subtitle" = "ارسم علامات عتبة على أشرطة الاستخدام عند تكوين تحذيرات الحصص.";
 "weekly_progress_work_days_title" = "أيام العمل الأسبوعية للتقدم";
 "weekly_progress_work_days_subtitle" = "حدد أيام عمل لمؤشرات شريط الاستخدام الأسبوعي وحسابات السرعة.";
+"workday_tick_appearance_title" = "مظهر علامات أيام العمل";
+"workday_tick_appearance_subtitle" = "اختر كيفية ظهور حدود أيام العمل على أشرطة الاستخدام الأسبوعية.";
+"workday_tick_appearance_hidden" = "مخفية";
+"workday_tick_appearance_subtle" = "خفيفة";
+"workday_tick_appearance_high_contrast" = "تباين عالٍ";
 "show_provider_changelog_links_title" = "اعرض روابط سجل التغييرات لمزود الخدمة";
 "show_provider_changelog_links_subtitle" = "يضيف روابط ملاحظات الإصدار لمزودي الخدمة المدعومين بدعم CLI إلى القائمة.";
 "show_credits_extra_usage_title" = "اعتمادات العرض + الاستخدام الإضافي";
@@ -658,6 +675,15 @@
 "keychain_access_caption" = "قم بتعطيل جميع Keychain القراءة والكتابة. استخدم هذا إذا استمر macOS في طلب 'Chrome/Brave/Edge التخزين الآمن' حتى بعد الضغط على 'دائما السماح'. استيراد ملفات تعريف الارتباط من المتصفح غير متاح أثناء تفعيله؛ الصق رؤوس الكوكيز يدويا في المزودين. Claude/Codex OAuth عبر CLI لا يزال يعمل.";
 "disable_keychain_access_title" = "تعطيل Keychain الوصول";
 "disable_keychain_access_subtitle" = "يمنع أي وصول Keychain أثناء التفعيل.";
+"Re-authenticate" = "إعادة المصادقة";
+"kiro_reauthenticate_title" = "تسجيل الدخول إلى Kiro CLI";
+"kiro_reauthenticate_subtitle" = "يشغّل «kiro-cli login» لتجديد جلستك عند انتهاء صلاحيتها.";
+"Kiro CLI not found" = "لم يتم العثور على Kiro CLI";
+"Install kiro-cli and try again." = "ثبّت kiro-cli ثم حاول مرة أخرى.";
+"Could not start kiro-cli login" = "تعذر بدء kiro-cli login";
+"Kiro login timed out" = "انتهت مهلة تسجيل الدخول إلى Kiro";
+"kiro-cli login exited with status %d." = "خرج kiro-cli login بالحالة %d.";
+"Kiro login failed" = "فشل تسجيل الدخول إلى Kiro";
 
 /* About Pane */
 "about_tagline" = "عسى أن لا تنفد رموزك أبدا—حافظ على حدود الوكلاء في مرآه.";
@@ -1344,6 +1370,7 @@
 "menu_bar_layout_gap" = "المسافة";
 "menu_bar_layout_gap_tight" = "ضيّق";
 "menu_bar_layout_gap_regular" = "عادي";
+"menu_bar_layout_vertical_adjustment" = "الضبط العمودي";
 "menu_bar_layout_keyboard_hint" = "يحذف Delete العنصر المحدد";
 "menu_bar_layout_sample_account" = "حساب";
 "menu_bar_layout_sample_runs_out" = "ينفد الجمعة";
@@ -1509,3 +1536,5 @@
 "5-hour usage" = "الاستخدام خلال 5 ساعات";
 "7-day usage" = "الاستخدام خلال 7 أيام";
 "Total usage" = "إجمالي الاستخدام";
+"claude_oauth_keychain_access_revoked" = "تم إلغاء وصول CodexBar إلى سلسلة مفاتيح Claude بسبب تدوير الرمز المميز في Claude Code. انقر على «تحديث» لمنح الوصول مجددًا، أو بدّل مصدر استخدام Claude إلى CLI/Web.";
+"claude_showing_last_known_usage" = "يتم عرض آخر بيانات استخدام معروفة، تم التقاطها %@.";

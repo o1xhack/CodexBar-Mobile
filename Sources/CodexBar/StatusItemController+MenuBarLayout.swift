@@ -34,14 +34,21 @@ extension StatusItemController {
             showUsed: self.settings.usageBarsShowUsed,
             appearanceName: appearanceName,
             isDebugApp: Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier),
-            now: now)
+            isStale: self.store.isStale(provider: provider),
+            now: now,
+            verticalAdjustment: self.settings.menuBarLayoutVerticalAdjustment)
         let rendered = self.menuBarLayoutRenderer.render(
             layout: resolution.layout,
             data: data,
             icon: renderedIcon,
             options: options)
-        let wasCached = button.image == nil
-            && button.imagePosition == .noImage
+        let expectedImagePosition: NSControl.ImagePosition = if rendered.leadingIcon != nil {
+            rendered.attributedTitle.length > 0 ? .imageLeft : .imageOnly
+        } else {
+            .noImage
+        }
+        let wasCached = button.image === rendered.leadingIcon
+            && button.imagePosition == expectedImagePosition
             && button.attributedTitle.isEqual(to: rendered.attributedTitle)
         self.setButtonLayoutContent(rendered, for: button, statusItem: statusItem)
         return wasCached
@@ -58,11 +65,17 @@ extension StatusItemController {
         let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
         let paceWindow = windows.weekly ?? windows.automatic
         let runsOut = paceWindow
-            .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
+            .flatMap {
+                self.store.weeklyPace(
+                    provider: provider,
+                    window: $0,
+                    now: now)
+            }
             .flatMap { UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now).rightLabel }
         let costStrings = self.menuBarLayoutCostStrings(provider: provider, now: now)
         let providerName = L(self.store.metadata(for: provider).displayName)
         let accountLabel = self.menuBarLayoutAccountLabel(provider: provider, snapshot: snapshot)
+        let automatic = MenuBarLayoutRenderWindow(windows.automatic)
 
         return MenuBarLayoutRenderData(
             provider: provider,
@@ -73,14 +86,26 @@ extension StatusItemController {
             weekly: MenuBarLayoutRenderWindow(windows.weekly),
             scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),
             scopedWeeklyTitle: scopedNamed?.title,
-            automatic: MenuBarLayoutRenderWindow(windows.automatic),
-            sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.session, now: now),
-            weeklyPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.weekly, now: now),
+            automatic: automatic,
+            // Provider-specific by design: Mistral uses spend text when its automatic lane has no percentage window.
+            automaticText: provider == .mistral && automatic == nil
+                ? Self.mistralSpendDisplayText(snapshot: snapshot)
+                : nil,
+            sessionPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: windows.session,
+                now: now),
+            weeklyPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: windows.weekly,
+                now: now,
+                minimumElapsedPercent: 1),
             automaticPace: self.store.menuBarLayoutPaceText(
                 provider: provider,
                 window: windows.automatic,
                 now: now),
             runsOut: runsOut,
+            balance: MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot),
             costToday: costStrings.today,
             cost30d: costStrings.last30Days)
     }
@@ -139,8 +164,12 @@ extension StatusItemController {
         let semanticWindows = MenuBarLayoutSemanticWindowResolver.windows(
             provider: provider,
             snapshot: snapshot)
+        // Provider-specific by design: Mistral's automatic lane can explicitly select its Monthly Plan window.
+        let automaticPreference = provider == .mistral
+            ? self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+            : .automatic
         let automatic = MenuBarMetricWindowResolver.rateWindow(
-            preference: .automatic,
+            preference: automaticPreference,
             provider: provider,
             snapshot: snapshot,
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
@@ -160,8 +189,25 @@ extension StatusItemController {
         for button: NSStatusBarButton,
         statusItem: NSStatusItem)
     {
-        button.image = nil
-        button.imagePosition = .noImage
+        // A leading icon token is surfaced as the status item image so AppKit applies the
+        // system's inactive-display tinting to it, matching how other menu bar icons behave.
+        // Text tokens keep rendering through the attributed title.
+        if let icon = rendered.leadingIcon {
+            if button.image !== icon {
+                button.image = icon
+            }
+            let position: NSControl.ImagePosition = rendered.attributedTitle.length > 0 ? .imageLeft : .imageOnly
+            if button.imagePosition != position {
+                button.imagePosition = position
+            }
+        } else {
+            if button.image != nil {
+                button.image = nil
+            }
+            if button.imagePosition != .noImage {
+                button.imagePosition = .noImage
+            }
+        }
         if !button.attributedTitle.isEqual(to: rendered.attributedTitle) {
             button.attributedTitle = rendered.attributedTitle
         }
@@ -171,9 +217,12 @@ extension StatusItemController {
 
         // AppKit exposes no content-inset API on NSStatusBarButton. Explicit item length is the actual
         // status-item padding mechanism: tight removes most edge space; regular keeps the native breathing room.
-        let bounds = rendered.attributedTitle.boundingRect(
+        var bounds = rendered.attributedTitle.boundingRect(
             with: NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading])
+        if let icon = rendered.leadingIcon {
+            bounds.size.width += icon.size.width
+        }
         let horizontalPadding: CGFloat = self.settings.menuBarLayoutGap == .tight ? 3 : 10
         statusItem.length = max(18, ceil(bounds.width) + horizontalPadding)
     }

@@ -6,8 +6,10 @@ struct DockIconPolicyDecisionTests {
     func `settings window requires regular activation policy`() {
         let settings = self.window(identifier: "com_apple_SwiftUI_Settings_window")
         let hostedSettings = self.window(identifier: "future-settings-identifier", isKnownSettingsWindow: true)
+        let miniaturizedSettings = self.window(isVisible: false, isMiniaturized: true, isKnownSettingsWindow: true)
 
         #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [settings]))
+        #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [miniaturizedSettings]))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(settings))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(hostedSettings))
     }
@@ -37,13 +39,7 @@ struct DockIconPolicyDecisionTests {
     }
 
     @Test
-    func `ignored windows allow accessory activation policy`() {
-        let keepalive = self.window(
-            identifier: "CodexBarLifecycleKeepalive",
-            title: "CodexBarLifecycleKeepalive",
-            width: 1,
-            height: 1,
-            canBecomeKey: false)
+    func `status bar and non-key windows allow accessory activation policy`() {
         let statusBar = self.window(
             classNames: ["NSStatusBarWindow"],
             width: 300,
@@ -53,7 +49,7 @@ struct DockIconPolicyDecisionTests {
             canBecomeKey: false)
 
         #expect(!DockIconPolicyDecision.shouldUseRegularActivationPolicy(
-            windows: [keepalive, statusBar, borderlessPanel]))
+            windows: [statusBar, borderlessPanel]))
     }
 
     @Test
@@ -63,6 +59,25 @@ struct DockIconPolicyDecisionTests {
         let tiny = self.window(width: 20, height: 20)
 
         #expect(!DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [hidden, miniaturized, tiny]))
+    }
+
+    @Test
+    func `newly presented window IDs exclude already tracked dialogs`() {
+        final class Token {}
+        let settingsToken = Token()
+        let sparkleToken = Token()
+        let settingsID = ObjectIdentifier(settingsToken)
+        let sparkleID = ObjectIdentifier(sparkleToken)
+        let previous: Set<ObjectIdentifier> = [settingsID]
+        let current: Set<ObjectIdentifier> = [settingsID, sparkleID]
+
+        let newlyPresented = DockIconPolicyDecision.newlyPresentedWindowIDs(
+            current: current,
+            previous: previous)
+
+        #expect(newlyPresented == [sparkleID])
+        #expect(!newlyPresented.contains(settingsID))
+        _ = (settingsToken, sparkleToken)
     }
 
     private func window(
