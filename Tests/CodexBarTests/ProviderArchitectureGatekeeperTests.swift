@@ -278,11 +278,11 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(failure.utf8, into: &forkDriftFingerprint)
             Self.hash("\n".utf8, into: &forkDriftFingerprint)
         }
-        let expectedForkDriftCount = 260
+        let expectedForkDriftCount = 261
         // v0.52 keeps the reviewed Mobile publication, mock-provider, pricing,
-        // and non-Tier-A identity seams while rebasing the exact upstream
-        // anchors through project-cost and provider-presentation changes.
-        let expectedForkDriftFingerprint: UInt64 = 13_724_266_320_659_269_145
+        // and non-Tier-A identity seams while rebasing the exact upstream anchors
+        // through project-cost, provider presentation, and pricing-provenance changes.
+        let expectedForkDriftFingerprint: UInt64 = 17_290_280_180_224_551_829
         #expect(
             failures.isEmpty ||
                 (sortedFailures.count == expectedForkDriftCount &&

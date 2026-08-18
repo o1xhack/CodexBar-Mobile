@@ -937,7 +937,7 @@ extension PiSessionCostScanner {
                 let usageSampleCount = packed.usageSampleCount
                 let hasCompleteCachedCost = (usageSampleCount ?? 0) > 0
                     && packed.costSampleCount == usageSampleCount
-                // Cached costs are accumulated per message, which preserves Claude long-context threshold boundaries.
+                // Provider-specific by design: Pi exactness follows the same Codex/Claude catalog used for pricing.
                 let costNanos = hasCompleteCachedCost
                     ? packed.costNanos
                     : currentPricingCost.map { Int64(($0 * self.costScale).rounded()) }

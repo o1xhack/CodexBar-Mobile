@@ -885,9 +885,9 @@ enum CostUsagePricing {
         return self.codex[key] != nil
     }
 
-    /// Returns true when the model resolves to a concrete pricing row in this immutable pricing
-    /// snapshot without using the family-fallback ladder. Provider-qualified Codex-compatible
-    /// routes are exact only when their own models.dev provider contains the model.
+    /// Provider-specific by design: Codex exactness uses its own bundled table and models.dev routes.
+    /// Family fallbacks remain estimates for unqualified models.
+    /// Provider-qualified routes are exact only in their own models.dev provider.
     static func hasExactCodexPricing(
         _ raw: String,
         modelsDevCatalog: ModelsDevCatalog?) -> Bool
@@ -1026,8 +1026,8 @@ enum CostUsagePricing {
         return self.claude[key] != nil
     }
 
-    /// Returns true when Claude pricing resolves exactly in the same immutable catalog used to
-    /// compute the amount. Family fallbacks remain estimates even if a newer cache later appears.
+    /// Provider-specific by design: Claude exactness uses its own bundled table and models.dev catalog.
+    /// Family fallbacks remain estimates even if a newer cache later appears.
     static func hasExactClaudePricing(
         _ raw: String,
         modelsDevCatalog: ModelsDevCatalog?) -> Bool
