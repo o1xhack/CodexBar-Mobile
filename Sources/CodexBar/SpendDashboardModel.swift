@@ -411,7 +411,9 @@ struct SpendDashboardModel: Equatable, Sendable {
                 let key = Key(sourceID: input.id, name: name, path: project.path)
                 var aggregate = aggregates[key] ?? Accumulator(
                     provider: input.provider,
-                    providerName: input.modelProviderName,
+                    // Project rows are source-owned. Keep the account-specific display name so
+                    // identical repositories from separate Codex subscriptions stay attributable.
+                    providerName: input.displayName,
                     path: key.path,
                     tokens: 0,
                     cost: 0)

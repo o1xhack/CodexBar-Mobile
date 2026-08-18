@@ -1082,6 +1082,7 @@ extension SpendDashboardModelTests {
                     id: "codex-a",
                     provider: .codex,
                     displayName: "Codex · #1",
+                    modelProviderName: "Codex",
                     snapshot: Self.snapshot(
                         currency: "USD",
                         entries: [Self.entry(day: "2026-07-15", cost: 5)],
@@ -1090,6 +1091,7 @@ extension SpendDashboardModelTests {
                     id: "codex-b",
                     provider: .codex,
                     displayName: "Codex · #2",
+                    modelProviderName: "Codex",
                     snapshot: Self.snapshot(
                         currency: "USD",
                         entries: [Self.entry(day: "2026-07-15", cost: 7)],
@@ -1104,7 +1106,7 @@ extension SpendDashboardModelTests {
         #expect(group.projects.map(\.totalCost) == [7, 5])
         #expect(Set(group.projects.map(\.sourceID)) == ["codex-a", "codex-b"])
         #expect(Set(group.projects.map(\.id)).count == 2)
-        #expect(group.projects[0].providerName == "Codex · #2")
+        #expect(group.projects.map(\.providerName) == ["Codex · #2", "Codex · #1"])
     }
 
     @Test
