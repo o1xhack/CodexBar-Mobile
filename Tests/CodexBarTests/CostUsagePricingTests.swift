@@ -122,6 +122,13 @@ struct CostUsagePricingTests {
         #expect(opencodeFree == 0)
         #expect(kimi == 0)
         #expect(deepseek == (100.0 * 0.14e-6) + (5.0 * 0.28e-6))
+        #expect(CostUsagePricing.hasExactCodexPricing(
+            "opencode-go/deepseek-v4-flash",
+            modelsDevCacheRoot: root))
+        #expect(ModelFallbackPricing.hasExactCodexPricing(
+            "opencode-go/deepseek-v4-flash",
+            modelsDevCacheRoot: root))
+        #expect(!CostUsagePricing.isCodexModelKnown("opencode-go/deepseek-v4-flash"))
     }
 
     @Test
@@ -157,6 +164,9 @@ struct CostUsagePricingTests {
             modelsDevCacheRoot: root)
 
         #expect(cost == nil)
+        #expect(!ModelFallbackPricing.hasExactCodexPricing(
+            "unlisted-route/deepseek-v4-flash",
+            modelsDevCacheRoot: root))
     }
 
     @Test

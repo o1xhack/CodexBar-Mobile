@@ -885,6 +885,26 @@ enum CostUsagePricing {
         return self.codex[key] != nil
     }
 
+    /// Returns true when the model resolves to a concrete pricing row without using the
+    /// family-fallback ladder. Provider-qualified Codex-compatible routes are exact only when
+    /// their own models.dev provider contains the model; they must never inherit OpenAI pricing.
+    static func hasExactCodexPricing(
+        _ raw: String,
+        modelsDevCatalog: ModelsDevCatalog? = nil,
+        modelsDevCacheRoot: URL? = nil) -> Bool
+    {
+        let key = self.normalizeCodexModel(raw)
+        guard key != self.codexUnattributedModel else { return false }
+        if self.codexModelsDevLookup(
+            model: raw,
+            catalog: modelsDevCatalog,
+            cacheRoot: modelsDevCacheRoot) != nil
+        {
+            return true
+        }
+        return self.codex[key] != nil
+    }
+
     private static func resolveCodexPricing(model: String) -> CodexPricing? {
         let key = self.normalizeCodexModel(model)
         if let exact = self.codex[key] { return exact }

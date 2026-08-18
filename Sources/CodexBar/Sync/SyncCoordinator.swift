@@ -2130,16 +2130,15 @@ final class SyncCoordinator {
             }
     }
 
-    /// `true` when `modelName` is NOT in the local pricing table for its
-    /// provider — meaning the cost was computed via a fallback resolver
-    /// row. Used to flag `isEstimated` on the outbound `SyncCostBreakdown`
-    /// so iOS can render the estimated badge (P5).
+    /// `true` when `modelName` did not resolve through an exact bundled or models.dev row for its
+    /// provider — meaning the cost was computed via a fallback resolver. Used to flag
+    /// `isEstimated` on the outbound `SyncCostBreakdown` so iOS can render the estimated badge.
     private static func isModelEstimated(modelName: String, provider: UsageProvider) -> Bool {
         switch provider {
         case .claude, .vertexai:
             !ModelFallbackPricing.isClaudeModelKnown(modelName)
         case .codex:
-            !ModelFallbackPricing.isCodexModelKnown(modelName)
+            !ModelFallbackPricing.hasExactCodexPricing(modelName)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
