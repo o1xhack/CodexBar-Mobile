@@ -151,3 +151,27 @@ Date: 2026-08-17
   `e5c21552739f2d6f12a919db7b3a24cd3d7ee889bc37b7c14cb7cc69ba08f779`；远端`mobile-dev`
   live feed仍为基线hash `dc50741bcdaa85e25862c7e88697e2b13c3a3877ed7c55390b4130c4dafbdc92`，
   未执行publication。
+
+## Live release与iOS上传closeout（2026-08-19）
+
+用户在PR #93合并后明确授权iOS上传与Mac live release。正式发布没有复用上述pre-merge
+draft binary：先把旧本地产物移到可恢复的临时目录，再从最终`mobile-dev` merge commit
+`08c600d2772c9b3736238bd6ea506f67d22381f7`完整重建。
+
+- Mac notary submission `4bb6ae06-ea30-42b4-bb06-25414144d044`为`Accepted`；分发ZIP内
+  app通过deep strict codesign、Gatekeeper、stapler validate与launch smoke；embedded commit为
+  `08c600d27`，CloudKit entitlement仍为`Production`；
+- 正式ZIP为`69578358` bytes，SHA-256
+  `ebb9bbc1ca5bb2bc1a642a8a864a9f75cebbdfb9a9fc0e693088e58da05bee4f`；dSYM为
+  `53854716` bytes，SHA-256
+  `b95847bf0e868c82e2d828528e9575323a9adfc033b212820829a74cb9add762`；
+- app/dSYM UUID一致：x86_64 `74F21867-A5D5-3252-9E13-E9F8C5BE296C`、arm64
+  `353F365B-21A7-32AE-90FA-B80802CE8529`；tag指向`08c600d277...`；
+- GitHub release于`2026-08-19T20:06:04Z`发布，Sparkle appcast的
+  `124.1.1.21.0 / 0.52.0.1` enclosure、length与EdDSA signature经下载重算验证；appcast commit
+  为`8b21d9373ff4ea5ce16e5134636e414d844bdc5e`；
+- iOS Archive内所有targets统一为`1.21.0 (194)`，CloudKit为`Production`，app/dSYM UUID匹配，
+  编译后的App Icon已目视核对；export/upload成功；ASC build
+  `d0737ce3-8201-40ef-ae5d-e4ee81ca90ee`于`2026-08-19T12:52:25-07:00`上传并为`VALID`；
+- App Store version `1.21.0`尚未创建/绑定：API key不允许`POST /v1/appStoreVersions`，Chrome
+  登录态已过期。此项不影响TestFlight build，但release closeout PR在网页绑定194前不合并。

@@ -20,12 +20,18 @@ Goal 启动时上游已正式发布尚无 monitor issue 的
 继续使用尚未完成 public release 的 `1.21.0`；本轮新增内容合并进既有 1.21.0 release
 notes block，只增加 `CURRENT_PROJECT_VERSION`，不创建 1.22.0。
 
-本轮已在目标分支完成 merge、Mac/Shared/iOS integration、Mac 与 iOS 测试、CloudKit
+本轮先在目标分支完成 merge、Mac/Shared/iOS integration、Mac 与 iOS 测试、CloudKit
 Production schema 审计、16-case substituted compatibility gate、循环 review、Developer ID
-签名与 Apple notarization，并创建仅 draft 的 GitHub release：
-[`CodexBar 0.52.0.1-Mobile 1.21.0`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)。
-没有 push branch、merge、创建/推送 tag、发布 live release、更新 live appcast、上传 TestFlight
-或执行 CloudKit deploy；issues #82–#88 留待最终 merge/publication 后再关闭。
+签名与 Apple notarization，并创建仅 draft 的 GitHub release。用户随后单独授权 PR merge、iOS
+上传与 Mac live release：PR #93 已合并；iOS `1.21.0 (194)` 已上传且 App Store Connect
+`processingState=VALID`；Mac 已从最终 merge commit 重建、重新 notarize，并发布为
+[`v0.52.0.1-mobile.1.21.0`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.52.0.1-mobile.1.21.0)，
+live Sparkle appcast 已提交到 `mobile-dev`。CloudKit 结论仍为 `NO_DEPLOY`，未执行 deploy。
+
+App Store Connect 尚不存在 iOS App Store version `1.21.0`；创建请求被当前 API key 以
+`403 FORBIDDEN_ERROR` 拒绝，网页登录态也已过期。Build 194 本身不受影响。issues #82–#88
+将在 App Store `1.21.0` 创建并绑定 Build 194、release closeout PR 通过 review gate 后，由该 PR
+正文中的 `Closes` 关键字随 merge 自动关闭，而不是在代码 PR #93 merge 时提前关闭。
 
 ## 分支证据
 

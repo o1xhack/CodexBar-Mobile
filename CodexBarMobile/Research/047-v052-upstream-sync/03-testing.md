@@ -27,6 +27,10 @@ Date: 2026-08-17
 | CloudKit Production schema audit | pass — `NO_DEPLOY` | last live tag `v0.49.2.1-mobile.1.21.0`到candidate：CloudConstants零diff、UsageSnapshot public fields零diff、schema keyword零source hit；Production readback仍10 types |
 | Draft release asset/readback | pass | draft ID `372056029`；[draft URL](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-9d15f5c94de6761c5243)；ZIP `69578142` bytes、dSYM `53855298` bytes均uploaded且digest匹配；remote branch/tag不存在，live appcast未改 |
 | Final review blockers | pass | pricing provenance、published-tag cache迁移、same-name project identity/UI、multi-account attribution findings均修复并复审clean；architecture exact anchors由混杂261项收敛为reviewed 83项；最终whole-branch review为`No actionable regressions`，当前blocker 0 |
+| Final merged Mac artifact | pass | 从PR #93 merge commit `08c600d277...`重建；notary `4bb6ae06-ea30-42b4-bb06-25414144d044` Accepted；ZIP embedded commit、Production entitlement、codesign/spctl/stapler与双架构dSYM均通过 |
+| Live GitHub release + appcast | pass | [live release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.52.0.1-mobile.1.21.0)于`2026-08-19T20:06:04Z`发布；appcast commit `8b21d9373`，Sparkle signature/length下载回验通过 |
+| iOS upload / processing | pass | `1.21.0 (194)` archive/export/upload成功；ASC build `d0737ce3-8201-40ef-ae5d-e4ee81ca90ee`为`VALID`，uploaded `2026-08-19T12:52:25-07:00` |
+| App Store 1.21.0 build selection | pending | ASC当前无`1.21.0` App Store version；API key创建请求返回403，等待网页登录后创建并绑定Build 194；未提交review或public release |
 
 首轮CI-style grouped gate执行`CODEXBAR_TEST_GROUP_SIZE=12
 CODEXBAR_TEST_SUITE_TIMEOUT=240 bash Scripts/test.sh`：发现923个selection、77组，全部first-pass
@@ -164,3 +168,15 @@ rendering有变化，因此 gate适用。每一行后续必须填 pass/fail/subs
 **substituted pass**，不是real-device pass。剩余风险集中在真实Production CloudKit传播延迟、
 silent push与background delivery、两个独立iPhone cache最终收敛，以及old iOS 193 binary读取
 new Mac producer的真实设备行为；这些风险在live/TestFlight授权前无法消除，不被伪装成已实测。
+
+## Release closeout readback（2026-08-19）
+
+- Mac live release不是旧draft asset的直接publication；正式ZIP由最终merge commit重建，remote
+  digest与本地SHA-256一致，tag peel精确等于`08c600d277...`；
+- 正式ZIP为`69578358` bytes，dSYM为`53854716` bytes；x86_64/arm64 UUID分别为
+  `74F21867-A5D5-3252-9E13-E9F8C5BE296C`与`353F365B-21A7-32AE-90FA-B80802CE8529`；
+- iOS上传已完成Apple服务端处理：Build 194为`VALID`、`expired=false`、icon asset token存在，
+  pre-release version为`1.21.0`；
+- CloudKit Production schema仍只读回看既有10 types，结论保持`NO_DEPLOY`；
+- App Store public version build绑定与TestFlight processing是两个独立状态。Build 194已满足后者；
+  前者等待恢复网页登录后创建`1.21.0`并绑定194，且不包含App Review submission/public release。
