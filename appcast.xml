@@ -3,6 +3,33 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.52.0.1</title>
+            <pubDate>Wed, 19 Aug 2026 13:06:02 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>124.1.1.21.0</sparkle:version>
+            <sparkle:shortVersionString>0.52.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.52.0.1-Mobile 1.21.0</h2>
+<h3>Added</h3>
+<ul>
+<li>Upstream Mac: include provider accent colors, configurable workday ticks, Claude model-scoped weekly widget rows, Cursor local-session auth, Kiro re-authentication, Codex project/session spend breakdowns, and every provider/CLI improvement through upstream v0.52.0.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Fork release: combine upstream v0.49.3-v0.52.0 into Mac <code>0.52.0.1</code> (<code>124.1.1.21.0</code> Sparkle build) and the existing, not-yet-public iOS <code>1.21.0</code> release train.</li>
+<li>Mobile sync lifecycle: start and stop the Mac-to-iPhone observer from the app delegate after upstream removed the hidden SwiftUI keepalive window, preserving continuous publication without the Mission Control footprint.</li>
+<li>Cost pricing: retain fork fallback estimates for unknown OpenAI and Claude families while isolating provider-qualified routes so DeepSeek, Kimi, and OpenCode models cannot inherit OpenAI prices.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Fork integration: preserve Production CloudKit, Mobile/fleet sync isolation, collision-safe versioning, signing, appcast, fork CI policy, parser cache invalidation, and published release history while incorporating all upstream fixes through v0.52.0.</li>
+<li>Background security and reliability: absorb upstream non-interactive Keychain access, bounded PTY/RPC teardown, Settings lifecycle, cache retention, packaged CLI resources, checksum, and launch-smoke corrections.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.52.0.1-mobile.1.21.0/CodexBar-0.52.0.1-mobile.1.21.0.zip" length="69578358" type="application/octet-stream" sparkle:edSignature="wD8GDsykaQNILwVKFgP/782cGXLsEunsNY5/zf6XUsNzIhsSFfD+CX7vJuhKJmzi1dA0j/mH8Vfk8wFkKwLfBA=="/>
+        </item>
+        <item>
             <title>0.49.2.1</title>
             <pubDate>Mon, 17 Aug 2026 11:44:36 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -55,22 +82,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.47.0.1-mobile.1.20.0/CodexBar-0.47.0.1-mobile.1.20.0.zip" length="62358278" type="application/octet-stream" sparkle:edSignature="awgVecBs4b5PBAZ2t584y2lIozjt0Ip/CCnX1+BMaGayNBRvE6wEOfqyZXmNnqR3WZnrw5SMV5VEpa2cFUmDCQ=="/>
-        </item>
-        <item>
-            <title>0.45.2.2</title>
-            <pubDate>Mon, 27 Jul 2026 14:36:01 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>109.2.1.19.0</sparkle:version>
-            <sparkle:shortVersionString>0.45.2.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.45.2.2-Mobile 1.19.0</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Alibaba Token Plan: restore the authenticated 5-hour and weekly rate windows, keep the legacy monthly credit response as a fallback, and label each restored window by its actual duration. Thanks @rohitsabu!</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.45.2.2-mobile.1.19.0/CodexBar-0.45.2.2-mobile.1.19.0.zip" length="55866766" type="application/octet-stream" sparkle:edSignature="aIh8K8mvgYcHpFWBpY1FoyKOWMgz1DxSCkJRzEOK3WJUr7vaFnDcyux5v5EgjaLYPoNKvQywbdXNLQuYByg/AQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
