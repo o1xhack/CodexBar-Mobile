@@ -179,6 +179,10 @@ check_upstream_release_monitor() {
   node "${ROOT_DIR}/Scripts/test_upstream_release_monitor.mjs"
 }
 
+check_fork_readme() {
+  "${ROOT_DIR}/Scripts/test_fork_readme_guard.sh"
+}
+
 check_release_cli_workflow() {
   "${ROOT_DIR}/Scripts/test_release_cli_workflow.sh"
 }
@@ -255,6 +259,7 @@ run_portable_checks() {
   check_sparkle_signing_paths
   check_release_secret_loading
   check_upstream_release_monitor
+  check_fork_readme
   check_release_cli_workflow
   check_pr_review_gate
   check_swift_test_sharding

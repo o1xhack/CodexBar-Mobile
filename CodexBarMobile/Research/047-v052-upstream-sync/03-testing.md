@@ -15,7 +15,7 @@ Date: 2026-08-17
 
 | Gate | 结果 | Evidence / Notes |
 |---|---|---|
-| Merge provenance / fork conflict audit | pass | merge `25f81f26f`；upstream parent/tag peel `dc3ea3206c...`；14 conflicts逐项记录在`02-development.md` |
+| Merge provenance / fork conflict audit | pass after corrective fix | merge `25f81f26f`；upstream parent/tag peel `dc3ea3206c...`；README conflict 曾错误接受 upstream blob，2026-08-19 已恢复 fork 身份/下载入口、人工移植 v0.52 Keychain prompt-safety 事实段落并加入 reviewed hash gate，其余 conflict 记录在`02-development.md` |
 | Mac build + lint + full tests | pass | `swift build`；final lint：SwiftFormat 1965 files / 0 formatting、SwiftLint 1964 files / 0 violations、i18n 302 keys全覆盖；post-review CI-style grouped gate 923 selections / 77 groups全部首轮成功，0 failed / 0 retry / 0 timeout |
 | Provider/cost/keychain/PTY/settings/sync focused regression | pass | pre-1.2/v0.26/v0.27/v0.29/v0.30/v0.37 wire、fleet/Mobile、多账号138 tests；architecture 38；UsageStore 34；bounded cost 10；Kiro/PTY 57，全部0 failed |
 | Parser fingerprint/hash | pass | `parserLogicVersion=12`；final `CodexParserHash=a5a0cf92c6361f6e`；architecture 38 tests与lint audit通过 |

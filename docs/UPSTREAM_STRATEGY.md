@@ -405,9 +405,17 @@ git cherry-pick <commit-1-hash>  # Only the core improvement
 Keep these files fork-specific (never upstream):
 - `Sources/CodexBar/About.swift` (your attribution)
 - `Sources/CodexBar/PreferencesAboutPane.swift` (fork sections)
-- `README.md` (fork notice)
+- `README.md` (the complete fork-owned iOS/Mac download entrypoint; resolve
+  every upstream merge byte-for-byte to the fork side, then separately audit
+  upstream's README diff and deliberately adapt only applicable factual
+  product/security/troubleshooting updates without replacing fork identity)
 - `docs/FORK_*.md` (fork documentation)
 - `FORK_STATUS.md`
+
+Portable lint runs `Scripts/check_fork_readme.sh`, which pins the reviewed
+complete README hash. An upstream-sync must never update that hash to accept
+the upstream README wholesale. Only a deliberate, separately reviewed fork
+README change may update the guard after the complete diff has been audited.
 
 ---
 
