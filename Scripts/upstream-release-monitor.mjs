@@ -424,9 +424,23 @@ function neutralizeInlineMarkdownMentions(markdown) {
 }
 
 function neutralizeProseMentionTokens(markdown) {
+  const linkDestinations = findMarkdownLinkDestinationSpans(markdown);
+  let output = "";
+  let proseStart = 0;
+
+  for (const span of linkDestinations) {
+    output += neutralizeProseMentionsOutsideLinkDestinations(markdown.slice(proseStart, span.start));
+    output += markdown.slice(span.start, span.end);
+    proseStart = span.end;
+  }
+
+  output += neutralizeProseMentionsOutsideLinkDestinations(markdown.slice(proseStart));
+  return output;
+}
+
+function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
   const protectedSpan = new RegExp(
     [
-      String.raw`\]\([ \t]*(?:<[^>\r\n]*>|[^)\s]+)(?:[ \t]+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^()\r\n]*\)))?[ \t]*\)`,
       String.raw`^[ \t]{0,3}\[[^\]\r\n]+\]:[ \t]*(?:<[^>\r\n]*>|[^\s]+)`,
       String.raw`(?:(?:https?|ftp):)?//[^\s<>()]+`,
       String.raw`\bwww\.[^\s<>()]+`,
@@ -445,6 +459,58 @@ function neutralizeProseMentionTokens(markdown) {
 
   output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart));
   return output;
+}
+
+function findMarkdownLinkDestinationSpans(markdown) {
+  const spans = [];
+
+  for (let index = 0; index < markdown.length - 1; index += 1) {
+    if (markdown[index] !== "]" || markdown[index + 1] !== "(") {
+      continue;
+    }
+
+    let depth = 1;
+    let cursor = index + 2;
+    while (cursor < markdown.length) {
+      const character = markdown[cursor];
+      if (character === "\\") {
+        cursor += 2;
+        continue;
+      }
+      if ((character === '"' || character === "'") && depth === 1 && /\s/.test(markdown[cursor - 1] || "")) {
+        cursor = skipQuotedMarkdownText(markdown, cursor, character);
+        continue;
+      }
+      if (character === "(") {
+        depth += 1;
+      } else if (character === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          spans.push({ start: index, end: cursor + 1 });
+          index = cursor;
+          break;
+        }
+      }
+      cursor += 1;
+    }
+  }
+
+  return spans;
+}
+
+function skipQuotedMarkdownText(markdown, openingIndex, quote) {
+  let cursor = openingIndex + 1;
+  while (cursor < markdown.length) {
+    if (markdown[cursor] === "\\") {
+      cursor += 2;
+      continue;
+    }
+    if (markdown[cursor] === quote) {
+      return cursor + 1;
+    }
+    cursor += 1;
+  }
+  return cursor;
 }
 
 function neutralizeNonUrlMentionTokens(markdown) {
