@@ -2,11 +2,13 @@
 
 import fs from "node:fs/promises";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_REPO = process.env.GITHUB_REPOSITORY || "o1xhack/CodexBar-Mobile";
 const DEFAULT_UPSTREAM = "steipete/CodexBar";
 const DEFAULT_VERSION_ENV = "version.env";
 const GENERIC_ISSUE_TITLE = "🔄 Upstream Changes Available for Review";
+const MAX_MENTION_CLASSIFICATION_RENDERS = 64;
 
 const args = parseArgs(process.argv.slice(2));
 const repo = args.repo || DEFAULT_REPO;
@@ -16,10 +18,13 @@ const apply = Boolean(args.apply);
 const dryRun = !apply || Boolean(args.dryRun);
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+const entryPoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (import.meta.url === entryPoint) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
 
 function parseArgs(argv) {
   const parsed = {};
@@ -75,6 +80,7 @@ async function main() {
   console.log(`New releases: ${newReleases.map((release) => release.tag_name).join(", ")}`);
 
   const trackedIssues = await fetchTrackedIssues(repo);
+  const releaseFailures = [];
   let reusableGenericIssue = trackedIssues.find((issue) => {
     return (
       issue.state === "open" &&
@@ -93,12 +99,20 @@ async function main() {
     }
 
     const title = buildIssueTitle(release.tag_name, baseline);
-    const body = buildIssueBody({
-      release,
-      baseline,
-      syncDate,
-      upstream,
-    });
+    let body;
+    try {
+      body = await buildIssueBody({
+        release,
+        baseline,
+        syncDate,
+        upstream,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      releaseFailures.push(`${release.tag_name}: ${message}`);
+      console.error(`Skipping ${release.tag_name}: ${message}`);
+      continue;
+    }
 
     if (reusableGenericIssue) {
       console.log(
@@ -123,6 +137,10 @@ async function main() {
         console.log(`Created #${created.number}: ${created.html_url}`);
       }
     }
+  }
+
+  if (releaseFailures.length > 0) {
+    throw new Error(`Failed to prepare ${releaseFailures.length} release(s): ${releaseFailures.join("; ")}`);
   }
 }
 
@@ -215,7 +233,8 @@ async function request(method, path, options = {}) {
     return null;
   }
 
-  return response.json();
+  const contentType = response.headers.get("content-type") || "";
+  return contentType.includes("json") ? response.json() : response.text();
 }
 
 function isTrackableRelease(release) {
@@ -248,12 +267,40 @@ function buildIssueTitle(tag, baseline) {
   return `上游同步：steipete/CodexBar 已发布 ${tag}（当前基线 ${baseline}）`;
 }
 
-function buildIssueBody({ release, baseline, syncDate, upstream }) {
+export async function buildIssueBody({
+  release,
+  baseline,
+  syncDate,
+  upstream,
+  issueRepo = repo,
+  renderMarkdown = renderGitHubMarkdown,
+}) {
   const tag = release.tag_name;
   const releaseDate = release.published_at ? release.published_at.slice(0, 10) : "unknown";
   const releaseUrl = release.html_url || `https://github.com/${upstream}/releases/tag/${tag}`;
-  const releaseNotes = (release.body || "").trim() || "_上游未填写 release notes。_";
-  const impactRows = inferImpactRows(releaseNotes);
+  const rawReleaseNotes = (release.body || "").trim() || "_上游未填写 release notes。_";
+  const neutralized = await neutralizeImportedMarkdownMentions(rawReleaseNotes, {
+    context: issueRepo,
+    renderMarkdown,
+  });
+  const releaseNotes = neutralized.markdown;
+  const renderedRawReleaseNotes = neutralized.renderedSource;
+  const renderedReleaseNotes = neutralized.rendered;
+  if (neutralized.classificationIncomplete) {
+    throw new Error(
+      `Imported release notes for ${tag} exceeded the ${MAX_MENTION_CLASSIFICATION_RENDERS}-render classification limit`,
+    );
+  }
+  if (neutralized.linkDriftDetected) {
+    throw new Error(`Imported release notes for ${tag} changed non-mention link targets during neutralization`);
+  }
+  if (hasRenderedGitHubMentionAnchors(renderedReleaseNotes)) {
+    throw new Error(`Imported release notes for ${tag} still contain a live GitHub mention after neutralization`);
+  }
+  if (!haveMatchingNonMentionLinks(renderedRawReleaseNotes, renderedReleaseNotes)) {
+    throw new Error(`Imported release notes for ${tag} changed non-mention link targets during neutralization`);
+  }
+  const impactRows = inferImpactRows(rawReleaseNotes);
 
   return `## 概述
 
@@ -288,9 +335,152 @@ ${impactRows.map((row) => `| ${row.change} | ${row.relevance} | ${row.priority} 
 
 **上游 Release 链接：** ${releaseUrl}
 
-*基线以 [\`version.env\`](https://github.com/${repo}/blob/mobile-dev/version.env) 的 \`UPSTREAM_VERSION\` 字段为准*
+*基线以 [\`version.env\`](https://github.com/${issueRepo}/blob/mobile-dev/version.env) 的 \`UPSTREAM_VERSION\` 字段为准*
 *Auto-generated by upstream-release-monitor workflow*
 `;
+}
+
+async function renderGitHubMarkdown(markdown, context) {
+  return request("POST", "/markdown", {
+    body: {
+      text: markdown,
+      mode: "gfm",
+      context,
+    },
+  });
+}
+
+export async function neutralizeImportedMarkdownMentions(
+  markdown,
+  { context = repo, renderMarkdown = renderGitHubMarkdown } = {},
+) {
+  const renderedSource = await renderMarkdown(markdown, context);
+  const sourceMentionCount = renderedGitHubMentionAnchorCount(renderedSource);
+  const acceptedCandidates = [];
+  let linkDriftDetected = false;
+  let classificationIncomplete = false;
+  let renderCount = 1;
+
+  if (sourceMentionCount > 0) {
+    const classifyCandidates = async (candidates) => {
+      if (candidates.length === 0 || classificationIncomplete) {
+        return;
+      }
+      if (renderCount >= MAX_MENTION_CLASSIFICATION_RENDERS - 1) {
+        classificationIncomplete = true;
+        return;
+      }
+
+      const trialMarkdown = insertWordJoinerCandidates(markdown, candidates);
+      const renderedTrial = await renderMarkdown(trialMarkdown, context);
+      renderCount += 1;
+      const removedMentionCount = sourceMentionCount - renderedGitHubMentionAnchorCount(renderedTrial);
+      if (removedMentionCount <= 0) {
+        return;
+      }
+      const linksMatch = haveMatchingNonMentionLinks(renderedSource, renderedTrial);
+      if (linksMatch && removedMentionCount === candidates.length) {
+        acceptedCandidates.push(...candidates);
+        return;
+      }
+      if (candidates.length === 1) {
+        if (linksMatch) {
+          acceptedCandidates.push(candidates[0]);
+        } else {
+          linkDriftDetected = true;
+        }
+        return;
+      }
+
+      const midpoint = Math.floor(candidates.length / 2);
+      await classifyCandidates(candidates.slice(0, midpoint));
+      await classifyCandidates(candidates.slice(midpoint));
+    };
+
+    await classifyCandidates(findPotentialMentionCandidates(markdown));
+  }
+
+  if (classificationIncomplete) {
+    return {
+      markdown,
+      renderedSource,
+      rendered: renderedSource,
+      linkDriftDetected,
+      classificationIncomplete,
+      renderCount,
+    };
+  }
+
+  const neutralizedMarkdown = insertWordJoinerCandidates(markdown, acceptedCandidates);
+  const rendered =
+    acceptedCandidates.length === 0 ? renderedSource : await renderMarkdown(neutralizedMarkdown, context);
+  if (acceptedCandidates.length > 0) {
+    renderCount += 1;
+  }
+
+  return {
+    markdown: neutralizedMarkdown,
+    renderedSource,
+    rendered,
+    linkDriftDetected,
+    classificationIncomplete,
+    renderCount,
+  };
+}
+
+function findPotentialMentionCandidates(markdown) {
+  const handle = String.raw`[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})`;
+  const suffix = String.raw`(?=${handle}(?:/${handle})?(?![A-Za-z0-9-]))`;
+  const boundary = String.raw`(^|[^\p{L}\p{N}_])`;
+  const candidate = new RegExp(`${boundary}(@|&#0*64;|&#x0*40;|&commat;)${suffix}`, "giu");
+
+  return [...markdown.matchAll(candidate)].map((match) => ({
+    insertionIndex: match.index + match[1].length + match[2].length,
+  }));
+}
+
+function insertWordJoinerCandidates(markdown, candidates) {
+  let output = markdown;
+  for (const candidate of [...candidates].sort((left, right) => right.insertionIndex - left.insertionIndex)) {
+    output = `${output.slice(0, candidate.insertionIndex)}\u2060${output.slice(candidate.insertionIndex)}`;
+  }
+  return output;
+}
+
+function hasRenderedGitHubMentionAnchors(html) {
+  return renderedGitHubMentionAnchorCount(html) > 0;
+}
+
+function renderedGitHubMentionAnchorCount(html) {
+  const anchor = /<a\b([^>]*)>[\s\S]*?<\/a>/gi;
+  return [...html.matchAll(anchor)].filter((match) => hasGitHubMentionClass(match[1])).length;
+}
+
+function haveMatchingNonMentionLinks(before, after) {
+  return JSON.stringify(nonMentionLinkTargets(before)) === JSON.stringify(nonMentionLinkTargets(after));
+}
+
+function nonMentionLinkTargets(html) {
+  const targets = [];
+  const anchorStart = /<a\b([^>]*)>/gi;
+
+  for (const match of html.matchAll(anchorStart)) {
+    if (hasGitHubMentionClass(match[1])) {
+      continue;
+    }
+    const href = /\bhref=(["'])(.*?)\1/i.exec(match[1]);
+    if (href) {
+      targets.push(href[2]);
+    }
+  }
+
+  return targets;
+}
+
+function hasGitHubMentionClass(attributes) {
+  const classAttribute = /\bclass=(["'])(.*?)\1/i.exec(attributes);
+  const classes = classAttribute?.[2].split(/\s+/) || [];
+  return classes.includes("user-mention") || classes.includes("team-mention");
 }
 
 function inferImpactRows(body) {
