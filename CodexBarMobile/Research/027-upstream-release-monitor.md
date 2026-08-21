@@ -2,6 +2,7 @@
 
 **Status:** done
 **Date:** 2026-06-09
+**Updated:** 2026-08-20
 
 ## Problem
 
@@ -43,3 +44,60 @@ Replace the commit-count monitor with a release monitor:
 ## Follow-up
 
 - After the workflow fix lands on `mobile-dev`, manually dispatch `Monitor Upstream Changes` or wait for the next Monday/Thursday schedule to validate the GitHub Actions path.
+
+## 2026-08-20 follow-up — issue #96 mention notifications
+
+### Problem and evidence
+
+The monitor copied upstream `release.body` directly into generated issue #83. The upstream v0.49.4 notes contained
+multiple `@username` attributions, and an unrelated upstream contributor confirmed that GitHub notified them from this
+fork. The same path applies when the monitor updates a reusable generic issue; GitHub can also notify a newly mentioned
+account after an edit.
+
+GitHub's own GFM render API confirmed that `\@username` and `&#64;username` still become live mention links, so those
+forms are not safe escapes. U+2060 WORD JOINER (`@<U+2060>username`) was inert in paragraphs, tables, punctuation
+boundaries, and angle-bracket text while preserving the visible attribution.
+
+Four local review rounds showed that a handwritten general Markdown parser is not a stable security boundary: malformed
+HTML blocks, nested links, encoded handle characters, and unclosed containers can change whether a token is visible
+after GFM parsing. A later design that copied GitHub-rendered HTML back into the issue was also rejected: the second
+Markdown parse loses task-list, alert, footnote, and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831
+characters. GitHub's final rendered `user-mention` / `team-mention` classes are useful as a validation oracle, but the
+rendered HTML must not replace the source Markdown.
+
+### Decision
+
+- Keep raw upstream notes for `inferImpactRows`; neutralize only the copy interpolated into the issue body.
+- Keep upstream notes as Markdown and insert U+2060 only after notification-capable plain or encoded at-sign tokens.
+  Preserve fenced code, inline code, email addresses, GitHub profile-path URLs, and all Markdown delimiters.
+- Render the sanitized Markdown once through GitHub's `/markdown` GFM endpoint in the fork repository context. If the
+  result still contains an exact `user-mention` or `team-mention` anchor, fail before creating or updating an issue.
+- Use that render only as a fail-closed check; interpolate the sanitized source Markdown, not rendered HTML, into the
+  issue. This preserves GFM behavior and keeps body size close to the original release notes.
+- Do not sanitize repository-authored template text, so future intentional local mentions remain possible.
+
+### Validation plan
+
+- Add exact Markdown input/output tests for plain and encoded user/team mentions, idempotency, code preservation, and
+  byte-stable GFM structure, emails, and URLs.
+- Build an async issue body with an injected renderer to prove the sanitized fragment is checked in the fork context,
+  while the output and impact inference still use source Markdown and raw notes respectively.
+- Verify fail-closed behavior for an obfuscated input that the sanitizer does not recognize but GitHub renders as a live
+  mention.
+- Run the real v0.54.0 notes through the sanitizer, fragment check, complete issue build, and final GitHub render.
+- Run the monitor test from portable lint so `PR Fast Checks` blocks regressions.
+
+### Validation results
+
+- `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style mentions,
+  idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, fork render context, and a
+  residual live-mention fail-closed case.
+- Live GitHub GFM before/after fixture preserved task-list, alert, footnote, and Mermaid render counts while reducing
+  rendered mention anchors to 0.
+- `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95
+  detection and selected v0.54.0 for creation without performing a write.
+- Live v0.54.0 pipeline: all 30 contributor mentions became inert; the 7,800-character upstream notes produced an
+  8,892-character issue body with 0 live mention anchors in the final complete issue render. The source Markdown and all
+  ordinary links remain in place, avoiding the rejected HTML design's formatting loss and 30,831-character expansion.
+- `bash Scripts/lint.sh lint`: pass; portable checks, JavaScript format/lint/typecheck, Swift format/lint, i18n, and
+  parser-version audit all succeeded.
