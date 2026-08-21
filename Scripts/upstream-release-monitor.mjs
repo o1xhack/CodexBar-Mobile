@@ -266,9 +266,14 @@ export async function buildIssueBody({
   const releaseUrl = release.html_url || `https://github.com/${upstream}/releases/tag/${tag}`;
   const rawReleaseNotes = (release.body || "").trim() || "_上游未填写 release notes。_";
   const releaseNotes = neutralizeImportedMarkdownMentions(rawReleaseNotes);
-  const renderedReleaseNotes = await renderMarkdown(releaseNotes, issueRepo);
+  const renderedRawReleaseNotes = await renderMarkdown(rawReleaseNotes, issueRepo);
+  const renderedReleaseNotes =
+    releaseNotes === rawReleaseNotes ? renderedRawReleaseNotes : await renderMarkdown(releaseNotes, issueRepo);
   if (hasRenderedGitHubMentionAnchors(renderedReleaseNotes)) {
     throw new Error(`Imported release notes for ${tag} still contain a live GitHub mention after neutralization`);
+  }
+  if (!haveMatchingNonMentionLinks(renderedRawReleaseNotes, renderedReleaseNotes)) {
+    throw new Error(`Imported release notes for ${tag} changed non-mention link targets during neutralization`);
   }
   const impactRows = inferImpactRows(rawReleaseNotes);
 
@@ -439,14 +444,8 @@ function neutralizeProseMentionTokens(markdown) {
 }
 
 function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
-  const protectedSyntax = new RegExp(
-    [
-      String.raw`^[ \t]{0,3}\[[^\]\r\n]+\]:[ \t]*(?:<[^>\r\n]*>|[^\s]+)`,
-      String.raw`<!--[^\r\n]*-->|<\/?[A-Za-z][^>\r\n]*>`,
-    ].join("|"),
-    "gim",
-  );
-  const protectedSpans = findStandaloneUrlSpans(markdown);
+  const protectedSyntax = /<!--[^\r\n]*-->|<\/?[A-Za-z][^>\r\n]*>/gim;
+  const protectedSpans = [...findMarkdownReferenceDestinationSpans(markdown), ...findStandaloneUrlSpans(markdown)];
 
   for (const match of markdown.matchAll(protectedSyntax)) {
     protectedSpans.push({ start: match.index, end: match.index + match[0].length });
@@ -472,6 +471,79 @@ function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
 
   output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart));
   return output;
+}
+
+function findMarkdownReferenceDestinationSpans(markdown) {
+  const spans = [];
+  const definitionStart = /^[ \t]{0,3}\[/gm;
+
+  for (const match of markdown.matchAll(definitionStart)) {
+    let cursor = match.index + match[0].length;
+    let labelDepth = 1;
+
+    while (cursor < markdown.length && labelDepth > 0 && markdown[cursor] !== "\n" && markdown[cursor] !== "\r") {
+      if (markdown[cursor] === "\\") {
+        cursor += 2;
+        continue;
+      }
+      if (markdown[cursor] === "[") {
+        labelDepth += 1;
+      } else if (markdown[cursor] === "]") {
+        labelDepth -= 1;
+      }
+      cursor += 1;
+    }
+
+    if (labelDepth !== 0 || markdown[cursor] !== ":") {
+      continue;
+    }
+    cursor += 1;
+    while (markdown[cursor] === " " || markdown[cursor] === "\t") {
+      cursor += 1;
+    }
+
+    const destinationStart = cursor;
+    if (markdown[cursor] === "<") {
+      cursor += 1;
+      while (
+        cursor < markdown.length &&
+        markdown[cursor] !== ">" &&
+        markdown[cursor] !== "\n" &&
+        markdown[cursor] !== "\r"
+      ) {
+        cursor += markdown[cursor] === "\\" ? 2 : 1;
+      }
+      if (markdown[cursor] === ">") {
+        spans.push({ start: destinationStart, end: cursor + 1 });
+      }
+      continue;
+    }
+
+    const openingParentheses = [];
+    while (cursor < markdown.length && !/\s/.test(markdown[cursor])) {
+      if (markdown[cursor] === "\\") {
+        cursor += 2;
+        continue;
+      }
+      if (markdown[cursor] === "(") {
+        openingParentheses.push(cursor);
+      } else if (markdown[cursor] === ")") {
+        if (openingParentheses.length === 0) {
+          break;
+        }
+        openingParentheses.pop();
+      }
+      cursor += 1;
+    }
+    if (openingParentheses.length > 0) {
+      cursor = openingParentheses[0];
+    }
+    if (cursor > destinationStart) {
+      spans.push({ start: destinationStart, end: cursor });
+    }
+  }
+
+  return spans;
 }
 
 function findStandaloneUrlSpans(markdown) {
@@ -629,6 +701,27 @@ function findMatchingBacktickRun(markdown, start, delimiterLength) {
 function hasRenderedGitHubMentionAnchors(html) {
   const anchor = /<a\b([^>]*)>[\s\S]*?<\/a>/gi;
   return [...html.matchAll(anchor)].some((match) => hasGitHubMentionClass(match[1]));
+}
+
+function haveMatchingNonMentionLinks(before, after) {
+  return JSON.stringify(nonMentionLinkTargets(before)) === JSON.stringify(nonMentionLinkTargets(after));
+}
+
+function nonMentionLinkTargets(html) {
+  const targets = [];
+  const anchorStart = /<a\b([^>]*)>/gi;
+
+  for (const match of html.matchAll(anchorStart)) {
+    if (hasGitHubMentionClass(match[1])) {
+      continue;
+    }
+    const href = /\bhref=(["'])(.*?)\1/i.exec(match[1]);
+    if (href) {
+      targets.push(href[2]);
+    }
+  }
+
+  return targets;
 }
 
 function hasGitHubMentionClass(attributes) {

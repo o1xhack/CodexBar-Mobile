@@ -24,6 +24,11 @@ const sourceMarkdown = [
   "- Encoded attribution: &#64;encoded-user.",
   "- Inline code: `@inline-user`.",
   "",
+  "[@reference-user]: https://example.com/profile",
+  "[query-reference]: /issues?q=assignee:@octocat",
+  "[balanced-reference]: /issues(a)?assignee=@octocat",
+  "Thanks [@reference-user], [query-reference], and [balanced-reference].",
+  "",
   "> [!NOTE]",
   "> Alert attribution @alert-user.",
   "",
@@ -51,6 +56,11 @@ const expectedMarkdown = [
   "- Keep <//example.com/@octocat> intact.",
   "- Encoded attribution: &#64;\u2060encoded-user.",
   "- Inline code: `@inline-user`.",
+  "",
+  `[${inertMention("reference-user")}]: https://example.com/profile`,
+  "[query-reference]: /issues?q=assignee:@octocat",
+  "[balanced-reference]: /issues(a)?assignee=@octocat",
+  `Thanks [${inertMention("reference-user")}], [query-reference], and [balanced-reference].`,
   "",
   "> [!NOTE]",
   `> Alert attribution ${inertMention("alert-user")}.`,
@@ -117,11 +127,17 @@ const body = await buildIssueBody({
   issueRepo: "example/fork",
   renderMarkdown: async (markdown, context) => {
     renderCalls.push({ markdown, context });
-    return "<h3>Fixed</h3><p>No live mentions</p>";
+    return markdown === sourceMarkdown
+      ? '<h3>Fixed</h3><p><a class="user-mention" href="/octocat">@octocat</a><a href="/kept">link</a></p>'
+      : '<h3>Fixed</h3><p>No live mentions<a href="/kept">link</a></p>';
   },
 });
 
 assert.deepEqual(renderCalls, [
+  {
+    markdown: sourceMarkdown,
+    context: "example/fork",
+  },
   {
     markdown: expectedMarkdown,
     context: "example/fork",
@@ -146,6 +162,25 @@ await assert.rejects(
     renderMarkdown: async () => '<p><a class="user-mention" href="https://github.com/octocat">@octocat</a></p>',
   }),
   /still contain a live GitHub mention/,
+);
+
+await assert.rejects(
+  buildIssueBody({
+    release: {
+      tag_name: "v9.9.10",
+      published_at: "2026-08-20T13:00:00Z",
+      body: "Thanks @octocat; keep https://example.com/@path intact.",
+    },
+    baseline: "v9.9.8",
+    syncDate: "2026-08-19",
+    upstream: "example/project",
+    issueRepo: "example/fork",
+    renderMarkdown: async (markdown) =>
+      markdown.includes("\u2060")
+        ? '<p>Thanks @octocat; keep <a href="https://example.com/@broken">link</a>.</p>'
+        : '<p>Thanks <a class="user-mention" href="/octocat">@octocat</a>; keep <a href="https://example.com/@path">link</a>.</p>',
+  }),
+  /changed non-mention link targets/,
 );
 
 const safeObfuscatedBody = await buildIssueBody({

@@ -70,8 +70,11 @@ rendered HTML must not replace the source Markdown.
 - Keep raw upstream notes for `inferImpactRows`; neutralize only the copy interpolated into the issue body.
 - Keep upstream notes as Markdown and insert U+2060 only after notification-capable plain or encoded at-sign tokens.
   Preserve fenced code, inline code, email addresses, GitHub profile-path URLs, and all Markdown delimiters.
-- Render the sanitized Markdown once through GitHub's `/markdown` GFM endpoint in the fork repository context. If the
-  result still contains an exact `user-mention` or `team-mention` anchor, fail before creating or updating an issue.
+- Render the source and sanitized Markdown through GitHub's `/markdown` GFM endpoint in the fork repository context. If
+  the sanitized result still contains an exact `user-mention` or `team-mention` anchor, fail before creating or updating
+  an issue.
+- Compare GitHub-rendered non-mention link targets before and after sanitization, and fail closed if any ordinary link
+  destination or reference link changes.
 - Use that render only as a fail-closed check; interpolate the sanitized source Markdown, not rendered HTML, into the
   issue. This preserves GFM behavior and keeps body size close to the original release notes.
 - Do not sanitize repository-authored template text, so future intentional local mentions remain possible.
@@ -91,7 +94,8 @@ rendered HTML must not replace the source Markdown.
 
 - `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style mentions,
   idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, balanced parentheses in
-  Markdown destinations and standalone URLs, fork render context, and a residual live-mention fail-closed case.
+  Markdown destinations and standalone URLs, consistent reference-link labels, fork render context, and residual
+  live-mention or non-mention-link-change fail-closed cases.
 - Live GitHub GFM before/after fixture preserved task-list, alert, footnote, and Mermaid render counts while reducing
   rendered mention anchors to 0.
 - `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95
