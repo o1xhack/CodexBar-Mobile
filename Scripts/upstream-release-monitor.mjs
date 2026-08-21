@@ -445,7 +445,11 @@ function neutralizeProseMentionTokens(markdown) {
 
 function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
   const protectedSyntax = /<!--[^\r\n]*-->|<\/?[A-Za-z][^>\r\n]*>/gim;
-  const protectedSpans = [...findMarkdownReferenceDestinationSpans(markdown), ...findStandaloneUrlSpans(markdown)];
+  const protectedSpans = [
+    ...findHtmlCodeElementSpans(markdown),
+    ...findMarkdownReferenceDestinationSpans(markdown),
+    ...findStandaloneUrlSpans(markdown),
+  ];
 
   for (const match of markdown.matchAll(protectedSyntax)) {
     protectedSpans.push({ start: match.index, end: match.index + match[0].length });
@@ -471,6 +475,24 @@ function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
 
   output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart));
   return output;
+}
+
+function findHtmlCodeElementSpans(markdown) {
+  const spans = [];
+  const openingElement = /<(code|pre)\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
+
+  for (const match of markdown.matchAll(openingElement)) {
+    const closingElement = new RegExp(`<\\/${match[1]}[ \\t]*>`, "gi");
+    closingElement.lastIndex = match.index + match[0].length;
+    const closingMatch = closingElement.exec(markdown);
+    if (closingMatch) {
+      spans.push({ start: match.index, end: closingMatch.index + closingMatch[0].length });
+    } else {
+      spans.push({ start: match.index, end: markdown.length });
+    }
+  }
+
+  return spans;
 }
 
 function findMarkdownReferenceDestinationSpans(markdown) {
@@ -500,6 +522,22 @@ function findMarkdownReferenceDestinationSpans(markdown) {
     cursor += 1;
     while (markdown[cursor] === " " || markdown[cursor] === "\t") {
       cursor += 1;
+    }
+
+    if (markdown[cursor] === "\r" || markdown[cursor] === "\n") {
+      if (markdown[cursor] === "\r" && markdown[cursor + 1] === "\n") {
+        cursor += 2;
+      } else {
+        cursor += 1;
+      }
+      let indentation = 0;
+      while (indentation < 3 && markdown[cursor] === " ") {
+        cursor += 1;
+        indentation += 1;
+      }
+      if (markdown[cursor] === " " || markdown[cursor] === "\t") {
+        continue;
+      }
     }
 
     const destinationStart = cursor;

@@ -94,8 +94,8 @@ rendered HTML must not replace the source Markdown.
 
 - `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style mentions,
   idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, balanced parentheses in
-  Markdown destinations and standalone URLs, consistent reference-link labels, fork render context, and residual
-  live-mention or non-mention-link-change fail-closed cases.
+  Markdown destinations and standalone URLs, consistent single-line/multiline reference links, raw HTML code elements,
+  fork render context, and residual live-mention or non-mention-link-change fail-closed cases.
 - Live GitHub GFM before/after fixture preserved task-list, alert, footnote, and Mermaid render counts while reducing
   rendered mention anchors to 0.
 - `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95
