@@ -58,23 +58,23 @@ GitHub's own GFM render API confirmed that `\@username` and `&#64;username` stil
 forms are not safe escapes. U+2060 WORD JOINER (`@<U+2060>username`) was inert in paragraphs, tables, punctuation
 boundaries, and angle-bracket text while preserving the visible attribution.
 
-Four local review rounds showed that a handwritten general Markdown parser is not a stable security boundary: malformed
-HTML blocks, nested links, encoded handle characters, and unclosed containers can change whether a token is visible
-after GFM parsing. A later design that copied GitHub-rendered HTML back into the issue was also rejected: the second
-Markdown parse loses task-list, alert, footnote, and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831
-characters. GitHub's final rendered `user-mention` / `team-mention` classes are useful as a validation oracle, but the
-rendered HTML must not replace the source Markdown.
+Local review plus five GitHub review rounds showed that a handwritten general Markdown parser is not a stable security
+boundary: malformed HTML blocks, nested links, encoded handle characters, escaped delimiters, reference definitions,
+and container prefixes can change whether a token is visible after GFM parsing. A later design that copied
+GitHub-rendered HTML back into the issue was also rejected: the second Markdown parse loses task-list, alert, footnote,
+and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831 characters. GitHub's rendered `user-mention` /
+`team-mention` classes must be the context authority, but rendered HTML must not replace the source Markdown.
 
 ### Decision
 
 - Keep raw upstream notes for `inferImpactRows`; neutralize only the copy interpolated into the issue body.
-- Keep upstream notes as Markdown and insert U+2060 only after notification-capable plain or encoded at-sign tokens.
-  Preserve fenced code, inline code, email addresses, GitHub profile-path URLs, and all Markdown delimiters.
-- Render the source and sanitized Markdown through GitHub's `/markdown` GFM endpoint in the fork repository context. If
-  the sanitized result still contains an exact `user-mention` or `team-mention` anchor, fail before creating or updating
-  an issue.
-- Compare GitHub-rendered non-mention link targets before and after sanitization, and fail closed if any ordinary link
-  destination or reference link changes.
+- Enumerate lexical plain/encoded at-sign candidates without trying to parse Markdown locally. Render a one-candidate
+  U+2060 trial through GitHub's `/markdown` endpoint and accept it only when the rendered user/team mention count falls
+  while every non-mention link target remains identical to the source render.
+- Apply accepted insertions to the original source Markdown, render the combined result, and fail before issue creation
+  or update if any live mention remains or any ordinary link target changes. This automatically preserves code, URLs,
+  raw HTML, reference definitions, escaped delimiters, and container-specific syntax according to GitHub's actual GFM
+  behavior rather than local approximations.
 - Use that render only as a fail-closed check; interpolate the sanitized source Markdown, not rendered HTML, into the
   issue. This preserves GFM behavior and keeps body size close to the original release notes.
 - Do not sanitize repository-authored template text, so future intentional local mentions remain possible.
@@ -92,16 +92,19 @@ rendered HTML must not replace the source Markdown.
 
 ### Validation results
 
-- `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style mentions,
-  idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, balanced parentheses in
-  Markdown destinations and standalone URLs, consistent single-line/multiline reference links, raw HTML code elements,
+- `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style candidates,
+  idempotency, GFM-context decisions supplied by the injected renderer, byte-stable code/URL/reference/HTML structures,
   fork render context, and residual live-mention or non-mention-link-change fail-closed cases.
+- Live tricky-context fixture: GitHub left escaped literal-backtick attribution, blockquoted reference destination, and
+  raw HTML code unchanged; the only live prose attribution was neutralized, with 0 final mention anchors and no link
+  drift.
 - Live GitHub GFM before/after fixture preserved task-list, alert, footnote, and Mermaid render counts while reducing
   rendered mention anchors to 0.
 - `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95
   detection and selected v0.54.0 for creation without performing a write.
-- Live v0.54.0 pipeline: all 30 contributor mentions became inert; the 7,800-character upstream notes produced an
-  8,892-character issue body with 0 live mention anchors in the final complete issue render. The source Markdown and all
-  ordinary links remain in place, avoiding the rejected HTML design's formatting loss and 30,831-character expansion.
+- Live v0.54.0 pipeline: 32 GitHub renders classified and combined all 30 contributor mentions as inert; the
+  7,800-character upstream notes produced an 8,892-character issue body with 0 live mention anchors in the final render.
+  The source Markdown and all ordinary links remain in place, avoiding the rejected HTML design's formatting loss and
+  30,831-character expansion.
 - `bash Scripts/lint.sh lint`: pass; portable checks, JavaScript format/lint/typecheck, Swift format/lint, i18n, and
   parser-version audit all succeeded.

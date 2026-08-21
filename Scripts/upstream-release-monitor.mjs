@@ -265,10 +265,16 @@ export async function buildIssueBody({
   const releaseDate = release.published_at ? release.published_at.slice(0, 10) : "unknown";
   const releaseUrl = release.html_url || `https://github.com/${upstream}/releases/tag/${tag}`;
   const rawReleaseNotes = (release.body || "").trim() || "_上游未填写 release notes。_";
-  const releaseNotes = neutralizeImportedMarkdownMentions(rawReleaseNotes);
-  const renderedRawReleaseNotes = await renderMarkdown(rawReleaseNotes, issueRepo);
-  const renderedReleaseNotes =
-    releaseNotes === rawReleaseNotes ? renderedRawReleaseNotes : await renderMarkdown(releaseNotes, issueRepo);
+  const neutralized = await neutralizeImportedMarkdownMentions(rawReleaseNotes, {
+    context: issueRepo,
+    renderMarkdown,
+  });
+  const releaseNotes = neutralized.markdown;
+  const renderedRawReleaseNotes = neutralized.renderedSource;
+  const renderedReleaseNotes = neutralized.rendered;
+  if (neutralized.linkDriftDetected) {
+    throw new Error(`Imported release notes for ${tag} changed non-mention link targets during neutralization`);
+  }
   if (hasRenderedGitHubMentionAnchors(renderedReleaseNotes)) {
     throw new Error(`Imported release notes for ${tag} still contain a live GitHub mention after neutralization`);
   }
@@ -325,420 +331,67 @@ async function renderGitHubMarkdown(markdown, context) {
   });
 }
 
-export function neutralizeImportedMarkdownMentions(markdown) {
-  const lines = markdown.match(/[^\n]*(?:\n|$)/g) || [];
-  const output = [];
-  let prose = "";
-  let fence = null;
-  let previousLineBlank = true;
-  let indentedCode = false;
-  let listContentIndent = null;
+export async function neutralizeImportedMarkdownMentions(
+  markdown,
+  { context = repo, renderMarkdown = renderGitHubMarkdown } = {},
+) {
+  const renderedSource = await renderMarkdown(markdown, context);
+  const sourceMentionCount = renderedGitHubMentionAnchorCount(renderedSource);
+  const acceptedCandidates = [];
+  let linkDriftDetected = false;
 
-  const flushProse = () => {
-    output.push(neutralizeInlineMarkdownMentions(prose));
-    prose = "";
+  if (sourceMentionCount > 0) {
+    for (const candidate of findPotentialMentionCandidates(markdown)) {
+      const trialMarkdown = insertWordJoiner(markdown, candidate.insertionIndex);
+      const renderedTrial = await renderMarkdown(trialMarkdown, context);
+      if (renderedGitHubMentionAnchorCount(renderedTrial) >= sourceMentionCount) {
+        continue;
+      }
+      if (!haveMatchingNonMentionLinks(renderedSource, renderedTrial)) {
+        linkDriftDetected = true;
+        continue;
+      }
+      acceptedCandidates.push(candidate);
+    }
+  }
+
+  let neutralizedMarkdown = markdown;
+  for (const candidate of acceptedCandidates.sort((left, right) => right.insertionIndex - left.insertionIndex)) {
+    neutralizedMarkdown = insertWordJoiner(neutralizedMarkdown, candidate.insertionIndex);
+  }
+  const rendered =
+    acceptedCandidates.length === 0 ? renderedSource : await renderMarkdown(neutralizedMarkdown, context);
+
+  return {
+    markdown: neutralizedMarkdown,
+    renderedSource,
+    rendered,
+    linkDriftDetected,
   };
-
-  for (const line of lines) {
-    if (!line) {
-      continue;
-    }
-
-    if (fence) {
-      output.push(line);
-      if (isClosingFence(line, fence)) {
-        fence = null;
-      }
-      previousLineBlank = false;
-      continue;
-    }
-
-    const openingFence = parseOpeningFence(line);
-    if (openingFence) {
-      flushProse();
-      output.push(line);
-      fence = openingFence;
-      const openingListIndent = parseListContentIndent(line);
-      if (openingListIndent !== null) {
-        listContentIndent = openingListIndent;
-      }
-      previousLineBlank = false;
-      indentedCode = false;
-      continue;
-    }
-
-    const currentListIndent = parseListContentIndent(line);
-    if (currentListIndent !== null) {
-      listContentIndent = currentListIndent;
-    }
-
-    const codeIndent = indentedCodeWidth(line);
-    const startsIndentedCode =
-      codeIndent >= 4 && previousLineBlank && (listContentIndent === null || codeIndent >= listContentIndent + 4);
-    if (codeIndent >= 4 && (indentedCode || startsIndentedCode)) {
-      flushProse();
-      output.push(line);
-      previousLineBlank = false;
-      indentedCode = true;
-      continue;
-    }
-
-    prose += line;
-    if (isBlankMarkdownLine(line)) {
-      previousLineBlank = true;
-    } else {
-      previousLineBlank = false;
-      indentedCode = false;
-      if (currentListIndent === null && codeIndent === 0 && !/^(?: {0,3}>[ \t]?)/.test(line)) {
-        listContentIndent = null;
-      }
-    }
-  }
-
-  flushProse();
-  return output.join("");
 }
 
-function neutralizeInlineMarkdownMentions(markdown) {
-  let output = "";
-  let proseStart = 0;
-  let index = 0;
-
-  while (index < markdown.length) {
-    if (markdown[index] !== "`") {
-      index += 1;
-      continue;
-    }
-
-    const delimiterLength = countRun(markdown, index, "`");
-    const closingIndex = findMatchingBacktickRun(markdown, index + delimiterLength, delimiterLength);
-    if (closingIndex === -1) {
-      index += delimiterLength;
-      continue;
-    }
-
-    output += neutralizeProseMentionTokens(markdown.slice(proseStart, index));
-    const codeEnd = closingIndex + delimiterLength;
-    output += markdown.slice(index, codeEnd);
-    proseStart = codeEnd;
-    index = codeEnd;
-  }
-
-  output += neutralizeProseMentionTokens(markdown.slice(proseStart));
-  return output;
-}
-
-function neutralizeProseMentionTokens(markdown) {
-  const linkDestinations = findMarkdownLinkDestinationSpans(markdown);
-  let output = "";
-  let proseStart = 0;
-
-  for (const span of linkDestinations) {
-    output += neutralizeProseMentionsOutsideLinkDestinations(markdown.slice(proseStart, span.start));
-    output += markdown.slice(span.start, span.end);
-    proseStart = span.end;
-  }
-
-  output += neutralizeProseMentionsOutsideLinkDestinations(markdown.slice(proseStart));
-  return output;
-}
-
-function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
-  const protectedSyntax = /<!--[^\r\n]*-->|<\/?[A-Za-z][^>\r\n]*>/gim;
-  const protectedSpans = [
-    ...findHtmlCodeElementSpans(markdown),
-    ...findMarkdownReferenceDestinationSpans(markdown),
-    ...findStandaloneUrlSpans(markdown),
-  ];
-
-  for (const match of markdown.matchAll(protectedSyntax)) {
-    protectedSpans.push({ start: match.index, end: match.index + match[0].length });
-  }
-
-  protectedSpans.sort((left, right) => left.start - right.start || right.end - left.end);
-  let output = "";
-  let proseStart = 0;
-
-  for (const span of protectedSpans) {
-    if (span.end <= proseStart) {
-      continue;
-    }
-    if (span.start <= proseStart) {
-      output += markdown.slice(proseStart, span.end);
-      proseStart = span.end;
-      continue;
-    }
-    output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart, span.start));
-    output += markdown.slice(span.start, span.end);
-    proseStart = span.end;
-  }
-
-  output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart));
-  return output;
-}
-
-function findHtmlCodeElementSpans(markdown) {
-  const spans = [];
-  const openingElement = /<(code|pre)\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
-
-  for (const match of markdown.matchAll(openingElement)) {
-    const closingElement = new RegExp(`<\\/${match[1]}[ \\t]*>`, "gi");
-    closingElement.lastIndex = match.index + match[0].length;
-    const closingMatch = closingElement.exec(markdown);
-    if (closingMatch) {
-      spans.push({ start: match.index, end: closingMatch.index + closingMatch[0].length });
-    } else {
-      spans.push({ start: match.index, end: markdown.length });
-    }
-  }
-
-  return spans;
-}
-
-function findMarkdownReferenceDestinationSpans(markdown) {
-  const spans = [];
-  const definitionStart = /^[ \t]{0,3}\[/gm;
-
-  for (const match of markdown.matchAll(definitionStart)) {
-    let cursor = match.index + match[0].length;
-    let labelDepth = 1;
-
-    while (cursor < markdown.length && labelDepth > 0 && markdown[cursor] !== "\n" && markdown[cursor] !== "\r") {
-      if (markdown[cursor] === "\\") {
-        cursor += 2;
-        continue;
-      }
-      if (markdown[cursor] === "[") {
-        labelDepth += 1;
-      } else if (markdown[cursor] === "]") {
-        labelDepth -= 1;
-      }
-      cursor += 1;
-    }
-
-    if (labelDepth !== 0 || markdown[cursor] !== ":") {
-      continue;
-    }
-    cursor += 1;
-    while (markdown[cursor] === " " || markdown[cursor] === "\t") {
-      cursor += 1;
-    }
-
-    if (markdown[cursor] === "\r" || markdown[cursor] === "\n") {
-      if (markdown[cursor] === "\r" && markdown[cursor + 1] === "\n") {
-        cursor += 2;
-      } else {
-        cursor += 1;
-      }
-      let indentation = 0;
-      while (indentation < 3 && markdown[cursor] === " ") {
-        cursor += 1;
-        indentation += 1;
-      }
-      if (markdown[cursor] === " " || markdown[cursor] === "\t") {
-        continue;
-      }
-    }
-
-    const destinationStart = cursor;
-    if (markdown[cursor] === "<") {
-      cursor += 1;
-      while (
-        cursor < markdown.length &&
-        markdown[cursor] !== ">" &&
-        markdown[cursor] !== "\n" &&
-        markdown[cursor] !== "\r"
-      ) {
-        cursor += markdown[cursor] === "\\" ? 2 : 1;
-      }
-      if (markdown[cursor] === ">") {
-        spans.push({ start: destinationStart, end: cursor + 1 });
-      }
-      continue;
-    }
-
-    const openingParentheses = [];
-    while (cursor < markdown.length && !/\s/.test(markdown[cursor])) {
-      if (markdown[cursor] === "\\") {
-        cursor += 2;
-        continue;
-      }
-      if (markdown[cursor] === "(") {
-        openingParentheses.push(cursor);
-      } else if (markdown[cursor] === ")") {
-        if (openingParentheses.length === 0) {
-          break;
-        }
-        openingParentheses.pop();
-      }
-      cursor += 1;
-    }
-    if (openingParentheses.length > 0) {
-      cursor = openingParentheses[0];
-    }
-    if (cursor > destinationStart) {
-      spans.push({ start: destinationStart, end: cursor });
-    }
-  }
-
-  return spans;
-}
-
-function findStandaloneUrlSpans(markdown) {
-  const spans = [];
-  const urlStart = /(?:(?:https?|ftp):\/\/|\/\/|\bwww\.)/gim;
-
-  for (const match of markdown.matchAll(urlStart)) {
-    const start = match.index;
-    let cursor = start + match[0].length;
-    const openingParentheses = [];
-
-    while (cursor < markdown.length && !/[\s<>"']/.test(markdown[cursor])) {
-      if (markdown[cursor] === "\\") {
-        cursor += 2;
-        continue;
-      }
-      if (markdown[cursor] === "(") {
-        openingParentheses.push(cursor);
-      } else if (markdown[cursor] === ")") {
-        if (openingParentheses.length === 0) {
-          break;
-        }
-        openingParentheses.pop();
-      }
-      cursor += 1;
-    }
-
-    if (openingParentheses.length > 0) {
-      cursor = openingParentheses[0];
-    }
-    spans.push({ start, end: cursor });
-  }
-
-  return spans;
-}
-
-function findMarkdownLinkDestinationSpans(markdown) {
-  const spans = [];
-
-  for (let index = 0; index < markdown.length - 1; index += 1) {
-    if (markdown[index] !== "]" || markdown[index + 1] !== "(") {
-      continue;
-    }
-
-    let depth = 1;
-    let cursor = index + 2;
-    while (cursor < markdown.length) {
-      const character = markdown[cursor];
-      if (character === "\\") {
-        cursor += 2;
-        continue;
-      }
-      if ((character === '"' || character === "'") && depth === 1 && /\s/.test(markdown[cursor - 1] || "")) {
-        cursor = skipQuotedMarkdownText(markdown, cursor, character);
-        continue;
-      }
-      if (character === "(") {
-        depth += 1;
-      } else if (character === ")") {
-        depth -= 1;
-        if (depth === 0) {
-          spans.push({ start: index, end: cursor + 1 });
-          index = cursor;
-          break;
-        }
-      }
-      cursor += 1;
-    }
-  }
-
-  return spans;
-}
-
-function skipQuotedMarkdownText(markdown, openingIndex, quote) {
-  let cursor = openingIndex + 1;
-  while (cursor < markdown.length) {
-    if (markdown[cursor] === "\\") {
-      cursor += 2;
-      continue;
-    }
-    if (markdown[cursor] === quote) {
-      return cursor + 1;
-    }
-    cursor += 1;
-  }
-  return cursor;
-}
-
-function neutralizeNonUrlMentionTokens(markdown) {
+function findPotentialMentionCandidates(markdown) {
   const handle = String.raw`[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})`;
   const suffix = String.raw`(?=${handle}(?:/${handle})?(?![A-Za-z0-9-]))`;
   const boundary = String.raw`(^|[^\p{L}\p{N}_])`;
-  const plainMention = new RegExp(`${boundary}@${suffix}`, "gu");
-  const encodedMention = new RegExp(`${boundary}(&#0*64;|&#x0*40;|&commat;)${suffix}`, "giu");
+  const candidate = new RegExp(`${boundary}(@|&#0*64;|&#x0*40;|&commat;)${suffix}`, "giu");
 
-  return markdown.replace(plainMention, "$1@\u2060").replace(encodedMention, "$1$2\u2060");
+  return [...markdown.matchAll(candidate)].map((match) => ({
+    insertionIndex: match.index + match[1].length + match[2].length,
+  }));
 }
 
-function parseOpeningFence(line) {
-  const match = /^[ \t>+*.)0-9-]*(`{3,}|~{3,})([^\r\n]*)(?:\r?\n|$)/.exec(line);
-  if (!match || (match[1][0] === "`" && match[2].includes("`"))) {
-    return null;
-  }
-  return { character: match[1][0], length: match[1].length };
-}
-
-function isClosingFence(line, fence) {
-  const character = fence.character === "`" ? "`" : "~";
-  return new RegExp(`^[ \\t>+*.)0-9-]*${character}{${fence.length},}[ \\t]*(?:\\r?\\n|$)`).test(line);
-}
-
-function parseListContentIndent(line) {
-  const content = line.replace(/^(?: {0,3}>[ \t]?)*/, "");
-  const match = /^( *)(?:[-+*]|\d{1,9}[.)])([ \t]+)/.exec(content);
-  return match ? match[0].length : null;
-}
-
-function indentedCodeWidth(line) {
-  const content = line.replace(/^(?: {0,3}>[ \t]?)*/, "");
-  if (content.startsWith("\t")) {
-    return 4;
-  }
-  return /^( *)/.exec(content)[1].length;
-}
-
-function isBlankMarkdownLine(line) {
-  const content = line.replace(/^(?: {0,3}>[ \t]?)*/, "");
-  return /^[ \t]*(?:\r?\n)?$/.test(content);
-}
-
-function countRun(text, start, character) {
-  let end = start;
-  while (text[end] === character) {
-    end += 1;
-  }
-  return end - start;
-}
-
-function findMatchingBacktickRun(markdown, start, delimiterLength) {
-  let index = start;
-  while (index < markdown.length) {
-    if (markdown[index] !== "`") {
-      index += 1;
-      continue;
-    }
-    const runLength = countRun(markdown, index, "`");
-    if (runLength === delimiterLength) {
-      return index;
-    }
-    index += runLength;
-  }
-  return -1;
+function insertWordJoiner(markdown, index) {
+  return `${markdown.slice(0, index)}\u2060${markdown.slice(index)}`;
 }
 
 function hasRenderedGitHubMentionAnchors(html) {
+  return renderedGitHubMentionAnchorCount(html) > 0;
+}
+
+function renderedGitHubMentionAnchorCount(html) {
   const anchor = /<a\b([^>]*)>[\s\S]*?<\/a>/gi;
-  return [...html.matchAll(anchor)].some((match) => hasGitHubMentionClass(match[1]));
+  return [...html.matchAll(anchor)].filter((match) => hasGitHubMentionClass(match[1])).length;
 }
 
 function haveMatchingNonMentionLinks(before, after) {

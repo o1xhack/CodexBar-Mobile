@@ -4,7 +4,61 @@ import assert from "node:assert/strict";
 
 import { buildIssueBody, neutralizeImportedMarkdownMentions } from "./upstream-release-monitor.mjs";
 
-const inertMention = (handle) => `@\u2060${handle}`;
+const wordJoiner = "\u2060";
+const inertMention = (handle) => `@${wordJoiner}${handle}`;
+
+function renderedFixture(mentionCount, links = ["/kept"]) {
+  const mentions = Array.from(
+    { length: mentionCount },
+    (_, index) => `<a class="user-mention notranslate" href="/user-${index}">@user-${index}</a>`,
+  ).join("");
+  const ordinaryLinks = links.map((href) => `<a href="${href}">link</a>`).join("");
+  return `<p>${mentions}${ordinaryLinks}</p>`;
+}
+
+function expectedInsertionPositions(source, expected) {
+  const positions = [];
+  let sourceIndex = 0;
+
+  for (const character of expected) {
+    if (character === wordJoiner) {
+      positions.push(sourceIndex);
+      continue;
+    }
+    assert.equal(character, source[sourceIndex]);
+    sourceIndex += 1;
+  }
+
+  assert.equal(sourceIndex, source.length);
+  return positions;
+}
+
+function makeFixtureRenderer(source, expected, contexts) {
+  const acceptedPositions = expectedInsertionPositions(source, expected);
+
+  return async (markdown, context) => {
+    contexts.push(context);
+    if (markdown === source) {
+      return renderedFixture(acceptedPositions.length);
+    }
+    if (markdown === expected) {
+      return renderedFixture(0);
+    }
+
+    const insertionIndex = markdown.indexOf(wordJoiner);
+    if (insertionIndex !== -1 && markdown.indexOf(wordJoiner, insertionIndex + 1) === -1) {
+      const withoutJoiner = `${markdown.slice(0, insertionIndex)}${markdown.slice(insertionIndex + 1)}`;
+      if (withoutJoiner === source) {
+        const mentionCount = acceptedPositions.includes(insertionIndex)
+          ? acceptedPositions.length - 1
+          : acceptedPositions.length;
+        return renderedFixture(mentionCount);
+      }
+    }
+
+    throw new Error("Unexpected Markdown fixture rendered");
+  };
+}
 
 const sourceMarkdown = [
   "### Fixed",
@@ -23,10 +77,13 @@ const sourceMarkdown = [
   "- Keep <//example.com/@octocat> intact.",
   "- Encoded attribution: &#64;encoded-user.",
   "- Inline code: `@inline-user`.",
+  "- Escaped literal backticks: \\`Thanks @escaped-user\\`.",
   '- HTML code: <code data-owner="@octocat">npm install @scope/pkg</code>.',
   "<pre>",
   "npm install @pre-scope/pkg",
   "</pre>",
+  "",
+  "    npm install @indented/pkg",
   "",
   "[@reference-user]: https://example.com/profile",
   "[query-reference]: /issues?q=assignee:@octocat",
@@ -35,8 +92,14 @@ const sourceMarkdown = [
   "  /users/@octocat",
   "Thanks [@reference-user], [query-reference], [balanced-reference], and [next-line-reference].",
   "",
+  "> [quoted-reference]: /users/@octocat",
+  "> See [quoted-reference].",
+  "",
   "> [!NOTE]",
   "> Alert attribution @alert-user.",
+  "",
+  "- item",
+  "    Thanks @list-user.",
   "",
   "```text",
   "@fenced-user",
@@ -62,20 +125,29 @@ const expectedMarkdown = [
   "- Keep <//example.com/@octocat> intact.",
   "- Encoded attribution: &#64;\u2060encoded-user.",
   "- Inline code: `@inline-user`.",
+  "- Escaped literal backticks: \\`Thanks @escaped-user\\`.",
   '- HTML code: <code data-owner="@octocat">npm install @scope/pkg</code>.',
   "<pre>",
   "npm install @pre-scope/pkg",
   "</pre>",
   "",
-  `[${inertMention("reference-user")}]: https://example.com/profile`,
+  "    npm install @indented/pkg",
+  "",
+  "[@reference-user]: https://example.com/profile",
   "[query-reference]: /issues?q=assignee:@octocat",
   "[balanced-reference]: /issues(a)?assignee=@octocat",
   "[next-line-reference]:",
   "  /users/@octocat",
-  `Thanks [${inertMention("reference-user")}], [query-reference], [balanced-reference], and [next-line-reference].`,
+  "Thanks [@reference-user], [query-reference], [balanced-reference], and [next-line-reference].",
+  "",
+  "> [quoted-reference]: /users/@octocat",
+  "> See [quoted-reference].",
   "",
   "> [!NOTE]",
   `> Alert attribution ${inertMention("alert-user")}.`,
+  "",
+  "- item",
+  `    Thanks ${inertMention("list-user")}.`,
   "",
   "```text",
   "@fenced-user",
@@ -84,80 +156,53 @@ const expectedMarkdown = [
   `[^1]: Footnote attribution ${inertMention("footnote-user")}.`,
 ].join("\n");
 
-assert.equal(neutralizeImportedMarkdownMentions(sourceMarkdown), expectedMarkdown);
-assert.equal(neutralizeImportedMarkdownMentions(expectedMarkdown), expectedMarkdown);
+const fixtureContexts = [];
+const neutralizedFixture = await neutralizeImportedMarkdownMentions(sourceMarkdown, {
+  context: "example/fork",
+  renderMarkdown: makeFixtureRenderer(sourceMarkdown, expectedMarkdown, fixtureContexts),
+});
+assert.equal(neutralizedFixture.markdown, expectedMarkdown);
+assert.equal(neutralizedFixture.linkDriftDetected, false);
+assert.ok(fixtureContexts.every((context) => context === "example/fork"));
 
-for (const codeBlock of [
-  "> ~~~sh\n> npm install @scope/pkg\n> ~~~",
-  "- ~~~sh\n  npm install @scope/pkg\n  ~~~",
-  "> ```sh\n> npm install @scope/pkg\n> ````",
-  "    npm install @scope/pkg",
-  ">     npm install @scope/pkg",
-  "- item\n\n      npm install @scope/pkg",
-  "> paragraph\n>\n>     npm install @scope/pkg",
-  "    npm install @scope/pkg\n\nThanks @octocat",
-]) {
-  const expected = codeBlock.endsWith("Thanks @octocat")
-    ? codeBlock.replace("Thanks @octocat", `Thanks ${inertMention("octocat")}`)
-    : codeBlock;
-  assert.equal(neutralizeImportedMarkdownMentions(codeBlock), expected);
-}
+const idempotentFixture = await neutralizeImportedMarkdownMentions(expectedMarkdown, {
+  context: "example/fork",
+  renderMarkdown: async () => renderedFixture(0),
+});
+assert.equal(idempotentFixture.markdown, expectedMarkdown);
 
-for (const listContinuation of [
-  "- item\n    Thanks @octocat",
-  "> item\n    Thanks @octocat",
-  "1. item\n    Thanks @octocat",
-  "- item\n\n    Thanks @octocat",
-]) {
-  assert.ok(neutralizeImportedMarkdownMentions(listContinuation).includes(inertMention("octocat")));
-}
+const crlfSource = "Thanks @octocat\r\n";
+const crlfExpected = `Thanks ${inertMention("octocat")}\r\n`;
+const crlfFixture = await neutralizeImportedMarkdownMentions(crlfSource, {
+  context: "example/fork",
+  renderMarkdown: makeFixtureRenderer(crlfSource, crlfExpected, []),
+});
+assert.equal(crlfFixture.markdown, crlfExpected);
 
-assert.equal(
-  neutralizeImportedMarkdownMentions("~~~text\r\n@inline-code\r\n~~~\r\nThanks @octocat\r\n"),
-  `~~~text\r\n@inline-code\r\n~~~\r\nThanks ${inertMention("octocat")}\r\n`,
-);
-assert.equal(
-  neutralizeImportedMarkdownMentions("cc:@octocat foo/@octocat foo+@octocat"),
-  `cc:${inertMention("octocat")} foo/${inertMention("octocat")} foo+${inertMention("octocat")}`,
-);
-assert.equal(
-  neutralizeImportedMarkdownMentions("https://example.com/a)@octocat"),
-  `https://example.com/a)${inertMention("octocat")}`,
-);
-assert.equal(neutralizeImportedMarkdownMentions("<pre>\nnpm install @scope/pkg"), "<pre>\nnpm install @scope/pkg");
-
-const renderCalls = [];
+const simpleSource = "Thanks @octocat.";
+const simpleExpected = `Thanks ${inertMention("octocat")}.`;
+const buildRenderCalls = [];
 const body = await buildIssueBody({
   release: {
     tag_name: "v9.9.9",
     published_at: "2026-08-20T12:00:00Z",
     html_url: "https://github.com/example/project/releases/tag/v9.9.9",
-    body: sourceMarkdown,
+    body: simpleSource,
   },
   baseline: "v9.9.8",
   syncDate: "2026-08-19",
   upstream: "example/project",
   issueRepo: "example/fork",
   renderMarkdown: async (markdown, context) => {
-    renderCalls.push({ markdown, context });
-    return markdown === sourceMarkdown
-      ? '<h3>Fixed</h3><p><a class="user-mention" href="/octocat">@octocat</a><a href="/kept">link</a></p>'
-      : '<h3>Fixed</h3><p>No live mentions<a href="/kept">link</a></p>';
+    buildRenderCalls.push({ markdown, context });
+    return markdown === simpleSource ? renderedFixture(1) : renderedFixture(0);
   },
 });
 
-assert.deepEqual(renderCalls, [
-  {
-    markdown: sourceMarkdown,
-    context: "example/fork",
-  },
-  {
-    markdown: expectedMarkdown,
-    context: "example/fork",
-  },
-]);
-assert.ok(body.includes(expectedMarkdown));
-assert.ok(!body.includes(sourceMarkdown));
+assert.equal(buildRenderCalls.length, 3);
+assert.ok(buildRenderCalls.every((call) => call.context === "example/fork"));
+assert.ok(body.includes(simpleExpected));
+assert.ok(!body.includes(simpleSource));
 assert.match(body, /https:\/\/github\.com\/example\/project\/releases\/tag\/v9\.9\.9/);
 assert.match(body, /https:\/\/github\.com\/example\/fork\/blob\/mobile-dev\/version\.env/);
 
@@ -166,13 +211,13 @@ await assert.rejects(
     release: {
       tag_name: "v9.9.10",
       published_at: "2026-08-20T13:00:00Z",
-      body: "@&#111;ctocat",
+      body: "@<!-- -->octocat",
     },
     baseline: "v9.9.8",
     syncDate: "2026-08-19",
     upstream: "example/project",
     issueRepo: "example/fork",
-    renderMarkdown: async () => '<p><a class="user-mention" href="https://github.com/octocat">@octocat</a></p>',
+    renderMarkdown: async () => renderedFixture(1, []),
   }),
   /still contain a live GitHub mention/,
 );
@@ -180,25 +225,23 @@ await assert.rejects(
 await assert.rejects(
   buildIssueBody({
     release: {
-      tag_name: "v9.9.10",
+      tag_name: "v9.9.11",
       published_at: "2026-08-20T13:00:00Z",
-      body: "Thanks @octocat; keep https://example.com/@path intact.",
+      body: simpleSource,
     },
     baseline: "v9.9.8",
     syncDate: "2026-08-19",
     upstream: "example/project",
     issueRepo: "example/fork",
     renderMarkdown: async (markdown) =>
-      markdown.includes("\u2060")
-        ? '<p>Thanks @octocat; keep <a href="https://example.com/@broken">link</a>.</p>'
-        : '<p>Thanks <a class="user-mention" href="/octocat">@octocat</a>; keep <a href="https://example.com/@path">link</a>.</p>',
+      markdown === simpleSource ? renderedFixture(1, ["/kept"]) : renderedFixture(0, ["/broken"]),
   }),
   /changed non-mention link targets/,
 );
 
 const safeObfuscatedBody = await buildIssueBody({
   release: {
-    tag_name: "v9.9.11",
+    tag_name: "v9.9.12",
     published_at: "2026-08-20T14:00:00Z",
     body: "@<!-- -->octocat",
   },
@@ -206,7 +249,7 @@ const safeObfuscatedBody = await buildIssueBody({
   syncDate: "2026-08-19",
   upstream: "example/project",
   issueRepo: "example/fork",
-  renderMarkdown: async () => "<p>@octocat</p>",
+  renderMarkdown: async () => renderedFixture(0, []),
 });
 
 assert.ok(safeObfuscatedBody.includes("@<!-- -->octocat"));
