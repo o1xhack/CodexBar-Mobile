@@ -8,6 +8,7 @@ const DEFAULT_REPO = process.env.GITHUB_REPOSITORY || "o1xhack/CodexBar-Mobile";
 const DEFAULT_UPSTREAM = "steipete/CodexBar";
 const DEFAULT_VERSION_ENV = "version.env";
 const GENERIC_ISSUE_TITLE = "🔄 Upstream Changes Available for Review";
+const MAX_MENTION_CLASSIFICATION_RENDERS = 64;
 
 const args = parseArgs(process.argv.slice(2));
 const repo = args.repo || DEFAULT_REPO;
@@ -79,6 +80,7 @@ async function main() {
   console.log(`New releases: ${newReleases.map((release) => release.tag_name).join(", ")}`);
 
   const trackedIssues = await fetchTrackedIssues(repo);
+  const releaseFailures = [];
   let reusableGenericIssue = trackedIssues.find((issue) => {
     return (
       issue.state === "open" &&
@@ -97,12 +99,20 @@ async function main() {
     }
 
     const title = buildIssueTitle(release.tag_name, baseline);
-    const body = await buildIssueBody({
-      release,
-      baseline,
-      syncDate,
-      upstream,
-    });
+    let body;
+    try {
+      body = await buildIssueBody({
+        release,
+        baseline,
+        syncDate,
+        upstream,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      releaseFailures.push(`${release.tag_name}: ${message}`);
+      console.error(`Skipping ${release.tag_name}: ${message}`);
+      continue;
+    }
 
     if (reusableGenericIssue) {
       console.log(
@@ -127,6 +137,10 @@ async function main() {
         console.log(`Created #${created.number}: ${created.html_url}`);
       }
     }
+  }
+
+  if (releaseFailures.length > 0) {
+    throw new Error(`Failed to prepare ${releaseFailures.length} release(s): ${releaseFailures.join("; ")}`);
   }
 }
 
@@ -272,6 +286,11 @@ export async function buildIssueBody({
   const releaseNotes = neutralized.markdown;
   const renderedRawReleaseNotes = neutralized.renderedSource;
   const renderedReleaseNotes = neutralized.rendered;
+  if (neutralized.classificationIncomplete) {
+    throw new Error(
+      `Imported release notes for ${tag} exceeded the ${MAX_MENTION_CLASSIFICATION_RENDERS}-render classification limit`,
+    );
+  }
   if (neutralized.linkDriftDetected) {
     throw new Error(`Imported release notes for ${tag} changed non-mention link targets during neutralization`);
   }
@@ -339,34 +358,73 @@ export async function neutralizeImportedMarkdownMentions(
   const sourceMentionCount = renderedGitHubMentionAnchorCount(renderedSource);
   const acceptedCandidates = [];
   let linkDriftDetected = false;
+  let classificationIncomplete = false;
+  let renderCount = 1;
 
   if (sourceMentionCount > 0) {
-    for (const candidate of findPotentialMentionCandidates(markdown)) {
-      const trialMarkdown = insertWordJoiner(markdown, candidate.insertionIndex);
+    const classifyCandidates = async (candidates) => {
+      if (candidates.length === 0 || classificationIncomplete) {
+        return;
+      }
+      if (renderCount >= MAX_MENTION_CLASSIFICATION_RENDERS - 1) {
+        classificationIncomplete = true;
+        return;
+      }
+
+      const trialMarkdown = insertWordJoinerCandidates(markdown, candidates);
       const renderedTrial = await renderMarkdown(trialMarkdown, context);
-      if (renderedGitHubMentionAnchorCount(renderedTrial) >= sourceMentionCount) {
-        continue;
+      renderCount += 1;
+      const removedMentionCount = sourceMentionCount - renderedGitHubMentionAnchorCount(renderedTrial);
+      if (removedMentionCount <= 0) {
+        return;
       }
-      if (!haveMatchingNonMentionLinks(renderedSource, renderedTrial)) {
-        linkDriftDetected = true;
-        continue;
+      const linksMatch = haveMatchingNonMentionLinks(renderedSource, renderedTrial);
+      if (linksMatch && removedMentionCount === candidates.length) {
+        acceptedCandidates.push(...candidates);
+        return;
       }
-      acceptedCandidates.push(candidate);
-    }
+      if (candidates.length === 1) {
+        if (linksMatch) {
+          acceptedCandidates.push(candidates[0]);
+        } else {
+          linkDriftDetected = true;
+        }
+        return;
+      }
+
+      const midpoint = Math.floor(candidates.length / 2);
+      await classifyCandidates(candidates.slice(0, midpoint));
+      await classifyCandidates(candidates.slice(midpoint));
+    };
+
+    await classifyCandidates(findPotentialMentionCandidates(markdown));
   }
 
-  let neutralizedMarkdown = markdown;
-  for (const candidate of acceptedCandidates.sort((left, right) => right.insertionIndex - left.insertionIndex)) {
-    neutralizedMarkdown = insertWordJoiner(neutralizedMarkdown, candidate.insertionIndex);
+  if (classificationIncomplete) {
+    return {
+      markdown,
+      renderedSource,
+      rendered: renderedSource,
+      linkDriftDetected,
+      classificationIncomplete,
+      renderCount,
+    };
   }
+
+  const neutralizedMarkdown = insertWordJoinerCandidates(markdown, acceptedCandidates);
   const rendered =
     acceptedCandidates.length === 0 ? renderedSource : await renderMarkdown(neutralizedMarkdown, context);
+  if (acceptedCandidates.length > 0) {
+    renderCount += 1;
+  }
 
   return {
     markdown: neutralizedMarkdown,
     renderedSource,
     rendered,
     linkDriftDetected,
+    classificationIncomplete,
+    renderCount,
   };
 }
 
@@ -381,8 +439,12 @@ function findPotentialMentionCandidates(markdown) {
   }));
 }
 
-function insertWordJoiner(markdown, index) {
-  return `${markdown.slice(0, index)}\u2060${markdown.slice(index)}`;
+function insertWordJoinerCandidates(markdown, candidates) {
+  let output = markdown;
+  for (const candidate of [...candidates].sort((left, right) => right.insertionIndex - left.insertionIndex)) {
+    output = `${output.slice(0, candidate.insertionIndex)}\u2060${output.slice(candidate.insertionIndex)}`;
+  }
+  return output;
 }
 
 function hasRenderedGitHubMentionAnchors(html) {

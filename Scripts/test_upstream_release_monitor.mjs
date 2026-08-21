@@ -38,25 +38,18 @@ function makeFixtureRenderer(source, expected, contexts) {
 
   return async (markdown, context) => {
     contexts.push(context);
-    if (markdown === source) {
-      return renderedFixture(acceptedPositions.length);
-    }
-    if (markdown === expected) {
-      return renderedFixture(0);
-    }
-
-    const insertionIndex = markdown.indexOf(wordJoiner);
-    if (insertionIndex !== -1 && markdown.indexOf(wordJoiner, insertionIndex + 1) === -1) {
-      const withoutJoiner = `${markdown.slice(0, insertionIndex)}${markdown.slice(insertionIndex + 1)}`;
-      if (withoutJoiner === source) {
-        const mentionCount = acceptedPositions.includes(insertionIndex)
-          ? acceptedPositions.length - 1
-          : acceptedPositions.length;
-        return renderedFixture(mentionCount);
+    const trialPositions = [];
+    let withoutJoiners = "";
+    for (const character of markdown) {
+      if (character === wordJoiner) {
+        trialPositions.push(withoutJoiners.length);
+      } else {
+        withoutJoiners += character;
       }
     }
-
-    throw new Error("Unexpected Markdown fixture rendered");
+    assert.equal(withoutJoiners, source);
+    const removedMentionCount = trialPositions.filter((position) => acceptedPositions.includes(position)).length;
+    return renderedFixture(acceptedPositions.length - removedMentionCount);
   };
 }
 
@@ -163,6 +156,7 @@ const neutralizedFixture = await neutralizeImportedMarkdownMentions(sourceMarkdo
 });
 assert.equal(neutralizedFixture.markdown, expectedMarkdown);
 assert.equal(neutralizedFixture.linkDriftDetected, false);
+assert.equal(neutralizedFixture.classificationIncomplete, false);
 assert.ok(fixtureContexts.every((context) => context === "example/fork"));
 
 const idempotentFixture = await neutralizeImportedMarkdownMentions(expectedMarkdown, {
@@ -178,6 +172,21 @@ const crlfFixture = await neutralizeImportedMarkdownMentions(crlfSource, {
   renderMarkdown: makeFixtureRenderer(crlfSource, crlfExpected, []),
 });
 assert.equal(crlfFixture.markdown, crlfExpected);
+
+const boundedTokens = Array.from({ length: 128 }, (_, index) => `@user-${index}`);
+const boundedSource = boundedTokens.join(" ");
+const boundedExpected = boundedTokens
+  .map((token, index) => (index % 2 === 0 ? token.replace("@", `@${wordJoiner}`) : token))
+  .join(" ");
+const boundedContexts = [];
+const boundedFixture = await neutralizeImportedMarkdownMentions(boundedSource, {
+  context: "example/fork",
+  renderMarkdown: makeFixtureRenderer(boundedSource, boundedExpected, boundedContexts),
+});
+assert.equal(boundedFixture.classificationIncomplete, true);
+assert.equal(boundedFixture.markdown, boundedSource);
+assert.ok(boundedFixture.renderCount <= 64);
+assert.equal(boundedContexts.length, boundedFixture.renderCount);
 
 const simpleSource = "Thanks @octocat.";
 const simpleExpected = `Thanks ${inertMention("octocat")}.`;

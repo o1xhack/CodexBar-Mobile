@@ -69,8 +69,12 @@ and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831 characters. GitH
 
 - Keep raw upstream notes for `inferImpactRows`; neutralize only the copy interpolated into the issue body.
 - Enumerate lexical plain/encoded at-sign candidates without trying to parse Markdown locally. Render a one-candidate
-  U+2060 trial through GitHub's `/markdown` endpoint and accept it only when the rendered user/team mention count falls
-  while every non-mention link target remains identical to the source render.
+  or grouped U+2060 trial through GitHub's `/markdown` endpoint and accept a homogeneous group only when the rendered
+  user/team mention count falls by the group size while every non-mention link target remains identical to the source
+  render; split mixed groups recursively.
+- Limit source, classification, and final renders to 64 per release. If classification cannot finish within the bound,
+  fail closed for that release, continue evaluating later releases, and fail the workflow at the end with the collected
+  errors instead of exhausting GitHub rate limits mid-run.
 - Apply accepted insertions to the original source Markdown, render the combined result, and fail before issue creation
   or update if any live mention remains or any ordinary link target changes. This automatically preserves code, URLs,
   raw HTML, reference definitions, escaped delimiters, and container-specific syntax according to GitHub's actual GFM
@@ -94,7 +98,7 @@ and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831 characters. GitH
 
 - `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style candidates,
   idempotency, GFM-context decisions supplied by the injected renderer, byte-stable code/URL/reference/HTML structures,
-  fork render context, and residual live-mention or non-mention-link-change fail-closed cases.
+  fork render context, the 64-render hard bound, and residual live-mention or non-mention-link-change fail-closed cases.
 - Live tricky-context fixture: GitHub left escaped literal-backtick attribution, blockquoted reference destination, and
   raw HTML code unchanged; the only live prose attribution was neutralized, with 0 final mention anchors and no link
   drift.
@@ -102,7 +106,8 @@ and Mermaid behavior, and v0.54.0 expanded from 7,800 to 30,831 characters. GitH
   rendered mention anchors to 0.
 - `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95
   detection and selected v0.54.0 for creation without performing a write.
-- Live v0.54.0 pipeline: 32 GitHub renders classified and combined all 30 contributor mentions as inert; the
+- Live v0.54.0 pipeline: 3 GitHub renders classified the homogeneous group of 30 contributor mentions and combined all
+  30 as inert; the
   7,800-character upstream notes produced an 8,892-character issue body with 0 live mention anchors in the final render.
   The source Markdown and all ordinary links remain in place, avoiding the rejected HTML design's formatting loss and
   30,831-character expansion.
