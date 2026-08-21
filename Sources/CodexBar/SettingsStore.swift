@@ -118,6 +118,24 @@ enum KiroMenuBarDisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum LowPowerModePreference: String, CaseIterable, Identifiable {
+    case off
+    case on
+    case automatic
+
+    var id: String {
+        self.rawValue
+    }
+
+    var label: String {
+        switch self {
+        case .off: L("Off")
+        case .on: L("On")
+        case .automatic: L("Automatic")
+        }
+    }
+}
+
 enum MultiAccountMenuLayout: String, CaseIterable, Identifiable {
     case segmented
     case stacked
@@ -247,6 +265,7 @@ final class SettingsStore {
     #endif
     @ObservationIgnored var mergedMenuLastSelectedWasOverviewStorage = false
     @ObservationIgnored var selectedMenuProviderRawStorage: String?
+    @ObservationIgnored private nonisolated(unsafe) var lowPowerModeObserver: NSObjectProtocol?
     var defaultsState: SettingsDefaultsState
     var configRevision: Int = 0
     var providerDetailSettingsRevision: Int = 0
@@ -400,10 +419,31 @@ final class SettingsStore {
         }
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
         self.startConfigFileWatcher()
+        self.observeSystemPowerStateChanges()
     }
 
     deinit {
         self.configFileWatcher?.stop()
+        if let lowPowerModeObserver {
+            NotificationCenter.default.removeObserver(lowPowerModeObserver)
+        }
+    }
+
+    /// Automatic Low Power Mode reads `ProcessInfo.isLowPowerModeEnabled` live, but background
+    /// timers only restart when `backgroundWorkSettingsRevision` changes. Without this, toggling
+    /// the system's Low Power Mode mid-session would leave a running fixed-frequency timer stuck
+    /// at its previously computed interval until an unrelated settings change restarted it.
+    private func observeSystemPowerStateChanges() {
+        self.lowPowerModeObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange,
+            object: nil,
+            queue: .main)
+        { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.backgroundWorkLowPowerModePreference == .automatic else { return }
+                self.noteBackgroundWorkSettingsChanged()
+            }
+        }
     }
 }
 
@@ -470,6 +510,11 @@ extension SettingsStore {
         if Self.isRunningTests, quotaWarningMarkersVisibleDefault == nil {
             userDefaults.set(true, forKey: "quotaWarningMarkersVisible")
         }
+        let paceVisibleDefault = userDefaults.object(forKey: "paceVisible") as? Bool
+        let paceVisible = paceVisibleDefault ?? true
+        if Self.isRunningTests, paceVisibleDefault == nil {
+            userDefaults.set(true, forKey: "paceVisible")
+        }
         let weeklyProgressWorkDays = userDefaults.object(forKey: "weeklyProgressWorkDays") as? Int
         let workdayTickAppearanceRaw = userDefaults.string(forKey: "workdayTickAppearance")
             ?? WorkdayTickAppearance.subtle.rawValue
@@ -494,7 +539,8 @@ extension SettingsStore {
             forKey: "notificationPushToiOSEnabled") as? Bool ?? true
         let multiAccountMenuLayoutRaw = Self.loadMultiAccountMenuLayoutRaw(userDefaults: userDefaults)
         let resolvedPreferences = Self.loadMenuBarMetricPreferences(userDefaults: userDefaults)
-        let storedMenuBarLayout = Self.loadMenuBarLayout(userDefaults: userDefaults, key: "menuBarLayout")
+        let storedMenuBarLayout = Self.loadMenuBarLayout(userDefaults: userDefaults)
+        let menuBarLayoutConditionals = Self.loadMenuBarLayoutConditionals(userDefaults: userDefaults)
         let menuBarLayoutOverridesRaw = Self.loadMenuBarLayoutOverrides(userDefaults: userDefaults)
         let menuBarLayoutSizeRaw = userDefaults.string(forKey: "menuBarLayoutSize")
             ?? MenuBarLayoutSize.regular.rawValue
@@ -509,6 +555,17 @@ extension SettingsStore {
             forKey: "codexLocalSessionCostLedgerEnabled") as? Bool ?? false
         let rawCostUsageHistoryDays = userDefaults.object(forKey: "tokenCostUsageHistoryDays") as? Int ?? 30
         let costUsageHistoryDays = max(1, min(365, rawCostUsageHistoryDays))
+        let storedBucketTimeZone = userDefaults.string(forKey: "tokenCostUsageBucketTimeZone") ?? ""
+        let costUsageBucketTimeZoneIdentifier = CostUsageBucketTimeZone.isValidIdentifier(storedBucketTimeZone)
+            ? storedBucketTimeZone
+            : (costUsageEnabled ? CostUsageBucketTimeZone.pinIdentifier() : "")
+        if costUsageEnabled, storedBucketTimeZone.isEmpty, !costUsageBucketTimeZoneIdentifier.isEmpty {
+            userDefaults.set(costUsageBucketTimeZoneIdentifier, forKey: "tokenCostUsageBucketTimeZone")
+        }
+        let openCodexUsageLogsEnabled = userDefaults.object(forKey: "openCodexUsageLogsEnabled") as? Bool ?? false
+        let hideNativeCodexCostWhenOpenCodexPresent = userDefaults.object(
+            forKey: "hideNativeCodexCostWhenOpenCodexPresent") as? Bool ?? false
+        let spendDashboardHiddenSourceIDs = userDefaults.stringArray(forKey: "spendDashboardHiddenSourceIDs") ?? []
         let costComparisonPeriodsEnabled = userDefaults.object(
             forKey: "costComparisonPeriodsEnabled") as? Bool ?? false
         let costSummaryDisplayStyleRaw = Self.loadCostSummaryDisplayStyleRaw(
@@ -558,8 +615,7 @@ extension SettingsStore {
         if Self.isRunningTests, openAIWebBatterySaverDefault == nil {
             userDefaults.set(false, forKey: "openAIWebBatterySaverEnabled")
         }
-        let backgroundWorkLowPowerModeEnabled =
-            userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
+        let backgroundWorkLowPowerModePreference = Self.loadLowPowerModePreference(userDefaults: userDefaults)
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
         let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
         if Self.isRunningTests, providerStorageFootprintsDefault == nil {
@@ -617,6 +673,7 @@ extension SettingsStore {
             quotaWarningSoundEnabled: quotaWarnings.soundEnabled,
             quotaWarningOnScreenAlertEnabled: quotaWarnings.onScreenAlertEnabled,
             quotaWarningMarkersVisible: quotaWarningMarkersVisible,
+            paceVisible: paceVisible,
             weeklyProgressWorkDays: weeklyProgressWorkDays,
             workdayTickAppearanceRaw: workdayTickAppearanceRaw,
             usageBarsShowUsed: usageBarsShowUsed,
@@ -634,6 +691,7 @@ extension SettingsStore {
             multiAccountMenuLayoutRaw: multiAccountMenuLayoutRaw,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             storedMenuBarLayout: storedMenuBarLayout,
+            menuBarLayoutConditionals: menuBarLayoutConditionals,
             menuBarLayoutOverridesRaw: menuBarLayoutOverridesRaw,
             menuBarLayoutSizeRaw: menuBarLayoutSizeRaw,
             menuBarLayoutGapRaw: menuBarLayoutGapRaw,
@@ -643,6 +701,10 @@ extension SettingsStore {
             costUsageEnabled: costUsageEnabled,
             codexLocalSessionCostLedgerEnabled: codexLocalSessionCostLedgerEnabled,
             costUsageHistoryDays: costUsageHistoryDays,
+            costUsageBucketTimeZoneIdentifier: costUsageBucketTimeZoneIdentifier,
+            openCodexUsageLogsEnabled: openCodexUsageLogsEnabled,
+            hideNativeCodexCostWhenOpenCodexPresent: hideNativeCodexCostWhenOpenCodexPresent,
+            spendDashboardHiddenSourceIDs: spendDashboardHiddenSourceIDs,
             costComparisonPeriodsEnabled: costComparisonPeriodsEnabled,
             costSummaryDisplayStyleRaw: costSummaryDisplayStyleRaw,
             hidePersonalInfo: hidePersonalInfo,
@@ -661,7 +723,7 @@ extension SettingsStore {
             codexExternalOAuthSourcesAllowed: codexExternalOAuthSourcesAllowed,
             openAIWebAccessEnabled: openAIWebAccessEnabled,
             openAIWebBatterySaverEnabled: openAIWebBatterySaverEnabled,
-            backgroundWorkLowPowerModeEnabled: backgroundWorkLowPowerModeEnabled,
+            backgroundWorkLowPowerModePreference: backgroundWorkLowPowerModePreference,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
@@ -705,6 +767,20 @@ extension SettingsStore {
         let frequency: RefreshFrequency = rawValue == nil && !hadPreviousInstallationState ? .adaptive : .fiveMinutes
         userDefaults.set(frequency.rawValue, forKey: "refreshFrequency")
         return frequency
+    }
+
+    private static func loadLowPowerModePreference(userDefaults: UserDefaults) -> LowPowerModePreference {
+        if let stored = userDefaults.string(forKey: "backgroundWorkLowPowerModePreference"),
+           let preference = LowPowerModePreference(rawValue: stored)
+        {
+            return preference
+        }
+
+        // Migrate the legacy on/off toggle, preserving prior behavior exactly (default off).
+        let legacyEnabled = userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
+        let preference: LowPowerModePreference = legacyEnabled ? .on : .off
+        userDefaults.set(preference.rawValue, forKey: "backgroundWorkLowPowerModePreference")
+        return preference
     }
 
     private static func loadAdaptiveActivityScanConsent(
@@ -800,14 +876,50 @@ extension SettingsStore {
         return migrated
     }
 
-    private static func loadMenuBarLayout(userDefaults: UserDefaults, key: String) -> MenuBarLayout? {
-        guard let data = userDefaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(MenuBarLayout.self, from: data)
+    private static func loadMenuBarLayout(userDefaults: UserDefaults) -> MenuBarLayout? {
+        MenuBarLayoutPersistence.loadLayout(
+            current: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)),
+            legacy: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layout)),
+            into: userDefaults)
+    }
+
+    private static func loadMenuBarLayoutConditionals(userDefaults: UserDefaults) -> [MenuBarLayoutConditional] {
+        // Neither key present means a fresh install, so hand back the shipped library. Any edit, add, or
+        // removal writes both keys, so a library the user deliberately emptied is never reseeded.
+        MenuBarLayoutPersistence.loadLibrary(
+            current: self.decodeMenuBarLayoutConditionals(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)),
+            legacy: self.decodeMenuBarLayoutConditionals(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionals)),
+            into: userDefaults)
+            ?? MenuBarLayoutConditional.shippedLibrary()
+    }
+
+    /// Element-wise so one entry this build cannot understand — a library written by a newer release —
+    /// is dropped on its own instead of emptying the whole array.
+    private static func decodeMenuBarLayoutConditionals(_ data: Data?) -> [MenuBarLayoutConditional]? {
+        guard let data else { return nil }
+        return (try? JSONDecoder().decode([LenientMenuBarLayoutConditional].self, from: data))?
+            .compactMap(\.value)
     }
 
     private static func loadMenuBarLayoutOverrides(userDefaults: UserDefaults) -> [String: MenuBarLayout] {
-        guard let data = userDefaults.data(forKey: "menuBarLayoutOverrides") else { return [:] }
-        return (try? JSONDecoder().decode([String: MenuBarLayout].self, from: data)) ?? [:]
+        MenuBarLayoutPersistence.loadOverrides(
+            current: self.decodeMenuBarLayoutOverrides(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)),
+            legacy: self.decodeMenuBarLayoutOverrides(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overrides)),
+            into: userDefaults)
+    }
+
+    private static func decodeMenuBarLayout(_ data: Data?) -> MenuBarLayout? {
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(MenuBarLayout.self, from: data)
+    }
+
+    private static func decodeMenuBarLayoutOverrides(_ data: Data?) -> [String: MenuBarLayout]? {
+        guard let data else { return nil }
+        return try? JSONDecoder().decode([String: MenuBarLayout].self, from: data)
     }
 
     private static func loadMultiAccountMenuLayoutRaw(userDefaults: UserDefaults) -> String {

@@ -75,7 +75,8 @@ extension UsageStore {
                     historyDays: historyDays,
                     cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     allowPricingRefresh: allowPricingRefresh,
-                    bypassScannerDebounce: true)
+                    bypassScannerDebounce: true,
+                    calendar: self.settings.costUsageBucketCalendar)
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
@@ -110,8 +111,7 @@ extension UsageStore {
               publication.scopeSignature == self.tokenSnapshotScopeSignature(for: provider)
         else { return nil }
         return CurrentProviderConfigTokenPublication(
-            snapshot: publication.snapshot,
-            publicationRevision: publication.publicationRevision)
+            snapshot: publication.snapshot, publicationRevision: publication.publicationRevision)
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -135,6 +135,7 @@ extension UsageStore {
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider))
+        self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
     func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
@@ -154,6 +155,8 @@ extension UsageStore {
     func clearTokenSnapshots() {
         self.tokenSnapshots.removeAll()
         self.tokenSnapshotPublications.removeAll()
+        self.spendDashboardTokenPublications.removeAll()
+        self.spendDashboardTokenPublicationRevisions.removeAll()
     }
 
     func installProviderDerivedTokenSnapshot(from snapshot: UsageSnapshot, for provider: UsageProvider) {
@@ -171,6 +174,11 @@ extension UsageStore {
         guard Self.tokenCostRequiresProviderSnapshot(provider) else { return }
         if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider) {
             self.publishTokenSnapshot(tokenSnapshot, for: provider)
+            // Provider-specific by design: a prepaid-balance snapshot without a usage chart means
+            // analytics failed. Leave the source unpublished so Overview counts it unavailable
+            // instead of known-zero spend.
+        } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(snapshot) {
+            self.clearTokenSnapshot(for: provider)
         } else {
             self.publishConfirmedEmptyTokenSnapshot(for: provider)
         }
@@ -226,7 +234,8 @@ extension UsageStore {
                 await self.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
                     now: now,
                     codexHomePath: scope.codexHomePath,
-                    historyDays: historyDays)
+                    historyDays: historyDays,
+                    calendar: self.settings.costUsageBucketCalendar)
                     .map {
                         (
                             snapshot: $0.snapshot,
@@ -317,10 +326,29 @@ extension UsageStore {
     }
 
     func tokenSnapshotScopeSignature(for provider: UsageProvider) -> String {
+        self.tokenSnapshotScopeSignature(
+            for: provider,
+            historyDays: self.settings.costUsageHistoryDays,
+            includeSettingsRevision: true)
+    }
+
+    func spendDashboardTokenSnapshotScopeSignature(for provider: UsageProvider) -> String {
+        self.tokenSnapshotScopeSignature(
+            for: provider,
+            historyDays: SpendDashboardSource.scanDays,
+            includeSettingsRevision: false)
+    }
+
+    func tokenSnapshotScopeSignature(
+        for provider: UsageProvider,
+        historyDays: Int,
+        includeSettingsRevision: Bool) -> String
+    {
         let scope = self.tokenCostScope(for: provider)
-        let historyDays = self.settings.costUsageHistoryDays
-        let base = "\(scope.signature)|historyDays=\(historyDays)" +
-            "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+        var base = "\(scope.signature)|historyDays=\(historyDays)"
+        if includeSettingsRevision {
+            base += "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+        }
         guard provider == .cursor else {
             return base
         }
@@ -337,18 +365,22 @@ extension UsageStore {
         return self.cursorCostScopeSignature(
             historyDays: historyDays,
             source: source,
-            credentialFingerprint: credentialFingerprint)
+            credentialFingerprint: credentialFingerprint,
+            includeSettingsRevision: includeSettingsRevision)
     }
 
     func cursorCostScopeSignature(
         historyDays: Int,
         source: ProviderCookieSource,
-        credentialFingerprint: String) -> String
+        credentialFingerprint: String,
+        includeSettingsRevision: Bool = true) -> String
     {
         let scope = self.tokenCostScope(for: .cursor)
-        return "\(scope.signature)|historyDays=\(historyDays)" +
-            "|settingsRevision=\(self.settings.costUsageSettingsRevision)" +
-            "|cursorCookie=\(source.rawValue):\(credentialFingerprint)"
+        var signature = "\(scope.signature)|historyDays=\(historyDays)"
+        if includeSettingsRevision {
+            signature += "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+        }
+        return "\(signature)|cursorCookie=\(source.rawValue):\(credentialFingerprint)"
     }
 
     func tokenRefreshCanReuseCurrentSnapshot(
@@ -401,7 +433,8 @@ extension UsageStore {
         provider: UsageProvider,
         historyDays: Int,
         initialSignature: String,
-        snapshot: CostUsageTokenSnapshot) -> String
+        snapshot: CostUsageTokenSnapshot,
+        includeSettingsRevision: Bool = true) -> String
     {
         guard provider == .cursor,
               self.settings.cursorCookieSource == .auto,
@@ -410,35 +443,50 @@ extension UsageStore {
         return self.cursorCostScopeSignature(
             historyDays: historyDays,
             source: .auto,
-            credentialFingerprint: fingerprint)
+            credentialFingerprint: fingerprint,
+            includeSettingsRevision: includeSettingsRevision)
     }
 
     func tokenSnapshot(
         fromProviderSnapshot snapshot: UsageSnapshot?,
-        provider: UsageProvider)
+        provider: UsageProvider,
+        historyDays: Int? = nil)
         -> CostUsageTokenSnapshot?
     {
+        let windowDays = historyDays ?? self.settings.costUsageHistoryDays
+        // Provider-specific by design: snapshot-backed spend sources own their live billing
+        // projection. Grok contributes local session tokens only; xAI contributes Management API
+        // daily spend only. Neither converts a quota or prepaid balance into dollars.
         switch provider {
         case .openai:
-            snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
+            return snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
         case .mistral:
-            snapshot?.mistralUsage?.toCostUsageTokenSnapshot(historyDays: self.settings.costUsageHistoryDays)
+            return snapshot?.mistralUsage?.toCostUsageTokenSnapshot(historyDays: windowDays)
         case .opencodego:
             // Web-only source mode and machines with no readable local database leave
             // `opencodegoUsage.daily` empty; a non-nil-but-dataless projection would still
             // surface a Cost row whose history submenu has nothing to render.
-            snapshot?.opencodegoUsage.flatMap { usage in
+            return snapshot?.opencodegoUsage.flatMap { usage in
                 usage.daily.isEmpty ? nil : usage
-                    .toCostUsageTokenSnapshot(historyDays: self.settings.costUsageHistoryDays)
+                    .toCostUsageTokenSnapshot(historyDays: windowDays)
             }
+        case .openrouter:
+            return snapshot?.costUsage
+        case .xai:
+            return snapshot.flatMap { XAICostUsageMapping.tokenSnapshot(from: $0, historyDays: windowDays) }
+        case .grok:
+            return GrokLocalSessionScanner.summarize(lookbackDays: windowDays)
+                .toCostUsageTokenSnapshot(historyDays: windowDays)
         default:
-            nil
+            return nil
         }
     }
 
     nonisolated static func tokenCostRequiresProviderSnapshot(_ provider: UsageProvider) -> Bool {
+        // Provider-specific by design: these providers project live usage snapshots into the
+        // shared spend catalog instead of running the local CostUsageFetcher JSONL pipeline.
         switch provider {
-        case .mistral, .openai, .opencodego:
+        case .grok, .mistral, .openai, .opencodego, .openrouter, .xai:
             true
         default:
             false

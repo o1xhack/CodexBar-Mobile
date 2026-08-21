@@ -376,8 +376,6 @@ final class SettingsWindowAppearanceView: NSView {
 
     private func configureWindowStyle() {
         guard let window else { return }
-        SettingsWindowStageBehavior.applyCollectionBehavior(window)
-        DockIconController.shared.registerSettingsWindow(window)
         if !window.styleMask.contains(.resizable) {
             window.styleMask.insert(.resizable)
         }

@@ -46,7 +46,7 @@ struct OpenCodeGoProviderStrategyTests {
         let descriptor = OpenCodeGoProviderDescriptor.makeDescriptor()
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(self.makeContext())
 
-        #expect(strategies.map(\.id) == ["opencodego.local", "opencodego.web"])
+        #expect(strategies.map(\.id) == ["opencodego.local", "opencodego.api", "opencodego.web"])
     }
 
     @Test
@@ -55,7 +55,7 @@ struct OpenCodeGoProviderStrategyTests {
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             self.makeContext(selectedTokenAccountID: UUID()))
 
-        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local"])
+        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local", "opencodego.api"])
     }
 
     @Test
@@ -68,7 +68,7 @@ struct OpenCodeGoProviderStrategyTests {
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             self.makeContext(settings: settings))
 
-        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local"])
+        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local", "opencodego.api"])
     }
 
     @Test
@@ -81,7 +81,7 @@ struct OpenCodeGoProviderStrategyTests {
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             self.makeContext(settings: settings))
 
-        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local"])
+        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local", "opencodego.api"])
     }
 
     @Test
@@ -90,7 +90,7 @@ struct OpenCodeGoProviderStrategyTests {
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             self.makeContext(env: ["CODEXBAR_OPENCODEGO_WORKSPACE_ID": "wrk_env"]))
 
-        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local"])
+        #expect(strategies.map(\.id) == ["opencodego.web", "opencodego.local", "opencodego.api"])
     }
 
     @Test
@@ -105,8 +105,8 @@ struct OpenCodeGoProviderStrategyTests {
         let environmentStrategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
             self.makeContext(env: ["CODEXBAR_OPENCODEGO_WORKSPACE_ID": " \t "]))
 
-        #expect(settingsStrategies.map(\.id) == ["opencodego.local", "opencodego.web"])
-        #expect(environmentStrategies.map(\.id) == ["opencodego.local", "opencodego.web"])
+        #expect(settingsStrategies.map(\.id) == ["opencodego.local", "opencodego.api", "opencodego.web"])
+        #expect(environmentStrategies.map(\.id) == ["opencodego.local", "opencodego.api", "opencodego.web"])
     }
 
     @Test
@@ -115,6 +115,14 @@ struct OpenCodeGoProviderStrategyTests {
         let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(self.makeContext(sourceMode: .web))
 
         #expect(strategies.map(\.id) == ["opencodego.web"])
+    }
+
+    @Test
+    func `api source uses only the public usage endpoint`() async {
+        let descriptor = OpenCodeGoProviderDescriptor.makeDescriptor()
+        let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(self.makeContext(sourceMode: .api))
+
+        #expect(strategies.map(\.id) == ["opencodego.api"])
     }
 
     @Test
@@ -143,6 +151,24 @@ struct OpenCodeGoProviderStrategyTests {
         #expect(strategy.shouldFallback(on: OpenCodeGoUsageError.invalidCredentials, context: autoContext))
         #expect(!strategy.shouldFallback(on: OpenCodeGoUsageError.networkError("timeout"), context: autoContext))
         #expect(!strategy.shouldFallback(on: OpenCodeGoSettingsError.missingCookie, context: webContext))
+    }
+
+    @Test
+    func `web strategy surfaces authentication failures for selected token accounts`() {
+        let strategy = OpenCodeGoUsageFetchStrategy()
+        let settings = ProviderSettingsSnapshot.make(opencodego: .init(
+            cookieSource: .manual,
+            manualCookieHeader: "auth=selected",
+            workspaceID: nil))
+        let manualContext = self.makeContext(settings: settings)
+        let selectedAccountContext = self.makeContext(selectedTokenAccountID: UUID())
+
+        #expect(!strategy.shouldFallback(on: OpenCodeGoSettingsError.invalidCookie, context: manualContext))
+        #expect(!strategy.shouldFallback(on: OpenCodeGoUsageError.invalidCredentials, context: manualContext))
+        #expect(!strategy.shouldFallback(on: OpenCodeGoSettingsError.missingCookie, context: selectedAccountContext))
+        #expect(!strategy.shouldFallback(
+            on: OpenCodeGoUsageError.invalidCredentials,
+            context: selectedAccountContext))
     }
 
     @Test

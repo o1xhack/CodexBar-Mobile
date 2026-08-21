@@ -544,6 +544,16 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
+    func `english quit app label resolves without format placeholders`() {
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            let label = L("quit_app")
+            #expect(label == "Quit CodexBar")
+            #expect(!label.contains("%@"))
+            #expect(!label.contains("%d"))
+        }
+    }
+
+    @Test
     func `german app language resolves localized labels`() {
         let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-de")
         settings.appLanguage = "de"

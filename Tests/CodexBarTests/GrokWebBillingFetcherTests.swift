@@ -24,7 +24,7 @@ struct GrokWebBillingFetcherTests {
 
     @Test
     func `provider exposes cli and web source modes`() {
-        #expect(GrokProviderDescriptor.descriptor.fetchPlan.sourceModes == [.auto, .cli, .web])
+        #expect(GrokProviderDescriptor.descriptor.fetchPlan.sourceModes == [.auto, .cli, .oauth, .web])
     }
 
     @Test
@@ -214,7 +214,7 @@ struct GrokWebBillingFetcherTests {
     }
 
     @Test
-    func `web strategy preserves malformed auth file error`() async throws {
+    func `oauth strategy preserves malformed auth file error`() async throws {
         let grokHome = FileManager.default.temporaryDirectory
             .appendingPathComponent("CodexBar-GrokWebBilling-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: grokHome, withIntermediateDirectories: true)
@@ -224,7 +224,7 @@ struct GrokWebBillingFetcherTests {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         let context = ProviderFetchContext(
             runtime: .cli,
-            sourceMode: .web,
+            sourceMode: .oauth,
             includeCredits: true,
             webTimeout: 1,
             webDebugDumpHTML: false,
@@ -236,7 +236,7 @@ struct GrokWebBillingFetcherTests {
             browserDetection: browserDetection)
 
         await #expect {
-            _ = try await GrokWebFetchStrategy().fetch(context)
+            _ = try await GrokOAuthFetchStrategy().fetch(context)
         } throws: { error in
             guard case GrokCredentialsError.decodeFailed = error else { return false }
             return true

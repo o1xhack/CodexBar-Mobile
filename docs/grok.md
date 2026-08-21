@@ -13,6 +13,15 @@ fetched via the ACP JSON-RPC `x.ai/billing` extension method over `grok agent st
 when available, then via the Grok CLI billing REST API using the local login token.
 The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 
+## Settings source picker
+
+- **Auto**: Grok CLI, then SuperGrok OAuth CLI-proxy, then browser cookies, then bearer gRPC.
+- **Grok CLI**: `grok agent stdio` only.
+- **SuperGrok OAuth**: `~/.grok/auth.json` or a pasted bearer / `GROK_OAUTH_TOKEN`. CLI-proxy credits, then bearer gRPC. No cookies.
+- **Browser cookies**: grok.com Cookie header / Chrome import only. No OAuth bearer.
+- Token accounts classify at fetch time: bearer → OAuth, `Cookie:` / `name=value` → cookies, `xai-` management keys rejected.
+- Selecting a SuperGrok token account remaps Auto to OAuth or Web so it cannot hit an empty `.oauth` pipeline.
+
 ## Data sources + fallback order
 
 1) **`~/.grok/auth.json` (primary identity source)**
@@ -49,18 +58,17 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      without either value represents zero usage. The reset timestamp comes from
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
    - Plan name does not come from the credits payload. After a successful
-     auth-file web billing result (CLI-proxy) or the team identity-only path,
-     CodexBar GETs `https://cli-chat-proxy.grok.com/v1/settings` with the same
-     bearer headers and reads `subscription_tier_display` (`SuperGrok Heavy` vs
-     `SuperGrok`). Cookie/gRPC fallbacks are a different browser session and do
-     not reuse the auth-file settings tier. The request uses a 2-second timeout
+     auth-file or SuperGrok OAuth web billing result (CLI-proxy) or the team
+     identity-only path, CodexBar GETs `https://cli-chat-proxy.grok.com/v1/settings`
+     with the same bearer headers and reads `subscription_tier_display`
+     (`SuperGrok Heavy` vs `SuperGrok`). Cookie mode does not call the proxy.
+     If the proxy fails, OAuth retries the grok.com bearer gRPC path, still
+     without cookies. Cookie/gRPC fallbacks are a different browser session and
+     do not reuse the auth-file settings tier. The request uses a 2-second timeout
      and `BoundedTaskJoin`, so a stuck settings call cannot delay already-fetched
      usage by 15 seconds. Settings timeouts, request failures, and 200 responses
      that omit `subscription_tier_display` all drop the plan overlay and fall
      back to the OIDC SuperGrok label. There is no process-lifetime tier cache.
-   - This is the Grok CLI's supported token-authenticated billing backend. If it
-     fails, CodexBar continues through the existing browser-cookie and legacy
-     bearer fallbacks.
 4) **grok.com billing gRPC-web fallback** (best-effort)
    - POSTs an empty gRPC-web protobuf request to
      `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig`.
@@ -95,7 +103,8 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 
 ## OAuth credentials
 
-- File: `~/.grok/auth.json` (path overridable via `GROK_HOME`).
+- File: `~/.grok/auth.json` (path overridable via `GROK_HOME`). This remains
+  the preferred identity source when `grok login` has written a non-expired token.
 - Top-level keys are OIDC scope URLs. CodexBar prefers entries under
   `https://auth.x.ai::<client-id>` (SuperGrok), falling back to
   `https://accounts.x.ai/sign-in` (legacy session).
@@ -104,6 +113,15 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
   `principal_type` is optional because older auth files do not include it.
 - Tokens are issued by `grok login` and expire after ~7 days; refresh is handled by
   the CLI itself (CodexBar does not refresh; it just reads the cached credential).
+- If `auth.json` is missing or expired, paste a SuperGrok bearer into Grok token
+  accounts or set `GROK_OAUTH_TOKEN`. Cookie-shaped values and `xai-` management
+  keys are rejected. The pasted token uses the same CLI-proxy credits URL.
+- Settings also expose a cookie source (Auto / Manual / Off). Manual accepts a
+  grok.com Cookie header when Chrome Safe Storage is denied. Auto still imports
+  Chrome only.
+- Credits `subscriptionTier` maps SuperGrok vs SuperGrok Heavy on the plan badge.
+  SuperGrok Heavy with no `creditUsagePercent` is unknown usage, not 0%.
+
 
 ## JSON-RPC contract
 
@@ -179,8 +197,13 @@ Each session directory contains `signals.json` with fields like:
 ```
 
 CodexBar aggregates these into a `GrokLocalSessionSummary` (session count, total
-tokens, last session time, primary model) and exposes it for diagnostics even when
-the RPC path is unavailable.
+tokens, last session time, primary model, per-day token buckets) and exposes it for
+diagnostics even when the RPC path is unavailable.
+
+Those local daily token buckets also feed the shared Usage & Spend catalog so an
+enabled Grok subscription is counted instead of omitted. SuperGrok/X Premium+
+credits remain a quota window on the usage bar; they are never converted into
+dollars.
 
 ## Status
 

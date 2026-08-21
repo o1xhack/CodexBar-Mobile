@@ -565,9 +565,8 @@ extension StatusItemController {
         // Rows may be built into a detached scratch menu for in-place reconciliation;
         // interaction closures must always reference the live menu they end up serving.
         let interactionMenu = captureMenu ?? menu
-        let overviewProviders = self.settings.reconcileMergedOverviewSelectedProviders(
-            activeProviders: enabledProviders)
-        let rows: [(provider: UsageProvider, model: UsageMenuCardView.Model)] = overviewProviders
+        let providerScopes = self.overviewProviderScopes(enabledProviders: enabledProviders)
+        let rows: [(provider: UsageProvider, model: UsageMenuCardView.Model)] = providerScopes.visible
             .compactMap { provider in
                 guard let model = self.menuCardModel(for: provider) else { return nil }
                 guard !model.isOverviewErrorOnly else { return nil }
@@ -577,6 +576,38 @@ extension StatusItemController {
 
         let t0 = CACurrentMediaTime()
         defer { self.logChartRenderDurationIfSlow("addOverviewRows(\(rows.count))", startedAt: t0) }
+
+        let spendProviders = providerScopes.spend
+        let spendModel = self.overviewSpendDashboardModel(providers: spendProviders)
+        let spendProviderCount = self.overviewSpendSubscriptionCount(providers: spendProviders)
+        if spendProviderCount > 0 {
+            let knownCounts = self.overviewSpendKnownSubscriptionCounts(
+                providers: spendProviders,
+                model: spendModel)
+            let spendSummary = OverviewSpendSummary(
+                model: spendModel,
+                providerCount: spendProviderCount,
+                knownCostProviderCount: knownCounts.cost,
+                knownTokenProviderCount: knownCounts.tokens)
+            let summaryItem = self.makeMenuCardItem(
+                OverviewSpendSummaryCardView(
+                    summary: spendSummary,
+                    days: spendModel.requestedDays,
+                    width: menuWidth),
+                id: "overviewSpendSummary",
+                width: menuWidth,
+                heightCacheScope: "overviewSpendSummary",
+                heightCacheFingerprint: [
+                    spendSummary.primarySpendText,
+                    spendSummary.providerCoverageText,
+                    spendSummary.tokenText ?? "",
+                    spendSummary.historyCoverageText,
+                    spendSummary.pricingCoverageText,
+                    spendSummary.provenanceText,
+                ].joined(separator: "|"))
+            menu.addItem(summaryItem)
+            menu.addItem(.separator())
+        }
 
         for (index, row) in rows.enumerated() {
             let identifier = "\(Self.overviewRowIdentifierPrefix)\(row.provider.rawValue)"
@@ -611,6 +642,21 @@ extension StatusItemController {
             }
         }
         return true
+    }
+
+    func overviewProviderScopes(
+        enabledProviders: [UsageProvider]) -> (visible: [UsageProvider], spend: [UsageProvider])
+    {
+        let visible = self.settings.reconcileMergedOverviewSelectedProviders(
+            activeProviders: enabledProviders)
+        var seenSpendProviders = Set<UsageProvider>()
+        let spend = enabledProviders.filter { provider in
+            seenSpendProviders.insert(provider).inserted &&
+                self.settings.costSummaryShowsInline(for: provider)
+        }
+        return (
+            visible: visible,
+            spend: spend)
     }
 
     private func addOverviewEmptyState(to menu: NSMenu, enabledProviders: [UsageProvider]) {

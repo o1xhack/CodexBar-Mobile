@@ -11,6 +11,10 @@ extension ProviderFetchContext {
 public enum CodexProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
 
+    /// PAT lives in Codex CLI `auth.json`, not ProviderConfig.apiKey.
+    private static let credentials = ProviderCredentialAdapter(
+        requiresAPIKeyForAPISource: false)
+
     /// Preserve the legacy prompt behavior before probing Chromium variants that may trigger Safe Storage prompts.
     private static var browserCookieOrder: BrowserCookieImportOrder? {
         #if os(macOS)
@@ -27,6 +31,7 @@ public enum CodexProviderDescriptor {
             menuBarMetrics: ProviderMenuBarMetricCapabilities(
                 supported: [.automatic, .primary, .secondary, .primaryAndSecondary]),
             settingsSection: .init(CodexProviderSettingsKey.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .codex,
                 displayName: "Codex",
@@ -113,7 +118,7 @@ public enum CodexProviderDescriptor {
                     creditsVisibility: .requiresValueOrError,
                     supportsInlineTokenCostDashboard: true)),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .web, .cli, .oauth],
+                sourceModes: [.auto, .web, .cli, .oauth, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
             cli: ProviderCLIConfig(
                 name: "codex",
@@ -126,38 +131,39 @@ public enum CodexProviderDescriptor {
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
+        let pat = CodexPATFetchStrategy()
         let cli = CodexCLIUsageStrategy()
         let oauth = CodexOAuthFetchStrategy()
         let web = CodexWebDashboardStrategy()
-
+        let oauthWithNativeRefresh: [any ProviderFetchStrategy] = [oauth, CodexOAuthNativeRefreshCLIStrategy()]
         switch context.runtime {
         case .cli:
             switch context.sourceMode {
             case .oauth:
-                return [oauth, CodexOAuthNativeRefreshCLIStrategy()]
+                return oauthWithNativeRefresh
             case .web:
                 return [web]
             case .cli:
                 return [cli]
             case .api:
-                return []
+                return [pat]
             case .auto:
                 // Preserve the fork's CLI-only dashboard fallback while respecting upstream's
                 // managed-workspace boundary: workspace-scoped requests must stay on OAuth.
-                return context.codexWorkspaceID == nil ? [web, oauth, cli] : [oauth]
+                return context.codexWorkspaceID == nil ? [pat, web, oauth, cli] : [pat, oauth]
             }
         case .app:
             switch context.sourceMode {
             case .oauth:
-                return [oauth, CodexOAuthNativeRefreshCLIStrategy()]
+                return oauthWithNativeRefresh
             case .cli:
                 return [cli]
             case .web:
                 return [web]
             case .api:
-                return []
+                return [pat]
             case .auto:
-                return context.codexWorkspaceID == nil ? [oauth, cli] : [oauth]
+                return context.codexWorkspaceID == nil ? [pat, oauth, cli] : [pat, oauth]
             }
         }
     }
@@ -251,9 +257,13 @@ public enum CodexProviderDescriptor {
 
     public static func resolveUsageStrategy(
         selectedDataSource: CodexUsageDataSource,
-        hasOAuthCredentials: Bool) -> CodexUsageStrategy
+        hasOAuthCredentials: Bool,
+        hasPATCredentials: Bool = false) -> CodexUsageStrategy
     {
         if selectedDataSource == .auto {
+            if hasPATCredentials {
+                return CodexUsageStrategy(dataSource: .pat)
+            }
             if hasOAuthCredentials {
                 return CodexUsageStrategy(dataSource: .oauth)
             }

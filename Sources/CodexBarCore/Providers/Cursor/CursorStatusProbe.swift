@@ -1253,12 +1253,22 @@ public struct CursorStatusProbe: Sendable {
         value: Value,
         context: ResolvedSessionReconciliationContext<Value>) async throws -> Value
     {
-        let stored = CookieHeaderCache.storeIfObservationCurrent(
+        let mutation = CookieHeaderCache.storeIfObservationCurrentResult(
             provider: .cursor,
             expected: context.cacheObservation,
             cookieHeader: context.cookieHeader,
             sourceLabel: context.sourceLabel)
-        guard !stored else { return value }
+        switch mutation {
+        case .stored:
+            return value
+        case .storageUnavailable:
+            // The API already validated this session. Publishing its result is safe while the
+            // unchanged mutation generation prevents an interactive account switch from reaching here.
+            context.log("Cursor session cache is temporarily unavailable; using the validated result")
+            return value
+        case .rejected:
+            break
+        }
         guard let replacement = CookieHeaderCache.load(provider: .cursor) else {
             context.log("Cursor session from \(context.sourceLabel) lost cache ownership without a replacement")
             throw CursorStatusProbeError.networkError("Cursor session changed during refresh")

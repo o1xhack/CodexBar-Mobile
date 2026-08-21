@@ -313,6 +313,39 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
+    func `partial spend copy exists in every app catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(
+            at: resourcesURL,
+            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+
+        #expect(catalogs.count == 23)
+        for catalogURL in catalogs {
+            let stringsURL = catalogURL.appendingPathComponent("Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
+            let estimate = try #require(catalog["Partial estimate"])
+            let breakdown = try #require(catalog["Partial model breakdown"])
+            let subscriptions = try #require(catalog["%d of %d subscriptions have spend"])
+            #expect(!estimate.isEmpty, "\(catalogURL.lastPathComponent)")
+            #expect(!breakdown.isEmpty, "\(catalogURL.lastPathComponent)")
+            #expect(!estimate.contains("%"), "\(catalogURL.lastPathComponent)")
+            #expect(!breakdown.contains("%"), "\(catalogURL.lastPathComponent)")
+            #expect(subscriptions.contains("%d"), "\(catalogURL.lastPathComponent)")
+            if catalogURL.lastPathComponent == "en.lproj" {
+                #expect(estimate == "Partial estimate")
+                #expect(breakdown == "Partial model breakdown")
+                #expect(subscriptions == "%d of %d subscriptions have spend")
+                #expect(String(format: subscriptions, 1, 3) == "1 of 3 subscriptions have spend")
+            }
+        }
+    }
+
+    @Test
     func `catalan localization matches the English catalog`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -553,6 +586,7 @@ struct LocalizationLanguageCatalogTests {
             "section_privacy",
             "session_quota_estimate_value_format",
             "tab_menu",
+            "OpenCodex",
         ]
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)

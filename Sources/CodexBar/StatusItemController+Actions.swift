@@ -18,6 +18,16 @@ enum LoginNotificationLogic {
     }
 }
 
+extension StatusItemController {
+    func setSettingsOpenHandler(_ handler: @escaping @MainActor (SettingsPane?) -> Void) {
+        self.settingsOpenHandler = handler
+    }
+
+    func isEnabled(_ provider: UsageProvider) -> Bool {
+        self.store.isEnabled(provider)
+    }
+}
+
 extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     // MARK: - Actions reachable from menus
 
@@ -614,21 +624,14 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     private func openSettings(pane: SettingsPane?) {
-        DispatchQueue.main.async {
-            if let pane {
-                self.preferencesSelection.pane = pane
-            }
-            NSApp.activate(ignoringOtherApps: true)
-            let outcome = SettingsWindowOpener.live().open()
-            switch outcome {
-            case .settingsSelector:
-                break
-            case .preferencesSelector:
-                self.menuLogger.warning("Modern Settings action was not handled; used legacy Preferences action")
-            case .failed:
-                self.menuLogger.error("Failed to open Settings; AppKit actions were not handled")
-            }
+        // End status-menu tracking before AppDelegate schedules activation and presentation.
+        // Otherwise AppKit can restore the previously active app after Settings is already visible.
+        _ = self.closeOpenMenusFromShortcutIfNeeded()
+        guard let settingsOpenHandler else {
+            self.menuLogger.error("Settings open handler was not configured")
+            return
         }
+        settingsOpenHandler(pane)
     }
 
     @objc func quit() {

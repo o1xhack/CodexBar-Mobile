@@ -154,12 +154,13 @@ struct SettingsStoreCoverageTests {
         let configStore = testConfigStore(suiteName: suite)
 
         let initial = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(initial.backgroundWorkLowPowerModePreference == .off)
         #expect(initial.backgroundWorkLowPowerModeEnabled == false)
-        #expect(defaults.object(forKey: "backgroundWorkLowPowerModeEnabled") == nil)
+        #expect(defaults.string(forKey: "backgroundWorkLowPowerModePreference") == "off")
         #expect(initial.effectiveOpenAIWebBatterySaverEnabled == false)
 
         let revision = initial.backgroundWorkSettingsRevision
-        initial.backgroundWorkLowPowerModeEnabled = true
+        initial.backgroundWorkLowPowerModePreference = .on
 
         #expect(initial.backgroundWorkSettingsRevision == revision + 1)
         #expect(initial.effectiveOpenAIWebBatterySaverEnabled)
@@ -168,9 +169,22 @@ struct SettingsStoreCoverageTests {
         #expect(reloaded.backgroundWorkLowPowerModeEnabled)
         #expect(reloaded.effectiveOpenAIWebBatterySaverEnabled)
 
-        reloaded.backgroundWorkLowPowerModeEnabled = false
+        reloaded.backgroundWorkLowPowerModePreference = .off
         reloaded.openAIWebBatterySaverEnabled = true
         #expect(reloaded.effectiveOpenAIWebBatterySaverEnabled)
+    }
+
+    @Test
+    func `background low power mode migrates legacy enabled flag to on preference`() throws {
+        let suite = "SettingsStoreCoverageTests-background-low-power-migration"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(true, forKey: "backgroundWorkLowPowerModeEnabled")
+        let configStore = testConfigStore(suiteName: suite)
+
+        let migrated = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(migrated.backgroundWorkLowPowerModePreference == .on)
+        #expect(defaults.string(forKey: "backgroundWorkLowPowerModePreference") == "on")
     }
 
     @Test
