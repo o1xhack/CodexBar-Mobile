@@ -90,8 +90,8 @@ rendered HTML must not replace the source Markdown.
 ### Validation results
 
 - `node Scripts/test_upstream_release_monitor.mjs`: pass, including plain/encoded user and team-style mentions,
-  idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, fork render context, and a
-  residual live-mention fail-closed case.
+  idempotency, fenced/inline code, ordinary email/URL/link and GFM delimiter preservation, balanced parentheses in
+  Markdown destinations and standalone URLs, fork render context, and a residual live-mention fail-closed case.
 - Live GitHub GFM before/after fixture preserved task-list, alert, footnote, and Mermaid render counts while reducing
   rendered mention anchors to 0.
 - `node Scripts/upstream-release-monitor.mjs --dry-run`: pass against the live API; preserved existing v0.53.0 issue #95

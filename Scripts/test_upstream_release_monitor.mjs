@@ -16,6 +16,10 @@ const sourceMarkdown = [
   "- Keep [a relative link](/issues?q=assignee:@octocat) intact.",
   "- Keep [a balanced link](https://example.com/a(b)?assignee=@octocat) intact.",
   '- Keep [a titled link](https://example.com/@octocat "title (") intact.',
+  "- Keep https://example.com/a(b)?assignee=@octocat intact.",
+  "- Keep ftp://example.com/a((b))?assignee=@octocat intact.",
+  "- Keep //example.com/a(b)?assignee=@octocat intact.",
+  "- Keep www.example.com/a(b)?assignee=@octocat intact.",
   "- Keep <//example.com/@octocat> intact.",
   "- Encoded attribution: &#64;encoded-user.",
   "- Inline code: `@inline-user`.",
@@ -40,6 +44,10 @@ const expectedMarkdown = [
   "- Keep [a relative link](/issues?q=assignee:@octocat) intact.",
   "- Keep [a balanced link](https://example.com/a(b)?assignee=@octocat) intact.",
   '- Keep [a titled link](https://example.com/@octocat "title (") intact.',
+  "- Keep https://example.com/a(b)?assignee=@octocat intact.",
+  "- Keep ftp://example.com/a((b))?assignee=@octocat intact.",
+  "- Keep //example.com/a(b)?assignee=@octocat intact.",
+  "- Keep www.example.com/a(b)?assignee=@octocat intact.",
   "- Keep <//example.com/@octocat> intact.",
   "- Encoded attribution: &#64;\u2060encoded-user.",
   "- Inline code: `@inline-user`.",
@@ -89,6 +97,10 @@ assert.equal(
 assert.equal(
   neutralizeImportedMarkdownMentions("cc:@octocat foo/@octocat foo+@octocat"),
   `cc:${inertMention("octocat")} foo/${inertMention("octocat")} foo+${inertMention("octocat")}`,
+);
+assert.equal(
+  neutralizeImportedMarkdownMentions("https://example.com/a)@octocat"),
+  `https://example.com/a)${inertMention("octocat")}`,
 );
 
 const renderCalls = [];

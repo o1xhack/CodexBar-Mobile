@@ -439,26 +439,73 @@ function neutralizeProseMentionTokens(markdown) {
 }
 
 function neutralizeProseMentionsOutsideLinkDestinations(markdown) {
-  const protectedSpan = new RegExp(
+  const protectedSyntax = new RegExp(
     [
       String.raw`^[ \t]{0,3}\[[^\]\r\n]+\]:[ \t]*(?:<[^>\r\n]*>|[^\s]+)`,
-      String.raw`(?:(?:https?|ftp):)?//[^\s<>()]+`,
-      String.raw`\bwww\.[^\s<>()]+`,
       String.raw`<!--[^\r\n]*-->|<\/?[A-Za-z][^>\r\n]*>`,
     ].join("|"),
     "gim",
   );
+  const protectedSpans = findStandaloneUrlSpans(markdown);
+
+  for (const match of markdown.matchAll(protectedSyntax)) {
+    protectedSpans.push({ start: match.index, end: match.index + match[0].length });
+  }
+
+  protectedSpans.sort((left, right) => left.start - right.start || right.end - left.end);
   let output = "";
   let proseStart = 0;
 
-  for (const match of markdown.matchAll(protectedSpan)) {
-    output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart, match.index));
-    output += match[0];
-    proseStart = match.index + match[0].length;
+  for (const span of protectedSpans) {
+    if (span.end <= proseStart) {
+      continue;
+    }
+    if (span.start <= proseStart) {
+      output += markdown.slice(proseStart, span.end);
+      proseStart = span.end;
+      continue;
+    }
+    output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart, span.start));
+    output += markdown.slice(span.start, span.end);
+    proseStart = span.end;
   }
 
   output += neutralizeNonUrlMentionTokens(markdown.slice(proseStart));
   return output;
+}
+
+function findStandaloneUrlSpans(markdown) {
+  const spans = [];
+  const urlStart = /(?:(?:https?|ftp):\/\/|\/\/|\bwww\.)/gim;
+
+  for (const match of markdown.matchAll(urlStart)) {
+    const start = match.index;
+    let cursor = start + match[0].length;
+    const openingParentheses = [];
+
+    while (cursor < markdown.length && !/[\s<>"']/.test(markdown[cursor])) {
+      if (markdown[cursor] === "\\") {
+        cursor += 2;
+        continue;
+      }
+      if (markdown[cursor] === "(") {
+        openingParentheses.push(cursor);
+      } else if (markdown[cursor] === ")") {
+        if (openingParentheses.length === 0) {
+          break;
+        }
+        openingParentheses.pop();
+      }
+      cursor += 1;
+    }
+
+    if (openingParentheses.length > 0) {
+      cursor = openingParentheses[0];
+    }
+    spans.push({ start, end: cursor });
+  }
+
+  return spans;
 }
 
 function findMarkdownLinkDestinationSpans(markdown) {
