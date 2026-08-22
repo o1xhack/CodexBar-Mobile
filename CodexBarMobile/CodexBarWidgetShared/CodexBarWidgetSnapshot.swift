@@ -274,6 +274,11 @@ enum CodexBarWidgetSnapshotBuilder {
         }
 
         let summaries = providers.map { self.summary(for: $0, now: now) }
+        let costSummaries = providers.compactMap(\.costSummary)
+        let todayCostIsIncomplete = costSummaries.contains {
+            self.todayTotals(from: $0, now: now).costIsKnown == false
+        }
+        let thirtyDayCostIsIncomplete = costSummaries.contains(where: \.hasIncompleteHistoricalCostCoverage)
         let todayCost = summaries.compactMap(\.todayCostUSD).reduce(0, +)
         let thirtyDayCost = summaries.compactMap(\.thirtyDayCostUSD).reduce(0, +)
         let todayTokens = summaries.compactMap(\.tokensToday).reduce(0, +)
@@ -298,8 +303,8 @@ enum CodexBarWidgetSnapshotBuilder {
             deviceCount: activeSnapshots.count,
             providerCount: summaries.count,
             errorCount: errorCount,
-            todayCostUSD: todayCost > 0 ? todayCost : nil,
-            thirtyDayCostUSD: thirtyDayCost > 0 ? thirtyDayCost : nil,
+            todayCostUSD: !todayCostIsIncomplete && todayCost > 0 ? todayCost : nil,
+            thirtyDayCostUSD: !thirtyDayCostIsIncomplete && thirtyDayCost > 0 ? thirtyDayCost : nil,
             todayTokens: todayTokens > 0 ? todayTokens : nil,
             maxUsagePercent: maxUsage,
             topProviders: Array(topProviders.prefix(6)),
@@ -326,7 +331,7 @@ enum CodexBarWidgetSnapshotBuilder {
             loginMethod: provider.loginMethod,
             usagePercent: usagePercent,
             todayCostUSD: today?.costUSD,
-            thirtyDayCostUSD: provider.costSummary?.last30DaysCostUSD,
+            thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD,
             tokensToday: today?.tokens,
             isError: provider.isError,
             statusMessage: provider.statusMessage,
@@ -336,12 +341,18 @@ enum CodexBarWidgetSnapshotBuilder {
     private static func todayTotals(
         from summary: SyncCostSummary,
         now: Date
-    ) -> (costUSD: Double?, tokens: Int?) {
+    ) -> (costUSD: Double?, tokens: Int?, costIsKnown: Bool?) {
         let dayKey = Self.dayKey(for: now)
         if let point = summary.daily.first(where: { $0.dayKey == dayKey }) {
-            return (point.costUSD, point.totalTokens)
+            return (
+                point.costIsKnown == false ? nil : point.costUSD,
+                point.totalTokens,
+                point.costIsKnown)
         }
-        return (summary.sessionCostUSD, summary.sessionTokens)
+        return (
+            summary.sessionCostUSD,
+            summary.sessionTokens,
+            summary.sessionCostUSD == nil ? nil : true)
     }
 
     private static func dayKey(for date: Date) -> String {

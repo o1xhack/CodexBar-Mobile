@@ -63,6 +63,7 @@ struct CWLAggregateTests {
         daysAgo: Int,
         cost: Double,
         tokens: Int,
+        costIsKnown: Bool? = nil,
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
         lastUpdated: Date) throws
@@ -74,6 +75,7 @@ struct CWLAggregateTests {
             dayKey: self.dayKey(daysAgo: daysAgo),
             costUSD: cost,
             totalTokens: tokens,
+            costIsKnown: costIsKnown,
             isEstimated: nil,
             modelBreakdowns: modelBreakdowns,
             serviceBreakdowns: serviceBreakdowns,
@@ -82,6 +84,33 @@ struct CWLAggregateTests {
     }
 
     // MARK: - T4
+
+    @Test
+    func `cost availability survives the ledger writer and reader`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "grok",
+            daysAgo: 0,
+            cost: 0,
+            tokens: 100,
+            costIsKnown: false,
+            lastUpdated: Self.asOf)
+        try context.save()
+
+        let stored = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(stored.costIsKnown == false)
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30,
+            in: context,
+            asOf: Self.asOf)
+        #expect(aggregation.dailyPoints.first?.costIsKnown == false)
+        #expect(aggregation.providerRollups.values.first?.dailyPoints.first?.costIsKnown == false)
+    }
 
     @Test
     func `T4: single-device aggregate — totals, activeDayCount, providerRollups`() throws {

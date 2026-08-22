@@ -283,13 +283,13 @@ struct SyncProviderMapperTests {
             modelCount: 2,
             daily: [
                 MistralDailyUsageBucket(
-                    day: "2026-05-25", cost: 1.5, inputTokens: 400, cachedTokens: 100, outputTokens: 200,
+                    day: "2023-11-13", cost: 1.5, inputTokens: 400, cachedTokens: 100, outputTokens: 200,
                     models: [
                         .init(name: "mistral-large", cost: 1.0, inputTokens: 300, cachedTokens: 50, outputTokens: 150),
                         .init(name: "free-model", cost: 0, inputTokens: 100, cachedTokens: 50, outputTokens: 50),
                     ]),
                 MistralDailyUsageBucket(
-                    day: "2026-05-26", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300,
+                    day: "2023-11-14", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300,
                     models: [
                         .init(name: "mixtral", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300),
                     ]),
@@ -325,15 +325,88 @@ struct SyncProviderMapperTests {
             provider: .mistral, snapshot: self.snapshot(mistral: self.mistralFixture())))
         #expect(summary.last30DaysCostUSD == 4.2)
         #expect(summary.last30DaysTokens == 1700) // 1000 + 500 + 200
+        #expect(summary.sessionCostUSD == nil)
+        #expect(summary.sessionTokens == nil)
         #expect(summary.daily.count == 2)
 
-        let day25 = try #require(summary.daily.first { $0.dayKey == "2026-05-25" })
+        let day25 = try #require(summary.daily.first { $0.dayKey == "2023-11-13" })
         #expect(day25.costUSD == 1.5)
         #expect(day25.totalTokens == 700) // 400 + 100 + 200
+        #expect(day25.costIsKnown == true)
+        #expect(summary.costProvenance == .vendorMetered)
+        #expect(summary.historyCoverageIsEstablished == true)
         // free-model (cost 0) is filtered out; only the paid model survives.
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
+    }
+
+    @Test
+    func `mapMistralCostSummary: sparse history does not publish an old bucket as Today`() throws {
+        let sparse = MistralUsageSnapshot(
+            totalCost: 1.5, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 400, totalOutputTokens: 200, totalCachedTokens: 100,
+            modelCount: 1,
+            daily: [MistralDailyUsageBucket(
+                day: "2023-11-13", cost: 1.5,
+                inputTokens: 400, cachedTokens: 100, outputTokens: 200,
+                models: [.init(
+                    name: "mistral-large", cost: 1.5,
+                    inputTokens: 400, cachedTokens: 100, outputTokens: 200)])],
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: sparse)))
+
+        #expect(summary.sessionCostUSD == nil)
+        #expect(summary.sessionTokens == nil)
+        #expect(summary.last30DaysCostUSD == 1.5)
+        #expect(summary.last30DaysTokens == 700)
+    }
+
+    @Test
+    func `mapMistralCostSummary: preserves an authoritative zero-cost day`() throws {
+        let zero = MistralUsageSnapshot(
+            totalCost: 0, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 10, totalOutputTokens: 5, totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [MistralDailyUsageBucket(
+                day: "2023-11-14", cost: 0,
+                inputTokens: 10, cachedTokens: 0, outputTokens: 5,
+                models: [.init(
+                    name: "free-model", cost: 0,
+                    inputTokens: 10, cachedTokens: 0, outputTokens: 5)])],
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: zero)))
+
+        #expect(summary.daily.first?.costUSD == 0)
+        #expect(summary.daily.first?.costIsKnown == true)
+        #expect(summary.last30DaysCostUSD == 0)
+        #expect(summary.costProvenance == .vendorMetered)
+    }
+
+    @Test
+    func `mapMistralCostSummary: invalid raw totals remain unavailable`() throws {
+        let invalid = MistralUsageSnapshot(
+            totalCost: 5.0, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 1000, totalOutputTokens: 500, totalCachedTokens: 200,
+            modelCount: 2,
+            daily: self.mistralFixture().daily,
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: invalid)))
+
+        #expect(summary.last30DaysCostUSD == nil)
+        #expect(summary.last30DaysTokens == 1700)
+        #expect(summary.daily.allSatisfy { $0.costUSD == 0 && $0.costIsKnown == false })
+        #expect(summary.daily.flatMap(\.modelBreakdowns).isEmpty)
+        #expect(summary.costProvenance == .unknown)
+        #expect(summary.coverage?.unpriced == 2)
     }
 
     // MARK: - E: Azure OpenAI info

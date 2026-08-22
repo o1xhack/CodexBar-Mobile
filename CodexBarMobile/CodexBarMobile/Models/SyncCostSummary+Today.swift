@@ -37,6 +37,13 @@ extension SyncCostSummary {
         /// `sessionCostUSD` fallback path (session totals don't carry
         /// per-model estimation flags).
         public let isEstimated: Bool?
+        /// `false` means a zero cost is only a token-only wire placeholder.
+        /// `nil` is a legacy payload and retains its historical display.
+        public let costIsKnown: Bool?
+
+        public var displayCostUSD: Double? {
+            self.costIsKnown == false ? nil : self.costUSD
+        }
     }
 
     /// Returns the cost/tokens for today in the user's current timezone,
@@ -53,12 +60,14 @@ extension SyncCostSummary {
             return TodayTotals(
                 costUSD: todayPoint.costUSD,
                 tokens: todayPoint.totalTokens,
-                isEstimated: todayPoint.isEstimated)
+                isEstimated: todayPoint.isEstimated,
+                costIsKnown: todayPoint.costIsKnown)
         }
         return TodayTotals(
             costUSD: self.sessionCostUSD,
             tokens: self.sessionTokens,
-            isEstimated: nil)
+            isEstimated: nil,
+            costIsKnown: self.sessionCostUSD == nil ? nil : true)
     }
 
     /// Thread-safe ISO 8601 `yyyy-MM-dd` day key, in the user's current

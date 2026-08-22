@@ -55,6 +55,10 @@ struct ShareCardData {
     let providers: [ProviderRow]
     let topModels: [BreakdownRow]
     let dailyBars: [DailyBar]      // bars for chart (7 or 30 entries)
+    var totalCostIsKnown = true
+    var todayCostIsKnown = true
+    var costCoverageIsIncomplete = false
+    var avgDailyCostIsKnown = true
 
     struct ProviderRow {
         let name: String
@@ -72,6 +76,7 @@ struct ShareCardData {
     struct DailyBar {
         let label: String // "Mon", "03/15", etc.
         let cost: Double
+        var costIsKnown = true
     }
 
     /// Top 5 providers + "Others" if 6 or more exist (iOS 1.9.0+: bumped from
@@ -90,6 +95,19 @@ struct ShareCardData {
             color: .gray
         )
         return top5 + [others]
+    }
+
+    var chartMaximumCost: Double {
+        let maximum = self.dailyBars
+            .filter(\.costIsKnown)
+            .map(\.cost)
+            .max() ?? 0
+        return maximum > 0 ? maximum : 1
+    }
+
+    func chartBarHeight(for day: DailyBar, chartHeight: CGFloat) -> CGFloat {
+        guard day.costIsKnown, day.cost > 0 else { return 0 }
+        return max(2, CGFloat(day.cost / self.chartMaximumCost) * chartHeight)
     }
 }
 
@@ -156,19 +174,102 @@ extension ShareCardData {
         let monthStart = calendar.date(byAdding: .day, value: -29, to: today)!
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
 
-        // Filter daily points by period
-        let filteredDays: [CostDashboardInsights.DailyPoint]
-        switch period {
-        case .today:
-            filteredDays = insights.dailyPoints.filter { calendar.isDate($0.date, inSameDayAs: today) }
-        case .week:
-            filteredDays = insights.dailyPoints.filter { $0.date >= weekStart && $0.date < tomorrow }
-        case .month:
-            filteredDays = insights.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
+        // Rebuild daily display values from provider rows instead of reusing
+        // the dashboard-wide daily accumulator. The latter deliberately marks
+        // a whole day unavailable when any provider is unavailable; share-card
+        // totals, however, retain the known provider contributions as a
+        // qualified lower bound. Using the same reducer here keeps totals,
+        // active-day counts, bars, and model rows internally consistent.
+        func providerDailyPoints(where includes: (Date) -> Bool) -> [CostDashboardInsights.DailyPoint] {
+            typealias Accumulator = (
+                date: Date,
+                costUSD: Double,
+                totalTokens: Int,
+                sawAvailableCost: Bool,
+                sawUnavailableCost: Bool,
+                hasCostActivity: Bool,
+                modelCosts: [String: Double],
+                serviceCosts: [String: Double]
+            )
+            var totals: [String: Accumulator] = [:]
+
+            for row in insights.providerRows {
+                for point in row.dailyPoints where includes(point.date) {
+                    var total = totals[point.dayKey] ?? (
+                        point.date, 0, 0, false, false, false, [:], [:])
+                    total.totalTokens += point.totalTokens
+                    total.hasCostActivity = total.hasCostActivity || point.hasCostActivity
+                    if point.costIsKnown == false {
+                        total.sawUnavailableCost = true
+                    } else {
+                        total.sawAvailableCost = true
+                        total.costUSD += point.costUSD
+                        for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
+                            total.modelCosts[breakdown.label, default: 0] += breakdown.costUSD
+                        }
+                        for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
+                            total.serviceCosts[breakdown.label, default: 0] += breakdown.costUSD
+                        }
+                    }
+                    totals[point.dayKey] = total
+                }
+            }
+
+            return totals.map { dayKey, total in
+                CostDashboardInsights.DailyPoint(
+                    dayKey: dayKey,
+                    date: total.date,
+                    costUSD: total.costUSD,
+                        costIsKnown: total.sawAvailableCost
+                            ? true
+                            : total.sawUnavailableCost ? false : nil,
+                        hasCostActivity: total.hasCostActivity,
+                        totalTokens: total.totalTokens,
+                    modelBreakdowns: total.modelCosts.map {
+                        SyncCostBreakdown(label: $0.key, costUSD: $0.value)
+                    },
+                    serviceBreakdowns: total.serviceCosts.map {
+                        SyncCostBreakdown(label: $0.key, costUSD: $0.value)
+                    })
+            }
+            .sorted { $0.date < $1.date }
+        }
+
+        func selectedPeriodIncludes(_ date: Date) -> Bool {
+            switch period {
+            case .today:
+                calendar.isDate(date, inSameDayAs: today)
+            case .week:
+                date >= weekStart && date < tomorrow
+            case .month:
+                date >= monthStart && date < tomorrow
+            }
+        }
+
+        // Filter provider-aware daily points by period. Keep a separate check
+        // over the provider rows because the cross-provider reducer retains a
+        // known lower-bound contribution when another provider is unavailable.
+        // That merged day is useful for totals, but it must not authorize a
+        // fallback to dashboard-wide model costs that may contain the
+        // unavailable provider's breakdowns.
+        let filteredDays = providerDailyPoints { selectedPeriodIncludes($0) }
+        let selectedPeriodHasUnavailableProviderCost = insights.providerRows.contains { row in
+            row.dailyPoints.contains {
+                selectedPeriodIncludes($0.date) && $0.costIsKnown == false
+            }
         }
 
         func monthlyDailyPoints(for row: CostDashboardInsights.ProviderRow) -> [CostDashboardInsights.DailyPoint] {
             row.dailyPoints.filter { $0.date >= monthStart && $0.date < tomorrow }
+        }
+
+        func weeklyCost(for row: CostDashboardInsights.ProviderRow) -> (value: Double, isKnown: Bool) {
+            let availableDaily = row.dailyPoints
+                .filter { $0.date >= weekStart && $0.date < tomorrow }
+                .filter { $0.costIsKnown != false }
+            return (
+                availableDaily.reduce(0) { $0 + $1.costUSD },
+                !availableDaily.isEmpty)
         }
 
         let dayKeyFormatter = SyncCostSummary.iso8601DayKeyFormatter()
@@ -182,7 +283,8 @@ extension ShareCardData {
                 guard let date = dayKeyFormatter.date(from: point.dayKey) else { return false }
                 return date >= monthStart && date < tomorrow
             }
-            let dailyCost = monthlyPoints.isEmpty ? nil : monthlyPoints.reduce(0) { $0 + $1.costUSD }
+            let availablePoints = monthlyPoints.filter { $0.costIsKnown != false }
+            let dailyCost = availablePoints.isEmpty ? nil : availablePoints.reduce(0) { $0 + $1.costUSD }
             let dailyTokens = monthlyPoints.isEmpty ? nil : monthlyPoints.reduce(0) { $0 + $1.totalTokens }
             guard summaryWindowDays <= 30 else {
                 return (dailyCost, dailyTokens)
@@ -192,12 +294,13 @@ extension ShareCardData {
                 summary.last30DaysTokens ?? dailyTokens)
         }
 
-        func monthlyCost(for row: CostDashboardInsights.ProviderRow) -> Double {
-            let dailyCost = monthlyDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+        func monthlyCost(for row: CostDashboardInsights.ProviderRow) -> (value: Double, isKnown: Bool) {
+            let availableDaily = monthlyDailyPoints(for: row).filter { $0.costIsKnown != false }
+            let dailyCost = availableDaily.reduce(0) { $0 + $1.costUSD }
             guard let summaryCost = authoritativeThirtyDaySummary(for: row).costUSD else {
-                return dailyCost
+                return (dailyCost, !availableDaily.isEmpty)
             }
-            return max(dailyCost, summaryCost)
+            return (max(dailyCost, summaryCost), true)
         }
 
         func monthlyTokens(for row: CostDashboardInsights.ProviderRow) -> Int {
@@ -230,18 +333,42 @@ extension ShareCardData {
             dailyPoints: [CostDashboardInsights.DailyPoint],
             modelBreakdowns: [SyncCostBreakdown]
         ) {
-            var totals: [String: (date: Date, costUSD: Double, totalTokens: Int)] = [:]
+            var totals: [String: (
+                date: Date,
+                costUSD: Double,
+                totalTokens: Int,
+                sawAvailableCost: Bool,
+                sawUnavailableCost: Bool,
+                hasCostActivity: Bool
+            )] = [:]
             var modelTotals: [String: Double] = [:]
             func addDay(
                 dayKey: String,
                 date: Date,
                 costUSD: Double,
+                costIsKnown: Bool?,
                 totalTokens: Int,
                 modelBreakdowns: [SyncCostBreakdown])
             {
-                totals[dayKey, default: (date, 0, 0)].costUSD += costUSD
-                totals[dayKey, default: (date, 0, 0)].totalTokens += totalTokens
-                for breakdown in modelBreakdowns where breakdown.costUSD > 0 {
+                totals[dayKey, default: (date, 0, 0, false, false, false)].totalTokens += totalTokens
+                if costUSD > 0 {
+                    totals[dayKey]?.hasCostActivity = true
+                }
+                if costIsKnown == false {
+                    totals[dayKey]?.sawUnavailableCost = true
+                } else {
+                    // Keep the visible lower-bound contribution even when a
+                    // different provider on the same day is unavailable.
+                    totals[dayKey]?.sawAvailableCost = true
+                    totals[dayKey]?.costUSD += costUSD
+                }
+                // Keep Top Models on the same truth boundary as the day total.
+                // A producer may retain non-zero breakdowns while explicitly
+                // marking the row unavailable; those values must not reappear
+                // as dollar shares after the subtotal itself is suppressed.
+                for breakdown in modelBreakdowns
+                    where costIsKnown != false && breakdown.costUSD > 0
+                {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
                 }
             }
@@ -252,6 +379,7 @@ extension ShareCardData {
                             dayKey: point.dayKey,
                             date: point.date,
                             costUSD: point.costUSD,
+                            costIsKnown: point.costIsKnown,
                             totalTokens: point.totalTokens,
                             modelBreakdowns: point.modelBreakdowns)
                     }
@@ -262,6 +390,7 @@ extension ShareCardData {
                             dayKey: point.dayKey,
                             date: date,
                             costUSD: point.costUSD,
+                            costIsKnown: point.costIsKnown,
                             totalTokens: point.totalTokens,
                             modelBreakdowns: point.modelBreakdowns)
                     }
@@ -273,6 +402,10 @@ extension ShareCardData {
                         dayKey: dayKey,
                         date: total.date,
                         costUSD: total.costUSD,
+                        costIsKnown: total.sawAvailableCost
+                            ? true
+                            : total.sawUnavailableCost ? false : nil,
+                        hasCostActivity: total.hasCostActivity,
                         totalTokens: total.totalTokens)
                 }
                 .sorted { $0.date < $1.date }
@@ -298,7 +431,7 @@ extension ShareCardData {
                     totals[breakdown.label, default: 0] += breakdown.costUSD
                 }
             } else {
-                for point in filteredDays {
+                for point in filteredDays where point.costIsKnown != false {
                     for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                         totals[breakdown.label, default: 0] += breakdown.costUSD
                     }
@@ -312,6 +445,7 @@ extension ShareCardData {
             let usesDashboardWindow = period != .month || !monthlyUsesProviderSummary
             if totals.isEmpty,
                usesDashboardWindow,
+               !selectedPeriodHasUnavailableProviderCost,
                (insights.historyDays ?? 30) <= periodDays
             {
                 let fallbackRows = insights.modelRows
@@ -356,25 +490,69 @@ extension ShareCardData {
 
         // Compute totals
         let periodCost: Double
+        let periodCostIsKnown: Bool
         let periodTokens: Int
         let monthlySummaryData = monthlySummaryDisplayData()
         let monthlySummaryDays = monthlySummaryData.dailyPoints
+        let missingDailyCostIsKnown: Bool
+        if let cwlWindowDays = insights.cwlWindowDays {
+            // `cwlWindowDays` is only the requested query range. A newly
+            // seeded ledger may contain much less history, and ledger rows are
+            // sparse: one row at the start of the range does not prove every
+            // later gap was observed. Missing dates become authoritative zeroes
+            // only when every visible producer explicitly certifies a complete
+            // 30-day window.
+            missingDailyCostIsKnown = cwlWindowDays >= 30 &&
+                !insights.providerRows.isEmpty &&
+                insights.providerRows.allSatisfy { row in
+                    guard let summary = row.provider.costSummary else { return false }
+                    return summary.historyCoverageIsEstablished == true &&
+                        !summary.hasIncompleteHistoricalCostCoverage &&
+                        (summary.historyDays ?? 30) >= 30
+                }
+        } else {
+            let summaries = insights.providerRows.compactMap(\.provider.costSummary)
+            // A nil coverage bit is the legacy pre-v0.53 contract and keeps
+            // its historical display semantics. Only explicit modern evidence
+            // (`false`, unavailable days, or coverage gaps) makes the padded
+            // calendar dates unknown on the blob path.
+            missingDailyCostIsKnown = !summaries.isEmpty &&
+                summaries.count == insights.providerRows.count &&
+                summaries.allSatisfy { summary in
+                    guard !summary.hasIncompleteHistoricalCostCoverage,
+                          (summary.historyDays ?? 30) >= 30
+                    else { return false }
+                    // A legacy summary with daily rows used sparse dates, so
+                    // omitted dates retain the historical known-zero meaning.
+                    // A summary-only non-zero total cannot establish how that
+                    // spend was distributed across the calendar; only an
+                    // explicit modern coverage certificate can fill its gaps.
+                    return summary.historyCoverageIsEstablished == true ||
+                        !summary.daily.isEmpty
+                }
+        }
         let monthlyUsesProviderSummary: Bool
         switch period {
         case .today:
             periodCost = insights.totalTodayCost
+            periodCostIsKnown = insights.totalTodayCostIsKnown
             periodTokens = insights.providerRows.reduce(0) { total, row in
                 total + row.todayTokens
             }
             monthlyUsesProviderSummary = false
         case .week:
-            periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
+            let weeklyProviderCosts = insights.providerRows.map(weeklyCost(for:))
+            periodCost = weeklyProviderCosts.reduce(0) { $0 + $1.value }
+            periodCostIsKnown = weeklyProviderCosts.contains(where: \.isKnown)
             periodTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
             monthlyUsesProviderSummary = false
         case .month:
-            let providerCost = insights.providerRows.reduce(0) { $0 + monthlyCost(for: $1) }
-            let dailyCost = filteredDays.reduce(0) { $0 + $1.costUSD }
+            let monthlyProviderCosts = insights.providerRows.map(monthlyCost(for:))
+            let providerCost = monthlyProviderCosts.reduce(0) { $0 + $1.value }
+            let availableDays = filteredDays.filter { $0.costIsKnown != false }
+            let dailyCost = availableDays.reduce(0) { $0 + $1.costUSD }
             periodCost = providerCost > 0 ? providerCost : dailyCost
+            periodCostIsKnown = monthlyProviderCosts.contains(where: \.isKnown) || !availableDays.isEmpty
             let providerTokens = insights.providerRows.reduce(0) { $0 + monthlyTokens(for: $1) }
             let dailyTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
             periodTokens = providerTokens > 0 ? providerTokens : dailyTokens
@@ -396,11 +574,9 @@ extension ShareCardData {
             case .today:
                 cost = row.todayCost
             case .week:
-                cost = row.dailyPoints
-                    .filter { $0.date >= weekStart && $0.date < tomorrow }
-                    .reduce(0) { $0 + $1.costUSD }
+                cost = weeklyCost(for: row).value
             case .month:
-                cost = monthlyCost(for: row)
+                cost = monthlyCost(for: row).value
             }
             return ProviderRow(
                 name: row.provider.providerName,
@@ -418,12 +594,12 @@ extension ShareCardData {
             activeDays = 1
         case .week:
             displayDays = filteredDays
-            activeDays = displayDays.count(where: { $0.costUSD > 0 })
+            activeDays = displayDays.count(where: \.hasCostActivity)
         case .month:
             displayDays = monthlyUsesProviderSummary && !monthlySummaryDays.isEmpty
                 ? monthlySummaryDays
                 : filteredDays
-            activeDays = displayDays.count(where: { $0.costUSD > 0 })
+            activeDays = displayDays.count(where: \.hasCostActivity)
         }
 
         self.totalCost = periodCost
@@ -447,11 +623,18 @@ extension ShareCardData {
         case .today:
             self.dailyBars = []
         case .week:
-            self.dailyBars = displayDays.map { point in
+            self.dailyBars = displayDays.filter { $0.costIsKnown != false }.map { point in
                 DailyBar(label: weekdayFormatter.string(from: point.date), cost: point.costUSD)
             }
         case .month:
-            self.dailyBars = displayDays.enumerated().map { index, point in
+            let pointsByDay = Dictionary(uniqueKeysWithValues: displayDays.map {
+                (calendar.startOfDay(for: $0.date), $0)
+            })
+            self.dailyBars = (0..<30).compactMap { index in
+                guard let date = calendar.date(byAdding: .day, value: index, to: monthStart) else {
+                    return nil
+                }
+                let point = pointsByDay[date]
                 let dayNum = index + 1
                 // Label every 7th day (= one label per week) plus day 1 and
                 // the final day for visual anchors. On a 30-day window this
@@ -460,10 +643,26 @@ extension ShareCardData {
                 // count: 7)` gridlines, so the share card and dashboard
                 // chart read as a matching pair. Changing the 7 here will
                 // un-sync the two charts — also update ContentView's stride.
-                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == displayDays.count
-                return DailyBar(label: showLabel ? "\(dayNum)" : "", cost: point.costUSD)
+                let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == 30
+                let costIsKnown = point?.costIsKnown != false
+                    && (point != nil || missingDailyCostIsKnown)
+                return DailyBar(
+                    label: showLabel ? "\(dayNum)" : "",
+                    cost: costIsKnown ? point?.costUSD ?? 0 : 0,
+                    costIsKnown: costIsKnown)
             }
         }
+        self.totalCostIsKnown = periodCostIsKnown
+        self.todayCostIsKnown = insights.totalTodayCostIsKnown
+        self.costCoverageIsIncomplete = insights.hasIncompleteCostData ||
+            self.dailyBars.contains(where: { !$0.costIsKnown })
+        // A retained lower-bound subtotal is useful, but dividing it by only
+        // the fully priced days overstates Avg/Day. Keep the subtotal visible
+        // with its incomplete-coverage warning and suppress the derived
+        // average until the whole contributing window is comparable.
+        self.avgDailyCostIsKnown = periodCostIsKnown
+            && activeDays > 0
+            && !self.costCoverageIsIncomplete
     }
 }
 

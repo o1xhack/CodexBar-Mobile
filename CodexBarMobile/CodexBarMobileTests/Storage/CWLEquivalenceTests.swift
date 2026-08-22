@@ -407,6 +407,152 @@ struct CWLEquivalenceTests {
         #expect(row.thirtyDayTokens == 700)
     }
 
+    @Test("CWL token-only today stays unavailable instead of falling back to session cost")
+    func testLedgerTokenOnlyTodayStaysUnavailable() throws {
+        let todayKey = SyncCostSummary.iso8601DayKey(for: Date())
+        let point = SyncDailyPoint(
+            dayKey: todayKey,
+            costUSD: 0,
+            totalTokens: 900,
+            costIsKnown: false)
+        let rollup = CostLedgerProviderRollup(
+            providerID: "grok",
+            accountEmail: nil,
+            totalCostUSD: 0,
+            totalTokens: 900,
+            dailyPoints: [point],
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 0,
+            totalTokens: 900,
+            activeDayCount: 0,
+            providerRollups: ["grok": rollup],
+            dailyPoints: [point],
+            modelMix: [],
+            serviceMix: [])
+        let provider = ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 12,
+                sessionTokens: 900,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: 900,
+                daily: []))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: Date(),
+            deviceName: "Mac")
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot)
+        let row = try #require(insights.providerRows.first)
+
+        #expect(row.todayCost == 0)
+        #expect(!row.todayCostIsKnown)
+        #expect(insights.hasIncompleteCostData)
+    }
+
+    @Test("CWL keeps coverage-only providers visible for the incomplete warning")
+    func testLedgerKeepsCoverageOnlyProvider() throws {
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: nil,
+                daily: [],
+                coverage: SyncCostCoverage(priced: 0, unpriced: 0, unmetered: 1, estimated: 0),
+                historyCoverageIsEstablished: false))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: Date(),
+            deviceName: "Mac")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot)
+
+        #expect(insights.providerRows.count == 1)
+        #expect(insights.hasDisplayData)
+        #expect(insights.hasIncompleteCostData)
+        #expect(!insights.total30DayCostIsKnown)
+    }
+
+    @Test("CWL keeps authoritative zero summaries visible and known")
+    func testLedgerKeepsAuthoritativeZeroSummary() throws {
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 0,
+                sessionTokens: 0,
+                last30DaysCostUSD: 0,
+                last30DaysTokens: 0,
+                daily: [],
+                historyDays: 30,
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: Date(),
+            deviceName: "Mac")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot)
+
+        #expect(insights.providerRows.count == 1)
+        #expect(insights.total30DayCost == 0)
+        #expect(insights.totalTodayCost == 0)
+        #expect(insights.total30DayCostIsKnown)
+        #expect(insights.totalTodayCostIsKnown)
+        #expect(!insights.hasIncompleteCostData)
+    }
+
     @Test("Equivalence holds with multi-account providers (two Codex accounts)")
     func testEquivalenceMultiAccount() throws {
         let url = self.makeTempStoreURL()

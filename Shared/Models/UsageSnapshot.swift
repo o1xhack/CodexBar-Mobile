@@ -107,6 +107,10 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
     /// for payloads from Mac builds before 0.23 — iOS treats nil as
     /// `false` (not estimated). See `Research/018-model-fallback-pricing.md` §6.
     public let isEstimated: Bool?
+    /// `true` when `costUSD == 0` is an authoritative zero; `false` when zero
+    /// is only the wire placeholder for token usage whose cost is unknown.
+    /// `nil` preserves the display behavior of payloads written before v0.54.
+    public let costIsKnown: Bool?
 
     public init(
         dayKey: String,
@@ -114,7 +118,8 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         totalTokens: Int,
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
-        isEstimated: Bool? = nil)
+        isEstimated: Bool? = nil,
+        costIsKnown: Bool? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
@@ -122,6 +127,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.modelBreakdowns = modelBreakdowns
         self.serviceBreakdowns = serviceBreakdowns
         self.isEstimated = isEstimated
+        self.costIsKnown = costIsKnown
     }
 
     public init(from decoder: Decoder) throws {
@@ -140,6 +146,103 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.serviceBreakdowns =
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .serviceBreakdowns) ?? []
         self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
+        self.costIsKnown = try container.decodeIfPresent(Bool.self, forKey: .costIsKnown)
+    }
+}
+
+/// Display-safe provenance for a synced cost total. This mirrors the Mac
+/// accounting model without exposing local paths, session IDs, or credentials.
+public enum SyncCostProvenance: String, Codable, Sendable, Equatable {
+    case listPriceEstimate
+    case vendorMetered
+    case mixed
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: rawValue) ?? .unknown
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.rawValue)
+    }
+}
+
+/// Request/row coverage for the synced cost window. Optional on
+/// `SyncCostSummary` so payloads from Macs before 0.53 decode unchanged.
+public struct SyncCostCoverage: Codable, Sendable, Equatable {
+    public let priced: Int
+    public let unpriced: Int
+    public let unmetered: Int
+    public let estimated: Int
+
+    public init(priced: Int, unpriced: Int, unmetered: Int, estimated: Int) {
+        self.priced = max(0, priced)
+        self.unpriced = max(0, unpriced)
+        self.unmetered = max(0, unmetered)
+        self.estimated = max(0, estimated)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            priced: try container.decodeIfPresent(Int.self, forKey: .priced) ?? 0,
+            unpriced: try container.decodeIfPresent(Int.self, forKey: .unpriced) ?? 0,
+            unmetered: try container.decodeIfPresent(Int.self, forKey: .unmetered) ?? 0,
+            estimated: try container.decodeIfPresent(Int.self, forKey: .estimated) ?? 0)
+    }
+
+    public var total: Int {
+        SyncCounterMath.saturatingSum([self.priced, self.unpriced, self.unmetered, self.estimated])
+    }
+
+    public var pricedOrEstimated: Int {
+        SyncCounterMath.saturatingSum([self.priced, self.estimated])
+    }
+}
+
+/// Token-class mix for the synced cost window. `nil` per field means the Mac
+/// source did not establish that class; it must not be rendered as zero.
+public struct SyncCostTokenMix: Codable, Sendable, Equatable {
+    public let inputTokens: Int?
+    public let outputTokens: Int?
+    public let cacheReadTokens: Int?
+    public let cacheCreationTokens: Int?
+    public let reasoningTokens: Int?
+
+    public init(
+        inputTokens: Int? = nil,
+        outputTokens: Int? = nil,
+        cacheReadTokens: Int? = nil,
+        cacheCreationTokens: Int? = nil,
+        reasoningTokens: Int? = nil)
+    {
+        self.inputTokens = Self.nonnegative(inputTokens)
+        self.outputTokens = Self.nonnegative(outputTokens)
+        self.cacheReadTokens = Self.nonnegative(cacheReadTokens)
+        self.cacheCreationTokens = Self.nonnegative(cacheCreationTokens)
+        self.reasoningTokens = Self.nonnegative(reasoningTokens)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            inputTokens: try container.decodeIfPresent(Int.self, forKey: .inputTokens),
+            outputTokens: try container.decodeIfPresent(Int.self, forKey: .outputTokens),
+            cacheReadTokens: try container.decodeIfPresent(Int.self, forKey: .cacheReadTokens),
+            cacheCreationTokens: try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens),
+            reasoningTokens: try container.decodeIfPresent(Int.self, forKey: .reasoningTokens))
+    }
+
+    public var hasAnyValue: Bool {
+        self.inputTokens != nil || self.outputTokens != nil || self.cacheReadTokens != nil
+            || self.cacheCreationTokens != nil || self.reasoningTokens != nil
+    }
+
+    private static func nonnegative(_ value: Int?) -> Int? {
+        guard let value, value >= 0 else { return nil }
+        return value
     }
 }
 
@@ -166,6 +269,18 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let sessionRequests: Int?
     public let last30DaysRequests: Int?
     public let currencyCode: String?
+    /// Provider-metered spend for the same history window, when the provider
+    /// exposes it separately from API list-price estimates.
+    public let meteredCostUSD: Double?
+    /// How the window's cost was produced. Optional for pre-0.53 payloads.
+    public let costProvenance: SyncCostProvenance?
+    /// Row coverage for the cost total. Optional for pre-0.53 payloads.
+    public let coverage: SyncCostCoverage?
+    /// Input/output/cache/reasoning token mix. Optional for pre-0.53 payloads.
+    public let tokenMix: SyncCostTokenMix?
+    /// `false` means the Mac is still scanning the configured history window.
+    /// Optional for pre-0.53 payloads, where iOS preserves the old display.
+    public let historyCoverageIsEstablished: Bool?
 
     public init(
         sessionCostUSD: Double?,
@@ -177,7 +292,12 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         historyDays: Int? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
-        currencyCode: String? = nil)
+        currencyCode: String? = nil,
+        meteredCostUSD: Double? = nil,
+        costProvenance: SyncCostProvenance? = nil,
+        coverage: SyncCostCoverage? = nil,
+        tokenMix: SyncCostTokenMix? = nil,
+        historyCoverageIsEstablished: Bool? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
@@ -189,6 +309,26 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode
+        self.meteredCostUSD = meteredCostUSD
+        self.costProvenance = costProvenance
+        self.coverage = coverage
+        self.tokenMix = tokenMix
+        self.historyCoverageIsEstablished = historyCoverageIsEstablished
+    }
+
+    /// True when a modern writer explicitly reports that the history-window
+    /// amount is only a lower bound. Legacy payloads keep their historical
+    /// behavior because all of these additive fields decode as `nil`.
+    public var hasIncompleteHistoricalCostCoverage: Bool {
+        self.historyCoverageIsEstablished == false ||
+            self.daily.contains(where: { $0.costIsKnown == false }) ||
+            (self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } ?? false)
+    }
+
+    /// Compact surfaces have no room for a coverage qualifier, so they must
+    /// suppress partial history totals instead of presenting them as complete.
+    public var completeHistoryCostUSD: Double? {
+        self.hasIncompleteHistoricalCostCoverage ? nil : self.last30DaysCostUSD
     }
 }
 
@@ -1151,5 +1291,16 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(self.appVersion, forKey: .appVersion)
         try container.encodeIfPresent(self.mobileVersion, forKey: .mobileVersion)
         try container.encodeIfPresent(self.notificationPushEnabled, forKey: .notificationPushEnabled)
+    }
+}
+
+/// Arithmetic for counters decoded from the sync payload. A corrupt or future
+/// writer must not be able to crash readers by overflowing an `Int` aggregate.
+public enum SyncCounterMath {
+    public static func saturatingSum<S: Sequence>(_ values: S) -> Int where S.Element == Int {
+        values.reduce(0) { partial, value in
+            let (sum, overflow) = partial.addingReportingOverflow(value)
+            return overflow ? Int.max : sum
+        }
     }
 }

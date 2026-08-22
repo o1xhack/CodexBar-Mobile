@@ -11,14 +11,17 @@ struct UserProviderPluginTests {
     @Test
     func `JavaScript plugin discovers approves fetches and produces a generic snapshot`() async throws {
         let fixture = try Fixture()
-        defer { fixture.remove() }
         let pluginURL = try fixture.write(
             name: "acme.js",
             source: Self.javaScriptPlugin(origin: "https://api.acme.test"))
         let transport = RecordingTransport(responseJSON: #"{"used":42}"#)
         let loader = fixture.loader(transport: transport)
+        defer { fixture.remove() }
 
-        let results = UserProviderPluginRegistry.refresh(loader: loader)
+        // Exercise discovery through the isolated loader. Registering this
+        // fixture in the process-global registry leaks a default-enabled
+        // `acme-meter` into unrelated suites running concurrently.
+        let results = loader.discover()
         let plugin = try #require(results.first?.plugin)
         #expect(plugin.fileURL.resolvingSymlinksInPath() == pluginURL.resolvingSymlinksInPath())
         #expect(plugin.manifest.id.rawValue == "acme-meter")

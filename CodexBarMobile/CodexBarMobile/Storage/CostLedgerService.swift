@@ -209,6 +209,7 @@ enum CostLedgerService {
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
+                costIsKnown: point.costIsKnown,
                 isEstimated: point.isEstimated,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
@@ -237,6 +238,7 @@ enum CostLedgerService {
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
+        costIsKnown: Bool? = nil,
         isEstimated: Bool?,
         modelBreakdowns: [SyncCostBreakdown],
         serviceBreakdowns: [SyncCostBreakdown],
@@ -270,14 +272,37 @@ enum CostLedgerService {
             existing.accountRecordKey = accountRecordKey
             existing.accountIdentityKey = accountIdentityKey
             existing.accountIdentitiesData = identityData
+            // Token-cost publications can change without advancing the
+            // provider usage timestamp. Keep the ledger byte-for-byte aligned
+            // with the current blob whenever an equal-time pricing/catch-up
+            // refresh changes any cost payload field. This also makes a
+            // rolling-upgrade nil-to-known availability backfill atomic with
+            // its recomputed amount, token, and breakdown values.
+            if existing.lastUpdated == lastUpdated,
+               existing.costUSD != costUSD ||
+               existing.totalTokens != totalTokens ||
+               existing.costIsKnown != costIsKnown ||
+               existing.isEstimated != isEstimated ||
+               existing.modelBreakdownsData != modelData ||
+               existing.serviceBreakdownsData != serviceData
+            {
+                existing.costUSD = costUSD
+                existing.totalTokens = totalTokens
+                existing.costIsKnown = costIsKnown
+                existing.isEstimated = isEstimated
+                existing.modelBreakdownsData = modelData
+                existing.serviceBreakdownsData = serviceData
+                return
+            }
             // Dedup. Skip if we already have data at least as fresh for
-            // this exact (deviceID, providerID, dayKey). Same `lastUpdated`
-            // = same Mac, same cycle = redundant write; older = stale.
+            // this exact (deviceID, providerID, dayKey). An identical
+            // same-time payload is redundant; an older payload is stale.
             if existing.lastUpdated >= lastUpdated {
                 return
             }
             existing.costUSD = costUSD
             existing.totalTokens = totalTokens
+            existing.costIsKnown = costIsKnown
             existing.isEstimated = isEstimated
             existing.modelBreakdownsData = modelData
             existing.serviceBreakdownsData = serviceData
@@ -293,6 +318,7 @@ enum CostLedgerService {
                 dayKey: dayKey,
                 costUSD: costUSD,
                 totalTokens: totalTokens,
+                costIsKnown: costIsKnown,
                 isEstimated: isEstimated,
                 modelBreakdownsData: modelData,
                 serviceBreakdownsData: serviceData,
@@ -337,6 +363,7 @@ enum CostLedgerService {
                 if legacy.lastUpdated > existing.lastUpdated {
                     existing.costUSD = legacy.costUSD
                     existing.totalTokens = legacy.totalTokens
+                    existing.costIsKnown = legacy.costIsKnown
                     existing.isEstimated = legacy.isEstimated
                     existing.modelBreakdownsData = legacy.modelBreakdownsData
                     existing.serviceBreakdownsData = legacy.serviceBreakdownsData
@@ -661,6 +688,7 @@ enum CostLedgerService {
                     dayKey: point.dayKey,
                     costUSD: point.costUSD,
                     totalTokens: point.totalTokens,
+                    costIsKnown: point.costIsKnown,
                     isEstimated: point.isEstimated,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
@@ -877,6 +905,7 @@ enum CostLedgerService {
         let dayKey: String
         let costUSD: Double
         let totalTokens: Int
+        let costIsKnown: Bool?
         let isEstimated: Bool?
         let modelBreakdowns: [SyncCostBreakdown]
         let serviceBreakdowns: [SyncCostBreakdown]
@@ -894,6 +923,7 @@ enum CostLedgerService {
             self.dayKey = row.dayKey
             self.costUSD = row.costUSD
             self.totalTokens = row.totalTokens
+            self.costIsKnown = row.costIsKnown
             self.isEstimated = row.isEstimated
             self.modelBreakdowns = Self.decodeBreakdowns(row.modelBreakdownsData, decoder: decoder)
             self.serviceBreakdowns = Self.decodeBreakdowns(row.serviceBreakdownsData, decoder: decoder)
@@ -922,6 +952,7 @@ enum CostLedgerService {
                 dayKey: first.dayKey,
                 costUSD: dayAccumulator.costUSD,
                 totalTokens: dayAccumulator.totalTokens,
+                costIsKnown: dayAccumulator.mergedCostIsKnown,
                 isEstimated: dayAccumulator.isEstimated ? true : nil,
                 modelBreakdowns: dayAccumulator.modelBreakdownsArray,
                 serviceBreakdowns: dayAccumulator.serviceBreakdownsArray)
@@ -935,6 +966,7 @@ enum CostLedgerService {
             dayKey: String,
             costUSD: Double,
             totalTokens: Int,
+            costIsKnown: Bool?,
             isEstimated: Bool?,
             modelBreakdowns: [SyncCostBreakdown],
             serviceBreakdowns: [SyncCostBreakdown])
@@ -946,6 +978,7 @@ enum CostLedgerService {
             self.dayKey = dayKey
             self.costUSD = costUSD
             self.totalTokens = totalTokens
+            self.costIsKnown = costIsKnown
             self.isEstimated = isEstimated
             self.modelBreakdowns = modelBreakdowns
             self.serviceBreakdowns = serviceBreakdowns
@@ -964,6 +997,9 @@ enum CostLedgerService {
         var costUSD: Double = 0
         var totalTokens: Int = 0
         var isEstimated = false
+        var sawKnownCost = false
+        var sawUnknownCost = false
+        var sawUnavailableCost = false
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
 
@@ -972,6 +1008,11 @@ enum CostLedgerService {
             self.totalTokens += point.totalTokens
             if point.isEstimated == true {
                 self.isEstimated = true
+            }
+            switch point.costIsKnown {
+            case true: self.sawKnownCost = true
+            case false: self.sawUnavailableCost = true
+            case nil: self.sawUnknownCost = true
             }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
@@ -1000,7 +1041,14 @@ enum CostLedgerService {
                 totalTokens: self.totalTokens,
                 modelBreakdowns: self.modelBreakdownsArray,
                 serviceBreakdowns: self.serviceBreakdownsArray,
-                isEstimated: self.isEstimated ? true : nil)
+                isEstimated: self.isEstimated ? true : nil,
+                costIsKnown: self.mergedCostIsKnown)
+        }
+
+        var mergedCostIsKnown: Bool? {
+            if self.sawUnavailableCost { return false }
+            if self.sawUnknownCost { return nil }
+            return self.sawKnownCost ? true : nil
         }
     }
 

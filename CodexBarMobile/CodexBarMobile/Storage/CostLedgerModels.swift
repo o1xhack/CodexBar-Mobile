@@ -21,7 +21,8 @@ import SwiftData
 // by `CWLMigrationTests` / T16). No `VersionedSchema` / `SchemaMigrationPlan`
 // introduced this round — current `ModelContainerFactory` policy is
 // "init-failure → delete + recreate" (it's a CloudKit cache, can be
-// repopulated). Revisit once a real field-change migration is needed.
+// repopulated). Additive optional fields such as `costIsKnown` remain eligible
+// for SwiftData's lightweight migration.
 
 @Model
 final class DailyCostPoint {
@@ -55,6 +56,9 @@ final class DailyCostPoint {
 
     var costUSD: Double
     var totalTokens: Int
+    /// Three-state wire availability: true = authoritative cost (including
+    /// zero), false = cost unavailable, nil = legacy writer with no metadata.
+    var costIsKnown: Bool?
     /// Mirrors `SyncCostBreakdown.isEstimated` rolled up to the day. Preserved
     /// so the iOS estimated-badge (P5) still works under CWL.
     var isEstimated: Bool?
@@ -84,6 +88,7 @@ final class DailyCostPoint {
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
+        costIsKnown: Bool? = nil,
         isEstimated: Bool? = nil,
         modelBreakdownsData: Data? = nil,
         serviceBreakdownsData: Data? = nil,
@@ -104,6 +109,7 @@ final class DailyCostPoint {
         self.dayKey = dayKey
         self.costUSD = costUSD
         self.totalTokens = totalTokens
+        self.costIsKnown = costIsKnown
         self.isEstimated = isEstimated
         self.modelBreakdownsData = modelBreakdownsData
         self.serviceBreakdownsData = serviceBreakdownsData

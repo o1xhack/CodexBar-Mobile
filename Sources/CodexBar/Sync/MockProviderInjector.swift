@@ -350,7 +350,8 @@ enum MockProviderInjector {
                     breakdown("claude-opus-4-7", dailyUSD * 0.3),
                 ],
                 serviceBreakdowns: [],
-                isEstimated: false)
+                isEstimated: false,
+                costIsKnown: true)
         }
         return SyncCostSummary(
             sessionCostUSD: sessionUSD,

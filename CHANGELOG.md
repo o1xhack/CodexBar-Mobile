@@ -494,6 +494,24 @@
 - Ollama: reuse validated browser sessions across refreshes, and skip inaccessible Safari cookies during automatic
   fallback while preserving explicit Safari permission guidance (#2404). Thanks @hxy91819!
 
+## 0.45.2.2 — 2026-07-24
+
+### Fixed
+- Alibaba Token Plan: restore the authenticated 5-hour and weekly rate windows, keep the legacy monthly credit response as a fallback, and label each restored window by its actual duration. Thanks @rohitsabu!
+
+## 0.45.2.1 — 2026-07-19
+
+### Added
+- Mobile sync: bridge upstream v0.42.0-v0.45.2 providers to iPhone, including typed sub2api account totals and Wayfinder routing/savings payloads.
+- Mobile: register ClinePass, DeepInfra, Neuralwatt, LongCat, sub2api, Wayfinder, ZenMux, and ai& for quota notifications and mock QA.
+
+### Changed
+- Mobile sync: preserve third provider quota windows, while retaining legacy Kimi K2 and CrossModel payload decoding for mixed old/new Mac installations.
+- Fork release: version the combined upstream range as Mac `0.45.2.1` (`109.1.1.19.0` Sparkle build) and iOS `1.19.0 (188)`.
+
+### Fixed
+- Fork integration: preserve mobile/iCloud sync, Production CloudKit, collision-safe versioning, and fork CI/release policy while incorporating all upstream fixes through v0.45.2.
+
 ## 0.45.2 — 2026-07-19
 
 ### Fixed

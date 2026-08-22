@@ -63,6 +63,9 @@ struct CostDiagnosticsReport: Equatable {
     let windowDays: Int
     let totalCostUSD: Double
     let todayCostUSD: Double
+    let totalCostIsKnown: Bool
+    let todayCostIsKnown: Bool
+    let costCoverageIsIncomplete: Bool
     let totalTokens: Int
     let activeDayCount: Int
     let topDriverName: String?
@@ -117,7 +120,7 @@ struct CostDiagnosticsReport: Equatable {
         let weeklyShareCard = ShareCardData(insights: insights, period: .week)
         let monthlyShareCard = ShareCardData(insights: insights, period: .month)
 
-        let checks = [
+        let baseChecks = [
             Self.moneyCheck(
                 kind: .providerShare,
                 expected: totalCost,
@@ -142,6 +145,10 @@ struct CostDiagnosticsReport: Equatable {
                 overviewTotal: totalCost,
                 compareMonthlyToOverview: (insights.historyDays ?? 30) == 30),
         ]
+        let checks = Self.adjustedChecks(
+            baseChecks,
+            totalCostIsKnown: insights.total30DayCostIsKnown,
+            coverageIsIncomplete: insights.hasIncompleteCostData)
         let windowDays = if dataSource == .localLedger {
             insights.historyDays ?? cwlWindowDays
         } else {
@@ -153,6 +160,9 @@ struct CostDiagnosticsReport: Equatable {
             windowDays: windowDays,
             totalCostUSD: totalCost,
             todayCostUSD: insights.totalTodayCost,
+            totalCostIsKnown: insights.total30DayCostIsKnown,
+            todayCostIsKnown: insights.totalTodayCostIsKnown,
+            costCoverageIsIncomplete: insights.hasIncompleteCostData,
             totalTokens: insights.total30DayTokens,
             activeDayCount: insights.activeDayCount,
             topDriverName: insights.topProvider?.provider.providerName,
@@ -162,6 +172,23 @@ struct CostDiagnosticsReport: Equatable {
             excludedDeviceCount: max(0, rawDeviceSnapshots.count - activeDeviceSnapshots.count),
             providerRules: providerRules,
             checks: checks)
+    }
+
+    private static func adjustedChecks(
+        _ checks: [CostDiagnosticsCheck],
+        totalCostIsKnown: Bool,
+        coverageIsIncomplete: Bool) -> [CostDiagnosticsCheck]
+    {
+        if !totalCostIsKnown {
+            return checks.map {
+                CostDiagnosticsCheck(kind: $0.kind, detail: .noCostTotal, status: .unavailable)
+            }
+        }
+        guard coverageIsIncomplete else { return checks }
+        return checks.map { check in
+            guard check.status == .pass else { return check }
+            return CostDiagnosticsCheck(kind: check.kind, detail: check.detail, status: .warning)
+        }
     }
 
     private static func moneyCheck(

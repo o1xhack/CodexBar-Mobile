@@ -134,6 +134,13 @@ extension CostUsageScanner {
                 ? rowCost?.totalCostUSD ?? aggregateCost
                 : aggregateCost
             let hasModeSplit = rowCostIsTrusted && rowCost?.hasModeSplit == true
+            let isEstimated = Self.codexPricingIsEstimated(
+                model: model,
+                cost: cost,
+                rowCost: rowCost,
+                rowCostIsTrusted: rowCostIsTrusted,
+                modelsDevCatalog: pricing.modelsDevCatalog,
+                customPricing: pricing.customPricing)
             breakdown.append(
                 CostUsageDailyReport.ModelBreakdown(
                     modelName: model,
@@ -146,7 +153,8 @@ extension CostUsageScanner {
                     standardCostUSD: hasModeSplit ? rowCost?.optionalStandardCostUSD : nil,
                     priorityCostUSD: hasModeSplit ? rowCost?.optionalPriorityCostUSD : nil,
                     standardTokens: hasModeSplit ? rowCost?.optionalStandardTokens : nil,
-                    priorityTokens: hasModeSplit ? rowCost?.optionalPriorityTokens : nil))
+                    priorityTokens: hasModeSplit ? rowCost?.optionalPriorityTokens : nil,
+                    isEstimated: isEstimated ? true : nil))
             if let cost {
                 dayCost += cost
                 dayCostSeen = true

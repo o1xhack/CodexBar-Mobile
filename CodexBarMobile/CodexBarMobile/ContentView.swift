@@ -726,7 +726,7 @@ private struct CostDashboardView: View {
                         total: self.insights.spendProviderRows.reduce(0) { $0 + $1.thirtyDayCost })
                 }
 
-                if !self.insights.dailyPoints.isEmpty {
+                if !self.insights.costDailyPoints.isEmpty {
                     self.trendSection
                 }
 
@@ -785,26 +785,38 @@ private struct CostDashboardView: View {
                 .font(.headline)
                 .padding(.top, 4)
 
+            if self.insights.hasIncompleteCostData {
+                Text("Historical cost coverage is incomplete.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 CostMetricCard(
                     // Reflect the Mac's configurable 1–365 day window (gap F).
                     title: self.insights.historyDays.flatMap {
                         $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
                     } ?? "30 Days",
-                    value: Self.formatUSD(self.insights.total30DayCost),
+                    value: self.insights.total30DayCostIsKnown
+                        ? Self.formatUSD(self.insights.total30DayCost)
+                        : "—",
                     subtitle: self.insights.total30DayTokens > 0 ? Self
                         .formatTokens(self.insights.total30DayTokens) : nil,
                     tintColor: .orange)
 
                 CostMetricCard(
                     title: "Today",
-                    value: Self.formatUSD(self.insights.totalTodayCost),
+                    value: self.insights.totalTodayCostIsKnown
+                        ? Self.formatUSD(self.insights.totalTodayCost)
+                        : "—",
                     subtitle: self.providersActiveSubtitle,
                     tintColor: .mint)
 
                 CostMetricCard(
                     title: "Top Driver",
-                    value: Self.formatUSD(self.insights.topProvider?.thirtyDayCost ?? 0),
+                    value: self.insights.topProvider.map {
+                        Self.formatUSD($0.thirtyDayCost)
+                    } ?? "—",
                     subtitle: self.topDriverSubtitle,
                     tintColor: providerTint(for: self.insights.topProvider?.provider))
 
@@ -832,7 +844,7 @@ private struct CostDashboardView: View {
     /// 30-day anchor would scroll the viewport past the data into empty future
     /// space and hide the older days until the user scrolls back manually.
     private var chartScrollInitialDate: Date {
-        guard let last = self.insights.dailyPoints.last?.date else { return Date() }
+        guard let last = self.insights.costDailyPoints.last?.date else { return Date() }
         return Calendar.current.date(
             byAdding: .day, value: -(self.visibleDayCount - 1), to: last) ?? last
     }
@@ -845,7 +857,7 @@ private struct CostDashboardView: View {
     /// (Previously this widened to the span — which crammed 50+ overlapping,
     /// non-scrollable bars into one screen; see the cost-chart scroll fix.)
     private var visibleDayCount: Int {
-        let points = self.insights.dailyPoints
+        let points = self.insights.costDailyPoints
         guard let first = points.first?.date, let last = points.last?.date else {
             return Self.chartVisibleDays
         }
@@ -874,10 +886,11 @@ private struct CostDashboardView: View {
     }
 
     private var trendSection: some View {
-        // Precompute axis values once per trendSection build. The input is `insights.dailyPoints`
+        // Precompute axis values once per trendSection build. The input is `costDailyPoints`
         // which is stable across hover (`selectedDay`) changes, so we avoid recomputing
         // `axisValues(for:)` on every chart re-render triggered by selection.
-        let yAxisValues = MobileChartAxisFormatter.axisValues(for: self.insights.dailyPoints.map(\.costUSD))
+        let points = self.insights.costDailyPoints
+        let yAxisValues = MobileChartAxisFormatter.axisValues(for: points.map(\.costUSD))
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
@@ -890,7 +903,7 @@ private struct CostDashboardView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("cost-dashboard-daily-spend-title")
 
-            Chart(self.insights.dailyPoints) { point in
+            Chart(points) { point in
                 switch self.chartStyle {
                 case .bars:
                     BarMark(
@@ -1104,7 +1117,9 @@ private struct CostDashboardView: View {
     }
 
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
-        let today = row.todayCost > 0
+        let today = !row.todayCostIsKnown
+            ? "—"
+            : row.todayCost > 0
             ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
             : String(localized: "No spend today")
         let tokens = row.thirtyDayTokens > 0 ? Self
@@ -1118,18 +1133,21 @@ private struct CostDashboardView: View {
     }
 
     private var activeDaySubtitle: String? {
-        guard self.insights.activeDayCount > 0 else { return nil }
+        guard self.insights.total30DayCostIsKnown,
+              !self.insights.hasIncompleteCostData,
+              self.insights.activeDayCount > 0
+        else { return nil }
         let average = self.insights.total30DayCost / Double(self.insights.activeDayCount)
         return "\(String(localized: "Avg")) \(Self.formatUSD(average)) \(String(localized: "per active day"))"
     }
 
     private var providersActiveSubtitle: String {
-        "\(self.insights.providerRows.count(where: { $0.todayCost > 0 }).formatted()) \(String(localized: "providers active"))"
+        "\(self.insights.providerRows.count(where: { $0.todayCostIsKnown && $0.todayCost > 0 }).formatted()) \(String(localized: "providers active"))"
     }
 
     private var selectedPoint: CostDashboardInsights.DailyPoint? {
         guard let selectedDay else { return nil }
-        return self.insights.dailyPoints.first(where: {
+        return self.insights.costDailyPoints.first(where: {
             Calendar.current.isDate($0.date, inSameDayAs: selectedDay)
         })
     }
@@ -1192,6 +1210,11 @@ struct CostDashboardInsights {
         let dayKey: String
         let date: Date
         let costUSD: Double
+        let costIsKnown: Bool?
+        /// A non-zero lower-bound cost proves this date was active even when
+        /// the complete amount is unavailable (`costIsKnown == false`). Keep
+        /// that evidence separate from the displayable cost subtotal.
+        let hasCostActivity: Bool
         let totalTokens: Int
         let modelBreakdowns: [SyncCostBreakdown]
         let serviceBreakdowns: [SyncCostBreakdown]
@@ -1200,6 +1223,8 @@ struct CostDashboardInsights {
             dayKey: String,
             date: Date,
             costUSD: Double,
+            costIsKnown: Bool? = nil,
+            hasCostActivity: Bool? = nil,
             totalTokens: Int,
             modelBreakdowns: [SyncCostBreakdown] = [],
             serviceBreakdowns: [SyncCostBreakdown] = [])
@@ -1207,6 +1232,8 @@ struct CostDashboardInsights {
             self.dayKey = dayKey
             self.date = date
             self.costUSD = costUSD
+            self.costIsKnown = costIsKnown
+            self.hasCostActivity = hasCostActivity ?? (costUSD > 0)
             self.totalTokens = totalTokens
             self.modelBreakdowns = modelBreakdowns
             self.serviceBreakdowns = serviceBreakdowns
@@ -1221,9 +1248,31 @@ struct CostDashboardInsights {
         let provider: ProviderUsageSnapshot
         let thirtyDayCost: Double
         let todayCost: Double
+        let thirtyDayCostIsKnown: Bool
+        let todayCostIsKnown: Bool
         let thirtyDayTokens: Int
         let todayTokens: Int
         let dailyPoints: [DailyPoint]
+
+        init(
+            provider: ProviderUsageSnapshot,
+            thirtyDayCost: Double,
+            todayCost: Double,
+            thirtyDayCostIsKnown: Bool = true,
+            todayCostIsKnown: Bool = true,
+            thirtyDayTokens: Int,
+            todayTokens: Int,
+            dailyPoints: [DailyPoint])
+        {
+            self.provider = provider
+            self.thirtyDayCost = thirtyDayCost
+            self.todayCost = todayCost
+            self.thirtyDayCostIsKnown = thirtyDayCostIsKnown
+            self.todayCostIsKnown = todayCostIsKnown
+            self.thirtyDayTokens = thirtyDayTokens
+            self.todayTokens = todayTokens
+            self.dailyPoints = dailyPoints
+        }
 
         /// Composite key (providerID|accountEmail) so multi-account rows
         /// with the same providerID don't collapse in SwiftUI ForEach.
@@ -1252,12 +1301,35 @@ struct CostDashboardInsights {
         self.providerRows.reduce(0) { $0 + $1.todayCost }
     }
 
+    var total30DayCostIsKnown: Bool {
+        self.providerRows.contains(where: \.thirtyDayCostIsKnown)
+    }
+
+    var totalTodayCostIsKnown: Bool {
+        self.providerRows.contains(where: \.todayCostIsKnown)
+    }
+
+    var hasIncompleteCostData: Bool {
+        self.providerRows.contains {
+            !$0.thirtyDayCostIsKnown ||
+                $0.dailyPoints.contains(where: { $0.costIsKnown == false }) ||
+                $0.provider.costSummary?.historyCoverageIsEstablished == false ||
+                ($0.provider.costSummary?.coverage.map {
+                    $0.unpriced > 0 || $0.unmetered > 0
+                } ?? false)
+        }
+    }
+
     var total30DayTokens: Int {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayTokens }
     }
 
     var spendProviderRows: [ProviderRow] {
-        self.providerRows.filter { $0.thirtyDayCost > 0 }
+        self.providerRows.filter { $0.thirtyDayCostIsKnown && $0.thirtyDayCost > 0 }
+    }
+
+    var costDailyPoints: [DailyPoint] {
+        self.dailyPoints.filter { $0.costIsKnown != false }
     }
 
     /// Cost-history window in days shown in the Overview headline. When CWL is
@@ -1270,15 +1342,15 @@ struct CostDashboardInsights {
     }
 
     var topProvider: ProviderRow? {
-        self.providerRows.max { $0.thirtyDayCost < $1.thirtyDayCost }
+        self.spendProviderRows.max { $0.thirtyDayCost < $1.thirtyDayCost }
     }
 
     var highestDay: DailyPoint? {
-        self.dailyPoints.max { $0.costUSD < $1.costUSD }
+        self.costDailyPoints.max { $0.costUSD < $1.costUSD }
     }
 
     var activeDayCount: Int {
-        self.dailyPoints.count(where: { $0.costUSD > 0 })
+        self.dailyPoints.count(where: \.hasCostActivity)
     }
 
     var hasDisplayData: Bool {
@@ -1306,17 +1378,25 @@ struct CostDashboardInsights {
 
             guard let costSummary = provider.costSummary else { continue }
 
-            let thirtyDayCost = costSummary.last30DaysCostUSD
-                ?? costSummary.daily.reduce(0) { $0 + $1.costUSD }
+            let availableDailyCosts = costSummary.daily.filter { $0.costIsKnown != false }
+            let fallbackThirtyDayCost = availableDailyCosts.isEmpty
+                ? nil
+                : availableDailyCosts.reduce(0) { $0 + $1.costUSD }
+            let resolvedThirtyDayCost = costSummary.last30DaysCostUSD ?? fallbackThirtyDayCost
+            let thirtyDayCost = resolvedThirtyDayCost ?? 0
             let thirtyDayTokens = costSummary.last30DaysTokens
                 ?? costSummary.daily.reduce(0) { $0 + $1.totalTokens }
 
             let todayTotals = costSummary.todayTotals()
-            let todayCost = todayTotals.costUSD ?? 0
+            let resolvedTodayCost = todayTotals.displayCostUSD
+            let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
             let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
 
-            guard thirtyDayCost > 0 || todayCost > 0 || thirtyDayTokens > 0 || todayTokens > 0 else {
+            guard resolvedThirtyDayCost != nil || resolvedTodayCost != nil ||
+                thirtyDayTokens > 0 || todayTokens > 0 ||
+                costSummary.hasIncompleteHistoricalCostCoverage
+            else {
                 continue
             }
 
@@ -1325,6 +1405,8 @@ struct CostDashboardInsights {
                     provider: provider,
                     thirtyDayCost: thirtyDayCost,
                     todayCost: todayCost,
+                    thirtyDayCostIsKnown: resolvedThirtyDayCost != nil,
+                    todayCostIsKnown: resolvedTodayCost != nil,
                     thirtyDayTokens: thirtyDayTokens,
                     todayTokens: todayTokens,
                     dailyPoints: providerDailyPoints))
@@ -1443,12 +1525,19 @@ struct CostDashboardInsights {
             let providerDailyPoints = rollup.dailyPoints.compactMap(Self.dailyPoint)
             let todayPoint = providerDailyPoints.first(where: { $0.dayKey == todayKey })
             let fallbackToday = provider.costSummary?.todayTotals()
-            let todayCost = todayPoint?.costUSD ?? fallbackToday?.costUSD ?? 0
+            let resolvedTodayCost: Double? = if let todayPoint {
+                todayPoint.costIsKnown == false ? nil : todayPoint.costUSD
+            } else {
+                fallbackToday?.displayCostUSD
+            }
+            let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayPoint?.totalTokens ?? fallbackToday?.tokens ?? 0
             providerRows.append(ProviderRow(
                 provider: provider,
                 thirtyDayCost: totals.costUSD,
                 todayCost: todayCost,
+                thirtyDayCostIsKnown: totals.costIsKnown,
+                todayCostIsKnown: resolvedTodayCost != nil,
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
@@ -1477,21 +1566,31 @@ struct CostDashboardInsights {
                 provider: provider,
                 windowDays: aggregation.windowDays)
             let todayTotals = costSummary.todayTotals()
-            let todayCost = todayTotals.costUSD ?? 0
+            let resolvedTodayCost = todayTotals.displayCostUSD
+            let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
             let fallbackSyncPoints = costSummary.daily.filter { $0.dayKey >= fallbackCutoffKey }
             let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
-            let fallbackDailyCost = fallbackSyncPoints.reduce(0) { $0 + $1.costUSD }
+            let availableFallbackPoints = fallbackSyncPoints.filter { $0.costIsKnown != false }
+            let fallbackDailyCost = availableFallbackPoints.isEmpty
+                ? nil
+                : availableFallbackPoints.reduce(0) { $0 + $1.costUSD }
             let fallbackDailyTokens = fallbackSyncPoints.reduce(0) { $0 + $1.totalTokens }
-            let resolvedCost = max(totals.costUSD, max(fallbackDailyCost, todayCost))
+            let resolvedCost = max(totals.costUSD, max(fallbackDailyCost ?? 0, todayCost))
+            let resolvedCostIsKnown = totals.costIsKnown || fallbackDailyCost != nil || resolvedTodayCost != nil
             let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
-            guard resolvedCost > 0 || resolvedTokens > 0 else {
+            guard resolvedCostIsKnown || resolvedTodayCost != nil ||
+                resolvedTokens > 0 ||
+                costSummary.hasIncompleteHistoricalCostCoverage
+            else {
                 continue
             }
             providerRows.append(ProviderRow(
                 provider: provider,
                 thirtyDayCost: resolvedCost,
                 todayCost: todayCost,
+                thirtyDayCostIsKnown: resolvedCostIsKnown,
+                todayCostIsKnown: resolvedTodayCost != nil,
                 thirtyDayTokens: resolvedTokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
@@ -1548,29 +1647,36 @@ struct CostDashboardInsights {
     private static func ledgerDisplayTotals(
         rollup: CostLedgerProviderRollup,
         provider: ProviderUsageSnapshot,
-        windowDays: Int) -> (costUSD: Double, tokens: Int)
+        windowDays: Int) -> (costUSD: Double, tokens: Int, costIsKnown: Bool)
     {
+        let ledgerCostIsKnown = rollup.dailyPoints.contains { $0.costIsKnown != false }
+            || rollup.totalCostUSD != 0
         guard let summary = provider.costSummary else {
-            return (rollup.totalCostUSD, rollup.totalTokens)
+            return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
         }
 
         var costUSD = rollup.totalCostUSD
         var tokens = rollup.totalTokens
+        var costIsKnown = ledgerCostIsKnown
         let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
 
         if summaryWindowDays == windowDays {
-            costUSD = summary.last30DaysCostUSD ?? costUSD
+            if let summaryCost = summary.last30DaysCostUSD {
+                costUSD = summaryCost
+                costIsKnown = true
+            }
             tokens = summary.last30DaysTokens ?? tokens
         } else if summaryWindowDays < windowDays {
             if let summaryCost = summary.last30DaysCostUSD {
                 costUSD = max(costUSD, summaryCost)
+                costIsKnown = true
             }
             if let summaryTokens = summary.last30DaysTokens {
                 tokens = max(tokens, summaryTokens)
             }
         }
 
-        return (costUSD, tokens)
+        return (costUSD, tokens, costIsKnown)
     }
 
     private static func breakdownRows(
@@ -1603,6 +1709,7 @@ struct CostDashboardInsights {
             dayKey: point.dayKey,
             date: date,
             costUSD: point.costUSD,
+            costIsKnown: point.costIsKnown,
             totalTokens: point.totalTokens,
             modelBreakdowns: point.modelBreakdowns,
             serviceBreakdowns: point.serviceBreakdowns)
@@ -1611,12 +1718,20 @@ struct CostDashboardInsights {
     private struct DailyAccumulator {
         var costUSD: Double = 0
         var totalTokens: Int = 0
+        var sawKnownCost = false
+        var sawUnknownCost = false
+        var sawUnavailableCost = false
         var modelBreakdowns: [String: BreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: BreakdownAccumulator] = [:]
 
         mutating func ingest(_ point: SyncDailyPoint) {
             self.costUSD += point.costUSD
             self.totalTokens += point.totalTokens
+            switch point.costIsKnown {
+            case true: self.sawKnownCost = true
+            case false: self.sawUnavailableCost = true
+            case nil: self.sawUnknownCost = true
+            }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
             }
@@ -1630,9 +1745,16 @@ struct CostDashboardInsights {
                 dayKey: dayKey,
                 date: date,
                 costUSD: self.costUSD,
+                costIsKnown: self.mergedCostIsKnown,
                 totalTokens: self.totalTokens,
                 modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
                 serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns))
+        }
+
+        private var mergedCostIsKnown: Bool? {
+            if self.sawUnavailableCost { return false }
+            if self.sawUnknownCost { return nil }
+            return self.sawKnownCost ? true : nil
         }
 
         private static func sortedBreakdowns(
@@ -3250,13 +3372,22 @@ private struct CostDiagnosticsView: View {
                 Section("Summary") {
                     LabeledContent("Source", value: self.sourceText(report.dataSource))
                     LabeledContent("Window", value: String(format: String(localized: "%d days"), report.windowDays))
-                    LabeledContent("Total Cost", value: CostFormatting.usd(report.totalCostUSD))
-                    LabeledContent("Today", value: CostFormatting.usd(report.todayCostUSD))
+                    LabeledContent(
+                        "Total Cost",
+                        value: report.totalCostIsKnown ? CostFormatting.usd(report.totalCostUSD) : "—")
+                    LabeledContent(
+                        "Today",
+                        value: report.todayCostIsKnown ? CostFormatting.usd(report.todayCostUSD) : "—")
                     LabeledContent("Active Days", value: "\(report.activeDayCount)")
                     LabeledContent("Top Driver", value: self.topDriverText(report))
                     LabeledContent("Active Devices", value: "\(report.activeDeviceCount)")
                     if report.excludedDeviceCount > 0 {
                         LabeledContent("Excluded Devices", value: "\(report.excludedDeviceCount)")
+                    }
+                    if report.costCoverageIsIncomplete {
+                        Text("Historical cost coverage is incomplete.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -3667,6 +3798,8 @@ private enum MobileReleaseNotesCatalog {
                             localized: "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details."),
                         String(
                             localized: "Safer sync across Macs — provider accounts merge deterministically while separate accounts and custom plugins stay distinct."),
+                        String(
+                            localized: "Clearer cost truth — newer Macs now label partial coverage, provider-reported versus estimated spend, and input, output, cache, and reasoning token mix."),
                     ]),
             ]),
         ReleaseNotesVersion(

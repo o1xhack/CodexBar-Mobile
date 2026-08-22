@@ -9,8 +9,9 @@ import Testing
 ///
 /// - **T2**: `upsertDayPoint` dedupes by composite key
 ///   `(deviceID, providerID, dayKey)` — same key written twice yields one row.
-/// - **T3**: Dedup rule = newer `lastUpdated` wins; older or equal is skipped
-///   (we already have at-least-as-fresh data for that day).
+/// - **T3**: Dedup rule = newer `lastUpdated` wins; older is skipped. Equal-time
+///   payloads are skipped only when identical, so pricing/catch-up refreshes
+///   keep the ledger aligned with the current provider blob.
 /// - Gate test: `CostLedgerService.isEnabled(userDefaults:)` reads the flag
 ///   correctly. The flag's wiring into `SwiftDataBridge.upsertProvider` is
 ///   covered by inspection — pollution of the shared `UserDefaults.standard`
@@ -218,7 +219,7 @@ struct CWLWriterTests {
     }
 
     @Test
-    func `T3: incoming with equal lastUpdated → skipped (existing kept, no churn)`() throws {
+    func `T3: incoming with equal lastUpdated refreshes a changed payload`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -240,7 +241,60 @@ struct CWLWriterTests {
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(rows.count == 1)
         let row = try #require(rows.first)
-        #expect(row.costUSD == 5.0, "Equal lastUpdated must skip (redundant write)")
+        #expect(row.costUSD == 7.7)
+        #expect(row.totalTokens == 777)
+    }
+
+    @Test
+    func `T3: equal timestamp atomically backfills cost availability and payload`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", dayKey: "2026-05-28",
+            costUSD: 0, totalTokens: 500, costIsKnown: nil, isEstimated: nil,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", dayKey: "2026-05-28",
+            costUSD: 9.9, totalTokens: 999, costIsKnown: false, isEstimated: true,
+            modelBreakdowns: [SyncCostBreakdown(label: "gpt-5.4", costUSD: 9.9)],
+            serviceBreakdowns: [], lastUpdated: t, in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costIsKnown == false)
+        #expect(row.costUSD == 9.9)
+        #expect(row.totalTokens == 999)
+        #expect(row.isEstimated == true)
+        #expect(row.modelBreakdownsData != nil)
+    }
+
+    @Test
+    func `T3: equal timestamp refreshes changed known cost availability and payload`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", dayKey: "2026-05-28",
+            costUSD: 0, totalTokens: 500, costIsKnown: false, isEstimated: nil,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", dayKey: "2026-05-28",
+            costUSD: 9.9, totalTokens: 999, costIsKnown: true, isEstimated: true,
+            modelBreakdowns: [SyncCostBreakdown(label: "gpt-5.4", costUSD: 9.9)],
+            serviceBreakdowns: [], lastUpdated: t, in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costIsKnown == true)
+        #expect(row.costUSD == 9.9)
+        #expect(row.totalTokens == 999)
+        #expect(row.isEstimated == true)
+        #expect(row.modelBreakdownsData != nil)
     }
 
     // MARK: - Gate (`isEnabled`)

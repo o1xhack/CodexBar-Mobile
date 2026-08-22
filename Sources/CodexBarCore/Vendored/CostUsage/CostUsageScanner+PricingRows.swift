@@ -93,7 +93,8 @@ extension CostUsageScanner {
                 || self.codexPricingIsEstimated(
                     for: row,
                     priorityMetadata: priorityMetadata,
-                    modelsDevCatalog: modelsDevCatalog)
+                    modelsDevCatalog: modelsDevCatalog,
+                    customPricing: customPricing)
             if isPriority {
                 breakdown.priorityCostUSD += cost
                 breakdown.sawPriorityCost = true
@@ -205,11 +206,19 @@ extension CostUsageScanner {
     static func codexPricingIsEstimated(
         for row: CodexUsageRow,
         priorityMetadata: CodexPriorityTurnMetadata?,
-        modelsDevCatalog: ModelsDevCatalog?) -> Bool
+        modelsDevCatalog: ModelsDevCatalog?,
+        customPricing: CostUsageCustomPricing? = nil) -> Bool
     {
         guard row.knownCostNanos == nil else { return false }
+        let model = self.codexPricingModel(for: row, priorityMetadata: priorityMetadata)
+        if customPricing?.rates(
+            providerID: CostUsagePricing.codexModelsDevProviderID,
+            model: model) != nil
+        {
+            return false
+        }
         return !CostUsagePricing.hasExactCodexPricing(
-            self.codexPricingModel(for: row, priorityMetadata: priorityMetadata),
+            model,
             modelsDevCatalog: modelsDevCatalog)
     }
 
@@ -218,11 +227,18 @@ extension CostUsageScanner {
         cost: Double?,
         rowCost: CodexRowCostBreakdown?,
         rowCostIsTrusted: Bool,
-        modelsDevCatalog: ModelsDevCatalog?) -> Bool
+        modelsDevCatalog: ModelsDevCatalog?,
+        customPricing: CostUsageCustomPricing? = nil) -> Bool
     {
         guard cost != nil else { return false }
         if rowCostIsTrusted, rowCost?.totalCostUSD != nil {
             return rowCost?.hasEstimatedPricing == true
+        }
+        if customPricing?.rates(
+            providerID: CostUsagePricing.codexModelsDevProviderID,
+            model: model) != nil
+        {
+            return false
         }
         return !CostUsagePricing.hasExactCodexPricing(model, modelsDevCatalog: modelsDevCatalog)
     }

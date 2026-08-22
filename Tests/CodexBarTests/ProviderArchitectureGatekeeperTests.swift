@@ -280,8 +280,14 @@ struct ProviderArchitectureGatekeeperTests {
         let expectedForkDriftCount = 265
         // v0.54 preserves the reviewed Mobile publication, mock-provider,
         // multi-account, pricing, and sync identity seams while adopting the
-        // stricter upstream scanner and its updated exact-anchor catalog.
-        let expectedForkDriftFingerprint: UInt64 = 9_961_341_460_221_457_048
+        // stricter upstream scanner and its updated exact-anchor catalog. The
+        // additive cost-truth wire mapping and the v0.54 cost-availability bit,
+        // including rolling-upgrade backfill and multi-Mac availability guards,
+        // shift Shared/SyncCoordinator/mobile line anchors without adding another
+        // provider-specific branch; the audited set remains 265 findings. The
+        // final Mistral stale-session guard only shifts later SyncCoordinator
+        // anchors and does not add a provider reference.
+        let expectedForkDriftFingerprint: UInt64 = 14_702_636_125_599_630_567
         #expect(
             failures.isEmpty ||
                 (sortedFailures.count == expectedForkDriftCount &&

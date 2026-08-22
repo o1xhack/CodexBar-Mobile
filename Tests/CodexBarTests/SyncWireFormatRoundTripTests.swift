@@ -61,9 +61,21 @@ struct SyncWireFormatRoundTripTests {
                         dayKey: "2026-04-01",
                         costUSD: 1.5, totalTokens: 1000,
                         modelBreakdowns: [SyncCostBreakdown(label: "gpt-5", costUSD: 1.5)],
-                        serviceBreakdowns: [SyncCostBreakdown(label: "codex", costUSD: 1.5)]),
+                        serviceBreakdowns: [SyncCostBreakdown(label: "codex", costUSD: 1.5)],
+                        costIsKnown: true),
                 ],
-                isEstimated: false),
+                isEstimated: false,
+                historyDays: 30,
+                meteredCostUSD: 40.12,
+                costProvenance: .mixed,
+                coverage: SyncCostCoverage(priced: 40, unpriced: 2, unmetered: 1, estimated: 3),
+                tokenMix: SyncCostTokenMix(
+                    inputTokens: 60000,
+                    outputTokens: 18000,
+                    cacheReadTokens: 9000,
+                    cacheCreationTokens: 2000,
+                    reasoningTokens: 12000),
+                historyCoverageIsEstablished: false),
             budget: SyncBudgetSnapshot(
                 usedAmount: 12.34,
                 limitAmount: 100,
@@ -289,6 +301,62 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.accountIdentities == nil, "missing accountIdentities defaults to nil")
         #expect(decoded.perplexityCredits == nil)
         #expect(decoded.utilizationHistory == nil)
+    }
+
+    @Test
+    func `R5 B4b: pre-0.53 cost summary decodes without provenance fields`() throws {
+        let payload = """
+        {
+            "sessionCostUSD": 1.25,
+            "sessionTokens": 500,
+            "last30DaysCostUSD": 12.50,
+            "last30DaysTokens": 5000,
+            "daily": []
+        }
+        """
+        let decoded = try self.decoder().decode(SyncCostSummary.self, from: Data(payload.utf8))
+
+        #expect(decoded.meteredCostUSD == nil)
+        #expect(decoded.costProvenance == nil)
+        #expect(decoded.coverage == nil)
+        #expect(decoded.tokenMix == nil)
+        #expect(decoded.historyCoverageIsEstablished == nil)
+    }
+
+    @Test
+    func `R5 B4c: future provenance and invalid counters degrade safely`() throws {
+        let payload = """
+        {
+            "last30DaysCostUSD": 12.50,
+            "daily": [],
+            "costProvenance": "futureBillingReceipt",
+            "coverage": {"priced": -2, "unpriced": 3, "estimated": 1},
+            "tokenMix": {"inputTokens": -100, "outputTokens": 500}
+        }
+        """
+        let decoded = try self.decoder().decode(SyncCostSummary.self, from: Data(payload.utf8))
+
+        #expect(decoded.costProvenance == .unknown)
+        #expect(decoded.coverage == SyncCostCoverage(priced: 0, unpriced: 3, unmetered: 0, estimated: 1))
+        #expect(decoded.tokenMix?.inputTokens == nil)
+        #expect(decoded.tokenMix?.outputTokens == 500)
+    }
+
+    @Test
+    func `R5 B4d: extreme synced counters saturate instead of overflowing`() throws {
+        let payload = """
+        {
+            "daily": [],
+            "coverage": {"priced": \(Int.max), "unpriced": 1, "estimated": \(Int.max)},
+            "tokenMix": {"inputTokens": \(Int.max), "outputTokens": 1}
+        }
+        """
+        let decoded = try self.decoder().decode(SyncCostSummary.self, from: Data(payload.utf8))
+        let coverage = try #require(decoded.coverage)
+
+        #expect(coverage.total == Int.max)
+        #expect(coverage.pricedOrEstimated == Int.max)
+        #expect(decoded.tokenMix?.inputTokens == Int.max)
     }
 
     @Test

@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.21.0 (194)] — 2026-08-17 — CodexBar 0.52.0 upstream sync roll-up
+## [1.21.0 (195)] — 2026-08-21 — CodexBar 0.54.0 upstream sync roll-up
 
 ### Added
 
@@ -16,6 +16,10 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Fireworks and IBM Bob** — Added distinct iPhone colors, mock coverage, and
   generic usage detail support; IBM Bob also joins the append-only monthly
   quota notification catalog while spend-only Fireworks stays out of it.
+- **Cost provenance and coverage** — New Mac payloads can send additive partial-
+  history state, priced/unpriced coverage, provider-metered versus estimated
+  provenance, and input/output/cache/reasoning token mix. Older payloads continue
+  to decode with the previous display.
 
 ### Changed
 
@@ -29,6 +33,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - **Multi-Mac merge determinism** — Equal-time provider snapshots use stable
   device identity as a tie-breaker. Old Macs cannot erase additive details,
   while an explicit empty details set from a new Mac authoritatively clears them.
+- **Upstream 0.53–0.54 catch-up** — The Mac companion adds safer Settings and
+  subprocess lifecycle handling, conditional menu layouts, live Grok/xAI spend,
+  honest historical pricing, OpenCodex routing, and broader spend coverage.
 
 ### Fixed
 
@@ -43,11 +50,11 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 ### Notes
 
-- Pairs with Mac CodexBar `0.52.0.1` / build `124.1`, composite Sparkle version
-  `124.1.1.21.0`, and upstream `steipete/CodexBar` `v0.52.0`.
+- Pairs with Mac CodexBar `0.54.0.1` / build `127.1`, composite Sparkle version
+  `127.1.1.21.0`, and upstream `steipete/CodexBar` `v0.54.0`.
 - iOS `MARKETING_VERSION` remains `1.21.0`; this build rolls the unpublished
   upstream catch-up into the existing 1.21 release train.
-- iOS `CURRENT_PROJECT_VERSION`: `193` → `194`.
+- iOS `CURRENT_PROJECT_VERSION`: `194` → `195`.
 - Payload additions live in the existing opaque `DeviceProviderSnapshot.payload`;
   no CloudKit record type, field, index, zone, query, or schema version is added.
   IBM Bob reuses the existing per-provider quota-zone/subscription pattern.

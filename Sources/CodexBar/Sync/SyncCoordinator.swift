@@ -1,4 +1,4 @@
-// swiftlint:disable type_body_length
+// swiftlint:disable type_body_length file_length
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.8.0
 // build 134 when 5 v0.27 existing-provider mappers were added
@@ -1950,16 +1950,33 @@ final class SyncCoordinator {
         let tokenEntriesByDay = Dictionary(
             uniqueKeysWithValues: (tokenSnapshot?.daily ?? []).map { ($0.date, $0) })
         let allDayKeys = Set(tokenEntriesByDay.keys).union(serviceBreakdownsByDay.keys).sorted()
+        var serviceFallbackContributed = false
         let daily = allDayKeys.map { dayKey -> SyncDailyPoint in
             let entry = tokenEntriesByDay[dayKey]
             let modelBreakdowns = self.modelBreakdowns(from: entry)
             let serviceBreakdowns = serviceBreakdownsByDay[dayKey] ?? []
 
-            let fallbackCost =
-                entry?.costUSD
-                    ?? self.breakdownTotal(modelBreakdowns)
-                    ?? self.breakdownTotal(serviceBreakdowns)
-                    ?? 0
+            let entryCost = entry?.costUSD
+            let modelCost = self.breakdownTotal(modelBreakdowns)
+            let serviceCost = self.breakdownTotal(serviceBreakdowns)
+            let fallbackCost = entryCost ?? modelCost ?? serviceCost ?? 0
+            let entryCoverage = entry?.coverageCounts
+            let entryCostHasGaps = (entryCoverage?.unpriced ?? 0) > 0
+                || (entryCoverage?.unmetered ?? 0) > 0
+            // A non-nil local cost can still be only a subtotal when the same
+            // day contains unpriced or unmetered requests. Keep that lower
+            // bound out of compact surfaces that cannot explain coverage.
+            // The first-party dashboard service fallback is independent of
+            // local model pricing, so it remains authoritative when it is the
+            // selected source for the day.
+            let costIsKnown = if entryCost != nil || modelCost != nil {
+                !entryCostHasGaps
+            } else {
+                serviceCost != nil
+            }
+            if entryCost == nil, modelCost == nil, serviceCost != nil {
+                serviceFallbackContributed = true
+            }
 
             // Day is estimated iff any of its model breakdowns is. Service
             // breakdowns never go through the fallback resolver (they come
@@ -1972,23 +1989,78 @@ final class SyncCoordinator {
                 totalTokens: entry?.totalTokens ?? 0,
                 modelBreakdowns: modelBreakdowns,
                 serviceBreakdowns: serviceBreakdowns,
-                isEstimated: dayIsEstimated ? true : nil)
+                isEstimated: dayIsEstimated ? true : nil,
+                costIsKnown: costIsKnown)
         }
 
-        let totalDailyCost = daily.reduce(0) { $0 + $1.costUSD }
+        let knownDailyCosts = daily.compactMap { point in
+            point.costIsKnown == true ? point.costUSD : nil
+        }
+        let totalDailyCost = knownDailyCosts.reduce(0, +)
         let summaryIsEstimated = daily.contains(where: { $0.isEstimated == true })
+        let windowSummary = tokenSnapshot.map {
+            Self.syncWindowSummary($0)
+        }
+        let syncCoverage = windowSummary.map {
+            SyncCostCoverage(
+                priced: $0.coverage.priced,
+                unpriced: $0.coverage.unpriced,
+                unmetered: $0.coverage.unmetered,
+                estimated: $0.coverage.estimated)
+        }
+        let syncTokenMix = windowSummary.flatMap { summary -> SyncCostTokenMix? in
+            guard summary.tokenMix.hasAnyClass else { return nil }
+            return SyncCostTokenMix(
+                inputTokens: summary.tokenMix.inputTokens,
+                outputTokens: summary.tokenMix.outputTokens,
+                cacheReadTokens: summary.tokenMix.cacheReadTokens,
+                cacheCreationTokens: summary.tokenMix.cacheCreationTokens,
+                reasoningTokens: summary.tokenMix.reasoningTokens)
+        }
+        let costMetadataIsAligned = !serviceFallbackContributed
+
+        // Mistral's provider-derived token snapshot uses its latest dated
+        // billing bucket for the generic session fields. That is useful in
+        // Mac-local menus, but it is not necessarily today's bucket: a cached
+        // snapshot can cross midnight before the next provider refresh. iOS
+        // labels these fields as Today when no matching daily row exists, so
+        // keep Mistral's dated daily history authoritative on every sync path
+        // (including this normal shared-summary path).
+        // Provider-specific by design: Mistral session fields mirror its latest dated billing bucket, not a Today API.
+        let publishesSessionFallback = provider != .mistral
 
         return SyncCostSummary(
-            sessionCostUSD: tokenSnapshot?.sessionCostUSD,
-            sessionTokens: tokenSnapshot?.sessionTokens,
-            last30DaysCostUSD: tokenSnapshot?.last30DaysCostUSD ?? (daily.isEmpty ? nil : totalDailyCost),
+            sessionCostUSD: publishesSessionFallback ? tokenSnapshot?.sessionCostUSD : nil,
+            sessionTokens: publishesSessionFallback ? tokenSnapshot?.sessionTokens : nil,
+            last30DaysCostUSD: tokenSnapshot?.last30DaysCostUSD
+                ?? (knownDailyCosts.isEmpty ? nil : totalDailyCost),
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
             historyDays: tokenSnapshot?.historyDays,
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
-            currencyCode: tokenSnapshot?.currencyCode)
+            currencyCode: tokenSnapshot?.currencyCode,
+            meteredCostUSD: costMetadataIsAligned ? windowSummary?.meteredCostUSD : nil,
+            costProvenance: costMetadataIsAligned
+                ? windowSummary.map { Self.syncCostProvenance($0.provenance) }
+                : nil,
+            coverage: costMetadataIsAligned ? syncCoverage : nil,
+            tokenMix: syncTokenMix,
+            // Service-only dashboard rows make the provenance/count metadata
+            // incomparable with the token window, but they do not make an
+            // incomplete token scan complete. Preserve the fail-closed
+            // coverage bit so iOS never presents a partial headline as final.
+            historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished)
+    }
+
+    private static func syncCostProvenance(_ provenance: CostProvenance) -> SyncCostProvenance {
+        switch provenance {
+        case .listPriceEstimate: .listPriceEstimate
+        case .vendorMetered: .vendorMetered
+        case .mixed: .mixed
+        case .unknown: .unknown
+        }
     }
 
     /// Builds a cost summary for Mistral from its native daily usage buckets
@@ -2005,26 +2077,73 @@ final class SyncCoordinator {
         guard provider == .mistral, let m = snapshot?.mistralUsage, !m.daily.isEmpty else {
             return nil
         }
-        let daily: [SyncDailyPoint] = m.daily.map { bucket in
-            SyncDailyPoint(
-                dayKey: bucket.day,
-                costUSD: bucket.cost,
-                totalTokens: bucket.totalTokens,
-                modelBreakdowns: bucket.models
-                    .filter { $0.cost > 0 }
-                    .map { SyncCostBreakdown(label: $0.name, costUSD: $0.cost) }
-                    .sorted { $0.costUSD > $1.costUSD },
+        // Reuse the provider's validated projection instead of trusting raw
+        // billing buckets here. The projection rejects invalid dates,
+        // negative counters, overflow, and totals that do not reconcile.
+        let projected = m.toCostUsageTokenSnapshot()
+        let daily: [SyncDailyPoint] = projected.daily.map { entry in
+            let coverage = entry.coverageCounts
+            let modelBreakdowns = (entry.modelBreakdowns ?? [])
+                .compactMap { breakdown -> SyncCostBreakdown? in
+                    guard let cost = breakdown.costUSD, cost > 0 else { return nil }
+                    return SyncCostBreakdown(
+                        label: breakdown.modelName,
+                        costUSD: cost,
+                        isEstimated: breakdown.isEstimated,
+                        standardCostUSD: breakdown.standardCostUSD,
+                        priorityCostUSD: breakdown.priorityCostUSD,
+                        standardTokens: breakdown.standardTokens,
+                        priorityTokens: breakdown.priorityTokens)
+                }
+                .sorted { lhs, rhs in
+                    if lhs.costUSD == rhs.costUSD {
+                        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    }
+                    return lhs.costUSD > rhs.costUSD
+                }
+            return SyncDailyPoint(
+                dayKey: entry.date,
+                costUSD: entry.costUSD ?? 0,
+                totalTokens: entry.totalTokens ?? 0,
+                modelBreakdowns: modelBreakdowns,
                 serviceBreakdowns: [],
-                isEstimated: nil)
+                isEstimated: modelBreakdowns.contains(where: { $0.isEstimated == true }) ? true : nil,
+                costIsKnown: entry.costUSD != nil && coverage.unpriced == 0 && coverage.unmetered == 0)
         }
+        let windowSummary = Self.syncWindowSummary(projected)
+        let tokenMix = windowSummary.tokenMix.hasAnyClass
+            ? SyncCostTokenMix(
+                inputTokens: windowSummary.tokenMix.inputTokens,
+                outputTokens: windowSummary.tokenMix.outputTokens,
+                cacheReadTokens: windowSummary.tokenMix.cacheReadTokens,
+                cacheCreationTokens: windowSummary.tokenMix.cacheCreationTokens,
+                reasoningTokens: windowSummary.tokenMix.reasoningTokens)
+            : nil
+        // Do not publish Mistral's latest observed billing bucket as a session
+        // fallback. Cached provider snapshots can be republished after midnight,
+        // while iOS labels session fields as Today when no matching daily point
+        // exists. The dated daily rows remain the authoritative cross-device
+        // source and avoid turning stale spend into current-day usage.
         return SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
-            last30DaysCostUSD: m.totalCost,
-            last30DaysTokens: m.totalInputTokens + m.totalOutputTokens + m.totalCachedTokens,
+            last30DaysCostUSD: projected.last30DaysCostUSD,
+            last30DaysTokens: projected.last30DaysTokens,
             daily: daily,
-            isEstimated: nil,
-            currencyCode: m.currency)
+            isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
+            historyDays: projected.historyDays,
+            sessionRequests: nil,
+            last30DaysRequests: projected.last30DaysRequests,
+            currencyCode: projected.currencyCode,
+            meteredCostUSD: projected.meteredCostUSD,
+            costProvenance: Self.syncCostProvenance(windowSummary.provenance),
+            coverage: SyncCostCoverage(
+                priced: windowSummary.coverage.priced,
+                unpriced: windowSummary.coverage.unpriced,
+                unmetered: windowSummary.coverage.unmetered,
+                estimated: windowSummary.coverage.estimated),
+            tokenMix: tokenMix,
+            historyCoverageIsEstablished: projected.historyCoverageIsEstablished)
     }
 
     /// xAI's Management API exposes prepaid balance plus daily USD spend.
@@ -2211,6 +2330,36 @@ final class SyncCoordinator {
         let newID = UUID().uuidString
         defaults.set(newID, forKey: CloudSyncConstants.deviceIDKey)
         return newID
+    }
+
+    /// The snapshot's `daily` entries have already been bucketed and clipped by
+    /// their provider using that source's calendar. Re-filtering them with the
+    /// Mac's current calendar can drop a valid UTC or pinned-time-zone boundary
+    /// bucket, so sync metadata is aggregated directly from that stable window.
+    static func syncWindowSummary(_ snapshot: CostUsageTokenSnapshot) -> CostUsageWindowSummary {
+        let costs = snapshot.daily.compactMap(\.costUSD)
+        let tokens = snapshot.daily.compactMap(\.totalTokens)
+        let requests = snapshot.daily.compactMap(\.requestCount)
+        var tokenMix = CostUsageTokenMix()
+        var coverage = CostUsageCoverageCounts()
+        for entry in snapshot.daily {
+            tokenMix.merge(.from(entry: entry))
+            coverage.merge(entry.coverageCounts)
+        }
+
+        return CostUsageWindowSummary(
+            days: max(1, snapshot.historyDays),
+            totalTokens: tokens.isEmpty ? nil : tokens.reduce(0, +),
+            totalCostUSD: costs.isEmpty ? nil : costs.reduce(0, +),
+            totalRequests: requests.isEmpty ? nil : requests.reduce(0, +),
+            entryCount: snapshot.daily.count,
+            tokenMix: tokenMix,
+            coverage: coverage,
+            provenance: CostProvenance.forWindow(
+                snapshot: snapshot.costProvenance,
+                hasWindowCosts: !costs.isEmpty || snapshot.last30DaysCostUSD != nil,
+                includesMetered: snapshot.meteredCostUSD != nil),
+            meteredCostUSD: snapshot.meteredCostUSD)
     }
 }
 

@@ -482,6 +482,8 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `13` (0.54.0.1): merged upstream v0.53.0-v0.54.0 provenance, custom and
+    ///   historical pricing, OpenCodex routing, and scanner/cache changes.
     /// - `12` (0.52.0.1): merged upstream v0.49.3-v0.52.0 parser, project/session
     ///   attribution, provider-qualified pricing, retention, and reconciliation changes.
     /// - `11` (0.49.2.1): merged upstream v0.48.0-v0.49.2 scanner and

@@ -193,6 +193,18 @@ struct CostUsagePricingRaceTests {
             modelsDevCatalog: exactCatalog)
         #expect(exactReport.data.first?.modelBreakdowns?.first?.isEstimated == nil)
 
+        let customPricing = CostUsageCustomPricing(
+            entries: [model: .init(input: 9, output: 19, cacheRead: 0.9)],
+            fingerprint: "test-custom-pricing")
+        let customBreakdown = CostUsageScanner.codexRowCostBreakdown(
+            rows: usage.codexRows ?? [],
+            priorityTurns: [:],
+            modelsDevCatalog: fallbackCatalog,
+            modelsDevCacheRoot: nil,
+            customPricing: customPricing)
+        #expect(customBreakdown.totalCostUSD != nil)
+        #expect(customBreakdown.hasEstimatedPricing == false)
+
         // A later catalog refresh must not relabel an amount that was already computed via fallback.
         #expect(fallbackBreakdown.isEstimated == true)
     }

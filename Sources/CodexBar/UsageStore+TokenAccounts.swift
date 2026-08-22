@@ -1,5 +1,6 @@
 // Token-account fetch, cache, and publication logic remains colocated so its
 // account-selection invariants can be audited as one flow during upstream syncs.
+// swiftlint:disable file_length
 import CodexBarCore
 import Foundation
 
@@ -266,6 +267,9 @@ extension UsageStore {
         _ = await self.refreshCodexVisibleAccountsForSnapshotPublication(generation: generation)
     }
 
+    // The restore/refresh/rollback sequence is intentionally kept contiguous so
+    // every early exit can be audited against the original-account restoration.
+    // swiftlint:disable:next function_body_length
     func refreshCodexVisibleAccountsForSnapshotPublication(generation: UInt64? = nil) async -> Bool {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(

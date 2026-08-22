@@ -327,17 +327,21 @@ struct ProviderUsageView: View {
         // causing Usage-tab teaser ≠ detail-page "Today" mid-day). Same
         // class-of-bug as the Subscription Utilization aggregate/detail
         // mismatch fixed in Build 77.
-        let today = cost.todayTotals()
-        let parts: [String] = [
-            today.costUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
-            cost.last30DaysCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
-        ].compactMap { $0 }
+        let parts = Self.costTeaserParts(cost)
 
         if !parts.isEmpty {
             Text(parts.joined(separator: " · "))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    static func costTeaserParts(_ cost: SyncCostSummary) -> [String] {
+        let today = cost.todayTotals()
+        return [
+            today.displayCostUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
+            cost.completeHistoryCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
+        ].compactMap { $0 }
     }
 
     private func defaultLabel(at index: Int) -> String {

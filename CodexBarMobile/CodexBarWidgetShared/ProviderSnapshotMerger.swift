@@ -488,12 +488,16 @@ enum ProviderSnapshotMerger {
             .sorted { $0.dayKey < $1.dayKey }
             .map { $0.toDailyPoint() }
 
-        let fallbackDailyCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
+        let availableMergedDailyCost = mergedDaily.filter { $0.costIsKnown != false }
+        let fallbackDailyCost = availableMergedDailyCost.isEmpty
+            ? nil
+            : availableMergedDailyCost.reduce(0) { $0 + $1.costUSD }
         let fallbackDailyTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
 
         let windowCosts = summaries.compactMap { summary -> Double? in
             if let cost = summary.last30DaysCostUSD { return cost }
-            return summary.daily.isEmpty ? nil : summary.daily.reduce(0) { $0 + $1.costUSD }
+            let availableDaily = summary.daily.filter { $0.costIsKnown != false }
+            return availableDaily.isEmpty ? nil : availableDaily.reduce(0) { $0 + $1.costUSD }
         }
         let windowTokens = summaries.compactMap { summary -> Int? in
             if let tokens = summary.last30DaysTokens { return tokens }
@@ -502,25 +506,105 @@ enum ProviderSnapshotMerger {
         let totalCost = windowCosts.isEmpty ? fallbackDailyCost : windowCosts.reduce(0, +)
         let totalTokens = windowTokens.isEmpty ? fallbackDailyTokens : windowTokens.reduce(0, +)
 
-        let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
+        let sessionCosts = summaries.compactMap(\.sessionCostUSD)
+        let sessionCost = sessionCosts.reduce(0, +)
         let sessionTokens = summaries.compactMap(\.sessionTokens).reduce(0, +)
         let sessionRequests = summaries.compactMap(\.sessionRequests).reduce(0, +)
         let windowRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
-        let historyDays = summaries.compactMap(\.historyDays).max()
+        // A missing historyDays is the legacy/default 30-day window. Normalize
+        // it before comparison so old+new 30-day writers remain compatible,
+        // while an explicit 7-day + 30-day fleet cannot certify completeness.
+        let normalizedHistoryDays = summaries.map { max(1, min($0.historyDays ?? 30, 365)) }
+        let historyWindowsAreCompatible = Set(normalizedHistoryDays).count == 1
+        // Preserve a fully legacy nil label, but when mixed windows disagree,
+        // report the widest normalized window instead of labelling a 30d + 7d
+        // subtotal as a complete 7-day amount.
+        let historyDays = historyWindowsAreCompatible
+            ? summaries.compactMap(\.historyDays).max()
+            : normalizedHistoryDays.max()
         let currencies = Set(summaries.compactMap(\.currencyCode))
         let currencyCode = currencies.count == 1 ? currencies.first : nil
+        let hasCompleteProvenance = summaries.allSatisfy { $0.costProvenance != nil }
+        let meteredCosts = summaries.compactMap(\.meteredCostUSD)
+        let hasCompleteMeteredCost = meteredCosts.count == summaries.count
+        let historyCoverageIsEstablished: Bool? = if !historyWindowsAreCompatible {
+            false
+        } else if summaries.contains(where: {
+            $0.historyCoverageIsEstablished == false
+        }) {
+            false
+        } else if summaries.allSatisfy({ $0.historyCoverageIsEstablished == true }) {
+            true
+        } else {
+            nil
+        }
 
         return SyncCostSummary(
-            sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
+            sessionCostUSD: sessionCosts.isEmpty ? nil : sessionCost,
             sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
-            last30DaysCostUSD: windowCosts.isEmpty && mergedDaily.isEmpty ? nil : totalCost,
+            last30DaysCostUSD: totalCost,
             last30DaysTokens: windowTokens.isEmpty && mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
             isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: historyDays,
             sessionRequests: sessionRequests > 0 ? sessionRequests : nil,
             last30DaysRequests: windowRequests > 0 ? windowRequests : nil,
-            currencyCode: currencyCode)
+            currencyCode: currencyCode,
+            meteredCostUSD: !historyWindowsAreCompatible || !hasCompleteProvenance || !hasCompleteMeteredCost
+                ? nil
+                : meteredCosts.reduce(0, +),
+            costProvenance: Self.mergedCostProvenance(summaries),
+            coverage: historyWindowsAreCompatible ? Self.mergedCostCoverage(summaries) : nil,
+            tokenMix: historyWindowsAreCompatible ? Self.mergedCostTokenMix(summaries) : nil,
+            historyCoverageIsEstablished: historyCoverageIsEstablished)
+    }
+
+    private static func mergedCostProvenance(_ summaries: [SyncCostSummary]) -> SyncCostProvenance? {
+        let values = summaries.compactMap(\.costProvenance)
+        guard !values.isEmpty, values.count == summaries.count else { return nil }
+        if values.contains(.unknown) { return .unknown }
+        if values.contains(.mixed) { return .mixed }
+        return Set(values).count == 1 ? values.first : .mixed
+    }
+
+    private static func mergedCostCoverage(_ summaries: [SyncCostSummary]) -> SyncCostCoverage? {
+        let values = summaries.compactMap(\.coverage)
+        guard !values.isEmpty, values.count == summaries.count else { return nil }
+        return SyncCostCoverage(
+            priced: SyncCounterMath.saturatingSum(values.map(\.priced)),
+            unpriced: SyncCounterMath.saturatingSum(values.map(\.unpriced)),
+            unmetered: SyncCounterMath.saturatingSum(values.map(\.unmetered)),
+            estimated: SyncCounterMath.saturatingSum(values.map(\.estimated)))
+    }
+
+    private static func mergedCostTokenMix(_ summaries: [SyncCostSummary]) -> SyncCostTokenMix? {
+        // Do not manufacture a zero-valued mix when every source is idle.
+        // At least one writer must have reported an actual token class.
+        guard summaries.contains(where: { $0.tokenMix?.hasAnyValue == true }) else { return nil }
+
+        func sum(_ keyPath: KeyPath<SyncCostTokenMix, Int?>) -> Int? {
+            let contributions = summaries.compactMap { summary -> Int? in
+                if let value = summary.tokenMix?[keyPath: keyPath] { return value }
+                // A modern writer that established an empty token window is a
+                // known-zero contribution, not missing legacy metadata.
+                if summary.historyCoverageIsEstablished == true,
+                   summary.last30DaysTokens == 0
+                {
+                    return 0
+                }
+                return nil
+            }
+            guard contributions.count == summaries.count else { return nil }
+            return SyncCounterMath.saturatingSum(contributions)
+        }
+
+        let result = SyncCostTokenMix(
+            inputTokens: sum(\.inputTokens),
+            outputTokens: sum(\.outputTokens),
+            cacheReadTokens: sum(\.cacheReadTokens),
+            cacheCreationTokens: sum(\.cacheCreationTokens),
+            reasoningTokens: sum(\.reasoningTokens))
+        return result.hasAnyValue ? result : nil
     }
 
     private struct DailyCostAccumulator {
@@ -530,12 +614,20 @@ enum ProviderSnapshotMerger {
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var isEstimated = false
+        var sawKnownCost = false
+        var sawUnknownCost = false
+        var sawUnavailableCost = false
 
         mutating func ingest(_ point: SyncDailyPoint) {
             self.costUSD += point.costUSD
             self.totalTokens += point.totalTokens
             if point.isEstimated == true {
                 self.isEstimated = true
+            }
+            switch point.costIsKnown {
+            case true: self.sawKnownCost = true
+            case false: self.sawUnavailableCost = true
+            case nil: self.sawUnknownCost = true
             }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
@@ -552,7 +644,14 @@ enum ProviderSnapshotMerger {
                 totalTokens: self.totalTokens,
                 modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
                 serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns),
-                isEstimated: self.isEstimated ? true : nil)
+                isEstimated: self.isEstimated ? true : nil,
+                costIsKnown: self.mergedCostIsKnown)
+        }
+
+        private var mergedCostIsKnown: Bool? {
+            if self.sawUnavailableCost { return false }
+            if self.sawUnknownCost { return nil }
+            return self.sawKnownCost ? true : nil
         }
 
         private static func sortedBreakdowns(

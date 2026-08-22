@@ -65,6 +65,93 @@ struct CostDiagnosticsReportTests {
         #expect(report.checks.first(where: { $0.kind == .shareCard })?.status == .pass)
     }
 
+    @Test("Report preserves unavailable and partial cost truth")
+    func reportPreservesCostAvailability() throws {
+        let dayKey = SyncCostSummary.iso8601DayKey(for: self.now)
+        let unavailableProvider = ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: 900,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: 900,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: 0,
+                        totalTokens: 900,
+                        costIsKnown: false),
+                ],
+                historyCoverageIsEstablished: false))
+        let unavailableSnapshot = SyncedUsageSnapshot(
+            providers: [unavailableProvider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let unavailableReport = CostDiagnosticsReport.make(
+            insights: CostDashboardInsights(snapshot: unavailableSnapshot),
+            snapshot: unavailableSnapshot,
+            rawDeviceSnapshots: [unavailableSnapshot],
+            activeDeviceSnapshots: [unavailableSnapshot],
+            cwlEnabled: false,
+            cwlWindowDays: 30,
+            ledgerAvailable: false)
+
+        #expect(!unavailableReport.totalCostIsKnown)
+        #expect(!unavailableReport.todayCostIsKnown)
+        #expect(unavailableReport.costCoverageIsIncomplete)
+        #expect(unavailableReport.checks.allSatisfy { $0.status == .unavailable })
+
+        let partialProvider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 2,
+                sessionTokens: 200,
+                last30DaysCostUSD: 2,
+                last30DaysTokens: 200,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: 2,
+                        totalTokens: 200,
+                        costIsKnown: true),
+                ],
+                historyCoverageIsEstablished: false))
+        let partialSnapshot = SyncedUsageSnapshot(
+            providers: [partialProvider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+        let partialReport = CostDiagnosticsReport.make(
+            insights: CostDashboardInsights(snapshot: partialSnapshot),
+            snapshot: partialSnapshot,
+            rawDeviceSnapshots: [partialSnapshot],
+            activeDeviceSnapshots: [partialSnapshot],
+            cwlEnabled: false,
+            cwlWindowDays: 30,
+            ledgerAvailable: false)
+
+        #expect(partialReport.totalCostIsKnown)
+        #expect(partialReport.costCoverageIsIncomplete)
+        #expect(!partialReport.checks.contains(where: { $0.status == .pass }))
+    }
+
     @Test("Report provider rules keep unique row IDs for duplicate provider rows")
     func providerRuleIDsStayUniqueForDuplicateProviderRows() throws {
         let snapshot = SyncedUsageSnapshot(

@@ -187,6 +187,10 @@ private struct CyberCard: View {
         period == .today ? data.todayCost : data.totalCost
     }
 
+    private var heroCostIsKnown: Bool {
+        period == .today ? data.todayCostIsKnown : data.totalCostIsKnown
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer().frame(height: 16)
@@ -218,12 +222,20 @@ private struct CyberCard: View {
             }
 
             // 3. Cost — medium, accent color
-            Text(formatUSD(heroCost))
+            Text(self.heroCostIsKnown ? formatUSD(self.heroCost) : "—")
                 .font(.system(size: 20, weight: .bold, design: .monospaced).monospacedDigit())
                 .foregroundStyle(theme.accent)
                 .shadow(color: theme.accentGlow, radius: 6)
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 22)
+
+            if data.costCoverageIsIncomplete {
+                Text("Historical cost coverage is incomplete.")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(theme.dim)
+                    .padding(.top, -16)
+                    .padding(.bottom, 12)
+            }
 
             // 4. Gauge row
             HStack(spacing: 24) {

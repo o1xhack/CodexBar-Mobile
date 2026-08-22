@@ -1,6 +1,6 @@
 # v0.54.0 Upstream Sync + iOS 1.21.0 概览
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-21
 Branch: `upstream-sync/v0.54.0-mobile.1.21.0`
 
@@ -31,7 +31,7 @@ TestFlight upload 或 CloudKit Production deploy。
 
 | Issue | Release / defect | 本轮处置 |
 |---|---|---|
-| [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95) | upstream `v0.53.0` | 纳入 v0.54.0 train；最终实现 PR 应以 closing keyword 关联 |
+| [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95) | upstream `v0.53.0` | 纳入 v0.54.0 train；PR 只关联，不提前关闭；Mac public release 公开后回复 release 链接并手动 `Close as completed` |
 | [#97](https://github.com/o1xhack/CodexBar-Mobile/issues/97) | macOS 27 Settings 无法打开 | 由 upstream #3029 修复，并纳入完整 sync 与 Settings 回归 |
 | monitor 尚未生成 | upstream `v0.54.0` | Releases 权威事实补入同一 train |
 
@@ -45,8 +45,9 @@ TestFlight upload 或 CloudKit Production deploy。
 | `v0.53.0` | 2026-08-18 10:29 | Usage & Spend provenance/coverage/token mix/All-time/OpenCodex；Settings retained controller；CloudKit delegate reentrancy；Grok source；CLI TOON；provider reliability |
 | `v0.54.0` | 2026-08-20 13:51 | blank Settings window；RPC pipe crash；conditional menu tokens；Grok/xAI spend；historical pricing；OpenRouter/OpenCode/Codex sources；localization |
 
-`v0.52.0` tag commit 为 `5a1e104e31e7a5783a2cfadef34ed06001aa39a3`；`v0.54.0` 为
-`1181138acf3ebcfc40c827ecd89d2002a6c5b03a`。区间包含 131 个 non-merge commits、354 个
+`v0.52.0` tag commit 为 `5a1e104e31e7a5783a2cfadef34ed06001aa39a3`；`v0.54.0` 的
+annotated tag object 为 `1181138acf3ebcfc40c827ecd89d2002a6c5b03a`，peeled commit 为
+`22a2168842a9ed4fdd15dd6761cd109c56bcd3b5`。区间包含 131 个 non-merge commits、354 个
 changed files、28,134 insertions 与 2,233 deletions。上游 `v0.54.0/version.env` 为
 `MARKETING_VERSION=0.54.0`、`BUILD_NUMBER=127`。
 

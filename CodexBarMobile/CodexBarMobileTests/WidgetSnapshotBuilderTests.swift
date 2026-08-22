@@ -426,6 +426,102 @@ struct WidgetSnapshotBuilderTests {
         #expect(errorWidget.message == "iCloud account not signed in")
     }
 
+    @Test("suppresses partial history totals that widgets cannot qualify")
+    func suppressesPartialHistoryTotals() {
+        let now = Self.localNoonToday()
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "dev@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 1,
+                sessionTokens: 100,
+                last30DaysCostUSD: 12.34,
+                last30DaysTokens: 1_000,
+                daily: [],
+                coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.thirtyDayCostUSD == nil)
+        #expect(widget.topProviders.first?.thirtyDayCostUSD == nil)
+        #expect(widget.todayCostUSD == 1)
+    }
+
+    @Test("suppresses aggregate widget cost when any provider is incomplete")
+    func suppressesMixedProviderPartialSubtotals() {
+        let now = Self.localNoonToday()
+        let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        let complete = ProviderUsageSnapshot(
+            providerID: "openai",
+            providerName: "OpenAI",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "complete@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 2,
+                sessionTokens: 200,
+                last30DaysCostUSD: 20,
+                last30DaysTokens: 2_000,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 2,
+                    totalTokens: 200,
+                    costIsKnown: true)],
+                historyCoverageIsEstablished: true))
+        let incomplete = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "partial@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: 100,
+                last30DaysCostUSD: 4,
+                last30DaysTokens: 1_000,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 0,
+                    totalTokens: 100,
+                    costIsKnown: false)],
+                coverage: SyncCostCoverage(priced: 1, unpriced: 1, unmetered: 0, estimated: 0),
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [complete, incomplete],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.todayCostUSD == nil)
+        #expect(widget.thirtyDayCostUSD == nil)
+        #expect(widget.todayTokens == 300)
+        #expect(widget.topProviders.first(where: { $0.providerID == "openai" })?.todayCostUSD == 2)
+        #expect(widget.topProviders.first(where: { $0.providerID == "codex" })?.todayCostUSD == nil)
+    }
+
     private static func provider(
         id: String,
         name: String,

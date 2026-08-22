@@ -1,3 +1,6 @@
+// The upstream dashboard matrix intentionally keeps all range, provenance,
+// coverage, and source-composition assertions in one searchable test file.
+// swiftlint:disable file_length
 import Foundation
 import Testing
 @testable import CodexBar

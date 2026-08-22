@@ -1034,7 +1034,12 @@ struct CloudKitMergeTests {
             sessionTokens: 0,
             last30DaysCostUSD: 100,
             last30DaysTokens: 0,
-            daily: [])
+            daily: [],
+            meteredCostUSD: 75,
+            costProvenance: .mixed,
+            coverage: SyncCostCoverage(priced: 10, unpriced: 1, unmetered: 0, estimated: 2),
+            tokenMix: SyncCostTokenMix(inputTokens: 1000, outputTokens: 200),
+            historyCoverageIsEstablished: true)
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude", providerName: "Claude",
@@ -1057,6 +1062,13 @@ struct CloudKitMergeTests {
         let claude = try #require(merged.providers.first)
         #expect(claude.costSummary?.sessionCostUSD == 20) // SUMMED, not 10
         #expect(claude.costSummary?.last30DaysCostUSD == 200) // SUMMED from summaries, not dropped
+        // One old Mac omitted all v0.53 metadata. The merged total must not
+        // expose the newer Mac's subset as if it covered both devices.
+        #expect(claude.costSummary?.meteredCostUSD == nil)
+        #expect(claude.costSummary?.costProvenance == nil)
+        #expect(claude.costSummary?.coverage == nil)
+        #expect(claude.costSummary?.tokenMix == nil)
+        #expect(claude.costSummary?.historyCoverageIsEstablished == nil)
     }
 
     @Test
@@ -1139,7 +1151,16 @@ struct CloudKitMergeTests {
             historyDays: 30,
             sessionRequests: 2,
             last30DaysRequests: 20,
-            currencyCode: "USD")
+            currencyCode: "USD",
+            meteredCostUSD: 1,
+            costProvenance: .listPriceEstimate,
+            coverage: SyncCostCoverage(priced: 8, unpriced: 1, unmetered: 0, estimated: 1),
+            tokenMix: SyncCostTokenMix(
+                inputTokens: 70,
+                outputTokens: 30,
+                cacheReadTokens: 50,
+                reasoningTokens: 10),
+            historyCoverageIsEstablished: true)
         let costB = SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -1168,7 +1189,16 @@ struct CloudKitMergeTests {
             historyDays: 30,
             sessionRequests: 3,
             last30DaysRequests: 30,
-            currencyCode: "USD")
+            currencyCode: "USD",
+            meteredCostUSD: 2,
+            costProvenance: .vendorMetered,
+            coverage: SyncCostCoverage(priced: 12, unpriced: 2, unmetered: 1, estimated: 0),
+            tokenMix: SyncCostTokenMix(
+                inputTokens: 600,
+                outputTokens: 300,
+                cacheReadTokens: 100,
+                reasoningTokens: 40),
+            historyCoverageIsEstablished: false)
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
@@ -1211,6 +1241,312 @@ struct CloudKitMergeTests {
         #expect(cost.sessionRequests == 5)
         #expect(cost.last30DaysRequests == 50)
         #expect(cost.currencyCode == "USD")
+        #expect(cost.meteredCostUSD == 3)
+        #expect(cost.costProvenance == .mixed)
+        #expect(cost.coverage == SyncCostCoverage(
+            priced: 20,
+            unpriced: 3,
+            unmetered: 1,
+            estimated: 1))
+        #expect(cost.tokenMix == SyncCostTokenMix(
+            inputTokens: 670,
+            outputTokens: 330,
+            cacheReadTokens: 150,
+            reasoningTokens: 50))
+        #expect(cost.historyCoverageIsEstablished == false)
+    }
+
+    @Test
+    func `local-cost merge hides incomplete provider-metered subtotal`() throws {
+        let costWithoutMeteredAmount = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 4,
+            last30DaysTokens: nil,
+            daily: [],
+            meteredCostUSD: nil,
+            costProvenance: .vendorMetered)
+        let costWithMeteredAmount = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 6,
+            last30DaysTokens: nil,
+            daily: [],
+            meteredCostUSD: 6,
+            costProvenance: .vendorMetered,
+            historyCoverageIsEstablished: false)
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: self.olderDate,
+                costSummary: costWithoutMeteredAmount),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: self.newerDate,
+                costSummary: costWithMeteredAmount),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let claude = try #require(merged.providers.first)
+        #expect(claude.costSummary?.last30DaysCostUSD == 10)
+        #expect(claude.costSummary?.costProvenance == .vendorMetered)
+        #expect(claude.costSummary?.meteredCostUSD == nil)
+        #expect(claude.costSummary?.historyCoverageIsEstablished == false)
+    }
+
+    @Test
+    func `local-cost merge saturates extreme synced metadata counters`() throws {
+        func provider(deviceSuffix: String, coverage: SyncCostCoverage, tokenMix: SyncCostTokenMix)
+            -> SyncedUsageSnapshot
+        {
+            self.makeSnapshot(
+                deviceName: "Mac \(deviceSuffix)",
+                deviceID: "uuid-\(deviceSuffix.lowercased())",
+                providers: [
+                    ProviderUsageSnapshot(
+                        providerID: "claude", providerName: "Claude",
+                        primary: nil, secondary: nil,
+                        accountEmail: "user@example.com",
+                        loginMethod: nil, statusMessage: nil,
+                        isError: false, lastUpdated: self.newerDate,
+                        costSummary: SyncCostSummary(
+                            sessionCostUSD: nil,
+                            sessionTokens: nil,
+                            last30DaysCostUSD: 1,
+                            last30DaysTokens: nil,
+                            daily: [],
+                            costProvenance: .listPriceEstimate,
+                            coverage: coverage,
+                            tokenMix: tokenMix)),
+                ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            provider(
+                deviceSuffix: "A",
+                coverage: SyncCostCoverage(priced: Int.max, unpriced: 0, unmetered: 0, estimated: 1),
+                tokenMix: SyncCostTokenMix(inputTokens: Int.max, outputTokens: 1)),
+            provider(
+                deviceSuffix: "B",
+                coverage: SyncCostCoverage(priced: 1, unpriced: Int.max, unmetered: 0, estimated: 1),
+                tokenMix: SyncCostTokenMix(inputTokens: 1, outputTokens: Int.max)),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.coverage?.priced == Int.max)
+        #expect(cost.coverage?.unpriced == Int.max)
+        #expect(cost.coverage?.estimated == 2)
+        #expect(cost.coverage?.total == Int.max)
+        #expect(cost.tokenMix?.inputTokens == Int.max)
+        #expect(cost.tokenMix?.outputTokens == Int.max)
+    }
+
+    @Test
+    func `local-cost merge treats an established idle Mac as zero token contribution`() throws {
+        let active = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: 300,
+            last30DaysCostUSD: 1,
+            last30DaysTokens: 300,
+            daily: [],
+            tokenMix: SyncCostTokenMix(
+                inputTokens: 200,
+                outputTokens: 100,
+                cacheReadTokens: 50,
+                reasoningTokens: 25),
+            historyCoverageIsEstablished: true)
+        let idle = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: 0,
+            last30DaysCostUSD: 0,
+            last30DaysTokens: 0,
+            daily: [],
+            tokenMix: nil,
+            historyCoverageIsEstablished: true)
+        func snapshot(name: String, id: String, cost: SyncCostSummary) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: cost),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Active Mac", id: "uuid-active", cost: active),
+            snapshot(name: "Idle Mac", id: "uuid-idle", cost: idle),
+        ]))
+        let tokenMix = try #require(merged.providers.first?.costSummary?.tokenMix)
+
+        #expect(tokenMix == active.tokenMix)
+    }
+
+    @Test
+    func `local-cost merge marks mismatched history windows incomplete`() throws {
+        func snapshot(name: String, id: String, historyDays: Int, cost: Double) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: 100,
+                        daily: [],
+                        historyDays: historyDays,
+                        meteredCostUSD: cost,
+                        costProvenance: .listPriceEstimate,
+                        coverage: SyncCostCoverage(
+                            priced: 1, unpriced: 0, unmetered: 0, estimated: 0),
+                        tokenMix: SyncCostTokenMix(inputTokens: 80, outputTokens: 20),
+                        historyCoverageIsEstablished: true)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "7-day Mac", id: "uuid-7", historyDays: 7, cost: 7),
+            snapshot(name: "30-day Mac", id: "uuid-30", historyDays: 30, cost: 30),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.historyDays == 30)
+        #expect(cost.last30DaysCostUSD == 37)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.meteredCostUSD == nil)
+        #expect(cost.coverage == nil)
+        #expect(cost.tokenMix == nil)
+    }
+
+    @Test
+    func `local-cost merge marks legacy and explicit mismatched windows incomplete`() throws {
+        func snapshot(
+            name: String,
+            id: String,
+            historyDays: Int?,
+            coverageEstablished: Bool?,
+            cost: Double) -> SyncedUsageSnapshot
+        {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: 100,
+                        daily: [],
+                        historyDays: historyDays,
+                        historyCoverageIsEstablished: coverageEstablished)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(
+                name: "Legacy 30-day Mac",
+                id: "uuid-legacy",
+                historyDays: nil,
+                coverageEstablished: nil,
+                cost: 30),
+            snapshot(
+                name: "Modern 7-day Mac",
+                id: "uuid-modern",
+                historyDays: 7,
+                coverageEstablished: true,
+                cost: 7),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.historyDays == 30)
+        #expect(cost.last30DaysCostUSD == 37)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.completeHistoryCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge preserves an authoritative zero session cost`() throws {
+        func snapshot(name: String, id: String) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: 0,
+                        sessionTokens: 0,
+                        last30DaysCostUSD: 0,
+                        last30DaysTokens: 0,
+                        daily: [],
+                        historyCoverageIsEstablished: true)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Mac A", id: "uuid-a"),
+            snapshot(name: "Mac B", id: "uuid-b"),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.sessionCostUSD == 0)
+        #expect(cost.todayTotals().displayCostUSD == 0)
+    }
+
+    @Test
+    func `local-cost merge keeps token-only window cost unavailable`() throws {
+        func snapshot(name: String, id: String, tokens: Int) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: tokens,
+                        last30DaysCostUSD: nil,
+                        last30DaysTokens: tokens,
+                        daily: [
+                            SyncDailyPoint(
+                                dayKey: "2026-08-20",
+                                costUSD: 0,
+                                totalTokens: tokens,
+                                costIsKnown: false),
+                        ],
+                        historyCoverageIsEstablished: false)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Mac A", id: "uuid-a", tokens: 100),
+            snapshot(name: "Mac B", id: "uuid-b", tokens: 200),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.last30DaysCostUSD == nil)
+        #expect(cost.last30DaysTokens == 300)
+        #expect(cost.daily.first?.costIsKnown == false)
+        #expect(cost.daily.first?.totalTokens == 300)
     }
 
     @Test
