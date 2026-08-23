@@ -2,6 +2,7 @@
 
 Status: `done`
 Date: 2026-08-22
+Released: 2026-08-23
 Branch: `upstream-sync/v0.54.0-mobile.1.22.0`
 
 ## 结论
@@ -24,10 +25,12 @@ open upstream-sync issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues
 sync/CloudKit/CWL回归、lint、Release build与循环review均通过。随后PR
 [#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99)在exact current head取得clean Codex review、
 zero review threads与green Fast Checks，并合入`mobile-dev`；merge-triggered Final CI
-[32614686853](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32614686853)全部通过。Mac phase 1已生成
-signed/notarized [draft release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)，
-但没有发布live release或appcast。Production schema审计结论为`NO_DEPLOY`。16种old/new组合均如实记录为
-`substituted`，未伪报四台实体设备验证；iOS 1.22.0 (195)也尚未上传TestFlight。
+[32614686853](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32614686853)全部通过。Mac phase 1生成的
+signed/notarized draft随后通过`./Scripts/release.sh --finalize`公开为
+[v0.54.0.1-mobile.1.22.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.54.0.1-mobile.1.22.0)，
+appcast由commit`f7b86b7ab`发布，公网下载与Sparkle签名/长度均通过回读。Production schema审计结论为
+`NO_DEPLOY`。16种old/new组合仍如实记录为`substituted`，未伪报四台实体设备验证；iOS
+`1.22.0 (195)`已Archive、上传并在App Store Connect处理为`VALID`。
 
 ## 分支证据
 
@@ -37,15 +40,16 @@ signed/notarized [draft release](https://github.com/o1xhack/CodexBar-Mobile/rele
 `upstream-sync/v0.54.0-mobile.1.22.0`。分支初始 HEAD 与 `origin/mobile-dev` 相同，worktree clean；
 后续 Research、merge、实现、版本和测试始终只在该任务分支进行，没有回到 `mobile-dev` 实现。
 
-后续用户分别授权了PR合入与Mac draft phase 1；因此分支已push、PR已merge、draft tag与draft release已创建。
-仍未授权或执行live Mac release、appcast publication、TestFlight upload或CloudKit Production deploy。
+后续用户分别授权了PR合入、Mac draft phase 1，以及2026-08-23的Mac public release与iOS上传；因此PR已merge，
+Mac release/appcast已公开，iOS `1.22.0 (195)`已进入TestFlight且为`VALID`。本轮schema审计为`NO_DEPLOY`，
+所以没有执行CloudKit Production deploy；也没有创建或提交iOS 1.22 App Store version。
 
 ## Issue 范围
 
 | Issue | Release / defect | 本轮处置 |
 |---|---|---|
-| [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95) | upstream `v0.53.0` | 纳入 v0.54.0 train；PR 只关联，不提前关闭；Mac public release 公开后回复 release 链接并手动 `Close as completed` |
-| [#97](https://github.com/o1xhack/CodexBar-Mobile/issues/97) | macOS 27 Settings 无法打开 | 由 upstream #3029 修复，并纳入完整 sync 与 Settings 回归 |
+| [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95) | upstream `v0.53.0` | 纳入 v0.54.0 train；public release 后已[回复证据](https://github.com/o1xhack/CodexBar-Mobile/issues/95#issuecomment-5388042853)并手动 `Close as completed` |
+| [#97](https://github.com/o1xhack/CodexBar-Mobile/issues/97) | macOS 27 Settings 无法打开 | 由 upstream #3029 修复并纳入完整回归；public release 后已[回复证据与目标系统限制](https://github.com/o1xhack/CodexBar-Mobile/issues/97#issuecomment-5388042982)并手动 `Close as completed` |
 | monitor 尚未生成 | upstream `v0.54.0` | Releases 权威事实补入同一 train |
 
 历史 closed issues #82–#88 与 Research 047 证明前一 train 已发布至 `v0.52.0`，本轮不重复

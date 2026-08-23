@@ -393,7 +393,7 @@ GitHub review，也无需额外发布architecture audit comment；上述四字�
 整数溢出。对应SwiftData 21/21与CostProvenance 11/11通过，最终Mac Release build在当前HEAD以265.87秒完成。
 这部分没有新增CloudKit record/schema字段，`providerPayloadVersion`保持1。
 
-## GitHub 合入与 Mac draft（2026-08-22）
+## GitHub 合入、Mac public release 与 iOS TestFlight（2026-08-22–23）
 
 - upstream-sync分支推送后创建PR [#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99)；
   `PR Fast Checks`通过，exact-current head `4535e55bf47c291f22cc9f883fa2f2b6ffb17272`的Codex review
@@ -404,10 +404,18 @@ GitHub review，也无需额外发布architecture audit comment；上述四字�
 - 从clean且与`origin/mobile-dev`一致的merge commit运行`./Scripts/release.sh` phase 1；Apple notarization
   `d9e78000-ad1b-4133-bb57-7e47d53b42a8`=`Accepted`，签名、staple、Gatekeeper与launch checks通过；
 - tag `v0.54.0.1-mobile.1.22.0`指向merge commit；GitHub
-  [draft release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)
-  已创建并含ZIP/dSYM，远端digest与本地SHA-256一致；未运行`--finalize`，未发布appcast/live release；
+  draft已通过`./Scripts/release.sh --finalize`公开为
+  [public release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.54.0.1-mobile.1.22.0)，
+  ZIP/dSYM远端digest与本地SHA-256一致；appcast commit为`f7b86b7ab`，Sparkle version为
+  `127.1.1.22.0`，公网下载`302 -> 200`；
 - notarized draft在macOS 26.5.2用exact PID验证issue #97：`Command-,`与状态栏`设置…`均打开同一个
   retained Settings window，重复打开稳定态仍为1，目标runtime fault日志为0。macOS 27 beta及
   active Space/Stage Manager仍为substituted，未伪报physical pass；
-- #95/#97均保持open，等待Mac public release公开后逐项回复正式URL并手动`Close as completed`；
-- draft后的证据只在`release/v0.54.0.1-draft-evidence` docs-only分支回写，没有直接修改`mobile-dev`产品代码。
+- #95/#97已分别回复public release、实现与测试证据，并手动`Close as completed`；
+- iOS执行`xcodegen generate`后Archive成功，archive回读`1.22.0 (195)`、bundle ID
+  `com.o1xhack.codexbar.mobile`与CloudKit `Production` entitlement；Xcode cloud-signing upload返回
+  `Upload succeeded`，ASC build `f2597f02-7056-4e70-b740-6e8b1eda6ffd`最终为`VALID`；
+- 1024源图与archive内`AppIcon60x60@2x.png`均无alpha且视觉正确；ASC `iconAssetToken`存在，Apple CDN
+  152x152图标也已人工回看正确；
+- draft后的证据只在`release/v0.54.0.1-draft-evidence` docs-only分支回写，没有直接修改`mobile-dev`产品代码；
+  public/TestFlight终态则在`release/v0.54.0.1-live-closeout`继续以docs-only PR回写。
