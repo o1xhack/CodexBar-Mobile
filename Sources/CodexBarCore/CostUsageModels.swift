@@ -489,7 +489,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
                     unmetered: unmetered,
                     estimated: estimated)
             }
-            if unpriced + unmetered + estimated > 0 {
+            if unpriced > 0 || unmetered > 0 || estimated > 0 {
                 return CostUsageCoverageCounts(
                     priced: 0,
                     unpriced: unpriced,

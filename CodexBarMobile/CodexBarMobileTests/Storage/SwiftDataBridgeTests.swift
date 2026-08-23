@@ -797,6 +797,76 @@ struct SwiftDataBridgeTests {
     }
 
     @Test
+    func `Removed owner preserves ledger after a temporary missing cost snapshot`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let oldDay = "2026-01-01"
+        let currentDay = "2026-08-22"
+        func summary(points: [(day: String, cost: Double)], updatedAt: Date) -> SyncCostSummary {
+            let total = points.reduce(0) { $0 + $1.cost }
+            return SyncCostSummary(
+                sessionCostUSD: total,
+                sessionTokens: 100,
+                last30DaysCostUSD: total,
+                last30DaysTokens: 100,
+                daily: points.map {
+                    SyncDailyPoint(dayKey: $0.day, costUSD: $0.cost, totalTokens: 100)
+                },
+                sourceUpdatedAt: updatedAt)
+        }
+
+        let oldOwner = self.makeProvider(
+            id: "opencodego", name: "OpenCode Go", email: "bob@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(points: [(oldDay, 2), (currentDay, 3)], updatedAt: self.ts1),
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-missing-cost-owner",
+                providers: [oldOwner],
+                timestamp: self.ts1)],
+            into: context)
+
+        // A transient scanner miss clears only the bounded blob. CWL remains
+        // authoritative for the older accumulated days.
+        let temporarilyCostlessOwner = self.makeProvider(
+            id: "opencodego", name: "OpenCode Go", email: "bob@example.com",
+            lastUpdated: self.ts2,
+            costSummary: nil,
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-missing-cost-owner",
+                providers: [temporarilyCostlessOwner],
+                timestamp: self.ts2)],
+            into: context)
+        let persistedOwner = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(persistedOwner.costSummaryData == nil)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+
+        let newOwner = self.makeProvider(
+            id: "opencodego", name: "OpenCode Go", email: "alice@example.com",
+            lastUpdated: self.ts2.addingTimeInterval(60),
+            costSummary: summary(
+                points: [(currentDay, 4)],
+                updatedAt: self.ts2.addingTimeInterval(60)),
+            accountRecordKey: "alice-record")
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-missing-cost-owner",
+                providers: [newOwner],
+                timestamp: self.ts2.addingTimeInterval(60))],
+            deletedRecordNames: ["device-missing-cost-owner|opencodego|bob-record"],
+            into: context)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        #expect(rows.allSatisfy { $0.accountRecordKey == "alice-record" })
+        #expect(rows.first(where: { $0.dayKey == oldDay })?.costUSD == 2)
+        #expect(rows.first(where: { $0.dayKey == currentDay })?.costUSD == 4)
+    }
+
+    @Test
     func `Removed Mistral account does not transfer account-native cost history`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)

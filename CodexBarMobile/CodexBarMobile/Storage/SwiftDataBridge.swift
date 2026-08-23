@@ -191,10 +191,17 @@ enum SwiftDataBridge {
                 accountRecordKey: costOwner.accountRecordKey)
             for oldOwner in existingForDevice where
                 oldOwner.providerID == providerID
-                && oldOwner.costSummaryData != nil
                 && oldOwner.compositeKey != costOwnerKey
                 && !incomingKeys.contains(oldOwner.compositeKey)
             {
+                let ownsPersistedCostHistory = try oldOwner.costSummaryData != nil
+                    || (CostLedgerService.hasRows(
+                        deviceID: deviceID,
+                        providerID: providerID,
+                        accountEmail: oldOwner.accountEmail,
+                        accountRecordKey: oldOwner.accountRecordKey,
+                        in: context))
+                guard ownsPersistedCostHistory else { continue }
                 try CostLedgerService.migrateCostOwnership(
                     deviceID: deviceID,
                     providerID: providerID,

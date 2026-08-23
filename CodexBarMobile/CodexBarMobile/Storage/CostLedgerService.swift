@@ -447,6 +447,29 @@ enum CostLedgerService {
         }
     }
 
+    /// Whether this account still owns accumulated ledger history even when
+    /// its latest bounded provider blob temporarily carries no cost summary.
+    /// Ownership migration must consult both stores: the blob describes the
+    /// current window, while CWL can retain older days independently.
+    static func hasRows(
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?,
+        accountRecordKey: String?,
+        in context: ModelContext) throws -> Bool
+    {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        return try context.fetch(descriptor).contains {
+            Self.rowMatchesAccount(
+                $0,
+                accountEmail: accountEmail,
+                accountRecordKey: accountRecordKey)
+        }
+    }
+
     // MARK: - Aggregate (reader · Round 3 / P3)
 
     /// Aggregate ledger rows for the trailing `windowDays`.

@@ -21,6 +21,28 @@ struct CostProvenanceTests {
     }
 
     @Test
+    func `coverage counters saturate instead of overflowing`() {
+        var merged = CostUsageCoverageCounts(priced: Int.max, unpriced: Int.max)
+        merged.merge(CostUsageCoverageCounts(priced: 1, unmetered: Int.max, estimated: Int.max))
+        #expect(merged.priced == Int.max)
+        #expect(merged.total == Int.max)
+        #expect(merged.coverageRatio == 0.5)
+
+        let decodedExtreme = CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: nil,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: nil,
+            unpricedRequestCount: Int.max,
+            unmeteredRequestCount: Int.max,
+            estimatedRequestCount: Int.max)
+        #expect(decodedExtreme.coverageCounts.total == Int.max)
+    }
+
+    @Test
     func `token mix keeps nil distinct from zero`() {
         var mix = CostUsageTokenMix(inputTokens: 10, outputTokens: nil)
         #expect(mix.inputTokens == 10)

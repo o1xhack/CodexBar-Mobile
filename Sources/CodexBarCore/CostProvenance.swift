@@ -59,27 +59,33 @@ public struct CostUsageCoverageCounts: Sendable, Equatable, Codable {
     }
 
     public var total: Int {
-        self.priced + self.unpriced + self.unmetered + self.estimated
+        [self.priced, self.unpriced, self.unmetered, self.estimated]
+            .reduce(0, Self.saturatingAdd)
     }
 
     public var coverageRatio: Double? {
-        let measured = self.priced + self.estimated
-        let denominator = self.total
+        let measured = Double(self.priced) + Double(self.estimated)
+        let denominator = measured + Double(self.unpriced) + Double(self.unmetered)
         guard denominator > 0 else { return nil }
-        return Double(measured) / Double(denominator)
+        return measured / denominator
     }
 
     public mutating func merge(_ other: CostUsageCoverageCounts) {
-        self.priced += other.priced
-        self.unpriced += other.unpriced
-        self.unmetered += other.unmetered
-        self.estimated += other.estimated
+        self.priced = Self.saturatingAdd(self.priced, other.priced)
+        self.unpriced = Self.saturatingAdd(self.unpriced, other.unpriced)
+        self.unmetered = Self.saturatingAdd(self.unmetered, other.unmetered)
+        self.estimated = Self.saturatingAdd(self.estimated, other.estimated)
     }
 
     public static func + (lhs: Self, rhs: Self) -> Self {
         var merged = lhs
         merged.merge(rhs)
         return merged
+    }
+
+    private static func saturatingAdd(_ lhs: Int, _ rhs: Int) -> Int {
+        let (result, overflow) = lhs.addingReportingOverflow(rhs)
+        return overflow ? Int.max : result
     }
 }
 
