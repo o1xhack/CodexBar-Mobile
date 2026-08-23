@@ -385,10 +385,29 @@ pseudo-account，不增加provider-specific architecture branch或wire字段；�
 审阅集合仍为95项。Mistral account-native费用分支使用紧邻、具体原因的设计标记，不扩大fork drift；新增源码行使
 location fingerprint更新为`469636138625236751`，focused与full-run内的38/38 architecture gate均通过。
 
-当前尚无PR，因此无法发布规定格式的PR comment；创建PR后若review流程继续超过5轮，必须把以上4个非空字段原样
-写入PR再请求下一轮。
+PR #99的GitHub Codex review在第一轮即返回exact-current clean结果，且没有finding thread，因此没有进入第6轮
+GitHub review，也无需额外发布architecture audit comment；上述四字段继续作为本地累计review的根因记录。
 
 最后两轮把同一cost准确性根因收口到四个边界：费用来源owner从增量快照完全消失时仍须迁移CWL长历史；一次
 临时无费用blob不能抹掉该历史所有权；Mistral账号原生费用不得跨账号迁移；损坏或极大的coverage counter不得
 整数溢出。对应SwiftData 21/21与CostProvenance 11/11通过，最终Mac Release build在当前HEAD以265.87秒完成。
 这部分没有新增CloudKit record/schema字段，`providerPayloadVersion`保持1。
+
+## GitHub 合入与 Mac draft（2026-08-22）
+
+- upstream-sync分支推送后创建PR [#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99)；
+  `PR Fast Checks`通过，exact-current head `4535e55bf47c291f22cc9f883fa2f2b6ffb17272`的Codex review
+  返回`Didn't find any major issues`，review threads为0，`Scripts/check_pr_review_gate.sh 99`通过；
+- PR #99合入`mobile-dev`，merge commit为
+  `d7eddbc70d133f34e52d903dbdb4e2e9a1af7581`；merge-triggered Final CI
+  [32614686853](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32614686853)全部通过；
+- 从clean且与`origin/mobile-dev`一致的merge commit运行`./Scripts/release.sh` phase 1；Apple notarization
+  `d9e78000-ad1b-4133-bb57-7e47d53b42a8`=`Accepted`，签名、staple、Gatekeeper与launch checks通过；
+- tag `v0.54.0.1-mobile.1.22.0`指向merge commit；GitHub
+  [draft release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)
+  已创建并含ZIP/dSYM，远端digest与本地SHA-256一致；未运行`--finalize`，未发布appcast/live release；
+- notarized draft在macOS 26.5.2用exact PID验证issue #97：`Command-,`与状态栏`设置…`均打开同一个
+  retained Settings window，重复打开稳定态仍为1，目标runtime fault日志为0。macOS 27 beta及
+  active Space/Stage Manager仍为substituted，未伪报physical pass；
+- #95/#97均保持open，等待Mac public release公开后逐项回复正式URL并手动`Close as completed`；
+- draft后的证据只在`release/v0.54.0.1-draft-evidence` docs-only分支回写，没有直接修改`mobile-dev`产品代码。

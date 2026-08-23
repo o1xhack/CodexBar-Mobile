@@ -21,11 +21,13 @@ open upstream-sync issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues
 恢复为原版本，v0.54 新增说明进入单独的 `1.22.0` notes block。
 
 本地闭环已在上述分支完成：product-source head的Mac/iOS full regression、focused
-sync/CloudKit/CWL回归、lint、Release build与循环review均通过，`e52a659e0` review为
-`Blockers: 0`；随后仅发生1.22版本/说明修正，并通过full lint、iOS Release build与本地diff自查。
-Production schema审计结论为`NO_DEPLOY`。16种old/new组合均如实记录为`substituted`，未伪报四台
-实体设备验证。按权限边界，本轮没有push、PR、merge、tag、Mac public release、appcast发布、
-TestFlight上传或CloudKit deploy；GitHub current-head review仍需在PR创建后执行。
+sync/CloudKit/CWL回归、lint、Release build与循环review均通过。随后PR
+[#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99)在exact current head取得clean Codex review、
+zero review threads与green Fast Checks，并合入`mobile-dev`；merge-triggered Final CI
+[32614686853](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32614686853)全部通过。Mac phase 1已生成
+signed/notarized [draft release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)，
+但没有发布live release或appcast。Production schema审计结论为`NO_DEPLOY`。16种old/new组合均如实记录为
+`substituted`，未伪报四台实体设备验证；iOS 1.22.0 (195)也尚未上传TestFlight。
 
 ## 分支证据
 
@@ -35,8 +37,8 @@ TestFlight上传或CloudKit deploy；GitHub current-head review仍需在PR创建
 `upstream-sync/v0.54.0-mobile.1.22.0`。分支初始 HEAD 与 `origin/mobile-dev` 相同，worktree clean；
 后续 Research、merge、实现、版本和测试始终只在该任务分支进行，没有回到 `mobile-dev` 实现。
 
-本轮未授权 push、PR merge、published tag、live Mac release、appcast publication、
-TestFlight upload 或 CloudKit Production deploy。
+后续用户分别授权了PR合入与Mac draft phase 1；因此分支已push、PR已merge、draft tag与draft release已创建。
+仍未授权或执行live Mac release、appcast publication、TestFlight upload或CloudKit Production deploy。
 
 ## Issue 范围
 
