@@ -4058,8 +4058,21 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.21.0",
+            version: "1.22.0",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Clearer cost truth — newer Macs now label partial coverage, provider-reported versus estimated spend, and input, output, cache, and reasoning token mix."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.21.0",
+            status: "",
             summary: String(
                 localized: "iPhone 1.21 brings richer provider details, Fireworks and IBM Bob, clearer quota labels, and safer multi-Mac sync."),
             sections: [
@@ -4072,8 +4085,6 @@ private enum MobileReleaseNotesCatalog {
                             localized: "Two more providers — Fireworks and IBM Bob now appear with their own colors and usage details."),
                         String(
                             localized: "Safer sync across Macs — provider accounts merge deterministically while separate accounts and custom plugins stay distinct."),
-                        String(
-                            localized: "Clearer cost truth — newer Macs now label partial coverage, provider-reported versus estimated spend, and input, output, cache, and reasoning token mix."),
                     ]),
             ]),
         ReleaseNotesVersion(

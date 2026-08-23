@@ -5,8 +5,8 @@ Date: 2026-08-22
 
 ## Phase A — 分支与调研
 
-- [x] 从最新 `mobile-dev` (`cadf27e6009c70c683122622f2ed321d2e608b17`) 建立
-  `upstream-sync/v0.54.0-mobile.1.21.0`；
+- [x] 从最新 `mobile-dev` (`cadf27e6009c70c683122622f2ed321d2e608b17`) 建立任务分支；ASC
+  状态核验后在未 push / 未建 PR 时将其改名为 `upstream-sync/v0.54.0-mobile.1.22.0`；
 - [x] 读取 versioning、sync compatibility、CloudKit audit、release checklist与CI policy；
 - [x] 复核 open issue #95、defect #97、历史 closed upstream-sync issues与上游 Releases；
 - [x] 选择 authoritative latest release `v0.54.0`，将 v0.53.0–v0.54.0 合并成单一 train；
@@ -25,7 +25,7 @@ Date: 2026-08-22
 
 - [x] 完成 cost provenance/coverage/token mix 与provider数据投影审计；
 - [x] 新增 additive optional wire与iOS显示，旧payload字段缺失保持原显示；
-- [x] 合并更新唯一的 1.21.0 notes block与四语言localization；
+- [x] 新增独立的 1.22.0 notes block与四语言localization，并把已审核的 1.21.0 block恢复为前一版本内容；
 - [x] 全部iOS targets build从194增至195。
 
 ## Phase D — testing/review
@@ -34,8 +34,19 @@ Date: 2026-08-22
 - [x] iOS Release build、731/731 unit tests与UI target；
 - [x] CloudKit Production schema审计：`NO_DEPLOY`；
 - [x] 16-case compatibility gate：全部逐行记录为`substituted`，未伪报physical pass；
-- [x] merge/bridge/iOS循环review：累计94项均已修复并按影响面复测；最终commit
+- [x] merge/bridge/iOS循环review：累计94项均已修复并按影响面复测；product-source commit
   `e52a659e0`定向exact-current review为`Blockers: 0`。
+
+## Phase E — iOS 1.22 release-state correction
+
+- [x] ASC live readback确认已审核的`1.21.0 (194)`处于`PENDING_DEVELOPER_RELEASE` / manual release，
+  不能吸收新build；用户明确批准本轮改为`1.22.0 (195)`；
+- [x] 在未push、未建PR时把任务分支改名为`upstream-sync/v0.54.0-mobile.1.22.0`；
+- [x] 更新`MOBILE_VERSION=1.22.0`、四个iOS targets、Sparkle复合版本、candidate tag、两份
+  CHANGELOG、Research与CloudKit审计记录；
+- [x] 为1.22新增独立Latest release-notes block和四语言summary；把1.21恢复为已审核内容；
+- [x] `xcodegen generate`、i18n/source-key audit、fork README/CI policy/version/changelog gates与
+  iOS 1.22 Release simulator build通过；未重复此前已通过的Mac/iOS full regression。
 
 ## 冲突记录
 
@@ -43,7 +54,7 @@ Date: 2026-08-22
 
 | 分组 | Conflict paths | 决策 |
 |---|---|---|
-| release / version | `CHANGELOG.md`, `appcast.xml`, `version.env` | 保留 fork published history 与 draft-safe appcast；追加 0.53/0.54 notes；使用 `0.54.0.1 / 127.1 / 1.21.0` |
+| release / version | `CHANGELOG.md`, `appcast.xml`, `version.env` | 保留 fork published history 与 draft-safe appcast；追加 0.53/0.54 notes；使用 `0.54.0.1 / 127.1 / 1.22.0` |
 | app lifecycle / Settings | `CodexbarApp.swift`, `PreferencesSpendDashboardPane.swift`, `UsageStore+Refresh.swift`, `UsageStore.swift` | 采用 retained Settings controller、placeholder guard与上游refresh/spend语义，同时保留 `SyncCoordinator`、fleet/mobile observer和fork account生命周期 |
 | provider / pricing | `CodexProviderDescriptor.swift`, `GrokStatusProbe.swift`, `CostUsagePricing.swift`, `CostUsageScanner+CacheHelpers.swift`, `CostUsageScanner+PricingRows.swift` | 合入PAT、Grok/xAI、historical/custom pricing、OpenCodex与新coverage；保留CLI fallback、provider-qualified pricing和fork fail-closed语义 |
 | cache fingerprint | `CodexParserHash.generated.swift` | `parserLogicVersion` 12→13，最终hash由脚本生成，禁止手写 |
@@ -64,7 +75,7 @@ branding与iOS/Mac下载入口。`appcast.xml` 与merge前fork parent byte-equiv
   legacy 30天归一化，但显式7天+30天来源不可认证为完整，并隐藏不可比较的metered/coverage/token mix；
 - iOS provider detail显示provider-reported金额、coverage、provider-neutral incomplete-history提示、
   provenance与五类token mix；只有至少一个可见元素时才显示费用区；
-- `Localizable.xcstrings` 四语言全部translated，1.21.0 release notes只有一个block；build 194→195；
+- `Localizable.xcstrings` 四语言全部translated；1.22.0为最新block，已审核的1.21.0 block保持独立；build 194→195；
 - root与Mobile changelog均保留历史fork release段；`README.md` fork branding未被上游覆盖；
 - review发现并修复：report builder搬迁时遗漏`isEstimated`、Grok token catalog sentinel未更新、plugin
   fixture污染全局registry、per-token-class混合Mac部分合计、旧fork changelog段丢失、parser history漏记13；
@@ -336,7 +347,7 @@ pricing文案误称public API prices、metadata-only summary不可达、provider
 `Calendar.current`重切provider窗口、Grok zero-information空标题，以及line-sensitive architecture sentinel漂移。
 每轮修复后均重跑对应Mac/iOS focused tests与lint；第5轮P1触发进入第6轮前的强制根因审计：
 
-- **Head:** `upstream-sync/v0.54.0-mobile.1.21.0` working tree，基于merge commit `0e4a7f491`；
+- **Head:** `upstream-sync/v0.54.0-mobile.1.22.0` working tree，基于merge commit `0e4a7f491`；
 - **Repeated finding pattern:** 新cost metadata在producer、multi-Mac merge与iOS可见性之间缺少统一的
   completeness/source/calendar不变量，并反复混用source day、publication time与coverage window；architecture
   gate另受源码行号影响；

@@ -20094,6 +20094,12 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 带来更丰富的提供商详情、Fireworks 和 IBM Bob、更清晰的额度标签，以及更安全的多 Mac 同步。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 帶來更豐富的提供者詳情、Fireworks 和 IBM Bob、更清楚的額度標籤，以及更安全的多 Mac 同步。" } }
     } },
+    "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 では、新しい Mac から届くカバレッジ、ソース、トークンの詳細により、コスト合計がより分かりやすくなります。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 通过新版 Mac 提供的覆盖范围、来源和 Token 明细，让费用总额更清晰。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 透過新版 Mac 提供的涵蓋範圍、來源和 Token 明細，讓費用總額更清楚。" } }
+    } },
     "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout." } },
       "ja": { "stringUnit": { "state": "translated", "value": "より多くのプロバイダー詳細 — 新しい Mac 版の残高、クレジット、請求、チャート、Claude のモデル別上限、Cursor と Vertex のクォータラベル、OpenCode Go の推定値、Grok のプランを統一されたレイアウトで表示します。" } },

@@ -34,7 +34,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.sync
         GENERATE_INFOPLIST_FILE: true
-        MARKETING_VERSION: "1.21.0"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "195"
 
   CodexBarMobilePushExtension:
@@ -55,7 +55,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.pushextension
-        MARKETING_VERSION: "1.21.0"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "195"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
@@ -81,7 +81,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.widgets
-        MARKETING_VERSION: "1.21.0"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "195"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobileWidgets/Info.plist
@@ -106,7 +106,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile
-        MARKETING_VERSION: "1.21.0"
+        MARKETING_VERSION: "1.22.0"
         CURRENT_PROJECT_VERSION: "195"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobile/Info.plist

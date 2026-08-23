@@ -34,12 +34,16 @@ Date: 2026-08-21
 |---|---|---|
 | Mac `MARKETING_VERSION` | `0.52.0.1` | `0.54.0.1` |
 | Mac `BUILD_NUMBER` | `124.1` | `127.1` |
-| `MOBILE_VERSION` | `1.21.0` | `1.21.0` |
-| iOS `MARKETING_VERSION` | `1.21.0` | `1.21.0` |
+| `MOBILE_VERSION` | `1.21.0` | `1.22.0` |
+| iOS `MARKETING_VERSION` | `1.21.0` | `1.22.0` |
 | iOS `CURRENT_PROJECT_VERSION` | `194` | `195`，全部 targets |
-| Sparkle version | `124.1.1.21.0` | `127.1.1.21.0` |
-| candidate tag | `v0.52.0.1-mobile.1.21.0` | `v0.54.0.1-mobile.1.21.0` |
+| Sparkle version | `124.1.1.21.0` | `127.1.1.22.0` |
+| candidate tag | `v0.52.0.1-mobile.1.21.0` | `v0.54.0.1-mobile.1.22.0` |
 | upstream bookmark | `v0.52.0 / 2026-08-17` | `v0.54.0 / 2026-08-20` |
+
+版本拆分不是把同一批上游内容人为拆成两个新版本：iOS `1.21.0 (194)` 已在 ASC 审核通过并等待
+developer release，是前一 v0.52 train 的冻结工件；本轮 v0.54 的唯一 iOS 工件因此使用 `1.22.0 (195)`。
+Mac 仍只发布一个 `0.54.0.1`，并通过 `MOBILE_VERSION=1.22.0` 与该 companion train 绑定。
 
 ## 测试策略
 

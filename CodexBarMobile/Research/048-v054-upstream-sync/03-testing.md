@@ -6,9 +6,9 @@ Date: 2026-08-22
 ## 版本与范围
 
 - old Mac: published fork `0.52.0.1 (124.1.1.21.0)`；
-- new Mac candidate: `0.54.0.1 (127.1.1.21.0)`；
+- new Mac candidate: `0.54.0.1 (127.1.1.22.0)`；
 - old iPhone: iOS `1.21.0 (194)`；
-- new iPhone candidate: iOS `1.21.0 (195)`；
+- new iPhone candidate: iOS `1.22.0 (195)`；
 - payload/CloudKit baseline: `providerPayloadVersion=1`、Production container。
 
 ## Gates
@@ -19,17 +19,32 @@ Date: 2026-08-22
 | Mac build + lint + full tests | pass | exact-current `swift build -c release` pass（265.87s）；SwiftFormat 2026 files / 0 issues、SwiftLint 2025 files / 0 violations；serial full regression 9671 tests / 919 suites / 0 failures；末轮仅按影响面复测，没有重复整套full suite |
 | Settings / CloudKit / cost / provider focused regression | pass | final custom-plugin cost bridge + Grok captured-calendar + sync focused 81/81；此前Bedrock/Cursor bucket-calendar 96/96、Grok/calendar 39/39、sync producer/mapper/wire/UTC freshness 97/97与dashboard freshness组合135/135；cost pricing race、29-provider token catalog、plugin isolation focused pass；architecture 38/38 pass |
 | Parser fingerprint/hash | pass | `parserLogicVersion=13`；`regenerate-codex-parser-hash.sh` → `8b9bc662426a8aab`；lint audit pass |
-| iOS build + full tests | pass | exact-current unit target：731/731，0 failures / 0 skipped（device/config展开768 passed runs）；完整scheme另含UI 7 tests，3 pass / 4 fixture-dependent skipped，0 failures；最新Release simulator build `BUILD SUCCEEDED`（约47.45s） |
+| iOS build + full tests | pass | product-source unit target：731/731，0 failures / 0 skipped（device/config展开768 passed runs）；完整scheme另含UI 7 tests，3 pass / 4 fixture-dependent skipped，0 failures；版本修正后的1.22 Release simulator build再次`BUILD SUCCEEDED` |
 | Widget/cost/provider display parity | pass | full iOS unit target覆盖widget/render；最终CloudKit merge + share + widget + CWL等价 + CostTab刷新时钟聚焦156/156；此前CloudKit重建 + incremental cache + merge + share + widget组合185/185 test cases（189 runs）；覆盖独立provider envelope发布时间、乱序delta metadata、modern sum、old/new conservative merge、history window comparability、producer bucket time zone、stale daily-only writer、source-window限制、producer-day scan anchor、publication uncertainty extension、跨日session隔离、Today session fallback并入daily、跨producer calendar的reader-relative day聚合、固定reference instant、producer最早午夜主动刷新、metadata-only与empty-section gate |
 | iOS ledger/blob一致性 | pass | final数据库/时钟专项47/47；此前CloudKit merge + `CWLWriterTests` + `CWLAggregateTests` + `CWLEquivalenceTests`为126/126；覆盖写入去重、equal-time原子刷新、equal-timestamp旧ledger内容会由authoritative blob修复、older payload拒绝、跨设备聚合、producer day/time-zone/source freshness、stored-row/live-summary freshness与显式false优先、producer领先/落后reader、UTC+14/UTC-11极端边界，以及双Mac异时区时按原始device/provider在rollup前映射reader-relative day并精确裁剪；owner tombstone精确删除旧ledger row且clear优先；seed/backfill按cost source time与payload内容判定，不会由新quota envelope复活旧cost，也不会漏掉真正较新的或等时漂移的cost；blob/CWL等价且不会重复映射已归一化ledger日轴；reader day key固定Gregorian并保留timezone |
 | iOS cost consumer一致性 | pass | full unit 731/731；mixed known/unavailable日的share total/bar/model与diagnostics availability/incomplete状态使用同一保守语义；modern unresolved、stale source、unfinished scan、legacy summary-only unknown cost与aggregate pricing gap均不泄漏Today subtotal；任一明确false会传播到主Cost aggregate，stale source同时限定Today/7天/30天并隐藏compact history；legacy无dated rows的30天汇总不会认证7天分配；不同Mac cost bucket time zone会fail closed并隐藏不可比较的metered/coverage/token mix；窗口不可比较会保守限定7天/30天派生值但不污染可信Today；dashboard model fallback不复活不可用provider breakdown；blob/CWL均保留权威`$0`；legacy sparse-day语义保持兼容；非零partial日保留Active Days证据但不显示为完整金额或Avg/Day；跨时区freshness比较使用producer calendar中的当前instant，并把producer logical day映射为reader相对日轴再跨provider聚合；CWL也按每个原始device/provider在provider/model/service rollup前使用各自producer窗口；历史完整性与Today使用同一固定reference instant，不使用reader-local midnight重切来源窗口；per-provider publication timestamp变化会进入refresh signature并触发重算；reader timezone变化会重启root/Cost/Diagnostics日期时钟；同source day下的旧session day仍会使多Mac Today fail closed，CWL explicit-false按reader-normalized Today key优先于live fallback；missing-provider fallback按cost source timestamp遵守本地clear boundary；OpenRouter provider-level cost envelope在cache中保留、在widget金额汇总中消费，但不生成额外provider row/count或重复identity；较新的provider-level clear tombstone与旧account summary原子选胜，不重复计费 |
-| Four-language localization | pass | lint：all locales translated；303/303 source keys present；唯一1.21.0 notes block |
+| ASC version-state audit | pass | live readback：`1.21.0 (194)` = `PENDING_DEVELOPER_RELEASE` / `MANUAL`，build `194`=`VALID`；因此新candidate为独立`1.22.0 (195)`，未上传TestFlight |
+| Four-language localization | pass | 1.22.0独立Latest notes block；1.21.0恢复已审核内容；新增summary含en / zh-Hans / zh-Hant / ja |
+| iOS 1.22 relabel gate | pass | `xcodegen generate`；4个targets均为`MARKETING_VERSION=1.22.0` / build`195`；i18n source-key、README、CI policy、parser-version与changelog extraction通过；版本/说明diff后未重复full test suites |
 | CloudKit Production schema audit | `NO_DEPLOY` | production schema成功导出并只读核对；见下节 |
-| Final review blockers | pass | 累计94项均已修复；末轮补齐临时nil cost blob后的CWL owner迁移和coverage counter饱和运算。commit `e52a659e0`定向exact-current review结果`Blockers: 0`；architecture 38/38（95 findings fingerprint `469636138625236751`）、Mac serial full 9671/9671、iOS unit 731/731、full lint通过 |
+| Local review blockers | pass | 累计94项产品finding均已修复；product-source commit `e52a659e0`定向review为`Blockers: 0`；随后1.22版本/说明diff本地自查为0 blocker，full lint与Release build通过。当前尚无PR，GitHub exact-current-head review仍是merge/release gate |
 
 ## 关键命令与结果
 
 ```text
+xcodegen generate
+  PASS，四个iOS targets生成`MARKETING_VERSION=1.22.0` / `CURRENT_PROJECT_VERSION=195`
+
+xcodebuild -project CodexBarMobile.xcodeproj -scheme CodexBarMobile -configuration Release
+  -destination 'generic/platform=iOS Simulator' ... CODE_SIGNING_ALLOWED=NO build
+  PASS，iOS 1.22 Release simulator `BUILD SUCCEEDED`
+
+bash Scripts/lint.sh audit-i18n
+  PASS，全部locale为translated，全部303个source keys存在
+
+bash Scripts/changelog-to-html.sh 0.54.0.1
+  PASS，标题为`CodexBar 0.54.0.1-Mobile 1.22.0`，Sparkle version为`127.1.1.22.0`
+
 swift build -c release
   PASS，最终exact-current Build complete (265.87s)；只有既有deprecated API warnings
 
@@ -354,7 +369,7 @@ sentinel与architecture fingerprint；均已修复并focused复测，最终seria
 ## CloudKit Production schema audit
 
 - 最后published fork tag：`v0.52.0.1-mobile.1.21.0`；candidate：本分支未tag的
-  `v0.54.0.1-mobile.1.21.0`；
+  `v0.54.0.1-mobile.1.22.0`；
 - schema keyword grep无新增record type/field/index/query/zone/subscription；
 - `Shared/iCloud/CloudConstants.swift` 相对published baseline无schema diff；
 - `providerPayloadVersion` 保持`1`；包括最终新增的optional `sourceUpdatedAt` / `sessionCostIsKnown` /

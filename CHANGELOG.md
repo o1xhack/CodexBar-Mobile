@@ -6,7 +6,7 @@
 - Upstream Mac: include conditional menu bar tokens, direct provider lanes, expanded Usage & Spend coverage/provenance/token views, Codex PAT, xAI/Grok spend, OpenCodex routing, custom and historical pricing, provider/CLI improvements, and every upstream change through v0.54.0.
 
 ### Changed
-- Fork release: combine upstream v0.53.0-v0.54.0 into Mac `0.54.0.1` (`127.1.1.21.0` Sparkle build) and the existing, not-yet-public iOS `1.21.0` release train.
+- Fork release: combine upstream v0.53.0-v0.54.0 into Mac `0.54.0.1` (`127.1.1.22.0` Sparkle build) and iOS `1.22.0` as one release train.
 - Codex automatic sources: keep the fork CLI dashboard fallback while preferring the new PAT source and retaining the managed-workspace OAuth boundary.
 - Mobile sync: prepare the shared snapshot for the new spend provenance, coverage, token mix, reasoning-token, and provider-cost fields while preserving older iPhone decoding.
 

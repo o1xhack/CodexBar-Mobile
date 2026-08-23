@@ -1,8 +1,8 @@
-# v0.54.0 Upstream Sync + iOS 1.21.0 概览
+# v0.54.0 Upstream Sync + iOS 1.22.0 概览
 
 Status: `done`
 Date: 2026-08-22
-Branch: `upstream-sync/v0.54.0-mobile.1.21.0`
+Branch: `upstream-sync/v0.54.0-mobile.1.22.0`
 
 ## 结论
 
@@ -14,20 +14,26 @@ open upstream-sync issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues
 [`v0.54.0`](https://github.com/steipete/CodexBar/releases/tag/v0.54.0)。因此本轮把
 `v0.53.0` 与 `v0.54.0` 合并成一个用户可见 train，不单独发布 `v0.53.0`。
 
-目标版本为 Mac `0.54.0.1 (127.1)`、iOS `1.21.0 (195)`、Sparkle version
-`127.1.1.21.0`，candidate tag `v0.54.0.1-mobile.1.21.0`。iOS 继续复用尚未完成 public
-release 的 `1.21.0` marketing version；所有新增说明合并进唯一的 1.21.0 notes block。
+目标版本为 Mac `0.54.0.1 (127.1)`、iOS `1.22.0 (195)`、Sparkle version
+`127.1.1.22.0`，candidate tag `v0.54.0.1-mobile.1.22.0`。App Store Connect live readback
+确认 iOS `1.21.0 (194)` 已处于 `PENDING_DEVELOPER_RELEASE` / manual release，不能再把 build `195`
+并入同一版本；用户因此明确批准本轮改为新的 `1.22.0` marketing version。`1.21.0` 的已审核说明
+恢复为原版本，v0.54 新增说明进入单独的 `1.22.0` notes block。
 
-本地闭环已在上述分支完成：Mac/iOS full regression、focused sync/CloudKit/CWL回归、lint、Release
-build与循环review均通过，最终exact-current review为`Blockers: 0`；Production schema审计结论为
-`NO_DEPLOY`。16种old/new组合均如实记录为`substituted`，未伪报四台实体设备验证。按权限边界，本轮
-没有push、PR、merge、tag、Mac public release、appcast发布、TestFlight上传或CloudKit deploy。
+本地闭环已在上述分支完成：product-source head的Mac/iOS full regression、focused
+sync/CloudKit/CWL回归、lint、Release build与循环review均通过，`e52a659e0` review为
+`Blockers: 0`；随后仅发生1.22版本/说明修正，并通过full lint、iOS Release build与本地diff自查。
+Production schema审计结论为`NO_DEPLOY`。16种old/new组合均如实记录为`substituted`，未伪报四台
+实体设备验证。按权限边界，本轮没有push、PR、merge、tag、Mac public release、appcast发布、
+TestFlight上传或CloudKit deploy；GitHub current-head review仍需在PR创建后执行。
 
 ## 分支证据
 
 开始时从最新 `origin/mobile-dev=cadf27e6009c70c683122622f2ed321d2e608b17` fast-forward，
-再创建 `upstream-sync/v0.54.0-mobile.1.21.0`。分支初始 HEAD 与 `origin/mobile-dev` 相同，
-worktree clean。后续 Research、merge、实现、版本和测试只在该分支进行。
+再创建原计划的 `upstream-sync/v0.54.0-mobile.1.21.0`。发现 ASC 中 `1.21.0 (194)` 已审核通过后，
+在未 push、未建 PR 的前提下把同一本地任务分支改名为
+`upstream-sync/v0.54.0-mobile.1.22.0`。分支初始 HEAD 与 `origin/mobile-dev` 相同，worktree clean；
+后续 Research、merge、实现、版本和测试始终只在该任务分支进行，没有回到 `mobile-dev` 实现。
 
 本轮未授权 push、PR merge、published tag、live Mac release、appcast publication、
 TestFlight upload 或 CloudKit Production deploy。
