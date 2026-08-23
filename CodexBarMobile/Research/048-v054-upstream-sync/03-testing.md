@@ -1,6 +1,6 @@
 # v0.54.0 Upstream Sync 测试证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-22
 
 ## 版本与范围
@@ -16,7 +16,7 @@ Date: 2026-08-22
 | Gate | Result | Evidence / Notes |
 |---|---|---|
 | Merge provenance / conflict audit | pass | merge `0e4a7f491` parents fork research commit `c0c62d1b5` + upstream peeled tag commit `22a216884`; 17 conflict paths逐项处理 |
-| Mac build + lint + full tests | pass | `swift build -c release` pass（Build 264.65s）；最新Mistral修复已由debug/full-test build编译，最终Release重编译排在review后以避免无效重复；SwiftFormat 2026 files / 0 issues、SwiftLint 2025 files / 0 violations；serial full regression 9671 tests / 919 suites / 0 failures |
+| Mac build + lint + full tests | pass | exact-current `swift build -c release` pass（265.87s）；SwiftFormat 2026 files / 0 issues、SwiftLint 2025 files / 0 violations；serial full regression 9671 tests / 919 suites / 0 failures；末轮仅按影响面复测，没有重复整套full suite |
 | Settings / CloudKit / cost / provider focused regression | pass | final custom-plugin cost bridge + Grok captured-calendar + sync focused 81/81；此前Bedrock/Cursor bucket-calendar 96/96、Grok/calendar 39/39、sync producer/mapper/wire/UTC freshness 97/97与dashboard freshness组合135/135；cost pricing race、29-provider token catalog、plugin isolation focused pass；architecture 38/38 pass |
 | Parser fingerprint/hash | pass | `parserLogicVersion=13`；`regenerate-codex-parser-hash.sh` → `8b9bc662426a8aab`；lint audit pass |
 | iOS build + full tests | pass | exact-current unit target：731/731，0 failures / 0 skipped（device/config展开768 passed runs）；完整scheme另含UI 7 tests，3 pass / 4 fixture-dependent skipped，0 failures；最新Release simulator build `BUILD SUCCEEDED`（约47.45s） |
@@ -25,13 +25,17 @@ Date: 2026-08-22
 | iOS cost consumer一致性 | pass | full unit 731/731；mixed known/unavailable日的share total/bar/model与diagnostics availability/incomplete状态使用同一保守语义；modern unresolved、stale source、unfinished scan、legacy summary-only unknown cost与aggregate pricing gap均不泄漏Today subtotal；任一明确false会传播到主Cost aggregate，stale source同时限定Today/7天/30天并隐藏compact history；legacy无dated rows的30天汇总不会认证7天分配；不同Mac cost bucket time zone会fail closed并隐藏不可比较的metered/coverage/token mix；窗口不可比较会保守限定7天/30天派生值但不污染可信Today；dashboard model fallback不复活不可用provider breakdown；blob/CWL均保留权威`$0`；legacy sparse-day语义保持兼容；非零partial日保留Active Days证据但不显示为完整金额或Avg/Day；跨时区freshness比较使用producer calendar中的当前instant，并把producer logical day映射为reader相对日轴再跨provider聚合；CWL也按每个原始device/provider在provider/model/service rollup前使用各自producer窗口；历史完整性与Today使用同一固定reference instant，不使用reader-local midnight重切来源窗口；per-provider publication timestamp变化会进入refresh signature并触发重算；reader timezone变化会重启root/Cost/Diagnostics日期时钟；同source day下的旧session day仍会使多Mac Today fail closed，CWL explicit-false按reader-normalized Today key优先于live fallback；missing-provider fallback按cost source timestamp遵守本地clear boundary；OpenRouter provider-level cost envelope在cache中保留、在widget金额汇总中消费，但不生成额外provider row/count或重复identity；较新的provider-level clear tombstone与旧account summary原子选胜，不重复计费 |
 | Four-language localization | pass | lint：all locales translated；303/303 source keys present；唯一1.21.0 notes block |
 | CloudKit Production schema audit | `NO_DEPLOY` | production schema成功导出并只读核对；见下节 |
-| Final review blockers | pending | README guard后的多轮review累计90项均已修复；第90项将Mistral account-native费用与provider-level owner语义分离，临时抓取失败不再清除其他账号历史。architecture 38/38（95 findings fingerprint `469636138625236751`）、Mac serial full 9671/9671、iOS unit 731/731、最新跨端CloudKit/SwiftData专项101/101、full lint通过；等待exact-current rerun |
+| Final review blockers | pass | 累计94项均已修复；末轮补齐临时nil cost blob后的CWL owner迁移和coverage counter饱和运算。commit `e52a659e0`定向exact-current review结果`Blockers: 0`；architecture 38/38（95 findings fingerprint `469636138625236751`）、Mac serial full 9671/9671、iOS unit 731/731、full lint通过 |
 
 ## 关键命令与结果
 
 ```text
 swift build -c release
-  PASS，修复后exact-current Build complete (264.65s)；只有既有deprecated API warnings
+  PASS，最终exact-current Build complete (265.87s)；只有既有deprecated API warnings
+
+swift test --filter CostProvenanceTests
+  PASS，最终11 tests / 2 suites；覆盖nil cost请求归入unpriced、nil request的Int.max gap counters，
+  以及多entry coverage merge/total饱和而不溢出
 
 bash Scripts/lint.sh lint
   PASS，SwiftFormat 2026 files / 0 issues、SwiftLint 2025 files / 0 violations；
@@ -94,9 +98,12 @@ xcodebuild ... test -only-testing:CodexBarMobileTests
   Test-CodexBarMobile-2026.08.22_16-27-32--0700.xcresult
 
 xcodebuild ... test -only-testing:CodexBarMobileTests/SwiftDataBridgeTests
-  PASS，exact-current 18/18；覆盖单一cost owner切换时把旧owner的窗口内和ledger-only旧日历史迁移到新owner，
-  tombstone不再删除窗口外历史；xcresult：
-  Test-CodexBarMobile-2026.08.22_15-28-04--0700.xcresult
+  PASS，最终exact-current 21/21；覆盖单一cost owner切换时把旧owner的窗口内和ledger-only旧日历史迁移到
+  新owner、临时nil cost blob后仍从CWL识别旧owner，以及Mistral account-native历史不跨账号迁移；xcresult：
+  Test-CodexBarMobile-2026.08.22_18-12-37--0700.xcresult
+
+codex exec --ephemeral -s read-only <targeted exact-current review of e52a659e0>
+  PASS，限定最后6个cost/SwiftData文件且不运行测试、build或network；结果`Blockers: 0`
 
 xcodebuild ... test -only-testing:CodexBarMobileTests/CWLSeedTests \
   -only-testing:CodexBarMobileTests/CWLWriterTests \

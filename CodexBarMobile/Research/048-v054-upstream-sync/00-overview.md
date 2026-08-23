@@ -1,6 +1,6 @@
 # v0.54.0 Upstream Sync + iOS 1.21.0 概览
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-22
 Branch: `upstream-sync/v0.54.0-mobile.1.21.0`
 
@@ -17,6 +17,11 @@ open upstream-sync issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues
 目标版本为 Mac `0.54.0.1 (127.1)`、iOS `1.21.0 (195)`、Sparkle version
 `127.1.1.21.0`，candidate tag `v0.54.0.1-mobile.1.21.0`。iOS 继续复用尚未完成 public
 release 的 `1.21.0` marketing version；所有新增说明合并进唯一的 1.21.0 notes block。
+
+本地闭环已在上述分支完成：Mac/iOS full regression、focused sync/CloudKit/CWL回归、lint、Release
+build与循环review均通过，最终exact-current review为`Blockers: 0`；Production schema审计结论为
+`NO_DEPLOY`。16种old/new组合均如实记录为`substituted`，未伪报四台实体设备验证。按权限边界，本轮
+没有push、PR、merge、tag、Mac public release、appcast发布、TestFlight上传或CloudKit deploy。
 
 ## 分支证据
 

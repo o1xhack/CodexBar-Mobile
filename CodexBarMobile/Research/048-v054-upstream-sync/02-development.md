@@ -1,6 +1,6 @@
 # v0.54.0 Upstream Sync 开发记录
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-22
 
 ## Phase A — 分支与调研
@@ -34,7 +34,8 @@ Date: 2026-08-22
 - [x] iOS Release build、731/731 unit tests与UI target；
 - [x] CloudKit Production schema审计：`NO_DEPLOY`；
 - [x] 16-case compatibility gate：全部逐行记录为`substituted`，未伪报physical pass；
-- [ ] merge/bridge/iOS循环review：累计90项均已修复并复测，等待最终 exact-current rerun。
+- [x] merge/bridge/iOS循环review：累计94项均已修复并按影响面复测；最终commit
+  `e52a659e0`定向exact-current review为`Blockers: 0`。
 
 ## 冲突记录
 
@@ -375,3 +376,8 @@ location fingerprint更新为`469636138625236751`，focused与full-run内的38/3
 
 当前尚无PR，因此无法发布规定格式的PR comment；创建PR后若review流程继续超过5轮，必须把以上4个非空字段原样
 写入PR再请求下一轮。
+
+最后两轮把同一cost准确性根因收口到四个边界：费用来源owner从增量快照完全消失时仍须迁移CWL长历史；一次
+临时无费用blob不能抹掉该历史所有权；Mistral账号原生费用不得跨账号迁移；损坏或极大的coverage counter不得
+整数溢出。对应SwiftData 21/21与CostProvenance 11/11通过，最终Mac Release build在当前HEAD以265.87秒完成。
+这部分没有新增CloudKit record/schema字段，`providerPayloadVersion`保持1。
