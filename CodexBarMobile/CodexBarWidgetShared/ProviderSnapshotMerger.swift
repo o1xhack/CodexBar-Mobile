@@ -14,7 +14,7 @@ enum ProviderSnapshotMerger {
     /// Cost data from these providers must be SUMMED across devices, not deduplicated.
     /// All other providers read cost from account-level web APIs, so the latest
     /// non-nil account-level value is the safe merge.
-    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
+    private static let localCostProviders: Set<String> = ["claude", "codex", "grok", "opencodego", "vertexai"]
 
     static func usesLocalCostMerge(providerID: String) -> Bool {
         self.localCostProviders.contains(providerID)
@@ -32,12 +32,14 @@ enum ProviderSnapshotMerger {
         var allProviders: [ProviderUsageSnapshot] = []
         var sourceAppVersions: [String?] = []
         var sourceDeviceIDs: [String] = []
+        var sourceSyncTimestamps: [Date] = []
         for snapshot in snapshots {
             let providers = providersForSnapshot(snapshot)
             allProviders.append(contentsOf: providers)
             sourceAppVersions.append(contentsOf: repeatElement(snapshot.appVersion, count: providers.count))
             let deviceID = snapshot.deviceID ?? "legacy:\(snapshot.deviceName)"
             sourceDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
+            sourceSyncTimestamps.append(contentsOf: providers.map { snapshot.publicationTimestamp(for: $0) })
         }
 
         let effectiveIdentifiers: [[String]] = allProviders.map(Self.effectiveIdentifiers(for:))
@@ -85,22 +87,24 @@ enum ProviderSnapshotMerger {
             groupedIndices[root, default: []].append(idx)
         }
 
-        var mergedProviders: [(provider: ProviderUsageSnapshot, sortIdentity: String)] = []
+        var mergedProviders: [(provider: ProviderUsageSnapshot, sortIdentity: String, publicationTimestamp: Date)] = []
         for (_, indices) in groupedIndices {
             let group = indices.map { allProviders[$0] }
             let sortIdentity = Set(indices.flatMap { effectiveIdentifiers[$0] })
                 .sorted()
                 .joined(separator: "|")
             if group.count == 1 {
-                mergedProviders.append((group[0], sortIdentity))
+                mergedProviders.append((group[0], sortIdentity, sourceSyncTimestamps[indices[0]]))
             } else {
                 mergedProviders.append((
                     self.mergeProviderEntries(
                         group,
                         sourceAppVersions: indices.map { sourceAppVersions[$0] },
                         sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
+                        sourceSyncTimestamps: indices.map { sourceSyncTimestamps[$0] },
                         sumLocalCosts: sumLocalCostsAcrossDevices),
-                    sortIdentity))
+                    sortIdentity,
+                    indices.map { sourceSyncTimestamps[$0] }.max() ?? sourceSyncTimestamps[indices[0]]))
             }
         }
 
@@ -132,6 +136,11 @@ enum ProviderSnapshotMerger {
 
         let appVersion = snapshots.compactMap(\.appVersion).max(by: Self.semverLessThan)
         let mobileVersion = snapshots.compactMap(\.mobileVersion).max(by: Self.semverLessThan)
+        let providerPublicationTimestamps = Dictionary(
+            mergedProviders.map {
+                (SyncedUsageSnapshot.providerPublicationKey(for: $0.provider), $0.publicationTimestamp)
+            },
+            uniquingKeysWith: max)
 
         return SyncedUsageSnapshot(
             providers: mergedProviders.map(\.provider),
@@ -140,7 +149,8 @@ enum ProviderSnapshotMerger {
             deviceID: nil,
             appVersion: appVersion,
             mobileVersion: mobileVersion,
-            notificationPushEnabled: pushEnabled)
+            notificationPushEnabled: pushEnabled,
+            providerPublicationTimestamps: providerPublicationTimestamps)
     }
 
     static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {
@@ -389,9 +399,11 @@ enum ProviderSnapshotMerger {
         _ entries: [ProviderUsageSnapshot],
         sourceAppVersions: [String?],
         sourceDeviceIDs: [String],
+        sourceSyncTimestamps: [Date],
         sumLocalCosts: Bool = true) -> ProviderUsageSnapshot
     {
         precondition(entries.count == sourceDeviceIDs.count)
+        precondition(entries.count == sourceSyncTimestamps.count)
         let baseIndex = entries.indices.max { lhs, rhs in
             if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
                 return entries[lhs].lastUpdated < entries[rhs].lastUpdated
@@ -400,10 +412,17 @@ enum ProviderSnapshotMerger {
         }!
         let base = entries[baseIndex]
         let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
-        let mergedCost: SyncCostSummary? = if isLocalCost, sumLocalCosts {
-            self.mergeCostSummaries(entries.compactMap(\.costSummary))
+        let costState: (summary: SyncCostSummary?, cleared: Bool?) = if isLocalCost, sumLocalCosts {
+            if let summary = self.mergeCostSummaries(entries, sourceSyncTimestamps: sourceSyncTimestamps) {
+                (summary, nil)
+            } else {
+                (nil, entries.contains(where: { $0.costSummaryCleared == true }) ? true : nil)
+            }
         } else {
-            Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.costSummary)
+            Self.latestCostState(
+                entries,
+                sourceDeviceIDs: sourceDeviceIDs,
+                sourceSyncTimestamps: sourceSyncTimestamps)
         }
 
         let mergedUtilization = Self.mergeUtilizationHistories(
@@ -422,7 +441,8 @@ enum ProviderSnapshotMerger {
             statusMessage: base.statusMessage,
             isError: base.isError,
             lastUpdated: base.lastUpdated,
-            costSummary: mergedCost,
+            costSummary: costState.summary,
+            costSummaryCleared: costState.cleared,
             budget: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.budget),
             subscriptionExpiresAt: Self.latestNonNil(
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionExpiresAt),
@@ -472,9 +492,62 @@ enum ProviderSnapshotMerger {
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconTintHex))
     }
 
-    private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {
-        guard !summaries.isEmpty else { return nil }
+    /// Select non-additive cost data by the cost source's own freshness.
+    /// Provider `lastUpdated` describes the quota/usage card and can advance
+    /// independently of billing data, so it must not decide which cost wins.
+    private static func latestCostState(
+        _ entries: [ProviderUsageSnapshot],
+        sourceDeviceIDs: [String],
+        sourceSyncTimestamps: [Date]) -> (summary: SyncCostSummary?, cleared: Bool?)
+    {
+        precondition(entries.count == sourceDeviceIDs.count)
+        precondition(entries.count == sourceSyncTimestamps.count)
+        let candidates = entries.indices.filter {
+            entries[$0].costSummary != nil || entries[$0].costSummaryCleared == true
+        }
+        guard let winner = candidates.max(by: { lhs, rhs in
+                let lhsFreshness = entries[lhs].costSummary?.sourceUpdatedAt
+                    ?? sourceSyncTimestamps[lhs]
+                let rhsFreshness = entries[rhs].costSummary?.sourceUpdatedAt
+                    ?? sourceSyncTimestamps[rhs]
+                if lhsFreshness != rhsFreshness {
+                    return lhsFreshness < rhsFreshness
+                }
+                if sourceSyncTimestamps[lhs] != sourceSyncTimestamps[rhs] {
+                    return sourceSyncTimestamps[lhs] < sourceSyncTimestamps[rhs]
+                }
+                return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
+            })
+        else { return (nil, nil) }
+        // A contradictory entry fails closed: a clear tombstone is
+        // authoritative over a simultaneously supplied legacy summary.
+        guard entries[winner].costSummaryCleared != true else { return (nil, true) }
+        return (entries[winner].costSummary, nil)
+    }
+
+    private static func mergeCostSummaries(
+        _ providers: [ProviderUsageSnapshot],
+        sourceSyncTimestamps: [Date]) -> SyncCostSummary?
+    {
+        precondition(providers.count == sourceSyncTimestamps.count)
+        let sources = providers.indices.compactMap { index -> CostSummarySource? in
+            let provider = providers[index]
+            guard let summary = provider.costSummary else { return nil }
+            return CostSummarySource(
+                summary: summary,
+                snapshotPublishedAt: sourceSyncTimestamps[index])
+        }
+        let summaries = sources.map(\.summary)
+        guard !sources.isEmpty else { return nil }
         if summaries.count == 1 { return summaries[0] }
+
+        let explicitBucketTimeZones = summaries.compactMap(\.bucketTimeZoneIdentifier)
+        let dayBucketsAreCompatible = summaries.allSatisfy { !$0.hasInvalidBucketTimeZoneIdentifier } &&
+            (explicitBucketTimeZones.isEmpty ||
+                (explicitBucketTimeZones.count == summaries.count && Set(explicitBucketTimeZones).count == 1))
+        let mergedBucketTimeZoneIdentifier = dayBucketsAreCompatible
+            ? explicitBucketTimeZones.first
+            : nil
 
         var dailyByKey: [String: DailyCostAccumulator] = [:]
 
@@ -484,16 +557,75 @@ enum ProviderSnapshotMerger {
             }
         }
 
+        // A modern source that is incomplete or older than its publishing
+        // envelope cannot silently contribute an assumed zero for a day
+        // reported by a sibling Mac. Preserve that missing-source uncertainty
+        // on the merged day so every downstream consumer sees the same
+        // lower-bound status. A complete, current modern source may omit a
+        // zero-usage day, while a legacy nil keeps its historical behavior.
+        let mergedDayKeys = Array(dailyByKey.keys)
+        for source in sources {
+            let summary = source.summary
+            let reportedDayKeys = Set(summary.daily.map(\.dayKey))
+            // `SyncedUsageSnapshot.syncTimestamp` is the actual publication
+            // time. The provider usage timestamp is refreshed independently
+            // and can be older than cost, so it is not a valid window anchor.
+            // The producer's source date defines where its scanned window
+            // starts. A later CloudKit publication only extends the interval
+            // whose missing rows remain uncertain; it must not shift the
+            // already-scanned window forward.
+            let sourceAnchorKey = summary.sourceDayKey
+                ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+                ?? summary.costDayKey(for: source.snapshotPublishedAt)
+            let coverageEndKey = max(
+                summary.costDayKey(for: source.snapshotPublishedAt),
+                sourceAnchorKey)
+            let coverageStartKey = Self.logicalDayKey(
+                byAdding: -(max(1, min(summary.historyDays ?? 30, 365)) - 1),
+                to: sourceAnchorKey) ?? sourceAnchorKey
+            let sessionDayKey = summary.sessionDayKey
+                ?? summary.sourceDayKey
+                ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+            for dayKey in mergedDayKeys
+                where dayKey >= coverageStartKey && dayKey <= coverageEndKey &&
+                !reportedDayKeys.contains(dayKey)
+            {
+                // A non-nil session amount is the source's explicit Today
+                // fallback. Fold it into the sibling's dated Today row so the
+                // merged daily-preferred consumer retains both contributions.
+                if dayKey == sessionDayKey,
+                   summary.sessionCostIsKnown == true,
+                   let sessionCost = summary.sessionCostUSD
+                {
+                    dailyByKey[dayKey]?.ingest(SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: sessionCost,
+                        totalTokens: summary.sessionTokens ?? 0,
+                        costIsKnown: true))
+                    continue
+                }
+                let scanIsIncomplete = summary.historyCoverageIsEstablished == false
+                let costSourceIsOlder = sessionDayKey.map { dayKey > $0 } ?? false
+                if scanIsIncomplete || costSourceIsOlder {
+                    dailyByKey[dayKey]?.ingestMissingIncompleteContribution()
+                }
+            }
+        }
+
         let mergedDaily = dailyByKey.values
             .sorted { $0.dayKey < $1.dayKey }
-            .map { $0.toDailyPoint() }
+            .map { $0.toDailyPoint(forceUnavailable: !dayBucketsAreCompatible) }
 
-        let fallbackDailyCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
+        let availableMergedDailyCost = mergedDaily.filter { $0.costIsKnown != false }
+        let fallbackDailyCost = availableMergedDailyCost.isEmpty
+            ? nil
+            : availableMergedDailyCost.reduce(0) { $0 + $1.costUSD }
         let fallbackDailyTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
 
         let windowCosts = summaries.compactMap { summary -> Double? in
             if let cost = summary.last30DaysCostUSD { return cost }
-            return summary.daily.isEmpty ? nil : summary.daily.reduce(0) { $0 + $1.costUSD }
+            let availableDaily = summary.daily.filter { $0.costIsKnown != false }
+            return availableDaily.isEmpty ? nil : availableDaily.reduce(0) { $0 + $1.costUSD }
         }
         let windowTokens = summaries.compactMap { summary -> Int? in
             if let tokens = summary.last30DaysTokens { return tokens }
@@ -502,25 +634,209 @@ enum ProviderSnapshotMerger {
         let totalCost = windowCosts.isEmpty ? fallbackDailyCost : windowCosts.reduce(0, +)
         let totalTokens = windowTokens.isEmpty ? fallbackDailyTokens : windowTokens.reduce(0, +)
 
-        let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
-        let sessionTokens = summaries.compactMap(\.sessionTokens).reduce(0, +)
-        let sessionRequests = summaries.compactMap(\.sessionRequests).reduce(0, +)
+        let sessionFallback = Self.mergedSessionFallback(
+            summaries,
+            dayBucketsAreCompatible: dayBucketsAreCompatible)
         let windowRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
-        let historyDays = summaries.compactMap(\.historyDays).max()
+        // A missing historyDays is the legacy/default 30-day window. Normalize
+        // it before comparison so old+new 30-day writers remain compatible,
+        // while an explicit 7-day + 30-day fleet cannot certify completeness.
+        let normalizedHistoryDays = summaries.map { max(1, min($0.historyDays ?? 30, 365)) }
+        let historyWindowsAreCompatible = Set(normalizedHistoryDays).count == 1
+        // Preserve a fully legacy nil label, but when mixed windows disagree,
+        // report the widest normalized window instead of labelling a 30d + 7d
+        // subtotal as a complete 7-day amount.
+        let historyDays = historyWindowsAreCompatible
+            ? summaries.compactMap(\.historyDays).max()
+            : normalizedHistoryDays.max()
+        let historyTotalsAreComparable = historyWindowsAreCompatible && dayBucketsAreCompatible
         let currencies = Set(summaries.compactMap(\.currencyCode))
         let currencyCode = currencies.count == 1 ? currencies.first : nil
-
+        let hasCompleteProvenance = summaries.allSatisfy { $0.costProvenance != nil }
+        let meteredCosts = summaries.compactMap(\.meteredCostUSD)
+        let hasCompleteMeteredCost = meteredCosts.count == summaries.count
+        let historyCoverageIsEstablished: Bool? = if !dayBucketsAreCompatible || summaries.contains(where: {
+            $0.historyCoverageIsEstablished == false
+        }) {
+            false
+        } else if summaries.allSatisfy({ $0.historyCoverageIsEstablished == true }) {
+            true
+        } else {
+            nil
+        }
+        // The merged summary is only as fresh as its oldest dated source.
+        // Keeping the minimum prevents a current sibling from hiding a stale
+        // dashboard-only Mac. Producer day keys avoid re-bucketing those
+        // sources in the iPhone's current time zone.
+        let sourceUpdatedAt = summaries.compactMap(\.sourceUpdatedAt).min()
+        let sourceDayKey = summaries.compactMap { summary in
+            summary.sourceDayKey ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+        }.min()
         return SyncCostSummary(
-            sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
-            sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
-            last30DaysCostUSD: windowCosts.isEmpty && mergedDaily.isEmpty ? nil : totalCost,
+            sessionCostUSD: sessionFallback.costUSD,
+            sessionTokens: sessionFallback.tokens,
+            last30DaysCostUSD: totalCost,
             last30DaysTokens: windowTokens.isEmpty && mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
             isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: historyDays,
-            sessionRequests: sessionRequests > 0 ? sessionRequests : nil,
+            sessionRequests: sessionFallback.requests,
             last30DaysRequests: windowRequests > 0 ? windowRequests : nil,
-            currencyCode: currencyCode)
+            currencyCode: currencyCode,
+            meteredCostUSD: !historyTotalsAreComparable || !hasCompleteProvenance || !hasCompleteMeteredCost
+                ? nil
+                : meteredCosts.reduce(0, +),
+            costProvenance: Self.mergedCostProvenance(summaries),
+            coverage: historyTotalsAreComparable ? Self.mergedCostCoverage(summaries) : nil,
+            tokenMix: historyTotalsAreComparable ? Self.mergedCostTokenMix(summaries) : nil,
+            sourceUpdatedAt: sourceUpdatedAt,
+            sourceDayKey: sourceDayKey,
+            sessionDayKey: sessionFallback.dayKey,
+            bucketTimeZoneIdentifier: mergedBucketTimeZoneIdentifier,
+            sessionCostIsKnown: sessionFallback.costIsKnown,
+            historyCoverageIsEstablished: historyCoverageIsEstablished,
+            historyWindowIsComparable: historyTotalsAreComparable)
+    }
+
+    /// Session fallback fields are local-day values, not timeless counters.
+    /// Sum only sources from the newest represented cost day so an offline
+    /// Mac's yesterday amount can never be relabelled as today's spend. Fully
+    /// legacy inputs retain the pre-metadata behavior; a mixed dated/undated
+    /// fleet is suppressed because its day alignment cannot be proven.
+    private static func mergedSessionFallback(
+        _ summaries: [SyncCostSummary],
+        dayBucketsAreCompatible: Bool) -> (
+        costUSD: Double?, tokens: Int?, requests: Int?, dayKey: String?, costIsKnown: Bool?)
+    {
+        let candidates = summaries.filter {
+            $0.sessionCostUSD != nil || $0.sessionTokens != nil || $0.sessionRequests != nil
+        }
+        guard !candidates.isEmpty else { return (nil, nil, nil, nil, nil) }
+
+        let dated = candidates.compactMap { summary -> (summary: SyncCostSummary, dayKey: String)? in
+            guard let dayKey = summary.sessionDayKey
+                ?? summary.sourceDayKey
+                ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+            else { return nil }
+            return (summary, dayKey)
+        }
+        let selected: [SyncCostSummary]
+        let selectedDayKey: String?
+        let allSourceDayKeys = summaries.compactMap { summary in
+            summary.sourceDayKey
+                ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+                ?? summary.daily.map(\.dayKey).max()
+        }
+        let hasUnalignedLegacySource = !allSourceDayKeys.isEmpty && allSourceDayKeys.count != summaries.count
+        let hasOlderDatedSource: Bool
+        if let newestDayKey = dated.map(\.dayKey).max() {
+            selected = dated.filter { $0.dayKey == newestDayKey }.map(\.summary)
+            selectedDayKey = newestDayKey
+            // `sourceDayKey` can advance independently when a dashboard
+            // refresh contributes cost rows while the token-backed session
+            // remains on an older producer day. Both clocks must participate:
+            // otherwise the older Mac's unresolved Today contribution can be
+            // hidden behind equal, fresh source-day keys.
+            hasOlderDatedSource = allSourceDayKeys.contains { $0 != newestDayKey } ||
+                dated.contains { $0.dayKey != newestDayKey }
+        } else {
+            selected = candidates
+            selectedDayKey = nil
+            hasOlderDatedSource = false
+        }
+
+        let costs = selected.compactMap(\.sessionCostUSD)
+        let tokens = selected.compactMap(\.sessionTokens)
+        let requests = selected.compactMap(\.sessionRequests)
+        let costIsKnown: Bool? = if !dayBucketsAreCompatible || hasUnalignedLegacySource ||
+            hasOlderDatedSource || selected.contains(where: {
+                $0.sessionCostIsKnown == false
+            })
+        {
+            false
+        } else if !costs.isEmpty, selected.allSatisfy({ $0.sessionCostIsKnown == true }) {
+            true
+        } else {
+            nil
+        }
+        return (
+            costs.isEmpty ? nil : costs.reduce(0, +),
+            tokens.isEmpty ? nil : tokens.reduce(0, +),
+            requests.isEmpty ? nil : requests.reduce(0, +),
+            selectedDayKey,
+            costIsKnown)
+    }
+
+    private static func mergedCostProvenance(_ summaries: [SyncCostSummary]) -> SyncCostProvenance? {
+        let values = summaries.compactMap(\.costProvenance)
+        guard !values.isEmpty, values.count == summaries.count else { return nil }
+        if values.contains(.unknown) { return .unknown }
+        if values.contains(.mixed) { return .mixed }
+        return Set(values).count == 1 ? values.first : .mixed
+    }
+
+    private static func mergedCostCoverage(_ summaries: [SyncCostSummary]) -> SyncCostCoverage? {
+        let values = summaries.compactMap(\.coverage)
+        guard !values.isEmpty, values.count == summaries.count else { return nil }
+        return SyncCostCoverage(
+            priced: SyncCounterMath.saturatingSum(values.map(\.priced)),
+            unpriced: SyncCounterMath.saturatingSum(values.map(\.unpriced)),
+            unmetered: SyncCounterMath.saturatingSum(values.map(\.unmetered)),
+            estimated: SyncCounterMath.saturatingSum(values.map(\.estimated)))
+    }
+
+    private static func mergedCostTokenMix(_ summaries: [SyncCostSummary]) -> SyncCostTokenMix? {
+        // Do not manufacture a zero-valued mix when every source is idle.
+        // At least one writer must have reported an actual token class.
+        guard summaries.contains(where: { $0.tokenMix?.hasAnyValue == true }) else { return nil }
+
+        func sum(_ keyPath: KeyPath<SyncCostTokenMix, Int?>) -> Int? {
+            let contributions = summaries.compactMap { summary -> Int? in
+                if let value = summary.tokenMix?[keyPath: keyPath] { return value }
+                // A modern writer that established an empty token window is a
+                // known-zero contribution, not missing legacy metadata.
+                if summary.historyCoverageIsEstablished == true,
+                   summary.last30DaysTokens == 0
+                {
+                    return 0
+                }
+                return nil
+            }
+            guard contributions.count == summaries.count else { return nil }
+            return SyncCounterMath.saturatingSum(contributions)
+        }
+
+        let result = SyncCostTokenMix(
+            inputTokens: sum(\.inputTokens),
+            outputTokens: sum(\.outputTokens),
+            cacheReadTokens: sum(\.cacheReadTokens),
+            cacheCreationTokens: sum(\.cacheCreationTokens),
+            reasoningTokens: sum(\.reasoningTokens))
+        return result.hasAnyValue ? result : nil
+    }
+
+    private struct CostSummarySource {
+        let summary: SyncCostSummary
+        let snapshotPublishedAt: Date
+    }
+
+    private static func logicalDayKey(byAdding days: Int, to dayKey: String) -> String? {
+        let formatter = self.logicalDayFormatter()
+        guard let date = formatter.date(from: dayKey),
+              let shifted = formatter.calendar.date(byAdding: .day, value: days, to: date)
+        else { return nil }
+        return formatter.string(from: shifted)
+    }
+
+    private static func logicalDayFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        // Day keys are logical producer dates. UTC makes day arithmetic stable
+        // without reinterpreting them in the iPhone's current time zone.
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
     }
 
     private struct DailyCostAccumulator {
@@ -530,12 +846,20 @@ enum ProviderSnapshotMerger {
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var isEstimated = false
+        var sawKnownCost = false
+        var sawUnknownCost = false
+        var sawUnavailableCost = false
 
         mutating func ingest(_ point: SyncDailyPoint) {
             self.costUSD += point.costUSD
             self.totalTokens += point.totalTokens
             if point.isEstimated == true {
                 self.isEstimated = true
+            }
+            switch point.costIsKnown {
+            case true: self.sawKnownCost = true
+            case false: self.sawUnavailableCost = true
+            case nil: self.sawUnknownCost = true
             }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
@@ -545,14 +869,25 @@ enum ProviderSnapshotMerger {
             }
         }
 
-        func toDailyPoint() -> SyncDailyPoint {
+        mutating func ingestMissingIncompleteContribution() {
+            self.sawUnavailableCost = true
+        }
+
+        func toDailyPoint(forceUnavailable: Bool = false) -> SyncDailyPoint {
             SyncDailyPoint(
                 dayKey: self.dayKey,
                 costUSD: self.costUSD,
                 totalTokens: self.totalTokens,
                 modelBreakdowns: Self.sortedBreakdowns(self.modelBreakdowns),
                 serviceBreakdowns: Self.sortedBreakdowns(self.serviceBreakdowns),
-                isEstimated: self.isEstimated ? true : nil)
+                isEstimated: self.isEstimated ? true : nil,
+                costIsKnown: forceUnavailable ? false : self.mergedCostIsKnown)
+        }
+
+        private var mergedCostIsKnown: Bool? {
+            if self.sawUnavailableCost { return false }
+            if self.sawUnknownCost { return nil }
+            return self.sawKnownCost ? true : nil
         }
 
         private static func sortedBreakdowns(

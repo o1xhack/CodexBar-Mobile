@@ -40,6 +40,15 @@ struct SyncMultiAccountEdgeCasesTests {
             settings: settings)
     }
 
+    private func dayKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
     private func makeTokenAccount(label: String) -> ProviderTokenAccount {
         ProviderTokenAccount(
             id: UUID(), label: label, token: "tok-\(label)",
@@ -327,6 +336,272 @@ struct SyncMultiAccountEdgeCasesTests {
         }
         #expect(providersWithExpansion >= 8, "at least 8 of the 11 token providers should expand to 2 records each")
         #expect(allProviders.count >= 16, "at least 16 records (8 providers × 2) should emit")
+    }
+
+    @Test
+    func `Provider-level local cost is emitted once across token accounts`() async throws {
+        let settings = self.makeSettingsStore(suite: "R5E5-SharedCostOnce")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .opencodego,
+            metadata: #require(ProviderDefaults.metadata[.opencodego]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let now = Date()
+        let daily = CostUsageDailyReport.Entry(
+            date: self.dayKey(now),
+            inputTokens: 100,
+            outputTokens: 50,
+            totalTokens: 150,
+            costUSD: 3,
+            modelsUsed: ["test-model"],
+            modelBreakdowns: nil)
+        let localUsage = OpenCodeGoUsageSnapshot(
+            hasMonthlyUsage: true,
+            rollingUsagePercent: 10,
+            weeklyUsagePercent: 20,
+            monthlyUsagePercent: 30,
+            rollingResetInSec: 60,
+            weeklyResetInSec: 120,
+            monthlyResetInSec: 180,
+            daily: [daily],
+            updatedAt: now)
+        let activeSnapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            opencodegoUsage: localUsage,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: UsageProvider.opencodego.instanceID,
+                accountEmail: "bob@x.com",
+                accountOrganization: nil,
+                loginMethod: "token"))
+        let alice = self.makeTokenAccountUsageSnapshot(
+            provider: .opencodego, label: "alice", accountEmail: "alice@x.com")
+        let bob = self.makeTokenAccountUsageSnapshot(
+            provider: .opencodego, label: "bob", accountEmail: "bob@x.com")
+        settings.updateProviderConfig(provider: .opencodego) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [alice.account, bob.account],
+                activeIndex: 1)
+        }
+        store._setSnapshotForTesting(activeSnapshot, provider: .opencodego)
+        store._setTokenSnapshotForTesting(
+            localUsage.toCostUsageTokenSnapshot(historyDays: 30),
+            provider: .opencodego)
+        store.accountSnapshots[.opencodego] = [alice, bob]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let emitted = mock.lastSnapshot?.providers.filter { $0.providerID == "opencodego" } ?? []
+        #expect(emitted.count == 2)
+        #expect(emitted.compactMap(\.costSummary).count == 1)
+        #expect(emitted.compactMap(\.costSummary?.last30DaysCostUSD) == [3])
+        #expect(emitted.first(where: { $0.accountEmail == "alice@x.com" })?.costSummary == nil)
+        #expect(emitted.first(where: { $0.accountEmail == "bob@x.com" })?.costSummary != nil)
+        #expect(emitted.first(where: { $0.accountEmail == "alice@x.com" })?.costSummaryCleared == true)
+        #expect(emitted.first(where: { $0.accountEmail == "bob@x.com" })?.costSummaryCleared == nil)
+
+        // Move ownership to Alice. Bob must now carry an explicit tombstone;
+        // omitting his summary alone would leave his old iOS ledger rows alive.
+        settings.updateProviderConfig(provider: .opencodego) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [alice.account, bob.account],
+                activeIndex: 0)
+        }
+        await coordinator.pushCurrentSnapshot()
+
+        let moved = mock.lastSnapshot?.providers.filter { $0.providerID == "opencodego" } ?? []
+        #expect(moved.first(where: { $0.accountEmail == "alice@x.com" })?.costSummary != nil)
+        #expect(moved.first(where: { $0.accountEmail == "alice@x.com" })?.costSummaryCleared == nil)
+        #expect(moved.first(where: { $0.accountEmail == "bob@x.com" })?.costSummary == nil)
+        #expect(moved.first(where: { $0.accountEmail == "bob@x.com" })?.costSummaryCleared == true)
+
+        // A stale persisted selection can temporarily be absent from the
+        // freshly fetched account list. Keep one deterministic owner instead
+        // of clearing every account and dropping the shared cost payload.
+        let missing = self.makeTokenAccount(label: "missing")
+        settings.updateProviderConfig(provider: .opencodego) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [missing, alice.account, bob.account],
+                activeIndex: 0)
+        }
+        await coordinator.pushCurrentSnapshot()
+
+        let staleSelection = mock.lastSnapshot?.providers
+            .filter { $0.providerID == "opencodego" } ?? []
+        #expect(staleSelection.compactMap(\.costSummary).count == 1)
+        #expect(staleSelection.first(where: { $0.accountEmail == "alice@x.com" })?.costSummary != nil)
+        #expect(staleSelection.first(where: { $0.accountEmail == "bob@x.com" })?.costSummaryCleared == true)
+    }
+
+    @Test
+    func `OpenRouter management spend uses one stable owner independent of selected API key`() async throws {
+        let settings = self.makeSettingsStore(suite: "R5E5-OpenRouterStableCostOwner")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .openrouter,
+            metadata: #require(ProviderDefaults.metadata[.openrouter]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
+        let cost = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 150,
+            last30DaysCostUSD: 3,
+            last30DaysRequests: 2,
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            meteredCostUSD: 3,
+            costProvenance: .vendorMetered,
+            daily: [CostUsageDailyReport.Entry(
+                date: "2026-08-18",
+                inputTokens: 100,
+                outputTokens: 50,
+                totalTokens: 150,
+                requestCount: 2,
+                costUSD: 3,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
+            bucketTimeZoneIdentifier: "UTC",
+            updatedAt: now)
+        let alice = self.makeTokenAccountUsageSnapshot(
+            provider: .openrouter, label: "alice", accountEmail: "alice@x.com")
+        let bob = self.makeTokenAccountUsageSnapshot(
+            provider: .openrouter, label: "bob", accountEmail: "bob@x.com")
+        settings.updateProviderConfig(provider: .openrouter) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [alice.account, bob.account],
+                activeIndex: 0)
+        }
+        store._setSnapshotForTesting(alice.snapshot, provider: .openrouter)
+        store._setTokenSnapshotForTesting(cost, provider: .openrouter)
+        store.accountSnapshots[.openrouter] = [alice, bob]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        func assertStableOwner(_ providers: [ProviderUsageSnapshot]) throws {
+            #expect(providers.count == 3)
+            let owner = try #require(providers.first {
+                $0.accountRecordKey == ProviderUsageSnapshot.openRouterManagementCostRecordKey
+            })
+            #expect(owner.accountEmail == nil)
+            #expect(owner.costSummary?.last30DaysCostUSD == 3)
+            #expect(owner.accountIdentities == [
+                "openrouter:record:\(ProviderUsageSnapshot.openRouterManagementCostRecordKey)",
+            ])
+            let accounts = providers.filter {
+                $0.accountRecordKey != ProviderUsageSnapshot.openRouterManagementCostRecordKey
+            }
+            #expect(accounts.allSatisfy { $0.costSummary == nil })
+            #expect(accounts.allSatisfy { $0.costSummaryCleared == true })
+        }
+
+        try assertStableOwner(mock.lastSnapshot?.providers.filter {
+            $0.providerID == "openrouter"
+        } ?? [])
+
+        settings.updateProviderConfig(provider: .openrouter) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [alice.account, bob.account],
+                activeIndex: 1)
+        }
+        await coordinator.pushCurrentSnapshot()
+
+        try assertStableOwner(mock.lastSnapshot?.providers.filter {
+            $0.providerID == "openrouter"
+        } ?? [])
+        #expect(
+            mock.deleteCallCount == 0,
+            "switching API-key selection must not migrate or delete provider-level spend")
+    }
+
+    @Test
+    func `Mistral account-native cost failure does not emit a shared-owner tombstone`() async throws {
+        let settings = self.makeSettingsStore(suite: "R5E5-MistralAccountNativeCost")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .mistral,
+            metadata: #require(ProviderDefaults.metadata[.mistral]),
+            enabled: true)
+
+        let aliceAccount = self.makeTokenAccount(label: "alice")
+        let bobAccount = self.makeTokenAccount(label: "bob")
+        settings.updateProviderConfig(provider: .mistral) { config in
+            config.tokenAccounts = ProviderTokenAccountData(
+                version: 1,
+                accounts: [aliceAccount, bobAccount],
+                activeIndex: 0)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
+        let aliceBilling = MistralUsageSnapshot(
+            totalCost: 3,
+            currency: "USD",
+            currencySymbol: "$",
+            totalInputTokens: 100,
+            totalOutputTokens: 50,
+            totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [MistralDailyUsageBucket(
+                day: "2026-08-18",
+                cost: 3,
+                inputTokens: 100,
+                cachedTokens: 0,
+                outputTokens: 50,
+                models: [])],
+            startDate: nil,
+            endDate: nil,
+            updatedAt: now)
+        let aliceUsage = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            mistralUsage: aliceBilling,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .mistral,
+                accountEmail: "alice@x.com",
+                accountOrganization: nil,
+                loginMethod: "web"))
+        let alice = TokenAccountUsageSnapshot(
+            account: aliceAccount,
+            snapshot: aliceUsage,
+            error: nil,
+            sourceLabel: "web",
+            cacheKey: "test-mistral-alice")
+        let bob = TokenAccountUsageSnapshot(
+            account: bobAccount,
+            snapshot: nil,
+            error: "Temporary billing fetch failure",
+            sourceLabel: nil,
+            cacheKey: "test-mistral-bob")
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(aliceUsage, provider: .mistral)
+        store.accountSnapshots[.mistral] = [alice, bob]
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let emitted = mock.lastSnapshot?.providers.filter { $0.providerID == "mistral" } ?? []
+        #expect(emitted.count == 2)
+        #expect(emitted.first(where: { $0.accountEmail == "alice@x.com" })?.costSummary != nil)
+        let failedAccount = try #require(emitted.first { $0.accountEmail == nil })
+        #expect(failedAccount.costSummary == nil)
+        #expect(failedAccount.costSummaryCleared == nil)
     }
 
     // MARK: - E6: 27 providers all enabled (single-account stress)

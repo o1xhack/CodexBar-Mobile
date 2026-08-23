@@ -653,6 +653,55 @@ struct CostUsageFetcherCacheSnapshotTests {
         #expect(cached?.last30DaysTokens == 165)
     }
 
+    @Test
+    func `cached snapshot reads keep the pinned timezone instead of the current zone`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        var shanghai = Calendar(identifier: .gregorian)
+        shanghai.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
+        let day = try #require(losAngeles.date(from: DateComponents(
+            timeZone: losAngeles.timeZone,
+            year: 2026,
+            month: 4,
+            day: 8,
+            hour: 12)))
+        try Self.writeCodexSessionFile(
+            homeRoot: env.codexHomeRoot,
+            env: env,
+            day: day,
+            filename: "cached.jsonl",
+            tokens: 42)
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        options.calendar = losAngeles
+        options.refreshMinIntervalSeconds = 0
+        _ = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            refreshPricingInBackground: false,
+            scannerOptions: options)
+
+        let fetcher = CostUsageFetcher(scannerOptions: options)
+        let pinned = await fetcher.loadCachedCodexTokenSnapshotResult(
+            now: day,
+            historyDays: 1,
+            calendar: losAngeles)
+        let travelled = await fetcher.loadCachedCodexTokenSnapshotResult(
+            now: day,
+            historyDays: 1,
+            calendar: shanghai)
+
+        #expect(pinned?.snapshot.sessionTokens == 42)
+        #expect(pinned?.snapshot.costProvenance == .listPriceEstimate)
+        #expect(travelled == nil)
+    }
+
     private static func writeCodexSessionFile(
         homeRoot: URL,
         env: CostUsageTestEnvironment,

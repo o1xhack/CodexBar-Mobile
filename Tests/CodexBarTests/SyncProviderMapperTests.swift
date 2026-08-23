@@ -25,17 +25,20 @@ struct SyncProviderMapperTests {
         azure: AzureOpenAIUsageSnapshot? = nil,
         alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
         providerCost: ProviderCostSnapshot? = nil,
+        costUsage: CostUsageTokenSnapshot? = nil,
         identity: ProviderIdentitySnapshot? = nil,
-        dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
+        dataConfidence: UsageDataConfidence = .unknown,
+        updatedAt: Date = Self.now) -> UsageSnapshot
     {
         UsageSnapshot(
             primary: nil,
             secondary: nil,
             providerCost: providerCost,
+            costUsage: costUsage,
             azureOpenAIUsage: azure,
             alibabaTokenPlanUsage: alibaba,
             mistralUsage: mistral,
-            updatedAt: Self.now,
+            updatedAt: updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)
     }
@@ -156,6 +159,57 @@ struct SyncProviderMapperTests {
         #expect(balance.budget?.limitAmount == 50)
         #expect(balance.providerAmount?.kind == "balance")
         #expect(balance.providerAmount?.amount == 40)
+    }
+
+    @Test
+    func `custom plugin cost-only snapshot remains visible to iOS with UTC day metadata`() throws {
+        let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
+        let costUpdatedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T12:00:00Z"))
+        let costUsage = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 300,
+            last30DaysCostUSD: 4.25,
+            last30DaysRequests: 3,
+            historyDays: 7,
+            historyCoverageIsEstablished: true,
+            meteredCostUSD: 3.0,
+            costProvenance: .mixed,
+            daily: [CostUsageDailyReport.Entry(
+                date: "2026-08-22",
+                inputTokens: 200,
+                outputTokens: 100,
+                totalTokens: 300,
+                requestCount: 3,
+                costUSD: 4.25,
+                modelsUsed: ["acme-pro"],
+                modelBreakdowns: [CostUsageDailyReport.ModelBreakdown(
+                    modelName: "acme-pro",
+                    costUSD: 4.25,
+                    totalTokens: 300,
+                    requestCount: 3,
+                    isEstimated: true)],
+                estimatedRequestCount: 1)],
+            bucketTimeZoneIdentifier: "UTC",
+            windowEndDayKey: "2026-08-18",
+            updatedAt: costUpdatedAt)
+
+        let mapped = SyncCoordinator.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: self.snapshot(costUsage: costUsage),
+            error: nil,
+            deviceID: "MAC-A")
+        let summary = try #require(mapped.costSummary)
+        #expect(mapped.hasUsableSignal)
+        #expect(summary.last30DaysCostUSD == 4.25)
+        #expect(summary.last30DaysTokens == 300)
+        #expect(summary.daily.first?.dayKey == "2026-08-22")
+        #expect(summary.daily.first?.isEstimated == true)
+        #expect(summary.costProvenance == .mixed)
+        #expect(summary.coverage?.estimated == 1)
+        #expect(summary.sourceUpdatedAt == costUpdatedAt)
+        #expect(summary.sourceDayKey == "2026-08-18")
+        #expect(summary.bucketTimeZoneIdentifier == "GMT")
     }
 
     @Test
@@ -283,13 +337,13 @@ struct SyncProviderMapperTests {
             modelCount: 2,
             daily: [
                 MistralDailyUsageBucket(
-                    day: "2026-05-25", cost: 1.5, inputTokens: 400, cachedTokens: 100, outputTokens: 200,
+                    day: "2023-11-13", cost: 1.5, inputTokens: 400, cachedTokens: 100, outputTokens: 200,
                     models: [
                         .init(name: "mistral-large", cost: 1.0, inputTokens: 300, cachedTokens: 50, outputTokens: 150),
                         .init(name: "free-model", cost: 0, inputTokens: 100, cachedTokens: 50, outputTokens: 50),
                     ]),
                 MistralDailyUsageBucket(
-                    day: "2026-05-26", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300,
+                    day: "2023-11-14", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300,
                     models: [
                         .init(name: "mixtral", cost: 2.7, inputTokens: 600, cachedTokens: 100, outputTokens: 300),
                     ]),
@@ -325,15 +379,101 @@ struct SyncProviderMapperTests {
             provider: .mistral, snapshot: self.snapshot(mistral: self.mistralFixture())))
         #expect(summary.last30DaysCostUSD == 4.2)
         #expect(summary.last30DaysTokens == 1700) // 1000 + 500 + 200
+        #expect(summary.sessionCostUSD == nil)
+        #expect(summary.sessionTokens == nil)
         #expect(summary.daily.count == 2)
 
-        let day25 = try #require(summary.daily.first { $0.dayKey == "2026-05-25" })
+        let day25 = try #require(summary.daily.first { $0.dayKey == "2023-11-13" })
         #expect(day25.costUSD == 1.5)
         #expect(day25.totalTokens == 700) // 400 + 100 + 200
+        #expect(day25.costIsKnown == true)
+        #expect(summary.costProvenance == .vendorMetered)
+        #expect(summary.historyCoverageIsEstablished == true)
         // free-model (cost 0) is filtered out; only the paid model survives.
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
+    }
+
+    @Test
+    func `mapMistralCostSummary: source freshness uses the provider fetch instant`() throws {
+        let fetchedAt = try #require(ISO8601DateFormatter().date(from: "2026-07-16T00:30:00Z"))
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: self.mistralFixture(), updatedAt: fetchedAt)))
+
+        #expect(summary.sourceUpdatedAt == fetchedAt)
+        #expect(summary.sourceUpdatedAt != self.mistralFixture().updatedAt)
+        #expect(summary.sourceDayKey == "2026-07-16")
+        #expect(summary.bucketTimeZoneIdentifier == "UTC")
+    }
+
+    @Test
+    func `mapMistralCostSummary: sparse history does not publish an old bucket as Today`() throws {
+        let sparse = MistralUsageSnapshot(
+            totalCost: 1.5, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 400, totalOutputTokens: 200, totalCachedTokens: 100,
+            modelCount: 1,
+            daily: [MistralDailyUsageBucket(
+                day: "2023-11-13", cost: 1.5,
+                inputTokens: 400, cachedTokens: 100, outputTokens: 200,
+                models: [.init(
+                    name: "mistral-large", cost: 1.5,
+                    inputTokens: 400, cachedTokens: 100, outputTokens: 200)])],
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: sparse)))
+
+        #expect(summary.sessionCostUSD == nil)
+        #expect(summary.sessionTokens == nil)
+        #expect(summary.last30DaysCostUSD == 1.5)
+        #expect(summary.last30DaysTokens == 700)
+    }
+
+    @Test
+    func `mapMistralCostSummary: preserves an authoritative zero-cost day`() throws {
+        let zero = MistralUsageSnapshot(
+            totalCost: 0, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 10, totalOutputTokens: 5, totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [MistralDailyUsageBucket(
+                day: "2023-11-14", cost: 0,
+                inputTokens: 10, cachedTokens: 0, outputTokens: 5,
+                models: [.init(
+                    name: "free-model", cost: 0,
+                    inputTokens: 10, cachedTokens: 0, outputTokens: 5)])],
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: zero)))
+
+        #expect(summary.daily.first?.costUSD == 0)
+        #expect(summary.daily.first?.costIsKnown == true)
+        #expect(summary.last30DaysCostUSD == 0)
+        #expect(summary.costProvenance == .vendorMetered)
+    }
+
+    @Test
+    func `mapMistralCostSummary: invalid raw totals remain unavailable`() throws {
+        let invalid = MistralUsageSnapshot(
+            totalCost: 5.0, currency: "USD", currencySymbol: "$",
+            totalInputTokens: 1000, totalOutputTokens: 500, totalCachedTokens: 200,
+            modelCount: 2,
+            daily: self.mistralFixture().daily,
+            startDate: nil, endDate: nil, updatedAt: Self.now)
+
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: invalid)))
+
+        #expect(summary.last30DaysCostUSD == nil)
+        #expect(summary.last30DaysTokens == 1700)
+        #expect(summary.daily.allSatisfy { $0.costUSD == 0 && $0.costIsKnown == false })
+        #expect(summary.daily.flatMap(\.modelBreakdowns).isEmpty)
+        #expect(summary.costProvenance == .unknown)
+        #expect(summary.coverage?.unpriced == 2)
     }
 
     // MARK: - E: Azure OpenAI info

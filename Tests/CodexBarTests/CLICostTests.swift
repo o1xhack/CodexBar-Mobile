@@ -566,6 +566,65 @@ struct CLICostTests {
     }
 
     @Test
+    func `cost JSON totals use the selected bucket calendar`() throws {
+        func localDayKey(_ date: Date, calendar: Calendar) -> String {
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_784_203_800)
+        let currentKey = localDayKey(now, calendar: .current)
+        let candidateZones = ["Pacific/Kiritimati", "Etc/GMT+12"]
+        let pinnedCalendar = try #require(candidateZones.lazy
+            .compactMap { TimeZone(identifier: $0) }
+            .map { timeZone -> Calendar in
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = timeZone
+                return calendar
+            }
+            .first { localDayKey(now, calendar: $0) != currentKey })
+        let pinnedKey = localDayKey(now, calendar: pinnedCalendar)
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 30,
+            sessionCostUSD: 0.03,
+            last30DaysTokens: 30,
+            last30DaysCostUSD: 0.03,
+            historyDays: 1,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: currentKey,
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 10,
+                    costUSD: 0.01,
+                    modelsUsed: [],
+                    modelBreakdowns: nil,
+                    unpricedRequestCount: 1),
+                CostUsageDailyReport.Entry(
+                    date: pinnedKey,
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 20,
+                    costUSD: 0.02,
+                    modelsUsed: [],
+                    modelBreakdowns: nil,
+                    estimatedRequestCount: 1),
+            ],
+            updatedAt: now)
+
+        let payload = CodexBarCLI.makeCostPayload(
+            provider: .codex,
+            snapshot: snapshot,
+            error: nil,
+            calendar: pinnedCalendar)
+
+        #expect(currentKey != pinnedKey)
+        #expect(payload.coverage == CostUsageCoverageCounts(estimated: 1))
+        #expect(payload.totals?.coverage == payload.coverage)
+        #expect(payload.totals?.provenance == payload.provenance)
+    }
+
+    @Test
     func `codex cost payload includes project rollups`() throws {
         let snapshot = CostUsageTokenSnapshot(
             sessionTokens: 10,
@@ -748,6 +807,41 @@ struct CLICostTests {
             .codex,
             settings: nil,
             resolutionError: resolutionError) == nil)
+    }
+
+    @Test
+    func `openCodex JSON payload stays on a separate source and omits invented projects`() {
+        let now = Date(timeIntervalSince1970: 1_784_179_200)
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 12,
+            last30DaysCostUSD: 1.5,
+            currencyCode: "USD",
+            historyDays: 7,
+            costProvenance: .listPriceEstimate,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-07-16",
+                    inputTokens: 10,
+                    outputTokens: 2,
+                    reasoningTokens: 3,
+                    totalTokens: 12,
+                    costUSD: 1.5,
+                    modelsUsed: ["gpt-5.4"],
+                    modelBreakdowns: nil,
+                    estimatedRequestCount: 1),
+            ],
+            updatedAt: now)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        let payload = CodexBarCLI.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
+        #expect(payload.provider == "opencodex")
+        #expect(payload.source == "opencodex")
+        #expect(payload.projects.isEmpty)
+        #expect(payload.daily.first?.reasoningTokens == 3)
+        #expect(payload.provenance == CostProvenance.listPriceEstimate.rawValue)
+        #expect(payload.coverage?.estimated == 1)
     }
 }
 

@@ -6,6 +6,14 @@ import Testing
 @MainActor
 struct AppDelegateTests {
     @Test
+    func `refuses the untitled window macOS would fill with the empty Settings scene`() {
+        _ = NSApplication.shared
+        let appDelegate = AppDelegate()
+
+        #expect(appDelegate.applicationShouldOpenUntitledFile(NSApplication.shared) == false)
+    }
+
+    @Test
     func `builds status controller after launch`() {
         let appDelegate = AppDelegate()
         var factoryCalls = 0
@@ -45,6 +53,7 @@ struct AppDelegateTests {
             account: account,
             selection: PreferencesSelection(),
             mobileSyncCoordinator: mobileSyncCoordinator,
+            settingsSyncCoordinator: SyncCoordinator(store: store, settings: settings),
             managedCodexAccountCoordinator: managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: promotionCoordinator))
         #expect(factoryCalls == 0)
@@ -53,6 +62,7 @@ struct AppDelegateTests {
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(factoryCalls == 1)
         #expect(mobileSyncCoordinator.starts == 1)
+        #expect(dummyStatusController.didSetSettingsOpenHandler)
 
         // idempotent on subsequent calls
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
@@ -84,6 +94,11 @@ private final class DummyMobileSyncCoordinator: MobileSyncCoordinating {
 @MainActor
 private final class DummyStatusController: StatusItemControlling {
     private(set) var shutdowns = 0
+    private(set) var didSetSettingsOpenHandler = false
+
+    func setSettingsOpenHandler(_: @escaping @MainActor (SettingsPane?) -> Void) {
+        self.didSetSettingsOpenHandler = true
+    }
 
     func openMenuFromShortcut() {}
     func runLoginFlowFromSettings(provider _: UsageProvider) async {}

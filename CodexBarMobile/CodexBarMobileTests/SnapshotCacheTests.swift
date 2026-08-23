@@ -95,6 +95,30 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `Delta cache preserves each provider envelope publication time`() throws {
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                self.envelope(
+                    deviceID: "mac-A", deviceName: "Mac A",
+                    providerID: "claude", email: "user@example.com",
+                    providerLastUpdated: self.t3, syncTimestamp: self.t3),
+                self.envelope(
+                    deviceID: "mac-A", deviceName: "Mac A",
+                    providerID: "codex", email: "user@example.com",
+                    providerLastUpdated: self.t1, syncTimestamp: self.t1),
+            ],
+            deletedRecordNames: [])
+
+        let snapshot = try #require(cache.buildDeviceSnapshots().first)
+        let codex = try #require(snapshot.providers.first(where: { $0.providerID == "codex" }))
+        let claude = try #require(snapshot.providers.first(where: { $0.providerID == "claude" }))
+        #expect(snapshot.syncTimestamp == self.t3)
+        #expect(snapshot.publicationTimestamp(for: codex) == self.t1)
+        #expect(snapshot.publicationTimestamp(for: claude) == self.t3)
+    }
+
+    @Test
     func `Delta delete removes exactly the matched composite`() {
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -720,6 +744,60 @@ struct SnapshotCacheTests {
         let providers = result[0].providers
         #expect(providers.count == 1)
         #expect(providers[0].accountEmail == "user@example.com")
+    }
+
+    @Test
+    func `Provider-level cost envelope survives orphan and stale filtering beside an account`() throws {
+        let managementCost = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.t1,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 7,
+                sessionTokens: 700,
+                last30DaysCostUSD: 70,
+                last30DaysTokens: 7000,
+                daily: []),
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let account = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: SyncRateWindow(
+                usedPercent: 42,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "Personal",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.t3,
+            accountRecordKey: "token-personal")
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [managementCost, account].map { provider in
+                ProviderUsageEnvelope(
+                    deviceID: "mac-a",
+                    deviceName: "Mac A",
+                    appVersion: "0.54.0.1",
+                    mobileVersion: "1.21.0",
+                    syncTimestamp: self.t3,
+                    notificationPushEnabled: true,
+                    provider: provider)
+            },
+            deletedRecordNames: [])
+
+        let snapshot = try #require(cache.buildDeviceSnapshots().first)
+        #expect(snapshot.providers.count == 2)
+        #expect(snapshot.providers.contains { $0.isProviderLevelCostEnvelope })
+        #expect(snapshot.providers.contains { $0.accountEmail == "Personal" })
     }
 
     @Test

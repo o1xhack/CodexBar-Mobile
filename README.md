@@ -1,3 +1,20 @@
+# CodexBar iOS
+
+[🇨🇳 简体中文](README.zh.md)
+
+> **iPhone companion app for CodexBar.** This fork ships the iOS app and a matching Mac companion build so your provider usage, cost, reset windows, widgets, and quota notifications can move from the Mac to the iPhone over iCloud.
+>
+> **This repository is centered on the iOS app, but it builds on the upstream Mac app.** Install the iOS app from the App Store and the paired Mac build from [our Releases page](https://github.com/o1xhack/CodexBar-Mobile/releases). The original CodexBar Mac project and its full provider documentation are preserved below.
+
+<p>
+  <a href="https://apps.apple.com/app/id6760216772"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" height="56"></a>
+  <a href="https://github.com/o1xhack/CodexBar-Mobile/releases"><img src="https://codexbarios.o1xhack.com/assets/badges/download-for-mac.svg" alt="Download Mac App" height="56"></a>
+</p>
+
+[codexbarios.o1xhack.com](https://codexbarios.o1xhack.com) · [Mac app — GitHub Releases](https://github.com/o1xhack/CodexBar-Mobile/releases) · [@o1xhack](https://x.com/o1xhack)
+
+---
+
 # CodexBar 🎚️ — May your tokens never run out.
 
 > Every AI coding limit, in your menu bar.
@@ -48,6 +65,7 @@ Or download release tarballs from GitHub Releases:
 - macOS: `CodexBarCLI-v<tag>-macos-arm64.tar.gz`, `CodexBarCLI-v<tag>-macos-x86_64.tar.gz`
 - Linux (glibc): `CodexBarCLI-v<tag>-linux-aarch64.tar.gz`, `CodexBarCLI-v<tag>-linux-x86_64.tar.gz`
 - Linux (static musl): `CodexBarCLI-v<tag>-linux-musl-aarch64.tar.gz`, `CodexBarCLI-v<tag>-linux-musl-x86_64.tar.gz`
+Linux support via Omarchy: community Waybar module and TUI, driven by the `codexbar` executable.
 
 ### First run
 - Open Settings → Providers and enable what you use.

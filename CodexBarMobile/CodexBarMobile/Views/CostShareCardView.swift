@@ -60,8 +60,16 @@ struct CostShareCardView: View {
         case .classic:
             switch period {
             case .today: TodayCard(data: data, theme: theme)
-            case .week: ChartCard(data: data, periodLabel: String(localized: "7 Days"), theme: theme)
-            case .month: ChartCard(data: data, periodLabel: String(localized: "30 Days"), theme: theme)
+            case .week: ChartCard(
+                    data: data,
+                    periodLabel: String(localized: "7 Days"),
+                    is30Day: false,
+                    theme: theme)
+            case .month: ChartCard(
+                    data: data,
+                    periodLabel: String(localized: "30 Days"),
+                    is30Day: true,
+                    theme: theme)
             }
         case .cyber:
             CyberShareCardView(period: period, data: data, theme: theme.isDark ? .dark : .light)
@@ -198,11 +206,18 @@ private struct TodayCard: View {
             .padding(.bottom, 16)
 
             // Hero number
-            Text(formatUSD(data.todayCost))
+            Text(data.todayCostIsKnown ? formatUSD(data.todayCost) : "—")
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 2)
+
+            if data.costCoverageIsIncomplete {
+                Text("Historical cost coverage is incomplete.")
+                    .font(.caption2)
+                    .foregroundStyle(theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if data.totalTokens > 0 {
                 Text("\(formatTokens(data.totalTokens)) tokens")
@@ -291,13 +306,9 @@ private struct TodayCard: View {
 private struct ChartCard: View {
     let data: ShareCardData
     let periodLabel: String
+    let is30Day: Bool
     let theme: ShareCardTheme
 
-    private var maxCost: Double {
-        data.dailyBars.map(\.cost).max() ?? 1
-    }
-
-    private var is30Day: Bool { data.dailyBars.count > 10 }
     private var barHeight: CGFloat { is30Day ? 140 : 150 }
 
     var body: some View {
@@ -324,17 +335,26 @@ private struct ChartCard: View {
             .padding(.bottom, 14)
 
             // Hero number
-            Text(formatUSD(data.totalCost))
+            Text(data.totalCostIsKnown ? formatUSD(data.totalCost) : "—")
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
 
+            if data.costCoverageIsIncomplete {
+                Text("Historical cost coverage is incomplete.")
+                    .font(.caption2)
+                    .foregroundStyle(theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, -8)
+                    .padding(.bottom, 4)
+            }
+
             // Chart area — stacked bars by provider color
             VStack(spacing: 0) {
                 HStack(alignment: .bottom, spacing: is30Day ? 2 : 6) {
                     ForEach(Array(data.dailyBars.enumerated()), id: \.offset) { _, day in
-                        let totalH = max(2, CGFloat(day.cost / maxCost) * barHeight)
+                        let totalH = data.chartBarHeight(for: day, chartHeight: barHeight)
                         StackedBar(
                             providers: providers,
                             totalHeight: totalH,
@@ -401,7 +421,7 @@ private struct ChartCard: View {
                 }
                 MetricPill(
                     title: String(localized: "Avg/Day"),
-                    value: formatUSD(data.avgDailyCost),
+                    value: data.avgDailyCostIsKnown ? formatUSD(data.avgDailyCost) : "—",
                     theme: theme
                 )
                 .frame(maxWidth: .infinity)

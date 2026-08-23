@@ -24,8 +24,8 @@ struct CWLPerformanceTests {
         return (url, ModelContext(ModelContainerFactory.makeContainer(at: url)))
     }
 
-    @Test("T17: aggregate(365) over 365 days × 40 providers — correct + under 2s")
-    func testAggregateAtScale() throws {
+    @Test
+    func `T17: aggregate(365) over 365 days × 40 providers — correct + under 2s`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -50,8 +50,41 @@ struct CWLPerformanceTests {
         }
         try context.save()
 
+        // Exercise the production producer-calendar path as well as the row
+        // merge. The lookup must stay O(rows), not allocate a DateFormatter
+        // or scan every provider for each of the ~14.6k points.
+        let sourceProviders = (0..<providerCount).map { index in
+            ProviderUsageSnapshot(
+                providerID: "p\(index)",
+                providerName: "Provider \(index)",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: nil,
+                    last30DaysTokens: nil,
+                    daily: [],
+                    bucketTimeZoneIdentifier: "UTC"))
+        }
+        let sourceSnapshot = SyncedUsageSnapshot(
+            providers: sourceProviders,
+            syncTimestamp: now,
+            deviceName: "Mac A",
+            deviceID: "dev-A")
+
         let start = Date()
-        let agg = try CostLedgerService.aggregate(windowDays: 365, in: context, asOf: now)
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 365,
+            in: context,
+            asOf: now,
+            sourceSnapshots: [sourceSnapshot],
+            readerTimeZone: TimeZone(identifier: "UTC") ?? .gmt)
         let elapsed = Date().timeIntervalSince(start)
 
         // Correctness at scale.

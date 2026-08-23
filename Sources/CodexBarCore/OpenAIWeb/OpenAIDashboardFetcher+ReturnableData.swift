@@ -47,6 +47,8 @@ extension OpenAIDashboardFetcher {
             creditEvents: previous?.creditEvents ?? [],
             dailyBreakdown: previous?.dailyBreakdown ?? [],
             usageBreakdown: previous?.usageBreakdown ?? [],
+            usageBreakdownUpdatedAt: previous?.usageBreakdownUpdatedAt,
+            usageBreakdownTimeZoneIdentifier: previous?.usageBreakdownTimeZoneIdentifier,
             creditsPurchaseURL: previous?.creditsPurchaseURL,
             primaryLimit: apiData.primaryLimit ?? previous?.primaryLimit,
             secondaryLimit: apiData.secondaryLimit ?? previous?.secondaryLimit,
@@ -78,6 +80,7 @@ extension OpenAIDashboardFetcher {
         let subscriptionRenewsAt = subscription == nil
             ? snapshot.subscriptionRenewsAt ?? previous.subscriptionRenewsAt
             : snapshot.subscriptionRenewsAt
+        let carriesPreviousUsageBreakdown = snapshot.usageBreakdown.isEmpty
         return OpenAIDashboardSnapshot(
             signedInEmail: snapshot.signedInEmail ?? previous.signedInEmail,
             codeReviewRemainingPercent: snapshot.codeReviewRemainingPercent
@@ -85,7 +88,13 @@ extension OpenAIDashboardFetcher {
             codeReviewLimit: snapshot.codeReviewLimit ?? previous.codeReviewLimit,
             creditEvents: snapshot.creditEvents.isEmpty ? previous.creditEvents : snapshot.creditEvents,
             dailyBreakdown: snapshot.dailyBreakdown.isEmpty ? previous.dailyBreakdown : snapshot.dailyBreakdown,
-            usageBreakdown: snapshot.usageBreakdown.isEmpty ? previous.usageBreakdown : snapshot.usageBreakdown,
+            usageBreakdown: carriesPreviousUsageBreakdown ? previous.usageBreakdown : snapshot.usageBreakdown,
+            usageBreakdownUpdatedAt: carriesPreviousUsageBreakdown
+                ? previous.usageBreakdownUpdatedAt
+                : snapshot.usageBreakdownUpdatedAt,
+            usageBreakdownTimeZoneIdentifier: carriesPreviousUsageBreakdown
+                ? previous.usageBreakdownTimeZoneIdentifier
+                : snapshot.usageBreakdownTimeZoneIdentifier,
             creditsPurchaseURL: snapshot.creditsPurchaseURL ?? previous.creditsPurchaseURL,
             primaryLimit: snapshot.primaryLimit ?? previous.primaryLimit,
             secondaryLimit: snapshot.secondaryLimit ?? previous.secondaryLimit,

@@ -20094,11 +20094,83 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 带来更丰富的提供商详情、Fireworks 和 IBM Bob、更清晰的额度标签，以及更安全的多 Mac 同步。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.21 帶來更豐富的提供者詳情、Fireworks 和 IBM Bob、更清楚的額度標籤，以及更安全的多 Mac 同步。" } }
     } },
+    "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 では、新しい Mac から届くカバレッジ、ソース、トークンの詳細により、コスト合計がより分かりやすくなります。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 通过新版 Mac 提供的覆盖范围、来源和 Token 明细，让费用总额更清晰。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.22 透過新版 Mac 提供的涵蓋範圍、來源和 Token 明細，讓費用總額更清楚。" } }
+    } },
     "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "More provider details — balances, credits, billing, charts, Claude scoped limits, Cursor and Vertex quota labels, OpenCode Go estimates, and Grok plans from newer Macs now appear in one consistent layout." } },
       "ja": { "stringUnit": { "state": "translated", "value": "より多くのプロバイダー詳細 — 新しい Mac 版の残高、クレジット、請求、チャート、Claude のモデル別上限、Cursor と Vertex のクォータラベル、OpenCode Go の推定値、Grok のプランを統一されたレイアウトで表示します。" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "更多提供商详情——新版 Mac 的余额、额度、账单、图表、Claude 模型范围限额、Cursor 与 Vertex 额度标签、OpenCode Go 估算值和 Grok 套餐现在会以统一布局显示。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "更多提供者詳情——新版 Mac 的餘額、額度、帳單、圖表、Claude 模型範圍限額、Cursor 與 Vertex 額度標籤、OpenCode Go 估算值和 Grok 方案現在會以統一佈局顯示。" } }
+    } },
+    "Clearer cost truth — newer Macs now label partial coverage, provider-reported versus estimated spend, and input, output, cache, and reasoning token mix.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Clearer cost truth — newer Macs now label partial coverage, provider-reported versus estimated spend, and input, output, cache, and reasoning token mix." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "より明確なコスト情報 — 新しい Mac では、部分的なカバレッジ、プロバイダー報告額と推定額の違い、入力・出力・キャッシュ・推論のトークン内訳が表示されます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "更清晰的费用信息——新版 Mac 会标明部分覆盖、提供商上报与估算费用的区别，以及输入、输出、缓存和推理 Token 构成。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "更清楚的費用資訊——新版 Mac 會標明部分涵蓋、提供者回報與估算費用的差異，以及輸入、輸出、快取和推理 Token 構成。" } }
+    } },
+    "Provider reported": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Provider reported" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "プロバイダー報告" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "提供商上报" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "提供者回報" } }
+    } },
+    "Cost coverage: %lld of %lld usage rows priced or estimated.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cost coverage: %lld of %lld usage rows priced or estimated." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "コスト対象: %lld / %lld 件の使用行を価格計算または推定済み。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "费用覆盖：%lld / %lld 条用量记录已计价或估算。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "費用涵蓋：%lld / %lld 筆用量記錄已計價或估算。" } }
+    } },
+    "Historical cost coverage is incomplete.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Historical cost coverage is incomplete." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "過去のコストデータの対象範囲が不完全です。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史费用覆盖尚不完整。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "歷史費用涵蓋尚不完整。" } }
+    } },
+    "List-price equivalent — not a billing receipt.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "List-price equivalent — not a billing receipt." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "参考価格換算 — 請求書ではありません。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "目录价等值——并非账单。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "定價等值——並非帳單。" } }
+    } },
+    "Reported by the provider.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Reported by the provider." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "プロバイダーから報告された値です。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "由提供商上报。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "由提供者回報。" } }
+    } },
+    "Includes provider-reported and estimated costs.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Includes provider-reported and estimated costs." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "プロバイダー報告額と推定額が含まれます。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "包含提供商上报和估算费用。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "包含提供者回報和估算費用。" } }
+    } },
+    "Token mix": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Token mix" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "トークン内訳" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Token 构成" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Token 構成" } }
+    } },
+    "Input": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Input" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "入力" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "输入" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "輸入" } }
+    } },
+    "Cache creation": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cache creation" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "キャッシュ作成" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "缓存创建" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "快取建立" } }
+    } },
+    "Reasoning": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Reasoning" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "推論" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "推理" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "推理" } }
     } }
   },
   "version": "1.0"

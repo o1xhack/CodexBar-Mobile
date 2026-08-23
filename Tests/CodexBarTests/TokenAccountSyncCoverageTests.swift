@@ -36,8 +36,8 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains the 28 providers known through v0.49.2 (regression sentinel)`() {
-        // v0.49.2 baseline — 28 providers in TokenAccountSupportCatalog.
+    func `Catalog contains the 29 providers known through v0.54.0 (regression sentinel)`() {
+        // v0.54.0 baseline — 29 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
         //     manus/augment/ollama/abacus/mistral/copilot/venice/stepfun.
@@ -65,6 +65,8 @@ struct TokenAccountSyncCoverageTests {
             "openrouter", "sub2api", "neuralwatt", "deepinfra",
             // v0.49.0 addition
             "ibmbob",
+            // v0.53.0 addition
+            "grok",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

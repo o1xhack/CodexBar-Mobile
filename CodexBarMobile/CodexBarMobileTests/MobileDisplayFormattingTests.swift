@@ -1,10 +1,40 @@
 import CodexBarSync
+import Foundation
 import Testing
 @testable import CodexBarMobile
 
 @Suite("Mobile Display Formatting")
 @MainActor
 struct MobileDisplayFormattingTests {
+    @Test("Provider-level OpenRouter cost envelope is hidden only from Usage cards")
+    func providerLevelOpenRouterCostEnvelopeClassification() {
+        let provider = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let ordinary = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "Personal",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            accountRecordKey: "token-a")
+
+        #expect(provider.isProviderLevelCostEnvelope)
+        #expect(!ordinary.isProviderLevelCostEnvelope)
+    }
+
     @Test("Used mode shows used percent and fill")
     func usedModeValues() {
         let window = SyncRateWindow(usedPercent: 78, windowMinutes: 300, resetsAt: nil, resetDescription: nil)
@@ -97,5 +127,97 @@ struct MobileDisplayFormattingTests {
     func providerDailySpendAxisLabelUsesCompactText() {
         #expect(ProviderDetailView.dailyAxisLabel(for: "2026-06-15") == "6/15")
         #expect(ProviderDetailView.dailyAxisLabel(for: "not-a-date") == "not-a-date")
+    }
+
+    @Test("Provider detail renders metadata-only cost summaries")
+    func providerDetailRendersMetadataOnlyCostSummaries() {
+        let meteredOnly = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [],
+            meteredCostUSD: 4.25,
+            costProvenance: .vendorMetered)
+        let tokenOnly = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [],
+            tokenMix: SyncCostTokenMix(inputTokens: 120, outputTokens: 30))
+
+        #expect(ProviderDetailView.shouldRenderCostSummary(meteredOnly))
+        #expect(ProviderDetailView.shouldRenderProviderReportedCost(meteredOnly))
+        #expect(ProviderDetailView.shouldRenderCostSummary(tokenOnly))
+    }
+
+    @Test("Provider detail omits empty cost summaries")
+    func providerDetailOmitsEmptyCostSummaries() {
+        let now = Date(timeIntervalSince1970: 1_777_000_000)
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let empty = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [])
+
+        #expect(!ProviderDetailView.shouldRenderCostSummary(empty))
+        #expect(!ProviderDetailView.shouldRenderProviderReportedCost(empty))
+
+        let grokTokenOnly = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: 300,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: 900,
+            daily: [SyncDailyPoint(
+                dayKey: todayKey,
+                costUSD: 0,
+                totalTokens: 900,
+                costIsKnown: false)],
+            costProvenance: .unknown,
+            coverage: SyncCostCoverage(priced: 0, unpriced: 0, unmetered: 0, estimated: 0),
+            historyCoverageIsEstablished: true)
+        #expect(!ProviderDetailView.shouldRenderCostSummary(grokTokenOnly))
+        #expect(ProviderDetailView.availableCostPoints(grokTokenOnly.daily).isEmpty)
+        #expect(ProviderDetailView.shouldShowIncompleteCostWarning(grokTokenOnly))
+        let grokToday = grokTokenOnly.todayTotals(now: now)
+        #expect(!ProviderDetailView.shouldRenderTodayCost(grokToday))
+        #expect(grokToday.displayCostUSD == nil)
+
+        let knownZero = SyncCostSummary(
+            sessionCostUSD: 0,
+            sessionTokens: 0,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [])
+        #expect(ProviderDetailView.shouldRenderCostSummary(knownZero))
+        let knownZeroToday = knownZero.todayTotals(now: now)
+        #expect(ProviderDetailView.shouldRenderTodayCost(knownZeroToday))
+        #expect(knownZeroToday.displayCostUSD == 0)
+    }
+
+    @Test("Usage teaser suppresses an unqualified partial history total")
+    func usageTeaserSuppressesPartialHistoryTotal() {
+        let partial = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 12.34,
+            last30DaysTokens: 1_000,
+            daily: [],
+            coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
+            historyCoverageIsEstablished: true)
+        let complete = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 12.34,
+            last30DaysTokens: 1_000,
+            daily: [],
+            coverage: SyncCostCoverage(priced: 10, unpriced: 0, unmetered: 0, estimated: 0),
+            historyCoverageIsEstablished: true)
+
+        #expect(ProviderUsageView.costTeaserParts(partial).isEmpty)
+        #expect(ProviderUsageView.costTeaserParts(complete).count == 1)
     }
 }

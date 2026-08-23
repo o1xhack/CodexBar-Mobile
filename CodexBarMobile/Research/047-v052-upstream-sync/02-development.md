@@ -53,7 +53,7 @@ Date: 2026-08-17
 |---|---|---|
 | `AGENTS.md` | 保留 fork iOS/release/CloudKit/review policy | policy/link/lint gates |
 | `CLAUDE.md` | 接受 upstream `./AGENTS.md` symlink，避免两套规则漂移 | symlink target + doc links |
-| `README.md` | 接受 upstream当前功能说明 | doc links |
+| `README.md` | 原 merge 错误地整文件接受 upstream；2026-08-19 corrective fix 恢复 PR #93 合并前的 fork 身份、iOS/Mac 下载入口和本地内容，仅人工移植 v0.52 Keychain prompt-safety 事实段落，并新增完整 SHA-256 portable lint guard | reviewed fork hash + guard regression test |
 | `CHANGELOG.md` | fork release段置顶并保留已发布历史；追加upstream 0.49.3–0.52.0 | `changelog-to-html.sh` |
 | `.github/workflows/release-cli.yml`与fork CI脚本 | 吸收checksum改进，保持fork trigger/Homebrew gate | CI policy/path/release tests |
 | `CodexbarApp.swift` | 吸收upstream Settings/Mission Control生命周期；把Mobile observer移至AppDelegate | `AppDelegateTests` |

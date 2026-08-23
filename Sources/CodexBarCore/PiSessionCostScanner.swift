@@ -256,7 +256,8 @@ enum PiSessionCostScanner {
                 modelsDevArtifact: modelsDevArtifact,
                 formulaVersion: Self.costFormulaVersion,
                 parserHash: CodexParserHash.value,
-                modelsDevProviderIDs: CostUsagePricing.codexModelsDevProviderIDs.union(["anthropic"])))
+                modelsDevProviderIDs: CostUsagePricing.codexModelsDevProviderIDs.union(
+                    Set(CostUsagePricing.claudeFirstPartyModelsDevProviderIDs))))
     }
 
     private static func requestedWindowExpandsCache(
@@ -841,6 +842,7 @@ enum PiSessionCostScanner {
                 cachedInputTokens: usage.cacheReadTokens,
                 outputTokens: usage.outputTokens,
                 cacheWriteInputTokens: usage.cacheWriteTokens,
+                pricingDate: pricingDate,
                 modelsDevCatalog: pricingContext?.catalog,
                 modelsDevCacheRoot: pricingContext?.cacheRoot)
         case .claude:

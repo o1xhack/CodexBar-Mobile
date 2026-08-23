@@ -102,14 +102,15 @@ struct DashboardSnapshotProducer: Sendable {
     }
 
     static func live(context: DashboardSnapshotContext) -> Self {
-        Self(
+        let costBucketCalendar = CodexBarCLI.costBucketCalendarFromAppDefaults()
+        return Self(
             collectUsage: { providers in
                 try await CodexBarCLI.serveUsageOutput(
                     selection: .custom(providers),
                     context: context.usage)
             },
             collectCost: { providers, config in
-                let costFetcher = CostUsageFetcher()
+                let costFetcher = CostUsageFetcher(calendar: costBucketCalendar)
                 return await CodexBarCLI.collectConfiguredCostPayloads(
                     providers: providers,
                     config: config,
@@ -121,9 +122,17 @@ struct DashboardSnapshotProducer: Sendable {
                             forceRefresh: false,
                             cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                             refreshPricingInBackground: context.costRefreshesPricingInBackground)
-                        return CodexBarCLI.makeCostPayload(provider: provider, snapshot: snapshot, error: nil)
+                        return CodexBarCLI.makeCostPayload(
+                            provider: provider,
+                            snapshot: snapshot,
+                            error: nil,
+                            calendar: costBucketCalendar)
                     } catch {
-                        return CodexBarCLI.makeCostPayload(provider: provider, snapshot: nil, error: error)
+                        return CodexBarCLI.makeCostPayload(
+                            provider: provider,
+                            snapshot: nil,
+                            error: error,
+                            calendar: costBucketCalendar)
                     }
                 }
             },
@@ -139,8 +148,12 @@ struct DashboardSnapshotProducer: Sendable {
                     let list = try await ClaudeSwapAccountReader.readAccountList(
                         executablePath: path,
                         timeout: timeout)
+                    let accounts = ClaudeSwapAccountProjection.accountSnapshots(
+                        from: list,
+                        previousAccounts: ClaudeSwapRetainedUsageStore.load())
+                    ClaudeSwapRetainedUsageStore.save(accounts)
                     return DashboardClaudeSwapCollection(
-                        accounts: ClaudeSwapAccountProjection.accountSnapshots(from: list),
+                        accounts: accounts,
                         adapterError: nil)
                 } catch {
                     let diagnostic = CLIClaudeSwapText.sanitizeDiagnostic(error.localizedDescription)

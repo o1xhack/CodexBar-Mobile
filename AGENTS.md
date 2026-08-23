@@ -275,6 +275,15 @@ belong in `$codexbar-git-workflow`, not in individual Goal prompts.
 - Do not modify Mac-only files such as `Sources/` or `Tests/` unless the user
   explicitly asks for Mac/upstream-sync/release work.
 - Never push to `upstream`; only push to `origin`.
+- `README.md` is the fork-owned iOS/Mac download entrypoint. During every
+  upstream merge or conflict resolution, keep it byte-for-byte from the fork
+  (`mobile-dev`) side; never accept or incidentally port the upstream README.
+  After the merge, separately audit the upstream README diff for factual
+  product, security, or troubleshooting changes and deliberately adapt only
+  applicable text without replacing fork identity/download content.
+  `Scripts/check_fork_readme.sh` enforces the resulting reviewed fork content
+  hash. Do not update that hash merely to make an upstream sync pass; update it
+  only with an intentional, separately reviewed fork README change.
 - Do not hand-edit `.xcodeproj`; update `project.yml` and run `xcodegen
   generate`.
 - Do not skip build numbers, changelog, release notes, CloudKit audit, or

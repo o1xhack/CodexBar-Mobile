@@ -67,7 +67,7 @@ struct SpendActivityHeatmapTests {
     }
 
     @Test
-    func `mixed provider activity marks days outside common coverage unavailable`() throws {
+    func `mixed provider activity unions available sources per day`() throws {
         let now = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 7, day: 16)))
         let oldDay = "2025-08-01"
         let annual = Self.snapshot(
@@ -94,9 +94,60 @@ struct SpendActivityHeatmapTests {
 
         let oldDate = try #require(Self.calendar.date(from: DateComponents(year: 2025, month: 8, day: 1)))
         #expect(model.tokenActivity.count == SpendDashboardModel.tokenActivityDayCount)
-        #expect(model.tokenActivity.first { $0.day == oldDate }?.totalTokens == nil)
+        #expect(model.tokenActivity.first { $0.day == oldDate }?.totalTokens == 40)
         #expect(model.tokenActivity.first { $0.day == now }?.totalTokens == 70)
         #expect(model.groups.first?.dailyPoints.allSatisfy { $0.day == now } == true)
+    }
+
+    @Test
+    func `token activity unions partial provider coverage instead of requiring every source`() throws {
+        let now = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 7, day: 16)))
+        let recent = Self.snapshot(
+            entries: [Self.entry(day: "2026-07-16", cost: 1, tokens: 40)],
+            historyDays: 30,
+            last30DaysTokens: 40)
+        let unavailable = Self.snapshot(
+            entries: [],
+            historyDays: 30,
+            last30DaysTokens: nil,
+            historyCoverageIsEstablished: false)
+        let model = SpendDashboardModel.build(
+            inputs: [
+                .init(id: "recent", provider: .claude, displayName: "Claude", snapshot: recent),
+                .init(id: "missing", provider: .openai, displayName: "OpenAI", snapshot: unavailable),
+            ],
+            requestedDays: 30,
+            now: now,
+            calendar: Self.calendar)
+
+        let coveredDays = model.tokenActivity.count(where: { $0.totalTokens != nil })
+        #expect(coveredDays > 0)
+        #expect(model.tokenActivity.first { $0.day == now }?.totalTokens == 40)
+    }
+
+    @Test
+    func `scanned provider with unresolved day preserves gap even if other providers have tokens`() throws {
+        let now = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 7, day: 16)))
+        let valid = Self.snapshot(
+            entries: [Self.entry(day: "2026-07-16", cost: 1, tokens: 40)],
+            historyDays: 30,
+            last30DaysTokens: 40)
+        let scannedWithInvalidDay = Self.snapshot(
+            entries: [Self.entry(day: "2026-07-16", cost: 1, tokens: -5)],
+            historyDays: 30,
+            last30DaysTokens: 10)
+        let model = SpendDashboardModel.build(
+            inputs: [
+                .init(id: "valid", provider: .claude, displayName: "Claude", snapshot: valid),
+                .init(id: "invalid", provider: .openai, displayName: "OpenAI", snapshot: scannedWithInvalidDay),
+            ],
+            requestedDays: 30,
+            now: now,
+            calendar: Self.calendar)
+
+        let point = model.tokenActivity.first { $0.day == now }
+        #expect(point?.totalTokens == nil)
+        #expect(point?.isScanned == true)
     }
 
     @Test
@@ -473,6 +524,22 @@ struct SpendActivityHeatmapTests {
             date: date,
             value: "Unavailable",
             locale: locale) == "Aug 1, 2026: Unavailable")
+    }
+
+    @Test
+    func `uncovered heatmap days do not produce a drill-down selection`() throws {
+        let calendar = Self.calendar
+        let start = try #require(calendar.date(from: DateComponents(year: 2026, month: 8, day: 2)))
+        let series = SpendActivitySeries(
+            daily: [10, 0],
+            isCovered: [true, false],
+            start: start,
+            rangeStart: start,
+            today: start,
+            calendar: calendar)
+        #expect(SpendActivityDaySelection.day(from: series, at: 0, selectedDay: nil) == start)
+        #expect(SpendActivityDaySelection.day(from: series, at: 1, selectedDay: nil) == nil)
+        #expect(SpendActivityDaySelection.day(from: series, at: 0, selectedDay: start) == nil)
     }
 
     private static var calendar: Calendar {

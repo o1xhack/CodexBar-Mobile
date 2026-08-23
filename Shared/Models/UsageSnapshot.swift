@@ -107,6 +107,10 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
     /// for payloads from Mac builds before 0.23 — iOS treats nil as
     /// `false` (not estimated). See `Research/018-model-fallback-pricing.md` §6.
     public let isEstimated: Bool?
+    /// `true` when `costUSD == 0` is an authoritative zero; `false` when zero
+    /// is only the wire placeholder for token usage whose cost is unknown.
+    /// `nil` preserves the display behavior of payloads written before v0.54.
+    public let costIsKnown: Bool?
 
     public init(
         dayKey: String,
@@ -114,7 +118,8 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         totalTokens: Int,
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
-        isEstimated: Bool? = nil)
+        isEstimated: Bool? = nil,
+        costIsKnown: Bool? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
@@ -122,6 +127,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.modelBreakdowns = modelBreakdowns
         self.serviceBreakdowns = serviceBreakdowns
         self.isEstimated = isEstimated
+        self.costIsKnown = costIsKnown
     }
 
     public init(from decoder: Decoder) throws {
@@ -140,6 +146,106 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.serviceBreakdowns =
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .serviceBreakdowns) ?? []
         self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
+        self.costIsKnown = try container.decodeIfPresent(Bool.self, forKey: .costIsKnown)
+    }
+}
+
+/// Display-safe provenance for a synced cost total. This mirrors the Mac
+/// accounting model without exposing local paths, session IDs, or credentials.
+public enum SyncCostProvenance: String, Codable, Sendable, Equatable {
+    case listPriceEstimate
+    case vendorMetered
+    case mixed
+    case unknown
+
+    public init(from decoder: Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: rawValue) ?? .unknown
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.rawValue)
+    }
+}
+
+/// Request/row coverage for the synced cost window. Optional on
+/// `SyncCostSummary` so payloads from Macs before 0.53 decode unchanged.
+public struct SyncCostCoverage: Codable, Sendable, Equatable {
+    public let priced: Int
+    public let unpriced: Int
+    public let unmetered: Int
+    public let estimated: Int
+
+    public init(priced: Int, unpriced: Int, unmetered: Int, estimated: Int) {
+        self.priced = max(0, priced)
+        // Negative gap counters are malformed wire data. Normalizing them to
+        // zero would erase the only evidence that a compact cost total may be
+        // partial, so retain a conservative one-row gap sentinel instead.
+        self.unpriced = unpriced < 0 ? 1 : unpriced
+        self.unmetered = unmetered < 0 ? 1 : unmetered
+        self.estimated = max(0, estimated)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            priced: container.decodeIfPresent(Int.self, forKey: .priced) ?? 0,
+            unpriced: container.decodeIfPresent(Int.self, forKey: .unpriced) ?? 0,
+            unmetered: container.decodeIfPresent(Int.self, forKey: .unmetered) ?? 0,
+            estimated: container.decodeIfPresent(Int.self, forKey: .estimated) ?? 0)
+    }
+
+    public var total: Int {
+        SyncCounterMath.saturatingSum([self.priced, self.unpriced, self.unmetered, self.estimated])
+    }
+
+    public var pricedOrEstimated: Int {
+        SyncCounterMath.saturatingSum([self.priced, self.estimated])
+    }
+}
+
+/// Token-class mix for the synced cost window. `nil` per field means the Mac
+/// source did not establish that class; it must not be rendered as zero.
+public struct SyncCostTokenMix: Codable, Sendable, Equatable {
+    public let inputTokens: Int?
+    public let outputTokens: Int?
+    public let cacheReadTokens: Int?
+    public let cacheCreationTokens: Int?
+    public let reasoningTokens: Int?
+
+    public init(
+        inputTokens: Int? = nil,
+        outputTokens: Int? = nil,
+        cacheReadTokens: Int? = nil,
+        cacheCreationTokens: Int? = nil,
+        reasoningTokens: Int? = nil)
+    {
+        self.inputTokens = Self.nonnegative(inputTokens)
+        self.outputTokens = Self.nonnegative(outputTokens)
+        self.cacheReadTokens = Self.nonnegative(cacheReadTokens)
+        self.cacheCreationTokens = Self.nonnegative(cacheCreationTokens)
+        self.reasoningTokens = Self.nonnegative(reasoningTokens)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            inputTokens: container.decodeIfPresent(Int.self, forKey: .inputTokens),
+            outputTokens: container.decodeIfPresent(Int.self, forKey: .outputTokens),
+            cacheReadTokens: container.decodeIfPresent(Int.self, forKey: .cacheReadTokens),
+            cacheCreationTokens: container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens),
+            reasoningTokens: container.decodeIfPresent(Int.self, forKey: .reasoningTokens))
+    }
+
+    public var hasAnyValue: Bool {
+        self.inputTokens != nil || self.outputTokens != nil || self.cacheReadTokens != nil
+            || self.cacheCreationTokens != nil || self.reasoningTokens != nil
+    }
+
+    private static func nonnegative(_ value: Int?) -> Int? {
+        guard let value, value >= 0 else { return nil }
+        return value
     }
 }
 
@@ -166,6 +272,47 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let sessionRequests: Int?
     public let last30DaysRequests: Int?
     public let currencyCode: String?
+    /// Provider-metered spend for the same history window, when the provider
+    /// exposes it separately from API list-price estimates.
+    public let meteredCostUSD: Double?
+    /// How the window's cost was produced. Optional for pre-0.53 payloads.
+    public let costProvenance: SyncCostProvenance?
+    /// Row coverage for the cost total. Optional for pre-0.53 payloads.
+    public let coverage: SyncCostCoverage?
+    /// Input/output/cache/reasoning token mix. Optional for pre-0.53 payloads.
+    public let tokenMix: SyncCostTokenMix?
+    /// Timestamp of the independent cost snapshot that produced the summary.
+    /// This intentionally differs from `ProviderUsageSnapshot.lastUpdated`,
+    /// which belongs to the provider-usage refresh and can advance while a
+    /// cached or still-scanning cost snapshot remains older.
+    public let sourceUpdatedAt: Date?
+    /// Producer-local calendar day containing `sourceUpdatedAt`.
+    ///
+    /// Carrying the day explicitly prevents an iPhone in another time zone
+    /// from re-bucketing a Mac's cost snapshot onto a different day. Optional
+    /// for older payloads, which retain the historical timestamp fallback.
+    public let sourceDayKey: String?
+    /// Producer-local calendar day represented by the session fallback fields.
+    /// This can differ from `sourceDayKey` when a newer dashboard refresh adds
+    /// dated service rows while the local token session remains older.
+    public let sessionDayKey: String?
+    /// IANA time-zone identifier used by the Mac to bucket `daily` rows and
+    /// derive the producer day keys above. Carrying this explicitly keeps an
+    /// iPhone from interpreting a UTC-pinned (or otherwise user-pinned) cost
+    /// day using its own current time zone. Optional for legacy payloads.
+    public let bucketTimeZoneIdentifier: String?
+    /// Whether `sessionCostUSD` is authoritative for the local calendar day
+    /// named by `sessionDayKey`. `false` rejects synthesized zeroes from
+    /// incomplete scans; `nil` preserves legacy payload behavior.
+    public let sessionCostIsKnown: Bool?
+    /// `false` means the Mac is still scanning the configured history window.
+    /// Optional for pre-0.53 payloads, where iOS preserves the old display.
+    public let historyCoverageIsEstablished: Bool?
+    /// `false` means a multi-Mac merge combined different historical window
+    /// lengths. This qualifies window totals without making a fully scanned
+    /// current-day row look incomplete. Single writers and older payloads use
+    /// nil because no cross-writer comparison was performed.
+    public let historyWindowIsComparable: Bool?
 
     public init(
         sessionCostUSD: Double?,
@@ -177,7 +324,18 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         historyDays: Int? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
-        currencyCode: String? = nil)
+        currencyCode: String? = nil,
+        meteredCostUSD: Double? = nil,
+        costProvenance: SyncCostProvenance? = nil,
+        coverage: SyncCostCoverage? = nil,
+        tokenMix: SyncCostTokenMix? = nil,
+        sourceUpdatedAt: Date? = nil,
+        sourceDayKey: String? = nil,
+        sessionDayKey: String? = nil,
+        bucketTimeZoneIdentifier: String? = nil,
+        sessionCostIsKnown: Bool? = nil,
+        historyCoverageIsEstablished: Bool? = nil,
+        historyWindowIsComparable: Bool? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
@@ -189,6 +347,79 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode
+        self.meteredCostUSD = meteredCostUSD
+        self.costProvenance = costProvenance
+        self.coverage = coverage
+        self.tokenMix = tokenMix
+        self.sourceUpdatedAt = sourceUpdatedAt
+        self.sourceDayKey = sourceDayKey
+        self.sessionDayKey = sessionDayKey
+        self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
+        self.sessionCostIsKnown = sessionCostIsKnown
+        self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.historyWindowIsComparable = historyWindowIsComparable
+    }
+
+    /// True when a modern writer explicitly reports that the history-window
+    /// amount is only a lower bound. Legacy payloads keep their historical
+    /// behavior because all of these additive fields decode as `nil`.
+    public var hasIncompleteHistoricalCostCoverage: Bool {
+        self.hasIncompleteHistoricalCostCoverage(at: Date())
+    }
+
+    /// Reference-date form used by widgets, previews, tests, and any consumer
+    /// that already captured a single evaluation instant. Reusing that instant
+    /// keeps Today and history freshness on the same producer calendar day.
+    public func hasIncompleteHistoricalCostCoverage(at referenceDate: Date) -> Bool {
+        let currentDayKey = self.costDayKey(for: referenceDate)
+        return self.historyCoverageIsEstablished == false ||
+            self.historyWindowIsComparable == false ||
+            self.hasInvalidBucketTimeZoneIdentifier ||
+            self.sourceDayKey.map { $0 != currentDayKey } == true ||
+            (self.sourceDayKey == nil && self.sourceUpdatedAt.map {
+                self.costDayKey(for: $0) != currentDayKey
+            } == true) ||
+            self.daily.contains(where: { $0.costIsKnown == false }) ||
+            (self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } ?? false)
+    }
+
+    /// Compact surfaces have no room for a coverage qualifier, so they must
+    /// suppress partial history totals instead of presenting them as complete.
+    public var completeHistoryCostUSD: Double? {
+        self.completeHistoryCostUSD(at: Date())
+    }
+
+    /// Reference-date form paired with
+    /// `hasIncompleteHistoricalCostCoverage(at:)`.
+    public func completeHistoryCostUSD(at referenceDate: Date) -> Double? {
+        self.hasIncompleteHistoricalCostCoverage(at: referenceDate) ? nil : self.last30DaysCostUSD
+    }
+
+    /// Formats a timestamp in the producer's configured cost-bucket calendar.
+    /// Legacy payloads have no identifier and retain the historical reader-
+    /// local behavior. An invalid non-nil identifier is treated as incomplete
+    /// by `hasIncompleteHistoricalCostCoverage` and only falls back here so
+    /// rendering remains deterministic instead of crashing.
+    public func costDayKey(for date: Date) -> String {
+        Self.dayKey(for: date, timeZone: self.bucketTimeZone)
+    }
+
+    public var hasInvalidBucketTimeZoneIdentifier: Bool {
+        guard let identifier = self.bucketTimeZoneIdentifier else { return false }
+        return TimeZone(identifier: identifier) == nil
+    }
+
+    private var bucketTimeZone: TimeZone {
+        self.bucketTimeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? .current
+    }
+
+    private static func dayKey(for date: Date, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 
@@ -481,11 +712,11 @@ private struct LossyDecodedElement<Value: Decodable>: Decodable {
     }
 }
 
-private extension KeyedDecodingContainer {
+extension KeyedDecodingContainer {
     /// Reads at most `maximumCount` raw entries and drops malformed entries
     /// inside that bounded prefix. Capping raw entries (rather than only valid
     /// results) also bounds work for adversarial CloudKit payloads.
-    func decodeLossyBoundedArray<Value: Decodable>(
+    fileprivate func decodeLossyBoundedArray<Value: Decodable>(
         _ type: Value.Type,
         forKey key: Key,
         maximumCount: Int) throws -> [Value]
@@ -507,6 +738,11 @@ private extension KeyedDecodingContainer {
 
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
+    /// Stable pseudo-account used only to transport provider-level OpenRouter
+    /// Management Activity spend. It must not inherit the currently selected
+    /// ordinary API-key account.
+    public static let openRouterManagementCostRecordKey = "management-activity"
+
     public let providerID: String
     public let providerName: String
     public let primary: SyncRateWindow?
@@ -522,6 +758,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let isError: Bool
     public let lastUpdated: Date
     public let costSummary: SyncCostSummary?
+    /// Authoritative tombstone for a previously published cost summary on
+    /// this exact device/provider/account envelope. This is used when a
+    /// machine-wide cost source moves between token accounts: new clients
+    /// delete the old account's ledger rows, while old clients ignore this
+    /// additive optional key.
+    public let costSummaryCleared: Bool?
     public let budget: SyncBudgetSnapshot?
     /// Optional subscription lifecycle metadata surfaced by providers such as
     /// MiniMax. Additive only: old Mac payloads decode as nil, old iOS clients
@@ -801,6 +1043,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             || self.secondary != nil
             || !self.rateWindows.isEmpty
             || self.costSummary != nil
+            || self.costSummaryCleared == true
             || self.budget != nil
             || self.subscriptionExpiresAt != nil
             || self.subscriptionRenewsAt != nil
@@ -837,6 +1080,14 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             || self.statusMessage != nil
     }
 
+    /// The cost dashboard consumes this envelope, but the Usage tab suppresses
+    /// it so users do not see a duplicate, cost-only OpenRouter account card.
+    public var isProviderLevelCostEnvelope: Bool {
+        // Provider-specific by design: only OpenRouter publishes a separate management-cost pseudo-account.
+        self.providerID == "openrouter"
+            && self.accountRecordKey == Self.openRouterManagementCostRecordKey
+    }
+
     public init(
         providerID: String,
         providerName: String,
@@ -848,6 +1099,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         isError: Bool,
         lastUpdated: Date,
         costSummary: SyncCostSummary? = nil,
+        costSummaryCleared: Bool? = nil,
         budget: SyncBudgetSnapshot? = nil,
         subscriptionExpiresAt: Date? = nil,
         subscriptionRenewsAt: Date? = nil,
@@ -901,6 +1153,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.isError = isError
         self.lastUpdated = lastUpdated
         self.costSummary = costSummary
+        self.costSummaryCleared = costSummaryCleared
         self.budget = budget
         self.subscriptionExpiresAt = subscriptionExpiresAt
         self.subscriptionRenewsAt = subscriptionRenewsAt
@@ -957,6 +1210,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             isError: self.isError,
             lastUpdated: self.lastUpdated,
             costSummary: self.costSummary,
+            costSummaryCleared: self.costSummaryCleared,
             budget: self.budget,
             subscriptionExpiresAt: self.subscriptionExpiresAt,
             subscriptionRenewsAt: self.subscriptionRenewsAt,
@@ -1015,6 +1269,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.isError = try container.decode(Bool.self, forKey: .isError)
         self.lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         self.costSummary = try container.decodeIfPresent(SyncCostSummary.self, forKey: .costSummary)
+        self.costSummaryCleared = try container.decodeIfPresent(Bool.self, forKey: .costSummaryCleared)
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
         self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
         self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
@@ -1091,6 +1346,14 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     public let mobileVersion: String?
     /// When false, iOS should suppress push notifications for this snapshot.
     public let notificationPushEnabled: Bool?
+    /// In-memory publication time for each per-provider CloudKit envelope.
+    ///
+    /// This metadata is reconstructed from existing `ProviderUsageEnvelope`
+    /// records and deliberately is not encoded into the legacy snapshot wire
+    /// payload. Older payload readers therefore remain byte-compatible while
+    /// new iOS readers can keep unchanged provider records from appearing as
+    /// fresh when a sibling provider publishes a newer delta.
+    public let providerPublicationTimestamps: [String: Date]
 
     private enum CodingKeys: String, CodingKey {
         case providers, syncTimestamp, deviceName, deviceID, appVersion
@@ -1115,7 +1378,8 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         deviceID: String? = nil,
         appVersion: String? = nil,
         mobileVersion: String? = nil,
-        notificationPushEnabled: Bool? = nil)
+        notificationPushEnabled: Bool? = nil,
+        providerPublicationTimestamps: [String: Date] = [:])
     {
         self.providers = providers
         self.syncTimestamp = syncTimestamp
@@ -1124,6 +1388,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.appVersion = appVersion
         self.mobileVersion = mobileVersion
         self.notificationPushEnabled = notificationPushEnabled
+        self.providerPublicationTimestamps = providerPublicationTimestamps
     }
 
     public init(from decoder: Decoder) throws {
@@ -1140,6 +1405,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.mobileVersion = try container.decodeIfPresent(String.self, forKey: .mobileVersion)
             ?? container.decodeIfPresent(String.self, forKey: .syncVersion)
         self.notificationPushEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationPushEnabled)
+        self.providerPublicationTimestamps = [:]
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -1151,5 +1417,25 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(self.appVersion, forKey: .appVersion)
         try container.encodeIfPresent(self.mobileVersion, forKey: .mobileVersion)
         try container.encodeIfPresent(self.notificationPushEnabled, forKey: .notificationPushEnabled)
+    }
+
+    public static func providerPublicationKey(for provider: ProviderUsageSnapshot) -> String {
+        "\(provider.providerID)|\(provider.accountRecordKey ?? provider.accountEmail ?? "_")"
+    }
+
+    public func publicationTimestamp(for provider: ProviderUsageSnapshot) -> Date {
+        self.providerPublicationTimestamps[Self.providerPublicationKey(for: provider)]
+            ?? provider.lastUpdated
+    }
+}
+
+/// Arithmetic for counters decoded from the sync payload. A corrupt or future
+/// writer must not be able to crash readers by overflowing an `Int` aggregate.
+public enum SyncCounterMath {
+    public static func saturatingSum(_ values: some Sequence<Int>) -> Int {
+        values.reduce(0) { partial, value in
+            let (sum, overflow) = partial.addingReportingOverflow(value)
+            return overflow ? Int.max : sum
+        }
     }
 }

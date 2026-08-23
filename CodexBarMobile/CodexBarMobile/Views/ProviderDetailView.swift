@@ -58,6 +58,10 @@ struct ProviderDetailView: View {
     /// re-renders against the selected snapshot — mirroring Mac's
     /// "click into provider menu → tabs" UX.
     let group: ProviderAccountGroup
+    /// Captured by the root cost-boundary clock. Passing the same instant to
+    /// every Today/history accessor prevents an open detail view from retaining
+    /// yesterday's producer-calendar freshness after midnight.
+    let costReferenceDate: Date
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -68,17 +72,19 @@ struct ProviderDetailView: View {
     /// haven't been refactored to pass a group yet (e.g., `RawProviderDetailView`
     /// in `ContentView`, SwiftUI previews). Wraps the snapshot in a
     /// 1-element group so the body code path is uniform.
-    init(provider: ProviderUsageSnapshot) {
+    init(provider: ProviderUsageSnapshot, costReferenceDate: Date = Date()) {
         self.group = ProviderAccountGroup(
             providerID: provider.providerID,
             providerName: provider.providerName,
             accounts: [provider])
+        self.costReferenceDate = costReferenceDate
     }
 
     /// Multi-account init — preferred path from the post-merge,
     /// post-grouping Usage list.
-    init(group: ProviderAccountGroup) {
+    init(group: ProviderAccountGroup, costReferenceDate: Date = Date()) {
         self.group = group
+        self.costReferenceDate = costReferenceDate
     }
 
     /// Computed accessor for the currently-selected snapshot. **All
@@ -305,7 +311,7 @@ struct ProviderDetailView: View {
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
-                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil
+                   Self.shouldRenderCostSummary(cost)
                 {
                     self.costSummarySection(cost)
                 }
@@ -321,8 +327,11 @@ struct ProviderDetailView: View {
                 }
 
                 // Daily chart
-                if let cost = self.provider.costSummary, !cost.daily.isEmpty {
-                    self.dailyChartSection(cost.daily, currencyCode: cost.currencyCode)
+                if let cost = self.provider.costSummary {
+                    let availableDaily = Self.availableCostPoints(cost.daily)
+                    if !availableDaily.isEmpty {
+                        self.dailyChartSection(availableDaily, currencyCode: cost.currencyCode)
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -493,20 +502,53 @@ struct ProviderDetailView: View {
 
     // MARK: - Cost Summary
 
+    static func shouldRenderCostSummary(_ cost: SyncCostSummary) -> Bool {
+        let hasVisibleCoverage = (cost.coverage?.total ?? 0) > 0
+        return cost.sessionCostUSD != nil ||
+            cost.last30DaysCostUSD != nil ||
+            Self.shouldRenderProviderReportedCost(cost) ||
+            hasVisibleCoverage ||
+            cost.historyCoverageIsEstablished == false ||
+            cost.tokenMix?.hasAnyValue == true
+    }
+
+    static func availableCostPoints(_ daily: [SyncDailyPoint]) -> [SyncDailyPoint] {
+        daily.filter { $0.costIsKnown != false }
+    }
+
+    static func shouldRenderTodayCost(_ today: SyncCostSummary.TodayTotals) -> Bool {
+        today.displayCostUSD != nil
+    }
+
+    static func shouldRenderProviderReportedCost(_ cost: SyncCostSummary) -> Bool {
+        guard let meteredCost = cost.meteredCostUSD else { return false }
+        guard let displayedCost = cost.last30DaysCostUSD else { return true }
+        return abs(meteredCost - displayedCost) >= 0.005
+    }
+
+    static func shouldShowIncompleteCostWarning(
+        _ cost: SyncCostSummary,
+        now: Date = Date()) -> Bool
+    {
+        cost.hasIncompleteHistoricalCostCoverage(at: now)
+    }
+
     private func costSummarySection(_ cost: SyncCostSummary) -> some View {
         // Prefer daily[today] over sessionCostUSD so the "Today" card here
         // matches what the Cost-tab summary card shows for this provider.
         // See `SyncCostSummary+Today.swift` for reasoning. Cost + tokens
         // are resolved through one `todayTotals()` call so they can't
         // straddle midnight with mismatched day keys.
-        let today = cost.todayTotals()
+        let today = cost.todayTotals(now: self.costReferenceDate)
         return VStack(alignment: .leading, spacing: 8) {
             Text("Cost & Usage")
                 .font(.headline)
                 .padding(.top, 4)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                if let todayCost = today.costUSD {
+                if let todayCost = today.displayCostUSD,
+                   Self.shouldRenderTodayCost(today)
+                {
                     CostMetricCard(
                         title: "Today",
                         value: CostFormatting.cost(todayCost, currencyCode: cost.currencyCode),
@@ -536,7 +578,83 @@ struct ProviderDetailView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
+
+            self.costTruthDetails(cost)
+
+            if let tokenMix = cost.tokenMix, tokenMix.hasAnyValue {
+                self.tokenMixSection(tokenMix)
+            }
         }
+    }
+
+    @ViewBuilder
+    private func costTruthDetails(_ cost: SyncCostSummary) -> some View {
+        if Self.shouldRenderProviderReportedCost(cost),
+           let meteredCost = cost.meteredCostUSD
+        {
+            LabeledContent(
+                "Provider reported",
+                value: CostFormatting.cost(meteredCost, currencyCode: cost.currencyCode))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        if let coverage = cost.coverage, coverage.total > 0 {
+            Text(String(
+                format: String(localized: "Cost coverage: %lld of %lld usage rows priced or estimated."),
+                Int64(coverage.pricedOrEstimated),
+                Int64(coverage.total)))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+
+        if Self.shouldShowIncompleteCostWarning(cost, now: self.costReferenceDate) {
+            Text("Historical cost coverage is incomplete.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+
+        switch cost.costProvenance {
+        case .listPriceEstimate:
+            Text("List-price equivalent — not a billing receipt.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        case .vendorMetered:
+            Text("Reported by the provider.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        case .mixed:
+            Text("Includes provider-reported and estimated costs.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        case .unknown, nil:
+            EmptyView()
+        }
+    }
+
+    private func tokenMixSection(_ tokenMix: SyncCostTokenMix) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Token mix")
+                .font(.subheadline.weight(.semibold))
+                .padding(.top, 2)
+            if let value = tokenMix.inputTokens {
+                LabeledContent("Input", value: Self.formatTokens(value))
+            }
+            if let value = tokenMix.outputTokens {
+                LabeledContent("Output", value: Self.formatTokens(value))
+            }
+            if let value = tokenMix.cacheReadTokens {
+                LabeledContent("Cache read", value: Self.formatTokens(value))
+            }
+            if let value = tokenMix.cacheCreationTokens {
+                LabeledContent("Cache creation", value: Self.formatTokens(value))
+            }
+            if let value = tokenMix.reasoningTokens {
+                LabeledContent("Reasoning", value: Self.formatTokens(value))
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     // MARK: - Daily Chart

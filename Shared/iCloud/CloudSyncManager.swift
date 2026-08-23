@@ -1933,6 +1933,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             let providers = envelopes
                 .map(\.provider)
                 .sorted { $0.lastUpdated > $1.lastUpdated }
+            let providerPublicationTimestamps = Dictionary(
+                envelopes.map { envelope in
+                    (SyncedUsageSnapshot.providerPublicationKey(for: envelope.provider), envelope.syncTimestamp)
+                },
+                uniquingKeysWith: max)
 
             snapshots.append(SyncedUsageSnapshot(
                 providers: providers,
@@ -1941,7 +1946,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 deviceID: latestEnvelope.deviceID,
                 appVersion: latestEnvelope.appVersion,
                 mobileVersion: latestEnvelope.mobileVersion,
-                notificationPushEnabled: latestEnvelope.notificationPushEnabled))
+                notificationPushEnabled: latestEnvelope.notificationPushEnabled,
+                providerPublicationTimestamps: providerPublicationTimestamps))
         }
         snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
         return snapshots

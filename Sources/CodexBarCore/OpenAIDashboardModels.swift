@@ -10,6 +10,14 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
     ///
     /// This is distinct from `dailyBreakdown`, which is derived from `creditEvents` (credits usage history table).
     public let usageBreakdown: [OpenAIDashboardDailyBreakdown]
+    /// Fetch time of `usageBreakdown` itself. API-only refreshes may advance
+    /// `updatedAt` while carrying these page-derived rows forward, so cost
+    /// publication must not use the broader snapshot timestamp as their age.
+    public let usageBreakdownUpdatedAt: Date?
+    /// Calendar used by the dashboard's `yyyy-MM-dd` usage rows. This is
+    /// captured with the rows because the Mac timezone can change before a
+    /// cached dashboard snapshot is published to iCloud.
+    public let usageBreakdownTimeZoneIdentifier: String?
     public let creditsPurchaseURL: String?
     public let primaryLimit: RateWindow?
     public let secondaryLimit: RateWindow?
@@ -30,6 +38,8 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         creditEvents: [CreditEvent],
         dailyBreakdown: [OpenAIDashboardDailyBreakdown],
         usageBreakdown: [OpenAIDashboardDailyBreakdown],
+        usageBreakdownUpdatedAt: Date? = nil,
+        usageBreakdownTimeZoneIdentifier: String? = nil,
         creditsPurchaseURL: String?,
         primaryLimit: RateWindow? = nil,
         secondaryLimit: RateWindow? = nil,
@@ -46,7 +56,15 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         self.codeReviewLimit = codeReviewLimit
         self.creditEvents = creditEvents
         self.dailyBreakdown = dailyBreakdown
-        self.usageBreakdown = OpenAIDashboardDailyBreakdown.removingSkillUsageServices(from: usageBreakdown)
+        let sanitizedUsageBreakdown = OpenAIDashboardDailyBreakdown.removingSkillUsageServices(from: usageBreakdown)
+        self.usageBreakdown = sanitizedUsageBreakdown
+        self.usageBreakdownUpdatedAt = sanitizedUsageBreakdown.isEmpty
+            ? nil
+            : usageBreakdownUpdatedAt ?? updatedAt
+        self.usageBreakdownTimeZoneIdentifier = sanitizedUsageBreakdown.isEmpty
+            ? nil
+            : usageBreakdownTimeZoneIdentifier.flatMap(TimeZone.init(identifier:))?.identifier
+            ?? TimeZone.current.identifier
         self.creditsPurchaseURL = creditsPurchaseURL
         self.primaryLimit = primaryLimit
         self.secondaryLimit = secondaryLimit
@@ -66,6 +84,8 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         case creditEvents
         case dailyBreakdown
         case usageBreakdown
+        case usageBreakdownUpdatedAt
+        case usageBreakdownTimeZoneIdentifier
         case creditsPurchaseURL
         case primaryLimit
         case secondaryLimit
@@ -80,6 +100,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedUpdatedAt = try container.decode(Date.self, forKey: .updatedAt)
         self.signedInEmail = try container.decodeIfPresent(String.self, forKey: .signedInEmail)
         self.codeReviewRemainingPercent = try container.decodeIfPresent(
             Double.self,
@@ -93,8 +114,31 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         let decodedUsageBreakdown = try container.decodeIfPresent(
             [OpenAIDashboardDailyBreakdown].self,
             forKey: .usageBreakdown) ?? []
-        self.usageBreakdown = OpenAIDashboardDailyBreakdown.removingSkillUsageServices(
+        let sanitizedUsageBreakdown = OpenAIDashboardDailyBreakdown.removingSkillUsageServices(
             from: decodedUsageBreakdown)
+        let decodedUsageBreakdownUpdatedAt = try container.decodeIfPresent(
+            Date.self,
+            forKey: .usageBreakdownUpdatedAt)
+        let decodedUsageBreakdownTimeZoneIdentifier = try container.decodeIfPresent(
+            String.self,
+            forKey: .usageBreakdownTimeZoneIdentifier)
+            .flatMap(TimeZone.init(identifier:))?.identifier
+        // Pre-field caches may contain breakdown rows carried through a later
+        // API-only refresh, so `updatedAt` cannot prove their freshness and the
+        // current Mac timezone cannot prove their calendar. Drop those
+        // unversioned rows; the next dashboard fetch repopulates both facts.
+        if sanitizedUsageBreakdown.isEmpty
+            || decodedUsageBreakdownUpdatedAt == nil
+            || decodedUsageBreakdownTimeZoneIdentifier == nil
+        {
+            self.usageBreakdown = []
+            self.usageBreakdownUpdatedAt = nil
+            self.usageBreakdownTimeZoneIdentifier = nil
+        } else {
+            self.usageBreakdown = sanitizedUsageBreakdown
+            self.usageBreakdownUpdatedAt = decodedUsageBreakdownUpdatedAt
+            self.usageBreakdownTimeZoneIdentifier = decodedUsageBreakdownTimeZoneIdentifier
+        }
         self.creditsPurchaseURL = try container.decodeIfPresent(String.self, forKey: .creditsPurchaseURL)
         self.primaryLimit = try container.decodeIfPresent(RateWindow.self, forKey: .primaryLimit)
         self.secondaryLimit = try container.decodeIfPresent(RateWindow.self, forKey: .secondaryLimit)
@@ -107,7 +151,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         self.accountPlan = try container.decodeIfPresent(String.self, forKey: .accountPlan)
         self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
         self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
-        self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        self.updatedAt = decodedUpdatedAt
     }
 
     public static func makeDailyBreakdown(from events: [CreditEvent], maxDays: Int) -> [OpenAIDashboardDailyBreakdown] {

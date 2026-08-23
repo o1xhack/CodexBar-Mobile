@@ -51,6 +51,8 @@ extension UsageStore {
         _ = self.refreshingProviders
         _ = self.statuses
         _ = self.tokenSnapshotPublications
+        _ = self.spendDashboardTokenPublications
+        _ = self.spendDashboardPublication.revision
         _ = self.historicalPaceRevision
         return 0
     }

@@ -63,6 +63,7 @@ struct CWLAggregateTests {
         daysAgo: Int,
         cost: Double,
         tokens: Int,
+        costIsKnown: Bool? = nil,
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
         lastUpdated: Date) throws
@@ -74,6 +75,7 @@ struct CWLAggregateTests {
             dayKey: self.dayKey(daysAgo: daysAgo),
             costUSD: cost,
             totalTokens: tokens,
+            costIsKnown: costIsKnown,
             isEstimated: nil,
             modelBreakdowns: modelBreakdowns,
             serviceBreakdowns: serviceBreakdowns,
@@ -81,7 +83,128 @@ struct CWLAggregateTests {
             in: context)
     }
 
+    private func sourceSnapshot(
+        deviceID: String = "dev-A",
+        timeZoneIdentifier: String,
+        lastUpdated: Date) -> SyncedUsageSnapshot
+    {
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: lastUpdated,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: nil,
+                daily: [],
+                bucketTimeZoneIdentifier: timeZoneIdentifier))
+        return SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: lastUpdated,
+            deviceName: deviceID,
+            deviceID: deviceID)
+    }
+
+    private func insertExplicitDay(
+        _ dayKey: String,
+        deviceID: String = "dev-A",
+        cost: Double,
+        label: String,
+        context: ModelContext,
+        lastUpdated: Date) throws
+    {
+        try CostLedgerService.upsertDayPoint(
+            deviceID: deviceID,
+            providerID: "codex",
+            dayKey: dayKey,
+            costUSD: cost,
+            totalTokens: Int(cost),
+            isEstimated: nil,
+            modelBreakdowns: [.init(label: label, costUSD: cost)],
+            serviceBreakdowns: [.init(label: label, costUSD: cost)],
+            lastUpdated: lastUpdated,
+            in: context)
+    }
+
     // MARK: - T4
+
+    @Test
+    func `cost availability survives the ledger writer and reader`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "grok",
+            daysAgo: 0,
+            cost: 0,
+            tokens: 100,
+            costIsKnown: false,
+            lastUpdated: Self.asOf)
+        try context.save()
+
+        let stored = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(stored.costIsKnown == false)
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30,
+            in: context,
+            asOf: Self.asOf)
+        #expect(aggregation.dailyPoints.first?.costIsKnown == false)
+        #expect(aggregation.providerRollups.values.first?.dailyPoints.first?.costIsKnown == false)
+    }
+
+    @Test
+    func `unavailable ledger rows do not contribute monetary breakdowns`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 5,
+            tokens: 500,
+            costIsKnown: true,
+            modelBreakdowns: [.init(label: "known-model", costUSD: 5)],
+            serviceBreakdowns: [.init(label: "known-service", costUSD: 5)],
+            lastUpdated: Self.asOf)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "grok",
+            daysAgo: 0,
+            cost: 7,
+            tokens: 700,
+            costIsKnown: false,
+            modelBreakdowns: [.init(label: "unverified-model", costUSD: 7)],
+            serviceBreakdowns: [.init(label: "unverified-service", costUSD: 7)],
+            lastUpdated: Self.asOf)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30,
+            in: context,
+            asOf: Self.asOf)
+
+        #expect(aggregation.modelMix.map(\.label) == ["known-model"])
+        #expect(aggregation.serviceMix.map(\.label) == ["known-service"])
+        #expect(aggregation.dailyPoints.first?.costIsKnown == false)
+        #expect(aggregation.dailyPoints.first?.modelBreakdowns.map(\.label) == ["known-model"])
+        #expect(aggregation.dailyPoints.first?.serviceBreakdowns.map(\.label) == ["known-service"])
+        let grok = try #require(aggregation.providerRollups.values.first { $0.providerID == "grok" })
+        #expect(grok.modelBreakdowns.isEmpty)
+        #expect(grok.serviceBreakdowns.isEmpty)
+    }
 
     @Test
     func `T4: single-device aggregate — totals, activeDayCount, providerRollups`() throws {
@@ -545,6 +668,167 @@ struct CWLAggregateTests {
 
         #expect(CostLedgerService.cutoffDayKey(windowDays: 1, asOf: utcNextDay) == "2026-05-28")
         #expect(CostLedgerService.cutoffDayKey(windowDays: 7, asOf: utcNextDay) == "2026-05-22")
+    }
+
+    @Test
+    func `T6: producer ahead filters before provider and breakdown rollups`() throws {
+        let previousDefault = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        defer { NSTimeZone.default = previousDefault }
+
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let asOf = try #require(utcCalendar.date(
+            from: DateComponents(year: 2026, month: 5, day: 29, hour: 0, minute: 30)))
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insertExplicitDay("2026-05-22", cost: 22, label: "excluded", context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-05-23",
+            cost: 23,
+            label: "included-oldest",
+            context: context,
+            lastUpdated: asOf)
+        try self.insertExplicitDay("2026-05-29", cost: 29, label: "included-today", context: context, lastUpdated: asOf)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: asOf,
+            sourceSnapshots: [self.sourceSnapshot(timeZoneIdentifier: "UTC", lastUpdated: asOf)],
+            readerTimeZone: #require(TimeZone(identifier: "America/Los_Angeles")))
+
+        #expect(aggregation.totalCostUSD == 52)
+        #expect(aggregation.providerRollups.values.first?.dailyPoints.map(\.dayKey) == [
+            "2026-05-22", "2026-05-28",
+        ])
+        #expect(aggregation.modelMix.map(\.label).contains("excluded") == false)
+        #expect(aggregation.serviceMix.map(\.label).contains("excluded") == false)
+    }
+
+    @Test
+    func `T6: producer behind retains its oldest day and rejects its future day`() throws {
+        let previousDefault = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "Asia/Tokyo"))
+        defer { NSTimeZone.default = previousDefault }
+
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let asOf = try #require(utcCalendar.date(
+            from: DateComponents(year: 2026, month: 5, day: 29, hour: 0, minute: 30)))
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insertExplicitDay(
+            "2026-05-22",
+            cost: 22,
+            label: "included-oldest",
+            context: context,
+            lastUpdated: asOf)
+        try self.insertExplicitDay("2026-05-28", cost: 28, label: "included-today", context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-05-29",
+            cost: 29,
+            label: "excluded-future",
+            context: context,
+            lastUpdated: asOf)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: asOf,
+            sourceSnapshots: [self.sourceSnapshot(
+                timeZoneIdentifier: "America/Los_Angeles",
+                lastUpdated: asOf)],
+            readerTimeZone: #require(TimeZone(identifier: "Asia/Tokyo")))
+
+        #expect(aggregation.totalCostUSD == 50)
+        #expect(aggregation.providerRollups.values.first?.dailyPoints.map(\.dayKey) == [
+            "2026-05-23", "2026-05-29",
+        ])
+        #expect(aggregation.modelMix.map(\.label).contains("excluded-future") == false)
+        #expect(aggregation.serviceMix.map(\.label).contains("excluded-future") == false)
+    }
+
+    @Test
+    func `T6: each Mac keeps its own producer calendar before local-cost merge`() throws {
+        let previousDefault = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        defer { NSTimeZone.default = previousDefault }
+
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let asOf = try #require(utcCalendar.date(
+            from: DateComponents(year: 2026, month: 5, day: 29, hour: 0, minute: 30)))
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insertExplicitDay(
+            "2026-05-22", deviceID: "dev-utc", cost: 22,
+            label: "utc-excluded", context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-05-29", deviceID: "dev-utc", cost: 29,
+            label: "utc-included", context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-05-22", deviceID: "dev-la", cost: 220,
+            label: "la-included", context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-05-29", deviceID: "dev-la", cost: 290,
+            label: "la-excluded", context: context, lastUpdated: asOf)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: asOf,
+            sourceSnapshots: [
+                self.sourceSnapshot(
+                    deviceID: "dev-utc", timeZoneIdentifier: "UTC", lastUpdated: asOf),
+                self.sourceSnapshot(
+                    deviceID: "dev-la", timeZoneIdentifier: "America/Los_Angeles", lastUpdated: asOf),
+            ],
+            readerTimeZone: #require(TimeZone(identifier: "America/Los_Angeles")))
+
+        #expect(aggregation.totalCostUSD == 249)
+        #expect(aggregation.dailyPoints.map(\.dayKey) == ["2026-05-22", "2026-05-28"])
+        #expect(Set(aggregation.modelMix.map(\.label)) == ["utc-included", "la-included"])
+        #expect(Set(aggregation.serviceMix.map(\.label)) == ["utc-included", "la-included"])
+    }
+
+    @Test
+    func `T6: extreme IANA zones retain the producer oldest boundary`() throws {
+        let previousDefault = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+        defer { NSTimeZone.default = previousDefault }
+
+        let asOf = try #require(ISO8601DateFormatter().date(from: "2026-08-22T10:30:00Z"))
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        try self.insertExplicitDay(
+            "2026-08-15", cost: 15, label: "oldest",
+            context: context, lastUpdated: asOf)
+        try self.insertExplicitDay(
+            "2026-08-21", cost: 21, label: "today",
+            context: context, lastUpdated: asOf)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: asOf,
+            sourceSnapshots: [self.sourceSnapshot(
+                timeZoneIdentifier: "Pacific/Pago_Pago",
+                lastUpdated: asOf)],
+            readerTimeZone: #require(TimeZone(identifier: "Pacific/Kiritimati")))
+
+        #expect(aggregation.totalCostUSD == 36)
+        #expect(aggregation.dailyPoints.map(\.dayKey) == ["2026-08-17", "2026-08-23"])
+        #expect(Set(aggregation.modelMix.map(\.label)) == ["oldest", "today"])
+        #expect(Set(aggregation.serviceMix.map(\.label)) == ["oldest", "today"])
     }
 
     // MARK: - aggregateProvider

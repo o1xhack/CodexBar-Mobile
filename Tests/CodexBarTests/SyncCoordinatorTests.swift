@@ -83,6 +83,9 @@ private actor BlockingSyncPusher: SyncPushing {
 
 @MainActor
 @Suite(.serialized)
+// This integration suite shares one stateful sync-pusher fixture; splitting the
+// type would duplicate its lifecycle and weaken the cross-phase assertions.
+// swiftlint:disable:next type_body_length
 struct SyncCoordinatorTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
@@ -200,26 +203,39 @@ struct SyncCoordinatorTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        let snapshotDate = try #require(ISO8601DateFormatter().date(from: "2026-03-16T12:00:00Z"))
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
                 sessionTokens: 1500,
                 sessionCostUSD: 0.32,
+                sessionRequests: 4,
                 last30DaysTokens: 32000,
                 last30DaysCostUSD: 2.40,
+                last30DaysRequests: 4,
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                meteredCostUSD: 1.80,
+                costProvenance: .mixed,
                 daily: [
                     CostUsageDailyReport.Entry(
                         date: "2026-03-16",
                         inputTokens: 1000,
                         outputTokens: 500,
+                        cacheReadTokens: 200,
+                        cacheCreationTokens: 100,
+                        reasoningTokens: 50,
                         totalTokens: 1500,
+                        requestCount: 4,
                         costUSD: 2.40,
                         modelsUsed: ["gpt-5.4", "gpt-5.3-codex"],
                         modelBreakdowns: [
                             .init(modelName: "gpt-5.4", costUSD: 1.80),
                             .init(modelName: "gpt-5.3-codex", costUSD: 0.60),
-                        ]),
+                        ],
+                        unpricedRequestCount: 1,
+                        estimatedRequestCount: 1),
                 ],
-                updatedAt: Date()),
+                updatedAt: snapshotDate),
             provider: .codex)
         store.openAIDashboard = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
@@ -256,6 +272,54 @@ struct SyncCoordinatorTests {
             SyncCostBreakdown(label: "Codex Run", costUSD: 1.90),
             SyncCostBreakdown(label: "GitHub Code Review", costUSD: 0.50),
         ])
+        #expect(costSummary.meteredCostUSD == 1.80)
+        #expect(costSummary.costProvenance == .mixed)
+        #expect(costSummary.coverage == SyncCostCoverage(
+            priced: 2,
+            unpriced: 1,
+            unmetered: 0,
+            estimated: 1))
+        #expect(costSummary.tokenMix == SyncCostTokenMix(
+            inputTokens: 1000,
+            outputTokens: 500,
+            cacheReadTokens: 200,
+            cacheCreationTokens: 100,
+            reasoningTokens: 50))
+        #expect(costSummary.historyCoverageIsEstablished == false)
+    }
+
+    @Test
+    func `sync metadata preserves every provider-windowed daily bucket`() {
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 300,
+            last30DaysCostUSD: 3,
+            historyDays: 1,
+            costProvenance: .listPriceEstimate,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-03-16",
+                    inputTokens: 200,
+                    outputTokens: 100,
+                    totalTokens: 300,
+                    requestCount: 2,
+                    costUSD: 3,
+                    modelsUsed: ["gpt-5.4"],
+                    modelBreakdowns: nil),
+            ],
+            // Deliberately distant: sync must trust the provider-windowed
+            // bucket instead of re-filtering it through Calendar.current.
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+
+        let summary = SyncCoordinator.syncWindowSummary(snapshot)
+
+        #expect(summary.entryCount == 1)
+        #expect(summary.totalCostUSD == 3)
+        #expect(summary.totalTokens == 300)
+        #expect(summary.totalRequests == 2)
+        #expect(summary.tokenMix == CostUsageTokenMix(inputTokens: 200, outputTokens: 100))
+        #expect(summary.provenance == .listPriceEstimate)
     }
 
     @Test
@@ -298,6 +362,282 @@ struct SyncCoordinatorTests {
         #expect(costSummary.last30DaysCostUSD == 2.0)
         #expect(costSummary.daily.count == 2)
         #expect(costSummary.daily[0].serviceBreakdowns == [SyncCostBreakdown(label: "Codex Run", costUSD: 0.75)])
+    }
+
+    @Test
+    func `dashboard service fallback suppresses token-only cost metadata`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardMetadataAlignment")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: nil,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: nil,
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                meteredCostUSD: 0.25,
+                costProvenance: .listPriceEstimate,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-03-16",
+                    inputTokens: 80,
+                    outputTokens: 20,
+                    totalTokens: 100,
+                    costUSD: nil,
+                    modelsUsed: ["unknown-model"],
+                    modelBreakdowns: nil)],
+                updatedAt: Date()),
+            provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let unavailableCost = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
+        #expect(unavailableCost.last30DaysCostUSD == nil)
+        #expect(unavailableCost.daily.first?.costIsKnown == false)
+
+        store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            codeReviewRemainingPercent: nil,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [OpenAIDashboardDailyBreakdown(
+                day: "2026-03-16",
+                services: [OpenAIDashboardServiceUsage(service: "CLI", creditsUsed: 0.75)],
+                totalCreditsUsed: 0.75)],
+            creditsPurchaseURL: nil,
+            updatedAt: Date())
+
+        await coordinator.pushCurrentSnapshot()
+
+        let cost = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
+        #expect(cost.last30DaysCostUSD == 0.75)
+        #expect(cost.daily.first?.costIsKnown == true)
+        #expect(cost.meteredCostUSD == nil)
+        #expect(cost.costProvenance == nil)
+        #expect(cost.coverage == nil)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.tokenMix == SyncCostTokenMix(inputTokens: 80, outputTokens: 20))
+    }
+
+    @Test
+    func `service fallback preserves incomplete token-window coverage`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardPartialCoverage")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.25,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 0.25,
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                costProvenance: .listPriceEstimate,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-03-16",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 100,
+                    costUSD: 0.25,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                updatedAt: Date()),
+            provider: .codex)
+        store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            codeReviewRemainingPercent: nil,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [OpenAIDashboardDailyBreakdown(
+                day: "2026-03-15",
+                services: [OpenAIDashboardServiceUsage(service: "CLI", creditsUsed: 0.75)],
+                totalCreditsUsed: 0.75)],
+            creditsPurchaseURL: nil,
+            updatedAt: Date())
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let cost = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
+        #expect(cost.last30DaysCostUSD == 0.25)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.costProvenance == nil)
+        #expect(cost.coverage == nil)
+    }
+
+    @Test
+    func `partial daily cost is not authoritative on compact sync surfaces`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-partialDailyCost")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.75,
+                sessionRequests: 2,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 0.75,
+                last30DaysRequests: 2,
+                historyDays: 30,
+                historyCoverageIsEstablished: true,
+                costProvenance: .listPriceEstimate,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-03-16",
+                    inputTokens: 80,
+                    outputTokens: 20,
+                    totalTokens: 100,
+                    requestCount: 2,
+                    costUSD: 0.75,
+                    modelsUsed: ["gpt-5.4", "unknown-model"],
+                    modelBreakdowns: nil,
+                    unpricedRequestCount: 1)],
+                updatedAt: Date()),
+            provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let cost = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
+        #expect(cost.daily.first?.costUSD == 0.75)
+        #expect(cost.daily.first?.costIsKnown == false)
+        #expect(cost.coverage == SyncCostCoverage(priced: 1, unpriced: 1, unmetered: 0, estimated: 0))
+    }
+
+    @Test
+    func `Mistral shared summary never republishes a dated bucket as Today`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-mistralDatedSession")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .mistral,
+            metadata: #require(ProviderDefaults.metadata[.mistral]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 120,
+                sessionCostUSD: 1.20,
+                last30DaysTokens: 120,
+                last30DaysCostUSD: 1.20,
+                historyDays: 30,
+                historyCoverageIsEstablished: true,
+                costProvenance: .vendorMetered,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-03-15",
+                    inputTokens: 80,
+                    outputTokens: 40,
+                    totalTokens: 120,
+                    costUSD: 1.20,
+                    modelsUsed: ["mistral-large"],
+                    modelBreakdowns: [.init(modelName: "mistral-large", costUSD: 1.20)])],
+                updatedAt: Date()),
+            provider: .mistral)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let cost = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.mistral.rawValue })?.costSummary)
+        #expect(cost.sessionCostUSD == nil)
+        #expect(cost.sessionTokens == nil)
+        #expect(cost.last30DaysCostUSD == 1.20)
+        #expect(cost.last30DaysTokens == 120)
+        #expect(cost.daily.map(\.dayKey) == ["2026-03-15"])
+        #expect(cost.bucketTimeZoneIdentifier == "UTC")
+    }
+
+    @Test
+    func `provider-derived UTC cost summaries keep their native bucket calendar`() throws {
+        let pinnedLocal = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        for provider in [UsageProvider.bedrock, .openai, .mistral, .openrouter, .xai] {
+            #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+                for: provider,
+                fallback: pinnedLocal) == "UTC")
+        }
+        #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+            for: .codex,
+            fallback: pinnedLocal) == pinnedLocal.identifier)
+    }
+
+    @Test
+    func `local snapshot cost summaries advertise the calendar that produced their day keys`() throws {
+        let pinned = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+        let current = try #require(TimeZone(identifier: "America/Los_Angeles"))
+
+        for provider in [UsageProvider.cursor, .grok, .opencodego] {
+            #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+                for: provider,
+                fallback: pinned,
+                local: current) == current.identifier)
+        }
+        #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+            for: .claude,
+            fallback: pinned,
+            local: current) == pinned.identifier)
+    }
+
+    @Test
+    func `sync preserves the token snapshot calendar instead of reclassifying old day keys`() async throws {
+        let suite = "SyncCoord-token-source-calendar"
+        let settings = self.makeSettingsStore(suite: suite)
+        settings.iCloudSyncEnabled = true
+        settings.costUsageBucketTimeZoneIdentifier = "Pacific/Kiritimati"
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let updatedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T00:30:00Z"))
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: updatedAt),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 1,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 1,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-08-21",
+                    inputTokens: 50,
+                    outputTokens: 50,
+                    totalTokens: 100,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                bucketTimeZoneIdentifier: "America/Los_Angeles",
+                updatedAt: updatedAt),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
+        #expect(summary.bucketTimeZoneIdentifier == "America/Los_Angeles")
+        #expect(summary.sourceDayKey == "2026-08-21")
     }
 
     @Test

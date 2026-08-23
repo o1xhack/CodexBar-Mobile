@@ -60,7 +60,8 @@ extension CodexBarCLI {
             Self.writeStderr("Warning: \(warning)\n")
         }
 
-        let fetcher = CostUsageFetcher()
+        let bucketCalendar = Self.costBucketCalendarFromAppDefaults()
+        let fetcher = CostUsageFetcher(calendar: bucketCalendar)
         var sections: [String] = []
         var payload: [CostPayload] = []
         var exitCode: ExitCode = .success
@@ -102,7 +103,11 @@ extension CodexBarCLI {
                         groupBy: groupBy,
                         useColor: useColor))
                 case .json:
-                    payload.append(Self.makeCostPayload(provider: provider, snapshot: snapshot, error: nil))
+                    payload.append(Self.makeCostPayload(
+                        provider: provider,
+                        snapshot: snapshot,
+                        error: nil,
+                        calendar: bucketCalendar))
                 }
             } catch {
                 exitCode = Self.mapError(error)
@@ -112,6 +117,14 @@ extension CodexBarCLI {
                     Self.writeStderr("Error: \(error.localizedDescription)\n")
                 }
             }
+        }
+
+        if format == .json,
+           let openCodex = Self.loadOpenCodexCostPayload(
+               historyDays: historyDays,
+               calendar: bucketCalendar)
+        {
+            payload.append(openCodex)
         }
 
         switch format {
@@ -363,9 +376,12 @@ extension CodexBarCLI {
     static func makeCostPayload(
         provider: UsageProvider,
         snapshot: CostUsageTokenSnapshot?,
-        error: Error?) -> CostPayload
+        error: Error?,
+        calendar: Calendar = .current) -> CostPayload
     {
         let daily = snapshot?.daily.map(Self.costDailyPayload(from:)) ?? []
+        let summaryCalendar = snapshot.map { Self.sourceCalendar(for: $0, fallback: calendar) } ?? calendar
+        let summary = snapshot.map { $0.summary(forLastDays: $0.historyDays, calendar: summaryCalendar) }
         let projects = provider == .codex
             ? snapshot?.projects.map { project in
                 CostProjectPayload(
@@ -402,8 +418,66 @@ extension CodexBarCLI {
             meteredCostUSD: snapshot?.meteredCostUSD,
             daily: daily,
             projects: projects,
-            totals: snapshot.flatMap(Self.costTotals(from:)),
+            totals: snapshot.flatMap { Self.costTotals(from: $0, calendar: summaryCalendar) },
+            provenance: summary?.provenance.rawValue,
+            coverage: summary?.coverage,
             error: error.map { Self.makeErrorPayload($0) })
+    }
+
+    static func makeOpenCodexCostPayload(
+        snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar = .current) -> CostPayload
+    {
+        let summaryCalendar = Self.sourceCalendar(for: snapshot, fallback: calendar)
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: summaryCalendar)
+        return CostPayload(
+            provider: OpenCodexUsageLog.sourceID,
+            source: "opencodex",
+            updatedAt: snapshot.updatedAt,
+            currencyCode: snapshot.currencyCode,
+            sessionTokens: snapshot.sessionTokens,
+            sessionCostUSD: snapshot.sessionCostUSD,
+            historyDays: snapshot.historyDays,
+            historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            last30DaysTokens: snapshot.last30DaysTokens,
+            last30DaysCostUSD: snapshot.last30DaysCostUSD,
+            meteredCostUSD: nil,
+            daily: snapshot.daily.map(self.costDailyPayload(from:)),
+            projects: [],
+            totals: self.costTotals(from: snapshot, calendar: summaryCalendar),
+            provenance: CostProvenance.listPriceEstimate.rawValue,
+            coverage: summary.coverage,
+            error: nil)
+    }
+
+    private static func sourceCalendar(
+        for snapshot: CostUsageTokenSnapshot,
+        fallback: Calendar) -> Calendar
+    {
+        guard let identifier = snapshot.bucketTimeZoneIdentifier,
+              let timeZone = TimeZone(identifier: identifier)
+        else { return fallback }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
+    }
+
+    private static func loadOpenCodexCostPayload(
+        historyDays: Int,
+        calendar: Calendar,
+        now: Date = Date()) -> CostPayload?
+    {
+        guard boolFromAppDefaults("openCodexUsageLogsEnabled") == true else { return nil }
+        let environment = ProcessInfo.processInfo.environment
+        guard let logURL = OpenCodexUsageLog.usageLogURL(environment: environment) else { return nil }
+        let store = OpenCodexUsageStore(cacheRoot: OpenCodexUsageLog.cacheRoot())
+        guard let snapshot = try? store.loadSnapshot(
+            logURL: logURL,
+            now: now,
+            historyDays: historyDays,
+            calendar: calendar)
+        else { return nil }
+        return self.makeOpenCodexCostPayload(snapshot: snapshot, calendar: calendar)
     }
 
     private static func costDailyPayload(from entry: CostUsageDailyReport.Entry) -> CostDailyEntryPayload {
@@ -413,6 +487,7 @@ extension CodexBarCLI {
             outputTokens: entry.outputTokens,
             cacheReadTokens: entry.cacheReadTokens,
             cacheCreationTokens: entry.cacheCreationTokens,
+            reasoningTokens: entry.reasoningTokens,
             totalTokens: entry.totalTokens,
             costUSD: entry.costUSD,
             modelsUsed: entry.modelsUsed,
@@ -428,7 +503,15 @@ extension CodexBarCLI {
             totalTokens: breakdown.totalTokens)
     }
 
-    private static func costTotals(from snapshot: CostUsageTokenSnapshot) -> CostTotalsPayload? {
+    static func costBucketCalendarFromAppDefaults() -> Calendar {
+        CostUsageBucketTimeZone.calendar(
+            identifier: stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
+    }
+
+    private static func costTotals(
+        from snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostTotalsPayload?
+    {
         let entries = snapshot.daily
         guard !entries.isEmpty else {
             guard snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil else { return nil }
@@ -445,12 +528,14 @@ extension CodexBarCLI {
         var totalOutput = 0
         var totalCacheRead = 0
         var totalCacheCreation = 0
+        var totalReasoning = 0
         var totalTokens = 0
         var totalCost = 0.0
         var sawInput = false
         var sawOutput = false
         var sawCacheRead = false
         var sawCacheCreation = false
+        var sawReasoning = false
         var sawTokens = false
         var sawCost = false
 
@@ -471,6 +556,10 @@ extension CodexBarCLI {
                 totalCacheCreation += cacheCreation
                 sawCacheCreation = true
             }
+            if let reasoning = entry.reasoningTokens {
+                totalReasoning += reasoning
+                sawReasoning = true
+            }
             if let tokens = entry.totalTokens {
                 totalTokens += tokens
                 sawTokens = true
@@ -481,14 +570,17 @@ extension CodexBarCLI {
             }
         }
 
-        // Prefer totals derived from daily rows; fall back to snapshot aggregates when rows omit fields.
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
         return CostTotalsPayload(
             totalInputTokens: sawInput ? totalInput : nil,
             totalOutputTokens: sawOutput ? totalOutput : nil,
             cacheReadTokens: sawCacheRead ? totalCacheRead : nil,
             cacheCreationTokens: sawCacheCreation ? totalCacheCreation : nil,
+            reasoningTokens: sawReasoning ? totalReasoning : nil,
             totalTokens: sawTokens ? totalTokens : snapshot.last30DaysTokens,
-            totalCostUSD: sawCost ? totalCost : snapshot.last30DaysCostUSD)
+            totalCostUSD: sawCost ? totalCost : snapshot.last30DaysCostUSD,
+            provenance: summary.provenance.rawValue,
+            coverage: summary.coverage)
     }
 
     private static func decodeCostHistoryDays(from values: ParsedValues) -> Int {
@@ -637,6 +729,8 @@ struct CostPayload: Encodable, Sendable {
     let daily: [CostDailyEntryPayload]
     let projects: [CostProjectPayload]
     let totals: CostTotalsPayload?
+    let provenance: String?
+    let coverage: CostUsageCoverageCounts?
     let error: ProviderErrorPayload?
 
     init(
@@ -654,6 +748,8 @@ struct CostPayload: Encodable, Sendable {
         daily: [CostDailyEntryPayload],
         projects: [CostProjectPayload] = [],
         totals: CostTotalsPayload?,
+        provenance: String? = nil,
+        coverage: CostUsageCoverageCounts? = nil,
         error: ProviderErrorPayload?)
     {
         self.provider = provider
@@ -670,6 +766,8 @@ struct CostPayload: Encodable, Sendable {
         self.daily = daily
         self.projects = projects
         self.totals = totals
+        self.provenance = provenance
+        self.coverage = coverage
         self.error = error
     }
 }
@@ -680,6 +778,7 @@ struct CostDailyEntryPayload: Encodable, Sendable {
     let outputTokens: Int?
     let cacheReadTokens: Int?
     let cacheCreationTokens: Int?
+    let reasoningTokens: Int?
     let totalTokens: Int?
     let costUSD: Double?
     let modelsUsed: [String]?
@@ -691,10 +790,35 @@ struct CostDailyEntryPayload: Encodable, Sendable {
         case outputTokens
         case cacheReadTokens
         case cacheCreationTokens
+        case reasoningTokens
         case totalTokens
         case costUSD = "totalCost"
         case modelsUsed
         case modelBreakdowns
+    }
+
+    init(
+        date: String,
+        inputTokens: Int?,
+        outputTokens: Int?,
+        cacheReadTokens: Int?,
+        cacheCreationTokens: Int?,
+        reasoningTokens: Int? = nil,
+        totalTokens: Int?,
+        costUSD: Double?,
+        modelsUsed: [String]?,
+        modelBreakdowns: [CostModelBreakdownPayload]?)
+    {
+        self.date = date
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.cacheReadTokens = cacheReadTokens
+        self.cacheCreationTokens = cacheCreationTokens
+        self.reasoningTokens = reasoningTokens
+        self.totalTokens = totalTokens
+        self.costUSD = costUSD
+        self.modelsUsed = modelsUsed
+        self.modelBreakdowns = modelBreakdowns
     }
 }
 
@@ -771,16 +895,44 @@ struct CostTotalsPayload: Encodable, Sendable {
     let totalOutputTokens: Int?
     let cacheReadTokens: Int?
     let cacheCreationTokens: Int?
+    let reasoningTokens: Int?
     let totalTokens: Int?
     let totalCostUSD: Double?
+    let provenance: String?
+    let coverage: CostUsageCoverageCounts?
 
     private enum CodingKeys: String, CodingKey {
         case totalInputTokens = "inputTokens"
         case totalOutputTokens = "outputTokens"
         case cacheReadTokens
         case cacheCreationTokens
+        case reasoningTokens
         case totalTokens
         case totalCostUSD = "totalCost"
+        case provenance
+        case coverage
+    }
+
+    init(
+        totalInputTokens: Int?,
+        totalOutputTokens: Int?,
+        cacheReadTokens: Int?,
+        cacheCreationTokens: Int?,
+        reasoningTokens: Int? = nil,
+        totalTokens: Int?,
+        totalCostUSD: Double?,
+        provenance: String? = nil,
+        coverage: CostUsageCoverageCounts? = nil)
+    {
+        self.totalInputTokens = totalInputTokens
+        self.totalOutputTokens = totalOutputTokens
+        self.cacheReadTokens = cacheReadTokens
+        self.cacheCreationTokens = cacheCreationTokens
+        self.reasoningTokens = reasoningTokens
+        self.totalTokens = totalTokens
+        self.totalCostUSD = totalCostUSD
+        self.provenance = provenance
+        self.coverage = coverage
     }
 }
 

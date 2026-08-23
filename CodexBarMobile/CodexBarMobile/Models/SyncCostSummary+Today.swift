@@ -29,17 +29,24 @@ extension SyncCostSummary {
     /// yielding an inconsistent `CostMetricCard`. Codex-reviewer caught this
     /// P3 issue in the initial Build 78 patch.
     struct TodayTotals: Equatable, Sendable {
-        public let costUSD: Double?
-        public let tokens: Int?
+        let costUSD: Double?
+        let tokens: Int?
         /// `true` when today's cost row was computed via the Mac-side
         /// fallback resolver (model name not in the local pricing
         /// table). `nil` for old payloads from Mac < 0.23 and for the
         /// `sessionCostUSD` fallback path (session totals don't carry
         /// per-model estimation flags).
-        public let isEstimated: Bool?
+        let isEstimated: Bool?
+        /// `false` means a zero cost is only a token-only wire placeholder.
+        /// `nil` is a legacy payload and retains its historical display.
+        let costIsKnown: Bool?
+
+        var displayCostUSD: Double? {
+            self.costIsKnown == false ? nil : self.costUSD
+        }
     }
 
-    /// Returns the cost/tokens for today in the user's current timezone,
+    /// Returns the cost/tokens for today in the producer's bucket timezone,
     /// resolved from a single `now` timestamp (both fields share the same
     /// day key). Prefers the `daily` point for today; falls back to the
     /// current session's cost/tokens when no daily point exists yet (fresh
@@ -48,23 +55,112 @@ extension SyncCostSummary {
     /// `now` is injectable so tests can pin a specific date and stay
     /// deterministic across wall-clock midnight crossings.
     func todayTotals(now: Date = Date()) -> TodayTotals {
-        let todayKey = Self.iso8601DayKey(for: now)
+        let todayKey = self.costDayKey(for: now)
+        let sourceDayKey = self.sourceDayKey ?? self.sourceUpdatedAt.map(self.costDayKey)
+        let sessionDayKey = self.sessionDayKey ?? sourceDayKey
+        let sourceIsStale = sourceDayKey.map { $0 != todayKey } ?? false
+        let sessionSourceIsStale = sessionDayKey.map { $0 != todayKey } ?? false
+        // The coverage bit and gap counters are aggregate, not date-scoped.
+        // Until the Mac certifies the scan, a priced Today row is still only a
+        // lower bound because an unvisited file may add more usage.
+        let todayCoverageIsIncomplete = self.hasInvalidBucketTimeZoneIdentifier ||
+            self.historyCoverageIsEstablished == false ||
+            self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
             return TodayTotals(
                 costUSD: todayPoint.costUSD,
                 tokens: todayPoint.totalTokens,
-                isEstimated: todayPoint.isEstimated)
+                isEstimated: todayPoint.isEstimated,
+                costIsKnown: todayCoverageIsIncomplete || sourceIsStale ? false : todayPoint.costIsKnown)
+        }
+        if sessionSourceIsStale {
+            return TodayTotals(costUSD: nil, tokens: nil, isEstimated: nil, costIsKnown: false)
         }
         return TodayTotals(
             costUSD: self.sessionCostUSD,
             tokens: self.sessionTokens,
-            isEstimated: nil)
+            isEstimated: nil,
+            costIsKnown: todayCoverageIsIncomplete
+                ? false
+                : self.sessionCostIsKnown ?? (self.sessionCostUSD == nil ? nil : true))
     }
 
-    /// Thread-safe ISO 8601 `yyyy-MM-dd` day key, in the user's current
-    /// timezone (matches Mac-side `SyncCoordinator.daily[].dayKey`
-    /// generation — both sides use `.current` timezone so a user's Mac and
-    /// iPhone agree on "today" as long as they're in the same timezone).
+    /// Logical day distance from the producer's current cost bucket.
+    ///
+    /// Day keys are parsed in UTC only as date-only Gregorian values; UTC is
+    /// not used to reinterpret the producer timestamp. This lets a phone map
+    /// `2026-08-22` from a UTC-pinned producer to "day 0" even while the phone
+    /// itself is still on `2026-08-21`, keeping Today/7d/30d consumers aligned.
+    func costDayOffset(for dayKey: String, from now: Date = Date()) -> Int? {
+        var logicalCalendar = Calendar(identifier: .gregorian)
+        logicalCalendar.timeZone = .gmt
+        guard let pointDay = Self.logicalDay(from: dayKey, calendar: logicalCalendar) else {
+            return nil
+        }
+
+        var producerCalendar = Calendar(identifier: .gregorian)
+        producerCalendar.timeZone = self.bucketTimeZoneIdentifier
+            .flatMap(TimeZone.init(identifier:)) ?? .current
+        let producerComponents = producerCalendar.dateComponents([.year, .month, .day], from: now)
+        guard let producerToday = logicalCalendar.date(from: producerComponents) else {
+            return nil
+        }
+        return logicalCalendar.dateComponents([.day], from: producerToday, to: pointDay).day
+    }
+
+    /// Maps a producer-local logical day onto the reader's relative calendar
+    /// axis. For example, a UTC producer's day 0 is the phone's local day 0 even
+    /// when their `yyyy-MM-dd` strings differ around midnight.
+    func readerRelativeDate(
+        for dayKey: String,
+        from now: Date = Date(),
+        calendar: Calendar = .current) -> Date?
+    {
+        guard let offset = self.costDayOffset(for: dayKey, from: now) else { return nil }
+        return calendar.date(
+            byAdding: .day,
+            value: offset,
+            to: calendar.startOfDay(for: now))
+    }
+
+    /// Parses the fixed-width wire day without allocating `DateFormatter`.
+    /// This path runs once per cost-history row on the main thread.
+    private static func logicalDay(from dayKey: String, calendar: Calendar) -> Date? {
+        let bytes = Array(dayKey.utf8)
+        guard bytes.count == 10,
+              bytes[4] == 45,
+              bytes[7] == 45
+        else { return nil }
+
+        func digit(_ index: Int) -> Int? {
+            let value = bytes[index]
+            guard value >= 48, value <= 57 else { return nil }
+            return Int(value - 48)
+        }
+
+        guard let y0 = digit(0), let y1 = digit(1), let y2 = digit(2), let y3 = digit(3),
+              let m0 = digit(5), let m1 = digit(6),
+              let d0 = digit(8), let d1 = digit(9)
+        else { return nil }
+        let components = DateComponents(
+            calendar: calendar,
+            timeZone: .gmt,
+            year: y0 * 1000 + y1 * 100 + y2 * 10 + y3,
+            month: m0 * 10 + m1,
+            day: d0 * 10 + d1)
+        guard let date = calendar.date(from: components) else { return nil }
+        let verified = calendar.dateComponents([.year, .month, .day], from: date)
+        guard verified.year == components.year,
+              verified.month == components.month,
+              verified.day == components.day
+        else { return nil }
+        return date
+    }
+
+    /// Thread-safe ISO 8601 `yyyy-MM-dd` day key in the reader's current
+    /// timezone. Modern summaries use `costDayKey(for:)` instead, which honors
+    /// the producer's explicit bucket timezone; this helper remains the
+    /// legacy/default formatter and is also used for reader-local UI dates.
     ///
     /// Creates a fresh `DateFormatter` per call rather than sharing a
     /// `static let` instance. Codex-reviewer flagged the shared formatter as
@@ -78,7 +174,7 @@ extension SyncCostSummary {
     /// to resolve many dates at once should batch through
     /// `iso8601DayKeyFormatter()` once, not via this helper.
     static func iso8601DayKey(for date: Date) -> String {
-        Self.iso8601DayKeyFormatter().string(from: date)
+        self.iso8601DayKeyFormatter().string(from: date)
     }
 
     /// Returns a fresh `DateFormatter` configured for the day-key wire

@@ -50,6 +50,7 @@ struct SettingsMenuPicker<Value: Hashable, Label: View, OptionLabel: View>: View
 enum GeneralSettingsMenuOptions {
     static let languages = AppLanguage.allCases.map(\.rawValue)
     static let refreshFrequencies = RefreshFrequency.allCases
+    static let lowPowerModePreferences = LowPowerModePreference.allCases
 
     static func terminalApps(selected: TerminalApp) -> [TerminalApp] {
         TerminalApp.pickerOptions(selected: selected)

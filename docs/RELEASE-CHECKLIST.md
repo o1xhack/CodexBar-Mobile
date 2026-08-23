@@ -63,4 +63,5 @@
 - [ ] `./Scripts/release.sh`（phase1：build + sign + notarize + draft GitHub release）
 - [ ] iOS：`xcodegen generate` → Archive（`-allowProvisioningUpdates`）→ export/upload 到 App Store Connect（TestFlight）
 - [ ] 用户 QA 通过后 → `./Scripts/release.sh --finalize`（publish draft + 生成签名 appcast + push 到 mobile-dev）
+- [ ] Mac public release 公开后，逐个找到本 train 对应的 open `upstream-sync` issue，回复正式 release URL 与完成说明，再手动选择 `Close as completed`。PR 只关联这些 issue，不用 closing keyword 提前关闭；draft release 也不关闭 issue
 - [ ] Todoist：任务移到 **Release**，附 release URL + TestFlight build 号

@@ -140,4 +140,33 @@ struct ProviderUsageViewSubtitleTests {
         #expect(view.subtitleLine() != nil)
         #expect(view.subtitleLine()?.isEmpty == false)
     }
+
+    @Test("Cost teaser uses one captured producer-day reference")
+    @MainActor
+    func costTeaserUsesCapturedProducerDayReference() throws {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let producerToday = try #require(utc.date(from: DateComponents(
+            year: 2001,
+            month: 1,
+            day: 2,
+            hour: 12)))
+        let producerTomorrow = try #require(utc.date(byAdding: .day, value: 1, to: producerToday))
+        let cost = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 7,
+            last30DaysTokens: 700,
+            daily: [SyncDailyPoint(
+                dayKey: "2001-01-02",
+                costUSD: 7,
+                totalTokens: 700,
+                costIsKnown: true)],
+            sourceDayKey: "2001-01-02",
+            bucketTimeZoneIdentifier: "UTC",
+            historyCoverageIsEstablished: true)
+
+        #expect(ProviderUsageView.costTeaserParts(cost, now: producerToday).count == 2)
+        #expect(ProviderUsageView.costTeaserParts(cost, now: producerTomorrow).isEmpty)
+    }
 }

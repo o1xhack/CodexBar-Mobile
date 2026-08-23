@@ -11,14 +11,17 @@ struct UserProviderPluginTests {
     @Test
     func `JavaScript plugin discovers approves fetches and produces a generic snapshot`() async throws {
         let fixture = try Fixture()
-        defer { fixture.remove() }
         let pluginURL = try fixture.write(
             name: "acme.js",
             source: Self.javaScriptPlugin(origin: "https://api.acme.test"))
         let transport = RecordingTransport(responseJSON: #"{"used":42}"#)
         let loader = fixture.loader(transport: transport)
+        defer { fixture.remove() }
 
-        let results = UserProviderPluginRegistry.refresh(loader: loader)
+        // Exercise discovery through the isolated loader. Registering this
+        // fixture in the process-global registry leaks a default-enabled
+        // `acme-meter` into unrelated suites running concurrently.
+        let results = loader.discover()
         let plugin = try #require(results.first?.plugin)
         #expect(plugin.fileURL.resolvingSymlinksInPath() == pluginURL.resolvingSymlinksInPath())
         #expect(plugin.manifest.id.rawValue == "acme-meter")
@@ -454,6 +457,82 @@ struct UserProviderPluginTests {
             _ = try loader.load(fileURL: fixture.write(
                 name: "unknown.js",
                 source: Self.retryAfterPlugin(capabilities: #"capabilities: ["unknown"],"#)))
+        }
+    }
+
+    @Test
+    func `plugin cost window keeps fetch freshness separate from its logical day`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let source = """
+        defineProvider({
+          id: "cost-window-meter",
+          name: "Cost Window Meter",
+          endpoints: ["https://cost-window.example"],
+          settings: [],
+          fetchUsage() {
+            return {
+              costUsage: {
+                currency: "USD",
+                historyDays: 1,
+                windowEnd: "2026-08-18",
+                entries: [{
+                  date: "2026-08-18",
+                  inputTokens: 10,
+                  outputTokens: 5,
+                  requests: 1,
+                  cost: 0.25,
+                }],
+              },
+            };
+          },
+        });
+        """
+        let plugin = try fixture.loader(transport: RecordingTransport(responseJSON: "{}"))
+            .load(fileURL: fixture.write(name: "cost-window.js", source: source))
+        try fixture.approvals.record(plugin.approvalBinding(settings: [:]))
+        let fetchedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T01:00:00Z"))
+
+        let snapshot = try await plugin.fetchUsage(
+            settings: [:],
+            secrets: [:],
+            approvalStore: fixture.approvals,
+            now: fetchedAt)
+
+        #expect(snapshot.costUsage?.updatedAt == fetchedAt)
+        #expect(snapshot.costUsage?.windowEndDayKey == "2026-08-18")
+        #expect(snapshot.costUsage?.daily.first?.date == "2026-08-18")
+    }
+
+    @Test
+    func `plugin cost window rejects more than 365 days`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let source = """
+        defineProvider({
+          id: "oversized-cost-window",
+          name: "Oversized Cost Window",
+          endpoints: ["https://cost-window.example"],
+          settings: [],
+          fetchUsage() {
+            return { costUsage: {
+              currency: "USD",
+              historyDays: 366,
+              windowEnd: "2026-08-18",
+              entries: [],
+            }};
+          },
+        });
+        """
+        let plugin = try fixture.loader(transport: RecordingTransport(responseJSON: "{}"))
+            .load(fileURL: fixture.write(name: "oversized-cost-window.js", source: source))
+        try fixture.approvals.record(plugin.approvalBinding(settings: [:]))
+
+        await #expect(throws: ProviderPluginError.self) {
+            try await plugin.fetchUsage(
+                settings: [:],
+                secrets: [:],
+                approvalStore: fixture.approvals)
         }
     }
 

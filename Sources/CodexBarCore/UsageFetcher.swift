@@ -146,6 +146,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let tertiary: RateWindow?
     public let extraRateWindows: [NamedRateWindow]?
     public let providerCost: ProviderCostSnapshot?
+    /// Live provider-reported cost history supplied through the generic plugin contract.
+    public let costUsage: CostUsageTokenSnapshot?
     public let details: [ProviderDetailSection]
     public let deepseekDetailedUsageState: DeepSeekDetailedUsageState
     public let deepseekPlatformProfiles: [DeepSeekPlatformProfile]
@@ -201,6 +203,7 @@ public struct UsageSnapshot: Codable, Sendable {
         tertiary: RateWindow? = nil,
         extraRateWindows: [NamedRateWindow]? = nil,
         providerCost: ProviderCostSnapshot? = nil,
+        costUsage: CostUsageTokenSnapshot? = nil,
         details: [ProviderDetailSection] = [],
         deepseekDetailedUsageState: DeepSeekDetailedUsageState = .notRequested,
         deepseekPlatformProfiles: [DeepSeekPlatformProfile] = [],
@@ -232,6 +235,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.tertiary = tertiary
         self.extraRateWindows = extraRateWindows
         self.providerCost = providerCost
+        self.costUsage = costUsage
         self.details = details
         self.deepseekDetailedUsageState = deepseekDetailedUsageState
         self.deepseekPlatformProfiles = deepseekPlatformProfiles
@@ -287,6 +291,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.extraRateWindows = try container.decodeIfPresent([NamedRateWindow].self, forKey: .extraRateWindows)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
+        self.costUsage = nil // Live-only provider history; refresh from the authoritative source.
         self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
         try ProviderDetailSection.validateSections(self.details)
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
@@ -510,6 +515,7 @@ public struct UsageSnapshot: Codable, Sendable {
             tertiary: tertiary.resolving(self.tertiary),
             extraRateWindows: extraRateWindows.resolving(self.extraRateWindows),
             providerCost: self.providerCost,
+            costUsage: self.costUsage,
             details: details.resolving(self.details),
             deepseekDetailedUsageState: deepseekDetailedUsageState.resolving(self.deepseekDetailedUsageState),
             deepseekPlatformProfiles: deepseekPlatformProfiles.resolving(self.deepseekPlatformProfiles),
@@ -869,12 +875,17 @@ enum RPCWireError: Error, LocalizedError {
     }
 }
 
+private enum RPCRequestRaceResult<Value: Sendable>: Sendable {
+    case value(Value)
+    case timedOut
+}
+
 /// RPC helper used on background tasks; safe because we confine it to the owning task.
 private final class CodexRPCClient: @unchecked Sendable {
     // Provider-specific by design: Codex RPC owns its dedicated subprocess log category.
     private static let log = CodexBarLog.logger(LogCategories.provider(.codex, scope: "rpc"))
     private let process = Process()
-    private let stdinPipe = Pipe()
+    private let stdin = RPCChildProcessInput()
     private let stdoutPipe = Pipe()
     private let stderrPipe = Pipe()
     private let stdoutLineStream: AsyncStream<Data>
@@ -916,7 +927,7 @@ private final class CodexRPCClient: @unchecked Sendable {
         self.process.environment = env
         self.process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         self.process.arguments = [resolvedExec] + arguments
-        self.process.standardInput = self.stdinPipe
+        self.process.standardInput = self.stdin.pipe
         self.process.standardOutput = self.stdoutPipe
         self.process.standardError = self.stderrPipe
 
@@ -939,7 +950,7 @@ private final class CodexRPCClient: @unchecked Sendable {
         let stdoutLineContinuation = self.stdoutLineContinuation
         let stdoutBuffer = BoundedLineBuffer()
         let process = self.process
-        let stdinPipe = self.stdinPipe
+        let stdin = self.stdin
         stdoutHandle.readabilityHandler = { handle in
             let data = handle.availableData
             if data.isEmpty {
@@ -953,7 +964,7 @@ private final class CodexRPCClient: @unchecked Sendable {
                 Self.log.warning("Codex RPC line exceeded memory limit; terminating process")
                 handle.readabilityHandler = nil
                 DispatchQueue.global(qos: .userInitiated).async {
-                    RPCChildProcessTeardown.terminate(process: process, stdinPipe: stdinPipe)
+                    RPCChildProcessTeardown.terminate(process: process, stdin: stdin)
                 }
                 stdoutLineContinuation.finish()
                 return
@@ -1000,7 +1011,7 @@ private final class CodexRPCClient: @unchecked Sendable {
 
     func shutdown() {
         Self.log.debug("Codex RPC stopping")
-        RPCChildProcessTeardown.terminate(process: self.process, stdinPipe: self.stdinPipe)
+        RPCChildProcessTeardown.terminate(process: self.process, stdin: self.stdin)
     }
 
     // MARK: - JSON-RPC helpers
@@ -1045,24 +1056,29 @@ private final class CodexRPCClient: @unchecked Sendable {
         method: String,
         body: @escaping @Sendable () async throws -> T) async throws -> T
     {
-        try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: RPCRequestRaceResult<T>.self) { group in
             group.addTask {
-                try await body()
+                try await .value(body())
             }
-            group.addTask { [weak self] in
+            group.addTask {
                 try await Task.sleep(for: .seconds(seconds))
-                self?.terminateProcessForTimeout(method: method)
+                return .timedOut
+            }
+
+            guard let result = try await group.next() else {
+                group.cancelAll()
                 throw RPCWireError.timeout(method: method)
             }
-            do {
-                guard let result = try await group.next() else {
-                    throw RPCWireError.timeout(method: method)
-                }
-                group.cancelAll()
-                return result
-            } catch {
-                group.cancelAll()
-                throw error
+            group.cancelAll()
+
+            switch result {
+            case let .value(value):
+                return value
+            case .timedOut:
+                // Terminating the process closes stdout. Classify that expected EOF as a
+                // timeout by selecting the timer before requesting process termination.
+                self.terminateProcessForTimeout(method: method)
+                throw RPCWireError.timeout(method: method)
             }
         }
     }
@@ -1074,9 +1090,9 @@ private final class CodexRPCClient: @unchecked Sendable {
         // Dispatch off the timeout task so the bounded TERM-to-KILL wait cannot delay the timeout
         // error or let the stdout-EOF failure win the race; `shutdown()` remains the synchronous backstop.
         let process = self.process
-        let stdinPipe = self.stdinPipe
+        let stdin = self.stdin
         DispatchQueue.global(qos: .userInitiated).async {
-            RPCChildProcessTeardown.terminate(process: process, stdinPipe: stdinPipe)
+            RPCChildProcessTeardown.terminate(process: process, stdin: stdin)
         }
     }
 
@@ -1092,9 +1108,13 @@ private final class CodexRPCClient: @unchecked Sendable {
     }
 
     private func sendPayload(_ payload: [String: Any]) throws {
-        let data = try JSONSerialization.data(withJSONObject: payload)
-        self.stdinPipe.fileHandleForWriting.write(data)
-        self.stdinPipe.fileHandleForWriting.write(Data([0x0A]))
+        var data = try JSONSerialization.data(withJSONObject: payload)
+        data.append(0x0A)
+        do {
+            try self.stdin.write(data)
+        } catch {
+            throw RPCWireError.requestFailed("codex app-server stdin closed: \(error.localizedDescription)")
+        }
     }
 
     private func readNextMessage() async throws -> [String: Any] {

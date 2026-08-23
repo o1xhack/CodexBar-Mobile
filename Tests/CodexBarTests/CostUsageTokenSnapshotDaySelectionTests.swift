@@ -107,6 +107,20 @@ struct CostUsageTokenSnapshotDaySelectionTests {
     }
 
     @Test
+    func `token snapshot retains the calendar that produced its day keys`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-08-22T00:30:00Z"))
+
+        let snapshot = CostUsageFetcher.tokenSnapshot(
+            from: CostUsageDailyReport(data: [], summary: nil),
+            now: now,
+            calendar: calendar)
+
+        #expect(snapshot.bucketTimeZoneIdentifier == "Pacific/Kiritimati")
+    }
+
+    @Test
     func `token snapshot distinguishes omitted and explicitly unknown currency`() {
         let omitted = CostUsageTokenSnapshot(
             sessionTokens: nil,

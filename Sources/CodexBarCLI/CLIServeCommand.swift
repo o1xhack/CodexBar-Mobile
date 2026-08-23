@@ -1470,7 +1470,8 @@ extension CodexBarCLI {
                 message: "cost is only supported for \(Self.costSupportedProviderNames())")
         }
 
-        let fetcher = CostUsageFetcher()
+        let costBucketCalendar = Self.costBucketCalendarFromAppDefaults()
+        let fetcher = CostUsageFetcher(calendar: costBucketCalendar)
         let payload = await Self.collectConfiguredCostPayloads(
             providers: providers,
             config: context.config,
@@ -1482,9 +1483,17 @@ extension CodexBarCLI {
                     forceRefresh: false,
                     cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     refreshPricingInBackground: Self.serveCostRefreshesPricingInBackground)
-                return Self.makeCostPayload(provider: provider, snapshot: snapshot, error: nil)
+                return Self.makeCostPayload(
+                    provider: provider,
+                    snapshot: snapshot,
+                    error: nil,
+                    calendar: costBucketCalendar)
             } catch {
-                return Self.makeCostPayload(provider: provider, snapshot: nil, error: error)
+                return Self.makeCostPayload(
+                    provider: provider,
+                    snapshot: nil,
+                    error: error,
+                    calendar: costBucketCalendar)
             }
         }
 

@@ -759,6 +759,11 @@ final class SyncedUsageData {
                 !deletedComposites.contains(Self.providerCompositeKey(provider))
             }
             guard providers.count != snapshot.providers.count else { return snapshot }
+            let providerPublicationTimestamps = Dictionary(
+                providers.map {
+                    (SyncedUsageSnapshot.providerPublicationKey(for: $0), snapshot.publicationTimestamp(for: $0))
+                },
+                uniquingKeysWith: max)
             return SyncedUsageSnapshot(
                 providers: providers,
                 syncTimestamp: snapshot.syncTimestamp,
@@ -766,14 +771,15 @@ final class SyncedUsageData {
                 deviceID: snapshot.deviceID,
                 appVersion: snapshot.appVersion,
                 mobileVersion: snapshot.mobileVersion,
-                notificationPushEnabled: snapshot.notificationPushEnabled)
+                notificationPushEnabled: snapshot.notificationPushEnabled,
+                providerPublicationTimestamps: providerPublicationTimestamps)
         }
     }
 
     private nonisolated static func splitProviderRecordName(_ recordName: String) -> (
         deviceID: String,
-        composite: String
-    )? {
+        composite: String)?
+    {
         let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
         return (String(parts[0]), "\(parts[1])|\(parts[2])")

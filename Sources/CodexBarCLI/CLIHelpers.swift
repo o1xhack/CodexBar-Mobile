@@ -39,13 +39,7 @@ extension CodexBarCLI {
     }
 
     static func decodeFormat(from values: ParsedValues) -> OutputFormat {
-        if let raw = values.options["format"]?.last, let parsed = OutputFormat(argument: raw) {
-            return parsed
-        }
-        if values.flags.contains("jsonShortcut") || values.flags.contains("json") || values.flags.contains("jsonOnly") {
-            return .json
-        }
-        return .text
+        CLIOutputPreferences.resolveOutputFormat(from: values).format
     }
 
     static func decodeTokenAccountSelection(from values: ParsedValues) throws -> TokenAccountCLISelection {
@@ -205,16 +199,36 @@ extension CodexBarCLI {
     /// serve dashboard follows the setting without a restart, the same way reset style
     /// and weekly work days already do.
     static func hidePersonalInfoFromDefaults() -> Bool {
+        self.boolFromAppDefaults("hidePersonalInfo") ?? false
+    }
+
+    static func boolFromAppDefaults(_ key: String) -> Bool? {
         let domains = [
             "com.steipete.codexbar",
             "com.steipete.codexbar.debug",
         ]
         for domain in domains {
-            if let value = UserDefaults(suiteName: domain)?.object(forKey: "hidePersonalInfo") as? Bool {
+            if let value = UserDefaults(suiteName: domain)?.object(forKey: key) as? Bool {
                 return value
             }
         }
-        return UserDefaults.standard.object(forKey: "hidePersonalInfo") as? Bool ?? false
+        return UserDefaults.standard.object(forKey: key) as? Bool
+    }
+
+    static func stringFromAppDefaults(_ key: String) -> String? {
+        let domains = [
+            "com.steipete.codexbar",
+            "com.steipete.codexbar.debug",
+        ]
+        for domain in domains {
+            if let value = UserDefaults(suiteName: domain)?.string(forKey: key), !value.isEmpty {
+                return value
+            }
+        }
+        if let value = UserDefaults.standard.string(forKey: key), !value.isEmpty {
+            return value
+        }
+        return nil
     }
 
     static func fetchProviderUsage(
@@ -260,6 +274,8 @@ extension CodexBarCLI {
                     from: cache.snapshot.creditEvents,
                     maxDays: 30),
                 usageBreakdown: cache.snapshot.usageBreakdown,
+                usageBreakdownUpdatedAt: cache.snapshot.usageBreakdownUpdatedAt,
+                usageBreakdownTimeZoneIdentifier: cache.snapshot.usageBreakdownTimeZoneIdentifier,
                 creditsPurchaseURL: cache.snapshot.creditsPurchaseURL,
                 updatedAt: cache.snapshot.updatedAt)
         } else {
@@ -387,7 +403,7 @@ extension CodexBarCLI {
                     antigravityPlanInfo: nil,
                     openaiDashboard: nil,
                     error: self.makeErrorPayload(code: .failure, message: error.localizedDescription, kind: .config))
-                self.printJSON([payload], pretty: output.pretty)
+                self.printProviderPayloads([payload], output: output)
             } else {
                 self.writeStderr("Error: \(error.localizedDescription)\n")
             }

@@ -64,14 +64,16 @@ struct DualZoneReaderTests {
         #expect(snapshot.deviceID == "mac-1")
         #expect(snapshot.providers.count == 2)
         // Device-level timestamp = max of constituent envelopes.
-        #expect(snapshot.syncTimestamp == t2)
+        #expect(snapshot.syncTimestamp == self.t2)
         // Providers sorted by lastUpdated desc.
         #expect(snapshot.providers.first?.providerID == "claude")
         #expect(snapshot.providers.last?.providerID == "codex")
+        #expect(snapshot.publicationTimestamp(for: snapshot.providers[0]) == self.t2)
+        #expect(snapshot.publicationTimestamp(for: snapshot.providers[1]) == self.t1)
     }
 
-    @Test("Multiple devices produce multiple snapshots, sorted newest-first")
-    func reconstructMultiDevice() {
+    @Test
+    func `Multiple devices produce multiple snapshots, sorted newest-first`() {
         let envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [
             "mac-old": [
                 makeEnvelope(

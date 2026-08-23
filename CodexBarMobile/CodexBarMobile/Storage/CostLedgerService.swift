@@ -177,10 +177,11 @@ enum CostLedgerService {
     /// the blob stay in sync (the blob acts as a fallback / authoritative
     /// snapshot for the current Mac window).
     ///
-    /// All days in one call share `provider.lastUpdated` — the wire format
-    /// has no per-day timestamp. If the user has explicitly cleared local
-    /// cost history, snapshots at or before that clear timestamp are skipped
-    /// so unchanged CloudKit data cannot immediately recreate deleted rows.
+    /// All days in one call share the cost summary's source timestamp (falling
+    /// back to `provider.lastUpdated` for legacy payloads) because the wire
+    /// format has no per-day timestamp. If the user has explicitly cleared
+    /// local cost history, cost data at or before that clear timestamp is
+    /// skipped so unchanged CloudKit data cannot recreate deleted rows.
     static func upsertFromSnapshot(
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
@@ -189,8 +190,9 @@ enum CostLedgerService {
     {
         guard let summary = provider.costSummary else { return }
         guard !summary.daily.isEmpty else { return }
+        let costUpdatedAt = summary.sourceUpdatedAt ?? provider.lastUpdated
         if let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults),
-           provider.lastUpdated <= clearedAt
+           costUpdatedAt <= clearedAt
         {
             return
         }
@@ -209,10 +211,11 @@ enum CostLedgerService {
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
+                costIsKnown: point.costIsKnown,
                 isEstimated: point.isEstimated,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
-                lastUpdated: provider.lastUpdated,
+                lastUpdated: costUpdatedAt,
                 encoder: encoder,
                 in: context)
         }
@@ -237,6 +240,7 @@ enum CostLedgerService {
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
+        costIsKnown: Bool? = nil,
         isEstimated: Bool?,
         modelBreakdowns: [SyncCostBreakdown],
         serviceBreakdowns: [SyncCostBreakdown],
@@ -270,14 +274,37 @@ enum CostLedgerService {
             existing.accountRecordKey = accountRecordKey
             existing.accountIdentityKey = accountIdentityKey
             existing.accountIdentitiesData = identityData
+            // Token-cost publications can change without advancing the
+            // provider usage timestamp. Keep the ledger byte-for-byte aligned
+            // with the current blob whenever an equal-time pricing/catch-up
+            // refresh changes any cost payload field. This also makes a
+            // rolling-upgrade nil-to-known availability backfill atomic with
+            // its recomputed amount, token, and breakdown values.
+            if existing.lastUpdated == lastUpdated,
+               existing.costUSD != costUSD ||
+               existing.totalTokens != totalTokens ||
+               existing.costIsKnown != costIsKnown ||
+               existing.isEstimated != isEstimated ||
+               existing.modelBreakdownsData != modelData ||
+               existing.serviceBreakdownsData != serviceData
+            {
+                existing.costUSD = costUSD
+                existing.totalTokens = totalTokens
+                existing.costIsKnown = costIsKnown
+                existing.isEstimated = isEstimated
+                existing.modelBreakdownsData = modelData
+                existing.serviceBreakdownsData = serviceData
+                return
+            }
             // Dedup. Skip if we already have data at least as fresh for
-            // this exact (deviceID, providerID, dayKey). Same `lastUpdated`
-            // = same Mac, same cycle = redundant write; older = stale.
+            // this exact (deviceID, providerID, dayKey). An identical
+            // same-time payload is redundant; an older payload is stale.
             if existing.lastUpdated >= lastUpdated {
                 return
             }
             existing.costUSD = costUSD
             existing.totalTokens = totalTokens
+            existing.costIsKnown = costIsKnown
             existing.isEstimated = isEstimated
             existing.modelBreakdownsData = modelData
             existing.serviceBreakdownsData = serviceData
@@ -293,6 +320,7 @@ enum CostLedgerService {
                 dayKey: dayKey,
                 costUSD: costUSD,
                 totalTokens: totalTokens,
+                costIsKnown: costIsKnown,
                 isEstimated: isEstimated,
                 modelBreakdownsData: modelData,
                 serviceBreakdownsData: serviceData,
@@ -337,6 +365,7 @@ enum CostLedgerService {
                 if legacy.lastUpdated > existing.lastUpdated {
                     existing.costUSD = legacy.costUSD
                     existing.totalTokens = legacy.totalTokens
+                    existing.costIsKnown = legacy.costIsKnown
                     existing.isEstimated = legacy.isEstimated
                     existing.modelBreakdownsData = legacy.modelBreakdownsData
                     existing.serviceBreakdownsData = legacy.serviceBreakdownsData
@@ -351,6 +380,93 @@ enum CostLedgerService {
                 legacy.accountIdentityKey = accountIdentityKey
                 legacy.accountIdentitiesData = identityData
             }
+        }
+    }
+
+    /// Moves every accumulated ledger day from a provider-level cost's old
+    /// account owner to its new owner before the old envelope's tombstone is
+    /// applied. The incoming Mac blob is bounded (normally 30 days), while CWL
+    /// can retain 90–365 days; deleting the old owner would otherwise discard
+    /// older ledger-only history permanently.
+    static func migrateCostOwnership(
+        deviceID: String,
+        providerID: String,
+        fromAccountEmail: String?,
+        fromAccountRecordKey: String?,
+        to provider: ProviderUsageSnapshot,
+        in context: ModelContext) throws
+    {
+        let targetIdentityKeys = Self.accountIdentityKeys(for: provider)
+        let targetIdentityKey = targetIdentityKeys.first
+        let targetIdentityData = try? CloudSyncConstants.makeJSONEncoder().encode(targetIdentityKeys)
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        let sourceRows = try context.fetch(descriptor).filter {
+            Self.rowMatchesAccount(
+                $0,
+                accountEmail: fromAccountEmail,
+                accountRecordKey: fromAccountRecordKey)
+        }
+
+        for source in sourceRows {
+            let targetKey = DailyCostPoint.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: providerID,
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey,
+                dayKey: source.dayKey)
+            guard source.compositeKey != targetKey else { continue }
+            let targetDescriptor = FetchDescriptor<DailyCostPoint>(
+                predicate: #Predicate { $0.compositeKey == targetKey })
+            if let target = try context.fetch(targetDescriptor).first,
+               target !== source
+            {
+                if source.lastUpdated > target.lastUpdated {
+                    target.costUSD = source.costUSD
+                    target.totalTokens = source.totalTokens
+                    target.costIsKnown = source.costIsKnown
+                    target.isEstimated = source.isEstimated
+                    target.modelBreakdownsData = source.modelBreakdownsData
+                    target.serviceBreakdownsData = source.serviceBreakdownsData
+                    target.lastUpdated = source.lastUpdated
+                }
+                target.accountEmail = provider.accountEmail
+                target.accountRecordKey = provider.accountRecordKey
+                target.accountIdentityKey = targetIdentityKey
+                target.accountIdentitiesData = targetIdentityData
+                context.delete(source)
+            } else {
+                source.compositeKey = targetKey
+                source.accountEmail = provider.accountEmail
+                source.accountRecordKey = provider.accountRecordKey
+                source.accountIdentityKey = targetIdentityKey
+                source.accountIdentitiesData = targetIdentityData
+            }
+        }
+    }
+
+    /// Whether this account still owns accumulated ledger history even when
+    /// its latest bounded provider blob temporarily carries no cost summary.
+    /// Ownership migration must consult both stores: the blob describes the
+    /// current window, while CWL can retain older days independently.
+    static func hasRows(
+        deviceID: String,
+        providerID: String,
+        accountEmail: String?,
+        accountRecordKey: String?,
+        in context: ModelContext) throws -> Bool
+    {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        return try context.fetch(descriptor).contains {
+            Self.rowMatchesAccount(
+                $0,
+                accountEmail: accountEmail,
+                accountRecordKey: accountRecordKey)
         }
     }
 
@@ -374,13 +490,27 @@ enum CostLedgerService {
         windowDays: Int,
         in context: ModelContext,
         asOf: Date = Date(),
-        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerAggregation
+        activeDeviceIDs: Set<String>? = nil,
+        sourceSnapshots: [SyncedUsageSnapshot] = [],
+        readerTimeZone: TimeZone = .current) throws -> CostLedgerAggregation
     {
         let windowDays = max(1, min(windowDays, 365))
-        let cutoffKey = Self.cutoffDayKey(windowDays: windowDays, asOf: asOf)
+        let cutoffKey = Self.cutoffDayKey(
+            windowDays: windowDays,
+            asOf: asOf,
+            timeZone: readerTimeZone)
+        // Valid IANA zones span more than 24 hours, so a producer can be two
+        // logical dates behind the reader (UTC-11 versus UTC+14). Fetch two
+        // extra boundary days; the source-aware filter below still admits
+        // exactly `windowDays` for each producer.
+        let fetchCutoffKey = Self.cutoffDayKey(
+            windowDays: windowDays + 2,
+            asOf: asOf,
+            timeZone: readerTimeZone)
+        let readerTodayKey = Self.dayKey(for: asOf, timeZone: readerTimeZone)
 
         let descriptor = FetchDescriptor<DailyCostPoint>(
-            predicate: #Predicate { $0.dayKey >= cutoffKey })
+            predicate: #Predicate { $0.dayKey >= fetchCutoffKey })
         let fetchedRows = try context.fetch(descriptor)
         let rows: [DailyCostPoint] = if let activeDeviceIDs {
             fetchedRows.filter { activeDeviceIDs.contains($0.deviceID) }
@@ -389,14 +519,26 @@ enum CostLedgerService {
         }
 
         let decoder = CloudSyncConstants.makeJSONDecoder()
+        let sourceDayWindows = Self.makeSourceDayWindows(
+            snapshots: sourceSnapshots,
+            windowDays: windowDays,
+            asOf: asOf,
+            readerTodayDayKey: readerTodayKey)
         let accountGrouping = Self.makeAccountGrouping(rows: rows, decoder: decoder)
         var groupedRows: [LedgerGroupKey: [DailyCostPoint]] = [:]
         for (index, row) in rows.enumerated() {
+            guard let normalizedDayKey = Self.readerRelativeDayKey(
+                row,
+                readerCutoffKey: cutoffKey,
+                readerTodayKey: readerTodayKey,
+                sourceDayWindows: sourceDayWindows,
+                decoder: decoder)
+            else { continue }
             let root = accountGrouping.roots[index]
             groupedRows[LedgerGroupKey(
                 providerID: row.providerID,
                 accountGroup: root,
-                dayKey: row.dayKey), default: []].append(row)
+                dayKey: normalizedDayKey), default: []].append(row)
         }
 
         let mergedPoints: [AggregatedDailyCostPoint] = groupedRows.compactMap { key, group in
@@ -406,6 +548,7 @@ enum CostLedgerService {
             if ProviderSnapshotMerger.usesLocalCostMerge(providerID: first.providerID) {
                 return AggregatedDailyCostPoint.mergingLocalCostRows(
                     group,
+                    dayKey: key.dayKey,
                     accountIdentityKey: preferredIdentityKey,
                     accountIdentityKeys: identityKeys,
                     decoder: decoder)
@@ -415,6 +558,7 @@ enum CostLedgerService {
             }
             return AggregatedDailyCostPoint(
                 row: latest,
+                dayKey: key.dayKey,
                 accountIdentityKey: preferredIdentityKey,
                 accountIdentityKeys: identityKeys,
                 decoder: decoder)
@@ -446,6 +590,7 @@ enum CostLedgerService {
             perProvider[rollupKey] = acc
 
             perDay[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
+            guard point.costIsKnown != false else { continue }
             for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                 perModel[breakdown.label, default: .init()].ingest(breakdown)
             }
@@ -495,6 +640,8 @@ enum CostLedgerService {
         in context: ModelContext,
         asOf: Date = Date(),
         activeDeviceIDs: Set<String>? = nil,
+        sourceSnapshots: [SyncedUsageSnapshot] = [],
+        readerTimeZone: TimeZone = .current,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
         try self.pruneLedgerRowsMissingProviderSnapshots(in: context)
@@ -507,7 +654,9 @@ enum CostLedgerService {
             windowDays: windowDays,
             in: context,
             asOf: asOf,
-            activeDeviceIDs: activeDeviceIDs)
+            activeDeviceIDs: activeDeviceIDs,
+            sourceSnapshots: sourceSnapshots,
+            readerTimeZone: readerTimeZone)
     }
 
     /// Same as `aggregate(...)` but filtered to one provider. Used by
@@ -520,13 +669,17 @@ enum CostLedgerService {
         windowDays: Int,
         in context: ModelContext,
         asOf: Date = Date(),
-        activeDeviceIDs: Set<String>? = nil) throws -> CostLedgerProviderRollup
+        activeDeviceIDs: Set<String>? = nil,
+        sourceSnapshots: [SyncedUsageSnapshot] = [],
+        readerTimeZone: TimeZone = .current) throws -> CostLedgerProviderRollup
     {
         let full = try Self.aggregate(
             windowDays: windowDays,
             in: context,
             asOf: asOf,
-            activeDeviceIDs: activeDeviceIDs)
+            activeDeviceIDs: activeDeviceIDs,
+            sourceSnapshots: sourceSnapshots,
+            readerTimeZone: readerTimeZone)
         let rollupKey = Self.rollupKey(
             providerID: providerID,
             accountIdentityKey: accountIdentityKey,
@@ -640,10 +793,11 @@ enum CostLedgerService {
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
-            if let newerThan, row.lastUpdated <= newerThan { continue }
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
+            let costUpdatedAt = summary.sourceUpdatedAt ?? row.lastUpdated
+            if let newerThan, costUpdatedAt <= newerThan { continue }
             let payload = row.providerPayloadData.flatMap {
                 try? decoder.decode(ProviderUsageSnapshot.self, from: $0)
             }
@@ -661,10 +815,11 @@ enum CostLedgerService {
                     dayKey: point.dayKey,
                     costUSD: point.costUSD,
                     totalTokens: point.totalTokens,
+                    costIsKnown: point.costIsKnown,
                     isEstimated: point.isEstimated,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
-                    lastUpdated: row.lastUpdated,
+                    lastUpdated: costUpdatedAt,
                     encoder: encoder,
                     in: context)
             }
@@ -687,15 +842,20 @@ enum CostLedgerService {
     private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
-            if let newerThan, row.lastUpdated <= newerThan { continue }
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }
+            let costUpdatedAt = summary.sourceUpdatedAt ?? row.lastUpdated
+            if let newerThan, costUpdatedAt <= newerThan { continue }
             let payload = row.providerPayloadData.flatMap {
                 try? decoder.decode(ProviderUsageSnapshot.self, from: $0)
             }
             let accountRecordKey = row.accountRecordKey ?? payload?.accountRecordKey
+            let accountIdentityKeys = payload.map(Self.accountIdentityKeys(for:))
+            let accountIdentityKey = accountIdentityKeys?.first
+            let accountIdentitiesData = accountIdentityKeys.flatMap { try? encoder.encode($0) }
             for point in summary.daily {
                 let key = DailyCostPoint.makeCompositeKey(
                     deviceID: row.deviceID,
@@ -705,10 +865,32 @@ enum CostLedgerService {
                     dayKey: point.dayKey)
                 let descriptor = FetchDescriptor<DailyCostPoint>(
                     predicate: #Predicate { $0.compositeKey == key })
-                guard let existing = try context.fetch(descriptor).first,
-                      existing.lastUpdated >= row.lastUpdated
-                else {
+                guard let existing = try context.fetch(descriptor).first else {
                     return true
+                }
+                if existing.lastUpdated < costUpdatedAt {
+                    return true
+                }
+                if existing.lastUpdated == costUpdatedAt {
+                    let modelData = point.modelBreakdowns.isEmpty
+                        ? nil
+                        : try? encoder.encode(point.modelBreakdowns)
+                    let serviceData = point.serviceBreakdowns.isEmpty
+                        ? nil
+                        : try? encoder.encode(point.serviceBreakdowns)
+                    if existing.accountEmail != row.accountEmail
+                        || existing.accountRecordKey != accountRecordKey
+                        || existing.accountIdentityKey != accountIdentityKey
+                        || existing.accountIdentitiesData != accountIdentitiesData
+                        || existing.costUSD != point.costUSD
+                        || existing.totalTokens != point.totalTokens
+                        || existing.costIsKnown != point.costIsKnown
+                        || existing.isEstimated != point.isEstimated
+                        || existing.modelBreakdownsData != modelData
+                        || existing.serviceBreakdownsData != serviceData
+                    {
+                        return true
+                    }
                 }
             }
         }
@@ -763,15 +945,145 @@ enum CostLedgerService {
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`
     /// local dayKey string. Comparison against `DailyCostPoint.dayKey` works
     /// lexicographically because the format is fixed-width.
-    static func cutoffDayKey(windowDays: Int, asOf: Date) -> String {
+    static func cutoffDayKey(
+        windowDays: Int,
+        asOf: Date,
+        timeZone: TimeZone = .current) -> String
+    {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
+        calendar.timeZone = timeZone
         let localDay = calendar.startOfDay(for: asOf)
         let cutoff = calendar.date(
             byAdding: .day,
             value: -(windowDays - 1),
             to: localDay) ?? localDay
-        return SyncCostSummary.iso8601DayKeyFormatter().string(from: cutoff)
+        return Self.dayKey(for: cutoff, timeZone: timeZone)
+    }
+
+    /// A CWL row retains its producing device ID and producer-local day key.
+    /// Keep the window indexed by both device and provider identity so two
+    /// Macs with different pinned cost timezones are never filtered through a
+    /// lossy, post-merge provider calendar.
+    private struct SourceDayWindowKey: Hashable {
+        let deviceID: String
+        let providerID: String
+        let accountIdentity: String
+    }
+
+    private struct SourceDayWindow {
+        let oldestDayKey: String
+        let todayDayKey: String
+        let costUpdatedAt: Date
+        /// Producer-local day key -> reader-relative day key. This preserves
+        /// logical age while giving all producers one canonical rollup axis.
+        let readerRelativeDayKeys: [String: String]
+    }
+
+    private static func makeSourceDayWindows(
+        snapshots: [SyncedUsageSnapshot],
+        windowDays: Int,
+        asOf: Date,
+        readerTodayDayKey: String) -> [SourceDayWindowKey: SourceDayWindow]
+    {
+        var result: [SourceDayWindowKey: SourceDayWindow] = [:]
+        let formatter = Self.logicalDayKeyFormatter()
+        guard let readerToday = formatter.date(from: readerTodayDayKey) else {
+            return result
+        }
+        var relativeDayKeysByProducerToday: [String: [String: String]] = [:]
+
+        for snapshot in snapshots {
+            let deviceID = snapshot.deviceID ?? SwiftDataBridge.deviceIDFallback(for: snapshot)
+            for provider in snapshot.providers {
+                guard let summary = provider.costSummary,
+                      !summary.hasInvalidBucketTimeZoneIdentifier
+                else { continue }
+                let todayDayKey = summary.costDayKey(for: asOf)
+                guard let today = formatter.date(from: todayDayKey),
+                      let oldest = formatter.calendar.date(
+                          byAdding: .day,
+                          value: -(windowDays - 1),
+                          to: today)
+                else { continue }
+                let readerRelativeDayKeys: [String: String]
+                if let cached = relativeDayKeysByProducerToday[todayDayKey] {
+                    readerRelativeDayKeys = cached
+                } else {
+                    var keys: [String: String] = [:]
+                    for age in 0..<windowDays {
+                        guard let producerDay = formatter.calendar.date(
+                            byAdding: .day, value: -age, to: today),
+                            let readerDay = formatter.calendar.date(
+                                byAdding: .day, value: -age, to: readerToday)
+                        else { continue }
+                        keys[formatter.string(from: producerDay)] = formatter.string(from: readerDay)
+                    }
+                    relativeDayKeysByProducerToday[todayDayKey] = keys
+                    readerRelativeDayKeys = keys
+                }
+                let window = SourceDayWindow(
+                    oldestDayKey: formatter.string(from: oldest),
+                    todayDayKey: todayDayKey,
+                    costUpdatedAt: summary.sourceUpdatedAt ?? provider.lastUpdated,
+                    readerRelativeDayKeys: readerRelativeDayKeys)
+                for identity in Self.accountIdentityKeys(for: provider) {
+                    let key = SourceDayWindowKey(
+                        deviceID: deviceID,
+                        providerID: provider.providerID,
+                        accountIdentity: identity)
+                    if result[key].map({ $0.costUpdatedAt < window.costUpdatedAt }) ?? true {
+                        result[key] = window
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    private static func readerRelativeDayKey(
+        _ row: DailyCostPoint,
+        readerCutoffKey: String,
+        readerTodayKey: String,
+        sourceDayWindows: [SourceDayWindowKey: SourceDayWindow],
+        decoder: JSONDecoder) -> String?
+    {
+        let candidates = Self.accountIdentityKeys(for: row, decoder: decoder).compactMap { identity in
+            sourceDayWindows[SourceDayWindowKey(
+                deviceID: row.deviceID,
+                providerID: row.providerID,
+                accountIdentity: identity)]
+        }
+        if let window = candidates.max(by: { $0.costUpdatedAt < $1.costUpdatedAt }) {
+            guard row.dayKey >= window.oldestDayKey,
+                  row.dayKey <= window.todayDayKey
+            else { return nil }
+            return window.readerRelativeDayKeys[row.dayKey]
+        }
+
+        // Legacy or unmatched rows keep reader-local semantics. The upper
+        // bound prevents future-dated rows from entering a current window.
+        guard row.dayKey >= readerCutoffKey, row.dayKey <= readerTodayKey else {
+            return nil
+        }
+        return row.dayKey
+    }
+
+    private static func logicalDayKeyFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .gmt
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+
+    private static func dayKey(for date: Date, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     // MARK: - Private accumulators
@@ -877,12 +1189,14 @@ enum CostLedgerService {
         let dayKey: String
         let costUSD: Double
         let totalTokens: Int
+        let costIsKnown: Bool?
         let isEstimated: Bool?
         let modelBreakdowns: [SyncCostBreakdown]
         let serviceBreakdowns: [SyncCostBreakdown]
 
         init(
             row: DailyCostPoint,
+            dayKey: String? = nil,
             accountIdentityKey: String?,
             accountIdentityKeys: [String],
             decoder: JSONDecoder)
@@ -891,9 +1205,10 @@ enum CostLedgerService {
             self.accountEmail = row.accountEmail
             self.accountIdentityKey = accountIdentityKey
             self.accountIdentityKeys = accountIdentityKeys
-            self.dayKey = row.dayKey
+            self.dayKey = dayKey ?? row.dayKey
             self.costUSD = row.costUSD
             self.totalTokens = row.totalTokens
+            self.costIsKnown = row.costIsKnown
             self.isEstimated = row.isEstimated
             self.modelBreakdowns = Self.decodeBreakdowns(row.modelBreakdownsData, decoder: decoder)
             self.serviceBreakdowns = Self.decodeBreakdowns(row.serviceBreakdownsData, decoder: decoder)
@@ -901,15 +1216,17 @@ enum CostLedgerService {
 
         static func mergingLocalCostRows(
             _ rows: [DailyCostPoint],
+            dayKey: String,
             accountIdentityKey: String?,
             accountIdentityKeys: [String],
             decoder: JSONDecoder) -> AggregatedDailyCostPoint?
         {
             guard let first = rows.first else { return nil }
-            var dayAccumulator = DayAccumulator(dayKey: first.dayKey)
+            var dayAccumulator = DayAccumulator(dayKey: dayKey)
             for row in rows {
                 dayAccumulator.ingest(AggregatedDailyCostPoint(
                     row: row,
+                    dayKey: dayKey,
                     accountIdentityKey: accountIdentityKey,
                     accountIdentityKeys: accountIdentityKeys,
                     decoder: decoder))
@@ -919,9 +1236,10 @@ enum CostLedgerService {
                 accountEmail: first.accountEmail,
                 accountIdentityKey: accountIdentityKey,
                 accountIdentityKeys: accountIdentityKeys,
-                dayKey: first.dayKey,
+                dayKey: dayKey,
                 costUSD: dayAccumulator.costUSD,
                 totalTokens: dayAccumulator.totalTokens,
+                costIsKnown: dayAccumulator.mergedCostIsKnown,
                 isEstimated: dayAccumulator.isEstimated ? true : nil,
                 modelBreakdowns: dayAccumulator.modelBreakdownsArray,
                 serviceBreakdowns: dayAccumulator.serviceBreakdownsArray)
@@ -935,6 +1253,7 @@ enum CostLedgerService {
             dayKey: String,
             costUSD: Double,
             totalTokens: Int,
+            costIsKnown: Bool?,
             isEstimated: Bool?,
             modelBreakdowns: [SyncCostBreakdown],
             serviceBreakdowns: [SyncCostBreakdown])
@@ -946,6 +1265,7 @@ enum CostLedgerService {
             self.dayKey = dayKey
             self.costUSD = costUSD
             self.totalTokens = totalTokens
+            self.costIsKnown = costIsKnown
             self.isEstimated = isEstimated
             self.modelBreakdowns = modelBreakdowns
             self.serviceBreakdowns = serviceBreakdowns
@@ -964,6 +1284,9 @@ enum CostLedgerService {
         var costUSD: Double = 0
         var totalTokens: Int = 0
         var isEstimated = false
+        var sawKnownCost = false
+        var sawUnknownCost = false
+        var sawUnavailableCost = false
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
 
@@ -973,6 +1296,12 @@ enum CostLedgerService {
             if point.isEstimated == true {
                 self.isEstimated = true
             }
+            switch point.costIsKnown {
+            case true: self.sawKnownCost = true
+            case false: self.sawUnavailableCost = true
+            case nil: self.sawUnknownCost = true
+            }
+            guard point.costIsKnown != false else { return }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
             }
@@ -1000,7 +1329,14 @@ enum CostLedgerService {
                 totalTokens: self.totalTokens,
                 modelBreakdowns: self.modelBreakdownsArray,
                 serviceBreakdowns: self.serviceBreakdownsArray,
-                isEstimated: self.isEstimated ? true : nil)
+                isEstimated: self.isEstimated ? true : nil,
+                costIsKnown: self.mergedCostIsKnown)
+        }
+
+        var mergedCostIsKnown: Bool? {
+            if self.sawUnavailableCost { return false }
+            if self.sawUnknownCost { return nil }
+            return self.sawKnownCost ? true : nil
         }
     }
 
@@ -1031,6 +1367,7 @@ enum CostLedgerService {
             self.costUSD += point.costUSD
             self.totalTokens += point.totalTokens
             self.perDay[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
+            guard point.costIsKnown != false else { return }
             for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                 self.perModel[breakdown.label, default: .init()].ingest(breakdown)
             }
