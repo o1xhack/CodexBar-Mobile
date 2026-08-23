@@ -564,6 +564,80 @@ struct SyncCoordinatorTests {
         #expect(cost.last30DaysCostUSD == 1.20)
         #expect(cost.last30DaysTokens == 120)
         #expect(cost.daily.map(\.dayKey) == ["2026-03-15"])
+        #expect(cost.bucketTimeZoneIdentifier == "UTC")
+    }
+
+    @Test
+    func `provider-derived UTC cost summaries keep their native bucket calendar`() throws {
+        let pinnedLocal = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        for provider in [UsageProvider.bedrock, .openai, .mistral, .openrouter, .xai] {
+            #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+                for: provider,
+                fallback: pinnedLocal) == "UTC")
+        }
+        #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+            for: .codex,
+            fallback: pinnedLocal) == pinnedLocal.identifier)
+    }
+
+    @Test
+    func `local snapshot cost summaries advertise the calendar that produced their day keys`() throws {
+        let pinned = try #require(TimeZone(identifier: "Pacific/Kiritimati"))
+        let current = try #require(TimeZone(identifier: "America/Los_Angeles"))
+
+        for provider in [UsageProvider.cursor, .grok, .opencodego] {
+            #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+                for: provider,
+                fallback: pinned,
+                local: current) == current.identifier)
+        }
+        #expect(SyncCoordinator.costSummaryBucketTimeZoneIdentifier(
+            for: .claude,
+            fallback: pinned,
+            local: current) == pinned.identifier)
+    }
+
+    @Test
+    func `sync preserves the token snapshot calendar instead of reclassifying old day keys`() async throws {
+        let suite = "SyncCoord-token-source-calendar"
+        let settings = self.makeSettingsStore(suite: suite)
+        settings.iCloudSyncEnabled = true
+        settings.costUsageBucketTimeZoneIdentifier = "Pacific/Kiritimati"
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let updatedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T00:30:00Z"))
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: updatedAt),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 1,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 1,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-08-21",
+                    inputTokens: 50,
+                    outputTokens: 50,
+                    totalTokens: 100,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                bucketTimeZoneIdentifier: "America/Los_Angeles",
+                updatedAt: updatedAt),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
+        #expect(summary.bucketTimeZoneIdentifier == "America/Los_Angeles")
+        #expect(summary.sourceDayKey == "2026-08-21")
     }
 
     @Test

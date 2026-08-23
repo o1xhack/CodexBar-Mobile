@@ -25,17 +25,20 @@ struct SyncProviderMapperTests {
         azure: AzureOpenAIUsageSnapshot? = nil,
         alibaba: AlibabaTokenPlanUsageSnapshot? = nil,
         providerCost: ProviderCostSnapshot? = nil,
+        costUsage: CostUsageTokenSnapshot? = nil,
         identity: ProviderIdentitySnapshot? = nil,
-        dataConfidence: UsageDataConfidence = .unknown) -> UsageSnapshot
+        dataConfidence: UsageDataConfidence = .unknown,
+        updatedAt: Date = Self.now) -> UsageSnapshot
     {
         UsageSnapshot(
             primary: nil,
             secondary: nil,
             providerCost: providerCost,
+            costUsage: costUsage,
             azureOpenAIUsage: azure,
             alibabaTokenPlanUsage: alibaba,
             mistralUsage: mistral,
-            updatedAt: Self.now,
+            updatedAt: updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)
     }
@@ -156,6 +159,57 @@ struct SyncProviderMapperTests {
         #expect(balance.budget?.limitAmount == 50)
         #expect(balance.providerAmount?.kind == "balance")
         #expect(balance.providerAmount?.amount == 40)
+    }
+
+    @Test
+    func `custom plugin cost-only snapshot remains visible to iOS with UTC day metadata`() throws {
+        let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
+        let costUpdatedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T12:00:00Z"))
+        let costUsage = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 300,
+            last30DaysCostUSD: 4.25,
+            last30DaysRequests: 3,
+            historyDays: 7,
+            historyCoverageIsEstablished: true,
+            meteredCostUSD: 3.0,
+            costProvenance: .mixed,
+            daily: [CostUsageDailyReport.Entry(
+                date: "2026-08-22",
+                inputTokens: 200,
+                outputTokens: 100,
+                totalTokens: 300,
+                requestCount: 3,
+                costUSD: 4.25,
+                modelsUsed: ["acme-pro"],
+                modelBreakdowns: [CostUsageDailyReport.ModelBreakdown(
+                    modelName: "acme-pro",
+                    costUSD: 4.25,
+                    totalTokens: 300,
+                    requestCount: 3,
+                    isEstimated: true)],
+                estimatedRequestCount: 1)],
+            bucketTimeZoneIdentifier: "UTC",
+            windowEndDayKey: "2026-08-18",
+            updatedAt: costUpdatedAt)
+
+        let mapped = SyncCoordinator.mapPluginProviderUsageSnapshot(
+            instanceID: instanceID,
+            snapshot: self.snapshot(costUsage: costUsage),
+            error: nil,
+            deviceID: "MAC-A")
+        let summary = try #require(mapped.costSummary)
+        #expect(mapped.hasUsableSignal)
+        #expect(summary.last30DaysCostUSD == 4.25)
+        #expect(summary.last30DaysTokens == 300)
+        #expect(summary.daily.first?.dayKey == "2026-08-22")
+        #expect(summary.daily.first?.isEstimated == true)
+        #expect(summary.costProvenance == .mixed)
+        #expect(summary.coverage?.estimated == 1)
+        #expect(summary.sourceUpdatedAt == costUpdatedAt)
+        #expect(summary.sourceDayKey == "2026-08-18")
+        #expect(summary.bucketTimeZoneIdentifier == "GMT")
     }
 
     @Test
@@ -339,6 +393,19 @@ struct SyncProviderMapperTests {
         #expect(day25.modelBreakdowns.count == 1)
         #expect(day25.modelBreakdowns.first?.label == "mistral-large")
         #expect(day25.modelBreakdowns.first?.costUSD == 1.0)
+    }
+
+    @Test
+    func `mapMistralCostSummary: source freshness uses the provider fetch instant`() throws {
+        let fetchedAt = try #require(ISO8601DateFormatter().date(from: "2026-07-16T00:30:00Z"))
+        let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral,
+            snapshot: self.snapshot(mistral: self.mistralFixture(), updatedAt: fetchedAt)))
+
+        #expect(summary.sourceUpdatedAt == fetchedAt)
+        #expect(summary.sourceUpdatedAt != self.mistralFixture().updatedAt)
+        #expect(summary.sourceDayKey == "2026-07-16")
+        #expect(summary.bucketTimeZoneIdentifier == "UTC")
     }
 
     @Test

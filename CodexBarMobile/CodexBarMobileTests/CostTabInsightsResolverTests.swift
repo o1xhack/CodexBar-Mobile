@@ -7,10 +7,10 @@ import Testing
 struct CostTabInsightsResolverTests {
     private let now = Date()
 
-    @Test("Empty ledger after clear does not fall back to stale synced cost summary")
-    func emptyClearedLedgerStaysEmpty() {
+    @Test
+    func `Empty ledger after clear does not fall back to stale synced cost summary`() {
         let snapshot = SyncedUsageSnapshot(
-            providers: [self.provider(cost: 12, tokens: 1_200)],
+            providers: [self.provider(cost: 12, tokens: 1200)],
             syncTimestamp: self.now,
             deviceName: "Mac",
             deviceID: "mac-A")
@@ -24,10 +24,10 @@ struct CostTabInsightsResolverTests {
         #expect(insights == nil)
     }
 
-    @Test("Missing ledger after clear does not fall back to stale synced cost summary")
-    func missingClearedLedgerStaysEmpty() {
+    @Test
+    func `Missing ledger after clear does not fall back to stale synced cost summary`() {
         let snapshot = SyncedUsageSnapshot(
-            providers: [self.provider(cost: 12, tokens: 1_200)],
+            providers: [self.provider(cost: 12, tokens: 1200)],
             syncTimestamp: self.now,
             deviceName: "Mac",
             deviceID: "mac-A")
@@ -42,10 +42,10 @@ struct CostTabInsightsResolverTests {
         #expect(insights == nil)
     }
 
-    @Test("Empty ledger without clear falls back to synced snapshot")
-    func emptyUnclearedLedgerFallsBackToSnapshot() {
+    @Test
+    func `Empty ledger without clear falls back to synced snapshot`() {
         let snapshot = SyncedUsageSnapshot(
-            providers: [self.provider(cost: 12, tokens: 1_200)],
+            providers: [self.provider(cost: 12, tokens: 1200)],
             syncTimestamp: self.now,
             deviceName: "Mac",
             deviceID: "mac-A")
@@ -59,8 +59,8 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.total30DayCost == 12)
     }
 
-    @Test("Snapshot insights preserve daily model and service breakdowns")
-    func snapshotInsightsPreserveDailyBreakdowns() throws {
+    @Test
+    func `Snapshot insights preserve daily model and service breakdowns`() throws {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 self.provider(
@@ -74,7 +74,7 @@ struct CostTabInsightsResolverTests {
                     id: "claude",
                     name: "Claude",
                     cost: 12,
-                    tokens: 1_200,
+                    tokens: 1200,
                     models: [SyncCostBreakdown(label: "claude-model", costUSD: 12)],
                     services: [SyncCostBreakdown(label: "claude-api", costUSD: 12)]),
             ],
@@ -102,13 +102,56 @@ struct CostTabInsightsResolverTests {
         #expect(insights.dailyPoints[0].serviceBreakdowns.reduce(0) { $0 + $1.costUSD } == 20)
     }
 
-    @Test("Empty ledger after clear preserves synced budget rows")
-    func emptyClearedLedgerPreservesBudgets() {
+    @Test
+    func `Snapshot insights exclude unavailable daily breakdown dollars`() throws {
+        let unavailable = SyncDailyPoint(
+            dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+            costUSD: 7,
+            totalTokens: 700,
+            modelBreakdowns: [.init(label: "unverified-model", costUSD: 7)],
+            serviceBreakdowns: [.init(label: "unverified-service", costUSD: 7)],
+            costIsKnown: false)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                self.provider(
+                    id: "codex",
+                    name: "Codex",
+                    cost: 5,
+                    tokens: 500,
+                    models: [.init(label: "known-model", costUSD: 5)],
+                    services: [.init(label: "known-service", costUSD: 5)]),
+                self.provider(
+                    id: "grok",
+                    name: "Grok",
+                    cost: 0,
+                    tokens: 700,
+                    daily: [unavailable]),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: nil,
+            isLedgerEnabled: false,
+            isDemoMode: false,
+            localHistoryClearedAt: nil))
+
+        #expect(insights.modelRows.map(\.label) == ["known-model"])
+        #expect(insights.serviceRows.map(\.label) == ["known-service"])
+        #expect(insights.dailyPoints.first?.costIsKnown == false)
+        #expect(insights.dailyPoints.first?.modelBreakdowns.map(\.label) == ["known-model"])
+        #expect(insights.dailyPoints.first?.serviceBreakdowns.map(\.label) == ["known-service"])
+    }
+
+    @Test
+    func `Empty ledger after clear preserves synced budget rows`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 self.provider(
                     cost: 12,
-                    tokens: 1_200,
+                    tokens: 1200,
                     budget: SyncBudgetSnapshot(
                         usedAmount: 40,
                         limitAmount: 100,
@@ -126,15 +169,14 @@ struct CostTabInsightsResolverTests {
             isDemoMode: false,
             localHistoryClearedAt: self.now.addingTimeInterval(60))
 
-        #expect(insights?.total30DayCost == 0)
-        #expect(insights?.providerRows.isEmpty == true)
+        #expect(insights != nil)
         #expect(insights?.budgetRows.count == 1)
     }
 
-    @Test("Partial ledger after clear does not append missing providers from stale snapshots")
-    func partialClearedLedgerDoesNotAppendMissingSnapshotProviders() {
+    @Test
+    func `Partial ledger after clear does not append missing providers from stale snapshots`() {
         let refreshed = self.provider(id: "codex", name: "Codex", cost: 8, tokens: 800)
-        let stale = self.provider(id: "claude", name: "Claude", cost: 12, tokens: 1_200)
+        let stale = self.provider(id: "claude", name: "Claude", cost: 12, tokens: 1200)
         let snapshot = SyncedUsageSnapshot(
             providers: [refreshed, stale],
             syncTimestamp: self.now,
@@ -186,8 +228,8 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.providerRows.map(\.provider.providerID) == ["codex"])
     }
 
-    @Test("Partial ledger fallback contributes to daily and breakdown aggregates")
-    func partialLedgerFallbackContributesToAllAggregates() throws {
+    @Test
+    func `Partial ledger fallback contributes to daily and breakdown aggregates`() throws {
         let codexDay = self.syncDay(
             cost: 8,
             tokens: 800,
@@ -197,7 +239,7 @@ struct CostTabInsightsResolverTests {
             id: "claude",
             name: "Claude",
             cost: 12,
-            tokens: 1_200,
+            tokens: 1200,
             models: [SyncCostBreakdown(label: "claude-model", costUSD: 12)],
             services: [SyncCostBreakdown(label: "claude-api", costUSD: 12)])
         let snapshot = SyncedUsageSnapshot(
@@ -252,8 +294,8 @@ struct CostTabInsightsResolverTests {
         #expect(insights.serviceRows.reduce(0) { $0 + $1.amountUSD } == 20)
     }
 
-    @Test("Short ledger windows count missing-provider daily fallback totals")
-    func shortLedgerWindowCountsMissingProviderDailyFallback() throws {
+    @Test
+    func `Short ledger windows count missing-provider daily fallback totals`() throws {
         let codexDay = self.syncDay(
             daysAgo: 0,
             cost: 2,
@@ -269,7 +311,7 @@ struct CostTabInsightsResolverTests {
         let claudeOldDay = self.syncDay(
             daysAgo: 10,
             cost: 10,
-            tokens: 1_000,
+            tokens: 1000,
             models: [SyncCostBreakdown(label: "claude-old", costUSD: 10)],
             services: [])
         let snapshot = SyncedUsageSnapshot(
@@ -279,7 +321,7 @@ struct CostTabInsightsResolverTests {
                     id: "claude",
                     name: "Claude",
                     cost: 16,
-                    tokens: 1_600,
+                    tokens: 1600,
                     daily: [claudeRecentDay, claudeOldDay]),
             ],
             syncTimestamp: self.now,
@@ -318,8 +360,8 @@ struct CostTabInsightsResolverTests {
         #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-recent"])
     }
 
-    @Test("Ledger refresh signature changes when the local day changes")
-    func ledgerRefreshSignatureIncludesCurrentDay() {
+    @Test
+    func `Ledger refresh signature changes when the local day changes`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [self.provider(cost: 8, tokens: 800)],
             syncTimestamp: self.now,
@@ -346,8 +388,109 @@ struct CostTabInsightsResolverTests {
         #expect(tomorrow.hasPrefix("2026-07-08|"))
     }
 
-    @Test("Ledger refresh signature changes when provider identities change")
-    func ledgerRefreshSignatureIncludesProviderIdentities() {
+    @Test
+    func `Cost refresh clock advances at a producer midnight before reader midnight`() throws {
+        let utc = try #require(TimeZone(identifier: "UTC"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = utc
+        let beforeTokyoMidnight = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 22,
+            hour: 14,
+            minute: 59,
+            second: 59)))
+        let afterTokyoMidnight = beforeTokyoMidnight.addingTimeInterval(2)
+
+        let beforeKey = CostLedgerRefreshClock.refreshKey(
+            now: beforeTokyoMidnight,
+            sourceTimeZoneIdentifiers: ["Asia/Tokyo"])
+        let afterKey = CostLedgerRefreshClock.refreshKey(
+            now: afterTokyoMidnight,
+            sourceTimeZoneIdentifiers: ["Asia/Tokyo"])
+
+        #expect(beforeKey.contains("Asia/Tokyo=2026-08-22"))
+        #expect(afterKey.contains("Asia/Tokyo=2026-08-23"))
+        #expect(beforeKey != afterKey)
+    }
+
+    @Test
+    func `Cost refresh clock sleeps only until the earliest producer boundary`() throws {
+        let utc = try #require(TimeZone(identifier: "UTC"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = utc
+        let now = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 22,
+            hour: 14,
+            minute: 59,
+            second: 30)))
+
+        let nanoseconds = CostLedgerRefreshClock.nanosecondsUntilNextDayBoundary(
+            now: now,
+            sourceTimeZoneIdentifiers: ["Asia/Tokyo"])
+
+        // The clock adds a one-second cushion after the boundary.
+        #expect(nanoseconds == 31_000_000_000)
+    }
+
+    @Test
+    func `Cost refresh clock restarts when the reader time zone changes`() {
+        let sourceTimeZones: Set<String> = ["Asia/Tokyo", "UTC"]
+        let losAngeles = CostLedgerRefreshClock.restartKey(
+            sourceTimeZoneIdentifiers: sourceTimeZones,
+            readerTimeZoneIdentifier: "America/Los_Angeles")
+        let newYork = CostLedgerRefreshClock.restartKey(
+            sourceTimeZoneIdentifiers: sourceTimeZones,
+            readerTimeZoneIdentifier: "America/New_York")
+
+        #expect(losAngeles == "America/Los_Angeles|Asia/Tokyo|UTC")
+        #expect(newYork == "America/New_York|Asia/Tokyo|UTC")
+        #expect(losAngeles != newYork)
+    }
+
+    @Test
+    func `Cost refresh clock reads only valid producer time zones`() {
+        func provider(id: String, timeZoneIdentifier: String?) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: id,
+                providerName: id,
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 1,
+                    sessionTokens: 1,
+                    last30DaysCostUSD: 1,
+                    last30DaysTokens: 1,
+                    daily: [],
+                    bucketTimeZoneIdentifier: timeZoneIdentifier))
+        }
+
+        let snapshot = SyncedUsageSnapshot(
+            providers: [
+                provider(id: "utc", timeZoneIdentifier: "UTC"),
+                provider(id: "tokyo", timeZoneIdentifier: "Asia/Tokyo"),
+                provider(id: "invalid", timeZoneIdentifier: "Not/A-Time-Zone"),
+                provider(id: "legacy", timeZoneIdentifier: nil),
+            ],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        #expect(CostLedgerRefreshClock.sourceTimeZoneIdentifiers(in: [snapshot]) == [
+            "Asia/Tokyo",
+            "UTC",
+        ])
+    }
+
+    @Test
+    func `Ledger refresh signature changes when provider identities change`() {
         let codex = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -413,14 +556,47 @@ struct CostTabInsightsResolverTests {
         #expect(claudeSignature.contains("mac-A:claude|claude@example.com"))
     }
 
-    @Test("Summary-only snapshot after clear can still fill missing ledger provider")
-    func freshSummaryOnlySnapshotAfterClearCanFallback() {
+    @Test
+    func `Ledger refresh signature changes for an independent provider publication`() {
+        let provider = self.provider(cost: 8, tokens: 800)
+        let first = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A",
+            providerPublicationTimestamps: [
+                SyncedUsageSnapshot.providerPublicationKey(for: provider): self.now,
+            ])
+        let second = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A",
+            providerPublicationTimestamps: [
+                SyncedUsageSnapshot.providerPublicationKey(for: provider): self.now.addingTimeInterval(60),
+            ])
+
+        func signature(_ snapshot: SyncedUsageSnapshot) -> String {
+            CostLedgerRefreshSignature.make(
+                isEnabled: true,
+                windowDays: 30,
+                activeDeviceIDs: ["mac-A"],
+                snapshots: [snapshot],
+                clearTombstone: 0,
+                currentDayKey: "2026-07-07")
+        }
+
+        #expect(signature(first) != signature(second))
+    }
+
+    @Test
+    func `Summary-only snapshot after clear can still fill missing ledger provider`() {
         let clearTime = self.now
         let freshSummaryOnly = self.provider(
             id: "claude",
             name: "Claude",
             cost: 14,
-            tokens: 1_400,
+            tokens: 1400,
             lastUpdated: clearTime.addingTimeInterval(60),
             includeDaily: false)
         let snapshot = SyncedUsageSnapshot(
@@ -439,6 +615,33 @@ struct CostTabInsightsResolverTests {
         #expect(insights?.total30DayCost == 14)
         #expect(insights?.providerRows.map(\.provider.providerID) == ["claude"])
         #expect(insights?.dailyPoints.isEmpty == true)
+    }
+
+    @Test
+    func `Fresh usage refresh cannot restore a summary whose cost source predates clear`() {
+        let clearTime = self.now
+        let staleCost = self.provider(
+            id: "claude",
+            name: "Claude",
+            cost: 14,
+            tokens: 1400,
+            lastUpdated: clearTime.addingTimeInterval(60),
+            includeDaily: false,
+            sourceUpdatedAt: clearTime.addingTimeInterval(-60))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [staleCost],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let insights = CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: self.emptyAggregation(windowDays: 90),
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: clearTime)
+
+        #expect(insights == nil)
     }
 
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
@@ -460,7 +663,8 @@ struct CostTabInsightsResolverTests {
         tokens: Int,
         budget: SyncBudgetSnapshot? = nil,
         lastUpdated: Date? = nil,
-        includeDaily: Bool = true) -> ProviderUsageSnapshot
+        includeDaily: Bool = true,
+        sourceUpdatedAt: Date? = nil) -> ProviderUsageSnapshot
     {
         self.provider(
             id: id,
@@ -470,6 +674,7 @@ struct CostTabInsightsResolverTests {
             budget: budget,
             lastUpdated: lastUpdated,
             includeDaily: includeDaily,
+            sourceUpdatedAt: sourceUpdatedAt,
             models: [],
             services: [])
     }
@@ -509,6 +714,7 @@ struct CostTabInsightsResolverTests {
         budget: SyncBudgetSnapshot? = nil,
         lastUpdated: Date? = nil,
         includeDaily: Bool = true,
+        sourceUpdatedAt: Date? = nil,
         models: [SyncCostBreakdown],
         services: [SyncCostBreakdown]) -> ProviderUsageSnapshot
     {
@@ -534,7 +740,8 @@ struct CostTabInsightsResolverTests {
                 last30DaysTokens: tokens,
                 daily: includeDaily ? [daily] : [],
                 isEstimated: false,
-                historyDays: 30),
+                historyDays: 30,
+                sourceUpdatedAt: sourceUpdatedAt),
             budget: budget)
     }
 

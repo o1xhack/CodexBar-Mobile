@@ -330,17 +330,25 @@ final class SyncCoordinator {
                 print("[CodexBar Sync] \(provider.rawValue): no utilization history")
             }
 
+            // Provider-specific by design: OpenRouter Management Activity is provider-level spend, not API-key spend.
+            let detachesProviderCost = provider == .openrouter
             let providerSnapshot = self.buildProviderUsageSnapshot(
                 for: provider,
                 snapshot: snapshot,
                 error: error,
                 metadata: meta,
-                sharedCostSummary: sharedCostSummary,
+                sharedCostSummary: detachesProviderCost ? nil : sharedCostSummary,
                 sharedUtilizationHistory: sharedUtilizationHistory,
+                clearSharedCostOwnership: detachesProviderCost,
                 accountRecordKey: self.settings.effectiveSelectedTokenAccount(for: provider)
                     .map(Self.tokenAccountRecordKey))
 
             providerSnapshots.append(providerSnapshot)
+            if detachesProviderCost, let sharedCostSummary {
+                providerSnapshots.append(self.buildOpenRouterManagementCostSnapshot(
+                    summary: sharedCostSummary,
+                    metadata: meta))
+            }
         }
 
         // Multi-account capture + expand. Records the active account's
@@ -821,6 +829,7 @@ final class SyncCoordinator {
                 period: cost.period,
                 isEstimated: confidence == .estimated || confidence == .percentOnly)
         }
+        let costSummary = snapshot?.costUsage.flatMap(Self.mapPluginCostSummary)
 
         let accountRecordKey = "device-\(deviceID.lowercased())"
         let accountIdentities: [String] = {
@@ -845,6 +854,7 @@ final class SyncCoordinator {
             statusMessage: error,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
+            costSummary: costSummary,
             budget: budget,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
@@ -859,6 +869,86 @@ final class SyncCoordinator {
             providerIconTintHex: plugin?.manifest.icon.tint)
     }
 
+    /// Custom-provider `costUsage` uses the same additive wire envelope as
+    /// first-party cost sources. Plugin dates are canonical UTC day keys, so
+    /// this bridge preserves both their coverage metadata and source calendar
+    /// without adding a CloudKit field or provider-specific schema.
+    private static func mapPluginCostSummary(_ tokenSnapshot: CostUsageTokenSnapshot) -> SyncCostSummary {
+        let daily: [SyncDailyPoint] = tokenSnapshot.daily.map { entry in
+            let coverage = entry.coverageCounts
+            let modelBreakdowns = (entry.modelBreakdowns ?? [])
+                .compactMap { breakdown -> SyncCostBreakdown? in
+                    guard let cost = breakdown.costUSD, cost > 0 else { return nil }
+                    return SyncCostBreakdown(
+                        label: breakdown.modelName,
+                        costUSD: cost,
+                        isEstimated: breakdown.isEstimated,
+                        standardCostUSD: breakdown.standardCostUSD,
+                        priorityCostUSD: breakdown.priorityCostUSD,
+                        standardTokens: breakdown.standardTokens,
+                        priorityTokens: breakdown.priorityTokens)
+                }
+                .sorted { lhs, rhs in
+                    if lhs.costUSD == rhs.costUSD {
+                        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    }
+                    return lhs.costUSD > rhs.costUSD
+                }
+            return SyncDailyPoint(
+                dayKey: entry.date,
+                costUSD: entry.costUSD ?? 0,
+                totalTokens: entry.totalTokens ?? 0,
+                modelBreakdowns: modelBreakdowns,
+                serviceBreakdowns: [],
+                isEstimated: coverage.estimated > 0 || modelBreakdowns.contains(where: { $0.isEstimated == true })
+                    ? true
+                    : nil,
+                costIsKnown: entry.costUSD != nil && coverage.unpriced == 0 && coverage.unmetered == 0)
+        }
+        let windowSummary = Self.syncWindowSummary(tokenSnapshot)
+        let tokenMix = windowSummary.tokenMix.hasAnyClass
+            ? SyncCostTokenMix(
+                inputTokens: windowSummary.tokenMix.inputTokens,
+                outputTokens: windowSummary.tokenMix.outputTokens,
+                cacheReadTokens: windowSummary.tokenMix.cacheReadTokens,
+                cacheCreationTokens: windowSummary.tokenMix.cacheCreationTokens,
+                reasoningTokens: windowSummary.tokenMix.reasoningTokens)
+            : nil
+        let bucketTimeZoneIdentifier = tokenSnapshot.bucketTimeZoneIdentifier ?? "UTC"
+        let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? .gmt
+        let sourceDayKey = tokenSnapshot.windowEndDayKey
+            ?? Self.producerDayKey(tokenSnapshot.updatedAt, timeZone: bucketTimeZone)
+
+        return SyncCostSummary(
+            sessionCostUSD: tokenSnapshot.sessionCostUSD,
+            sessionTokens: tokenSnapshot.sessionTokens,
+            last30DaysCostUSD: tokenSnapshot.last30DaysCostUSD,
+            last30DaysTokens: tokenSnapshot.last30DaysTokens,
+            daily: daily,
+            isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
+            historyDays: tokenSnapshot.historyDays,
+            sessionRequests: tokenSnapshot.sessionRequests,
+            last30DaysRequests: tokenSnapshot.last30DaysRequests,
+            currencyCode: tokenSnapshot.currencyCode,
+            meteredCostUSD: tokenSnapshot.meteredCostUSD,
+            costProvenance: Self.syncCostProvenance(windowSummary.provenance),
+            coverage: SyncCostCoverage(
+                priced: windowSummary.coverage.priced,
+                unpriced: windowSummary.coverage.unpriced,
+                unmetered: windowSummary.coverage.unmetered,
+                estimated: windowSummary.coverage.estimated),
+            tokenMix: tokenMix,
+            sourceUpdatedAt: tokenSnapshot.updatedAt,
+            sourceDayKey: sourceDayKey,
+            sessionDayKey: tokenSnapshot.sessionCostUSD != nil
+                || tokenSnapshot.sessionTokens != nil
+                || tokenSnapshot.sessionRequests != nil
+                ? sourceDayKey
+                : nil,
+            bucketTimeZoneIdentifier: bucketTimeZone.identifier,
+            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
+    }
+
     // swiftlint:disable:next function_body_length
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
@@ -867,6 +957,7 @@ final class SyncCoordinator {
         metadata: ProviderMetadata?,
         sharedCostSummary: SyncCostSummary?,
         sharedUtilizationHistory: [SyncUtilizationSeries]?,
+        clearSharedCostOwnership: Bool = false,
         accountRecordKey requestedAccountRecordKey: String? = nil) -> ProviderUsageSnapshot
     {
         // Build dynamic rate windows array with labels from metadata.
@@ -1031,6 +1122,9 @@ final class SyncCoordinator {
             provider: provider,
             snapshot: snapshot,
             providerCost: providerCost)
+        let resolvedCostSummary = sharedCostSummary
+            ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
+            ?? Self.mapXAICostSummary(provider: provider, snapshot: snapshot)
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
@@ -1041,9 +1135,8 @@ final class SyncCoordinator {
             statusMessage: error,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
-            costSummary: sharedCostSummary
-                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
-                ?? Self.mapXAICostSummary(provider: provider, snapshot: snapshot),
+            costSummary: resolvedCostSummary,
+            costSummaryCleared: clearSharedCostOwnership && resolvedCostSummary == nil ? true : nil,
             budget: budgetSnap,
             subscriptionExpiresAt: snapshot?.subscriptionExpiresAt,
             subscriptionRenewsAt: snapshot?.subscriptionRenewsAt,
@@ -1127,6 +1220,26 @@ final class SyncCoordinator {
 
     static func tokenAccountRecordKey(_ account: ProviderTokenAccount) -> String {
         "token-\(account.id.uuidString.lowercased())"
+    }
+
+    private func buildOpenRouterManagementCostSnapshot(
+        summary: SyncCostSummary,
+        metadata: ProviderMetadata?) -> ProviderUsageSnapshot
+    {
+        let sourceSnapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: summary.sourceUpdatedAt ?? Date())
+        // Provider-specific by design: the stable provider-level cost envelope exists only for OpenRouter Management
+        // Activity.
+        return self.buildProviderUsageSnapshot(
+            for: .openrouter,
+            snapshot: sourceSnapshot,
+            error: nil,
+            metadata: metadata,
+            sharedCostSummary: summary,
+            sharedUtilizationHistory: nil,
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
     }
 
     static func mapProviderAmount(
@@ -1673,10 +1786,34 @@ final class SyncCoordinator {
 
             let providerID = tokenProvider.rawValue
             let meta = self.store.providerMetadata[tokenProvider]
-            let sharedCostSummary = self.makeCostSummary(for: tokenProvider)
+            // Provider-specific by design: Mistral billing history is scoped to the cookie/account that
+            // produced each entry. It must be mapped from every account
+            // snapshot below, never assigned to one selected-account owner as
+            // though it were a machine-local shared ledger.
+            let usesAccountNativeCostSummaries = tokenProvider == .mistral
+            let sharedCostSummary = usesAccountNativeCostSummaries
+                ? nil
+                : self.makeCostSummary(for: tokenProvider)
             let sharedUtilizationHistory = self.makeUtilizationHistory(
                 for: tokenProvider)
             let livingIDs = Set(entries.map(\.account.id.uuidString))
+            // Provider-specific by design: OpenRouter Management Activity must not follow the selected API-key account.
+            let usesStableProviderCostOwner = tokenProvider == .openrouter
+            let providerLevelCostOwnerIndex: Int? = if usesStableProviderCostOwner ||
+                usesAccountNativeCostSummaries
+            {
+                nil
+            } else if let selectedAccountID = self.settings.effectiveSelectedTokenAccount(
+                for: tokenProvider)?.id
+            {
+                entries.firstIndex { $0.account.id == selectedAccountID }
+                    ?? entries.startIndex
+            } else {
+                // Some legacy/test configurations expose co-resident account
+                // snapshots without a persisted selection. Retain the old
+                // single-owner behavior only in that unscoped case.
+                entries.startIndex
+            }
 
             // Remove the active-only entry that the main loop appended for
             // this provider — we replace it with the full per-account list
@@ -1685,20 +1822,36 @@ final class SyncCoordinator {
             // any data.
             providerSnapshots.removeAll { $0.providerID == providerID }
 
-            for entry in entries {
+            for (entryIndex, entry) in entries.enumerated() {
+                // Provider-level cost history is computed once above. Copying it into
+                // every token-account envelope would multiply the same machine-local
+                // rows on iOS. It belongs to the actively fetched account, not
+                // whichever account happens to appear first in configuration order.
+                // Account-native mappers below still derive their own per-account cost
+                // directly from `entry.snapshot` when that provider supports it.
+                let providerLevelCostSummary = entryIndex == providerLevelCostOwnerIndex
+                    ? sharedCostSummary
+                    : nil
                 let perAccount = self.buildProviderUsageSnapshot(
                     for: tokenProvider,
                     snapshot: entry.snapshot,
                     error: entry.error,
                     metadata: meta,
-                    sharedCostSummary: sharedCostSummary,
+                    sharedCostSummary: providerLevelCostSummary,
                     sharedUtilizationHistory: sharedUtilizationHistory,
+                    clearSharedCostOwnership: usesStableProviderCostOwner
+                        || (!usesAccountNativeCostSummaries && entryIndex != providerLevelCostOwnerIndex),
                     accountRecordKey: Self.tokenAccountRecordKey(entry.account))
                 self.multiAccountCache.record(
                     perAccount,
                     providerID: providerID,
                     accountID: entry.account.id.uuidString)
                 providerSnapshots.append(perAccount)
+            }
+            if usesStableProviderCostOwner, let sharedCostSummary {
+                providerSnapshots.append(self.buildOpenRouterManagementCostSnapshot(
+                    summary: sharedCostSummary,
+                    metadata: meta))
             }
 
             // Drop cache entries for accounts the user removed since last push.
@@ -1943,7 +2096,18 @@ final class SyncCoordinator {
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
         let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
-        let serviceBreakdownsByDay = self.dashboardServiceBreakdowns(for: provider)
+        let fallbackBucketTimeZone = self.settings.costUsageBucketCalendar.timeZone
+        let tokenBucketTimeZoneIdentifier = tokenSnapshot?.bucketTimeZoneIdentifier
+            ?? Self.costSummaryBucketTimeZoneIdentifier(
+                for: provider,
+                fallback: fallbackBucketTimeZone,
+                local: .current)
+        let dashboardTimeZoneIdentifier = self.store.openAIDashboard?.usageBreakdownTimeZoneIdentifier
+        let dashboardCalendarMatchesToken = dashboardTimeZoneIdentifier == tokenBucketTimeZoneIdentifier
+        let canPublishDashboardRows = tokenSnapshot == nil || dashboardCalendarMatchesToken
+        let serviceBreakdownsByDay = canPublishDashboardRows
+            ? self.dashboardServiceBreakdowns(for: provider)
+            : [:]
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }
 
@@ -2028,6 +2192,42 @@ final class SyncCoordinator {
         // (including this normal shared-summary path).
         // Provider-specific by design: Mistral session fields mirror its latest dated billing bucket, not a Today API.
         let publishesSessionFallback = provider != .mistral
+        let costSourceUpdatedAt = self.costSummarySourceUpdatedAt(
+            tokenSnapshot,
+            serviceFallbackContributed: serviceFallbackContributed)
+        // Dashboard day keys are Mac-local while token-scanner keys use the
+        // pinned cost calendar. A daily aggregate cannot be losslessly split
+        // across another calendar's boundary, so mixed calendars fail closed:
+        // keep token rows and omit dashboard fallback. For dashboard-only
+        // summaries, publish the captured dashboard calendar itself.
+        let bucketTimeZoneIdentifier = if tokenSnapshot == nil,
+                                          !serviceBreakdownsByDay.isEmpty,
+                                          let dashboardTimeZoneIdentifier
+        {
+            dashboardTimeZoneIdentifier
+        } else {
+            tokenBucketTimeZoneIdentifier
+        }
+        let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? fallbackBucketTimeZone
+        let sourceDayKey = costSourceUpdatedAt.map { Self.producerDayKey($0, timeZone: bucketTimeZone) }
+        let sessionDayKey = tokenSnapshot.map { Self.producerDayKey($0.updatedAt, timeZone: bucketTimeZone) }
+        let sessionCostIsKnown: Bool? = if publishesSessionFallback,
+                                           let tokenSnapshot,
+                                           let sessionCost = tokenSnapshot.sessionCostUSD,
+                                           let sessionDayKey
+        {
+            if let currentDay = daily.first(where: { $0.dayKey == sessionDayKey }) {
+                currentDay.costIsKnown == true
+            } else {
+                // A completed scan that found no current-day row establishes
+                // an authoritative zero. During catch-up, the scanner also
+                // synthesizes zero when only older rows exist; that zero is a
+                // lower bound and must remain unavailable on iOS.
+                tokenSnapshot.historyCoverageIsEstablished && sessionCost == 0
+            }
+        } else {
+            nil
+        }
 
         return SyncCostSummary(
             sessionCostUSD: publishesSessionFallback ? tokenSnapshot?.sessionCostUSD : nil,
@@ -2047,6 +2247,11 @@ final class SyncCoordinator {
                 : nil,
             coverage: costMetadataIsAligned ? syncCoverage : nil,
             tokenMix: syncTokenMix,
+            sourceUpdatedAt: costSourceUpdatedAt,
+            sourceDayKey: sourceDayKey,
+            sessionDayKey: publishesSessionFallback ? sessionDayKey : nil,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier,
+            sessionCostIsKnown: sessionCostIsKnown,
             // Service-only dashboard rows make the provenance/count metadata
             // incomparable with the token window, but they do not make an
             // incomplete token scan complete. Preserve the fail-closed
@@ -2063,6 +2268,27 @@ final class SyncCoordinator {
         }
     }
 
+    /// Provider-native billing APIs own their calendar boundary. Bedrock,
+    /// OpenAI Admin, Mistral, OpenRouter, and xAI emit UTC `yyyy-MM-dd` buckets. Grok and
+    /// OpenCode Go currently bucket their snapshot-derived local rows in the
+    /// Mac's current timezone. Other local scanners use the pinned cost calendar.
+    static func costSummaryBucketTimeZoneIdentifier(
+        for provider: UsageProvider,
+        fallback: TimeZone,
+        local: TimeZone = .current) -> String
+    {
+        // Provider-specific by design: native billing APIs define UTC buckets, while local
+        // snapshot readers still bucket in the Mac's current timezone instead of the pinned scanner calendar.
+        switch provider {
+        case .bedrock, .openai, .mistral, .openrouter, .xai:
+            "UTC"
+        case .cursor, .grok, .opencodego:
+            local.identifier
+        default:
+            fallback.identifier
+        }
+    }
+
     /// Builds a cost summary for Mistral from its native daily usage buckets
     /// (gap C). Mistral spend is API-billing based (no local token DB), so the
     /// generic token-DB `makeCostSummary` returns nil for it — without this,
@@ -2074,7 +2300,7 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncCostSummary?
     {
-        guard provider == .mistral, let m = snapshot?.mistralUsage, !m.daily.isEmpty else {
+        guard provider == .mistral, let snapshot, let m = snapshot.mistralUsage, !m.daily.isEmpty else {
             return nil
         }
         // Reuse the provider's validated projection instead of trusting raw
@@ -2119,6 +2345,12 @@ final class SyncCoordinator {
                 cacheCreationTokens: windowSummary.tokenMix.cacheCreationTokens,
                 reasoningTokens: windowSummary.tokenMix.reasoningTokens)
             : nil
+        // Mistral's API supplies ISO calendar dates and validates its history
+        // in UTC. Keep the wire metadata in that same calendar; tagging these
+        // unchanged day keys with the user's configurable local-cost timezone
+        // would shift Today at UTC/local midnight boundaries.
+        let apiTimeZone = TimeZone(identifier: "UTC") ?? .gmt
+
         // Do not publish Mistral's latest observed billing bucket as a session
         // fallback. Cached provider snapshots can be republished after midnight,
         // while iOS labels session fields as Today when no matching daily point
@@ -2143,6 +2375,9 @@ final class SyncCoordinator {
                 unmetered: windowSummary.coverage.unmetered,
                 estimated: windowSummary.coverage.estimated),
             tokenMix: tokenMix,
+            sourceUpdatedAt: snapshot.updatedAt,
+            sourceDayKey: Self.producerDayKey(snapshot.updatedAt, timeZone: apiTimeZone),
+            bucketTimeZoneIdentifier: "UTC",
             historyCoverageIsEstablished: projected.historyCoverageIsEstablished)
     }
 
@@ -2310,6 +2545,36 @@ final class SyncCoordinator {
     private func breakdownTotal(_ breakdowns: [SyncCostBreakdown]) -> Double? {
         guard !breakdowns.isEmpty else { return nil }
         return breakdowns.reduce(0) { $0 + $1.costUSD }
+    }
+
+    private func costSummarySourceUpdatedAt(
+        _ tokenSnapshot: CostUsageTokenSnapshot?,
+        serviceFallbackContributed: Bool) -> Date?
+    {
+        // A dashboard refresh is an independent cost source only when one of
+        // its service rows actually won the per-day fallback selection. Merely
+        // carrying an overlapping historical service breakdown must not redate
+        // the token-backed session/window totals and make stale data look like
+        // a complete current-day snapshot on iOS.
+        guard serviceFallbackContributed else { return tokenSnapshot?.updatedAt }
+        // The combined summary is only as fresh as its oldest contributing
+        // source. A legacy dashboard cache without an independent breakdown
+        // timestamp must remain unknown rather than borrowing the token scan's
+        // newer clock.
+        guard let dashboardUpdatedAt = self.store.openAIDashboard?.usageBreakdownUpdatedAt else {
+            return nil
+        }
+        guard let tokenUpdatedAt = tokenSnapshot?.updatedAt else { return dashboardUpdatedAt }
+        return min(tokenUpdatedAt, dashboardUpdatedAt)
+    }
+
+    private static func producerDayKey(_ date: Date, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     private static func displayServiceName(_ rawName: String) -> String {

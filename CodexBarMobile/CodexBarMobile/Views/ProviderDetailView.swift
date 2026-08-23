@@ -58,6 +58,10 @@ struct ProviderDetailView: View {
     /// re-renders against the selected snapshot — mirroring Mac's
     /// "click into provider menu → tabs" UX.
     let group: ProviderAccountGroup
+    /// Captured by the root cost-boundary clock. Passing the same instant to
+    /// every Today/history accessor prevents an open detail view from retaining
+    /// yesterday's producer-calendar freshness after midnight.
+    let costReferenceDate: Date
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -68,17 +72,19 @@ struct ProviderDetailView: View {
     /// haven't been refactored to pass a group yet (e.g., `RawProviderDetailView`
     /// in `ContentView`, SwiftUI previews). Wraps the snapshot in a
     /// 1-element group so the body code path is uniform.
-    init(provider: ProviderUsageSnapshot) {
+    init(provider: ProviderUsageSnapshot, costReferenceDate: Date = Date()) {
         self.group = ProviderAccountGroup(
             providerID: provider.providerID,
             providerName: provider.providerName,
             accounts: [provider])
+        self.costReferenceDate = costReferenceDate
     }
 
     /// Multi-account init — preferred path from the post-merge,
     /// post-grouping Usage list.
-    init(group: ProviderAccountGroup) {
+    init(group: ProviderAccountGroup, costReferenceDate: Date = Date()) {
         self.group = group
+        self.costReferenceDate = costReferenceDate
     }
 
     /// Computed accessor for the currently-selected snapshot. **All
@@ -520,8 +526,11 @@ struct ProviderDetailView: View {
         return abs(meteredCost - displayedCost) >= 0.005
     }
 
-    static func shouldShowIncompleteCostWarning(_ cost: SyncCostSummary) -> Bool {
-        cost.hasIncompleteHistoricalCostCoverage
+    static func shouldShowIncompleteCostWarning(
+        _ cost: SyncCostSummary,
+        now: Date = Date()) -> Bool
+    {
+        cost.hasIncompleteHistoricalCostCoverage(at: now)
     }
 
     private func costSummarySection(_ cost: SyncCostSummary) -> some View {
@@ -530,7 +539,7 @@ struct ProviderDetailView: View {
         // See `SyncCostSummary+Today.swift` for reasoning. Cost + tokens
         // are resolved through one `todayTotals()` call so they can't
         // straddle midnight with mismatched day keys.
-        let today = cost.todayTotals()
+        let today = cost.todayTotals(now: self.costReferenceDate)
         return VStack(alignment: .leading, spacing: 8) {
             Text("Cost & Usage")
                 .font(.headline)
@@ -599,7 +608,7 @@ struct ProviderDetailView: View {
                 .foregroundStyle(.secondary)
         }
 
-        if Self.shouldShowIncompleteCostWarning(cost) {
+        if Self.shouldShowIncompleteCostWarning(cost, now: self.costReferenceDate) {
             Text("Historical cost coverage is incomplete.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)

@@ -43,6 +43,7 @@ public enum XAICostUsageMapping {
             meteredCostUSD: total,
             costProvenance: .vendorMetered,
             daily: entries,
+            bucketTimeZoneIdentifier: "UTC",
             updatedAt: snapshot.updatedAt)
     }
 

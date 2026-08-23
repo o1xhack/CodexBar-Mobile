@@ -132,10 +132,26 @@ defineProvider({
           activityDegradation = activityDegradationReason(failed.status);
         } else {
           const payloads = [historyResponse, todayResponse].map((response) => JSON.parse(response.bodyText));
-          const rows = payloads.flatMap((payload) => {
+          const validatedRows = payloads.map((payload) => {
             if (!payload || !Array.isArray(payload.data)) throw new TypeError("activity.data must be an array");
             return payload.data;
           });
+          // The unfiltered history endpoint may include today's still-moving
+          // bucket. Its counters can legitimately differ from the concurrently
+          // fetched date-specific response, so let the latter deterministically
+          // replace Today while retaining strict duplicate checks everywhere
+          // else. Malformed history rows remain in the stream and still fail.
+          const rows = [
+            ...validatedRows[0].filter(
+              (row) =>
+                !row ||
+                typeof row !== "object" ||
+                Array.isArray(row) ||
+                typeof row.date !== "string" ||
+                row.date.trim() !== today,
+            ),
+            ...validatedRows[1],
+          ];
           if (rows.length > 20000) throw new TypeError("activity.data exceeds 20000 rows");
           const seen = new Map();
           const entries = [];

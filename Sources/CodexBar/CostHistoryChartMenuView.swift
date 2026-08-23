@@ -65,6 +65,7 @@ struct CostHistoryChartMenuView: View {
     private let costMultiplier: Double
     private let historyDays: Int
     private let historyCoverageIsEstablished: Bool
+    private let bucketTimeZoneIdentifier: String?
     private let windowLabel: String?
     private let projects: [CostUsageProjectBreakdown]
     private let sessions: [CostUsageSessionBreakdown]
@@ -80,6 +81,7 @@ struct CostHistoryChartMenuView: View {
         costMultiplier: Double = 1,
         historyDays: Int = 30,
         historyCoverageIsEstablished: Bool = true,
+        bucketTimeZoneIdentifier: String? = nil,
         windowLabel: String? = nil,
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
@@ -92,19 +94,33 @@ struct CostHistoryChartMenuView: View {
         self.costMultiplier = costMultiplier
         self.historyDays = max(1, min(365, historyDays))
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
         self.windowLabel = windowLabel
         self.projects = projects
         self.sessions = sessions
         self.width = width
-        self._metric = State(initialValue: Self.defaultMetric(provider: provider, daily: daily))
+        self._metric = State(initialValue: Self.defaultMetric(
+            provider: provider,
+            daily: daily,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier))
     }
 
     var body: some View {
-        let availableMetrics = Self.availableMetrics(provider: self.provider, daily: self.daily)
+        let availableMetrics = Self.availableMetrics(
+            provider: self.provider,
+            daily: self.daily,
+            bucketTimeZoneIdentifier: self.bucketTimeZoneIdentifier)
         let activeMetric = availableMetrics.contains(self.metric)
             ? self.metric
-            : Self.defaultMetric(provider: self.provider, daily: self.daily)
-        let model = Self.makeModel(provider: self.provider, daily: self.daily, metric: activeMetric)
+            : Self.defaultMetric(
+                provider: self.provider,
+                daily: self.daily,
+                bucketTimeZoneIdentifier: self.bucketTimeZoneIdentifier)
+        let model = Self.makeModel(
+            provider: self.provider,
+            daily: self.daily,
+            metric: activeMetric,
+            bucketTimeZoneIdentifier: self.bucketTimeZoneIdentifier)
         let showsHistoryRefreshing = Self.showsHistoryRefreshing(
             provider: self.provider,
             metric: activeMetric,
@@ -545,10 +561,14 @@ struct CostHistoryChartMenuView: View {
     private static func makeModel(
         provider: UsageProvider,
         daily: [DailyEntry],
-        metric: ChartMetric) -> Model
+        metric: ChartMetric,
+        bucketTimeZoneIdentifier: String? = nil) -> Model
     {
         let sorted = daily.sorted { lhs, rhs in lhs.date < rhs.date }
-        let detailLayout = self.detailLayout(provider: provider, daily: sorted)
+        let detailLayout = self.detailLayout(
+            provider: provider,
+            daily: sorted,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
         var points: [Point] = []
         points.reserveCapacity(sorted.count)
 
@@ -564,7 +584,12 @@ struct CostHistoryChartMenuView: View {
         var peak: (key: String, value: Double)?
         var maxValue: Double = 0
         for entry in sorted {
-            guard let (value, date) = self.chartPointInput(for: entry, provider: provider, metric: metric) else {
+            guard let (value, date) = self.chartPointInput(
+                for: entry,
+                provider: provider,
+                metric: metric,
+                bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
+            else {
                 continue
             }
             let point = Point(
@@ -618,7 +643,8 @@ struct CostHistoryChartMenuView: View {
     private static func dateFromDayKey(
         _ key: String,
         provider: UsageProvider,
-        calendar sourceCalendar: Calendar = .autoupdatingCurrent) -> Date?
+        calendar sourceCalendar: Calendar = .autoupdatingCurrent,
+        bucketTimeZoneIdentifier: String? = nil) -> Date?
     {
         let bytes = Array(key.utf8)
         let digitIndices = [0, 1, 2, 3, 5, 6, 8, 9]
@@ -635,7 +661,10 @@ struct CostHistoryChartMenuView: View {
               let day = Int(parts[2]) else { return nil }
 
         let displayCalendar = self.gregorianCalendar(timeZone: sourceCalendar.timeZone)
-        let bucketCalendar = self.bucketCalendar(provider: provider, displayCalendar: displayCalendar)
+        let bucketCalendar = self.bucketCalendar(
+            provider: provider,
+            displayCalendar: displayCalendar,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
         guard let date = bucketCalendar.date(from: DateComponents(year: year, month: month, day: day)) else {
             return nil
         }
@@ -650,7 +679,8 @@ struct CostHistoryChartMenuView: View {
     private static func chartPointInput(
         for entry: DailyEntry,
         provider: UsageProvider,
-        metric: ChartMetric) -> (value: Double, date: Date)?
+        metric: ChartMetric,
+        bucketTimeZoneIdentifier: String? = nil) -> (value: Double, date: Date)?
     {
         let value: Double? = switch metric {
         case .tokens:
@@ -659,20 +689,42 @@ struct CostHistoryChartMenuView: View {
             entry.costUSD.flatMap { $0 >= 0 ? $0 : nil }
         }
         guard let value else { return nil }
-        guard let date = self.dateFromDayKey(entry.date, provider: provider) else { return nil }
+        guard let date = self.dateFromDayKey(
+            entry.date,
+            provider: provider,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
+        else { return nil }
         return (value, date)
     }
 
-    private static func availableMetrics(provider: UsageProvider, daily: [DailyEntry]) -> [ChartMetric] {
+    private static func availableMetrics(
+        provider: UsageProvider,
+        daily: [DailyEntry],
+        bucketTimeZoneIdentifier: String? = nil) -> [ChartMetric]
+    {
         ChartMetric.allCases.filter { metric in
-            daily.contains { self.chartPointInput(for: $0, provider: provider, metric: metric) != nil }
+            daily.contains {
+                self.chartPointInput(
+                    for: $0,
+                    provider: provider,
+                    metric: metric,
+                    bucketTimeZoneIdentifier: bucketTimeZoneIdentifier) != nil
+            }
         }
     }
 
-    private static func detailLayout(provider: UsageProvider, daily: [DailyEntry]) -> DetailLayout {
+    private static func detailLayout(
+        provider: UsageProvider,
+        daily: [DailyEntry],
+        bucketTimeZoneIdentifier: String? = nil) -> DetailLayout
+    {
         let visibleEntries = daily.filter { entry in
             ChartMetric.allCases.contains {
-                self.chartPointInput(for: entry, provider: provider, metric: $0) != nil
+                self.chartPointInput(
+                    for: entry,
+                    provider: provider,
+                    metric: $0,
+                    bucketTimeZoneIdentifier: bucketTimeZoneIdentifier) != nil
             }
         }
         let breakdowns = visibleEntries.compactMap(\.modelBreakdowns)
@@ -690,15 +742,31 @@ struct CostHistoryChartMenuView: View {
         return calendar
     }
 
-    private static func bucketCalendar(provider: UsageProvider, displayCalendar: Calendar) -> Calendar {
+    private static func bucketCalendar(
+        provider: UsageProvider,
+        displayCalendar: Calendar,
+        bucketTimeZoneIdentifier: String?) -> Calendar
+    {
+        if let bucketTimeZoneIdentifier,
+           let timeZone = TimeZone(identifier: bucketTimeZoneIdentifier)
+        {
+            return self.gregorianCalendar(timeZone: timeZone)
+        }
         // Provider-specific by design: Mistral uses UTC day buckets; Codex alone defaults to exact local tokens.
         guard provider == .mistral else { return displayCalendar }
         // Mistral day keys are UTC buckets; map their boundary into the matching local display day.
         return self.gregorianCalendar(timeZone: TimeZone(secondsFromGMT: 0) ?? .gmt)
     }
 
-    private static func defaultMetric(provider: UsageProvider, daily: [DailyEntry]) -> ChartMetric {
-        let available = self.availableMetrics(provider: provider, daily: daily)
+    private static func defaultMetric(
+        provider: UsageProvider,
+        daily: [DailyEntry],
+        bucketTimeZoneIdentifier: String? = nil) -> ChartMetric
+    {
+        let available = self.availableMetrics(
+            provider: provider,
+            daily: daily,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
         // Provider-specific by design: Codex exposes exact local token totals, so its chart defaults to tokens.
         if provider == .codex, available.contains(.tokens) {
             return .tokens
@@ -1020,6 +1088,7 @@ extension CostHistoryChartMenuView {
         let costMultiplierBitPattern: UInt64
         let historyDays: Int
         let historyCoverageIsEstablished: Bool
+        let bucketTimeZoneIdentifier: String?
         let windowLabel: String?
         let totalCostBitPattern: UInt64?
         let hasDailyEntries: Bool
@@ -1086,12 +1155,16 @@ extension CostHistoryChartMenuView {
             costMultiplierBitPattern: displayCostMultiplier.bitPattern,
             historyDays: snapshot.historyDays,
             historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            bucketTimeZoneIdentifier: snapshot.bucketTimeZoneIdentifier,
             windowLabel: snapshot.historyLabel,
             totalCostBitPattern: snapshot.last30DaysCostUSD.map(\.bitPattern),
             hasDailyEntries: !snapshot.daily.isEmpty,
             daily: snapshot.daily
                 .filter { entry in
-                    self.availableMetrics(provider: provider, daily: [entry]).isEmpty == false
+                    self.availableMetrics(
+                        provider: provider,
+                        daily: [entry],
+                        bucketTimeZoneIdentifier: snapshot.bucketTimeZoneIdentifier).isEmpty == false
                 }
                 .sorted { $0.date < $1.date }
                 .map(self.visibleDailyFingerprint),
@@ -1172,9 +1245,14 @@ extension CostHistoryChartMenuView {
     static func _dateFromDayKeyForTesting(
         _ key: String,
         provider: UsageProvider,
-        calendar: Calendar) -> Date?
+        calendar: Calendar,
+        bucketTimeZoneIdentifier: String? = nil) -> Date?
     {
-        self.dateFromDayKey(key, provider: provider, calendar: calendar)
+        self.dateFromDayKey(
+            key,
+            provider: provider,
+            calendar: calendar,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier)
     }
 
     static func _axisDatesForTesting(provider: UsageProvider, daily: [DailyEntry]) -> [Date] {

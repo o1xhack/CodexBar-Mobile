@@ -460,6 +460,82 @@ struct UserProviderPluginTests {
         }
     }
 
+    @Test
+    func `plugin cost window keeps fetch freshness separate from its logical day`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let source = """
+        defineProvider({
+          id: "cost-window-meter",
+          name: "Cost Window Meter",
+          endpoints: ["https://cost-window.example"],
+          settings: [],
+          fetchUsage() {
+            return {
+              costUsage: {
+                currency: "USD",
+                historyDays: 1,
+                windowEnd: "2026-08-18",
+                entries: [{
+                  date: "2026-08-18",
+                  inputTokens: 10,
+                  outputTokens: 5,
+                  requests: 1,
+                  cost: 0.25,
+                }],
+              },
+            };
+          },
+        });
+        """
+        let plugin = try fixture.loader(transport: RecordingTransport(responseJSON: "{}"))
+            .load(fileURL: fixture.write(name: "cost-window.js", source: source))
+        try fixture.approvals.record(plugin.approvalBinding(settings: [:]))
+        let fetchedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T01:00:00Z"))
+
+        let snapshot = try await plugin.fetchUsage(
+            settings: [:],
+            secrets: [:],
+            approvalStore: fixture.approvals,
+            now: fetchedAt)
+
+        #expect(snapshot.costUsage?.updatedAt == fetchedAt)
+        #expect(snapshot.costUsage?.windowEndDayKey == "2026-08-18")
+        #expect(snapshot.costUsage?.daily.first?.date == "2026-08-18")
+    }
+
+    @Test
+    func `plugin cost window rejects more than 365 days`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let source = """
+        defineProvider({
+          id: "oversized-cost-window",
+          name: "Oversized Cost Window",
+          endpoints: ["https://cost-window.example"],
+          settings: [],
+          fetchUsage() {
+            return { costUsage: {
+              currency: "USD",
+              historyDays: 366,
+              windowEnd: "2026-08-18",
+              entries: [],
+            }};
+          },
+        });
+        """
+        let plugin = try fixture.loader(transport: RecordingTransport(responseJSON: "{}"))
+            .load(fileURL: fixture.write(name: "oversized-cost-window.js", source: source))
+        try fixture.approvals.record(plugin.approvalBinding(settings: [:]))
+
+        await #expect(throws: ProviderPluginError.self) {
+            try await plugin.fetchUsage(
+                settings: [:],
+                secrets: [:],
+                approvalStore: fixture.approvals)
+        }
+    }
+
     private static func javaScriptPlugin(
         id: String = "acme-meter",
         origin: String = "https://api.acme.test") -> String

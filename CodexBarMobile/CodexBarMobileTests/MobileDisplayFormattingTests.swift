@@ -6,6 +6,35 @@ import Testing
 @Suite("Mobile Display Formatting")
 @MainActor
 struct MobileDisplayFormattingTests {
+    @Test("Provider-level OpenRouter cost envelope is hidden only from Usage cards")
+    func providerLevelOpenRouterCostEnvelopeClassification() {
+        let provider = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let ordinary = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "Personal",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            accountRecordKey: "token-a")
+
+        #expect(provider.isProviderLevelCostEnvelope)
+        #expect(!ordinary.isProviderLevelCostEnvelope)
+    }
+
     @Test("Used mode shows used percent and fill")
     func usedModeValues() {
         let window = SyncRateWindow(usedPercent: 78, windowMinutes: 300, resetsAt: nil, resetDescription: nil)

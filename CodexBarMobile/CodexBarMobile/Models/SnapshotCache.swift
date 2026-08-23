@@ -31,6 +31,12 @@ struct SnapshotCache: Sendable {
     /// NEVER populated from legacy-zone data.
     var perProviderByDevice: [String: [String: ProviderUsageSnapshot]] = [:]
 
+    /// Publication timestamps keyed exactly like `perProviderByDevice`.
+    /// Kept separately so existing cache callers continue to work with raw
+    /// provider values while merge consumers retain each CloudKit envelope's
+    /// independent freshness.
+    var perProviderPublicationTimestampsByDevice: [String: [String: Date]] = [:]
+
     /// Legacy-zone monolithic snapshots. Keyed `deviceID → snapshot`.
     /// Populated ONLY by full CKQuery on `DeviceSnapshotsZone`/default zone.
     /// Untouched by silent-push-driven incremental refreshes (since silent
@@ -79,6 +85,7 @@ struct SnapshotCache: Sendable {
     {
         if let perProviderSnapshots {
             self.perProviderByDevice.removeAll(keepingCapacity: true)
+            self.perProviderPublicationTimestampsByDevice.removeAll(keepingCapacity: true)
 
             // Populate per-provider bucket. Each snapshot represents one device's
             // worth of envelopes. Composite key groups providers within the device.
@@ -87,11 +94,15 @@ struct SnapshotCache: Sendable {
             for snapshot in perProviderSnapshots {
                 guard let deviceID = snapshot.deviceID else { continue }
                 var byComposite: [String: ProviderUsageSnapshot] = [:]
+                var publicationTimestamps: [String: Date] = [:]
                 for provider in snapshot.providers where !Self.isGhost(provider) {
-                    byComposite[Self.compositeKey(for: provider)] = provider
+                    let key = Self.compositeKey(for: provider)
+                    byComposite[key] = provider
+                    publicationTimestamps[key] = snapshot.publicationTimestamp(for: provider)
                 }
                 guard !byComposite.isEmpty else { continue }
                 self.perProviderByDevice[deviceID] = byComposite
+                self.perProviderPublicationTimestampsByDevice[deviceID] = publicationTimestamps
                 self.deviceMetadata[deviceID] = Metadata(
                     deviceName: snapshot.deviceName,
                     appVersion: snapshot.appVersion,
@@ -130,15 +141,14 @@ struct SnapshotCache: Sendable {
     {
         for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
-            byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
+            let key = Self.compositeKey(for: envelope.provider)
+            byComposite[key] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite
+            var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[envelope.deviceID] ?? [:]
+            publicationTimestamps[key] = envelope.syncTimestamp
+            self.perProviderPublicationTimestampsByDevice[envelope.deviceID] = publicationTimestamps
 
-            self.deviceMetadata[envelope.deviceID] = Metadata(
-                deviceName: envelope.deviceName,
-                appVersion: envelope.appVersion,
-                mobileVersion: envelope.mobileVersion,
-                syncTimestamp: envelope.syncTimestamp,
-                notificationPushEnabled: envelope.notificationPushEnabled)
+            self.updateMetadata(from: envelope)
         }
 
         for recordName in deletedRecordNames {
@@ -150,10 +160,14 @@ struct SnapshotCache: Sendable {
             }
             var byComposite = self.perProviderByDevice[deviceID] ?? [:]
             byComposite.removeValue(forKey: composite)
+            var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[deviceID] ?? [:]
+            publicationTimestamps.removeValue(forKey: composite)
             if byComposite.isEmpty {
                 self.perProviderByDevice.removeValue(forKey: deviceID)
+                self.perProviderPublicationTimestampsByDevice.removeValue(forKey: deviceID)
             } else {
                 self.perProviderByDevice[deviceID] = byComposite
+                self.perProviderPublicationTimestampsByDevice[deviceID] = publicationTimestamps
             }
             // deviceMetadata stays — legacy might still have data for this device.
         }
@@ -166,17 +180,17 @@ struct SnapshotCache: Sendable {
     /// replay's envelopes.
     mutating func replacePerProviderFromReplay(_ envelopes: [ProviderUsageEnvelope]) {
         self.perProviderByDevice.removeAll(keepingCapacity: true)
+        self.perProviderPublicationTimestampsByDevice.removeAll(keepingCapacity: true)
         for envelope in envelopes where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
-            byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
+            let key = Self.compositeKey(for: envelope.provider)
+            byComposite[key] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite
+            var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[envelope.deviceID] ?? [:]
+            publicationTimestamps[key] = envelope.syncTimestamp
+            self.perProviderPublicationTimestampsByDevice[envelope.deviceID] = publicationTimestamps
 
-            self.deviceMetadata[envelope.deviceID] = Metadata(
-                deviceName: envelope.deviceName,
-                appVersion: envelope.appVersion,
-                mobileVersion: envelope.mobileVersion,
-                syncTimestamp: envelope.syncTimestamp,
-                notificationPushEnabled: envelope.notificationPushEnabled)
+            self.updateMetadata(from: envelope)
         }
     }
 
@@ -241,14 +255,22 @@ struct SnapshotCache: Sendable {
                 let providers = byComposite.values
                     .sorted { $0.lastUpdated > $1.lastUpdated }
                 let meta = self.deviceMetadata[deviceID]
+                let snapshotTimestamp = meta?.syncTimestamp ?? Date()
+                let cachedPublicationTimestamps = self.perProviderPublicationTimestampsByDevice[deviceID] ?? [:]
+                let providerPublicationTimestamps = Dictionary(
+                    byComposite.map { key, provider in
+                        (key, cachedPublicationTimestamps[key] ?? provider.lastUpdated)
+                    },
+                    uniquingKeysWith: max)
                 result.append(SyncedUsageSnapshot(
                     providers: Array(providers),
-                    syncTimestamp: meta?.syncTimestamp ?? Date(),
+                    syncTimestamp: snapshotTimestamp,
                     deviceName: meta?.deviceName ?? deviceID,
                     deviceID: deviceID,
                     appVersion: meta?.appVersion,
                     mobileVersion: meta?.mobileVersion,
-                    notificationPushEnabled: meta?.notificationPushEnabled))
+                    notificationPushEnabled: meta?.notificationPushEnabled,
+                    providerPublicationTimestamps: providerPublicationTimestamps))
             } else if let legacy = self.legacyByDevice[deviceID] {
                 result.append(Self.filterSnapshotProviders(legacy))
             }
@@ -278,6 +300,11 @@ struct SnapshotCache: Sendable {
         }
         let filteredProviders = filtered.values
             .sorted { $0.lastUpdated > $1.lastUpdated }
+        let filteredPublicationTimestamps = Dictionary(
+            filtered.map { key, provider in
+                (key, snapshot.publicationTimestamp(for: provider))
+            },
+            uniquingKeysWith: max)
         return SyncedUsageSnapshot(
             providers: Array(filteredProviders),
             syncTimestamp: snapshot.syncTimestamp,
@@ -285,7 +312,8 @@ struct SnapshotCache: Sendable {
             deviceID: snapshot.deviceID,
             appVersion: snapshot.appVersion,
             mobileVersion: snapshot.mobileVersion,
-            notificationPushEnabled: snapshot.notificationPushEnabled)
+            notificationPushEnabled: snapshot.notificationPushEnabled,
+            providerPublicationTimestamps: filteredPublicationTimestamps)
     }
 
     /// Drop per-provider entries that are almost certainly orphan / stale
@@ -358,11 +386,14 @@ struct SnapshotCache: Sendable {
                 guard let provider = byComposite[key] else { continue }
                 let hasEmail = !(provider.accountEmail ?? "").isEmpty
                 let isMock = MockProviderDetector.isMock(provider)
+                let isProviderLevelCostEnvelope = provider.isProviderLevelCostEnvelope
                 // Keep if any of:
                 //  - no real sibling has email (legit accountless provider),
                 //  - this entry itself has the email,
-                //  - this entry is a mock (mocks bypass orphan filtering).
-                if !hasRealEmail || hasEmail || isMock {
+                //  - this entry is a mock (mocks bypass orphan filtering),
+                //  - this is a deliberately accountless provider-level cost
+                //    envelope with its own stable accountRecordKey.
+                if !hasRealEmail || hasEmail || isMock || isProviderLevelCostEnvelope {
                     keptKeys.insert(key)
                 }
             }
@@ -395,8 +426,11 @@ struct SnapshotCache: Sendable {
         return afterOrphanDrop.filter { _, provider in
             let hasEmail = !(provider.accountEmail ?? "").isEmpty
             let isMock = MockProviderDetector.isMock(provider)
-            // Real-email entries + all mocks are immune from TTL.
-            return hasEmail || isMock || provider.lastUpdated >= staleCutoff
+            // Real-email entries, mocks, and stable provider-level system
+            // envelopes are immune from the nil-email orphan TTL. Cost
+            // freshness is qualified separately from its source timestamps.
+            return hasEmail || isMock || provider.isProviderLevelCostEnvelope
+                || provider.lastUpdated >= staleCutoff
         }
     }
 
@@ -420,6 +454,18 @@ struct SnapshotCache: Sendable {
     /// doesn't participate in this cross-layer contract.)
     static func compositeKey(for provider: ProviderUsageSnapshot) -> String {
         "\(provider.providerID)|\(provider.accountRecordKey ?? provider.accountEmail ?? "_")"
+    }
+
+    private mutating func updateMetadata(from envelope: ProviderUsageEnvelope) {
+        guard self.deviceMetadata[envelope.deviceID]?.syncTimestamp ?? .distantPast <= envelope.syncTimestamp else {
+            return
+        }
+        self.deviceMetadata[envelope.deviceID] = Metadata(
+            deviceName: envelope.deviceName,
+            appVersion: envelope.appVersion,
+            mobileVersion: envelope.mobileVersion,
+            syncTimestamp: envelope.syncTimestamp,
+            notificationPushEnabled: envelope.notificationPushEnabled)
     }
 
     /// Parses a CloudKit recordName of the form

@@ -17,6 +17,7 @@ struct XAICostUsageMappingTests {
         #expect(mapped.daily.map(\.date) == ["2026-08-17", "2026-08-18"])
         #expect(mapped.daily.map(\.costUSD) == [0.50, 1.26])
         #expect(mapped.historyCoverageIsEstablished)
+        #expect(mapped.bucketTimeZoneIdentifier.flatMap(TimeZone.init(identifier:))?.secondsFromGMT() == 0)
     }
 
     @Test

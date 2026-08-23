@@ -48,7 +48,7 @@ enum ProviderPluginSnapshotMapper {
         let tertiary = try self.window(value, property: "tertiary")
         let extraRateWindows = try self.extraWindows(value)
         let providerCost = try self.cost(value, now: now)
-        let costUsage = try self.costUsage(value)
+        let costUsage = try self.costUsage(value, now: now)
         let details = try self.details(value)
         let identity = try self.identity(value, provider: provider)
         let subscriptionRenewsAt = try self.optionalDate(value, property: "subscriptionRenewsAt")
@@ -276,7 +276,8 @@ enum ProviderPluginSnapshotMapper {
     }
 
     private static func costUsage(
-        _ root: any ProviderPluginValue) throws -> CostUsageTokenSnapshot?
+        _ root: any ProviderPluginValue,
+        now: Date) throws -> CostUsageTokenSnapshot?
     {
         guard let value = root.property("costUsage"), !value.isUndefined, !value.isNull else { return nil }
         guard value.isObject, !value.isArray else {
@@ -291,8 +292,8 @@ enum ProviderPluginSnapshotMapper {
             value,
             property: "historyDays",
             path: "costUsage")
-        guard historyDays <= 366 else {
-            throw ProviderPluginError.invalidSnapshot("costUsage.historyDays exceeds 366")
+        guard historyDays <= 365 else {
+            throw ProviderPluginError.invalidSnapshot("costUsage.historyDays exceeds 365")
         }
         let historyLabel = try self.optionalString(value, property: "historyLabel", path: "costUsage")
         let windowEnd = try self.requiredString(value, property: "windowEnd", path: "costUsage")
@@ -341,7 +342,19 @@ enum ProviderPluginSnapshotMapper {
             meteredCostUSD: aggregation.totalEstimatedCost > 0 && meteredCost > 0 ? meteredCost : nil,
             costProvenance: provenance,
             daily: aggregation.daily,
-            updatedAt: windowEndDate)
+            // Plugin dates are validated and windowed as ISO Gregorian UTC
+            // calendar dates above. Preserve that source calendar for the
+            // Mac-to-iOS sync projection instead of guessing later.
+            bucketTimeZoneIdentifier: "UTC",
+            // Preserve the declared coverage boundary separately from the
+            // observation time below. A completed/lagged billing window must
+            // not become a complete-looking current window on iOS.
+            windowEndDayKey: windowEnd,
+            // `windowEndDate` is a logical UTC bucket boundary, not a fetch
+            // timestamp. In particular, today's noon sentinel is still in the
+            // future before 12:00 UTC. Sync freshness and clear-history
+            // tombstones must compare against the actual observation time.
+            updatedAt: now)
     }
 
     private static func costUsageEntries(

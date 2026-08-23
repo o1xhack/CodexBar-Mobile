@@ -351,6 +351,29 @@ struct OpenRouterPluginGoldenTests {
     }
 
     @Test
+    func `date specific activity deterministically replaces the moving Today history bucket`() async throws {
+        let history = #"""
+        {"data":[{"date":"2026-08-18","model":"openai/gpt-5.6","endpoint_id":"same",
+        "prompt_tokens":10,"completion_tokens":5,"reasoning_tokens":1,"requests":1,"usage":1.0}]}
+        """#
+        let today = #"""
+        {"data":[{"date":"2026-08-18","model":"openai/gpt-5.6","endpoint_id":"same",
+        "prompt_tokens":20,"completion_tokens":10,"reasoning_tokens":2,"requests":2,"usage":2.0}]}
+        """#
+
+        let usage = try await Self.fetch(
+            activityBody: history,
+            todayActivityBody: today,
+            now: Date(timeIntervalSince1970: 1_787_079_600))
+        let cost = try #require(usage.costUsage)
+
+        #expect(cost.last30DaysCostUSD == 2)
+        #expect(cost.last30DaysTokens == 30)
+        #expect(cost.last30DaysRequests == 2)
+        #expect(cost.daily.count == 1)
+    }
+
+    @Test
     func `activity spend includes BYOK estimate without double counting reasoning tokens`() async throws {
         let activityBody = #"""
         {"data":[{
@@ -500,6 +523,7 @@ struct OpenRouterPluginGoldenTests {
 
     private static func fetch(
         activityBody: String,
+        todayActivityBody: String? = nil,
         now: Date = Date(timeIntervalSince1970: 1_787_079_600)) async throws -> UsageSnapshot
     {
         let runtime = try ProviderPluginRuntime(
@@ -507,7 +531,7 @@ struct OpenRouterPluginGoldenTests {
             transport: ProviderHTTPTransportHandler { request in
                 let body = switch request.url?.path {
                 case let path? where path.hasSuffix("/activity"):
-                    activityBody
+                    request.url?.query == nil ? activityBody : (todayActivityBody ?? activityBody)
                 case let path? where path.hasSuffix("/key"):
                     #"{"data":{"limit":20,"usage":5}}"#
                 default:

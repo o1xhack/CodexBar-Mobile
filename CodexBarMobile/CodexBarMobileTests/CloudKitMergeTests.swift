@@ -36,14 +36,16 @@ struct CloudKitMergeTests {
         deviceID: String,
         providers: [ProviderUsageSnapshot],
         timestamp: Date? = nil,
-        appVersion: String? = nil) -> SyncedUsageSnapshot
+        appVersion: String? = nil,
+        providerPublicationTimestamps: [String: Date] = [:]) -> SyncedUsageSnapshot
     {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp ?? providers.map(\.lastUpdated).max() ?? Date(),
             deviceName: deviceName,
             deviceID: deviceID,
-            appVersion: appVersion)
+            appVersion: appVersion,
+            providerPublicationTimestamps: providerPublicationTimestamps)
     }
 
     // MARK: - Single device (degenerate case)
@@ -58,6 +60,29 @@ struct CloudKitMergeTests {
         #expect(merged.providers[0].providerID == "claude")
         #expect(merged.providers[0].accountEmail == "a@b.com")
         #expect(merged.deviceName == "MacBook Air")
+    }
+
+    @Test
+    func `Sibling provider updates do not refresh an unchanged provider publication`() throws {
+        let codex = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com", lastUpdated: self.olderDate)
+        let claude = self.makeProvider(
+            id: "claude", name: "Claude", email: "user@example.com", lastUpdated: self.newerDate)
+        let snapshot = self.makeSnapshot(
+            deviceName: "MacBook Air",
+            deviceID: "uuid-1",
+            providers: [codex, claude],
+            timestamp: self.newerDate,
+            providerPublicationTimestamps: [
+                SyncedUsageSnapshot.providerPublicationKey(for: codex): self.olderDate,
+                SyncedUsageSnapshot.providerPublicationKey(for: claude): self.newerDate,
+            ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([snapshot]))
+        let mergedCodex = try #require(merged.providers.first(where: { $0.providerID == "codex" }))
+        let mergedClaude = try #require(merged.providers.first(where: { $0.providerID == "claude" }))
+        #expect(merged.publicationTimestamp(for: mergedCodex) == self.olderDate)
+        #expect(merged.publicationTimestamp(for: mergedClaude) == self.newerDate)
     }
 
     // MARK: - Same provider, same account → take newest
@@ -1018,6 +1043,138 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `non-local cost merge uses cost source freshness instead of usage freshness`() throws {
+        let olderCostSource = self.olderDate
+        let newerCostSource = self.newerDate
+        let usageNewerButCostStale = ProviderUsageSnapshot(
+            providerID: "cursor", providerName: "Cursor",
+            primary: nil, secondary: nil,
+            accountEmail: "user@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false,
+            lastUpdated: self.newerDate.addingTimeInterval(100),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 1, sessionTokens: 10,
+                last30DaysCostUSD: 1, last30DaysTokens: 10,
+                daily: [], sourceUpdatedAt: olderCostSource))
+        let usageOlderButCostFresh = ProviderUsageSnapshot(
+            providerID: "cursor", providerName: "Cursor",
+            primary: nil, secondary: nil,
+            accountEmail: "user@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false,
+            lastUpdated: self.olderDate,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 2, sessionTokens: 20,
+                last30DaysCostUSD: 2, last30DaysTokens: 20,
+                daily: [], sourceUpdatedAt: newerCostSource))
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A", deviceID: "uuid-a",
+                providers: [usageNewerButCostStale],
+                timestamp: self.newerDate.addingTimeInterval(200)),
+            self.makeSnapshot(
+                deviceName: "Mac B", deviceID: "uuid-b",
+                providers: [usageOlderButCostFresh],
+                timestamp: self.olderDate),
+        ]))
+
+        #expect(merged.providers.first?.primary == usageNewerButCostStale.primary)
+        #expect(merged.providers.first?.costSummary?.last30DaysCostUSD == 2)
+        #expect(merged.providers.first?.costSummary?.sourceUpdatedAt == newerCostSource)
+    }
+
+    @Test
+    func `legacy non-local cost merge falls back to envelope publication freshness`() throws {
+        func provider(lastUpdated: Date, cost: Double) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "cursor", providerName: "Cursor",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com", loginMethod: nil,
+                statusMessage: nil, isError: false, lastUpdated: lastUpdated,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost, sessionTokens: 10,
+                    last30DaysCostUSD: cost, last30DaysTokens: 10,
+                    daily: []))
+        }
+        let newerUsage = provider(lastUpdated: self.newerDate, cost: 1)
+        let newerPublication = provider(lastUpdated: self.olderDate, cost: 2)
+        let oldPublication = self.olderDate
+        let newPublication = self.newerDate.addingTimeInterval(100)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A", deviceID: "uuid-a", providers: [newerUsage],
+                timestamp: newPublication,
+                providerPublicationTimestamps: [
+                    SyncedUsageSnapshot.providerPublicationKey(for: newerUsage): oldPublication,
+                ]),
+            self.makeSnapshot(
+                deviceName: "Mac B", deviceID: "uuid-b", providers: [newerPublication],
+                timestamp: oldPublication,
+                providerPublicationTimestamps: [
+                    SyncedUsageSnapshot.providerPublicationKey(for: newerPublication): newPublication,
+                ]),
+        ]))
+
+        #expect(merged.providers.first?.costSummary?.last30DaysCostUSD == 2)
+    }
+
+    @Test
+    func `newer OpenRouter tombstone supersedes legacy account spend`() throws {
+        let accountKey = "token-account"
+        let oldAccount = ProviderUsageSnapshot(
+            providerID: "openrouter", providerName: "OpenRouter",
+            primary: nil, secondary: nil,
+            accountEmail: "user@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: self.olderDate,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 5, sessionTokens: nil,
+                last30DaysCostUSD: 5, last30DaysTokens: nil,
+                daily: [], sourceUpdatedAt: self.olderDate),
+            accountRecordKey: accountKey)
+        let clearedAccount = ProviderUsageSnapshot(
+            providerID: "openrouter", providerName: "OpenRouter",
+            primary: nil, secondary: nil,
+            accountEmail: "user@example.com", loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: self.newerDate,
+            costSummaryCleared: true,
+            accountRecordKey: accountKey)
+        let management = ProviderUsageSnapshot(
+            providerID: "openrouter", providerName: "OpenRouter",
+            primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: self.newerDate,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 5, sessionTokens: nil,
+                last30DaysCostUSD: 5, last30DaysTokens: nil,
+                daily: [], sourceUpdatedAt: self.newerDate),
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let oldPublication = self.olderDate
+        let newPublication = self.newerDate
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Old Mac", deviceID: "uuid-old", providers: [oldAccount],
+                providerPublicationTimestamps: [
+                    SyncedUsageSnapshot.providerPublicationKey(for: oldAccount): oldPublication,
+                ]),
+            self.makeSnapshot(
+                deviceName: "New Mac", deviceID: "uuid-new", providers: [clearedAccount, management],
+                providerPublicationTimestamps: [
+                    SyncedUsageSnapshot.providerPublicationKey(for: clearedAccount): newPublication,
+                    SyncedUsageSnapshot.providerPublicationKey(for: management): newPublication,
+                ]),
+        ]))
+
+        let ordinary = try #require(merged.providers.first { $0.accountRecordKey == accountKey })
+        let stable = try #require(merged.providers.first { $0.isProviderLevelCostEnvelope })
+        #expect(ordinary.costSummary == nil)
+        #expect(ordinary.costSummaryCleared == true)
+        #expect(stable.costSummary?.last30DaysCostUSD == 5)
+        #expect(merged.providers.compactMap(\.costSummary?.last30DaysCostUSD).reduce(0, +) == 5)
+    }
+
+    @Test
     func `local-cost costSummary STILL sums (not overridden by the new latestNonNil path)`() throws {
         // Guard against accidentally regressing the claude / codex / vertexai
         // SUMMING semantic when we added latestNonNil for non-local. Two
@@ -1069,6 +1226,161 @@ struct CloudKitMergeTests {
         #expect(claude.costSummary?.coverage == nil)
         #expect(claude.costSummary?.tokenMix == nil)
         #expect(claude.costSummary?.historyCoverageIsEstablished == nil)
+    }
+
+    @Test
+    func `Grok local session history sums across Macs`() throws {
+        let dayKey = "2026-08-22"
+        let timeZone = "America/Los_Angeles"
+
+        func snapshot(deviceID: String, tokens: Int) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: deviceID, deviceID: deviceID, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "grok",
+                    providerName: "Grok",
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: tokens,
+                        last30DaysCostUSD: nil,
+                        last30DaysTokens: tokens,
+                        daily: [SyncDailyPoint(
+                            dayKey: dayKey,
+                            costUSD: 0,
+                            totalTokens: tokens,
+                            costIsKnown: false)],
+                        sourceUpdatedAt: self.newerDate,
+                        sourceDayKey: dayKey,
+                        sessionDayKey: dayKey,
+                        bucketTimeZoneIdentifier: timeZone,
+                        sessionCostIsKnown: false,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: self.newerDate)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(deviceID: "uuid-a", tokens: 100),
+            snapshot(deviceID: "uuid-b", tokens: 250),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.last30DaysTokens == 350)
+        #expect(cost.daily.first?.totalTokens == 350)
+        #expect(cost.daily.first?.costIsKnown == false)
+    }
+
+    @Test
+    func `OpenCode Go local cost history sums across Macs`() throws {
+        let dayKey = "2026-08-22"
+
+        func snapshot(deviceID: String, costUSD: Double) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: deviceID, deviceID: deviceID, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "opencodego",
+                    providerName: "OpenCode Go",
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: costUSD,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: costUSD,
+                        last30DaysTokens: nil,
+                        daily: [SyncDailyPoint(
+                            dayKey: dayKey,
+                            costUSD: costUSD,
+                            totalTokens: 0,
+                            costIsKnown: true)],
+                        sourceUpdatedAt: self.newerDate,
+                        sourceDayKey: dayKey,
+                        sessionDayKey: dayKey,
+                        bucketTimeZoneIdentifier: "America/Los_Angeles",
+                        sessionCostIsKnown: true,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: self.newerDate)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(deviceID: "uuid-a", costUSD: 1),
+            snapshot(deviceID: "uuid-b", costUSD: 2),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.last30DaysCostUSD == 3)
+        #expect(cost.daily.first?.costUSD == 3)
+        #expect(cost.daily.first?.costIsKnown == true)
+    }
+
+    @Test
+    func `OpenCode Go provider-level cost is counted once with multiple accounts`() throws {
+        let dayKey = "2026-08-22"
+
+        func provider(email: String, costUSD: Double?) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "opencodego",
+                providerName: "OpenCode Go",
+                primary: nil,
+                secondary: nil,
+                accountEmail: email,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.newerDate,
+                costSummary: costUSD.map { costUSD in
+                    SyncCostSummary(
+                        sessionCostUSD: costUSD,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: costUSD,
+                        last30DaysTokens: nil,
+                        daily: [.init(
+                            dayKey: dayKey,
+                            costUSD: costUSD,
+                            totalTokens: 0,
+                            costIsKnown: true)],
+                        sourceUpdatedAt: self.newerDate,
+                        sourceDayKey: dayKey,
+                        sessionDayKey: dayKey,
+                        bucketTimeZoneIdentifier: "America/Los_Angeles",
+                        sessionCostIsKnown: true,
+                        historyCoverageIsEstablished: true)
+                })
+        }
+
+        // Each Mac emits the provider-level local history on exactly one
+        // account envelope. The owning account may differ across Macs.
+        let macA = self.makeSnapshot(
+            deviceName: "Mac A",
+            deviceID: "uuid-a",
+            providers: [
+                provider(email: "alice@example.com", costUSD: 1),
+                provider(email: "bob@example.com", costUSD: nil),
+            ],
+            timestamp: self.newerDate)
+        let macB = self.makeSnapshot(
+            deviceName: "Mac B",
+            deviceID: "uuid-b",
+            providers: [
+                provider(email: "alice@example.com", costUSD: nil),
+                provider(email: "bob@example.com", costUSD: 2),
+            ],
+            timestamp: self.newerDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let summaries = merged.providers.compactMap(\.costSummary)
+
+        #expect(summaries.count == 2)
+        #expect(summaries.compactMap(\.last30DaysCostUSD).reduce(0, +) == 3)
+        #expect(summaries.flatMap(\.daily).reduce(0) { $0 + $1.costUSD } == 3)
     }
 
     @Test
@@ -1394,6 +1706,7 @@ struct CloudKitMergeTests {
 
     @Test
     func `local-cost merge marks mismatched history windows incomplete`() throws {
+        let todayKey = SyncCostSummary.iso8601DayKey(for: Date())
         func snapshot(name: String, id: String, historyDays: Int, cost: Double) -> SyncedUsageSnapshot {
             self.makeSnapshot(deviceName: name, deviceID: id, providers: [
                 ProviderUsageSnapshot(
@@ -1407,7 +1720,11 @@ struct CloudKitMergeTests {
                         sessionTokens: nil,
                         last30DaysCostUSD: cost,
                         last30DaysTokens: 100,
-                        daily: [],
+                        daily: [SyncDailyPoint(
+                            dayKey: todayKey,
+                            costUSD: cost,
+                            totalTokens: 100,
+                            costIsKnown: true)],
                         historyDays: historyDays,
                         meteredCostUSD: cost,
                         costProvenance: .listPriceEstimate,
@@ -1426,7 +1743,9 @@ struct CloudKitMergeTests {
 
         #expect(cost.historyDays == 30)
         #expect(cost.last30DaysCostUSD == 37)
-        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historyCoverageIsEstablished == true)
+        #expect(cost.historyWindowIsComparable == false)
+        #expect(cost.todayTotals().displayCostUSD == 37)
         #expect(cost.meteredCostUSD == nil)
         #expect(cost.coverage == nil)
         #expect(cost.tokenMix == nil)
@@ -1477,7 +1796,8 @@ struct CloudKitMergeTests {
 
         #expect(cost.historyDays == 30)
         #expect(cost.last30DaysCostUSD == 37)
-        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historyCoverageIsEstablished == nil)
+        #expect(cost.historyWindowIsComparable == false)
         #expect(cost.completeHistoryCostUSD == nil)
     }
 
@@ -1547,6 +1867,648 @@ struct CloudKitMergeTests {
         #expect(cost.last30DaysTokens == 300)
         #expect(cost.daily.first?.costIsKnown == false)
         #expect(cost.daily.first?.totalTokens == 300)
+    }
+
+    @Test
+    func `local-cost merge preserves an incomplete Mac missing another Mac's day`() throws {
+        let now = Date()
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let completeMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    historyCoverageIsEstablished: true)),
+        ])
+        let incompleteMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 5,
+                    last30DaysTokens: 50,
+                    daily: [],
+                    historyCoverageIsEstablished: false)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([completeMac, incompleteMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let today = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(today.costUSD == 10)
+        #expect(today.totalTokens == 100)
+        #expect(today.costIsKnown == false)
+        #expect(cost.historyCoverageIsEstablished == false)
+
+        let insights = CostDashboardInsights(snapshot: merged)
+        let share = ShareCardData(insights: insights, period: .today)
+        #expect(share.costCoverageIsIncomplete)
+        #expect(!share.totalCostIsKnown)
+        #expect(!share.avgDailyCostIsKnown)
+    }
+
+    @Test
+    func `local-cost merge does not spread an established dated gap to sibling days`() throws {
+        let calendar = Calendar.current
+        let today = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: today))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: today)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let knownToday = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: today,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    historyCoverageIsEstablished: true)),
+        ])
+        let datedGap = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: today,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 0,
+                    last30DaysTokens: 50,
+                    daily: [SyncDailyPoint(
+                        dayKey: yesterdayKey,
+                        costUSD: 0,
+                        totalTokens: 50,
+                        costIsKnown: false)],
+                    historyCoverageIsEstablished: true)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([knownToday, datedGap]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+        let mergedYesterday = try #require(cost.daily.first { $0.dayKey == yesterdayKey })
+
+        #expect(mergedToday.costUSD == 10)
+        #expect(mergedToday.costIsKnown == true)
+        #expect(mergedYesterday.costIsKnown == false)
+    }
+
+    @Test
+    func `local-cost merge folds a known Today fallback into a sibling daily row`() throws {
+        let now = Date()
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let dailyMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    historyCoverageIsEstablished: true)),
+        ])
+        let fallbackMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 2,
+                    sessionTokens: 20,
+                    last30DaysCostUSD: 2,
+                    last30DaysTokens: 20,
+                    daily: [],
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: false)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([dailyMac, fallbackMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(mergedToday.costUSD == 12)
+        #expect(mergedToday.totalTokens == 120)
+        #expect(mergedToday.costIsKnown == true)
+        // The amount is retained as a visible lower bound in the dated row,
+        // but the aggregate catch-up bit prevents an unqualified Today card.
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge rejects a synthesized zero session during catch-up`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let dailyMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ])
+        let catchingUpMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 0,
+                    sessionTokens: 0,
+                    last30DaysCostUSD: 2,
+                    last30DaysTokens: 20,
+                    daily: [SyncDailyPoint(
+                        dayKey: yesterdayKey,
+                        costUSD: 2,
+                        totalTokens: 20,
+                        costIsKnown: true)],
+                    historyDays: 30,
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: false,
+                    historyCoverageIsEstablished: false)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([dailyMac, catchingUpMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(mergedToday.costUSD == 10)
+        #expect(mergedToday.totalTokens == 100)
+        #expect(mergedToday.costIsKnown == false)
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge never dates a stale session from provider refresh time`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let dailyMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ])
+        let staleCostMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false,
+                // Usage refreshed today, but the independent cost sample did not.
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 2,
+                    sessionTokens: 20,
+                    last30DaysCostUSD: 2,
+                    last30DaysTokens: 20,
+                    daily: [SyncDailyPoint(
+                        dayKey: yesterdayKey,
+                        costUSD: 2,
+                        totalTokens: 20,
+                        costIsKnown: true)],
+                    historyDays: 30,
+                    sourceUpdatedAt: yesterday,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: false)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([dailyMac, staleCostMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+        let mergedYesterday = try #require(cost.daily.first { $0.dayKey == yesterdayKey })
+
+        #expect(mergedToday.costUSD == 10)
+        #expect(mergedToday.costIsKnown == false)
+        #expect(mergedYesterday.costUSD == 2)
+        #expect(mergedYesterday.costIsKnown == true)
+        #expect(cost.daily.reduce(0) { $0 + $1.costUSD } == 12)
+    }
+
+    @Test
+    func `local-cost merge anchors incomplete coverage to snapshot publication`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let dailyMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 10,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: todayKey,
+                        costUSD: 10,
+                        totalTokens: 100,
+                        costIsKnown: true)],
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: now)
+        let usageStaleMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false,
+                // Provider usage is stale, but this CloudKit envelope and its
+                // independent cost scan were both published today.
+                lastUpdated: yesterday,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: nil,
+                    last30DaysTokens: nil,
+                    daily: [],
+                    historyDays: 30,
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: false,
+                    historyCoverageIsEstablished: false)),
+        ], timestamp: now)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([dailyMac, usageStaleMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(mergedToday.costUSD == 10)
+        #expect(mergedToday.costIsKnown == false)
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge qualifies Today when another Mac only has yesterday session spend`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: now))
+        let current = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 0,
+                    sessionTokens: 0,
+                    last30DaysCostUSD: 0,
+                    last30DaysTokens: 0,
+                    daily: [],
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: now)
+        let stale = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: yesterday,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 7,
+                    sessionTokens: 700,
+                    last30DaysCostUSD: 7,
+                    last30DaysTokens: 700,
+                    daily: [],
+                    sourceUpdatedAt: yesterday,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: yesterday)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([current, stale]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.sessionCostUSD == 0)
+        #expect(cost.sessionTokens == 0)
+        #expect(cost.sourceUpdatedAt == yesterday)
+        #expect(cost.sessionCostIsKnown == false)
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge keeps a stale daily-only Mac from certifying a Today session subtotal`() throws {
+        let now = Date()
+        let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let timeZoneIdentifier = TimeZone.current.identifier
+        let currentSession = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 4,
+                    sessionTokens: 400,
+                    last30DaysCostUSD: 4,
+                    last30DaysTokens: 400,
+                    daily: [],
+                    sourceUpdatedAt: now,
+                    sourceDayKey: todayKey,
+                    sessionDayKey: todayKey,
+                    bucketTimeZoneIdentifier: timeZoneIdentifier,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: now)
+        let staleDailyOnly = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: yesterday,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 6,
+                    last30DaysTokens: 600,
+                    daily: [SyncDailyPoint(
+                        dayKey: yesterdayKey,
+                        costUSD: 6,
+                        totalTokens: 600,
+                        costIsKnown: true)],
+                    sourceUpdatedAt: yesterday,
+                    sourceDayKey: yesterdayKey,
+                    bucketTimeZoneIdentifier: timeZoneIdentifier,
+                    sessionCostIsKnown: nil,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: now)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([currentSession, staleDailyOnly]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.sessionCostUSD == 4)
+        #expect(cost.sessionDayKey == todayKey)
+        #expect(cost.sessionCostIsKnown == false)
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge fails closed when Macs use different cost bucket timezones`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-08-22T12:00:00Z"))
+        let dayKey = "2026-08-22"
+
+        func snapshot(deviceID: String, costUSD: Double, timeZone: String) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: deviceID, deviceID: deviceID, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: now,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: costUSD,
+                        sessionTokens: 100,
+                        last30DaysCostUSD: costUSD,
+                        last30DaysTokens: 100,
+                        daily: [SyncDailyPoint(
+                            dayKey: dayKey,
+                            costUSD: costUSD,
+                            totalTokens: 100,
+                            costIsKnown: true)],
+                        meteredCostUSD: costUSD,
+                        costProvenance: .vendorMetered,
+                        coverage: SyncCostCoverage(priced: 1, unpriced: 0, unmetered: 0, estimated: 0),
+                        tokenMix: SyncCostTokenMix(inputTokens: 100),
+                        sourceUpdatedAt: now,
+                        sourceDayKey: dayKey,
+                        sessionDayKey: dayKey,
+                        bucketTimeZoneIdentifier: timeZone,
+                        sessionCostIsKnown: true,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: now)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(deviceID: "uuid-a", costUSD: 1, timeZone: "UTC"),
+            snapshot(deviceID: "uuid-b", costUSD: 2, timeZone: "America/Los_Angeles"),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedDay = try #require(cost.daily.first)
+
+        #expect(cost.bucketTimeZoneIdentifier == nil)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historyWindowIsComparable == false)
+        #expect(cost.meteredCostUSD == nil)
+        #expect(cost.coverage == nil)
+        #expect(cost.tokenMix == nil)
+        #expect(cost.sessionCostIsKnown == false)
+        #expect(mergedDay.costUSD == 3)
+        #expect(mergedDay.costIsKnown == false)
+        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge limits missing contributions to each source window`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let oldDate = try #require(calendar.date(byAdding: .day, value: -20, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let oldKey = SyncCostSummary.iso8601DayKey(for: oldDate)
+        let wideMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 1,
+                    sessionTokens: 10,
+                    last30DaysCostUSD: 9,
+                    last30DaysTokens: 90,
+                    daily: [
+                        SyncDailyPoint(dayKey: oldKey, costUSD: 8, totalTokens: 80, costIsKnown: true),
+                        SyncDailyPoint(dayKey: todayKey, costUSD: 1, totalTokens: 10, costIsKnown: true),
+                    ],
+                    historyDays: 30,
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ])
+        let shortMac = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: nil,
+                    last30DaysTokens: nil,
+                    daily: [],
+                    historyDays: 7,
+                    sourceUpdatedAt: now,
+                    sessionCostIsKnown: false,
+                    historyCoverageIsEstablished: false)),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([wideMac, shortMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedOld = try #require(cost.daily.first { $0.dayKey == oldKey })
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(mergedOld.costUSD == 8)
+        #expect(mergedOld.costIsKnown == true)
+        #expect(mergedToday.costIsKnown == false)
+        #expect(cost.historyCoverageIsEstablished == false)
+    }
+
+    @Test
+    func `local-cost merge anchors stale scan start to producer day and uncertainty end to publication`() throws {
+        let calendar = Calendar.current
+        let now = Date()
+        let yesterday = try #require(calendar.date(byAdding: .day, value: -1, to: now))
+        let oldestScannedDate = try #require(calendar.date(byAdding: .day, value: -6, to: yesterday))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+        let oldestScannedKey = SyncCostSummary.iso8601DayKey(for: oldestScannedDate)
+        let completeMac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 1,
+                    sessionTokens: 10,
+                    last30DaysCostUSD: 8,
+                    last30DaysTokens: 80,
+                    daily: [
+                        SyncDailyPoint(
+                            dayKey: oldestScannedKey,
+                            costUSD: 7,
+                            totalTokens: 70,
+                            costIsKnown: true),
+                        SyncDailyPoint(
+                            dayKey: todayKey,
+                            costUSD: 1,
+                            totalTokens: 10,
+                            costIsKnown: true),
+                    ],
+                    historyDays: 7,
+                    sourceUpdatedAt: now,
+                    sourceDayKey: todayKey,
+                    sessionDayKey: todayKey,
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: true)),
+        ], timestamp: now)
+        let staleIncompleteMac = self.makeSnapshot(
+            deviceName: "Mac B", deviceID: "uuid-b", providers: [
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: now,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: nil,
+                        last30DaysTokens: nil,
+                        daily: [],
+                        historyDays: 7,
+                        sourceUpdatedAt: yesterday,
+                        sourceDayKey: yesterdayKey,
+                        sessionDayKey: yesterdayKey,
+                        sessionCostIsKnown: false,
+                        historyCoverageIsEstablished: false)),
+            ], timestamp: now)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([completeMac, staleIncompleteMac]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let mergedOldest = try #require(cost.daily.first { $0.dayKey == oldestScannedKey })
+        let mergedToday = try #require(cost.daily.first { $0.dayKey == todayKey })
+
+        #expect(mergedOldest.costIsKnown == false)
+        #expect(mergedToday.costIsKnown == false)
     }
 
     @Test
@@ -1886,6 +2848,33 @@ struct CloudKitMergeTests {
         let today = cost.todayTotals(now: justBeforeMidnight)
         #expect(today.costUSD == 12.34) // both come from the same daily point
         #expect(today.tokens == 5000)
+    }
+
+    @Test
+    func `todayTotals honors the producer cost bucket timezone`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-08-22T00:30:00Z"))
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1,
+            sessionTokens: 100,
+            last30DaysCostUSD: 1,
+            last30DaysTokens: 100,
+            daily: [SyncDailyPoint(
+                dayKey: "2026-08-22",
+                costUSD: 1,
+                totalTokens: 100,
+                costIsKnown: true)],
+            sourceUpdatedAt: now,
+            sourceDayKey: "2026-08-22",
+            sessionDayKey: "2026-08-22",
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true)
+
+        let today = cost.todayTotals(now: now)
+
+        #expect(cost.costDayKey(for: now) == "2026-08-22")
+        #expect(today.displayCostUSD == 1)
+        #expect(today.tokens == 100)
     }
 
     @Test
@@ -2255,5 +3244,145 @@ struct CloudKitMergeTests {
         // 2026-01-31 is the overlap day — costs from both Macs sum.
         let jan31 = try #require(cost.daily.first { $0.dayKey == "2026-01-31" })
         #expect(jan31.costUSD == 4.00) // 2.50 + 1.50
+    }
+
+    @Test
+    func `daily-only local-cost merge preserves the oldest source freshness`() throws {
+        let now = Date()
+        let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
+        let todayKey = SyncCostSummary.iso8601DayKey(for: now)
+        let yesterdayKey = SyncCostSummary.iso8601DayKey(for: yesterday)
+
+        func snapshot(
+            name: String,
+            id: String,
+            dayKey: String,
+            source: Date,
+            cost: Double) -> SyncedUsageSnapshot
+        {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: source,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: 100,
+                        daily: [SyncDailyPoint(
+                            dayKey: dayKey,
+                            costUSD: cost,
+                            totalTokens: 100,
+                            costIsKnown: true)],
+                        sourceUpdatedAt: source,
+                        sourceDayKey: dayKey,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: source)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Mac A", id: "uuid-a", dayKey: todayKey, source: now, cost: 2),
+            snapshot(name: "Mac B", id: "uuid-b", dayKey: yesterdayKey, source: yesterday, cost: 3),
+        ]))
+        let summary = try #require(merged.providers.first?.costSummary)
+
+        #expect(summary.sourceUpdatedAt == yesterday)
+        #expect(summary.sourceDayKey == yesterdayKey)
+        #expect(summary.sessionDayKey == nil)
+        #expect(summary.todayTotals(now: now).displayCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge selects session fallback by producer day key`() throws {
+        let newerTimestamp = Date(timeIntervalSince1970: 1_900_000_000)
+        let olderTimestamp = Date(timeIntervalSince1970: 1_600_000_000)
+
+        func snapshot(
+            name: String,
+            id: String,
+            timestamp: Date,
+            producerDayKey: String,
+            cost: Double) -> SyncedUsageSnapshot
+        {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: timestamp,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: cost,
+                        sessionTokens: Int(cost * 100),
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: Int(cost * 100),
+                        daily: [],
+                        sourceUpdatedAt: timestamp,
+                        sourceDayKey: producerDayKey,
+                        sessionDayKey: producerDayKey,
+                        sessionCostIsKnown: true,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: timestamp)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(
+                name: "Mac A", id: "uuid-a", timestamp: newerTimestamp,
+                producerDayKey: "2026-08-20", cost: 1),
+            snapshot(
+                name: "Mac B", id: "uuid-b", timestamp: olderTimestamp,
+                producerDayKey: "2026-08-21", cost: 2),
+        ]))
+        let summary = try #require(merged.providers.first?.costSummary)
+
+        #expect(summary.sessionDayKey == "2026-08-21")
+        #expect(summary.sessionCostUSD == 2)
+        #expect(summary.sessionTokens == 200)
+    }
+
+    @Test
+    func `local-cost merge keeps an older session day unresolved when source days match`() throws {
+        let publication = Date(timeIntervalSince1970: 1_900_000_000)
+
+        func snapshot(
+            name: String,
+            id: String,
+            sessionDayKey: String,
+            cost: Double) -> SyncedUsageSnapshot
+        {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: publication,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: cost,
+                        sessionTokens: Int(cost * 100),
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: Int(cost * 100),
+                        daily: [],
+                        sourceUpdatedAt: publication,
+                        sourceDayKey: "2026-08-21",
+                        sessionDayKey: sessionDayKey,
+                        sessionCostIsKnown: true,
+                        historyCoverageIsEstablished: true)),
+            ], timestamp: publication)
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Mac A", id: "uuid-a", sessionDayKey: "2026-08-21", cost: 2),
+            snapshot(name: "Mac B", id: "uuid-b", sessionDayKey: "2026-08-20", cost: 1),
+        ]))
+        let summary = try #require(merged.providers.first?.costSummary)
+
+        #expect(summary.sessionDayKey == "2026-08-21")
+        #expect(summary.sessionCostUSD == 2)
+        #expect(summary.sessionTokens == 200)
+        #expect(summary.sessionCostIsKnown == false)
     }
 }

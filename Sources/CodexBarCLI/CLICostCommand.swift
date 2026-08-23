@@ -60,8 +60,7 @@ extension CodexBarCLI {
             Self.writeStderr("Warning: \(warning)\n")
         }
 
-        let bucketCalendar = CostUsageBucketTimeZone.calendar(
-            identifier: Self.stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
+        let bucketCalendar = Self.costBucketCalendarFromAppDefaults()
         let fetcher = CostUsageFetcher(calendar: bucketCalendar)
         var sections: [String] = []
         var payload: [CostPayload] = []
@@ -381,7 +380,8 @@ extension CodexBarCLI {
         calendar: Calendar = .current) -> CostPayload
     {
         let daily = snapshot?.daily.map(Self.costDailyPayload(from:)) ?? []
-        let summary = snapshot.map { $0.summary(forLastDays: $0.historyDays, calendar: calendar) }
+        let summaryCalendar = snapshot.map { Self.sourceCalendar(for: $0, fallback: calendar) } ?? calendar
+        let summary = snapshot.map { $0.summary(forLastDays: $0.historyDays, calendar: summaryCalendar) }
         let projects = provider == .codex
             ? snapshot?.projects.map { project in
                 CostProjectPayload(
@@ -418,7 +418,7 @@ extension CodexBarCLI {
             meteredCostUSD: snapshot?.meteredCostUSD,
             daily: daily,
             projects: projects,
-            totals: snapshot.flatMap(Self.costTotals(from:)),
+            totals: snapshot.flatMap { Self.costTotals(from: $0, calendar: summaryCalendar) },
             provenance: summary?.provenance.rawValue,
             coverage: summary?.coverage,
             error: error.map { Self.makeErrorPayload($0) })
@@ -428,7 +428,8 @@ extension CodexBarCLI {
         snapshot: CostUsageTokenSnapshot,
         calendar: Calendar = .current) -> CostPayload
     {
-        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
+        let summaryCalendar = Self.sourceCalendar(for: snapshot, fallback: calendar)
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: summaryCalendar)
         return CostPayload(
             provider: OpenCodexUsageLog.sourceID,
             source: "opencodex",
@@ -443,10 +444,22 @@ extension CodexBarCLI {
             meteredCostUSD: nil,
             daily: snapshot.daily.map(self.costDailyPayload(from:)),
             projects: [],
-            totals: self.costTotals(from: snapshot),
+            totals: self.costTotals(from: snapshot, calendar: summaryCalendar),
             provenance: CostProvenance.listPriceEstimate.rawValue,
             coverage: summary.coverage,
             error: nil)
+    }
+
+    private static func sourceCalendar(
+        for snapshot: CostUsageTokenSnapshot,
+        fallback: Calendar) -> Calendar
+    {
+        guard let identifier = snapshot.bucketTimeZoneIdentifier,
+              let timeZone = TimeZone(identifier: identifier)
+        else { return fallback }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
     }
 
     private static func loadOpenCodexCostPayload(
@@ -490,7 +503,15 @@ extension CodexBarCLI {
             totalTokens: breakdown.totalTokens)
     }
 
-    private static func costTotals(from snapshot: CostUsageTokenSnapshot) -> CostTotalsPayload? {
+    static func costBucketCalendarFromAppDefaults() -> Calendar {
+        CostUsageBucketTimeZone.calendar(
+            identifier: stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
+    }
+
+    private static func costTotals(
+        from snapshot: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostTotalsPayload?
+    {
         let entries = snapshot.daily
         guard !entries.isEmpty else {
             guard snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil else { return nil }
@@ -549,7 +570,7 @@ extension CodexBarCLI {
             }
         }
 
-        let summary = snapshot.summary(forLastDays: snapshot.historyDays)
+        let summary = snapshot.summary(forLastDays: snapshot.historyDays, calendar: calendar)
         return CostTotalsPayload(
             totalInputTokens: sawInput ? totalInput : nil,
             totalOutputTokens: sawOutput ? totalOutput : nil,

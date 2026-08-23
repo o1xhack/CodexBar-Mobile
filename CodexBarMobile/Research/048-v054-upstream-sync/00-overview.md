@@ -1,7 +1,7 @@
 # v0.54.0 Upstream Sync + iOS 1.21.0 概览
 
-Status: `done`
-Date: 2026-08-21
+Status: `in-progress`
+Date: 2026-08-22
 Branch: `upstream-sync/v0.54.0-mobile.1.21.0`
 
 ## 结论

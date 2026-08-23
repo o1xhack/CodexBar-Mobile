@@ -24,6 +24,10 @@ public struct GrokLocalSessionSummary: Sendable {
     public let primaryModel: String?
     public let models: [String]
     public let daily: [GrokLocalDailyBucket]
+    /// IANA timezone whose Gregorian calendar produced `daily[*].date`.
+    /// Keep this with the scan result so a later system-timezone change does
+    /// not relabel already-created buckets during sync projection.
+    public let bucketTimeZoneIdentifier: String
     public let scannedAt: Date
 
     public init(
@@ -33,6 +37,7 @@ public struct GrokLocalSessionSummary: Sendable {
         primaryModel: String?,
         models: [String],
         daily: [GrokLocalDailyBucket] = [],
+        bucketTimeZoneIdentifier: String = TimeZone.current.identifier,
         scannedAt: Date = .init())
     {
         self.sessionCount = sessionCount
@@ -41,6 +46,8 @@ public struct GrokLocalSessionSummary: Sendable {
         self.primaryModel = primaryModel
         self.models = models
         self.daily = daily
+        self.bucketTimeZoneIdentifier = TimeZone(identifier: bucketTimeZoneIdentifier)?.identifier
+            ?? TimeZone.current.identifier
         self.scannedAt = scannedAt
     }
 
@@ -58,7 +65,9 @@ public struct GrokLocalSessionSummary: Sendable {
                 modelBreakdowns: nil)
         }
         guard !entries.isEmpty else { return nil }
-        let todayKey = GrokLocalSessionScanner.dayKey(for: self.scannedAt, calendar: .current)
+        var bucketCalendar = Calendar(identifier: .gregorian)
+        bucketCalendar.timeZone = TimeZone(identifier: self.bucketTimeZoneIdentifier) ?? .current
+        let todayKey = GrokLocalSessionScanner.dayKey(for: self.scannedAt, calendar: bucketCalendar)
         let todayTokens = todayKey.flatMap { key in self.daily.first { $0.date == key }?.totalTokens }
         return CostUsageTokenSnapshot(
             sessionTokens: todayTokens,
@@ -69,6 +78,7 @@ public struct GrokLocalSessionSummary: Sendable {
             historyCoverageIsEstablished: true,
             costProvenance: .unknown,
             daily: entries,
+            bucketTimeZoneIdentifier: self.bucketTimeZoneIdentifier,
             updatedAt: self.scannedAt)
     }
 }
@@ -96,11 +106,18 @@ public enum GrokLocalSessionScanner {
                 lastSessionAt: nil,
                 primaryModel: nil,
                 models: [],
+                bucketTimeZoneIdentifier: TimeZone.current.identifier,
                 scannedAt: now)
         }
 
-        let calendar = Calendar.current
-        let lookbackCutoff = calendar.date(byAdding: .day, value: -lookbackDays, to: now) ?? now
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let boundedLookbackDays = max(1, lookbackDays)
+        let startOfToday = calendar.startOfDay(for: now)
+        let lookbackCutoff = calendar.date(
+            byAdding: .day,
+            value: -(boundedLookbackDays - 1),
+            to: startOfToday) ?? startOfToday
         var sessionCount = 0
         var totalTokens = 0
         var lastSessionAt: Date?
@@ -171,11 +188,14 @@ public enum GrokLocalSessionScanner {
             primaryModel: sortedModels.first,
             models: sortedModels,
             daily: daily,
+            bucketTimeZoneIdentifier: calendar.timeZone.identifier,
             scannedAt: now)
     }
 
     static func dayKey(for date: Date, calendar: Calendar) -> String? {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        let components = gregorian.dateComponents([.year, .month, .day], from: date)
         guard let year = components.year, let month = components.month, let day = components.day else {
             return nil
         }

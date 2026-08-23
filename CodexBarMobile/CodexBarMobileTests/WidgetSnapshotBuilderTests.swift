@@ -1,13 +1,12 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 @Suite("Widget snapshot builder")
 struct WidgetSnapshotBuilderTests {
-    @Test("builds overview metrics from real sync snapshots")
-    func buildsOverviewMetrics() {
+    @Test
+    func `builds overview metrics from real sync snapshots`() {
         let now = Self.date("2026-06-28T12:00:00Z")
         let snapshot = SyncedUsageSnapshot(
             providers: [
@@ -17,7 +16,7 @@ struct WidgetSnapshotBuilderTests {
                     email: "dev@example.com",
                     usage: 81,
                     todayCost: 7.25,
-                    tokens: 45_000,
+                    tokens: 45000,
                     updated: now.addingTimeInterval(-120)),
                 Self.provider(
                     id: "claude",
@@ -25,7 +24,7 @@ struct WidgetSnapshotBuilderTests {
                     email: "dev@example.com",
                     usage: 33,
                     todayCost: 4.10,
-                    tokens: 12_000,
+                    tokens: 12000,
                     updated: now.addingTimeInterval(-240)),
             ],
             syncTimestamp: now.addingTimeInterval(-180),
@@ -39,13 +38,13 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.providerCount == 2)
         #expect(widget.maxUsagePercent == 81)
         #expect(widget.todayCostUSD == 11.35)
-        #expect(widget.todayTokens == 57_000)
+        #expect(widget.todayTokens == 57000)
         #expect(widget.topProviders.first?.providerName == "Codex")
         #expect(widget.isStale == false)
     }
 
-    @Test("sums local-cost provider accounts across devices")
-    func sumsLocalCostProviderAccountsAcrossDevices() {
+    @Test
+    func `sums local-cost provider accounts across devices`() {
         let now = Self.date("2026-06-28T12:00:00Z")
         let older = Self.provider(
             id: "codex",
@@ -85,8 +84,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == 300)
     }
 
-    @Test("uses account-level latest cost without double counting")
-    func usesAccountLevelLatestCostWithoutDoubleCounting() {
+    @Test
+    func `uses account-level latest cost without double counting`() {
         let now = Self.date("2026-06-28T12:00:00Z")
         let older = Self.provider(
             id: "openrouter",
@@ -126,8 +125,67 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == 200)
     }
 
-    @Test("matches cost dashboard today totals for multi-device Codex data")
-    func matchesCostDashboardTodayTotalsForMultiDeviceCodexData() {
+    @Test
+    func `keeps provider-level cost in totals but excludes its synthetic widget row`() {
+        let now = Self.localNoonToday()
+        let account = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: SyncRateWindow(
+                label: "API key",
+                usedPercent: 40,
+                windowMinutes: 1440,
+                resetsAt: nil,
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API key",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            accountRecordKey: "token-personal")
+        let managementCost = ProviderUsageSnapshot(
+            providerID: "openrouter",
+            providerName: "OpenRouter",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 7,
+                sessionTokens: 700,
+                last30DaysCostUSD: 70,
+                last30DaysTokens: 7000,
+                daily: [SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKeyForTest(now),
+                    costUSD: 7,
+                    totalTokens: 700,
+                    costIsKnown: true)],
+                sourceUpdatedAt: now,
+                historyCoverageIsEstablished: true),
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [account, managementCost],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.providerCount == 1)
+        #expect(widget.topProviders.count == 1)
+        #expect(widget.topProviders.first?.providerName == "OpenRouter")
+        #expect(widget.maxUsagePercent == 40)
+        #expect(widget.todayCostUSD == 7)
+        #expect(widget.thirtyDayCostUSD == 70)
+        #expect(widget.todayTokens == 700)
+    }
+
+    @Test
+    func `matches cost dashboard today totals for multi-device Codex data`() {
         let now = Self.date("2026-07-01T22:30:00Z")
         let deviceA = Self.provider(
             id: "codex",
@@ -167,8 +225,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 101.12) < 0.001)
     }
 
-    @Test("keeps Today Cost widget totals in parity with the Cost dashboard")
-    func keepsTodayCostWidgetTotalsInParityWithCostDashboard() throws {
+    @Test
+    func `keeps Today Cost widget totals in parity with the Cost dashboard`() throws {
         let now = Self.localNoonToday()
         let codexDeviceA = Self.provider(
             id: "codex",
@@ -228,8 +286,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == costDashboardTodayTokens)
     }
 
-    @Test("applies provider account linkages before building widget totals")
-    func appliesProviderAccountLinkagesBeforeBuildingWidgetTotals() {
+    @Test
+    func `applies provider account linkages before building widget totals`() {
         let now = Self.date("2026-07-01T22:30:00Z")
         let legacyProvider = Self.provider(
             id: "claude",
@@ -237,15 +295,15 @@ struct WidgetSnapshotBuilderTests {
             email: nil,
             usage: 19,
             todayCost: 1.49,
-            tokens: 1_000,
+            tokens: 1000,
             updated: now.addingTimeInterval(-300))
         let identifiedProvider = Self.provider(
             id: "claude",
             name: "Claude",
             email: nil,
             usage: 22,
-            todayCost: 2_638.98,
-            tokens: 2_000,
+            todayCost: 2638.98,
+            tokens: 2000,
             updated: now.addingTimeInterval(-60),
             accountIdentities: ["claude:account:team"])
         let snapshots = [
@@ -275,13 +333,13 @@ struct WidgetSnapshotBuilderTests {
             now: now)
 
         #expect(widget.providerCount == 1)
-        #expect(abs((widget.todayCostUSD ?? 0) - 2_640.47) < 0.001)
-        #expect(widget.todayTokens == 3_000)
-        #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 2_640.47) < 0.001)
+        #expect(abs((widget.todayCostUSD ?? 0) - 2640.47) < 0.001)
+        #expect(widget.todayTokens == 3000)
+        #expect(abs((widget.topProviders.first?.todayCostUSD ?? 0) - 2640.47) < 0.001)
     }
 
-    @Test("excludes archived device lifecycle records from widget totals")
-    func excludesArchivedDeviceLifecycleRecordsFromWidgetTotals() {
+    @Test
+    func `excludes archived device lifecycle records from widget totals`() {
         let now = Self.date("2026-07-01T22:30:00Z")
         let archivedProvider = Self.provider(
             id: "codex",
@@ -326,8 +384,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == 10_400_000)
     }
 
-    @Test("uses KVS fallback snapshot when CloudKit has no device data")
-    func usesKVSFallbackSnapshotWhenCloudKitHasNoDeviceData() {
+    @Test
+    func `uses KVS fallback snapshot when CloudKit has no device data`() {
         let now = Self.date("2026-07-01T22:30:00Z")
         let fallbackProvider = Self.provider(
             id: "codex",
@@ -356,8 +414,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.message == nil)
     }
 
-    @Test("keeps KVS fallback totals visible when CloudKit returns an error")
-    func keepsKVSFallbackTotalsVisibleWhenCloudKitReturnsError() {
+    @Test
+    func `keeps KVS fallback totals visible when CloudKit returns an error`() {
         let now = Self.date("2026-07-01T22:30:00Z")
         let fallbackProvider = Self.provider(
             id: "codex",
@@ -385,8 +443,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayTokens == 56_500_000)
     }
 
-    @Test("preserves configured widget mode and color style")
-    func preservesConfiguredWidgetModeAndColorStyle() {
+    @Test
+    func `preserves configured widget mode and color style`() {
         let intent = CodexBarWidgetConfigurationIntent(
             mode: .todayCost,
             colorStyle: .colorful)
@@ -395,8 +453,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(intent.colorStyle == .colorful)
     }
 
-    @Test("surfaces no-data, stale, and error states")
-    func stateCoverage() {
+    @Test
+    func `surfaces no-data, stale, and error states`() {
         let now = Self.date("2026-06-28T12:00:00Z")
         #expect(CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [], now: now).state == .noData)
 
@@ -426,8 +484,8 @@ struct WidgetSnapshotBuilderTests {
         #expect(errorWidget.message == "iCloud account not signed in")
     }
 
-    @Test("suppresses partial history totals that widgets cannot qualify")
-    func suppressesPartialHistoryTotals() {
+    @Test
+    func `suppresses partial history totals that widgets cannot qualify`() {
         let now = Self.localNoonToday()
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
@@ -443,7 +501,7 @@ struct WidgetSnapshotBuilderTests {
                 sessionCostUSD: 1,
                 sessionTokens: 100,
                 last30DaysCostUSD: 12.34,
-                last30DaysTokens: 1_000,
+                last30DaysTokens: 1000,
                 daily: [],
                 coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
                 historyCoverageIsEstablished: true))
@@ -457,11 +515,50 @@ struct WidgetSnapshotBuilderTests {
 
         #expect(widget.thirtyDayCostUSD == nil)
         #expect(widget.topProviders.first?.thirtyDayCostUSD == nil)
-        #expect(widget.todayCostUSD == 1)
+        #expect(widget.todayCostUSD == nil)
     }
 
-    @Test("suppresses aggregate widget cost when any provider is incomplete")
-    func suppressesMixedProviderPartialSubtotals() {
+    @Test
+    func `suppresses compact history totals whose cost source stopped before Today`() throws {
+        let now = Self.localNoonToday()
+        let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 200,
+            last30DaysCostUSD: 12.34,
+            last30DaysTokens: 1000,
+            daily: [],
+            sourceUpdatedAt: yesterday,
+            sourceDayKey: SyncCostSummary.iso8601DayKeyForTest(yesterday),
+            sessionDayKey: SyncCostSummary.iso8601DayKeyForTest(yesterday),
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "dev@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(summary.completeHistoryCostUSD == nil)
+        #expect(widget.thirtyDayCostUSD == nil)
+        #expect(widget.topProviders.first?.thirtyDayCostUSD == nil)
+    }
+
+    @Test
+    func `suppresses aggregate widget cost when any provider is incomplete`() {
         let now = Self.localNoonToday()
         let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
         let complete = ProviderUsageSnapshot(
@@ -478,7 +575,7 @@ struct WidgetSnapshotBuilderTests {
                 sessionCostUSD: 2,
                 sessionTokens: 200,
                 last30DaysCostUSD: 20,
-                last30DaysTokens: 2_000,
+                last30DaysTokens: 2000,
                 daily: [SyncDailyPoint(
                     dayKey: todayKey,
                     costUSD: 2,
@@ -499,7 +596,7 @@ struct WidgetSnapshotBuilderTests {
                 sessionCostUSD: nil,
                 sessionTokens: 100,
                 last30DaysCostUSD: 4,
-                last30DaysTokens: 1_000,
+                last30DaysTokens: 1000,
                 daily: [SyncDailyPoint(
                     dayKey: todayKey,
                     costUSD: 0,
@@ -522,6 +619,178 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.topProviders.first(where: { $0.providerID == "codex" })?.todayCostUSD == nil)
     }
 
+    @Test
+    func `suppresses Today subtotal when a modern provider has no current-day cost`() throws {
+        let now = Self.localNoonToday()
+        let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
+        let complete = Self.provider(
+            id: "openai",
+            name: "OpenAI",
+            email: "complete@example.com",
+            usage: 20,
+            todayCost: 2,
+            tokens: 200,
+            updated: now)
+        let unresolved = ProviderUsageSnapshot(
+            providerID: "mistral",
+            providerName: "Mistral",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "partial@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 5,
+                last30DaysTokens: 500,
+                daily: [SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKeyForTest(yesterday),
+                    costUSD: 5,
+                    totalTokens: 500,
+                    costIsKnown: true)],
+                historyCoverageIsEstablished: false))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [complete, unresolved],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.todayCostUSD == nil)
+        #expect(widget.topProviders.first(where: { $0.providerID == "openai" })?.todayCostUSD == 2)
+        #expect(widget.topProviders.first(where: { $0.providerID == "mistral" })?.todayCostUSD == nil)
+    }
+
+    @Test
+    func `suppresses Today subtotal from an explicitly stale cost source`() throws {
+        let now = Self.localNoonToday()
+        let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
+        let complete = Self.provider(
+            id: "openai",
+            name: "OpenAI",
+            email: "complete@example.com",
+            usage: 20,
+            todayCost: 2,
+            tokens: 200,
+            updated: now)
+        let stale = ProviderUsageSnapshot(
+            providerID: "mistral",
+            providerName: "Mistral",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "stale@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 5,
+                sessionTokens: 500,
+                last30DaysCostUSD: 5,
+                last30DaysTokens: 500,
+                daily: [],
+                sourceUpdatedAt: yesterday,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [complete, stale],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.todayCostUSD == nil)
+        #expect(widget.topProviders.first(where: { $0.providerID == "openai" })?.todayCostUSD == 2)
+        #expect(widget.topProviders.first(where: { $0.providerID == "mistral" })?.todayCostUSD == nil)
+    }
+
+    @Test
+    func `uses the producer bucket timezone when selecting the widget Today row`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-08-22T00:30:00Z"))
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "dev@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 3,
+                last30DaysTokens: 300,
+                daily: [SyncDailyPoint(
+                    dayKey: "2026-08-22",
+                    costUSD: 3,
+                    totalTokens: 300,
+                    costIsKnown: true)],
+                sourceUpdatedAt: now,
+                sourceDayKey: "2026-08-22",
+                bucketTimeZoneIdentifier: "UTC",
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.todayCostUSD == 3)
+        #expect(widget.todayTokens == 300)
+        #expect(widget.topProviders.first?.todayCostUSD == 3)
+    }
+
+    @Test
+    func `history freshness reuses the widget reference instant`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-07-16T08:00:00Z"))
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 3,
+            last30DaysTokens: 300,
+            daily: [SyncDailyPoint(
+                dayKey: "2026-07-16",
+                costUSD: 3,
+                totalTokens: 300,
+                costIsKnown: true)],
+            sourceUpdatedAt: now,
+            sourceDayKey: "2026-07-16",
+            bucketTimeZoneIdentifier: "UTC",
+            historyCoverageIsEstablished: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "dev@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "device-a")
+
+        #expect(!summary.hasIncompleteHistoricalCostCoverage(at: now))
+        #expect(summary.completeHistoryCostUSD(at: now) == 3)
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+        #expect(widget.todayCostUSD == 3)
+        #expect(widget.thirtyDayCostUSD == 3)
+        #expect(widget.topProviders.first?.thirtyDayCostUSD == 3)
+    }
+
     private static func provider(
         id: String,
         name: String,
@@ -531,8 +800,8 @@ struct WidgetSnapshotBuilderTests {
         tokens: Int?,
         updated: Date,
         isError: Bool = false,
-        accountIdentities: [String]? = nil
-    ) -> ProviderUsageSnapshot {
+        accountIdentities: [String]? = nil) -> ProviderUsageSnapshot
+    {
         let dayKey = SyncCostSummary.iso8601DayKeyForTest(updated)
         let costSummary = todayCost.map { cost in
             SyncCostSummary(
@@ -573,8 +842,8 @@ struct WidgetSnapshotBuilderTests {
     }
 }
 
-private extension SyncCostSummary {
-    static func iso8601DayKeyForTest(_ date: Date) -> String {
+extension SyncCostSummary {
+    fileprivate static func iso8601DayKeyForTest(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")

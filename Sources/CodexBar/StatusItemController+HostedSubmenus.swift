@@ -438,6 +438,7 @@ extension StatusItemController {
             costMultiplier: displayConversion.multiplier,
             historyDays: tokenSnapshot.historyDays,
             historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
+            bucketTimeZoneIdentifier: tokenSnapshot.bucketTimeZoneIdentifier,
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],
             sessions: provider == .codex ? tokenSnapshot.sessions : [],

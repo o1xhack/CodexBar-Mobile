@@ -25,6 +25,64 @@ import Testing
 ///
 /// See `Research/020-multi-account-comprehensive.md` R5 §B.
 struct SyncWireFormatRoundTripTests {
+    @Test
+    func `Cost summary clear tombstone round-trips and remains optional for old payloads`() throws {
+        let tombstone = ProviderUsageSnapshot(
+            providerID: "opencodego",
+            providerName: "OpenCode Go",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "old-owner@example.com",
+            loginMethod: "token",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            costSummaryCleared: true)
+
+        let encoded = try self.encoder().encode(tombstone)
+        let decoded = try self.decoder().decode(ProviderUsageSnapshot.self, from: encoded)
+        #expect(decoded.costSummary == nil)
+        #expect(decoded.costSummaryCleared == true)
+        #expect(decoded.hasUsableSignal)
+
+        let oldPayload = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            .filter { $0.key != "costSummaryCleared" }
+        let oldData = try JSONSerialization.data(withJSONObject: oldPayload)
+        let oldDecoded = try self.decoder().decode(ProviderUsageSnapshot.self, from: oldData)
+        #expect(oldDecoded.costSummaryCleared == nil)
+    }
+
+    @Test
+    func `Per-provider publication metadata stays off the wire and falls back safely`() throws {
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let publication = Date(timeIntervalSince1970: 1_700_100_000)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: publication,
+            deviceName: "Mac",
+            providerPublicationTimestamps: [
+                SyncedUsageSnapshot.providerPublicationKey(for: provider): publication,
+            ])
+
+        let data = try JSONEncoder().encode(snapshot)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["providerPublicationTimestamps"] == nil)
+
+        let decoded = try JSONDecoder().decode(SyncedUsageSnapshot.self, from: data)
+        #expect(decoded.providerPublicationTimestamps.isEmpty)
+        #expect(decoded.publicationTimestamp(for: decoded.providers[0]) == provider.lastUpdated)
+    }
+
     private func makeRichSnapshot(
         providerID: String = "codex",
         accountEmail: String? = "alice@example.com",
@@ -75,7 +133,13 @@ struct SyncWireFormatRoundTripTests {
                     cacheReadTokens: 9000,
                     cacheCreationTokens: 2000,
                     reasoningTokens: 12000),
-                historyCoverageIsEstablished: false),
+                sourceUpdatedAt: Date(timeIntervalSince1970: 1_700_000_123),
+                sourceDayKey: "2023-11-14",
+                sessionDayKey: "2023-11-13",
+                bucketTimeZoneIdentifier: "UTC",
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: false,
+                historyWindowIsComparable: false),
             budget: SyncBudgetSnapshot(
                 usedAmount: 12.34,
                 limitAmount: 100,
@@ -320,7 +384,9 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.costProvenance == nil)
         #expect(decoded.coverage == nil)
         #expect(decoded.tokenMix == nil)
+        #expect(decoded.bucketTimeZoneIdentifier == nil)
         #expect(decoded.historyCoverageIsEstablished == nil)
+        #expect(decoded.historyWindowIsComparable == nil)
     }
 
     @Test
@@ -340,6 +406,22 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.coverage == SyncCostCoverage(priced: 0, unpriced: 3, unmetered: 0, estimated: 1))
         #expect(decoded.tokenMix?.inputTokens == nil)
         #expect(decoded.tokenMix?.outputTokens == 500)
+    }
+
+    @Test
+    func `R5 B4c2: negative gap counters fail closed`() throws {
+        let payload = """
+        {
+            "last30DaysCostUSD": 12.50,
+            "daily": [],
+            "coverage": {"priced": 5, "unpriced": 0, "unmetered": -1, "estimated": 0}
+        }
+        """
+        let decoded = try self.decoder().decode(SyncCostSummary.self, from: Data(payload.utf8))
+
+        #expect(decoded.coverage?.unmetered == 1)
+        #expect(decoded.hasIncompleteHistoricalCostCoverage)
+        #expect(decoded.completeHistoryCostUSD == nil)
     }
 
     @Test

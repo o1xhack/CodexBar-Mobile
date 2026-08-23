@@ -26,8 +26,8 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
         if let loginMethod, !loginMethod.isEmpty {
             return loginMethod
         }
-        if isError {
-            return statusMessage
+        if self.isError {
+            return self.statusMessage
         }
         return nil
     }
@@ -182,10 +182,10 @@ enum CodexBarWidgetSnapshotBuilder {
         fallbackKVSSnapshot: SyncedUsageSnapshot? = nil,
         providerLinkages: [ProviderAccountLinkage] = [],
         deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
-        now: Date = .now
-    ) -> CodexBarWidgetSnapshot {
+        now: Date = .now) -> CodexBarWidgetSnapshot
+    {
         switch result {
-        case .success(let snapshots):
+        case let .success(snapshots):
             return self.makeSnapshot(
                 from: snapshots,
                 providerLinkages: providerLinkages,
@@ -200,7 +200,7 @@ enum CodexBarWidgetSnapshotBuilder {
                     now: now)
             }
             return .noData(now: now)
-        case .error(let error):
+        case let .error(error):
             if let fallbackKVSSnapshot {
                 var snapshot = self.makeSnapshot(
                     from: [fallbackKVSSnapshot],
@@ -231,8 +231,8 @@ enum CodexBarWidgetSnapshotBuilder {
         from snapshots: [SyncedUsageSnapshot],
         providerLinkages: [ProviderAccountLinkage] = [],
         deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
-        now: Date = .now
-    ) -> CodexBarWidgetSnapshot {
+        now: Date = .now) -> CodexBarWidgetSnapshot
+    {
         guard !snapshots.isEmpty else {
             return .noData(now: now)
         }
@@ -273,23 +273,31 @@ enum CodexBarWidgetSnapshotBuilder {
                 isStale: false)
         }
 
+        // Provider-level cost envelopes contribute to aggregate spend, but
+        // they are not user accounts and must not become widget provider rows.
         let summaries = providers.map { self.summary(for: $0, now: now) }
+        let visibleSummaries = zip(providers, summaries)
+            .filter { provider, _ in !provider.isProviderLevelCostEnvelope }
+            .map(\.1)
         let costSummaries = providers.compactMap(\.costSummary)
-        let todayCostIsIncomplete = costSummaries.contains {
-            self.todayTotals(from: $0, now: now).costIsKnown == false
+        let todayCostIsIncomplete = costSummaries.contains { summary in
+            let today = self.todayTotals(from: summary, now: now)
+            return today.costIsKnown == false
         }
-        let thirtyDayCostIsIncomplete = costSummaries.contains(where: \.hasIncompleteHistoricalCostCoverage)
+        let thirtyDayCostIsIncomplete = costSummaries.contains {
+            $0.hasIncompleteHistoricalCostCoverage(at: now)
+        }
         let todayCost = summaries.compactMap(\.todayCostUSD).reduce(0, +)
         let thirtyDayCost = summaries.compactMap(\.thirtyDayCostUSD).reduce(0, +)
         let todayTokens = summaries.compactMap(\.tokensToday).reduce(0, +)
         let latestSyncAt = activeSnapshots.map(\.syncTimestamp).max()
-        let maxUsage = summaries.compactMap(\.usagePercent).max()
-        let errorCount = summaries.filter(\.isError).count
+        let maxUsage = visibleSummaries.compactMap(\.usagePercent).max()
+        let errorCount = visibleSummaries.filter(\.isError).count
 
-        let topProviders = summaries
+        let topProviders = visibleSummaries
             .sorted { lhs, rhs in
-                let lhsScore = lhs.isError ? 1_000 + (lhs.usagePercent ?? 0) : (lhs.usagePercent ?? 0)
-                let rhsScore = rhs.isError ? 1_000 + (rhs.usagePercent ?? 0) : (rhs.usagePercent ?? 0)
+                let lhsScore = lhs.isError ? 1000 + (lhs.usagePercent ?? 0) : (lhs.usagePercent ?? 0)
+                let rhsScore = rhs.isError ? 1000 + (rhs.usagePercent ?? 0) : (rhs.usagePercent ?? 0)
                 if lhsScore == rhsScore {
                     return lhs.lastUpdated > rhs.lastUpdated
                 }
@@ -301,7 +309,7 @@ enum CodexBarWidgetSnapshotBuilder {
             generatedAt: now,
             latestSyncAt: latestSyncAt,
             deviceCount: activeSnapshots.count,
-            providerCount: summaries.count,
+            providerCount: visibleSummaries.count,
             errorCount: errorCount,
             todayCostUSD: !todayCostIsIncomplete && todayCost > 0 ? todayCost : nil,
             thirtyDayCostUSD: !thirtyDayCostIsIncomplete && thirtyDayCost > 0 ? thirtyDayCost : nil,
@@ -314,8 +322,8 @@ enum CodexBarWidgetSnapshotBuilder {
 
     private static func summary(
         for provider: ProviderUsageSnapshot,
-        now: Date
-    ) -> CodexBarWidgetProviderSummary {
+        now: Date) -> CodexBarWidgetProviderSummary
+    {
         let today = provider.costSummary.map { self.todayTotals(from: $0, now: now) }
         let windows = provider.allRateWindows.map(\.usedPercent)
         let budgetPercent: Double? = provider.budget.flatMap { budget in
@@ -331,7 +339,7 @@ enum CodexBarWidgetSnapshotBuilder {
             loginMethod: provider.loginMethod,
             usagePercent: usagePercent,
             todayCostUSD: today?.costUSD,
-            thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD,
+            thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD(at: now),
             tokensToday: today?.tokens,
             isError: provider.isError,
             statusMessage: provider.statusMessage,
@@ -340,27 +348,32 @@ enum CodexBarWidgetSnapshotBuilder {
 
     private static func todayTotals(
         from summary: SyncCostSummary,
-        now: Date
-    ) -> (costUSD: Double?, tokens: Int?, costIsKnown: Bool?) {
-        let dayKey = Self.dayKey(for: now)
+        now: Date) -> (costUSD: Double?, tokens: Int?, costIsKnown: Bool?)
+    {
+        let dayKey = summary.costDayKey(for: now)
+        let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+        let sessionDayKey = summary.sessionDayKey ?? sourceDayKey
+        let sourceIsStale = sourceDayKey.map { $0 != dayKey } ?? false
+        let sessionSourceIsStale = sessionDayKey.map { $0 != dayKey } ?? false
+        let todayCoverageIsIncomplete = summary.hasInvalidBucketTimeZoneIdentifier ||
+            summary.historyCoverageIsEstablished == false ||
+            summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
         if let point = summary.daily.first(where: { $0.dayKey == dayKey }) {
+            let costIsKnown = todayCoverageIsIncomplete || sourceIsStale ? false : point.costIsKnown
             return (
-                point.costIsKnown == false ? nil : point.costUSD,
+                costIsKnown == false ? nil : point.costUSD,
                 point.totalTokens,
-                point.costIsKnown)
+                costIsKnown)
         }
+        if sessionSourceIsStale {
+            return (nil, nil, false)
+        }
+        let costIsKnown = todayCoverageIsIncomplete
+            ? false
+            : summary.sessionCostIsKnown ?? (summary.sessionCostUSD == nil ? nil : true)
         return (
-            summary.sessionCostUSD,
+            costIsKnown == false ? nil : summary.sessionCostUSD,
             summary.sessionTokens,
-            summary.sessionCostUSD == nil ? nil : true)
-    }
-
-    private static func dayKey(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+            costIsKnown)
     }
 }

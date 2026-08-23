@@ -34,6 +34,12 @@ struct ContentView: View {
     @State private var isDemoMode = false
     @State private var selectedTab: MobileRootTab
     @State private var isWidgetSettingsPresented = false
+    /// Shared evaluation instant for Usage-list/detail cost surfaces. It moves
+    /// at the earliest reader or producer midnight even without a CloudKit
+    /// push, preventing an open detail screen from retaining yesterday's
+    /// Today/history freshness state.
+    @State private var costReferenceDate = Date()
+    @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
     @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
 
     init(usageData: SyncedUsageData) {
@@ -50,9 +56,23 @@ struct ContentView: View {
         self.onboardingSeenVersion != self.currentVersion
     }
 
+    private var costSourceTimeZoneIdentifiers: Set<String> {
+        CostLedgerRefreshClock.sourceTimeZoneIdentifiers(
+            in: self.usageData.deviceSnapshots + [self.usageData.snapshot].compactMap(\.self))
+    }
+
+    private var costClockRestartKey: String {
+        CostLedgerRefreshClock.restartKey(
+            sourceTimeZoneIdentifiers: self.costSourceTimeZoneIdentifiers,
+            readerTimeZoneIdentifier: self.readerTimeZoneIdentifier)
+    }
+
     var body: some View {
         TabView(selection: self.$selectedTab) {
-            UsageTab(usageData: self.usageData, isDemoMode: self.$isDemoMode)
+            UsageTab(
+                usageData: self.usageData,
+                isDemoMode: self.$isDemoMode,
+                costReferenceDate: self.costReferenceDate)
                 .tag(MobileRootTab.usage)
                 .tabItem {
                     Label("Usage", systemImage: "chart.bar.fill")
@@ -71,6 +91,13 @@ struct ContentView: View {
                 }
         }
         .modifier(TabBarMinimizeModifier())
+        .task(id: self.costClockRestartKey) {
+            await self.keepCostReferenceDateCurrent()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            self.readerTimeZoneIdentifier = TimeZone.current.identifier
+            self.costReferenceDate = Date()
+        }
         .onOpenURL { url in
             self.handleDeepLink(url)
         }
@@ -98,6 +125,25 @@ struct ContentView: View {
                         }
                 }
             }
+    }
+
+    @MainActor
+    private func keepCostReferenceDateCurrent() async {
+        while !Task.isCancelled {
+            let now = Date()
+            let sourceTimeZoneIdentifiers = self.costSourceTimeZoneIdentifiers
+            if CostLedgerRefreshClock.refreshKey(
+                now: self.costReferenceDate,
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers) != CostLedgerRefreshClock.refreshKey(
+                now: now,
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers)
+            {
+                self.costReferenceDate = now
+            }
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextDayBoundary(
+                now: now,
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers))
+        }
     }
 
     private func handleDeepLink(_ url: URL) {
@@ -149,6 +195,7 @@ private struct TabBarMinimizeModifier: ViewModifier {
 private struct UsageTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
+    let costReferenceDate: Date
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -161,7 +208,9 @@ private struct UsageTab: View {
         NavigationStack {
             Group {
                 if let snapshot = self.displaySnapshot {
-                    if MockProviderDetector.filteredProviders(from: snapshot).isEmpty {
+                    if MockProviderDetector.filteredProviders(from: snapshot)
+                        .filter({ !$0.isProviderLevelCostEnvelope }).isEmpty
+                    {
                         EmptyStateView(
                             title: "No Providers Enabled",
                             message: "Enable providers in CodexBar on your Mac to see usage data here.",
@@ -170,7 +219,8 @@ private struct UsageTab: View {
                         ProviderListView(
                             snapshot: snapshot,
                             usageData: self.usageData,
-                            isDemoMode: self.isDemoMode)
+                            isDemoMode: self.isDemoMode,
+                            costReferenceDate: self.costReferenceDate)
                     }
                 } else {
                     OnboardingView(onDemo: { self.isDemoMode = true })
@@ -200,6 +250,7 @@ private struct ProviderListView: View {
     let snapshot: SyncedUsageSnapshot
     let usageData: SyncedUsageData
     let isDemoMode: Bool
+    let costReferenceDate: Date
     /// Local per-launch suppression of linkage prompts the user clicked
     /// "Keep separate" on. Persisted only across the current session —
     /// next launch re-evaluates so a user who reconsidered can confirm.
@@ -215,6 +266,7 @@ private struct ProviderListView: View {
         // cards (OLD vs NEW mock-injector designs) don't appear on the
         // Usage list. iOS 1.5.2+: see `MockProviderDetector.extinctMockProviderIDs`.
         let liveProviders = MockProviderDetector.filteredProviders(from: self.snapshot)
+            .filter { !$0.isProviderLevelCostEnvelope }
         // Compute linkage candidates ONCE per render. The detector handles
         // ambiguity rules (skips multi-account-named scenarios where we
         // can't tell which named card a legacy entry belongs to).
@@ -277,10 +329,13 @@ private struct ProviderListView: View {
                     }()
                     let activeLinkage = activeLinkagesByProviderID[group.providerID]?.first
                     NavigationLink {
-                        ProviderDetailView(group: group)
+                        ProviderDetailView(
+                            group: group,
+                            costReferenceDate: self.costReferenceDate)
                     } label: {
                         ProviderUsageView(
                             provider: group.representative,
+                            costReferenceDate: self.costReferenceDate,
                             duplicateOrdinal: nil,
                             accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
                             linkageCandidate: candidate,
@@ -393,13 +448,66 @@ enum CostLedgerRefreshClock {
         SyncCostSummary.iso8601DayKey(for: now)
     }
 
-    static func nanosecondsUntilNextLocalDay(now: Date = Date()) -> UInt64 {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        let startOfDay = calendar.startOfDay(for: now)
-        let nextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? now.addingTimeInterval(60)
-        let seconds = max(1, nextDay.timeIntervalSince(now) + 1)
+    static func sourceTimeZoneIdentifiers(in snapshots: [SyncedUsageSnapshot]) -> Set<String> {
+        Set(snapshots.flatMap(\.providers).compactMap { provider in
+            guard let identifier = provider.costSummary?.bucketTimeZoneIdentifier,
+                  TimeZone(identifier: identifier) != nil
+            else { return nil }
+            return identifier
+        })
+    }
+
+    static func restartKey(
+        sourceTimeZoneIdentifiers: Set<String>,
+        readerTimeZoneIdentifier: String = TimeZone.current.identifier) -> String
+    {
+        ([readerTimeZoneIdentifier] + sourceTimeZoneIdentifiers.sorted()).joined(separator: "|")
+    }
+
+    /// Includes both the reader's local day and every producer calendar day.
+    /// Changing this key forces SwiftUI to rebuild time-sensitive cost insights
+    /// even when CloudKit has not delivered a new record at the boundary.
+    static func refreshKey(
+        now: Date = Date(),
+        sourceTimeZoneIdentifiers: Set<String> = []) -> String
+    {
+        self.relevantTimeZones(sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers)
+            .map { timeZone in
+                "\(timeZone.identifier)=\(self.dayKey(for: now, timeZone: timeZone))"
+            }
+            .joined(separator: ",")
+    }
+
+    static func nanosecondsUntilNextDayBoundary(
+        now: Date = Date(),
+        sourceTimeZoneIdentifiers: Set<String> = []) -> UInt64
+    {
+        let nextBoundary = self.relevantTimeZones(sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers)
+            .compactMap { timeZone -> Date? in
+                var calendar = Calendar(identifier: .gregorian)
+                calendar.timeZone = timeZone
+                return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
+            }
+            .min() ?? now.addingTimeInterval(60)
+        let seconds = max(1, nextBoundary.timeIntervalSince(now) + 1)
         return UInt64(seconds * 1_000_000_000)
+    }
+
+    private static func relevantTimeZones(sourceTimeZoneIdentifiers: Set<String>) -> [TimeZone] {
+        let identifiers = sourceTimeZoneIdentifiers.union([TimeZone.current.identifier])
+        return identifiers.sorted().compactMap(TimeZone.init(identifier:))
+    }
+
+    private static func dayKey(for date: Date, timeZone: TimeZone) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            locale: Locale(identifier: "en_US_POSIX"),
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0)
     }
 }
 
@@ -431,6 +539,15 @@ enum CostLedgerRefreshSignature {
             }
             .sorted()
             .joined(separator: ";")
+        let providerPublications = snapshots
+            .flatMap { snapshot in
+                snapshot.providers.map { provider in
+                    let publication = snapshot.publicationTimestamp(for: provider).timeIntervalSince1970
+                    return "\(snapshot.deviceID ?? "_"):\(provider.cardIdentityKey)@\(publication)"
+                }
+            }
+            .sorted()
+            .joined(separator: ";")
         return [
             currentDayKey,
             "\(windowDays)",
@@ -439,6 +556,7 @@ enum CostLedgerRefreshSignature {
             "\(latestProviderUpdate)",
             "\(providerCount)",
             providerIdentities,
+            providerPublications,
             "\(clearTombstone)",
         ].joined(separator: "|")
     }
@@ -535,13 +653,15 @@ enum CostDiagnosticsLedgerAggregationResolver {
         cwlEnabled: Bool,
         cwlWindowDays: Int,
         modelContext: ModelContext,
-        activeDeviceIDs: Set<String>?) -> CostLedgerAggregation?
+        activeDeviceIDs: Set<String>?,
+        sourceSnapshots: [SyncedUsageSnapshot] = []) -> CostLedgerAggregation?
     {
         guard cwlEnabled else { return nil }
         return try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
             windowDays: cwlWindowDays,
             in: modelContext,
-            activeDeviceIDs: activeDeviceIDs)
+            activeDeviceIDs: activeDeviceIDs,
+            sourceSnapshots: sourceSnapshots)
     }
 }
 
@@ -559,7 +679,8 @@ private struct CostTab: View {
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
     @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
-    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.refreshKey()
+    @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -595,6 +716,17 @@ private struct CostTab: View {
         self.cwlEnabled && !self.isDemoMode
     }
 
+    private var costSourceTimeZoneIdentifiers: Set<String> {
+        CostLedgerRefreshClock.sourceTimeZoneIdentifiers(
+            in: self.usageData.deviceSnapshots + [self.displaySnapshot].compactMap(\.self))
+    }
+
+    private var costClockRestartKey: String {
+        CostLedgerRefreshClock.restartKey(
+            sourceTimeZoneIdentifiers: self.costSourceTimeZoneIdentifiers,
+            readerTimeZoneIdentifier: self.readerTimeZoneIdentifier)
+    }
+
     private var ledgerRefreshSignature: String {
         CostLedgerRefreshSignature.make(
             isEnabled: self.shouldUseLedger,
@@ -615,7 +747,8 @@ private struct CostTab: View {
         self.cachedLedgerAggregation = try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
             windowDays: self.cwlWindowDays,
             in: self.modelContext,
-            activeDeviceIDs: self.activeDeviceIDsForLedger)
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            sourceSnapshots: self.usageData.deviceSnapshots)
         self.cachedLedgerSignature = signature
     }
 
@@ -669,8 +802,12 @@ private struct CostTab: View {
             .task(id: self.ledgerRefreshSignature) {
                 self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
             }
-            .task {
+            .task(id: self.costClockRestartKey) {
                 await self.keepLedgerRefreshDayCurrent()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                self.readerTimeZoneIdentifier = TimeZone.current.identifier
+                self.ledgerRefreshDayKey = CostLedgerRefreshClock.refreshKey()
             }
         }
     }
@@ -678,11 +815,14 @@ private struct CostTab: View {
     @MainActor
     private func keepLedgerRefreshDayCurrent() async {
         while !Task.isCancelled {
-            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            let sourceTimeZoneIdentifiers = self.costSourceTimeZoneIdentifiers
+            let currentDayKey = CostLedgerRefreshClock.refreshKey(
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers)
             if self.ledgerRefreshDayKey != currentDayKey {
                 self.ledgerRefreshDayKey = currentDayKey
             }
-            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextDayBoundary(
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers))
         }
     }
 }
@@ -1253,6 +1393,9 @@ struct CostDashboardInsights {
         let thirtyDayTokens: Int
         let todayTokens: Int
         let dailyPoints: [DailyPoint]
+        /// CWL normalizes producer-local dates onto the reader-relative
+        /// calendar before cross-device rollup. Blob rows keep producer keys.
+        let dailyPointsUseReaderCalendar: Bool
 
         init(
             provider: ProviderUsageSnapshot,
@@ -1262,7 +1405,8 @@ struct CostDashboardInsights {
             todayCostIsKnown: Bool = true,
             thirtyDayTokens: Int,
             todayTokens: Int,
-            dailyPoints: [DailyPoint])
+            dailyPoints: [DailyPoint],
+            dailyPointsUseReaderCalendar: Bool = false)
         {
             self.provider = provider
             self.thirtyDayCost = thirtyDayCost
@@ -1272,6 +1416,7 @@ struct CostDashboardInsights {
             self.thirtyDayTokens = thirtyDayTokens
             self.todayTokens = todayTokens
             self.dailyPoints = dailyPoints
+            self.dailyPointsUseReaderCalendar = dailyPointsUseReaderCalendar
         }
 
         /// Composite key (providerID|accountEmail) so multi-account rows
@@ -1287,6 +1432,13 @@ struct CostDashboardInsights {
     let modelRows: [CostBreakdownRow]
     let serviceRows: [CostBreakdownRow]
     let budgetRows: [CostBudgetRow]
+    /// Single instant used to resolve producer-local Today across every row.
+    /// Capturing it prevents midnight drift between totals and knownness.
+    let referenceDate: Date
+    /// Reader calendar used to normalize CWL day keys. The identifier is not
+    /// part of the wire contract, but its time zone must be preserved for all
+    /// Today comparisons within this projection.
+    let readerCalendar: Calendar
     /// When CWL is ON, the user-selected window (7/30/90/365) the ledger was
     /// re-aggregated to. nil on the blob path. Drives `historyDays` so the
     /// Overview "N Days" headline reflects the chosen CWL window instead of the
@@ -1306,14 +1458,41 @@ struct CostDashboardInsights {
     }
 
     var totalTodayCostIsKnown: Bool {
-        self.providerRows.contains(where: \.todayCostIsKnown)
+        let opinions = self.providerRows.compactMap { row -> Bool? in
+            // The ledger and the live summary are independent authorities.
+            // An explicit unavailable Today row must not be overwritten by a
+            // newer live summary that happens to report a known fallback.
+            let dailyTodayKey = if row.dailyPointsUseReaderCalendar {
+                Self.dayKeyFormatter(calendar: self.readerCalendar).string(from: self.referenceDate)
+            } else {
+                row.provider.costSummary?.costDayKey(for: self.referenceDate)
+            }
+            if row.dailyPoints.contains(where: { point in
+                if let dailyTodayKey {
+                    return point.dayKey == dailyTodayKey && point.costIsKnown == false
+                }
+                return self.readerCalendar.isDate(point.date, inSameDayAs: self.referenceDate) &&
+                    point.costIsKnown == false
+            }) {
+                return false
+            }
+            if let opinion = row.provider.costSummary?
+                .todayTotals(now: self.referenceDate).costIsKnown
+            {
+                return opinion
+            }
+            return row.todayCostIsKnown ? true : nil
+        }
+        return !opinions.isEmpty && opinions.allSatisfy(\.self)
     }
 
     var hasIncompleteCostData: Bool {
         self.providerRows.contains {
             !$0.thirtyDayCostIsKnown ||
+                $0.provider.costSummary?.todayTotals(now: self.referenceDate).costIsKnown == false ||
                 $0.dailyPoints.contains(where: { $0.costIsKnown == false }) ||
-                $0.provider.costSummary?.historyCoverageIsEstablished == false ||
+                $0.provider.costSummary?
+                .hasIncompleteHistoricalCostCoverage(at: self.referenceDate) == true ||
                 ($0.provider.costSummary?.coverage.map {
                     $0.unpriced > 0 || $0.unmetered > 0
                 } ?? false)
@@ -1357,7 +1536,11 @@ struct CostDashboardInsights {
         !self.providerRows.isEmpty || !self.dailyPoints.isEmpty || !self.budgetRows.isEmpty
     }
 
-    init(snapshot: SyncedUsageSnapshot) {
+    init(
+        snapshot: SyncedUsageSnapshot,
+        now: Date = Date(),
+        calendar: Calendar = .current)
+    {
         var providerRows: [ProviderRow] = []
         var dailyTotals: [String: DailyAccumulator] = [:]
         var modelTotals: [String: Double] = [:]
@@ -1366,6 +1549,7 @@ struct CostDashboardInsights {
         var modelSplits: [String: (std: Double, fast: Double)] = [:]
         var serviceTotals: [String: Double] = [:]
         var budgetRows: [CostBudgetRow] = []
+        let displayDayKeyFormatter = Self.dayKeyFormatter(calendar: calendar)
 
         // Drop extinct mock zombies before aggregation so the Cost
         // dashboard's totals don't include them. iOS 1.5.2+: see
@@ -1387,7 +1571,7 @@ struct CostDashboardInsights {
             let thirtyDayTokens = costSummary.last30DaysTokens
                 ?? costSummary.daily.reduce(0) { $0 + $1.totalTokens }
 
-            let todayTotals = costSummary.todayTotals()
+            let todayTotals = costSummary.todayTotals(now: now)
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
@@ -1395,7 +1579,7 @@ struct CostDashboardInsights {
 
             guard resolvedThirtyDayCost != nil || resolvedTodayCost != nil ||
                 thirtyDayTokens > 0 || todayTokens > 0 ||
-                costSummary.hasIncompleteHistoricalCostCoverage
+                costSummary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 continue
             }
@@ -1412,7 +1596,18 @@ struct CostDashboardInsights {
                     dailyPoints: providerDailyPoints))
 
             for point in costSummary.daily {
-                dailyTotals[point.dayKey, default: .init()].ingest(point)
+                guard let identity = Self.displayDayIdentity(
+                    for: point.dayKey,
+                    summary: costSummary,
+                    now: now,
+                    calendar: calendar,
+                    displayDayKeyFormatter: displayDayKeyFormatter)
+                else { continue }
+                dailyTotals[identity.dayKey, default: .init()].ingest(point)
+
+                // A lower-bound day can retain token/activity evidence, but its
+                // monetary breakdowns are not authoritative enough for Mix rows.
+                guard point.costIsKnown != false else { continue }
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
@@ -1437,7 +1632,7 @@ struct CostDashboardInsights {
         }
 
         self.dailyPoints = dailyTotals.keys.compactMap { dayKey in
-            guard let date = Self.dayKeyFormatter.date(from: dayKey),
+            guard let date = displayDayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
             return totals.dailyPoint(dayKey: dayKey, date: date)
         }
@@ -1450,6 +1645,8 @@ struct CostDashboardInsights {
             let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
             return lhsRatio > rhsRatio
         }
+        self.referenceDate = now
+        self.readerCalendar = calendar
         self.cwlWindowDays = nil
     }
 
@@ -1462,6 +1659,8 @@ struct CostDashboardInsights {
         modelRows: [CostBreakdownRow],
         serviceRows: [CostBreakdownRow],
         budgetRows: [CostBudgetRow],
+        referenceDate: Date = Date(),
+        readerCalendar: Calendar = .current,
         cwlWindowDays: Int? = nil)
     {
         self.providerRows = providerRows
@@ -1469,6 +1668,8 @@ struct CostDashboardInsights {
         self.modelRows = modelRows
         self.serviceRows = serviceRows
         self.budgetRows = budgetRows
+        self.referenceDate = referenceDate
+        self.readerCalendar = readerCalendar
         self.cwlWindowDays = cwlWindowDays
     }
 
@@ -1486,17 +1687,15 @@ struct CostDashboardInsights {
     static func fromLedger(
         aggregation: CostLedgerAggregation,
         snapshot: SyncedUsageSnapshot,
-        snapshotFallbackCutoff: Date? = nil) -> CostDashboardInsights
+        snapshotFallbackCutoff: Date? = nil,
+        now: Date = Date(),
+        calendar: Calendar = .current) -> CostDashboardInsights
     {
-        let todayKey = Self.dayKeyFormatter.string(from: Date())
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
 
         var providerRows: [ProviderRow] = []
         var representedProviderKeys = Set<String>()
         var dailyTotals: [String: DailyAccumulator] = [:]
-        for point in aggregation.dailyPoints {
-            dailyTotals[point.dayKey, default: .init()].ingest(point)
-        }
         var modelTotals = Dictionary(
             uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
         var modelSplits = Dictionary(
@@ -1507,6 +1706,7 @@ struct CostDashboardInsights {
             })
         var serviceTotals = Dictionary(
             uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+        let displayDayKeyFormatter = Self.dayKeyFormatter(calendar: calendar)
 
         for rollup in aggregation.providerRollups.values {
             guard let provider = liveProviders.first(where: {
@@ -1523,10 +1723,16 @@ struct CostDashboardInsights {
                 provider: provider,
                 windowDays: aggregation.windowDays)
             let providerDailyPoints = rollup.dailyPoints.compactMap(Self.dailyPoint)
+            for point in rollup.dailyPoints {
+                dailyTotals[point.dayKey, default: .init()].ingest(point)
+            }
+            let todayKey = displayDayKeyFormatter.string(from: now)
             let todayPoint = providerDailyPoints.first(where: { $0.dayKey == todayKey })
-            let fallbackToday = provider.costSummary?.todayTotals()
+            let fallbackToday = provider.costSummary?.todayTotals(now: now)
             let resolvedTodayCost: Double? = if let todayPoint {
-                todayPoint.costIsKnown == false ? nil : todayPoint.costUSD
+                todayPoint.costIsKnown == false || fallbackToday?.costIsKnown == false
+                    ? nil
+                    : todayPoint.costUSD
             } else {
                 fallbackToday?.displayCostUSD
             }
@@ -1540,18 +1746,17 @@ struct CostDashboardInsights {
                 todayCostIsKnown: resolvedTodayCost != nil,
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
-                dailyPoints: providerDailyPoints))
+                dailyPoints: providerDailyPoints,
+                dailyPointsUseReaderCalendar: true))
             representedProviderKeys.insert(provider.cardIdentityKey)
         }
 
-        let fallbackCutoffKey = CostLedgerService.cutoffDayKey(
-            windowDays: aggregation.windowDays,
-            asOf: Date())
         for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
-            if let snapshotFallbackCutoff, provider.lastUpdated <= snapshotFallbackCutoff {
+            guard let costSummary = provider.costSummary else { continue }
+            let costUpdatedAt = costSummary.sourceUpdatedAt ?? provider.lastUpdated
+            if let snapshotFallbackCutoff, costUpdatedAt <= snapshotFallbackCutoff {
                 continue
             }
-            guard let costSummary = provider.costSummary else { continue }
             let emptyRollup = CostLedgerProviderRollup(
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail,
@@ -1565,11 +1770,16 @@ struct CostDashboardInsights {
                 rollup: emptyRollup,
                 provider: provider,
                 windowDays: aggregation.windowDays)
-            let todayTotals = costSummary.todayTotals()
+            let todayTotals = costSummary.todayTotals(now: now)
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let fallbackSyncPoints = costSummary.daily.filter { $0.dayKey >= fallbackCutoffKey }
+            let fallbackSyncPoints = costSummary.daily.filter {
+                guard let offset = costSummary.costDayOffset(for: $0.dayKey, from: now) else {
+                    return false
+                }
+                return offset >= -(aggregation.windowDays - 1) && offset <= 0
+            }
             let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
             let availableFallbackPoints = fallbackSyncPoints.filter { $0.costIsKnown != false }
             let fallbackDailyCost = availableFallbackPoints.isEmpty
@@ -1581,7 +1791,7 @@ struct CostDashboardInsights {
             let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
             guard resolvedCostIsKnown || resolvedTodayCost != nil ||
                 resolvedTokens > 0 ||
-                costSummary.hasIncompleteHistoricalCostCoverage
+                costSummary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 continue
             }
@@ -1596,7 +1806,19 @@ struct CostDashboardInsights {
                 dailyPoints: providerDailyPoints))
 
             for point in fallbackSyncPoints {
-                dailyTotals[point.dayKey, default: .init()].ingest(point)
+                guard let identity = Self.displayDayIdentity(
+                    for: point.dayKey,
+                    summary: costSummary,
+                    now: now,
+                    calendar: calendar,
+                    displayDayKeyFormatter: displayDayKeyFormatter)
+                else { continue }
+                dailyTotals[identity.dayKey, default: .init()].ingest(point)
+
+                // Explicitly unavailable cost rows may still carry legacy
+                // diagnostic breakdown payloads. Do not surface those as
+                // real model/service spend.
+                guard point.costIsKnown != false else { continue }
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
@@ -1620,7 +1842,7 @@ struct CostDashboardInsights {
         }
 
         let dailyPoints: [DailyPoint] = dailyTotals.keys.compactMap { dayKey in
-            guard let date = Self.dayKeyFormatter.date(from: dayKey),
+            guard let date = displayDayKeyFormatter.date(from: dayKey),
                   let totals = dailyTotals[dayKey] else { return nil }
             return totals.dailyPoint(dayKey: dayKey, date: date)
         }
@@ -1641,6 +1863,8 @@ struct CostDashboardInsights {
                 let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
                 return lhsRatio > rhsRatio
             },
+            referenceDate: now,
+            readerCalendar: calendar,
             cwlWindowDays: aggregation.windowDays)
     }
 
@@ -1715,6 +1939,24 @@ struct CostDashboardInsights {
             serviceBreakdowns: point.serviceBreakdowns)
     }
 
+    private static func displayDayIdentity(
+        for dayKey: String,
+        summary: SyncCostSummary?,
+        now: Date,
+        calendar: Calendar,
+        displayDayKeyFormatter: DateFormatter) -> (dayKey: String, date: Date)?
+    {
+        if let relativeDate = summary?.readerRelativeDate(
+            for: dayKey,
+            from: now,
+            calendar: calendar)
+        {
+            return (displayDayKeyFormatter.string(from: relativeDate), relativeDate)
+        }
+        guard let date = displayDayKeyFormatter.date(from: dayKey) else { return nil }
+        return (dayKey, date)
+    }
+
     private struct DailyAccumulator {
         var costUSD: Double = 0
         var totalTokens: Int = 0
@@ -1732,6 +1974,7 @@ struct CostDashboardInsights {
             case false: self.sawUnavailableCost = true
             case nil: self.sawUnknownCost = true
             }
+            guard point.costIsKnown != false else { return }
             for breakdown in point.modelBreakdowns {
                 self.modelBreakdowns[breakdown.label, default: .init()].ingest(breakdown)
             }
@@ -1836,6 +2079,17 @@ struct CostDashboardInsights {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    private static func dayKeyFormatter(calendar: Calendar) -> DateFormatter {
+        let formatter = DateFormatter()
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        formatter.calendar = gregorian
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
 }
 
 /// Renders one row of the Cost dashboard's contribution lists (Provider Share /
@@ -3364,7 +3618,8 @@ private struct CostDiagnosticsView: View {
     @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var cwlBlobSeedClearedAt: Double = 0
     @State private var cachedLedgerSignature: String?
     @State private var cachedLedgerAggregation: CostLedgerAggregation?
-    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.currentDayKey()
+    @State private var ledgerRefreshDayKey = CostLedgerRefreshClock.refreshKey()
+    @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
 
     var body: some View {
         List {
@@ -3449,8 +3704,12 @@ private struct CostDiagnosticsView: View {
         .task(id: self.ledgerRefreshSignature) {
             self.refreshLedgerAggregation(for: self.ledgerRefreshSignature)
         }
-        .task {
+        .task(id: self.costClockRestartKey) {
             await self.keepLedgerRefreshDayCurrent()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            self.readerTimeZoneIdentifier = TimeZone.current.identifier
+            self.ledgerRefreshDayKey = CostLedgerRefreshClock.refreshKey()
         }
     }
 
@@ -3474,6 +3733,17 @@ private struct CostDiagnosticsView: View {
         CostLedgerDeviceFilter.activeDeviceIDs(for: self.usageData.deviceSnapshots)
     }
 
+    private var costSourceTimeZoneIdentifiers: Set<String> {
+        CostLedgerRefreshClock.sourceTimeZoneIdentifiers(
+            in: self.usageData.deviceSnapshots + [self.usageData.snapshot].compactMap(\.self))
+    }
+
+    private var costClockRestartKey: String {
+        CostLedgerRefreshClock.restartKey(
+            sourceTimeZoneIdentifiers: self.costSourceTimeZoneIdentifiers,
+            readerTimeZoneIdentifier: self.readerTimeZoneIdentifier)
+    }
+
     private var ledgerRefreshSignature: String {
         CostLedgerRefreshSignature.make(
             isEnabled: self.cwlEnabled,
@@ -3495,18 +3765,22 @@ private struct CostDiagnosticsView: View {
             cwlEnabled: self.cwlEnabled,
             cwlWindowDays: self.cwlWindowDays,
             modelContext: self.modelContext,
-            activeDeviceIDs: self.activeDeviceIDsForLedger)
+            activeDeviceIDs: self.activeDeviceIDsForLedger,
+            sourceSnapshots: self.usageData.deviceSnapshots)
         self.cachedLedgerSignature = signature
     }
 
     @MainActor
     private func keepLedgerRefreshDayCurrent() async {
         while !Task.isCancelled {
-            let currentDayKey = CostLedgerRefreshClock.currentDayKey()
+            let sourceTimeZoneIdentifiers = self.costSourceTimeZoneIdentifiers
+            let currentDayKey = CostLedgerRefreshClock.refreshKey(
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers)
             if self.ledgerRefreshDayKey != currentDayKey {
                 self.ledgerRefreshDayKey = currentDayKey
             }
-            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextLocalDay())
+            try? await Task.sleep(nanoseconds: CostLedgerRefreshClock.nanosecondsUntilNextDayBoundary(
+                sourceTimeZoneIdentifiers: sourceTimeZoneIdentifiers))
         }
     }
 

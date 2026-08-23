@@ -23,14 +23,20 @@ struct CWLSeedTests {
 
     private func makeContext() -> (URL, ModelContext) {
         let url = self.makeTempStoreURL()
-        return (url, ModelContext(ModelContainerFactory.makeContainer(at: url)))
+        let schema = Schema(CodexBarSwiftDataSchema.models)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none)
+        let container = try! ModelContainer(for: schema, configurations: configuration)
+        return (url, ModelContext(container))
     }
 
-    private func summaryBlob(daily: [SyncDailyPoint]) -> Data {
+    private func summaryBlob(daily: [SyncDailyPoint], sourceUpdatedAt: Date? = nil) -> Data {
         let summary = SyncCostSummary(
             sessionCostUSD: nil, sessionTokens: nil,
             last30DaysCostUSD: nil, last30DaysTokens: nil,
-            daily: daily, isEstimated: false)
+            daily: daily, isEstimated: false, sourceUpdatedAt: sourceUpdatedAt)
         return (try? CloudSyncConstants.makeJSONEncoder().encode(summary)) ?? Data()
     }
 
@@ -194,6 +200,66 @@ struct CWLSeedTests {
         #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
         #expect(aggregation.providerRollups["claude|_"]?.totalCostUSD == 6.0)
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+    }
+
+    @Test("T10: default-on aggregate repairs an equal-time stale ledger row from its blob")
+    func testDefaultOnAggregateRepairsEqualTimeLedgerDrift() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let asOf = try #require(SyncCostSummary.iso8601DayKeyFormatter().date(from: "2026-05-28"))
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "codex",
+            dayKey: "2026-05-28",
+            costUSD: 1,
+            totalTokens: 100,
+            costIsKnown: false,
+            isEstimated: false,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: asOf,
+            in: context)
+
+        let model = SyncCostBreakdown(label: "gpt-5", costUSD: 6)
+        let service = SyncCostBreakdown(label: "Codex Run", costUSD: 2)
+        let authoritativePoint = SyncDailyPoint(
+            dayKey: "2026-05-28",
+            costUSD: 8,
+            totalTokens: 800,
+            modelBreakdowns: [model],
+            serviceBreakdowns: [service],
+            isEstimated: true,
+            costIsKnown: true)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: asOf,
+            costSummaryData: self.summaryBlob(
+                daily: [authoritativePoint],
+                sourceUpdatedAt: asOf)))
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 90,
+            in: context,
+            asOf: asOf)
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let models = try decoder.decode([SyncCostBreakdown].self, from: #require(row.modelBreakdownsData))
+        let services = try decoder.decode([SyncCostBreakdown].self, from: #require(row.serviceBreakdownsData))
+        #expect(row.lastUpdated == asOf)
+        #expect(row.costUSD == 8)
+        #expect(row.totalTokens == 800)
+        #expect(row.costIsKnown == true)
+        #expect(row.isEstimated == true)
+        #expect(models == [model])
+        #expect(services == [service])
+        #expect(aggregation.totalCostUSD == 8)
+        #expect(aggregation.totalTokens == 800)
     }
 
     @Test("T10: default-on aggregate prunes ledger rows for removed provider snapshots")
@@ -369,6 +435,57 @@ struct CWLSeedTests {
         #expect(rows.first?.providerID == "claude")
         #expect(rows.first?.costUSD == 6.0)
         #expect(defaults.double(forKey: MobileSettingsKeys.cwlBlobSeedClearedAt) == clearedAt.timeIntervalSince1970)
+    }
+
+    @Test("T10: seed clear boundary follows cost source time, not provider refresh time")
+    func testSeedClearBoundaryUsesCostSourceTimestamp() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let oldCost = Date(timeIntervalSince1970: 1_700_000_000)
+        let clearedAt = oldCost.addingTimeInterval(60)
+        let providerRefresh = clearedAt.addingTimeInterval(60)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: providerRefresh,
+            costSummaryData: self.summaryBlob(
+                daily: [self.day("2026-05-28", 5.0, 500)],
+                sourceUpdatedAt: oldCost)))
+        try context.save()
+
+        try CostLedgerService.seedFromExistingBlobs(in: context, newerThan: clearedAt)
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+    }
+
+    @Test("T10: seed freshness and stored timestamp follow a newer cost source")
+    func testSeedFreshnessUsesCostSourceTimestamp() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let providerRefresh = Date(timeIntervalSince1970: 1_700_000_000)
+        let clearedAt = providerRefresh.addingTimeInterval(60)
+        let newCost = clearedAt.addingTimeInterval(60)
+        context.insert(ProviderSnapshotModel(
+            deviceID: "dev-A",
+            providerID: "codex",
+            providerName: "Codex",
+            accountEmail: nil,
+            lastUpdated: providerRefresh,
+            costSummaryData: self.summaryBlob(
+                daily: [self.day("2026-05-28", 7.0, 700)],
+                sourceUpdatedAt: newCost)))
+        try context.save()
+
+        try CostLedgerService.seedFromExistingBlobs(in: context, newerThan: clearedAt)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.lastUpdated == newCost)
+        #expect(rows.first?.costUSD == 7.0)
     }
 
     // MARK: - T11

@@ -1094,15 +1094,16 @@ public struct CostUsageFetcher: Sendable {
     /// current local day (so a stale latest entry is never labeled as Today).
     private static func loadCursorTokenSnapshot(
         now: Date,
-        since: Date?,
         historyDays: Int,
         cookieHeaderOverride: String? = nil) async throws -> CostUsageTokenSnapshot
     {
+        let bucketCalendar = Calendar.current
+        let since = bucketCalendar.date(byAdding: .day, value: -(historyDays - 1), to: now)
         let probe = CursorStatusProbe(browserDetection: BrowserDetection())
         // `since` arrives as the current instant N-1 days back; snap it to the local day boundary so
         // the dashboard query keeps the full first day (and all of today for a 1-day window) instead
         // of filtering out earlier events at the same time-of-day.
-        let windowStart = Self.cursorWindowStart(since)
+        let windowStart = Self.cursorWindowStart(since, calendar: bucketCalendar)
         let report = try await probe.fetchCostReport(
             since: windowStart,
             until: now,
@@ -1112,6 +1113,7 @@ public struct CostUsageFetcher: Sendable {
             now: now,
             historyDays: historyDays,
             useCurrentLocalDayForSession: true,
+            calendar: bucketCalendar,
             meteredCostUSD: report.meteredCostUSD,
             costProvenance: Self.cursorCostProvenance(
                 meteredCostUSD: report.meteredCostUSD,
@@ -1190,6 +1192,7 @@ public struct CostUsageFetcher: Sendable {
             daily: daily.data,
             projects: projects,
             sessions: sessions,
+            bucketTimeZoneIdentifier: calendar.timeZone.identifier,
             updatedAt: updatedAt ?? now)
     }
 
@@ -1578,8 +1581,10 @@ extension CostUsageFetcher {
         cursorCookieHeaderOverride: String?) async throws -> CostUsageTokenSnapshot?
     {
         // Provider-specific by design: Bedrock uses AWS billing while Cursor uses its macOS dashboard session.
-        let since = Calendar.current.date(byAdding: .day, value: -(historyDays - 1), to: now) ?? now
         if provider == .bedrock {
+            var bucketCalendar = Calendar(identifier: .gregorian)
+            bucketCalendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+            let since = bucketCalendar.date(byAdding: .day, value: -(historyDays - 1), to: now) ?? now
             let daily = try await Self.loadBedrockDailyReport(
                 environment: environment,
                 since: since,
@@ -1589,6 +1594,7 @@ extension CostUsageFetcher {
                 now: now,
                 historyDays: historyDays,
                 useCurrentLocalDayForSession: false,
+                calendar: bucketCalendar,
                 costProvenance: .vendorMetered)
         }
 
@@ -1596,7 +1602,6 @@ extension CostUsageFetcher {
         if provider == .cursor {
             return try await self.loadCursorTokenSnapshot(
                 now: now,
-                since: since,
                 historyDays: historyDays,
                 cookieHeaderOverride: cursorCookieHeaderOverride)
         }

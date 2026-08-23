@@ -298,6 +298,58 @@ struct CLIOpenAIDashboardCacheTests {
         #expect(OpenAIDashboardCacheStore.load() == nil)
     }
 
+    @Test
+    func `cached dashboard daily reconstruction preserves usage breakdown freshness`() throws {
+        OpenAIDashboardCacheStore.clear()
+        defer { OpenAIDashboardCacheStore.clear() }
+
+        let authHome = try self.makeAuthHome(
+            email: "owner@example.com",
+            accountId: "acct-owner")
+        defer { try? FileManager.default.removeItem(at: authHome) }
+        let context = self.makeContext(
+            authHome: authHome,
+            knownOwners: [
+                CodexDashboardKnownOwnerCandidate(
+                    identity: .providerAccount(id: "acct-owner"),
+                    normalizedEmail: "owner@example.com"),
+            ])
+        let breakdownUpdatedAt = Date(timeIntervalSince1970: 1000)
+        let snapshotUpdatedAt = Date(timeIntervalSince1970: 2000)
+        let creditEvents = [
+            CreditEvent(
+                date: breakdownUpdatedAt,
+                service: "codex",
+                creditsUsed: 3),
+        ]
+        let dashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "owner@example.com",
+            codeReviewRemainingPercent: nil,
+            creditEvents: creditEvents,
+            dailyBreakdown: [],
+            usageBreakdown: [OpenAIDashboardDailyBreakdown(
+                day: "2026-08-21",
+                services: [],
+                totalCreditsUsed: 4)],
+            usageBreakdownUpdatedAt: breakdownUpdatedAt,
+            usageBreakdownTimeZoneIdentifier: "UTC",
+            creditsPurchaseURL: nil,
+            updatedAt: snapshotUpdatedAt)
+        OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
+            accountEmail: "owner@example.com",
+            snapshot: dashboard))
+
+        let restored = try #require(CodexBarCLI.loadOpenAIDashboardIfAvailable(
+            usage: self.makeUsage(email: "owner@example.com"),
+            sourceLabel: "codex-cli",
+            context: context))
+
+        #expect(!restored.dailyBreakdown.isEmpty)
+        #expect(restored.usageBreakdownUpdatedAt == breakdownUpdatedAt)
+        #expect(restored.usageBreakdownTimeZoneIdentifier == TimeZone(identifier: "UTC")?.identifier)
+        #expect(restored.updatedAt == snapshotUpdatedAt)
+    }
+
     private func makeContext(
         authHome: URL?,
         knownOwners: [CodexDashboardKnownOwnerCandidate]) -> ProviderFetchContext

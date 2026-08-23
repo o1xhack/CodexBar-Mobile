@@ -444,6 +444,67 @@ struct CWLWriterTests {
     }
 
     @Test
+    func `upsertFromSnapshot uses independent cost source timestamp for clear and dedupe`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let suite = "CodexBarTests-CWLWriter-CostSource-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let oldCost = Date(timeIntervalSince1970: 1_700_000_000)
+        let clearedAt = oldCost.addingTimeInterval(60)
+        let freshCost = clearedAt.addingTimeInterval(60)
+        defaults.set(
+            clearedAt.timeIntervalSince1970,
+            forKey: MobileSettingsKeys.cwlBlobSeedClearedAt)
+
+        func snapshot(providerUpdatedAt: Date, costUpdatedAt: Date, cost: Double) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "cursor", providerName: "Cursor",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com", loginMethod: nil,
+                statusMessage: nil, isError: false,
+                lastUpdated: providerUpdatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost, sessionTokens: 100,
+                    last30DaysCostUSD: cost, last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-05-28", costUSD: cost, totalTokens: 100)],
+                    sourceUpdatedAt: costUpdatedAt))
+        }
+
+        // A fresh usage card cannot revive cost whose own source predates clear.
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                providerUpdatedAt: freshCost.addingTimeInterval(60),
+                costUpdatedAt: oldCost,
+                cost: 1),
+            deviceID: "dev-A",
+            in: context,
+            userDefaults: defaults)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+
+        // Conversely, fresh cost is accepted even if the usage card timestamp is old.
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                providerUpdatedAt: oldCost,
+                costUpdatedAt: freshCost,
+                cost: 2),
+            deviceID: "dev-A",
+            in: context,
+            userDefaults: defaults)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.costUSD == 2)
+        #expect(rows.first?.lastUpdated == freshCost)
+    }
+
+    @Test
     func `upsertFromSnapshot: nil costSummary → no rows written`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

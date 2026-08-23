@@ -1153,6 +1153,35 @@ extension SpendDashboardModelTests {
     }
 
     @Test
+    func `snapshot bucket timezone controls boundary day placement`() throws {
+        let now = Date(timeIntervalSince1970: 1_784_220_600) // 2026-07-16 16:50:00 UTC; July 17 in Tokyo.
+        let snapshot = Self.snapshot(
+            currency: "USD",
+            entries: [Self.entry(day: "2026-07-17", cost: 4, tokens: 12)],
+            historyDays: 1,
+            updatedAt: now,
+            bucketTimeZoneIdentifier: "Asia/Tokyo")
+        let input = SpendDashboardModel.ProviderInput(
+            id: "cursor",
+            provider: .cursor,
+            displayName: "Cursor",
+            snapshot: snapshot)
+        var losAngeles = Calendar(identifier: .gregorian)
+        losAngeles.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+
+        let model = SpendDashboardModel.build(
+            inputs: [input],
+            requestedDays: 1,
+            now: now,
+            calendar: losAngeles)
+
+        let group = try #require(model.groups.first)
+        #expect(group.totalCost == 4)
+        #expect(group.dailyPoints.count == 1)
+        #expect(CostUsageLocalDay.key(from: group.dailyPoints[0].day, calendar: losAngeles) == "2026-07-16")
+    }
+
+    @Test
     func `openCodex stays on a separate ledger from native Codex`() {
         let now = Date(timeIntervalSince1970: 1_784_179_200)
         let native = SpendDashboardModel.ProviderInput(
@@ -1595,7 +1624,8 @@ extension SpendDashboardModelTests {
         entries: [CostUsageDailyReport.Entry],
         historyDays: Int = 30,
         projects: [CostUsageProjectBreakdown] = [],
-        updatedAt: Date = now) -> CostUsageTokenSnapshot
+        updatedAt: Date = now,
+        bucketTimeZoneIdentifier: String? = nil) -> CostUsageTokenSnapshot
     {
         CostUsageTokenSnapshot(
             sessionTokens: nil,
@@ -1606,6 +1636,7 @@ extension SpendDashboardModelTests {
             historyDays: historyDays,
             daily: entries,
             projects: projects,
+            bucketTimeZoneIdentifier: bucketTimeZoneIdentifier,
             updatedAt: updatedAt)
     }
 

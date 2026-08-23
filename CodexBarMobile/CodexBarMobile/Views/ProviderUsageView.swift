@@ -3,6 +3,9 @@ import SwiftUI
 
 struct ProviderUsageView: View {
     let provider: ProviderUsageSnapshot
+    /// Captured by the root cost-boundary clock so every Usage surface uses
+    /// the same producer-day evaluation instant for one render.
+    var costReferenceDate: Date = Date()
     /// 1-based ordinal among cards sharing this same `providerID`. `nil`
     /// when this is the only card for its providerID — subtitle then stays
     /// in its pre-T5 single-card form.
@@ -327,7 +330,7 @@ struct ProviderUsageView: View {
         // causing Usage-tab teaser ≠ detail-page "Today" mid-day). Same
         // class-of-bug as the Subscription Utilization aggregate/detail
         // mismatch fixed in Build 77.
-        let parts = Self.costTeaserParts(cost)
+        let parts = Self.costTeaserParts(cost, now: self.costReferenceDate)
 
         if !parts.isEmpty {
             Text(parts.joined(separator: " · "))
@@ -336,11 +339,11 @@ struct ProviderUsageView: View {
         }
     }
 
-    static func costTeaserParts(_ cost: SyncCostSummary) -> [String] {
-        let today = cost.todayTotals()
+    static func costTeaserParts(_ cost: SyncCostSummary, now: Date = Date()) -> [String] {
+        let today = cost.todayTotals(now: now)
         return [
             today.displayCostUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
-            cost.completeHistoryCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
+            cost.completeHistoryCostUSD(at: now).map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
         ].compactMap { $0 }
     }
 

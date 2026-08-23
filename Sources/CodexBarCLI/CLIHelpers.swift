@@ -274,6 +274,8 @@ extension CodexBarCLI {
                     from: cache.snapshot.creditEvents,
                     maxDays: 30),
                 usageBreakdown: cache.snapshot.usageBreakdown,
+                usageBreakdownUpdatedAt: cache.snapshot.usageBreakdownUpdatedAt,
+                usageBreakdownTimeZoneIdentifier: cache.snapshot.usageBreakdownTimeZoneIdentifier,
                 creditsPurchaseURL: cache.snapshot.creditsPurchaseURL,
                 updatedAt: cache.snapshot.updatedAt)
         } else {

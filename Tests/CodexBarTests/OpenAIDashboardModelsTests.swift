@@ -115,6 +115,8 @@ struct OpenAIDashboardModelsTests {
             { "day": "2026-04-30", "services": [], "totalCreditsUsed": 0 },
             { "day": "2026-04-29", "services": [], "totalCreditsUsed": 4 }
           ],
+          "usageBreakdownUpdatedAt": "2026-04-30T19:27:07Z",
+          "usageBreakdownTimeZoneIdentifier": "America/Los_Angeles",
           "creditsPurchaseURL": null,
           "updatedAt": "2026-04-30T19:27:07Z"
         }
@@ -130,6 +132,37 @@ struct OpenAIDashboardModelsTests {
                 services: [],
                 totalCreditsUsed: 4),
         ])
+        #expect(snapshot.usageBreakdownUpdatedAt != nil)
+        #expect(snapshot.usageBreakdownTimeZoneIdentifier == "America/Los_Angeles")
+    }
+
+    @Test
+    func `legacy cache drops usage breakdown with unknown freshness`() throws {
+        let json = """
+        {
+          "signedInEmail": "codex@example.com",
+          "codeReviewRemainingPercent": null,
+          "creditEvents": [],
+          "dailyBreakdown": [],
+          "usageBreakdown": [
+            {
+              "day": "2026-04-29",
+              "services": [{ "service": "CLI", "creditsUsed": 4 }],
+              "totalCreditsUsed": 4
+            }
+          ],
+          "creditsPurchaseURL": null,
+          "updatedAt": "2026-04-30T19:27:07Z"
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let snapshot = try decoder.decode(OpenAIDashboardSnapshot.self, from: Data(json.utf8))
+
+        #expect(snapshot.usageBreakdown.isEmpty)
+        #expect(snapshot.usageBreakdownUpdatedAt == nil)
+        #expect(snapshot.usageBreakdownTimeZoneIdentifier == nil)
     }
 
     @Test
