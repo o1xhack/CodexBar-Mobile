@@ -32,6 +32,7 @@ struct SwiftDataBridgeTests {
         subscriptionRenewsAt: Date? = nil,
         accountIdentities: [String]? = nil,
         accountRecordKey: String? = nil,
+        costSummaryCleared: Bool? = nil,
         quotaWarnings: SyncQuotaWarningConfig? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
@@ -45,6 +46,7 @@ struct SwiftDataBridgeTests {
             isError: false,
             lastUpdated: lastUpdated,
             costSummary: costSummary,
+            costSummaryCleared: costSummaryCleared,
             subscriptionExpiresAt: subscriptionExpiresAt,
             subscriptionRenewsAt: subscriptionRenewsAt,
             rateWindows: [],
@@ -646,5 +648,206 @@ struct SwiftDataBridgeTests {
         #expect(rows.count == 2)
         let emails = Set(rows.compactMap(\.accountEmail))
         #expect(emails == ["alice@example.com", "bob@example.com"])
+    }
+
+    @Test
+    func `Cost ownership tombstone removes old account ledger rows`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let oldDay = "2026-07-01"
+        let currentDay = "2026-08-22"
+        func summary(points: [(day: String, cost: Double)], updatedAt: Date) -> SyncCostSummary {
+            let total = points.reduce(0) { $0 + $1.cost }
+            return SyncCostSummary(
+                sessionCostUSD: total,
+                sessionTokens: 100,
+                last30DaysCostUSD: total,
+                last30DaysTokens: 100,
+                daily: points.map {
+                    SyncDailyPoint(dayKey: $0.day, costUSD: $0.cost, totalTokens: 100)
+                },
+                sourceUpdatedAt: updatedAt)
+        }
+
+        let oldOwner = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "bob@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(
+                points: [(oldDay, 2), (currentDay, 3)],
+                updatedAt: self.ts1),
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-cost-owner",
+                providers: [oldOwner],
+                timestamp: self.ts1)],
+            into: context)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+
+        let oldOwnerCleared = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "bob@example.com",
+            lastUpdated: self.ts2,
+            costSummary: nil,
+            accountRecordKey: "bob-record",
+            costSummaryCleared: true)
+        let newOwner = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "alice@example.com",
+            lastUpdated: self.ts2,
+            costSummary: summary(points: [(currentDay, 4)], updatedAt: self.ts2),
+            accountRecordKey: "alice-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-cost-owner",
+                providers: [oldOwnerCleared, newOwner],
+                timestamp: self.ts2)],
+            into: context)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        #expect(rows.allSatisfy { $0.accountEmail == "alice@example.com" })
+        #expect(rows.allSatisfy { $0.accountRecordKey == "alice-record" })
+        #expect(rows.first(where: { $0.dayKey == oldDay })?.costUSD == 2)
+        #expect(rows.first(where: { $0.dayKey == currentDay })?.costUSD == 4)
+    }
+
+    @Test
+    func `Removed local cost owner preserves ledger-only history`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let ledgerOnlyDay = "2026-01-01"
+        let currentDay = "2026-08-22"
+        func summary(points: [(day: String, cost: Double)], updatedAt: Date) -> SyncCostSummary {
+            let total = points.reduce(0) { $0 + $1.cost }
+            return SyncCostSummary(
+                sessionCostUSD: total,
+                sessionTokens: 100,
+                last30DaysCostUSD: total,
+                last30DaysTokens: 100,
+                daily: points.map {
+                    SyncDailyPoint(dayKey: $0.day, costUSD: $0.cost, totalTokens: 100)
+                },
+                sourceUpdatedAt: updatedAt)
+        }
+
+        let oldOwnerWithHistory = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "bob@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(
+                points: [(ledgerOnlyDay, 2), (currentDay, 3)],
+                updatedAt: self.ts1),
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-removed-owner",
+                providers: [oldOwnerWithHistory],
+                timestamp: self.ts1)],
+            into: context)
+
+        // Advance the bounded blob so the older day survives only in CWL.
+        let oldOwnerBounded = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "bob@example.com",
+            lastUpdated: self.ts2,
+            costSummary: summary(points: [(currentDay, 3)], updatedAt: self.ts2),
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-removed-owner",
+                providers: [oldOwnerBounded],
+                timestamp: self.ts2)],
+            into: context)
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+
+        // The deleted account is absent from the incremental snapshot; only
+        // its explicit CloudKit record deletion identifies it.
+        let newOwner = self.makeProvider(
+            id: "opencodego",
+            name: "OpenCode Go",
+            email: "alice@example.com",
+            lastUpdated: self.ts2.addingTimeInterval(60),
+            costSummary: summary(
+                points: [(currentDay, 4)],
+                updatedAt: self.ts2.addingTimeInterval(60)),
+            accountRecordKey: "alice-record")
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-removed-owner",
+                providers: [newOwner],
+                timestamp: self.ts2.addingTimeInterval(60))],
+            deletedRecordNames: ["device-removed-owner|opencodego|bob-record"],
+            into: context)
+
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(providers.count == 1)
+        #expect(providers.first?.accountRecordKey == "alice-record")
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        #expect(rows.allSatisfy { $0.accountRecordKey == "alice-record" })
+        #expect(rows.first(where: { $0.dayKey == ledgerOnlyDay })?.costUSD == 2)
+        #expect(rows.first(where: { $0.dayKey == currentDay })?.costUSD == 4)
+    }
+
+    @Test
+    func `Removed Mistral account does not transfer account-native cost history`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        func summary(day: String = "2026-08-22", cost: Double, updatedAt: Date) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: 100,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [SyncDailyPoint(
+                    dayKey: day,
+                    costUSD: cost,
+                    totalTokens: 100)],
+                sourceUpdatedAt: updatedAt)
+        }
+
+        let alice = self.makeProvider(
+            id: "mistral", name: "Mistral", email: "alice@example.com",
+            lastUpdated: self.ts1, costSummary: summary(cost: 1, updatedAt: self.ts1),
+            accountRecordKey: "alice-record")
+        let bob = self.makeProvider(
+            id: "mistral", name: "Mistral", email: "bob@example.com",
+            lastUpdated: self.ts1,
+            costSummary: summary(day: "2026-08-21", cost: 2, updatedAt: self.ts1),
+            accountRecordKey: "bob-record")
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-mistral-owner",
+                providers: [alice, bob],
+                timestamp: self.ts1)],
+            into: context)
+
+        let refreshedAlice = self.makeProvider(
+            id: "mistral", name: "Mistral", email: "alice@example.com",
+            lastUpdated: self.ts2, costSummary: summary(cost: 3, updatedAt: self.ts2),
+            accountRecordKey: "alice-record")
+        let clearedBob = self.makeProvider(
+            id: "mistral", name: "Mistral", email: "bob@example.com",
+            lastUpdated: self.ts2, costSummary: nil,
+            accountRecordKey: "bob-record", costSummaryCleared: true)
+        try SwiftDataBridge.upsertIncrementalCacheMirror(
+            cacheDeviceSnapshots: [self.makeSnapshot(
+                deviceID: "device-mistral-owner",
+                providers: [refreshedAlice, clearedBob],
+                timestamp: self.ts2)],
+            deletedRecordNames: ["device-mistral-owner|mistral|bob-record"],
+            into: context)
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.accountRecordKey == "alice-record")
+        #expect(rows.first?.costUSD == 3)
     }
 }

@@ -131,6 +131,15 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let sessions: [CostUsageSessionBreakdown]
     /// Per-request hour buckets. Empty for native Codex/Claude day logs; OpenCodex fills this.
     public let hourly: [CostUsageHourlyEntry]
+    /// IANA timezone whose calendar produced `daily[*].date`. Keeping it with
+    /// the Mac-side snapshot lets sync describe existing day keys without
+    /// guessing from the current or configured timezone later.
+    public let bucketTimeZoneIdentifier: String?
+    /// Inclusive logical end day declared by a source whose observation time
+    /// can be later than the covered window (for example a plugin returning a
+    /// completed billing period). This is Mac-process metadata; sync maps it
+    /// onto the existing opaque payload's `sourceDayKey`.
+    public let windowEndDayKey: String?
     public let updatedAt: Date
 
     public init(
@@ -151,6 +160,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
         hourly: [CostUsageHourlyEntry] = [],
+        bucketTimeZoneIdentifier: String? = nil,
+        windowEndDayKey: String? = nil,
         updatedAt: Date)
     {
         self.sessionTokens = sessionTokens
@@ -171,6 +182,9 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.projects = projects
         self.sessions = sessions
         self.hourly = hourly
+        self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
+            .flatMap(TimeZone.init(identifier:))?.identifier
+        self.windowEndDayKey = windowEndDayKey
         self.updatedAt = updatedAt
     }
 
@@ -454,14 +468,24 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             let unmetered = max(0, self.unmeteredRequestCount ?? 0)
             let estimated = max(0, self.estimatedRequestCount ?? 0)
             if let requests = self.requestCount, requests > 0 {
-                let priced = if self.costUSD != nil {
-                    max(0, requests - unpriced - unmetered - estimated)
+                // Saturating subtraction avoids overflow from malformed cached
+                // counters. Any request that has no explicit gap category and
+                // no cost is still unpriced; it must not disappear as 0/0
+                // coverage (for example, Grok local session rows).
+                let unclassified = [unpriced, unmetered, estimated].reduce(requests) {
+                    max(0, $0 - min($0, $1))
+                }
+                let priced = self.costUSD != nil ? unclassified : 0
+                let effectiveUnpriced: Int
+                if self.costUSD == nil {
+                    let (total, overflow) = unpriced.addingReportingOverflow(unclassified)
+                    effectiveUnpriced = overflow ? Int.max : total
                 } else {
-                    0
+                    effectiveUnpriced = unpriced
                 }
                 return CostUsageCoverageCounts(
                     priced: priced,
-                    unpriced: unpriced,
+                    unpriced: effectiveUnpriced,
                     unmetered: unmetered,
                     estimated: estimated)
             }

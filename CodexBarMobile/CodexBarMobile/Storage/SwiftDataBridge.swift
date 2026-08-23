@@ -150,6 +150,61 @@ enum SwiftDataBridge {
                 accountRecordKey: provider.accountRecordKey)
         })
 
+        // Capture the persisted rows before inserting/updating the bounded
+        // snapshot. A selected local-cost account can disappear entirely from
+        // an incremental payload, so no wire tombstone remains from which to
+        // discover the previous owner of CWL's longer history.
+        let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+            predicate: #Predicate { $0.deviceID == deviceID })
+        let existingForDevice = try context.fetch(staleDescriptor)
+
+        // A provider-shared local-cost summary can move between token accounts
+        // when the selected account changes. Preserve CWL's longer history by
+        // atomically rekeying old-owner rows to the single incoming owner
+        // before processing clear tombstones and bounded replacement blobs.
+        for (providerID, providers) in Dictionary(grouping: snapshot.providers, by: \.providerID) {
+            let costOwners = providers.filter { $0.costSummary != nil }
+            guard costOwners.count == 1, let costOwner = costOwners.first else { continue }
+            // Account-native summaries must never move between accounts, even
+            // if an older producer accidentally emitted a clear tombstone.
+            guard !Self.usesAccountNativeCostOwnership(providerID: providerID) else { continue }
+            for oldOwner in providers where oldOwner.costSummaryCleared == true {
+                try CostLedgerService.migrateCostOwnership(
+                    deviceID: deviceID,
+                    providerID: providerID,
+                    fromAccountEmail: oldOwner.accountEmail,
+                    fromAccountRecordKey: oldOwner.accountRecordKey,
+                    to: costOwner,
+                    in: context)
+            }
+
+            // Incremental cache snapshots omit deleted accounts rather than
+            // retaining their clear tombstone. Recover the previous owner from
+            // SwiftData before stale-row pruning so ledger-only days do not get
+            // deleted. Mistral is deliberately excluded: its summaries are
+            // account-native, so transferring a removed account's spend would
+            // incorrectly merge two independent accounts.
+            let costOwnerKey = ProviderSnapshotModel.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: providerID,
+                accountEmail: costOwner.accountEmail,
+                accountRecordKey: costOwner.accountRecordKey)
+            for oldOwner in existingForDevice where
+                oldOwner.providerID == providerID
+                && oldOwner.costSummaryData != nil
+                && oldOwner.compositeKey != costOwnerKey
+                && !incomingKeys.contains(oldOwner.compositeKey)
+            {
+                try CostLedgerService.migrateCostOwnership(
+                    deviceID: deviceID,
+                    providerID: providerID,
+                    fromAccountEmail: oldOwner.accountEmail,
+                    fromAccountRecordKey: oldOwner.accountRecordKey,
+                    to: costOwner,
+                    in: context)
+            }
+        }
+
         for provider in snapshot.providers {
             try Self.upsertProvider(provider, deviceID: deviceID, device: device, in: context)
         }
@@ -157,9 +212,6 @@ enum SwiftDataBridge {
         // Prune rows that belonged to this device but disappeared from the
         // incoming snapshot. Cascade delete on the provider → utilization
         // relationship cleans up orphan entries automatically.
-        let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
-            predicate: #Predicate { $0.deviceID == deviceID })
-        let existingForDevice = try context.fetch(staleDescriptor)
         for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
             context.delete(existing)
             try CostLedgerService.deleteRows(
@@ -173,6 +225,14 @@ enum SwiftDataBridge {
         // Flush pending inserts/deletes so @Attribute(.unique) lookups resolve
         // on the next call (e.g. when upserting multiple device snapshots in one pass).
         try context.save()
+    }
+
+    /// Providers whose cost summaries describe one account rather than a
+    /// provider-shared local token ledger. Keep this list synchronized with
+    /// Mac-side multi-account snapshot mapping; adding an account-native cost
+    /// producer requires an explicit entry here before it can sync safely.
+    private static func usesAccountNativeCostOwnership(providerID: String) -> Bool {
+        providerID.caseInsensitiveCompare("mistral") == .orderedSame
     }
 
     private static func fetchOrCreateDevice(
@@ -307,7 +367,18 @@ enum SwiftDataBridge {
         // even with CWL on, the ledger and blob stay in sync (blob acts as the
         // authoritative current-window snapshot, ledger accumulates a longer
         // rolling history).
-        if CostLedgerService.isEnabled() {
+        // A wire tombstone is authoritative even while the optional ledger UI
+        // is disabled. Otherwise stale rows survive and reappear if CWL is
+        // enabled later. Contradictory payloads fail closed: clear wins over a
+        // simultaneously supplied summary.
+        if provider.costSummaryCleared == true {
+            try CostLedgerService.deleteRows(
+                deviceID: deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
+                accountRecordKey: provider.accountRecordKey,
+                in: context)
+        } else if CostLedgerService.isEnabled() {
             try CostLedgerService.upsertFromSnapshot(
                 provider, deviceID: deviceID, in: context)
         }

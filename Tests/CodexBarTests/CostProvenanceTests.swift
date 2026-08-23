@@ -68,6 +68,37 @@ struct CostProvenanceTests {
     }
 
     @Test
+    func `costless requests count their unclassified remainder as unpriced`() {
+        let entirelyUnpriced = CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: 10,
+            outputTokens: 2,
+            totalTokens: 12,
+            requestCount: 3,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: nil)
+        #expect(entirelyUnpriced.coverageCounts == CostUsageCoverageCounts(unpriced: 3))
+
+        let partiallyClassified = CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: 10,
+            outputTokens: 2,
+            totalTokens: 12,
+            requestCount: 5,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: nil,
+            unpricedRequestCount: 1,
+            unmeteredRequestCount: 1,
+            estimatedRequestCount: 1)
+        #expect(partiallyClassified.coverageCounts == CostUsageCoverageCounts(
+            unpriced: 3,
+            unmetered: 1,
+            estimated: 1))
+    }
+
+    @Test
     func `vendor reported snapshots stay vendor metered without meteredCostUSD`() throws {
         let snapshot = CostUsageTokenSnapshot(
             sessionTokens: 10,
