@@ -1,7 +1,7 @@
 # v0.54.0 Upstream Sync 测试证据
 
 Status: `done`
-Date: 2026-08-22
+Date: 2026-08-23
 
 ## 版本与范围
 
@@ -23,14 +23,16 @@ Date: 2026-08-22
 | Widget/cost/provider display parity | pass | full iOS unit target覆盖widget/render；最终CloudKit merge + share + widget + CWL等价 + CostTab刷新时钟聚焦156/156；此前CloudKit重建 + incremental cache + merge + share + widget组合185/185 test cases（189 runs）；覆盖独立provider envelope发布时间、乱序delta metadata、modern sum、old/new conservative merge、history window comparability、producer bucket time zone、stale daily-only writer、source-window限制、producer-day scan anchor、publication uncertainty extension、跨日session隔离、Today session fallback并入daily、跨producer calendar的reader-relative day聚合、固定reference instant、producer最早午夜主动刷新、metadata-only与empty-section gate |
 | iOS ledger/blob一致性 | pass | final数据库/时钟专项47/47；此前CloudKit merge + `CWLWriterTests` + `CWLAggregateTests` + `CWLEquivalenceTests`为126/126；覆盖写入去重、equal-time原子刷新、equal-timestamp旧ledger内容会由authoritative blob修复、older payload拒绝、跨设备聚合、producer day/time-zone/source freshness、stored-row/live-summary freshness与显式false优先、producer领先/落后reader、UTC+14/UTC-11极端边界，以及双Mac异时区时按原始device/provider在rollup前映射reader-relative day并精确裁剪；owner tombstone精确删除旧ledger row且clear优先；seed/backfill按cost source time与payload内容判定，不会由新quota envelope复活旧cost，也不会漏掉真正较新的或等时漂移的cost；blob/CWL等价且不会重复映射已归一化ledger日轴；reader day key固定Gregorian并保留timezone |
 | iOS cost consumer一致性 | pass | full unit 731/731；mixed known/unavailable日的share total/bar/model与diagnostics availability/incomplete状态使用同一保守语义；modern unresolved、stale source、unfinished scan、legacy summary-only unknown cost与aggregate pricing gap均不泄漏Today subtotal；任一明确false会传播到主Cost aggregate，stale source同时限定Today/7天/30天并隐藏compact history；legacy无dated rows的30天汇总不会认证7天分配；不同Mac cost bucket time zone会fail closed并隐藏不可比较的metered/coverage/token mix；窗口不可比较会保守限定7天/30天派生值但不污染可信Today；dashboard model fallback不复活不可用provider breakdown；blob/CWL均保留权威`$0`；legacy sparse-day语义保持兼容；非零partial日保留Active Days证据但不显示为完整金额或Avg/Day；跨时区freshness比较使用producer calendar中的当前instant，并把producer logical day映射为reader相对日轴再跨provider聚合；CWL也按每个原始device/provider在provider/model/service rollup前使用各自producer窗口；历史完整性与Today使用同一固定reference instant，不使用reader-local midnight重切来源窗口；per-provider publication timestamp变化会进入refresh signature并触发重算；reader timezone变化会重启root/Cost/Diagnostics日期时钟；同source day下的旧session day仍会使多Mac Today fail closed，CWL explicit-false按reader-normalized Today key优先于live fallback；missing-provider fallback按cost source timestamp遵守本地clear boundary；OpenRouter provider-level cost envelope在cache中保留、在widget金额汇总中消费，但不生成额外provider row/count或重复identity；较新的provider-level clear tombstone与旧account summary原子选胜，不重复计费 |
-| ASC version-state audit | pass | live readback：`1.21.0 (194)` = `PENDING_DEVELOPER_RELEASE` / `MANUAL`，build `194`=`VALID`；因此新candidate为独立`1.22.0 (195)`，未上传TestFlight |
+| ASC version-state / TestFlight | pass | `1.21.0 (194)`仍为`PENDING_DEVELOPER_RELEASE` / `MANUAL`；独立train `1.22.0 (195)`已Archive并上传，ASC build `f2597f02-7056-4e70-b740-6e8b1eda6ffd`=`VALID`、`expired=false`、min iOS 17.0；未创建或提交1.22 App Store version |
 | Four-language localization | pass | 1.22.0独立Latest notes block；1.21.0恢复已审核内容；新增summary含en / zh-Hans / zh-Hant / ja |
 | iOS 1.22 relabel gate | pass | `xcodegen generate`；4个targets均为`MARKETING_VERSION=1.22.0` / build`195`；i18n source-key、README、CI policy、parser-version与changelog extraction通过；版本/说明diff后未重复full test suites |
 | CloudKit Production schema audit | `NO_DEPLOY` | production schema成功导出并只读核对；见下节 |
 | Local review blockers | pass | 累计94项产品finding均已修复；product-source commit `e52a659e0`定向review为`Blockers: 0`；随后1.22版本/说明diff本地自查为0 blocker，full lint与Release build通过 |
 | GitHub PR / exact-current review | pass | PR [#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99) head `4535e55bf47c291f22cc9f883fa2f2b6ffb17272` 收到 exact-current `Didn't find any major issues`；review threads `0`；`Scripts/check_pr_review_gate.sh 99`通过；merge commit `d7eddbc70d133f34e52d903dbdb4e2e9a1af7581` |
 | Merge-triggered Final CI | pass | run [32614686853](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32614686853) `completed/success`：6/6 macOS shards、2/2 Linux CLI build/test/smoke、lint与provenance/path gate全绿；未重复触发第二次full run |
-| Mac signed/notarized draft | pass | `./Scripts/release.sh` phase 1完成；Apple notarization submission `d9e78000-ad1b-4133-bb57-7e47d53b42a8`=`Accepted`；最终ZIP stapled/Gatekeeper/Developer ID/launch验证通过；GitHub [draft release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)保持`draft=true` |
+| Mac signed/notarized public release | pass | phase 1 notarization submission `d9e78000-ad1b-4133-bb57-7e47d53b42a8`=`Accepted`；最终ZIP stapled/Gatekeeper/Developer ID/launch通过；`--finalize`公开[release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.54.0.1-mobile.1.22.0)，appcast commit `f7b86b7ab`，公网ZIP `302 -> 200`，Mac Release Verify [32661301239](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32661301239)成功 |
+| Release CLI assets | pass | release-triggered run [32661301225](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/32661301225) `completed/success`；6/6平台build/smoke/package/upload成功，release共14个assets；fork按workflow契约跳过upstream-only Homebrew dispatch |
+| Release issue closeout | pass | #95与#97均在public release后回复正式release/测试证据，并手动`Close as completed`；draft阶段未提前关闭 |
 | issue #97 packaged Settings QA | substituted | notarized draft在本机macOS 26.5.2实际验证`Command-,`与状态栏`设置…`均打开同一个retained Settings window，重复打开稳定态仍为1个，目标runtime fault日志为0；报告环境macOS 27 beta与active Space/Stage Manager仍未直接实测 |
 
 ## 关键命令与结果
@@ -370,7 +372,7 @@ on-disk WAL、busy timeout、foreign keys、incremental vacuum、锁竞争、级
 `swift test --no-parallel` 后，权威serial run仅剩3个真实suite/4 issues：pricing provenance、Grok catalog
 sentinel与architecture fingerprint；均已修复并focused复测，最终serial run另行记录。
 
-## GitHub handoff、draft release 与 issue #97 QA
+## GitHub handoff、public release、TestFlight 与 issue closeout
 
 - product PR：[#99](https://github.com/o1xhack/CodexBar-Mobile/pull/99)，base `mobile-dev`，head
   `4535e55bf47c291f22cc9f883fa2f2b6ffb17272`；PR Fast Checks通过，exact-current Codex review明确返回
@@ -383,9 +385,13 @@ sentinel与architecture fingerprint；均已修复并focused复测，最终seria
   CI-authoritative策略未重复执行，phase 1自身的full lint、release guards与production universal build通过；
 - notarization：submission `d9e78000-ad1b-4133-bb57-7e47d53b42a8`返回`Accepted`；staple/validate、
   pre-distribution checks、stapled bundle direct-launch verification均通过；
-- tag：`v0.54.0.1-mobile.1.22.0` peel到上述merge commit；只创建tag和draft，没有执行`--finalize`；
-- draft：[`untagged-b32586f17d599231dee5`](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-b32586f17d599231dee5)，
-  `draft=true`、`prerelease=false`，title为`CodexBar 0.54.0.1 Mobile 1.22.0`；
+- tag：`v0.54.0.1-mobile.1.22.0` peel到上述product merge commit；2026-08-23运行
+  `./Scripts/release.sh --finalize`，公开
+  [release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.54.0.1-mobile.1.22.0)，
+  `draft=false`、`prerelease=false`、published at `2026-08-23T19:27:35Z`；
+- appcast：commit `f7b86b7ab5a743b657d34e0a298f3f0e070b2385`已push到`mobile-dev`；remote feed
+  回读title/short version `0.54.0.1`、Sparkle version `127.1.1.22.0`、length `71,847,424`，
+  EdDSA signature存在且phase 2已验证；ZIP公网链路为`302 -> 200`；
 - ZIP：`CodexBar-0.54.0.1-mobile.1.22.0.zip`，71,847,424 bytes，SHA-256
   `2fe6db8643dc012e090d1b4355986924f603c533eaf8fa936e4cda2e678e6113`；
 - dSYM：`CodexBar-0.54.0.1-mobile.1.22.0.dSYM.zip`，55,609,020 bytes，SHA-256
@@ -403,14 +409,24 @@ sentinel与architecture fingerprint；均已修复并focused复测，最终seria
   `showPreferencesWindow`fault。截图：`/tmp/codexbar-v054-draft-settings-reuse.png`；
 - 限制：本机不是macOS 27 beta，且未做active Space / Stage Manager跨stage直接验证，因此issue #97的
   macOS 27环境证据仍标`substituted`，不能写成macOS 27 physical pass；
+- iOS archive：`/tmp/CodexBarMobile-20260823-123024.xcarchive`，回读
+  `CFBundleShortVersionString=1.22.0`、`CFBundleVersion=195`、bundle ID
+  `com.o1xhack.codexbar.mobile`；app entitlement为CloudKit `Production`；
+- iOS upload：`xcodebuild -exportArchive`返回`Upload succeeded` / `EXPORT SUCCEEDED`；ASC build
+  `f2597f02-7056-4e70-b740-6e8b1eda6ffd`于`2026-08-23T19:35:00Z`回读为`VALID`、
+  `expired=false`、min iOS 17.0、pre-release train `1.22.0`；
+- App icon三层验收：1024x1024源图无alpha且视觉正确；archive内`AppIcon60x60@2x.png`为120x120、
+  无alpha且视觉正确；ASC `iconAssetToken`存在，Apple CDN返回152x152正确图标；
 - issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95)与
-  [#97](https://github.com/o1xhack/CodexBar-Mobile/issues/97)在draft阶段均保持`OPEN`；只有Mac public release
-  公开后才回复正式release URL并手动`Close as completed`。
+  [#97](https://github.com/o1xhack/CodexBar-Mobile/issues/97)在draft阶段均保持`OPEN`；public release后分别
+  [回复#95 release证据](https://github.com/o1xhack/CodexBar-Mobile/issues/95#issuecomment-5388042853)与
+  [回复#97修复/限制证据](https://github.com/o1xhack/CodexBar-Mobile/issues/97#issuecomment-5388042982)，
+  并手动`Close as completed`。
 
 ## CloudKit Production schema audit
 
-- 最后published fork tag：`v0.52.0.1-mobile.1.21.0`；candidate tag：
-  `v0.54.0.1-mobile.1.22.0`（当前仅draft，未公开）；
+- 审计基线published fork tag：`v0.52.0.1-mobile.1.21.0`；candidate tag：
+  `v0.54.0.1-mobile.1.22.0`（审计后已公开）；
 - schema keyword grep无新增record type/field/index/query/zone/subscription；
 - `Shared/iCloud/CloudConstants.swift` 相对published baseline无schema diff；
 - `providerPayloadVersion` 保持`1`；包括最终新增的optional `sourceUpdatedAt` / `sessionCostIsKnown` /
