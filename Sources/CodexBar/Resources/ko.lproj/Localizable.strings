@@ -643,6 +643,8 @@
 "section_keyboard_shortcut" = "키보드 단축키";
 "open_menu_shortcut_title" = "메뉴 열기";
 "open_menu_shortcut_subtitle" = "어디서나 메뉴 막대 메뉴를 실행합니다.";
+"record_shortcut" = "단축키 등록";
+"press_shortcut" = "단축키 입력";
 "install_cli" = "CLI 설치";
 "install_cli_subtitle" = "CodexBarCLI를 codexbar로 /usr/local/bin 및 /opt/homebrew/bin에 심볼릭 링크합니다.";
 "cli_not_found" = "앱 번들에서 CodexBarCLI를 찾을 수 없습니다.";
@@ -901,6 +903,7 @@
 "Monthly" = "월간";
 "Sonnet" = "Sonnet";
 "Overages" = "초과분";
+"Overage" = "초과분";
 "Activity" = "활동";
 "Copied" = "복사됨";
 "Copy error" = "오류 복사";
@@ -911,6 +914,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "잔액은 거의 실시간으로 업데이트됩니다(최대 5분 지연)";
 "Daily billing data finalizes at 07:00 UTC" = "일간 청구 데이터는 07:00 UTC에 확정됩니다";
 "%@ of %@ credits left" = "크레딧 %2$@개 중 %1$@개 남음";
+"of %@" = "/ %@";
 "%@ of %@ bonus credits left" = "보너스 크레딧 %2$@개 중 %1$@개 남음";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ 남음)";
 "%@/%@ left" = "%@/%@ 남음";
@@ -922,6 +926,7 @@
 "Full in ~1 regen" = "약 1회 재생성 후 가득 참";
 "Full in ~%.0f regens" = "약 %.0f회 재생성 후 가득 참";
 "Overage usage" = "초과 사용량";
+"Overage credits left" = "남은 초과 크레딧";
 "Overage cost" = "초과 비용";
 "credits" = "크레딧";
 "Zen balance" = "Zen 잔액";
@@ -1334,6 +1339,9 @@
 "menu_bar_layout_preset_compact_stacked" = "압축 스택";
 "menu_bar_layout_preset_custom" = "사용자 설정";
 "menu_bar_layout_live_preview" = "실시간 미리보기";
+"menu_bar_layout_default_preview" = "기본 레이아웃 미리보기";
+"menu_bar_layout_overrides_notice" = "다음 활성 제공자는 별도로 저장한 레이아웃을 사용합니다:";
+"menu_bar_layout_use_all_accessibility" = "%@: 모든 제공자 레이아웃 사용";
 "menu_bar_layout_strip" = "메뉴 막대 스트립";
 "menu_bar_layout_remove_line_break" = "줄 바꿈 제거";
 "menu_bar_layout_chip_hint" = "선택하거나 드래그해 순서를 바꾸거나 제거 동작을 사용하세요.";
@@ -1341,6 +1349,7 @@
 "menu_bar_layout_empty_line" = "여기에 토큰 놓기";
 "menu_bar_layout_line" = "%d번째 줄";
 "menu_bar_layout_drag_remove" = "여기로 드래그해 제거";
+"menu_bar_layout_remove_selected" = "선택 항목 제거";
 "menu_bar_layout_size" = "크기";
 "menu_bar_layout_size_small" = "작게";
 "menu_bar_layout_size_regular" = "보통";
@@ -1569,3 +1578,4 @@
 "menu_bar_layout_conditional_default_session_spent" = "세션 거의 소진";
 "menu_bar_layout_conditional_default_either_high" = "세션 또는 주간 사용량 높음";
 "menu_bar_layout_conditional_default_scoped_weekly" = "모델별 주간 60% 초과 사용";
+"Spending cap, not balance" = "지출 한도이며 잔액이 아닙니다";

@@ -39,6 +39,9 @@ Usage source picker:
 - The menu and provider settings list every still-available expiry, while the optional credits setting controls
   nearing-expiry notifications. CodexBar does not redeem or modify reset credits.
 - `rate_limit.primary_window` / `secondary_window` map to the session/weekly lanes.
+- Suspicious weekly resets keep the last trusted usage while confirmation is pending. A successful refresh for the
+  same account and workspace clears stale connectivity errors even when the reading is withheld; failed, cancelled,
+  or superseded refreshes do not clear them. Cached usage, credits, and other accounts remain unchanged.
 - `additional_rate_limits[]` (model-specific limits such as GPT-5.3-Codex-Spark) map to named
   `UsageSnapshot.extraRateWindows` entries. Spark uses stable `codex-spark` / `codex-spark-weekly` ids and
   `Codex Spark 5-hour` / `Codex Spark Weekly` titles. When the field is absent, the snapshot is unchanged.
@@ -90,6 +93,11 @@ Example:
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
+- Each WebView acquisition keeps ownership across asynchronous page preparation. Explicit store eviction invalidates
+  that store's pending preparations, so stale success, failure, or timeout retry cannot displace a replacement view.
+  Evict-all invalidates all pending preparations; ordinary lease release does not invalidate concurrent temporary views.
+- Leases retain their cleanup owner independently of the cache and release only once. Validated pages still support
+  the brief reuse handoff; other releases schedule the existing deferred WebKit cleanup, including temporary views.
 - Cookie import (Automatic mode, when WebKit store has no matching session or login required):
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
@@ -115,7 +123,7 @@ Example:
   - Login required or Cloudflare interstitial.
 
 ### Codex CLI RPC (automatic CLI source)
-- Launches local RPC server: `codex -s read-only -a untrusted app-server`.
+- Launches local RPC server: `codex -s read-only -a never app-server`.
 - JSON-RPC over stdin/stdout:
   - `initialize` (client name/version)
   - `account/read`
@@ -162,6 +170,8 @@ Example:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
   - **Local session cost estimates** is a Codex-only opt-in that instead scans this Mac's ambient `$CODEX_HOME`
     (or `~/.codex`) independently of quota, OAuth, web-dashboard, and administrator access.
+  - Regular menu cost refreshes publish local session estimates even when global cost tracking is off. This does not
+    enable other providers' cost scans; results still require the same provider configuration and history/account scope.
   - The local-only mode never makes a network request or uploads session content. It uses an existing local models.dev
     cache when available, then the bundled `CostUsagePricing` rates.
 - Source files:
@@ -182,9 +192,17 @@ Example:
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi-compatible usage joins the aggregate because the native-only rows would not reconcile with the merged total.
 - Cache:
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/codex-v11.json`
-  - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
+  - Native session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
+  - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v8.json`
+  - Catch-up status reads progress metadata without loading historical usage JSON or replay bodies. Cached reports
+    retain row-level pricing evidence and project/session details, but omit raw token snapshots, accumulator state,
+    and replay bodies. File cursor metadata, including JSONL resume state, remains available for progress tracking.
+    Scanner and save operations still load the complete state; fresh database opens retain integrity validation.
 - Window: configurable 1-365 day rolling history, with a 60s minimum refresh interval.
+- While a bounded refresh catches up with new session history, established totals remain visible only for the same
+  account, history window, and bucket time zone. An incomplete first scan never borrows another account's totals.
+- Pending local-history files receive a turn before fresh work, within the existing byte and duration limits.
+  Unfinished files rotate behind waiting work, and the queue survives restarts without rebuilding compatible caches.
 
 ### Usage & Spend account rows
 

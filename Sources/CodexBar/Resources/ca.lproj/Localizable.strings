@@ -639,6 +639,8 @@
 "section_keyboard_shortcut" = "Drecera de teclat";
 "open_menu_shortcut_title" = "Obriu el menú";
 "open_menu_shortcut_subtitle" = "Obriu el menú de la barra de menús des de qualsevol lloc.";
+"record_shortcut" = "Enregistra la drecera";
+"press_shortcut" = "Premeu la drecera";
 "install_cli" = "Instal·la la CLI";
 "install_cli_subtitle" = "Creeu un enllaç simbòlic de CodexBarCLI a /usr/local/bin i /opt/homebrew/bin com a codexbar.";
 "cli_not_found" = "No s'ha trobat CodexBarCLI al paquet de l'app.";
@@ -802,6 +804,7 @@
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticació";
 "Overages" = "Excedents";
+"Overage" = "Excedent";
 "Activity" = "Activitat";
 "Copied" = "Copiat";
 "Copy error" = "Error en copiar";
@@ -812,6 +815,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "El saldo s'actualitza gairebé en temps real (fins a 5 min de retard)";
 "Daily billing data finalizes at 07:00 UTC" = "Les dades diàries de facturació es tanquen a les 07:00 UTC";
 "%@ of %@ credits left" = "Queden %@ de %@ crèdits";
+"of %@" = "de %@";
 "%@ of %@ bonus credits left" = "Queden %@ de %@ crèdits de bonificació";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ restants)";
 "%@/%@ left" = "%@/%@ restant";
@@ -823,6 +827,7 @@
 "Full in ~1 regen" = "Ple en ~1 regeneració";
 "Full in ~%.0f regens" = "Ple en ~%.0f regeneracions";
 "Overage usage" = "Ús excedent";
+"Overage credits left" = "Crèdits excedents restants";
 "Overage cost" = "Cost excedent";
 "credits" = "crèdits";
 "Zen balance" = "Saldo Zen";
@@ -1367,6 +1372,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Apilat compacte";
 "menu_bar_layout_preset_custom" = "Personalitzat";
 "menu_bar_layout_live_preview" = "Previsualització en directe";
+"menu_bar_layout_default_preview" = "Previsualització del disseny per defecte";
+"menu_bar_layout_overrides_notice" = "Aquests proveïdors activats fan servir els seus propis dissenys desats:";
+"menu_bar_layout_use_all_accessibility" = "%@: Fes servir el disseny de tots els proveïdors";
 "menu_bar_layout_strip" = "Franja de la barra de menús";
 "menu_bar_layout_remove_line_break" = "Elimina el salt de línia";
 "menu_bar_layout_chip_hint" = "Selecciona, arrossega per reordenar o usa l’acció Elimina.";
@@ -1374,6 +1382,7 @@
 "menu_bar_layout_empty_line" = "Deixa una fitxa aquí";
 "menu_bar_layout_line" = "Línia %d";
 "menu_bar_layout_drag_remove" = "Arrossega aquí per eliminar";
+"menu_bar_layout_remove_selected" = "Elimina la selecció";
 "menu_bar_layout_size" = "Mida";
 "menu_bar_layout_size_small" = "Petita";
 "menu_bar_layout_size_regular" = "Normal";
@@ -1603,3 +1612,4 @@
 "menu_bar_layout_conditional_default_session_spent" = "Sessió gairebé esgotada";
 "menu_bar_layout_conditional_default_either_high" = "Sessió o setmana en nivell alt";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Setmana per model per damunt del 60 %";
+"Spending cap, not balance" = "Límit de despesa, no saldo";

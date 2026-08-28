@@ -580,6 +580,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: result.strategyID,
             strategyKind: result.strategyKind,
             codexResetCreditsAttempted: true,
+            codexMonthlyLimitEnrichmentFailed: result.codexMonthlyLimitEnrichmentFailed,
             diagnostic: result.diagnostic,
             claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
             claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,
@@ -625,6 +626,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: oauthResult.strategyID,
             strategyKind: oauthResult.strategyKind,
             codexResetCreditsAttempted: oauthResult.codexResetCreditsAttempted,
+            codexMonthlyLimitEnrichmentFailed: oauthResult.codexMonthlyLimitEnrichmentFailed,
             diagnostic: oauthResult.diagnostic)
     }
 
@@ -656,12 +658,17 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
         -> ProviderFetchResult
     {
         guard context.includeCredits,
-              CodexSpendControlsMonthlyUsageGate.shouldFetch(response: usage),
-              let accountId = self.firstNonEmptyAccountId(credentials.accountId, usage.accountId)
+              CodexSpendControlsMonthlyUsageGate.shouldFetch(response: usage)
         else { return result }
+        guard let accountId = self.firstNonEmptyAccountId(credentials.accountId, usage.accountId) else {
+            return result.markingMonthlyLimitEnrichmentFailed()
+        }
 
         do {
             let response = try await fetcher(accountId)
+            if response.monthlyLimitMappingFailed {
+                return result.markingMonthlyLimitEnrichmentFailed()
+            }
             let updatedAt = result.credits?.updatedAt ?? result.usage.updatedAt
             guard let limit = response.codexCreditLimitSnapshot(updatedAt: updatedAt) else { return result }
             let credits = result.credits.map {
@@ -680,7 +687,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             if error is CancellationError || Task.isCancelled {
                 throw CancellationError()
             }
-            return result
+            return result.markingMonthlyLimitEnrichmentFailed()
         }
     }
 
@@ -705,6 +712,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: result.strategyID,
             strategyKind: result.strategyKind,
             codexResetCreditsAttempted: result.codexResetCreditsAttempted,
+            codexMonthlyLimitEnrichmentFailed: result.codexMonthlyLimitEnrichmentFailed,
             diagnostic: result.diagnostic,
             claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
             claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,

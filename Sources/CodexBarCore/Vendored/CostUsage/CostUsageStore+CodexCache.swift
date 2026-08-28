@@ -52,7 +52,41 @@ extension CostUsageStore {
         guard snapshot.metadata.timeZoneIdentifier == nil
             || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else { return CostUsageCache() }
-        return Self.cache(from: snapshot)
+        return Self.cache(from: snapshot, recorder: self.scopedReadWorkRecorderForTesting)
+    }
+
+    func loadCodexReadView(calendar: Calendar, purpose: CostUsageStoreReadPurpose) -> CostUsageStoreReadView {
+        _ = self.removeLegacyCodexArtifactIfPresent()
+        return self.withDatabase(default: CostUsageStoreReadView(cache: CostUsageCache())) { database in
+            let recorder = self.scopedReadWorkRecorderForTesting
+            let (snapshot, retryPresence) = try Self.inReadTransaction(database) {
+                let snapshot = try CostUsageStoreSnapshot(
+                    metadata: Self.readSingleton(
+                        CostUsageStoreMetadata.self, database: database, table: "scan_metadata") ?? .empty,
+                    files: Self.readFiles(database, recorder: recorder),
+                    tokenSnapshots: [],
+                    usageRows: purpose == .report ? Self.readUsageRows(database, path: nil, recorder: recorder) : [],
+                    fileDayAggregates: purpose == .report ? Self.readFileDayAggregates(database, path: nil) : [],
+                    dayAggregates: purpose == .report
+                        ? Self.readDayAggregates(database, sinceDay: nil, untilDay: nil) : [],
+                    forkLineage: Self.readForkLineage(database, path: nil),
+                    bufferedLines: [],
+                    discoveryState: Self.readSingleton(
+                        CostUsageStoreDiscoveryState.self, database: database, table: "discovery_state"),
+                    lookbackState: Self.readSingleton(
+                        CostUsageStoreLookbackState.self, database: database, table: "lookback_state"),
+                    accumulators: [])
+                let retryPresence = try Self.readRetryBufferPresence(database, recorder: recorder)
+                return (snapshot, retryPresence)
+            }
+            guard snapshot.metadata.timeZoneIdentifier == nil
+                || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+            else { return CostUsageStoreReadView(cache: CostUsageCache()) }
+            // Identity/anchor reconciliation touches the filesystem; do not pin a SQLite reader during it.
+            recorder?.recordReadViewConversion(database: database)
+            return CostUsageStoreReadView(cache: Self.cache(
+                from: snapshot, recorder: recorder, retryPresence: retryPresence))
+        }
     }
 
     @discardableResult
@@ -75,7 +109,8 @@ extension CostUsageStore {
            Self.persistedContentMatches(
                previous: previous,
                cache: cache,
-               calendar: calendar)
+               calendar: calendar,
+               recorder: self.scopedReadWorkRecorderForTesting)
         {
             // Retention owns the safety boundary: even a semantically unchanged scanner result
             // must honor newly tightened row/file budgets before it can return.
@@ -86,7 +121,11 @@ extension CostUsageStore {
                 requestedUntilDay: budgetProtectionWindow.untilKey,
                 calendar: calendar)
             guard !result.catchUpRequired else { return result }
-            Self.identicalContentPreLockCheckpointForTesting?()
+            if let checkpoint = Self.identicalContentPreLockCheckpointForTesting,
+               checkpoint.databaseURL == self.databaseURL
+            {
+                checkpoint.checkpoint()
+            }
             guard self.beginSaveTransaction() else {
                 var retry = result
                 retry.catchUpRequired = true
@@ -100,8 +139,19 @@ extension CostUsageStore {
             guard Self.persistedContentMatches(
                 previous: lockedPrevious,
                 cache: cache,
-                calendar: calendar)
+                calendar: calendar,
+                recorder: self.scopedReadWorkRecorderForTesting)
             else {
+                _ = self.rollbackSaveTransaction()
+                var retry = result
+                retry.catchUpRequired = true
+                return retry
+            }
+
+            // The sqlite cursor is excluded from content identity so a steadily advancing
+            // lastRowID cannot force a full rewrite. Persist it here as a metadata-only
+            // update inside the same writer transaction.
+            guard self.persistPriorityTurnsCursorIfChanged(previous: lockedPrevious, cache: cache) else {
                 _ = self.rollbackSaveTransaction()
                 var retry = result
                 retry.catchUpRequired = true
@@ -181,20 +231,24 @@ extension CostUsageStore {
     /// persisted spellings of a few optional fields differ from their in-memory forms
     /// (`catchUpPending` and `codexScanComplete` store nil as false/true, `timeZoneIdentifier`
     /// is fixed by the caller's calendar, and `lastScanUnixMs` is a wall-clock stamp), so
-    /// those are normalized before the comparison.
+    /// those are normalized before the comparison. The priority sqlite cursor is also ignored
+    /// here: it advances independently of usage content and is written as a metadata-only
+    /// update on the skip path.
     private static func persistedContentMatches(
         previous: CostUsageStoreSnapshot,
         cache: CostUsageCache,
-        calendar: Calendar) -> Bool
+        calendar: Calendar,
+        recorder: CostUsageStoreReadWorkRecorder?) -> Bool
     {
-        var restored = Self.cache(from: previous)
+        var restored = Self.cache(from: previous, recorder: recorder)
         guard restored.timeZoneIdentifier == nil
             || restored.timeZoneIdentifier == calendar.timeZone.identifier
         else { return false }
         guard (cache.codexScanCatchUpPending ?? false) == restored.codexScanCatchUpPending
         else { return false }
-        // Freshness is the sole ignored semantic field. The time zone is a persistence-derived
-        // spelling: metadata(cache:calendar:) always writes the caller's calendar identifier.
+        // Freshness and the sqlite cursor are ignored semantic fields. The time zone is a
+        // persistence-derived spelling: metadata(cache:calendar:) always writes the caller's
+        // calendar identifier.
         restored.lastScanUnixMs = cache.lastScanUnixMs
         restored.timeZoneIdentifier = calendar.timeZone.identifier
         restored.codexScanCatchUpPending = cache.codexScanCatchUpPending
@@ -202,7 +256,23 @@ extension CostUsageStore {
         var incoming = cache
         incoming.timeZoneIdentifier = calendar.timeZone.identifier
         incoming.files = incoming.files.mapValues(Self.normalizingScanComplete)
+        restored.codexPriorityTurnsCursor = incoming.codexPriorityTurnsCursor
         return restored == incoming
+    }
+
+    /// Writes only `scan_metadata.priorityTurnStatePayload` when the sqlite cursor advanced.
+    /// Caller already owns the save transaction.
+    private func persistPriorityTurnsCursorIfChanged(
+        previous: CostUsageStoreSnapshot,
+        cache: CostUsageCache) -> Bool
+    {
+        guard Self.persistedPriorityTurnsCursor(previous) != cache.codexPriorityTurnsCursor else {
+            return true
+        }
+        guard let payload = Self.priorityTurnStatePayload(cache: cache) else { return false }
+        var metadata = previous.metadata
+        metadata.priorityTurnStatePayload = payload
+        return self.setMetadata(metadata)
     }
 
     private static func normalizingScanComplete(_ usage: CostUsageFileUsage) -> CostUsageFileUsage {
@@ -248,6 +318,34 @@ extension CostUsageStore {
     private struct StoredPriorityState: Codable {
         var turnKeys: [String: String]?
         var turnIDsByDay: [String: [String]]?
+        var turnsCursor: CostUsageScanner.CodexPriorityTurnsPersistedCursor?
+
+        enum CodingKeys: String, CodingKey {
+            case turnKeys
+            case turnIDsByDay
+            case turnsCursor
+        }
+
+        init(
+            turnKeys: [String: String]?,
+            turnIDsByDay: [String: [String]]?,
+            turnsCursor: CostUsageScanner.CodexPriorityTurnsPersistedCursor?)
+        {
+            self.turnKeys = turnKeys
+            self.turnIDsByDay = turnIDsByDay
+            self.turnsCursor = turnsCursor
+        }
+
+        /// Cursor decode is best-effort so a malformed `turnsCursor` cannot drop load-bearing
+        /// `turnKeys` / `turnIDsByDay`. `encode(to:)` stays synthesized.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.turnKeys = try container.decodeIfPresent([String: String].self, forKey: .turnKeys)
+            self.turnIDsByDay = try container.decodeIfPresent([String: [String]].self, forKey: .turnIDsByDay)
+            self.turnsCursor = try? container.decodeIfPresent(
+                CostUsageScanner.CodexPriorityTurnsPersistedCursor.self,
+                forKey: .turnsCursor)
+        }
     }
 
     private struct DayModelKey: Hashable {
@@ -273,7 +371,12 @@ extension CostUsageStore {
         var validatedCurrentSnapshot = false
     }
 
-    private static func cache(from snapshot: CostUsageStoreSnapshot) -> CostUsageCache {
+    private static func cache(
+        from snapshot: CostUsageStoreSnapshot,
+        recorder: CostUsageStoreReadWorkRecorder?,
+        retryPresence: [String: CostUsageCodexRetryBufferPresence]? = nil) -> CostUsageCache
+    {
+        recorder?.recordCacheConversion()
         var cache = CostUsageCache()
         let metadata = snapshot.metadata
         cache.lastScanUnixMs = metadata.lastScanUnixMs
@@ -298,6 +401,7 @@ extension CostUsageStore {
         }) {
             cache.codexPriorityTurnKeys = priority.turnKeys
             cache.codexPriorityTurnIDsByDay = priority.turnIDsByDay
+            cache.codexPriorityTurnsCursor = priority.turnsCursor
         }
         cache.codexSessionDiscovery = snapshot.discoveryState.flatMap(Self.discovery(from:))
         cache.codexActiveLookbackState = snapshot.lookbackState.map(Self.lookback(from:))
@@ -319,6 +423,7 @@ extension CostUsageStore {
                   let details = try? JSONDecoder().decode(StoredFileDetails.self, from: detailsData)
             else { continue }
             let aggregates = (aggregatesByPath[file.path] ?? []).map(\.aggregate)
+            recorder?.recordUsageRowDecodes(count: rowsByPath[file.path]?.count ?? 0)
             let rows = (rowsByPath[file.path] ?? []).compactMap {
                 try? JSONDecoder().decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
             }
@@ -404,7 +509,8 @@ extension CostUsageStore {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
                 },
                 codexBufferedSubagentLines: Self.bufferedLines(buffers, kind: .subagent),
-                codexBufferedUnresolvedForkLines: Self.bufferedLines(buffers, kind: .unresolvedFork))
+                codexBufferedUnresolvedForkLines: Self.bufferedLines(buffers, kind: .unresolvedFork),
+                codexReadRetryBufferPresence: retryPresence.map { $0[file.path] ?? .init() })
             cache.files[file.path] = usage
         }
         Self.enqueueDeferredCodexIdentityValidation(
@@ -444,8 +550,7 @@ extension CostUsageStore {
             currentWindowFlatDirectoryOffsetByRoot: [:],
             completedCurrentWindowFlatRootPaths: rootPaths)
         var pendingPaths = Set(lookback.pendingFilePaths)
-        pendingPaths.formUnion(paths)
-        lookback.pendingFilePaths = pendingPaths.sorted()
+        lookback.pendingFilePaths.append(contentsOf: paths.filter { pendingPaths.insert($0).inserted })
         cache.codexActiveLookbackState = lookback
         cache.codexScanCatchUpPending = true
     }
@@ -833,10 +938,7 @@ extension CostUsageStore {
 
 extension CostUsageStore {
     private static func metadata(cache: CostUsageCache, calendar: Calendar) -> CostUsageStoreMetadata {
-        let priority = StoredPriorityState(
-            turnKeys: cache.codexPriorityTurnKeys,
-            turnIDsByDay: cache.codexPriorityTurnIDsByDay)
-        return CostUsageStoreMetadata(
+        CostUsageStoreMetadata(
             lastScanUnixMs: cache.lastScanUnixMs,
             scanSinceDay: cache.scanSinceKey,
             scanUntilDay: cache.scanUntilKey,
@@ -851,8 +953,23 @@ extension CostUsageStore {
             scanInventoryPaths: cache.codexScanInventoryPaths,
             rootMtimes: cache.roots,
             previousReportPayload: cache.codexPreviousReport.flatMap { try? JSONEncoder().encode($0) },
-            priorityTurnStatePayload: try? JSONEncoder().encode(priority),
+            priorityTurnStatePayload: self.priorityTurnStatePayload(cache: cache),
             projectMetadataVersion: cache.codexProjectMetadataVersion)
+    }
+
+    private static func priorityTurnStatePayload(cache: CostUsageCache) -> Data? {
+        try? JSONEncoder().encode(StoredPriorityState(
+            turnKeys: cache.codexPriorityTurnKeys,
+            turnIDsByDay: cache.codexPriorityTurnIDsByDay,
+            turnsCursor: cache.codexPriorityTurnsCursor))
+    }
+
+    private static func persistedPriorityTurnsCursor(
+        _ snapshot: CostUsageStoreSnapshot) -> CostUsageScanner.CodexPriorityTurnsPersistedCursor?
+    {
+        snapshot.metadata.priorityTurnStatePayload.flatMap {
+            try? JSONDecoder().decode(StoredPriorityState.self, from: $0)
+        }?.turnsCursor
     }
 
     private static func previousReport(
@@ -867,10 +984,11 @@ extension CostUsageStore {
         else { return nil }
         let range = CostUsageScanner.CostUsageDayRange(since: since, until: until, calendar: calendar)
         let report = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        guard var previous = CostUsageCodexPreviousReport(report: report, cache: cache) else { return nil }
-        previous.scanSinceKey = reportWindow?.sinceKey ?? cache.scanSinceKey
-        previous.scanUntilKey = reportWindow?.untilKey ?? cache.scanUntilKey
-        return previous
+        return CostUsageCodexPreviousReport(
+            report: report,
+            cache: cache,
+            reportSinceKey: sinceKey,
+            reportUntilKey: untilKey)
     }
 
     private static func fileAggregates(_ usage: CostUsageFileUsage) -> [CostUsageStoreDayAggregate] {
@@ -1220,6 +1338,14 @@ struct CostUsageStoreLoad: @unchecked Sendable {
 }
 
 enum CostUsageStoreAccess {
+    static func readView(
+        cacheRoot: URL?,
+        calendar: Calendar,
+        purpose: CostUsageStoreReadPurpose) -> CostUsageStoreReadView
+    {
+        CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexReadView(calendar: calendar, purpose: purpose)
+    }
+
     static func load(cacheRoot: URL?, calendar: Calendar) -> CostUsageStoreLoad {
         let store = CostUsageStore(cacheRoot: cacheRoot)
         let cache = store.syncLoadCodexCache(calendar: calendar)

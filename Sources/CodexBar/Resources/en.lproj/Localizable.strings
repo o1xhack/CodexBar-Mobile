@@ -641,6 +641,8 @@
 "section_keyboard_shortcut" = "Keyboard shortcut";
 "open_menu_shortcut_title" = "Open menu";
 "open_menu_shortcut_subtitle" = "Trigger the menu bar menu from anywhere.";
+"record_shortcut" = "Record Shortcut";
+"press_shortcut" = "Press Shortcut";
 "install_cli" = "Install CLI";
 "install_cli_subtitle" = "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar.";
 "cli_not_found" = "CodexBarCLI not found in app bundle.";
@@ -919,6 +921,7 @@
 "Monthly" = "Monthly";
 "Sonnet" = "Sonnet";
 "Overages" = "Overages";
+"Overage" = "Overage";
 "Activity" = "Activity";
 "Copied" = "Copied";
 "Copy error" = "Copy error";
@@ -929,6 +932,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "Balance updates in near-real time (up to 5 min lag)";
 "Daily billing data finalizes at 07:00 UTC" = "Daily billing data finalizes at 07:00 UTC";
 "%@ of %@ credits left" = "%@ of %@ credits left";
+"of %@" = "of %@";
 "%@ of %@ bonus credits left" = "%@ of %@ bonus credits left";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ remaining)";
 "%@/%@ left" = "%@/%@ left";
@@ -940,6 +944,7 @@
 "Full in ~1 regen" = "Full in ~1 regen";
 "Full in ~%.0f regens" = "Full in ~%.0f regens";
 "Overage usage" = "Overage usage";
+"Overage credits left" = "Overage credits left";
 "Overage cost" = "Overage cost";
 "credits" = "credits";
 "Zen balance" = "Zen balance";
@@ -1370,6 +1375,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Compact stacked";
 "menu_bar_layout_preset_custom" = "Custom";
 "menu_bar_layout_live_preview" = "Live preview";
+"menu_bar_layout_default_preview" = "Default layout preview";
+"menu_bar_layout_overrides_notice" = "These enabled providers use their own saved layouts:";
+"menu_bar_layout_use_all_accessibility" = "%@: Use all-providers layout";
 "menu_bar_layout_strip" = "Menu bar strip";
 "menu_bar_layout_remove_line_break" = "Remove line break";
 "menu_bar_layout_chip_hint" = "Select, drag to reorder, or use the Remove action.";
@@ -1377,6 +1385,7 @@
 "menu_bar_layout_empty_line" = "Drop a token here";
 "menu_bar_layout_line" = "Line %d";
 "menu_bar_layout_drag_remove" = "Drag here to remove";
+"menu_bar_layout_remove_selected" = "Remove selected";
 "menu_bar_layout_size" = "Size";
 "menu_bar_layout_size_small" = "Small";
 "menu_bar_layout_size_regular" = "Regular";
@@ -1603,3 +1612,4 @@
 "menu_bar_layout_conditional_default_session_spent" = "Session nearly spent";
 "menu_bar_layout_conditional_default_either_high" = "Session or weekly running high";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Scoped weekly over 60% used";
+"Spending cap, not balance" = "Spending cap, not balance";

@@ -281,3 +281,5 @@ grep -Fxq "test list" "${FAKE_SWIFT_LOG}"
 grep -Fq '| Discovered selections | `0` |' "${GITHUB_STEP_SUMMARY}"
 
 echo "Swift test sharding tests passed."
+
+python3 "${ROOT_DIR}/Scripts/test_swift_test_process_cleanup.py"

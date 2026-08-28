@@ -192,6 +192,19 @@ public enum GrokLocalSessionScanner {
             scannedAt: now)
     }
 
+    public static func summarizeOffMainThread(
+        env: [String: String],
+        lookbackDays: Int = defaultLookbackDays,
+        now: Date = .init()) async throws -> GrokLocalSessionSummary
+    {
+        try await CostUsageScanExecutor.run { checkCancellation in
+            try checkCancellation()
+            let summary = Self.summarize(env: env, lookbackDays: lookbackDays, now: now)
+            try checkCancellation()
+            return summary
+        }
+    }
+
     static func dayKey(for date: Date, calendar: Calendar) -> String? {
         var gregorian = Calendar(identifier: .gregorian)
         gregorian.timeZone = calendar.timeZone

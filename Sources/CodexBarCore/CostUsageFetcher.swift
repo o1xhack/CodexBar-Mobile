@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 
 public enum CostUsageError: LocalizedError, Sendable {
@@ -300,6 +301,7 @@ public struct CostUsageFetcher: Sendable {
         now: Date = Date(),
         codexHomePath: String? = nil,
         historyDays: Int = 30,
+        scanDurationPerRefresh: TimeInterval? = nil,
         calendar: Calendar? = nil) async throws -> CodexScanCatchUpStatus
     {
         var options = Self.resolvedScannerOptions(
@@ -308,8 +310,9 @@ public struct CostUsageFetcher: Sendable {
             codexHomePath: codexHomePath)
         options.forceRescan = false
         options.refreshMinIntervalSeconds = 0
-        options.maxCodexScanDurationPerRefresh = Self.codexAutomaticScanDurationPerRefresh
         let clampedHistoryDays = max(1, min(365, historyDays))
+        options.maxCodexScanDurationPerRefresh =
+            scanDurationPerRefresh ?? Self.codexAutomaticScanDurationPerRefresh
         let since = options.calendar.date(
             byAdding: .day,
             value: -(clampedHistoryDays - 1),
@@ -334,27 +337,11 @@ public struct CostUsageFetcher: Sendable {
     {
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-        let cache = CostUsageStoreAccess.read(
+        let view = CostUsageStoreAccess.readView(
             cacheRoot: options.cacheRoot,
-            calendar: options.calendar)
-        guard cache.roots == rootsFingerprint else {
-            return CodexScanCatchUpStatus(pending: false, progressKey: "scope-mismatch")
-        }
-
-        let scoped = CostUsageScanner.codexCache(cache, scopedTo: roots)
-        let progressKey = self.codexScanProgressKey(cache: cache, scopedFiles: scoped.files)
-        let hasIncompleteFile = scoped.files.values.contains {
-            $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-        }
-        let pending = cache.codexScanCatchUpPending == true || hasIncompleteFile
-        return CodexScanCatchUpStatus(
-            pending: pending,
-            progressKey: progressKey,
-            processedBytes: cache.codexScanProcessedBytes ?? 0,
-            totalBytes: cache.codexScanTotalBytes ?? 0,
-            completedFiles: cache.codexScanCompletedFiles ?? 0,
-            totalFiles: cache.codexScanTotalFiles ?? 0,
-            staleSnapshotUpdatedAt: pending ? cache.codexPreviousReport?.updatedAt : nil)
+            calendar: options.calendar,
+            purpose: .status)
+        return view.catchUpStatus(roots: roots, rootsFingerprint: rootsFingerprint)
     }
 
     private static func codexHistoryCoverageIsEstablished(
@@ -365,23 +352,6 @@ public struct CostUsageFetcher: Sendable {
     }
 
     private static let establishedEmptyCodexDailyReport = CostUsageDailyReport(data: [], summary: nil)
-
-    private static func codexCachedHistoryCoverageIsEstablished(
-        cache: CostUsageCache,
-        range: CostUsageScanner.CostUsageDayRange,
-        rootsFingerprint: [String: Int64]) -> Bool
-    {
-        guard cache.lastScanUnixMs > 0,
-              cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
-              cache.roots == rootsFingerprint,
-              cache.codexScanCatchUpPending != true,
-              !cache.files.values.contains(where: {
-                  $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-              }),
-              !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
-        else { return false }
-        return true
-    }
 
     private static func resolvedScannerOptions(
         _ override: CostUsageScanner.Options?,
@@ -425,14 +395,69 @@ public struct CostUsageFetcher: Sendable {
 
         let clampedHistoryDays = max(1, min(365, historyDays))
 
-        if let remoteSnapshot = try await self.loadRemoteTokenSnapshot(
-            provider: provider,
-            environment: environment,
-            now: now,
-            historyDays: clampedHistoryDays,
-            cursorCookieHeaderOverride: cursorCookieHeaderOverride)
-        {
+        var remoteSnapshot: CostUsageTokenSnapshot?
+        var remoteError: Error?
+        // Provider-specific by design: Cursor may fall back to local CSV when its remote dashboard is unavailable.
+        do {
+            remoteSnapshot = try await self.loadRemoteTokenSnapshot(
+                provider: provider,
+                environment: environment,
+                now: now,
+                historyDays: clampedHistoryDays,
+                cursorCookieHeaderOverride: cursorCookieHeaderOverride)
+        } catch {
+            if provider != .cursor {
+                throw error
+            }
+            remoteError = error
+        }
+        if let remoteSnapshot {
             return remoteSnapshot
+        }
+
+        // Provider-specific by design: Cursor and Antigravity local readers backfill providers without remote history.
+        let fallbackCalendar = Self.resolvedScannerOptions(
+            overrideScannerOptions,
+            provider: provider,
+            codexHomePath: codexHomePath).calendar
+        if provider == .cursor {
+            if let local = await self.loadCursorLocalSnapshot(
+                now: now, historyDays: clampedHistoryDays, calendar: fallbackCalendar)
+            {
+                return local
+            }
+            if let remoteError {
+                throw remoteError
+            }
+            return Self.tokenSnapshot(
+                from: CostUsageDailyReport(data: [], summary: nil),
+                now: now,
+                historyDays: clampedHistoryDays,
+                calendar: fallbackCalendar,
+                historyCoverageIsEstablished: false)
+        }
+        // Provider-specific by design: Antigravity uses recognized local stores without generic pricing or cache scans.
+        if provider == .antigravity {
+            if let local = try await self.loadAntigravityLocalSnapshot(
+                context: AntigravityLocalReader.Context(environment: environment),
+                now: now,
+                historyDays: clampedHistoryDays,
+                calendar: fallbackCalendar)
+            {
+                return local
+            }
+            if let remoteError {
+                throw remoteError
+            }
+            return Self.tokenSnapshot(
+                from: CostUsageDailyReport(data: [], summary: nil),
+                now: now,
+                historyDays: clampedHistoryDays,
+                calendar: fallbackCalendar,
+                historyCoverageIsEstablished: false)
+        }
+        if let remoteError {
+            throw remoteError
         }
 
         var options = Self.resolvedScannerOptions(
@@ -583,29 +608,25 @@ public struct CostUsageFetcher: Sendable {
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
                 let roots = CostUsageScanner.codexSessionsRoots(options: options.scanOptions)
-                let cache = CostUsageScanner.codexCache(
-                    CostUsageStoreAccess.read(
-                        cacheRoot: options.scanOptions.cacheRoot,
-                        calendar: options.scanOptions.calendar),
-                    scopedTo: roots)
+                let view = CostUsageStoreAccess.readView(
+                    cacheRoot: options.scanOptions.cacheRoot,
+                    calendar: options.scanOptions.calendar,
+                    purpose: .report).scoped(to: roots)
                 let range = CostUsageScanner.CostUsageDayRange(
                     since: since, until: now, calendar: options.scanOptions.calendar)
-                if let previous = CostUsageScanner.codexPreviousReport(
-                    cache: cache,
+                if let previous = view.previousReport(
                     range: range,
                     rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options.scanOptions))
                 {
                     staleSnapshotUpdatedAt = previous.updatedAt
                 } else {
-                    projects = CostUsageScanner.buildCodexProjectBreakdownsFromCache(
-                        cache: cache,
+                    projects = view.projects(
                         range: range,
-                        modelsDevCacheRoot: options.scanOptions.cacheRoot)
-                    sessions = CostUsageScanner.buildCodexSessionBreakdownsFromCache(
-                        cache: cache,
+                        cacheRoot: options.scanOptions.cacheRoot)
+                    sessions = view.sessions(
                         range: range,
-                        modelsDevCacheRoot: options.scanOptions.cacheRoot,
-                        sessionRoots: roots)
+                        cacheRoot: options.scanOptions.cacheRoot,
+                        roots: roots)
                 }
             }
             if options.includePiSessions,
@@ -786,17 +807,13 @@ public struct CostUsageFetcher: Sendable {
                 calendar: options.calendar)
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-            let cache = CostUsageScanner.codexCache(
-                CostUsageStoreAccess.read(
-                    cacheRoot: options.cacheRoot,
-                    calendar: options.calendar),
-                scopedTo: roots)
+            let cache = CostUsageStoreAccess.readView(
+                cacheRoot: options.cacheRoot,
+                calendar: options.calendar,
+                purpose: .report).scoped(to: roots)
             guard cache.timeZoneIdentifier == options.calendar.timeZone.identifier,
                   cache.roots == rootsFingerprint,
-                  cache.codexScanCatchUpPending != true,
-                  !cache.files.values.contains(where: {
-                      $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-                  }),
+                  !cache.hasPendingScan,
                   let cachedSince = cache.scanSinceKey,
                   let cachedUntil = cache.scanUntilKey
             else { return nil }
@@ -870,12 +887,11 @@ public struct CostUsageFetcher: Sendable {
             let shouldMergePiUsage = scopedCodexHomePath?.isEmpty != false
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-            let loadedCache = CostUsageStoreAccess.read(
+            let loadedCache = CostUsageStoreAccess.readView(
                 cacheRoot: options.cacheRoot,
-                calendar: options.calendar)
-            let cache = CostUsageScanner.codexCache(
-                loadedCache,
-                scopedTo: roots)
+                calendar: options.calendar,
+                purpose: .report)
+            let cache = loadedCache.scoped(to: roots)
             var reports: [CostUsageDailyReport] = []
             var projects: [CostUsageProjectBreakdown] = []
             var sessions: [CostUsageSessionBreakdown] = []
@@ -885,13 +901,11 @@ public struct CostUsageFetcher: Sendable {
             var scanTimes: [Date] = []
             var piMerged = false
             var staleSnapshotUpdatedAt: Date?
-            let nativeHistoryCoverageIsEstablished = Self.codexCachedHistoryCoverageIsEstablished(
-                cache: cache,
+            let nativeHistoryCoverageIsEstablished = cache.historyCoverageIsEstablished(
                 range: range,
                 rootsFingerprint: rootsFingerprint)
 
-            if let previous = CostUsageScanner.codexPreviousReport(
-                cache: cache,
+            if let previous = cache.previousReport(
                 range: range,
                 rootsFingerprint: rootsFingerprint)
             {
@@ -903,12 +917,11 @@ public struct CostUsageFetcher: Sendable {
             } else if cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
                       !cache.days.isEmpty,
                       cache.roots == rootsFingerprint,
-                      !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
+                      !cache.windowExpandsCache(range)
             {
-                let daily = CostUsageScanner.buildCodexReportFromCache(
-                    cache: cache,
+                let daily = cache.dailyReport(
                     range: range,
-                    modelsDevCacheRoot: options.cacheRoot)
+                    cacheRoot: options.cacheRoot)
                 if !daily.data.isEmpty {
                     reports.append(daily)
                     if cache.lastScanUnixMs > 0 {
@@ -917,16 +930,14 @@ public struct CostUsageFetcher: Sendable {
                         scanTimes.append(scanAt)
                     }
                     if includeProjectAndSessionBreakdowns {
-                        sessions = CostUsageScanner.buildCodexSessionBreakdownsFromCache(
-                            cache: cache,
+                        sessions = cache.sessions(
                             range: range,
-                            modelsDevCacheRoot: options.cacheRoot,
-                            sessionRoots: roots)
-                        if cache.codexProjectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion {
-                            projects.append(contentsOf: CostUsageScanner.buildCodexProjectBreakdownsFromCache(
-                                cache: cache,
+                            cacheRoot: options.cacheRoot,
+                            roots: roots)
+                        if cache.projectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion {
+                            projects.append(contentsOf: cache.projects(
                                 range: range,
-                                modelsDevCacheRoot: options.cacheRoot))
+                                cacheRoot: options.cacheRoot))
                         }
                     }
                 }
@@ -968,6 +979,11 @@ public struct CostUsageFetcher: Sendable {
             }
 
             guard !reports.isEmpty else { return nil }
+            // `previous` is an exact report captured before the current bounded refresh became
+            // pending. Its rows remain established even though native catch-up is still active;
+            // `staleSnapshotUpdatedAt` keeps refresh scheduling and stale presentation explicit.
+            let displayedHistoryCoverageIsEstablished = nativeHistoryCoverageIsEstablished
+                || staleSnapshotUpdatedAt != nil
             // updatedAt keeps the caches' real (oldest) scan time; stamping the hydration time
             // would let stale token rows inherit app-start freshness (#1964). lastRefreshAt
             // drives TTL suppression and stays native-only: a merged load must never delay a
@@ -978,7 +994,7 @@ public struct CostUsageFetcher: Sendable {
                     now: now,
                     historyDays: clampedHistoryDays,
                     calendar: options.calendar,
-                    historyCoverageIsEstablished: Self.codexHistoryCoverageIsEstablished(options: options),
+                    historyCoverageIsEstablished: displayedHistoryCoverageIsEstablished,
                     costProvenance: .listPriceEstimate,
                     projects: Self.mergedProjectBreakdowns(projects),
                     sessions: sessions,
@@ -1122,6 +1138,110 @@ public struct CostUsageFetcher: Sendable {
     }
     #endif
 
+    private static func loadCursorLocalSnapshot(
+        now: Date,
+        historyDays: Int,
+        calendar: Calendar = .current) async -> CostUsageTokenSnapshot?
+    {
+        let paths = CursorLocalCSVReader.cachedCSVPaths()
+        guard !paths.isEmpty else { return nil }
+        var allRows: [CursorLocalCSVReader.Row] = []
+        for url in paths {
+            allRows.append(contentsOf: CursorLocalCSVReader.parseFile(at: url))
+        }
+        guard !allRows.isEmpty else { return nil }
+        let full = CursorLocalCSVReader.makeDailyReport(from: allRows, calendar: calendar, now: now)
+        let cal = calendar
+        let since = cal.date(byAdding: .day, value: -(historyDays - 1), to: cal.startOfDay(for: now)) ?? now
+        let sinceKey = CostUsageLocalDay.key(from: since, calendar: cal)
+        let nowKey = CostUsageLocalDay.key(from: now, calendar: cal)
+        let filtered = full.data.filter { $0.date >= sinceKey && $0.date <= nowKey }
+        guard !filtered.isEmpty else { return nil }
+        let costValues = filtered.compactMap(\.costUSD)
+        let totalCost: Double? = costValues.isEmpty ? nil : costValues.reduce(0, +)
+        var sum = 0
+        var overflowed = false
+        for t in filtered.compactMap(\.totalTokens) {
+            let (res, of) = sum.addingReportingOverflow(t)
+            if of {
+                overflowed = true
+                break
+            }
+            sum = res
+        }
+        let totalTokens: Int? = overflowed ? nil : sum
+        let filteredSummary: CostUsageDailyReport.Summary = .init(
+            totalInputTokens: nil,
+            totalOutputTokens: nil,
+            totalTokens: totalTokens,
+            totalCostUSD: totalCost)
+        let daily = CostUsageDailyReport(data: filtered, summary: filteredSummary)
+        return Self.tokenSnapshot(
+            from: daily,
+            now: now,
+            historyDays: historyDays,
+            useCurrentLocalDayForSession: true,
+            calendar: cal,
+            costProvenance: .listPriceEstimate)
+    }
+
+    private static func loadAntigravityLocalSnapshot(
+        context: AntigravityLocalReader.Context,
+        now: Date,
+        historyDays: Int,
+        calendar: Calendar = .current) async throws -> CostUsageTokenSnapshot?
+    {
+        let cal = calendar
+        let reportResult = try await CostUsageScanExecutor.run { checkCancellation in
+            try AntigravityLocalReader.makeDailyReportWithStatus(
+                context: context, calendar: cal, checkCancellation: checkCancellation)
+        }
+        guard reportResult.isAvailable else { return nil }
+        let report = reportResult.report
+        if report.data.isEmpty {
+            guard reportResult.isComplete else { return nil }
+            return Self.tokenSnapshot(
+                from: CostUsageDailyReport(data: [], summary: nil),
+                now: now,
+                historyDays: historyDays,
+                useCurrentLocalDayForSession: true,
+                calendar: cal,
+                historyCoverageIsEstablished: true,
+                costProvenance: .unknown)
+        }
+        let since = cal.date(byAdding: .day, value: -(historyDays - 1), to: cal.startOfDay(for: now)) ?? now
+        let sinceKey = CostUsageLocalDay.key(from: since, calendar: cal)
+        let nowKey = CostUsageLocalDay.key(from: now, calendar: cal)
+        let filtered = report.data.filter { $0.date >= sinceKey && $0.date <= nowKey }
+        let costValues = filtered.compactMap(\.costUSD)
+        let totalCost: Double? = costValues.isEmpty ? nil : costValues.reduce(0, +)
+        var sum = 0
+        var overflowed = false
+        for t in filtered.compactMap(\.totalTokens) {
+            let (res, of) = sum.addingReportingOverflow(t)
+            if of {
+                overflowed = true
+                break
+            }
+            sum = res
+        }
+        let totalTokens: Int? = overflowed ? nil : sum
+        let filteredSummary: CostUsageDailyReport.Summary? = filtered.isEmpty ? nil : .init(
+            totalInputTokens: nil,
+            totalOutputTokens: nil,
+            totalTokens: totalTokens,
+            totalCostUSD: totalCost)
+        let daily = CostUsageDailyReport(data: filtered, summary: filteredSummary)
+        return Self.tokenSnapshot(
+            from: daily,
+            now: now,
+            historyDays: historyDays,
+            useCurrentLocalDayForSession: true,
+            calendar: cal,
+            historyCoverageIsEstablished: reportResult.isComplete,
+            costProvenance: .unknown)
+    }
+
     static func tokenSnapshot(
         from daily: CostUsageDailyReport,
         now: Date,
@@ -1171,7 +1291,15 @@ public struct CostUsageFetcher: Sendable {
                 ? totalFromEntries
                 : establishedEmptyHistory ? 0 : nil)
         let totalTokensFromSummary = daily.summary?.totalTokens
-        let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
+        let totalTokensFromEntries: Int? = {
+            var sum = 0
+            for t in daily.data.compactMap(\.totalTokens) {
+                let (res, overflow) = sum.addingReportingOverflow(t)
+                if overflow { return nil }
+                sum = res
+            }
+            return sum
+        }()
         let allEntriesCarryTokens = !daily.data.isEmpty && daily.data.allSatisfy { $0.totalTokens != nil }
         let last30DaysTokens = totalTokensFromSummary
             ?? (allEntriesCarryTokens
@@ -1271,7 +1399,7 @@ public struct CostUsageFetcher: Sendable {
             ])
     }
 
-    private static func mergedProjectBreakdowns(
+    static func mergedProjectBreakdowns(
         _ projects: [CostUsageProjectBreakdown]) -> [CostUsageProjectBreakdown]
     {
         var dailyByPath: [String: [CostUsageDailyReport]] = [:]
@@ -1490,8 +1618,8 @@ extension CostUsageFetcher {
             if hasBufferedRetry {
                 progressHasher.combine(usage.forkedFromId)
                 progressHasher.combine(usage.forkBaselineDependencyKey)
-                progressHasher.combine(usage.codexBufferedSubagentLines?.isEmpty == false)
-                progressHasher.combine(usage.codexBufferedUnresolvedForkLines?.isEmpty == false)
+                progressHasher.combine(usage.hasBufferedCodexSubagentLines)
+                progressHasher.combine(usage.hasBufferedCodexUnresolvedForkLines)
             }
         }
 

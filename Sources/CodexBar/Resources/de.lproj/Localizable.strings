@@ -653,6 +653,8 @@
 "section_keyboard_shortcut" = "Tastenkombination";
 "open_menu_shortcut_title" = "Menü öffnen";
 "open_menu_shortcut_subtitle" = "Lösen Sie das Menü der Menüleiste von überall aus aus.";
+"record_shortcut" = "Kurzbefehl aufnehmen";
+"press_shortcut" = "Kurzbefehl wählen…";
 "install_cli" = "CLI installieren";
 "install_cli_subtitle" = "Verknüpfen Sie CodexBarCLI mit /usr/local/bin und /opt/homebrew/bin als Codexbar.";
 "cli_not_found" = "CodexBarCLI wurde im App-Bundle nicht gefunden.";
@@ -930,6 +932,7 @@
 "Monthly" = "Monatlich";
 "Sonnet" = "Sonett";
 "Overages" = "Überschreitungen";
+"Overage" = "Überschreitung";
 "Activity" = "Aktivität";
 "Copied" = "Kopiert";
 "Copy error" = "Kopierfehler";
@@ -940,6 +943,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "Guthabenaktualisierungen nahezu in Echtzeit (bis zu 5 Minuten Verzögerung)";
 "Daily billing data finalizes at 07:00 UTC" = "Die täglichen Abrechnungsdaten werden um 07:00 UTC finalisiert";
 "%@ of %@ credits left" = "%@ von %@ Credits übrig";
+"of %@" = "von %@";
 "%@ of %@ bonus credits left" = "%@ von %@ Bonusguthaben übrig";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ verbleibend)";
 "%@/%@ left" = "%@/%@ übrig";
@@ -951,6 +955,7 @@
 "Full in ~1 regen" = "Voll in ~1 Regeneration";
 "Full in ~%.0f regens" = "Voll in ~%.0f Regenerationen";
 "Overage usage" = "Übermäßige Nutzung";
+"Overage credits left" = "Verbleibende Überschreitungs-Credits";
 "Overage cost" = "Überschreitungskosten";
 "credits" = "Credits";
 "Zen balance" = "Zen-Balance";
@@ -1365,6 +1370,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Kompakt gestapelt";
 "menu_bar_layout_preset_custom" = "Benutzerdefiniert";
 "menu_bar_layout_live_preview" = "Live-Vorschau";
+"menu_bar_layout_default_preview" = "Vorschau des Standardlayouts";
+"menu_bar_layout_overrides_notice" = "Diese aktivierten Anbieter verwenden eigene gespeicherte Layouts:";
+"menu_bar_layout_use_all_accessibility" = "%@: Layout für alle Anbieter verwenden";
 "menu_bar_layout_strip" = "Menüleistenstreifen";
 "menu_bar_layout_remove_line_break" = "Zeilenumbruch entfernen";
 "menu_bar_layout_chip_hint" = "Auswählen, zum Sortieren ziehen oder die Entfernen-Aktion verwenden.";
@@ -1372,6 +1380,7 @@
 "menu_bar_layout_empty_line" = "Baustein hier ablegen";
 "menu_bar_layout_line" = "Zeile %d";
 "menu_bar_layout_drag_remove" = "Zum Entfernen hierher ziehen";
+"menu_bar_layout_remove_selected" = "Auswahl entfernen";
 "menu_bar_layout_size" = "Größe";
 "menu_bar_layout_size_small" = "Klein";
 "menu_bar_layout_size_regular" = "Normal";
@@ -1600,3 +1609,4 @@
 "menu_bar_layout_conditional_default_session_spent" = "Sitzung fast aufgebraucht";
 "menu_bar_layout_conditional_default_either_high" = "Sitzung oder Woche läuft hoch";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Modellfenster über 60 % genutzt";
+"Spending cap, not balance" = "Ausgabenlimit, kein Guthaben";
