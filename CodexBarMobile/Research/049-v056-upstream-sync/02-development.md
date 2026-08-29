@@ -1,6 +1,6 @@
 # v0.56.0 Upstream Sync 开发记录
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-28
 
 ## Phase A — 调研与分支
@@ -40,11 +40,11 @@ Date: 2026-08-28
 - [x] 逐行填写 16-case matrix，全部如实标为 `substituted`并记录残余风险；
 - [x] merge 与 bridge/iOS 两轮 self-review + agent review，已修复 README 适配、
   CloudKit terminal-delete 误清 ownership/cache 与 Codex OAuth 优先级回归；
-- [ ] release evidence 最终 self-review + agent review；
+- [x] release evidence 最终 self-review + agent review；
 - [x] 生成并验证 signed/notarized ZIP+dSYM；
 - [x] 创建 unpublished-tag GitHub draft并回读 assets/digest；
 - [x] 临时 candidate appcast 生成、签名与单调性验证；
-- [ ] Research 状态与证据收口，blocker=0。
+- [x] Research 状态与证据收口，blocker=0。
 
 ## Conflict 决策记录
 
@@ -65,7 +65,7 @@ Date: 2026-08-28
 |---:|---|---|---|---|---|
 | 1 | `a7ab9f708` + worktree | merge + fork seams | README事实适配遗漏；其余CI/provenance/version clean | 更新README OpenCode Go/AI Usage Limits与reviewed hash；guards pass | fixed |
 | 2 | `a7ab9f708` + worktree | Shared/iOS + localization | terminal permission/auth delete误清cache/ownership；evidence pending | 仅unknownItem清cache；test/re-review clean；03-testing补齐 | fixed |
-| 3 | pending | release diff + evidence | pending | pending | pending |
+| 3 | `b9ae71f8f` + draft/body closeout diff | release diff + evidence | draft body缺 root CHANGELOG 用户可见正文 | 回写 Added/Changed/Fixed/Upstream range，API exact-match 回读；三路 agent 复核 | fixed; blocker=0 |
 
 ## Draft artifact 记录
 
@@ -80,8 +80,8 @@ Date: 2026-08-28
 | dSYM SHA-256 / bytes | `ebf84fd9281cfb13ac9983a858689686c30c0ecaf3f73a235d0701891d248e6a` / `57059595` |
 | notary / stapler / Gatekeeper | submission `2e926c37-a720-4c37-b6e0-a83d12b80e24` `Accepted`; stapler valid; `spctl` Notarized Developer ID; `syspolicy_check` ready for distribution |
 | Production entitlement | extracted app entitlement = `Production` |
-| GitHub draft URL / `draft=true` | `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-306148c80e52f8ab2293` / database `378828305` / `true` / target `mobile-dev` |
-| draft asset readback | both `uploaded`; GitHub SHA-256 digests and byte sizes exactly match local artifacts |
+| GitHub draft URL / `draft=true` | `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-f119f55a105dc5efcac0` / database `378828305` / `true` / target `mobile-dev` |
+| draft body / asset readback | root CHANGELOG `Added/Changed/Fixed/Upstream release range` + provenance/no-publish gate API readback pass; both assets `uploaded`; GitHub SHA-256 digests and byte sizes exactly match local artifacts |
 | candidate appcast | XML valid; `131.1.1.23.0`; enclosure length `74879194`; EdDSA verified; candidate kept only in detached `/tmp` worktree |
 | remote task branch / tag absent | `git ls-remote` returned 0 lines for both after draft creation |
 | live appcast unchanged | working and `origin/mobile-dev` SHA-256 both `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267` |

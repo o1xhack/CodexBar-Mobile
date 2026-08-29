@@ -1,6 +1,6 @@
 # v0.56.0 / iOS 1.23.0 测试与发布证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-08-28
 
 ## 兼容基线
@@ -26,7 +26,7 @@ Date: 2026-08-28
 | iOS focused/full tests | pass | v0.49 matrix + v0.56 semantics focused通过；full Simulator suite 738/738通过 |
 | CloudKit Production audit | pass | static diff + `cktool export-schema`；结论 `NO_DEPLOY` |
 | 16-case compatibility gate | substituted-complete | 16 行全部列出；无 2 Mac + 2 iPhone 实机，使用 S1-S5 替代证据 |
-| local/agent review blocker count | in progress | Shared delete terminal-error P1 已修并复核；最终 exact-head release evidence review待完成 |
+| local/agent review blocker count | pass | 三路 exact-head review 最终 blocker=0；CloudKit/iOS focused 复测通过；draft body finding 已修并 API 复核 |
 | signed/notarized draft | pass | source `0d7db66a68ce...`；notary `Accepted`；ZIP/dSYM、candidate appcast与 GitHub draft全部回读验证 |
 | no push/merge/live/TestFlight/deploy boundary | pass | remote task branch/tag 0 lines；draft-only；live feed hash与`origin/mobile-dev`一致；未 push/merge/publish/TestFlight/deploy |
 
@@ -128,9 +128,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
 - iOS兼容、wire、merge/cache、cost honesty、四语言与 Release build均通过；
 - 16-case canonical gate以 `substituted-complete` 闭环，0 个已知 functional failure；
 - CloudKit verdict为 `NO_DEPLOY`，Production只读回看完成；
-- Mac full exact-product-tree rerun 已通过；signed/notarized draft 与最终 review evidence
-  中 draft 已完成，仅 exact-head review evidence 仍是本文件进入 `done`
-  前的剩余 gate。
+- Mac full exact-product-tree rerun、signed/notarized draft 与最终 review evidence 全部完成；
+- 三路最终 review 合计 blocker=0：CloudKit/Shared 额外复跑 migration 15/15 与
+  v0.56 semantics 4/4，iOS/cost 额外复跑 18 focused tests，CI/release 发现的
+  draft body 缺失已修复并回读通过；
+- 本文件状态为 `done`；未授权的 push/merge/tag/live release/appcast/TestFlight/
+  CloudKit deploy 依然未执行。
 
 ## Signed draft evidence
 
@@ -147,9 +150,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
 - candidate appcast 只在 detached `/tmp/codexbar-v056-appcast-0d7db66a` 生成；
   XML valid，`sparkle:version=131.1.1.23.0`，完整 tag URL，enclosure length
   74,879,194，EdDSA signature 验证通过；
-- GitHub draft：`https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-306148c80e52f8ab2293`，
+- GitHub draft：`https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-f119f55a105dc5efcac0`，
   database ID `378828305`，`draft=true`，`target_commitish=mobile-dev`；资产均
   `uploaded`，远端 digest/size 与本地完全一致；
+- draft body 已从 root CHANGELOG 回写并 API 回读 `Added`、`Changed`、`Fixed`、
+  `Upstream release range`，同时保留 exact source SHA 与 no-publish gate；
 - draft 后 remote task branch/tag 仍为 0 lines；live `appcast.xml` 与
   `origin/mobile-dev` SHA-256 均为
   `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267`。

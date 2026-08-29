@@ -1,6 +1,6 @@
 # v0.56.0 Upstream Sync + iOS 1.23.0 概览
 
-Status: `ready`
+Status: `done`
 Date: 2026-08-28
 Branch: `upstream-sync/v0.56.0-mobile.1.23.0`
 
