@@ -41,9 +41,9 @@ Date: 2026-08-28
 - [x] merge 与 bridge/iOS 两轮 self-review + agent review，已修复 README 适配、
   CloudKit terminal-delete 误清 ownership/cache 与 Codex OAuth 优先级回归；
 - [ ] release evidence 最终 self-review + agent review；
-- [ ] 生成并验证 signed/notarized ZIP+dSYM；
-- [ ] 创建 unpublished-tag GitHub draft并回读 assets/digest；
-- [ ] 临时 candidate appcast 生成、签名与单调性验证；
+- [x] 生成并验证 signed/notarized ZIP+dSYM；
+- [x] 创建 unpublished-tag GitHub draft并回读 assets/digest；
+- [x] 临时 candidate appcast 生成、签名与单调性验证；
 - [ ] Research 状态与证据收口，blocker=0。
 
 ## Conflict 决策记录
@@ -74,10 +74,14 @@ Date: 2026-08-28
 | candidate tag name | `v0.56.0.1-mobile.1.23.0` |
 | ZIP | `CodexBar-0.56.0.1-mobile.1.23.0.zip` |
 | dSYM | `CodexBar-0.56.0.1-mobile.1.23.0.dSYM.zip` |
-| app UUID / dSYM UUID | pending |
-| ZIP / dSYM SHA-256 | pending |
-| notary / stapler / Gatekeeper | pending |
-| Production entitlement | pending |
-| GitHub draft URL / `draft=true` | pending |
-| remote task branch / tag absent | pending |
-| live appcast unchanged | pending |
+| artifact source commit | `0d7db66a68ce341ddf5fc404048407500bddd944` |
+| app UUID / dSYM UUID | x86_64 `BDD23A54-0136-3971-BF58-4FF48A85F382`; arm64 `6AE7CA97-6A0B-31C0-AA9D-EE26B35F6FDF`; exact match |
+| ZIP SHA-256 / bytes | `1764e11669bab7439c3d283ca60279a189bb1711a5f4a75e3a07f728c24bd5ed` / `74879194` |
+| dSYM SHA-256 / bytes | `ebf84fd9281cfb13ac9983a858689686c30c0ecaf3f73a235d0701891d248e6a` / `57059595` |
+| notary / stapler / Gatekeeper | submission `2e926c37-a720-4c37-b6e0-a83d12b80e24` `Accepted`; stapler valid; `spctl` Notarized Developer ID; `syspolicy_check` ready for distribution |
+| Production entitlement | extracted app entitlement = `Production` |
+| GitHub draft URL / `draft=true` | `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-306148c80e52f8ab2293` / database `378828305` / `true` / target `mobile-dev` |
+| draft asset readback | both `uploaded`; GitHub SHA-256 digests and byte sizes exactly match local artifacts |
+| candidate appcast | XML valid; `131.1.1.23.0`; enclosure length `74879194`; EdDSA verified; candidate kept only in detached `/tmp` worktree |
+| remote task branch / tag absent | `git ls-remote` returned 0 lines for both after draft creation |
+| live appcast unchanged | working and `origin/mobile-dev` SHA-256 both `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267` |

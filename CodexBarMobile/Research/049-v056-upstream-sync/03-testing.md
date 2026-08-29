@@ -26,9 +26,9 @@ Date: 2026-08-28
 | iOS focused/full tests | pass | v0.49 matrix + v0.56 semantics focused通过；full Simulator suite 738/738通过 |
 | CloudKit Production audit | pass | static diff + `cktool export-schema`；结论 `NO_DEPLOY` |
 | 16-case compatibility gate | substituted-complete | 16 行全部列出；无 2 Mac + 2 iPhone 实机，使用 S1-S5 替代证据 |
-| local/agent review blocker count | in progress | Shared delete terminal-error P1 已修并复核；最终 release evidence review待完成 |
-| signed/notarized draft | pending | ZIP/dSYM + draft URL |
-| no push/merge/live/TestFlight/deploy boundary | pass-so-far | 未 push/merge/publish/TestFlight/deploy；draft 后再回读 remote branch/tag/live feed |
+| local/agent review blocker count | in progress | Shared delete terminal-error P1 已修并复核；最终 exact-head release evidence review待完成 |
+| signed/notarized draft | pass | source `0d7db66a68ce...`；notary `Accepted`；ZIP/dSYM、candidate appcast与 GitHub draft全部回读验证 |
+| no push/merge/live/TestFlight/deploy boundary | pass | remote task branch/tag 0 lines；draft-only；live feed hash与`origin/mobile-dev`一致；未 push/merge/publish/TestFlight/deploy |
 
 ## 已执行的关键命令
 
@@ -129,7 +129,34 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
 - 16-case canonical gate以 `substituted-complete` 闭环，0 个已知 functional failure；
 - CloudKit verdict为 `NO_DEPLOY`，Production只读回看完成；
 - Mac full exact-product-tree rerun 已通过；signed/notarized draft 与最终 review evidence
-  仍是本文件进入 `done` 前的剩余 gate。
+  中 draft 已完成，仅 exact-head review evidence 仍是本文件进入 `done`
+  前的剩余 gate。
+
+## Signed draft evidence
+
+- artifact source commit：`0d7db66a68ce341ddf5fc404048407500bddd944`；
+- Apple notarization submission `2e926c37-a720-4c37-b6e0-a83d12b80e24`：`Accepted`；
+- 解包后 `codesign --verify --deep --strict`、`spctl --assess`、`stapler validate`、
+  `syspolicy_check distribution` 全部通过，CloudKit entitlement 为 `Production`；
+- ZIP：74,879,194 bytes，SHA-256
+  `1764e11669bab7439c3d283ca60279a189bb1711a5f4a75e3a07f728c24bd5ed`；
+- dSYM：57,059,595 bytes，SHA-256
+  `ebf84fd9281cfb13ac9983a858689686c30c0ecaf3f73a235d0701891d248e6a`；
+- app/dSYM UUID一致：x86_64 `BDD23A54-0136-3971-BF58-4FF48A85F382`，arm64
+  `6AE7CA97-6A0B-31C0-AA9D-EE26B35F6FDF`；
+- candidate appcast 只在 detached `/tmp/codexbar-v056-appcast-0d7db66a` 生成；
+  XML valid，`sparkle:version=131.1.1.23.0`，完整 tag URL，enclosure length
+  74,879,194，EdDSA signature 验证通过；
+- GitHub draft：`https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-306148c80e52f8ab2293`，
+  database ID `378828305`，`draft=true`，`target_commitish=mobile-dev`；资产均
+  `uploaded`，远端 digest/size 与本地完全一致；
+- draft 后 remote task branch/tag 仍为 0 lines；live `appcast.xml` 与
+  `origin/mobile-dev` SHA-256 均为
+  `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267`。
+
+GitHub draft 因 no-push 边界暂指向 remote `mobile-dev`；notes 已锁定本地 artifact
+source commit。公开前必须在该 exact commit 合入 `mobile-dev` 后重验 target、assets、
+candidate appcast、review gate 与 release checklist。
 
 ## Mac full-test failure / fix log
 
