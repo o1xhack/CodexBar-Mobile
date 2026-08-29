@@ -86,7 +86,9 @@ release train 为准。
 
 1. `Scripts/sign-and-notarize.sh` 生成签名、公证 ZIP/dSYM；
 2. 验证 UUID、SHA-256、codesign、stapler、Gatekeeper、Production entitlement；
-3. 通过 GitHub draft API 创建不要求远端 branch/tag ref 的 draft 并上传资产；
+3. 通过 GitHub draft API 创建未发布 tag 的 draft并上传资产；因任务分支不得 push，
+   `target_commitish` 暂指向 `mobile-dev`，draft notes明确记录本地产物源 SHA；公开前必须在 exact
+   commit 合入 `mobile-dev` 后重新校验 target/资产，draft本身不会创建远端 tag ref；
 4. candidate appcast 只在临时 worktree/临时文件中生成并验签，不修改 live `appcast.xml`；
 5. 回读 `draft=true`、remote task branch/tag 不存在、live feed 未改变。
 

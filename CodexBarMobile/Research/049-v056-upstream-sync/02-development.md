@@ -1,6 +1,6 @@
 # v0.56.0 Upstream Sync 开发记录
 
-Status: `ready`
+Status: `in-progress`
 Date: 2026-08-28
 
 ## Phase A — 调研与分支
@@ -15,30 +15,34 @@ Date: 2026-08-28
 
 ## Phase B — Mac merge / integration
 
-- [ ] merge `v0.56.0`，保留 upstream second parent；
-- [ ] 逐一解决 20 个 conflict files / 112 hunks；
-- [ ] 语义合并 Claude slot-key migration 与 fork pending-delete ownership；
-- [ ] 保留 fork README、CI、release/appcast、Production entitlements 与 composite version；
-- [ ] 吸收 cost scanner/cache、provider、CLI security 与 localization；
-- [ ] 更新 parser logic version/hash predecessors（若生成器判定需要）；
-- [ ] 完成 Mac focused + full build/lint/test。
+- [x] merge `v0.56.0`，merge `a7ab9f708` 保留 upstream second parent `fc1bd0d797`；
+- [x] 逐一解决 20 个 conflict files / 112 hunks；
+- [x] 语义合并 Claude slot-key migration 与 fork pending-delete ownership；
+- [x] 保留 fork CI、release/appcast、Production entitlements 与 composite version；README 在保持 fork
+  identity 后单独吸收 OpenCode Go 与 AI Usage Limits事实并更新 reviewed hash；
+- [x] 吸收 cost scanner/cache、provider、CLI security 与 localization；
+- [x] parser logic version升至 `14`，generated hash更新为 `c6ecfbe76f4248db`；
+- [x] Mac focused/build/lint与修复后 full suite 通过：`10254 tests / 964 suites`、
+  `0 failures`；最终 lint 为 2093 Swift files / 0 violations。
 
 ## Phase C — Shared / iOS
 
-- [ ] 最终审计 root `Shared/` 与 `CodexBarMobile/Shared` wire diff；
-- [ ] 证明现有 generic lanes覆盖 Cursor/Kiro/Alibaba/Fireworks/Antigravity/z.ai/OpenCode；
-- [ ] 补 Kiro semantic labels 与四语言 localization；
-- [ ] 补 v0.56 producer/round-trip/reader fixtures与代表 PreviewData；
-- [ ] 更新 `version.env`、`project.yml`、root/iOS CHANGELOG、MobileReleaseNotesCatalog；
-- [ ] `xcodegen generate` 并完成 iOS build/tests。
+- [x] 最终审计 root `Shared/` 与 `CodexBarMobile/Shared` wire/parity；
+- [x] 证明现有 generic lanes覆盖 Cursor/Kiro/Alibaba/Fireworks/Antigravity/z.ai/OpenCode；
+- [x] 补 Kiro semantic labels 与四语言 localization；
+- [x] 补 v0.56 producer/round-trip/reader fixtures与代表 PreviewData；
+- [x] 更新 `version.env`、`project.yml`、root/iOS CHANGELOG、MobileReleaseNotesCatalog；
+- [x] `xcodegen generate`，iOS 4 targets `1.23.0 (196)`，full tests 738/738，Release compile通过。
 
 ## Phase D — Compatibility / release candidate / review
 
-- [ ] 正式 CloudKit schema audit与 Production只读回看；
-- [ ] 逐行填写 16-case matrix；
-- [ ] merge、bridge/iOS、release evidence 三轮 self-review + agent review；
+- [x] 正式 CloudKit schema audit与 Production只读回看，verdict `NO_DEPLOY`；
+- [x] 逐行填写 16-case matrix，全部如实标为 `substituted`并记录残余风险；
+- [x] merge 与 bridge/iOS 两轮 self-review + agent review，已修复 README 适配、
+  CloudKit terminal-delete 误清 ownership/cache 与 Codex OAuth 优先级回归；
+- [ ] release evidence 最终 self-review + agent review；
 - [ ] 生成并验证 signed/notarized ZIP+dSYM；
-- [ ] 创建 no-ref GitHub draft并回读 assets/digest；
+- [ ] 创建 unpublished-tag GitHub draft并回读 assets/digest；
 - [ ] 临时 candidate appcast 生成、签名与单调性验证；
 - [ ] Research 状态与证据收口，blocker=0。
 
@@ -46,20 +50,21 @@ Date: 2026-08-28
 
 | Path / area | Upstream intent | Fork invariant | Resolution | Verification |
 |---|---|---|---|---|
-| `.github/workflows/ci.yml` | 新测试平台与 runner hardening | PR Fast Checks + merge-only heavy CI | pending | CI policy tests |
-| `CHANGELOG.md` / `version.env` | upstream 0.56 / build 131 | fork mobile-first changelog + composite version | pending | version/changelog gates |
-| `appcast.xml` | upstream public feed | fork live feed不可在 candidate改写 | pending | byte/hash check |
-| `CloudSyncEngine.swift` | Claude slot replacement/delete | fork pending delete ownership/retry | pending | migration + mixed writer tests |
-| cost scanner/store/hash | read-view/fair scheduling/estimated cost | coverage/provenance/cache compatibility | pending | focused/full tests |
-| Alibaba/OpenRouter | CLI-first/parser/plugin fixes | fork bridge/parser hash | pending | provider tests |
-| CI/test scripts | upstream shards/aggregates | fork path gate/policy | pending | script regression tests |
+| `.github/workflows/ci.yml` | 新测试平台与 runner hardening | PR Fast Checks + merge-only heavy CI | semantic union：glibc+musl都服从 final path gate | CI policy/path/reuse gates pass |
+| `CHANGELOG.md` / `version.env` | upstream 0.56 / build 131 | fork mobile-first changelog + composite version | 单一 `0.56.0.1 / 131.1 / 1.23.0` train并补齐四个upstream段 | version/changelog extraction pass |
+| `appcast.xml` | upstream public feed | fork live feed不可在 candidate改写 | 保持 published fork feed；candidate只在临时位置生成 | pre-draft byte/hash clean |
+| `CloudSyncEngine.swift` | Claude slot replacement/delete | fork pending delete ownership/retry | save-confirmed-delete + durable cancellation；review后限制unknownItem才清cache | migration/delete classification tests pass |
+| cost scanner/store/hash | read-view/fair scheduling/estimated cost | coverage/provenance/cache compatibility | parser v14 + predecessor union + fair scheduling/read-view union | focused/lint/hash gates pass |
+| Alibaba/OpenRouter | CLI-first/parser/plugin fixes | fork bridge/parser hash | CLI-first和cookie fallback兼容；OpenRouter日期trim/replace union | provider/plugin tests pass |
+| Codex CLI auto source order | 上游有效OAuth expiry/model windows必须优先 | fork CLI dashboard fallback仍需保留 | `PAT -> OAuth -> web -> CLI`，managed保持`PAT -> OAuth` | OAuth/baseline focused 57-test set pass |
+| CI/test scripts | upstream shards/aggregates | fork path gate/policy | 6 Mac shards + glibc/musl aggregate + cleanup hardening | 62 cleanup tests及所有policy scripts pass |
 
 ## Review 记录
 
 | Round | Exact head | Scope | Findings | Fix / retest | Result |
 |---:|---|---|---|---|---|
-| 1 | pending | merge + fork seams | pending | pending | pending |
-| 2 | pending | Shared/iOS + localization | pending | pending | pending |
+| 1 | `a7ab9f708` + worktree | merge + fork seams | README事实适配遗漏；其余CI/provenance/version clean | 更新README OpenCode Go/AI Usage Limits与reviewed hash；guards pass | fixed |
+| 2 | `a7ab9f708` + worktree | Shared/iOS + localization | terminal permission/auth delete误清cache/ownership；evidence pending | 仅unknownItem清cache；test/re-review clean；03-testing补齐 | fixed |
 | 3 | pending | release diff + evidence | pending | pending | pending |
 
 ## Draft artifact 记录
