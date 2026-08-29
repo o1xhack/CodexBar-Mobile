@@ -393,6 +393,7 @@ struct CloudSyncSnapshotMigrationDeleteRetryTests {
             CloudSyncSnapshotMigration.finishedFailedDeleteNames(failures) == [
                 "unknown", "denied", "unauth", "invalid",
             ])
+        #expect(CloudSyncSnapshotMigration.confirmedMissingDeleteNames(failures) == ["unknown"])
     }
 
     @Test

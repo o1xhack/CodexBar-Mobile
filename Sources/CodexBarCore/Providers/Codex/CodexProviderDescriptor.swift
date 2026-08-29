@@ -148,9 +148,10 @@ public enum CodexProviderDescriptor {
             case .api:
                 return [pat]
             case .auto:
-                // Preserve the fork's CLI-only dashboard fallback while respecting upstream's
-                // managed-workspace boundary: workspace-scoped requests must stay on OAuth.
-                return context.codexWorkspaceID == nil ? [pat, web, oauth, cli] : [pat, oauth]
+                // Preserve the fork's CLI-only dashboard fallback, but prefer a valid native
+                // OAuth credential so model-scoped limits and account identity are not replaced
+                // by a browser dashboard result. Managed workspaces must stay on OAuth.
+                return context.codexWorkspaceID == nil ? [pat, oauth, web, cli] : [pat, oauth]
             }
         case .app:
             switch context.sourceMode {

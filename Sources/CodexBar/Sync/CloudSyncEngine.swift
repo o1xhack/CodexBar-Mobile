@@ -655,6 +655,14 @@ enum CloudSyncSnapshotMigration {
         })
     }
 
+    /// `unknownItem` confirms that the server no longer has the record, so local caches and
+    /// ownership can be cleared. Other terminal failures stop retrying but do not prove deletion.
+    static func confirmedMissingDeleteNames(_ failures: [CKRecord.ID: CKError]) -> Set<String> {
+        Set(failures.compactMap { recordID, error in
+            error.code == .unknownItem ? recordID.recordName : nil
+        })
+    }
+
     static func abandonedReplacementNames(
         failures: [String: CKError],
         pendingReplacements: Set<String>) -> Set<String>
@@ -1945,7 +1953,8 @@ extension CloudSyncEngine {
         let finishedFailedDeletes = CloudSyncSnapshotMigration.finishedFailedDeleteNames(failures)
         finished.formUnion(finishedFailedDeletes)
         self.forgetPendingSnapshotDeletes(finished)
-        await self.removeDeletedRecordsFromCaches(finishedFailedDeletes)
+        await self.removeDeletedRecordsFromCaches(
+            CloudSyncSnapshotMigration.confirmedMissingDeleteNames(failures))
         for error in CloudSyncSnapshotMigration.reportableFailedDeletes(failures) {
             await self.record(error: error)
         }
