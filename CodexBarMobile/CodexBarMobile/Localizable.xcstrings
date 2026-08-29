@@ -1,6 +1,186 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "最新の Mac コンパニオン — Mac 版 CodexBar に upstream 0.54.1〜0.56.0 のプロバイダー、性能、信頼性、セキュリティ更新が含まれます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更新的 Mac 伴侣 — Mac 版 CodexBar 现已包含 upstream 0.54.1–0.56.0 的 provider、性能、可靠性与安全更新。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新的 Mac 夥伴 — Mac 版 CodexBar 現已包含 upstream 0.54.1–0.56.0 的 provider、效能、可靠性與安全性更新。" } }
+      }
+    },
+    "Bonus credits left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bonus credits left" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "残りボーナスクレジット" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余奖励额度" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘獎勵額度" } }
+      }
+    },
+    "Context files": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Context files" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コンテキストファイル" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "上下文文件" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "上下文檔案" } }
+      }
+    },
+    "Context used": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Context used" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コンテキスト使用量" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已用上下文" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "已用上下文" } }
+      }
+    },
+    "Credits left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Credits left" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "残りクレジット" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余额度" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘額度" } }
+      }
+    },
+    "Credits total": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Credits total" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "クレジット合計" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "总额度" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "總額度" } }
+      }
+    },
+    "For all new details, update CodexBar on Mac to version 0.56.0.1 or later. iPhone 1.23 still works with data from older Mac versions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "For all new details, update CodexBar on Mac to version 0.56.0.1 or later. iPhone 1.23 still works with data from older Mac versions." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "すべての新しい詳細を表示するには、Mac 版 CodexBar を 0.56.0.1 以降に更新してください。iPhone 1.23 は古い Mac 版のデータにも引き続き対応します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "要查看全部新详情，请将 Mac 版 CodexBar 更新到 0.56.0.1 或更高版本。iPhone 1.23 仍可使用旧版 Mac 提供的数据。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "若要查看全部新詳細資訊，請將 Mac 版 CodexBar 更新至 0.56.0.1 或更新版本。iPhone 1.23 仍可使用舊版 Mac 提供的資料。" } }
+      }
+    },
+    "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "正確な支出表示 — Fireworks のプロバイダー報告支出と Antigravity のトークンのみの日を区別し、不明なコストを $0 と表示しません。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "如实显示支出 — 区分 Fireworks 的 provider 上报支出与 Antigravity 仅有 Token 的日期，未知费用不会再显示为 $0。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "如實顯示支出 — 區分 Fireworks 的 provider 回報支出與 Antigravity 僅有 Token 的日期，未知費用不會再顯示為 $0。" } }
+      }
+    },
+    "iPhone 1.23 adds richer Kiro and Cursor details, Fireworks spend, and safer unknown-cost handling from newer Macs.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "iPhone 1.23 adds richer Kiro and Cursor details, Fireworks spend, and safer unknown-cost handling from newer Macs." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iPhone 1.23 は Kiro と Cursor の詳細、Fireworks の支出、不明なコストのより安全な処理を新しい Mac 版から受け取ります。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone 1.23 可从新版 Mac 获得更丰富的 Kiro 与 Cursor 详情、Fireworks 支出，以及更安全的未知费用处理。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "iPhone 1.23 可從新版 Mac 取得更豐富的 Kiro 與 Cursor 詳細資訊、Fireworks 支出，以及更安全的未知費用處理。" } }
+      }
+    },
+    "Kiro responses": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Kiro responses" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Kiro の応答" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Kiro 回复" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Kiro 回覆" } }
+      }
+    },
+    "Manage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Manage" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "管理" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "管理" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "管理" } }
+      }
+    },
+    "Overage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Overage" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "超過分" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "超额用量" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "超額用量" } }
+      }
+    },
+    "Overage cost": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Overage cost" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "超過コスト" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "超额费用" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "超額費用" } }
+      }
+    },
+    "Overage credits left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Overage credits left" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "残り超過クレジット" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余超额额度" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘超額額度" } }
+      }
+    },
+    "Overage usage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Overage usage" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "超過使用量" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "超额用量" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "超額用量" } }
+      }
+    },
+    "Overages": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Overages" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "超過分" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "超额用量" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "超額用量" } }
+      }
+    },
+    "Plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Plan" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プラン" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "套餐" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "方案" } }
+      }
+    },
+    "Prompts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Prompts" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プロンプト" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "提示词" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "提示詞" } }
+      }
+    },
+    "Richer provider details — Kiro now shows plan, credits, overages, context, tools, responses, prompts, and management details; Cursor keeps the Grok Bot lane visible.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Richer provider details — Kiro now shows plan, credits, overages, context, tools, responses, prompts, and management details; Cursor keeps the Grok Bot lane visible." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プロバイダー詳細を強化 — Kiro はプラン、クレジット、超過分、コンテキスト、ツール、応答、プロンプト、管理情報を表示し、Cursor は Grok Bot レーンを保持します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "更丰富的 provider 详情 — Kiro 现可显示套餐、额度、超额用量、上下文、工具、回复、提示词与管理信息；Cursor 会保留 Grok Bot 通道。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "更豐富的 provider 詳細資訊 — Kiro 現可顯示方案、額度、超額用量、上下文、工具、回覆、提示詞與管理資訊；Cursor 會保留 Grok Bot 通道。" } }
+      }
+    },
+    "Tools": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Tools" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ツール" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "工具" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "工具" } }
+      }
+    },
     "Four more providers — Qwen Cloud, ZoomMate, xAI, and Notion AI now appear with their own colors and detail pages.": {
       "extractionState": "manual",
       "localizations": {

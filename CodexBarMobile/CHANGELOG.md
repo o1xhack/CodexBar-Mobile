@@ -2,6 +2,36 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.23.0 (196)] — 2026-08-28 — CodexBar 0.56.0 upstream sync roll-up
+
+### Added
+
+- **Kiro detail parity** — Stable plan, credit, overage, context, tool, response,
+  prompt, and management labels from newer Macs now render in all four iPhone
+  languages through the existing generic detail payload.
+- **Latest provider signals** — Cursor's dynamic Grok Bot lane and Fireworks'
+  provider-reported spend remain visible without flattening them into generic
+  quota or budget values.
+
+### Changed
+
+- **Upstream 0.54.1–0.56.0 catch-up** — The Mac companion incorporates the
+  upstream provider, performance, reliability, and security changes covered by
+  open upstream-sync issues #102–#104 plus the official v0.56.0 release.
+- **Conservative unknown-cost display** — Antigravity token-only history keeps
+  its token signal while incomplete or unavailable cost remains unknown rather
+  than appearing as an authoritative `$0`.
+
+### Notes
+
+- Pairs with Mac CodexBar `0.56.0.1` / build `131.1`, composite Sparkle version
+  `131.1.1.23.0`, candidate tag `v0.56.0.1-mobile.1.23.0`, and upstream
+  `steipete/CodexBar` `v0.56.0`.
+- iOS `MARKETING_VERSION`: `1.22.0` → `1.23.0`; iOS
+  `CURRENT_PROJECT_VERSION`: `195` → `196`.
+- The synced models, `providerPayloadVersion = 1`, CloudKit record types, fields,
+  indexes, zones, subscriptions, and query predicates are unchanged.
+
 ## [1.22.0 (195)] — 2026-08-22 — CodexBar 0.54.0 upstream sync roll-up
 
 ### Added

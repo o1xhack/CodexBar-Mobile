@@ -151,7 +151,8 @@ struct CWLSeedTests {
             cwlEnabled: true,
             cwlWindowDays: 90,
             modelContext: context,
-            activeDeviceIDs: ["dev-A"]))
+            activeDeviceIDs: ["dev-A"],
+            asOf: asOf))
 
         #expect(aggregation.totalCostUSD == 7.0)
         #expect(aggregation.totalTokens == 700)

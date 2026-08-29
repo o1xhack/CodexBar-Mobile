@@ -207,6 +207,15 @@ enum PreviewData {
             last30DaysCostUSD: 1.40,
             last30DaysTokens: 320_000,
             daily: makeDaily(baseCost: 0.05, tokenBase: 9_000, modelMix: [("kiro-sonnet", 1.0)])),
+        rateWindows: [
+            SyncRateWindow(
+                id: "overage",
+                label: "Overage",
+                usedPercent: 24,
+                windowMinutes: 43_200,
+                resetsAt: Date().addingTimeInterval(86_400 * 11),
+                resetDescription: nil),
+        ],
         kiroCredits: SyncKiroCredits(
             planName: "Pro",
             creditsUsed: 320,
@@ -215,7 +224,20 @@ enum PreviewData {
             bonusUsed: 45,
             bonusTotal: 200,
             bonusExpiryDays: 19,
-            resetsAt: Date().addingTimeInterval(86_400 * 11)))
+            resetsAt: Date().addingTimeInterval(86_400 * 11)),
+        details: [
+            SyncProviderDetailSection(
+                title: "Usage",
+                rows: [
+                    .init(label: "Plan", value: "Pro"),
+                    .init(label: "Credits left", value: "680"),
+                    .init(label: "Bonus credits left", value: "155"),
+                    .init(label: "Overage cost", value: "$4.20"),
+                    .init(label: "Context used", value: "42%"),
+                    .init(label: "Tools", value: "18"),
+                    .init(label: "Kiro responses", value: "126"),
+                ]),
+        ])
 
     static let bedrockProvider = ProviderUsageSnapshot(
         providerID: "bedrock",
