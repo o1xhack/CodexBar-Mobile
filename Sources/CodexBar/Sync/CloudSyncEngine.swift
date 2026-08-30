@@ -615,6 +615,23 @@ enum CloudSyncSnapshotMigration {
         }
     }
 
+    /// Remove guards owned by replacements that authoritative reconciliation has
+    /// removed. A predecessor is released only when no current sibling still
+    /// references it.
+    static func releasePredecessors(
+        forRemovedReplacementNames removedNames: Set<String>,
+        pending: inout [String: Set<String>]) -> Set<String>
+    {
+        var candidates: Set<String> = []
+        for name in removedNames {
+            if let predecessors = pending.removeValue(forKey: name) {
+                candidates.formUnion(predecessors)
+            }
+        }
+        let stillReferenced = Set(pending.values.joined())
+        return candidates.subtracting(stillReferenced)
+    }
+
     static func cancelledPersistedDeletes(
         pendingDeletes: Set<String>,
         liveNames: Set<String>) -> Set<String>
@@ -2102,9 +2119,25 @@ extension CloudSyncEngine {
                 liveSnapshots: snapshots,
                 hashes: self.lastSnapshotHashes,
                 envelope: self.persistenceEnvelope)
+
+            if !snapshots.isEmpty {
+                CloudSyncSnapshotMigration.retainingObsoletePredecessors(
+                    in: &self.persistenceEnvelope.pendingPredecessorDeletes,
+                    obsoleteNames: obsoleteNames)
+            }
+            // Stage every current sibling before pruning removed replacements. Otherwise
+            // removing a terminally skipped sibling could release a shared predecessor
+            // before a current replacement has been confirmed.
+            CloudSyncSnapshotMigration.stagePredecessors(
+                for: snapshots,
+                obsoleteNames: obsoleteNames,
+                pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
+            let releasedPredecessors = CloudSyncSnapshotMigration.releasePredecessors(
+                forRemovedReplacementNames: reconciliation.recordNamesToDelete,
+                pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
             let immediateDeletes = CloudSyncSnapshotMigration.immediateReconciliationDeletes(
                 reconciliation.recordNamesToDelete,
-                protecting: obsoleteNames)
+                protecting: obsoleteNames).union(releasedPredecessors)
 
             self.stageSnapshotDeletionIntents(
                 recordNamesToDelete: immediateDeletes,
@@ -2121,9 +2154,6 @@ extension CloudSyncEngine {
             }
 
             if !snapshots.isEmpty {
-                CloudSyncSnapshotMigration.retainingObsoletePredecessors(
-                    in: &self.persistenceEnvelope.pendingPredecessorDeletes,
-                    obsoleteNames: obsoleteNames)
                 self.cancelPendingSnapshotDeletes(
                     CloudSyncSnapshotMigration.cancelledPersistedDeletes(
                         pendingDeletes: self.persistenceEnvelope.pendingSnapshotDeletes,
@@ -2131,15 +2161,6 @@ extension CloudSyncEngine {
                 self.hasReconciledLiveSnapshots = true
             }
             self.requeuePendingSnapshotDeletes()
-
-            // Stage every sibling before processing an already-published replacement.
-            // Otherwise that replacement could delete a shared predecessor before a
-            // terminally skipped sibling gets a chance to restore its protection.
-            CloudSyncSnapshotMigration.stagePredecessors(
-                for: snapshots,
-                obsoleteNames: obsoleteNames,
-                pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
-            self.persistEnvelope()
 
             var stillPending: [AccountSnapshotSyncPayload] = []
             for payload in snapshots {

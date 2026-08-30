@@ -686,6 +686,40 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
     }
 
     @Test
+    func `removed terminally skipped sibling releases its predecessor guard`() throws {
+        let first = Self.claudeSnapshot(accountID: "claude-swap:1", email: "shared@example.com")
+        let removed = Self.claudeSnapshot(accountID: "claude-swap:2", email: "shared@example.com")
+        let predecessor = try #require(first.emailKeyedPredecessorRecordName())
+
+        // Reproduce the next authoritative refresh after the second slot terminally
+        // failed and was removed: first restore the current sibling's guard, then prune
+        // the removed replacement's durable mapping.
+        var pending = [removed.recordName: Set([predecessor])]
+        CloudSyncSnapshotMigration.stagePredecessors(
+            for: [first],
+            obsoleteNames: [predecessor],
+            pending: &pending)
+
+        #expect(
+            CloudSyncSnapshotMigration.releasePredecessors(
+                forRemovedReplacementNames: [removed.recordName],
+                pending: &pending).isEmpty)
+        #expect(pending[first.recordName] == [predecessor])
+        #expect(
+            CloudSyncSnapshotMigration.takeDeletes(
+                forSavedRecordNames: [first.recordName],
+                pending: &pending) == [predecessor])
+        #expect(pending.isEmpty)
+
+        pending = [removed.recordName: [predecessor]]
+        #expect(
+            CloudSyncSnapshotMigration.releasePredecessors(
+                forRemovedReplacementNames: [removed.recordName],
+                pending: &pending) == [predecessor])
+        #expect(pending.isEmpty)
+    }
+
+    @Test
     func `confirmed save hashes replace the previously stored version`() {
         var pending = ["snap-a": "hash-new"]
         var last = ["snap-a": "hash-old", "snap-b": "hash-other"]

@@ -165,7 +165,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   下一次refresh可能由confirmed sibling提前删除仍需保护的旧record；已在处理任何confirmed
   migration前统一stage全部sibling mapping，并让terminal skip保留durable predecessor
   protection，覆盖旧错误持久化状态的自动修复与confirmed/skip顺序，focused sync migration
-  33/33、full lint 2093 files/0 violations通过，第十一轮review待push后执行；
+  33/33、full lint 2093 files/0 violations通过；第十一轮在`014c1b31d`发现terminal-failed
+  slot被authoritative refresh移除后仍会留下guard并永久阻止旧record清理；已让reconciliation
+  先stage当前siblings、再按`recordNamesToDelete`剪除removed replacement guard，无其他引用时
+  立即释放predecessor，有current sibling时继续等待confirmed save；focused sync migration
+  34/34、full lint 2093 files/0 violations通过，第十二轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 
