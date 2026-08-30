@@ -108,7 +108,7 @@ def fixture(mode, directory, ready_delay=0):
 
 
 class ProcessCleanupTests(unittest.TestCase):
-    def exercise(self, mode, expected, interrupt=False, ready_delay=0):
+    def exercise(self, mode, expected, interrupt=False, ready_delay=0, command_timeout=2):
         with tempfile.TemporaryDirectory(prefix="codexbar-process-cleanup-") as directory:
             root = Path(directory)
             child_root = root / "child"
@@ -161,7 +161,7 @@ class ProcessCleanupTests(unittest.TestCase):
                         with self.assertRaises(KeyboardInterrupt):
                             runner.run_command(command, timeout=8)
                     else:
-                        self.assertEqual(runner.run_command(command, timeout=2), expected)
+                        self.assertEqual(runner.run_command(command, timeout=command_timeout), expected)
                 elapsed = time.monotonic() - started
                 self.assertTrue(acknowledged, "fixture identities were not observed before drain")
                 child = int((child_root / "pid").read_text())
@@ -202,9 +202,18 @@ class ProcessCleanupTests(unittest.TestCase):
     def test_success_drains_lingering_child_without_touching_sentinel(self):
         self.exercise("success", 0)
 
-    def test_success_after_delayed_readiness_keeps_the_two_second_budget(self):
-        # One second of startup plus the former 1.2-second ancestry sleep exceeds the command budget.
-        self.exercise("success", 0, ready_delay=1)
+    def test_success_after_delayed_readiness_does_not_add_an_ancestry_sleep(self):
+        # Give process startup and the observation handshake scheduling headroom. Keep the
+        # former 1.2-second ancestry-sleep regression deterministic instead of relying on
+        # a wall-clock deadline that is too tight on shared Linux runners.
+        original_sleep = runner.time.sleep
+
+        def bounded_sleep(delay):
+            self.assertLessEqual(delay, 0.5, "runner added a fixed ancestry sleep")
+            original_sleep(delay)
+
+        with patch.object(runner.time, "sleep", bounded_sleep):
+            self.exercise("success", 0, ready_delay=1, command_timeout=4)
 
     def test_success_allows_and_drains_a_separate_session(self):
         self.exercise("success-session", 0)

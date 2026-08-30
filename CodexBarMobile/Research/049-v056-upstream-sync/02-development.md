@@ -76,6 +76,7 @@ Date: 2026-08-28
 | 11 | PR #105 / `1801b4db6` | 第9轮clean后的review gate | gate错误要求audit `Head`等于重构后的第六个distinct reviewed commit，与skill规定“先按当时head audit、再重构”矛盾，合规audit无法通过 | audit改为匹配评论时点最近一次已review head且必须早于第六轮；stale checkpoint fixture必须失败；gate tests、PR #105 live gate、full lint通过 | fixed; round 10 pending |
 | 12 | PR #105 / `caa1f6dd3` | exact-head第10轮Code Review | 两个Claude Swap slot共享旧email predecessor时，一个replacement已确认、另一个terminal skip；旧流程可能先移除skip sibling映射，再让confirmed sibling在下一次refresh删掉仍需保护的predecessor | 每轮push在任何confirmed migration完成前统一stage所有sibling predecessor；terminal skip只停止相同payload重试，不再丢弃durable predecessor保护；覆盖旧错误持久化状态的修复、shared-predecessor确认/skip顺序；focused migration 33/33；full lint 2093/0 | fixed; round 11 pending |
 | 13 | PR #105 / `014c1b31d` | exact-head第11轮Code Review | terminal-failed Claude Swap slot在从authoritative refresh移除后仍保留predecessor guard，导致成功sibling永远无法清除旧email-keyed record | authoritative reconciliation先stage所有当前sibling，再按`recordNamesToDelete`剪除removed replacement guards；只有无当前引用的predecessor才立即释放，仍有sibling则等confirmed save；focused migration 34/34；full lint 2093/0 | fixed; round 12 pending |
+| 14 | PR #105 / `98c4da26b` | exact-head第12轮Code Review | Linux cleanup delayed-readiness fixture用1秒delay加2秒总deadline，完整startup/observation/0.5秒poll在Ubuntu调度下会误报124并阻塞sharding gate | delayed case总deadline改为4秒；同时patch parent runner sleep并断言单次不超过0.5秒，以确定性守住旧1.2秒ancestry sleep回归；focused case pass（实际2.387秒）；full sharding + 62 cleanup tests pass；full lint 2093/0 | fixed; round 13 pending |
 
 ## Draft artifact 记录
 

@@ -169,7 +169,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   slot被authoritative refresh移除后仍会留下guard并永久阻止旧record清理；已让reconciliation
   先stage当前siblings、再按`recordNamesToDelete`剪除removed replacement guard，无其他引用时
   立即释放predecessor，有current sibling时继续等待confirmed save；focused sync migration
-  34/34、full lint 2093 files/0 violations通过，第十二轮review待push后执行；
+  34/34、full lint 2093 files/0 violations通过；第十二轮在`98c4da26b`发现Linux
+  delayed-readiness cleanup fixture把1秒ready delay、process startup/observation handshake与
+  0.5秒poll压进2秒总deadline，Ubuntu调度下可能误报124；已把该case deadline放宽到4秒，
+  并patch parent runner sleep、断言任何单次sleep不超过0.5秒，以确定性保留旧1.2秒
+  ancestry sleep回归；focused case通过（本机实际2.387秒），full sharding gate与62项cleanup
+  tests通过，full lint 2093 files/0 violations通过，第十三轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 
