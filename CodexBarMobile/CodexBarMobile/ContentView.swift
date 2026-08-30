@@ -2236,6 +2236,7 @@ private struct BudgetRowView: View {
 
             BudgetProgressView(
                 budget: self.row.budget,
+                providerID: self.row.provider.providerID,
                 tintColor: providerTint(for: self.row.provider))
         }
     }
@@ -3292,7 +3293,10 @@ private struct RawProviderRow: View {
                             .foregroundStyle(.tertiary)
                     }
                     if let window = self.provider.allRateWindows.first {
-                        Text("\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
+                        // Developer inspector: keep provider wire text verbatim so
+                        // payload diagnostics can distinguish producer output from
+                        // the localized production presentation.
+                        Text(verbatim: "\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -3387,7 +3391,9 @@ private struct RawRateWindowRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(self.window.label ?? "Rate Limit")
+                // Developer inspector: this row intentionally exposes the
+                // canonical wire label rather than the localized UI label.
+                Text(verbatim: self.window.label ?? "Rate Limit")
                 Spacer()
                 Text("\(Int(self.window.usedPercent))% used")
                     .foregroundStyle(self.window.usedPercent > 80 ? .red : .secondary)

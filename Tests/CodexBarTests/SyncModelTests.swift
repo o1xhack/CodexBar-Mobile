@@ -736,6 +736,72 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
     }
 
     @Test
+    func `final predecessor deletion boundary covers the topology state matrix`() throws {
+        let first = Self.claudeSnapshot(accountID: "claude-swap:1", email: "shared@example.com")
+        let second = Self.claudeSnapshot(accountID: "claude-swap:2", email: "shared@example.com")
+        let predecessor = try #require(first.emailKeyedPredecessorRecordName())
+
+        struct Scenario {
+            let name: String
+            let savedNames: [String]
+            let hasReconciled: Bool
+            let liveNames: Set<String>
+            let expectedDeletes: Set<String>
+            let expectedPendingReplacement: String?
+        }
+
+        let scenarios = [
+            Scenario(
+                name: "startup has not reconciled live snapshots",
+                savedNames: [first.recordName, second.recordName],
+                hasReconciled: false,
+                liveNames: [],
+                expectedDeletes: [],
+                expectedPendingReplacement: first.recordName),
+            Scenario(
+                name: "one shared replacement is still unconfirmed",
+                savedNames: [first.recordName],
+                hasReconciled: true,
+                liveNames: [],
+                expectedDeletes: [],
+                expectedPendingReplacement: second.recordName),
+            Scenario(
+                name: "predecessor became live before confirmation arrived",
+                savedNames: [first.recordName, second.recordName],
+                hasReconciled: true,
+                liveNames: [predecessor],
+                expectedDeletes: [],
+                expectedPendingReplacement: nil),
+            Scenario(
+                name: "all replacements confirmed and predecessor remains obsolete",
+                savedNames: [first.recordName, second.recordName],
+                hasReconciled: true,
+                liveNames: [],
+                expectedDeletes: [predecessor],
+                expectedPendingReplacement: nil),
+        ]
+
+        for scenario in scenarios {
+            var pending = [
+                first.recordName: Set([predecessor]),
+                second.recordName: Set([predecessor]),
+            ]
+            let deletes = CloudSyncSnapshotMigration.takeDeletes(
+                forSavedRecordNames: scenario.savedNames,
+                pending: &pending,
+                afterLiveSnapshotReconciliation: scenario.hasReconciled,
+                liveNames: scenario.liveNames)
+
+            #expect(deletes == scenario.expectedDeletes, Comment(rawValue: scenario.name))
+            if let replacement = scenario.expectedPendingReplacement {
+                #expect(pending[replacement] == [predecessor], Comment(rawValue: scenario.name))
+            } else {
+                #expect(pending.isEmpty, Comment(rawValue: scenario.name))
+            }
+        }
+    }
+
+    @Test
     func `confirmed save hashes replace the previously stored version`() {
         var pending = ["snap-a": "hash-new"]
         var last = ["snap-a": "hash-old", "snap-b": "hash-other"]

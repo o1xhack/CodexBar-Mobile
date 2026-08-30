@@ -164,6 +164,10 @@ struct V056SyncSemanticsTests {
                 fallback: "Limit",
                 providerID: "kiro",
                 locale: locale) == expectation.overageWindow)
+            #expect(BudgetProgressView.localizedPeriod(
+                "Overage",
+                providerID: "kiro",
+                locale: locale) == expectation.overageWindow)
             #expect(ProviderWindowLabel.localized(
                 "Offline · 1 conversation",
                 fallback: "Limit",
@@ -182,6 +186,10 @@ struct V056SyncSemanticsTests {
             #expect(ProviderWindowLabel.localized(
                 "Overage",
                 fallback: "Limit",
+                providerID: "custom-plugin",
+                locale: locale) == "Overage")
+            #expect(BudgetProgressView.localizedPeriod(
+                "Overage",
                 providerID: "custom-plugin",
                 locale: locale) == "Overage")
         }
@@ -323,8 +331,59 @@ struct V056SyncSemanticsTests {
             locale: Locale(identifier: "zh-Hans")) == "No limit configured")
     }
 
+    @Test
+    func `production synced provider sinks require provider aware presentation`() throws {
+        let root = Self.projectRoot()
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("CodexBarMobile/CodexBarMobile/ContentView.swift"),
+            encoding: .utf8)
+        let budgetView = try String(
+            contentsOf: root.appendingPathComponent("CodexBarMobile/CodexBarMobile/Views/BudgetProgressView.swift"),
+            encoding: .utf8)
+        let providerUsageView = try String(
+            contentsOf: root.appendingPathComponent("CodexBarMobile/CodexBarMobile/Views/ProviderUsageView.swift"),
+            encoding: .utf8)
+        let providerDetailView = try String(
+            contentsOf: root.appendingPathComponent("CodexBarMobile/CodexBarMobile/Views/ProviderDetailView.swift"),
+            encoding: .utf8)
+        let providerDetailsView = try String(
+            contentsOf: root.appendingPathComponent("CodexBarMobile/CodexBarMobile/Views/ProviderDetailsView.swift"),
+            encoding: .utf8)
+
+        #expect(contentView.contains("providerID: self.row.provider.providerID"))
+        #expect(budgetView.contains("ProviderDetailLocalization.localized(period, providerID: providerID"))
+        #expect(!budgetView.contains("Text(period)"))
+        #expect(providerUsageView.contains("ProviderWindowLabel.localized("))
+        #expect(providerDetailView.contains("ProviderWindowLabel.localized("))
+        #expect(providerDetailView.contains("providerID: self.provider.providerID"))
+
+        for rawSink in [
+            "Text(section.title)",
+            "Text(row.label)",
+            "Text(row.value)",
+            "Text(secondaryValue)",
+        ] {
+            #expect(!providerDetailsView.contains(rawSink), Comment(rawValue: rawSink))
+        }
+        #expect(providerDetailsView.contains("ProviderDetailLocalization.localized("))
+        #expect(providerDetailsView.contains("ProviderDetailLocalization.localizedValue("))
+
+        // Raw Sync Data is the deliberate exception: it must expose canonical
+        // payload labels for diagnostics, and the source makes that choice explicit.
+        #expect(contentView.contains("Text(verbatim: \"\\(window.label ?? \"Usage\")"))
+        #expect(contentView.contains("Text(verbatim: self.window.label ?? \"Rate Limit\")"))
+    }
+
     private static func roundTripped(_ provider: ProviderUsageSnapshot) throws -> ProviderUsageSnapshot {
         try self.decoder.decode(ProviderUsageSnapshot.self, from: self.encoder.encode(provider))
+    }
+
+    private static func projectRoot() -> URL {
+        var url = URL(fileURLWithPath: #filePath)
+        url.deleteLastPathComponent()
+        url.deleteLastPathComponent()
+        url.deleteLastPathComponent()
+        return url
     }
 
     private static var cursorFixture: ProviderUsageSnapshot {

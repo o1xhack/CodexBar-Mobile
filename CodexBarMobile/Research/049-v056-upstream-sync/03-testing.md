@@ -178,7 +178,14 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   Swap guard释放的email-keyed predecessor可能已经重新成为live普通Claude snapshot，若直接并入
   delete set会短暂删除当前账号record；已让`releasePredecessors`显式排除`liveNames`并覆盖
   关闭Swap回到普通账号的回归场景，focused sync migration 35/35、full lint 2093 files/0
-  violations通过，第十四轮review待push后执行；
+  violations通过；第十四轮在`e9c5c2337`发现Kiro budget卡仍直接显示raw `Overage`
+  period。因累计14轮仍出现同类finding，暂停逐条review并执行第二次整体architecture audit：
+  所有生产Mac→iOS semantic sink加入provider-aware源码守卫，Raw Sync Data显式保留canonical
+  wire text；同时把CloudKit live-predecessor保护下沉到confirmed-save产生delete set的最终
+  destructive boundary，以latest accepted per-provider topology消除callback晚于账号拓扑变化的
+  race。四态migration matrix连同既有suite为36/36，iOS `V056SyncSemanticsTests`扩至6/6；
+  62项process cleanup tests、CI policy/final-path/review-gate和full lint（SwiftLint 2093/0、
+  iOS 303 source keys四语完整）全部通过，下一步才会提交整体修复并发起新的exact-head review；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

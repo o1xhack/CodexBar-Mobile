@@ -318,7 +318,10 @@ struct ProviderDetailView: View {
 
                 // Budget progress
                 if let budget = self.provider.budget, budget.limitAmount > 0 {
-                    BudgetProgressView(budget: budget, tintColor: self.providerColor)
+                    BudgetProgressView(
+                        budget: budget,
+                        providerID: self.provider.providerID,
+                        tintColor: self.providerColor)
                 }
 
                 // Utilization history chart

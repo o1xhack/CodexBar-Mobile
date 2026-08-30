@@ -554,15 +554,20 @@ enum CloudSyncSnapshotMigration {
     static func takeDeletes(
         forSavedRecordNames savedNames: [String],
         pending: inout [String: Set<String>],
-        afterLiveSnapshotReconciliation hasReconciledLiveSnapshots: Bool) -> Set<String>
+        afterLiveSnapshotReconciliation hasReconciledLiveSnapshots: Bool,
+        liveNames: Set<String> = []) -> Set<String>
     {
         guard hasReconciledLiveSnapshots else { return [] }
-        return self.takeDeletes(forSavedRecordNames: savedNames, pending: &pending)
+        return self.takeDeletes(
+            forSavedRecordNames: savedNames,
+            pending: &pending,
+            liveNames: liveNames)
     }
 
     static func takeDeletes(
         forSavedRecordNames savedNames: [String],
-        pending: inout [String: Set<String>]) -> Set<String>
+        pending: inout [String: Set<String>],
+        liveNames: Set<String> = []) -> Set<String>
     {
         var toDrop: Set<String> = []
         for name in savedNames {
@@ -571,7 +576,11 @@ enum CloudSyncSnapshotMigration {
             }
         }
         let stillReferenced = Set(pending.values.joined())
-        return toDrop.subtracting(stillReferenced)
+        // The pending predecessor map is durable, while the account topology can
+        // change again before an earlier save confirmation arrives. The final
+        // destructive boundary therefore re-checks the latest accepted live set
+        // instead of relying only on the reconciliation that staged the mapping.
+        return toDrop.subtracting(stillReferenced).subtracting(liveNames)
     }
 
     static func retainingObsoletePredecessors(
@@ -805,6 +814,11 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var lastSnapshotHashes: [String: String] = [:]
     private var skippedTerminalReplacementHashes: [String: String] = [:]
     private var pendingSaveHashes: [String: String] = [:]
+    /// Latest accepted producer topology, retained by provider until a newer
+    /// publication for that provider arrives. Save callbacks can lag behind a
+    /// subsequent topology change, so predecessor deletion must consult this
+    /// set at the final destructive boundary.
+    private var latestLiveSnapshotRecordNamesByProvider: [ProviderInstanceID: Set<String>] = [:]
     private var lastKnownProviderConfigs: [ProviderInstanceID: ProviderConfig] = [:]
     private var lastAppliedConfigurationRevision: Int
     private var lastKnownPreferences: SyncedPreferences?
@@ -1463,6 +1477,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         self.pendingSnapshotAuthoritativeProviders = []
         self.pendingSnapshotTokenAccountIDs = [:]
         self.pendingSnapshotProviderConfigRevisions = [:]
+        self.latestLiveSnapshotRecordNamesByProvider = [:]
         self.hasReconciledLiveSnapshots = false
         if clearPersistence {
             self.persistenceEnvelope = .init(stateSerialization: nil, encodedSystemFields: [:])
@@ -1827,6 +1842,10 @@ extension CloudSyncEngine {
         }
         var acceptedAuthoritativeProviders = authoritativeProviders.intersection(acceptedPublicationProviders)
         let currentSnapshots = snapshots.filter { acceptedPublicationProviders.contains($0.provider) }
+        for provider in acceptedPublicationProviders {
+            self.latestLiveSnapshotRecordNamesByProvider[provider] = Set(
+                currentSnapshots.lazy.filter { $0.provider == provider }.map(\.recordName))
+        }
         let currentRecordNames = Set(currentSnapshots.map(\.recordName))
         let currentTokenAccountIDsByRecordName = tokenAccountIDsByRecordName.filter { recordName, _ in
             currentRecordNames.contains(recordName)
@@ -1946,7 +1965,8 @@ extension CloudSyncEngine {
         let toDrop = CloudSyncSnapshotMigration.takeDeletes(
             forSavedRecordNames: savedRecordNames,
             pending: &self.persistenceEnvelope.pendingPredecessorDeletes,
-            afterLiveSnapshotReconciliation: self.hasReconciledLiveSnapshots)
+            afterLiveSnapshotReconciliation: self.hasReconciledLiveSnapshots,
+            liveNames: Set(self.latestLiveSnapshotRecordNamesByProvider.values.joined()))
         CloudSyncSnapshotMigration.applyConfirmedSaveHashes(
             savedRecordNames: savedRecordNames,
             pendingSaveHashes: &self.pendingSaveHashes,

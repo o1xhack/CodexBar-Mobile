@@ -3,6 +3,7 @@ import SwiftUI
 
 struct BudgetProgressView: View {
     let budget: SyncBudgetSnapshot
+    let providerID: String
     var tintColor: Color = .blue
 
     private var progress: Double {
@@ -43,7 +44,7 @@ struct BudgetProgressView: View {
 
             HStack(spacing: 8) {
                 if let period = self.budget.period {
-                    Text(period)
+                    Text(Self.localizedPeriod(period, providerID: self.providerID))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -71,6 +72,14 @@ struct BudgetProgressView: View {
         Self.formatCurrency(self.budget.limitAmount, code: self.budget.currencyCode)
     }
 
+    static func localizedPeriod(
+        _ period: String,
+        providerID: String,
+        locale: Locale = .current) -> String
+    {
+        ProviderDetailLocalization.localized(period, providerID: providerID, locale: locale)
+    }
+
     static func formatCurrency(_ value: Double, code: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -88,6 +97,7 @@ struct BudgetProgressView: View {
             currencyCode: "USD",
             period: "Monthly",
             resetsAt: Date().addingTimeInterval(3600 * 24 * 12)),
+        providerID: "example",
         tintColor: .orange)
         .padding()
 }
