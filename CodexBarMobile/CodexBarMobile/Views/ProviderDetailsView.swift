@@ -79,16 +79,20 @@ enum ProviderDetailLocalization {
             return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
         }
 
-        let capPrefix = "of "
-        if value.hasPrefix(capPrefix) {
-            let format = MobileLocalizedString.value(
-                "of %@",
-                defaultValue: "of %@",
-                locale: locale)
-            return String(
-                format: format,
-                locale: locale,
-                arguments: [String(value.dropFirst(capPrefix.count))])
+        let fragments = value.components(separatedBy: " · ")
+        if fragments.count == 2,
+           let cap = self.localizedKiroCap(fragments[0], locale: locale),
+           let expiry = self.localizedKiroExpiry(fragments[1], locale: locale)
+        {
+            return "\(cap) · \(expiry)"
+        }
+
+        if let cap = self.localizedKiroCap(value, locale: locale) {
+            return cap
+        }
+
+        if let expiry = self.localizedKiroExpiry(value, locale: locale) {
+            return expiry
         }
 
         let creditsSuffix = " credits"
@@ -102,6 +106,44 @@ enum ProviderDetailLocalization {
         }
 
         return value
+    }
+
+    private static func localizedKiroCap(_ value: String, locale: Locale) -> String? {
+        let capPrefix = "of "
+        guard value.hasPrefix(capPrefix) else { return nil }
+        let format = MobileLocalizedString.value(
+            "of %@",
+            defaultValue: "of %@",
+            locale: locale)
+        return String(
+            format: format,
+            locale: locale,
+            arguments: [String(value.dropFirst(capPrefix.count))])
+    }
+
+    private static func localizedKiroExpiry(_ value: String, locale: Locale) -> String? {
+        let expiryPrefix = "expires in "
+        guard value.hasPrefix(expiryPrefix), value.hasSuffix("d") else { return nil }
+        let daysText = value.dropFirst(expiryPrefix.count).dropLast()
+        guard let days = Int(daysText) else { return nil }
+
+        if days <= 0 {
+            return MobileLocalizedString.value(
+                "kiro_bonus_expired",
+                defaultValue: "expired",
+                locale: locale)
+        }
+        if days == 1 {
+            return MobileLocalizedString.value(
+                "kiro_bonus_expiring_one_day",
+                defaultValue: "expires in 1 day",
+                locale: locale)
+        }
+        let format = MobileLocalizedString.value(
+            "kiro_bonus_expiring_days_format",
+            defaultValue: "expires in %d days",
+            locale: locale)
+        return String(format: format, locale: locale, days)
     }
 
     private static func shouldLocalize(context: Context, providerID: String) -> Bool {

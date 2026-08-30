@@ -14,6 +14,7 @@ struct V056SyncSemanticsTests {
         let enabled: String
         let creditValue: String
         let capValue: String
+        let bonusValue: String
     }
 
     private static let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -92,16 +93,20 @@ struct V056SyncSemanticsTests {
         let expectations: [LocalizationExpectation] = [
             .init(
                 locale: "en", plan: "Plan", credits: "Credits left", overage: "Overage cost", tools: "Tools",
-                enabled: "Enabled", creditValue: "3603.49 credits", capValue: "of 10000"),
+                enabled: "Enabled", creditValue: "3603.49 credits", capValue: "of 10000",
+                bonusValue: "of 200 · expires in 19 days"),
             .init(
                 locale: "ja", plan: "プラン", credits: "残りクレジット", overage: "超過コスト", tools: "ツール",
-                enabled: "有効", creditValue: "3603.49 クレジット", capValue: "/ 10000"),
+                enabled: "有効", creditValue: "3603.49 クレジット", capValue: "/ 10000",
+                bonusValue: "/ 200 · あと19日で期限切れ"),
             .init(
                 locale: "zh-Hans", plan: "套餐", credits: "剩余额度", overage: "超额费用", tools: "工具",
-                enabled: "已启用", creditValue: "3603.49 额度", capValue: "/ 10000"),
+                enabled: "已启用", creditValue: "3603.49 额度", capValue: "/ 10000",
+                bonusValue: "/ 200 · 19 天后过期"),
             .init(
                 locale: "zh-Hant", plan: "方案", credits: "剩餘額度", overage: "超額費用", tools: "工具",
-                enabled: "已啟用", creditValue: "3603.49 額度", capValue: "/ 10000"),
+                enabled: "已啟用", creditValue: "3603.49 額度", capValue: "/ 10000",
+                bonusValue: "/ 200 · 19 天後過期"),
         ]
 
         for expectation in expectations {
@@ -135,6 +140,10 @@ struct V056SyncSemanticsTests {
                 providerID: "kiro",
                 locale: locale) == expectation.capValue)
             #expect(ProviderDetailLocalization.localizedValue(
+                "of 200 · expires in 19d",
+                providerID: "kiro",
+                locale: locale) == expectation.bonusValue)
+            #expect(ProviderDetailLocalization.localizedValue(
                 "of 10000",
                 providerID: "custom-plugin",
                 locale: locale) == "of 10000")
@@ -143,6 +152,15 @@ struct V056SyncSemanticsTests {
                 fallback: "Limit",
                 locale: locale) == "Grok Bot")
         }
+
+        #expect(ProviderDetailLocalization.localizedValue(
+            "expires in 1d",
+            providerID: "kiro",
+            locale: Locale(identifier: "zh-Hans")) == "1 天后过期")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "expires in 0d",
+            providerID: "kiro",
+            locale: Locale(identifier: "ja")) == "期限切れ")
     }
 
     private static func roundTripped(_ provider: ProviderUsageSnapshot) throws -> ProviderUsageSnapshot {

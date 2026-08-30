@@ -136,7 +136,9 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   `KiroUsageLimitsAPITests` 20/20、iOS `V056SyncSemanticsTests` 4/4、full lint通过，
   第二轮在`64c7669c4`继续发现enabled/cap错误耦合；修复后组织账号fixture在无CLI
   overage文本且无API cap时仍显示authoritative API usage/charges，Kiro 20/20通过，
-  第三轮review待push后执行；
+  第三轮在`84d51b643`发现bonus expiry后缀仍为英文；已复用既有4语言Kiro expiry
+  key并覆盖19/1/0天，iOS `V056SyncSemanticsTests` 4/4通过，第四轮review待修复
+  push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

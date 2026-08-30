@@ -66,8 +66,9 @@ Date: 2026-08-28
 | 1 | `a7ab9f708` + worktree | merge + fork seams | README事实适配遗漏；其余CI/provenance/version clean | 更新README OpenCode Go/AI Usage Limits与reviewed hash；guards pass | fixed |
 | 2 | `a7ab9f708` + worktree | Shared/iOS + localization | terminal permission/auth delete误清cache/ownership；evidence pending | 仅unknownItem清cache；test/re-review clean；03-testing补齐 | fixed |
 | 3 | `b9ae71f8f` + draft/body closeout diff | release diff + evidence | draft body缺 root CHANGELOG 用户可见正文 | 回写 Added/Changed/Fixed/Upstream range，API exact-match 回读；三路 agent 复核 | fixed; blocker=0 |
-| 4 | PR #105 / `62abb00ef` | exact-head Codex Code Review | Kiro API enabled未覆盖stale CLI disabled；iOS Kiro稳定值片段未本地化 | API状态改为authoritative；iOS展示边界本地化`Enabled/Disabled`、`N credits`、`of N`；Mac 20/20、iOS 4/4、full lint pass | fixed; re-review pending |
-| 5 | PR #105 / `64c7669c4` | exact-head Codex Code Review | API `ENABLED`但缺cap时被降为unknown，组织账号无CLI fallback会隐藏overage usage/charges | enabled与cap解耦；cap仅控制gauge/remaining/cost limit；组织账号fixture不含CLI overage仍显示API usage/cost；Kiro 20/20 | fixed; re-review pending |
+| 4 | PR #105 / `62abb00ef` | exact-head Codex Code Review | Kiro API enabled未覆盖stale CLI disabled；iOS Kiro稳定值片段未本地化 | API状态改为authoritative；iOS展示边界本地化`Enabled/Disabled`、`N credits`、`of N`；Mac 20/20、iOS 4/4、full lint pass | fixed; next head reviewed |
+| 5 | PR #105 / `64c7669c4` | exact-head Codex Code Review | API `ENABLED`但缺cap时被降为unknown，组织账号无CLI fallback会隐藏overage usage/charges | enabled与cap解耦；cap仅控制gauge/remaining/cost limit；组织账号fixture不含CLI overage仍显示API usage/cost；Kiro 20/20 | fixed; next head reviewed |
+| 6 | PR #105 / `84d51b643` | exact-head Codex Code Review | bonus secondary value的`expires in 19d`后缀在中/日文iOS仍为英文 | 拆分`of N`与expiry片段，复用既有4语言Kiro expiry key，覆盖19/1/0天；iOS 4/4 | fixed; re-review pending |
 
 ## Draft artifact 记录
 
