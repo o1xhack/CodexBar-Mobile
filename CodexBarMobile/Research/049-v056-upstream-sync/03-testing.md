@@ -152,7 +152,10 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   P2未被纳入前次修复/resolve；已扩展provider-aware detail边界，覆盖OpenRouter固定
   降级状态、HTTP/rate格式及z.ai余额片段，dynamic/custom值保持原样；iOS
   `V056SyncSemanticsTests` 5/5与full lint（SwiftLint 2093 files/0 violations、4语言
-  catalog/source audit）通过，第八轮review待push后执行；
+  catalog/source audit）通过；第八轮在`4e7af68e0`发现无rate window时首页detail teaser
+  仍直接渲染raw value；已让teaser调用同一provider-aware formatter并覆盖OpenRouter
+  简中与custom provider fallback，iOS `V056SyncSemanticsTests` 5/5和full lint（SwiftLint
+  2093 files/0 violations、4语言catalog/source audit）再次通过，第九轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

@@ -313,6 +313,14 @@ struct V056SyncSemanticsTests {
             "recharged custom value · provider-defined detail",
             providerID: "zai",
             locale: Locale(identifier: "zh-Hans")) == "recharged custom value · provider-defined detail")
+        #expect(ProviderDetailsTeaserView.displayValue(
+            "No limit configured",
+            providerID: "openrouter",
+            locale: Locale(identifier: "zh-Hans")) == "未设置限额")
+        #expect(ProviderDetailsTeaserView.displayValue(
+            "No limit configured",
+            providerID: "custom-plugin",
+            locale: Locale(identifier: "zh-Hans")) == "No limit configured")
     }
 
     private static func roundTripped(_ provider: ProviderUsageSnapshot) throws -> ProviderUsageSnapshot {

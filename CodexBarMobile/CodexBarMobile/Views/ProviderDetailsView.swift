@@ -330,6 +330,14 @@ struct ProviderDetailsTeaserView: View {
     let providerID: String
     let section: SyncProviderDetailSection
 
+    static func displayValue(
+        _ value: String,
+        providerID: String,
+        locale: Locale = .current) -> String
+    {
+        ProviderDetailLocalization.localizedValue(value, providerID: providerID, locale: locale)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title = self.section.title {
@@ -346,7 +354,7 @@ struct ProviderDetailsTeaserView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Text(row.value)
+                    Text(Self.displayValue(row.value, providerID: self.providerID))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .monospacedDigit()
