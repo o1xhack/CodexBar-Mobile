@@ -703,6 +703,7 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
         #expect(
             CloudSyncSnapshotMigration.releasePredecessors(
                 forRemovedReplacementNames: [removed.recordName],
+                liveNames: [first.recordName],
                 pending: &pending).isEmpty)
         #expect(pending[first.recordName] == [predecessor])
         #expect(
@@ -715,7 +716,22 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
         #expect(
             CloudSyncSnapshotMigration.releasePredecessors(
                 forRemovedReplacementNames: [removed.recordName],
+                liveNames: [],
                 pending: &pending) == [predecessor])
+        #expect(pending.isEmpty)
+    }
+
+    @Test
+    func `removed swap guard never deletes a predecessor that is live again`() throws {
+        let removed = Self.claudeSnapshot(accountID: "claude-swap:1", email: "owner@example.com")
+        let predecessor = try #require(removed.emailKeyedPredecessorRecordName())
+        var pending = [removed.recordName: Set([predecessor])]
+
+        #expect(
+            CloudSyncSnapshotMigration.releasePredecessors(
+                forRemovedReplacementNames: [removed.recordName],
+                liveNames: [predecessor],
+                pending: &pending).isEmpty)
         #expect(pending.isEmpty)
     }
 

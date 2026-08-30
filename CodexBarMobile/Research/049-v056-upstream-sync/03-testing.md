@@ -174,7 +174,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   0.5秒poll压进2秒总deadline，Ubuntu调度下可能误报124；已把该case deadline放宽到4秒，
   并patch parent runner sleep、断言任何单次sleep不超过0.5秒，以确定性保留旧1.2秒
   ancestry sleep回归；focused case通过（本机实际2.387秒），full sharding gate与62项cleanup
-  tests通过，full lint 2093 files/0 violations通过，第十三轮review待push后执行；
+  tests通过，full lint 2093 files/0 violations通过；第十三轮在`f313b17af`发现removed
+  Swap guard释放的email-keyed predecessor可能已经重新成为live普通Claude snapshot，若直接并入
+  delete set会短暂删除当前账号record；已让`releasePredecessors`显式排除`liveNames`并覆盖
+  关闭Swap回到普通账号的回归场景，focused sync migration 35/35、full lint 2093 files/0
+  violations通过，第十四轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

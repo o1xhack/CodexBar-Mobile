@@ -617,9 +617,10 @@ enum CloudSyncSnapshotMigration {
 
     /// Remove guards owned by replacements that authoritative reconciliation has
     /// removed. A predecessor is released only when no current sibling still
-    /// references it.
+    /// references it and it has not become a live snapshot again.
     static func releasePredecessors(
         forRemovedReplacementNames removedNames: Set<String>,
+        liveNames: Set<String>,
         pending: inout [String: Set<String>]) -> Set<String>
     {
         var candidates: Set<String> = []
@@ -629,7 +630,7 @@ enum CloudSyncSnapshotMigration {
             }
         }
         let stillReferenced = Set(pending.values.joined())
-        return candidates.subtracting(stillReferenced)
+        return candidates.subtracting(stillReferenced).subtracting(liveNames)
     }
 
     static func cancelledPersistedDeletes(
@@ -2134,6 +2135,7 @@ extension CloudSyncEngine {
                 pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
             let releasedPredecessors = CloudSyncSnapshotMigration.releasePredecessors(
                 forRemovedReplacementNames: reconciliation.recordNamesToDelete,
+                liveNames: snapshotRecordNames,
                 pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
             let immediateDeletes = CloudSyncSnapshotMigration.immediateReconciliationDeletes(
                 reconciliation.recordNamesToDelete,
