@@ -152,7 +152,7 @@ public struct KiroUsageSnapshot: Sendable {
         let overageCap = self.usageLimits?.overageCap
         let overagesEnabled: Bool = if let limits = self.usageLimits {
             if let enabled = limits.overageEnabled {
-                enabled && overageCap != nil
+                enabled
             } else {
                 self.overagesStatus?
                     .trimmingCharacters(in: .whitespacesAndNewlines)

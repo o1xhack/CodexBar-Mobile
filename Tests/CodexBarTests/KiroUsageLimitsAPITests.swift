@@ -224,11 +224,11 @@ struct KiroUsageLimitsAPITests {
     }
 
     @Test
-    func `enabled overage without a cap keeps cli overage rows`() throws {
+    func `enabled overage without a cap keeps api rows without cli status`() throws {
         let json = Self.overageInUseResponse
             .replacingOccurrences(of: "\"overageCapWithPrecision\":10000.0,", with: "")
         let limits = try KiroUsageLimitsAPI.parse(Data(json.utf8))
-        #expect(limits.overageEnabled == nil)
+        #expect(limits.overageEnabled == true)
         #expect(limits.overageCap == nil)
         #expect(limits.overageUsed == 3603.49)
 
@@ -237,13 +237,15 @@ struct KiroUsageLimitsAPITests {
         Estimated Usage | resets on 2026-09-01 | KIRO POWER
         Credits (10000.00 of 10000 covered in plan)
         ████████████████████████████████████████████████████████████████████████████████ 100%
-        Overages: Enabled billed at $0.04 per request
         """)
         let snapshot = cliReport.withUsageLimits(limits).toUsageSnapshot()
         let rows = snapshot.details.flatMap(\.rows)
-        #expect(rows.contains { $0.label == "Overages" && $0.value.hasPrefix("Enabled") })
+        #expect(rows.contains { $0.label == "Overages" && $0.value == "Enabled" })
         #expect(rows.contains { $0.label == "Overage usage" })
+        #expect(rows.contains { $0.label == "Overage cost" })
         #expect(rows.contains { $0.label == "Overage credits left" } == false)
+        #expect(snapshot.extraRateWindows == nil)
+        #expect(snapshot.providerCost == nil)
     }
 
     @Test

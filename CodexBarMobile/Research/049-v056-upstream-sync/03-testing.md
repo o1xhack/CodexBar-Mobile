@@ -134,7 +134,9 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   draft body 缺失已修复并回读通过；
 - PR #105首轮exact-head review在`62abb00ef`发现2项Kiro一致性/本地化finding；修复后
   `KiroUsageLimitsAPITests` 20/20、iOS `V056SyncSemanticsTests` 4/4、full lint通过，
-  第二轮review待当前修复commit push后执行；
+  第二轮在`64c7669c4`继续发现enabled/cap错误耦合；修复后组织账号fixture在无CLI
+  overage文本且无API cap时仍显示authoritative API usage/charges，Kiro 20/20通过，
+  第三轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 
