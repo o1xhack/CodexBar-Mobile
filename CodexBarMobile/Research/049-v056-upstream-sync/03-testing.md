@@ -142,7 +142,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   window及Antigravity offline count两个同根本地化缺口；已按workflow写入architecture
   audit，统一改造provider-aware window展示边界并保留unknown/custom label原样，第六轮
   review前iOS `V045ProviderPresentationTests` + `V056SyncSemanticsTests` 8/8、full
-  lint（SwiftLint 2093 files/0 violations、4语言catalog/source audit）通过；
+  lint（SwiftLint 2093 files/0 violations、4语言catalog/source audit）通过；第六轮在
+  `78568bf34`发现无email Claude Swap旧`Account N` CloudKit predecessor未进入
+  save-confirmed delete保护；已从slot重建旧key并覆盖reconciliation、save未确认/确认路径，
+  `swift test --filter 'SyncModelTests|CloudSyncSnapshotMigrationSaveThenDeleteTests'`
+  33/33通过；full lint（SwiftLint 2093 files/0 violations、4语言catalog/source audit）
+  再次通过，第七轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

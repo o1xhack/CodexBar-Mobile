@@ -227,7 +227,8 @@ public struct AccountSnapshotSyncPayload: Codable, Sendable {
     }
 
     /// CloudKit record IDs cannot be renamed. Claude Swap snapshots keyed by
-    /// `claude-swap:<slot>` replace a same-device email-keyed record; that
+    /// `claude-swap:<slot>` replace a same-device legacy record keyed by either
+    /// the account email or the old synthesized `Account <slot>` identity; that
     /// predecessor is deleted only after the slot-keyed replacement is saved.
     /// Other providers must not classify an email-to-durable-ID change as obsolete.
     public func emailKeyedPredecessorRecordName() -> String? {
@@ -236,15 +237,24 @@ public struct AccountSnapshotSyncPayload: Codable, Sendable {
               self.usage.identity?.loginMethod == ClaudeSwapAccountProjection.sourceLabel
         else { return nil }
         let accountID = self.usage.identity?.accountID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard accountID.hasPrefix("\(ClaudeSwapAccountProjection.sourceName):") else { return nil }
-        let emailKey = Self.accountKey(for: self.usage.identity?.accountEmail)
-        guard emailKey != "default",
-              Self.accountKey(for: accountID) == self.accountKey,
-              emailKey != self.accountKey
+        let slotPrefix = "\(ClaudeSwapAccountProjection.sourceName):"
+        guard accountID.hasPrefix(slotPrefix), Self.accountKey(for: accountID) == self.accountKey else { return nil }
+
+        let email = self.usage.identity?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let legacyIdentity: String
+        if !email.isEmpty {
+            legacyIdentity = email
+        } else {
+            let slotText = String(accountID.dropFirst(slotPrefix.count))
+            guard let slot = Int(slotText), slot > 0 else { return nil }
+            legacyIdentity = "Account \(slot)"
+        }
+        let predecessorKey = Self.accountKey(for: legacyIdentity)
+        guard predecessorKey != "default", predecessorKey != self.accountKey
         else {
             return nil
         }
-        return "snap-\(self.provider.rawValue)-\(emailKey)-\(self.deviceID)"
+        return "snap-\(self.provider.rawValue)-\(predecessorKey)-\(self.deviceID)"
     }
 
     public static func obsoleteEmailKeyedRecordNames(

@@ -186,6 +186,15 @@ struct SyncModelTests {
     }
 
     @Test
+    func `slot keyed no email snapshot names the leftover synthesized account record`() {
+        let payload = Self.claudeSnapshot(accountID: "claude-swap:2", email: "")
+        let legacyKey = AccountSnapshotSyncPayload.accountKey(for: "Account 2")
+
+        #expect(payload.emailKeyedPredecessorRecordName() == "snap-claude-\(legacyKey)-device-id")
+        #expect(payload.recordName != payload.emailKeyedPredecessorRecordName())
+    }
+
+    @Test
     func `email keyed snapshot has no CloudKit predecessor`() {
         let payload = Self.claudeSnapshot(accountID: "owner@example.com", email: "owner@example.com")
 
@@ -462,6 +471,46 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
             CloudSyncSnapshotMigration.immediateReconciliationDeletes(
                 reconciliation.recordNamesToDelete,
                 protecting: obsolete).isEmpty)
+    }
+
+    @Test
+    func `no email predecessor also waits for its slot replacement save`() throws {
+        let slot = Self.claudeSnapshot(accountID: "claude-swap:2", email: "")
+        let predecessor = AccountSnapshotSyncPayload(
+            provider: .claude,
+            deviceID: slot.deviceID,
+            accountIdentity: "Account 2",
+            displayLabel: "Account 2",
+            usage: slot.usage)
+        let predecessorName = try #require(slot.emailKeyedPredecessorRecordName())
+        #expect(predecessor.recordName == predecessorName)
+
+        let reconciliation = CloudSyncSnapshotReconciliation.plan(
+            currentSnapshots: [slot],
+            persistedSnapshots: [predecessor.recordName: predecessor],
+            deviceID: slot.deviceID,
+            enabledProviders: [.claude],
+            authoritativeProviders: [.claude])
+        let obsolete = CloudSyncSnapshotMigration.obsoleteRecordNames(
+            liveSnapshots: [slot],
+            hashes: [predecessor.recordName: "published"],
+            envelope: .init(stateSerialization: nil, encodedSystemFields: [:]))
+
+        #expect(reconciliation.recordNamesToDelete == [predecessor.recordName])
+        #expect(obsolete == [predecessor.recordName])
+        #expect(
+            CloudSyncSnapshotMigration.immediateReconciliationDeletes(
+                reconciliation.recordNamesToDelete,
+                protecting: obsolete).isEmpty)
+
+        var pending = [slot.recordName: Set([predecessorName])]
+        #expect(CloudSyncSnapshotMigration.takeDeletes(forSavedRecordNames: [], pending: &pending).isEmpty)
+        #expect(pending[slot.recordName] == [predecessorName])
+        #expect(
+            CloudSyncSnapshotMigration.takeDeletes(
+                forSavedRecordNames: [slot.recordName],
+                pending: &pending) == [predecessorName])
+        #expect(pending.isEmpty)
     }
 
     @Test
