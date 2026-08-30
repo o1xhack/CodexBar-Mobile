@@ -596,6 +596,25 @@ enum CloudSyncSnapshotMigration {
         }
     }
 
+    /// Stage every sibling mapping before any already-published replacement can
+    /// finish migration. This also repairs mappings removed by older builds after
+    /// a terminal save skip.
+    static func stagePredecessors(
+        for snapshots: [AccountSnapshotSyncPayload],
+        obsoleteNames: Set<String>,
+        pending: inout [String: Set<String>])
+    {
+        for snapshot in snapshots {
+            let predecessors = self.predecessorNames(for: snapshot, obsoleteNames: obsoleteNames)
+            // Replace, don't union: a later live email-keyed snapshot must not stay queued
+            // for delete after the slot-keyed save is confirmed.
+            self.assigningPredecessors(
+                predecessors,
+                to: snapshot.recordName,
+                pending: &pending)
+        }
+    }
+
     static func cancelledPersistedDeletes(
         pendingDeletes: Set<String>,
         liveNames: Set<String>) -> Set<String>
@@ -660,15 +679,6 @@ enum CloudSyncSnapshotMigration {
     static func confirmedMissingDeleteNames(_ failures: [CKRecord.ID: CKError]) -> Set<String> {
         Set(failures.compactMap { recordID, error in
             error.code == .unknownItem ? recordID.recordName : nil
-        })
-    }
-
-    static func abandonedReplacementNames(
-        failures: [String: CKError],
-        pendingReplacements: Set<String>) -> Set<String>
-    {
-        Set(failures.compactMap { name, error in
-            pendingReplacements.contains(name) && self.retryDelay(for: error) == nil ? name : nil
         })
     }
 
@@ -1324,7 +1334,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 self.recreateZoneAndRequeue(failure.record, syncEngine: syncEngine)
             } else {
                 await self.record(error: failure.error)
-                self.abandonTerminalReplacementSave(failure)
+                self.skipTerminalReplacementSave(failure)
             }
         }
     }
@@ -2005,16 +2015,13 @@ extension CloudSyncEngine {
         }
     }
 
-    private func abandonTerminalReplacementSave(
+    private func skipTerminalReplacementSave(
         _ failure: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave)
     {
         let name = failure.record.recordID.recordName
-        let abandoned = CloudSyncSnapshotMigration.abandonedReplacementNames(
-            failures: [name: failure.error],
-            pendingReplacements: Set(self.persistenceEnvelope.pendingPredecessorDeletes.keys))
-        if abandoned.contains(name) {
-            self.persistenceEnvelope.pendingPredecessorDeletes.removeValue(forKey: name)
-        }
+        // A terminal skip stops retrying this exact payload, but the unsaved replacement
+        // must continue protecting its legacy predecessor. A later changed payload or an
+        // engine restart can retry and release the mapping only after a confirmed save.
         CloudSyncSnapshotMigration.applyTerminalSaveSkip(
             recordName: name,
             error: failure.error,
@@ -2125,6 +2132,15 @@ extension CloudSyncEngine {
             }
             self.requeuePendingSnapshotDeletes()
 
+            // Stage every sibling before processing an already-published replacement.
+            // Otherwise that replacement could delete a shared predecessor before a
+            // terminally skipped sibling gets a chance to restore its protection.
+            CloudSyncSnapshotMigration.stagePredecessors(
+                for: snapshots,
+                obsoleteNames: obsoleteNames,
+                pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
+            self.persistEnvelope()
+
             var stillPending: [AccountSnapshotSyncPayload] = []
             for payload in snapshots {
                 self.persistenceEnvelope.snapshotOwnershipKnownRecordNames.insert(payload.recordName)
@@ -2141,12 +2157,6 @@ extension CloudSyncEngine {
                 let predecessors = CloudSyncSnapshotMigration.predecessorNames(
                     for: payload,
                     obsoleteNames: obsoleteNames)
-                // Replace, don't union: a later live email-keyed snapshot must not stay queued
-                // for delete after the slot-keyed save is confirmed.
-                CloudSyncSnapshotMigration.assigningPredecessors(
-                    predecessors,
-                    to: payload.recordName,
-                    pending: &self.persistenceEnvelope.pendingPredecessorDeletes)
                 // Hashes are recorded only after CloudKit confirms a save.
                 let alreadyPublished = self.lastSnapshotHashes[payload.recordName] == hash
                 if alreadyPublished {

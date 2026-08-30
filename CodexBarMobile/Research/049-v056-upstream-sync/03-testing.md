@@ -160,7 +160,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   `Head`等于重构后的第六个distinct reviewed commit，和skill的“先按当时head audit、再
   重构”顺序矛盾；已改为匹配audit时点最近一次已review head、仍强制早于第六轮和完整
   四字段，新增合法checkpoint pass及stale checkpoint fail fixture；gate tests与PR #105
-  live gate（rounds=8、unresolved=0）通过，full lint再次通过，第十轮review待push后执行；
+  live gate（rounds=8、unresolved=0）通过，full lint再次通过；第十轮在`caa1f6dd3`
+  发现shared predecessor的Claude Swap sibling中一个confirmed、另一个terminal skip时，
+  下一次refresh可能由confirmed sibling提前删除仍需保护的旧record；已在处理任何confirmed
+  migration前统一stage全部sibling mapping，并让terminal skip保留durable predecessor
+  protection，覆盖旧错误持久化状态的自动修复与confirmed/skip顺序，focused sync migration
+  33/33、full lint 2093 files/0 violations通过，第十一轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

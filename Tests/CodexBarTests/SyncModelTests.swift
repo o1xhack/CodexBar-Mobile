@@ -570,14 +570,17 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
                 pending: &pending).isEmpty)
         #expect(pending[second.recordName] == [predecessor])
 
-        let abandoned = CloudSyncSnapshotMigration.abandonedReplacementNames(
-            failures: [second.recordName: Self.cloudKitError(.permissionFailure)],
-            pendingReplacements: Set(pending.keys))
-        #expect(abandoned == [second.recordName])
-        for name in abandoned {
-            pending.removeValue(forKey: name)
-        }
-        #expect(pending.isEmpty)
+        var pendingSaveHashes = [second.recordName: "hash-sent"]
+        var skipped: [String: String] = [:]
+        CloudSyncSnapshotMigration.applyTerminalSaveSkip(
+            recordName: second.recordName,
+            error: Self.cloudKitError(.permissionFailure),
+            pendingSaveHashes: &pendingSaveHashes,
+            skippedTerminalReplacementHashes: &skipped)
+
+        #expect(pending[second.recordName] == [predecessor])
+        #expect(pendingSaveHashes.isEmpty)
+        #expect(skipped[second.recordName] == "hash-sent")
     }
 
     @Test
@@ -659,22 +662,27 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
     }
 
     @Test
-    func `terminal replacement save failures stop retrying the same payload`() {
-        let slot = "snap-claude-slot-device-id"
-        let failures = [
-            slot: Self.cloudKitError(.permissionFailure),
-            "snap-other": Self.cloudKitError(.networkFailure),
-            "snap-quota": Self.cloudKitError(.quotaExceeded, retryAfter: 12),
-        ]
+    func `terminally skipped sibling is staged before a confirmed replacement can delete`() throws {
+        let first = Self.claudeSnapshot(accountID: "claude-swap:1", email: "shared@example.com")
+        let second = Self.claudeSnapshot(accountID: "claude-swap:2", email: "shared@example.com")
+        let predecessor = try #require(first.emailKeyedPredecessorRecordName())
+        #expect(second.emailKeyedPredecessorRecordName() == predecessor)
 
+        // Reproduce persistence left by the old terminal-skip path: neither sibling
+        // currently protects the shared predecessor when the next refresh begins.
+        var pending: [String: Set<String>] = [:]
+        CloudSyncSnapshotMigration.stagePredecessors(
+            for: [first, second],
+            obsoleteNames: [predecessor],
+            pending: &pending)
+
+        #expect(pending[first.recordName] == [predecessor])
+        #expect(pending[second.recordName] == [predecessor])
         #expect(
-            CloudSyncSnapshotMigration.abandonedReplacementNames(
-                failures: failures,
-                pendingReplacements: [slot, "snap-quota"]) == [slot])
-        #expect(
-            CloudSyncSnapshotMigration.abandonedReplacementNames(
-                failures: [slot: Self.cloudKitError(.networkFailure)],
-                pendingReplacements: [slot]).isEmpty)
+            CloudSyncSnapshotMigration.takeDeletes(
+                forSavedRecordNames: [first.recordName],
+                pending: &pending).isEmpty)
+        #expect(pending[second.recordName] == [predecessor])
     }
 
     @Test
