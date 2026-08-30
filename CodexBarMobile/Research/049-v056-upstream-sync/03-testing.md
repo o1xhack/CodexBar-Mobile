@@ -155,7 +155,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   catalog/source audit）通过；第八轮在`4e7af68e0`发现无rate window时首页detail teaser
   仍直接渲染raw value；已让teaser调用同一provider-aware formatter并覆盖OpenRouter
   简中与custom provider fallback，iOS `V056SyncSemanticsTests` 5/5和full lint（SwiftLint
-  2093 files/0 violations、4语言catalog/source audit）再次通过，第九轮review待push后执行；
+  2093 files/0 violations、4语言catalog/source audit）再次通过；第九轮在`1801b4db6`
+  完成且无新finding、10条thread unresolved=0，但review gate错误要求pre-sixth audit的
+  `Head`等于重构后的第六个distinct reviewed commit，和skill的“先按当时head audit、再
+  重构”顺序矛盾；已改为匹配audit时点最近一次已review head、仍强制早于第六轮和完整
+  四字段，新增合法checkpoint pass及stale checkpoint fail fixture；gate tests与PR #105
+  live gate（rounds=8、unresolved=0）通过，full lint再次通过，第十轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

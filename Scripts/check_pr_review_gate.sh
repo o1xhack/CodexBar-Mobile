@@ -11,7 +11,7 @@ Usage:
 
 The gate passes only when Codex has reported a clean review for the current PR
 head, every review thread is explicitly resolved, and review rounds above five
-have a current-head architecture-audit comment.
+have a pre-sixth architecture-audit comment tied to the then-current reviewed head.
 EOF
 }
 
@@ -166,13 +166,19 @@ summary=$(jq -c '
       | select((is_codex | not))
       | select((.body // "") | contains("Codex review architecture audit"))
       | select($sixthReview != null)
+      | .createdAt as $auditAt
       | audit_head_oid as $auditHead
       | select($auditHead != null)
-      | select($sixthReview.oid | startswith($auditHead))
+      | ($distinctReviewEvents
+          | map(select(.at <= $auditAt))
+          | sort_by(.at)
+          | (.[-1].oid // null)) as $checkpointHead
+      | select($checkpointHead != null)
+      | select($checkpointHead | startswith($auditHead))
       | select(has_audit_field("Repeated finding pattern"))
       | select(has_audit_field("Root design/requirements problem"))
       | select(has_audit_field("Revised approach"))
-      | select(.createdAt < $sixthReview.at)] as $architectureAudits
+      | select($auditAt < $sixthReview.at)] as $architectureAudits
   | {
       number,
       url,
@@ -234,7 +240,7 @@ if [[ "$unresolved_count" != "0" ]]; then
   failed=1
 fi
 if [[ "$audit_required" == "true" && "$audit_recorded" != "true" ]]; then
-  echo "PR review gate failed: more than five review rounds require a current-head architecture audit" >&2
+  echo "PR review gate failed: more than five review rounds require a pre-sixth architecture audit for the then-current reviewed head" >&2
   failed=1
 fi
 if [[ "$truncated" == "true" ]]; then
