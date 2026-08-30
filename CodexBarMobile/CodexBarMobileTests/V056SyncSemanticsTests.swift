@@ -11,6 +11,9 @@ struct V056SyncSemanticsTests {
         let credits: String
         let overage: String
         let tools: String
+        let enabled: String
+        let creditValue: String
+        let capValue: String
     }
 
     private static let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -87,10 +90,18 @@ struct V056SyncSemanticsTests {
     @Test
     func `Kiro stable labels localize while Cursor dynamic lane stays verbatim`() {
         let expectations: [LocalizationExpectation] = [
-            .init(locale: "en", plan: "Plan", credits: "Credits left", overage: "Overage cost", tools: "Tools"),
-            .init(locale: "ja", plan: "プラン", credits: "残りクレジット", overage: "超過コスト", tools: "ツール"),
-            .init(locale: "zh-Hans", plan: "套餐", credits: "剩余额度", overage: "超额费用", tools: "工具"),
-            .init(locale: "zh-Hant", plan: "方案", credits: "剩餘額度", overage: "超額費用", tools: "工具"),
+            .init(
+                locale: "en", plan: "Plan", credits: "Credits left", overage: "Overage cost", tools: "Tools",
+                enabled: "Enabled", creditValue: "3603.49 credits", capValue: "of 10000"),
+            .init(
+                locale: "ja", plan: "プラン", credits: "残りクレジット", overage: "超過コスト", tools: "ツール",
+                enabled: "有効", creditValue: "3603.49 クレジット", capValue: "/ 10000"),
+            .init(
+                locale: "zh-Hans", plan: "套餐", credits: "剩余额度", overage: "超额费用", tools: "工具",
+                enabled: "已启用", creditValue: "3603.49 额度", capValue: "/ 10000"),
+            .init(
+                locale: "zh-Hant", plan: "方案", credits: "剩餘額度", overage: "超額費用", tools: "工具",
+                enabled: "已啟用", creditValue: "3603.49 額度", capValue: "/ 10000"),
         ]
 
         for expectation in expectations {
@@ -111,6 +122,22 @@ struct V056SyncSemanticsTests {
                 "Tools",
                 providerID: "kiro",
                 locale: locale) == expectation.tools)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Enabled",
+                providerID: "kiro",
+                locale: locale) == expectation.enabled)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "3603.49 credits",
+                providerID: "kiro",
+                locale: locale) == expectation.creditValue)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "of 10000",
+                providerID: "kiro",
+                locale: locale) == expectation.capValue)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "of 10000",
+                providerID: "custom-plugin",
+                locale: locale) == "of 10000")
             #expect(ProviderWindowLabel.localized(
                 "Grok Bot",
                 fallback: "Limit",

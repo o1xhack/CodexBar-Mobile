@@ -66,6 +66,44 @@ enum ProviderDetailLocalization {
         return MobileLocalizedString.value(label, defaultValue: label, locale: locale)
     }
 
+    /// Localizes only stable, first-party Kiro value fragments. Dynamic provider values and
+    /// custom-plugin content remain verbatim, and the canonical CloudKit payload stays unchanged.
+    static func localizedValue(
+        _ value: String,
+        providerID: String,
+        locale: Locale = .current) -> String
+    {
+        guard providerID == "kiro" else { return value }
+
+        if value == "Enabled" || value == "Disabled" {
+            return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+        }
+
+        let capPrefix = "of "
+        if value.hasPrefix(capPrefix) {
+            let format = MobileLocalizedString.value(
+                "of %@",
+                defaultValue: "of %@",
+                locale: locale)
+            return String(
+                format: format,
+                locale: locale,
+                arguments: [String(value.dropFirst(capPrefix.count))])
+        }
+
+        let creditsSuffix = " credits"
+        if value.hasSuffix(creditsSuffix) {
+            let amount = String(value.dropLast(creditsSuffix.count))
+            let credits = MobileLocalizedString.value(
+                "credits",
+                defaultValue: "credits",
+                locale: locale)
+            return "\(amount) \(credits)"
+        }
+
+        return value
+    }
+
     private static func shouldLocalize(context: Context, providerID: String) -> Bool {
         switch context {
         case .semantic:
@@ -98,11 +136,15 @@ struct ProviderDetailsView: View {
                             .foregroundStyle(.secondary)
                         Spacer(minLength: 12)
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(row.value)
+                            Text(ProviderDetailLocalization.localizedValue(
+                                row.value,
+                                providerID: self.providerID))
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
                             if let secondaryValue = row.secondaryValue {
-                                Text(secondaryValue)
+                                Text(ProviderDetailLocalization.localizedValue(
+                                    secondaryValue,
+                                    providerID: self.providerID))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

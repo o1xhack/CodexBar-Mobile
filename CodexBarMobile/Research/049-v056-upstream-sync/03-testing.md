@@ -132,8 +132,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
 - 三路最终 review 合计 blocker=0：CloudKit/Shared 额外复跑 migration 15/15 与
   v0.56 semantics 4/4，iOS/cost 额外复跑 18 focused tests，CI/release 发现的
   draft body 缺失已修复并回读通过；
-- 本文件状态为 `done`；未授权的 push/merge/tag/live release/appcast/TestFlight/
-  CloudKit deploy 依然未执行。
+- PR #105首轮exact-head review在`62abb00ef`发现2项Kiro一致性/本地化finding；修复后
+  `KiroUsageLimitsAPITests` 20/20、iOS `V056SyncSemanticsTests` 4/4、full lint通过，
+  第二轮review待当前修复commit push后执行；
+- 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
+  release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 
 ## Signed draft evidence
 
@@ -155,7 +158,8 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   `uploaded`，远端 digest/size 与本地完全一致；
 - draft body 已从 root CHANGELOG 回写并 API 回读 `Added`、`Changed`、`Fixed`、
   `Upstream release range`，同时保留 exact source SHA 与 no-publish gate；
-- draft 后 remote task branch/tag 仍为 0 lines；live `appcast.xml` 与
+- draft 创建完成时 remote task branch/tag 均为 0 lines；2026-08-30用户追加授权后仅push
+  task branch并创建PR #105，candidate tag仍不存在；live `appcast.xml` 与
   `origin/mobile-dev` SHA-256 均为
   `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267`。
 

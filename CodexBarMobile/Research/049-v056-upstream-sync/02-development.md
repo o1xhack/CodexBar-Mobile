@@ -66,6 +66,7 @@ Date: 2026-08-28
 | 1 | `a7ab9f708` + worktree | merge + fork seams | README事实适配遗漏；其余CI/provenance/version clean | 更新README OpenCode Go/AI Usage Limits与reviewed hash；guards pass | fixed |
 | 2 | `a7ab9f708` + worktree | Shared/iOS + localization | terminal permission/auth delete误清cache/ownership；evidence pending | 仅unknownItem清cache；test/re-review clean；03-testing补齐 | fixed |
 | 3 | `b9ae71f8f` + draft/body closeout diff | release diff + evidence | draft body缺 root CHANGELOG 用户可见正文 | 回写 Added/Changed/Fixed/Upstream range，API exact-match 回读；三路 agent 复核 | fixed; blocker=0 |
+| 4 | PR #105 / `62abb00ef` | exact-head Codex Code Review | Kiro API enabled未覆盖stale CLI disabled；iOS Kiro稳定值片段未本地化 | API状态改为authoritative；iOS展示边界本地化`Enabled/Disabled`、`N credits`、`of N`；Mac 20/20、iOS 4/4、full lint pass | fixed; re-review pending |
 
 ## Draft artifact 记录
 
@@ -83,5 +84,5 @@ Date: 2026-08-28
 | GitHub draft URL / `draft=true` | `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-f119f55a105dc5efcac0` / database `378828305` / `true` / target `mobile-dev` |
 | draft body / asset readback | root CHANGELOG `Added/Changed/Fixed/Upstream release range` + provenance/no-publish gate API readback pass; both assets `uploaded`; GitHub SHA-256 digests and byte sizes exactly match local artifacts |
 | candidate appcast | XML valid; `131.1.1.23.0`; enclosure length `74879194`; EdDSA verified; candidate kept only in detached `/tmp` worktree |
-| remote task branch / tag absent | `git ls-remote` returned 0 lines for both after draft creation |
+| remote task branch / tag | draft创建时两者均不存在；用户于2026-08-30授权PR后push branch，初始remote head `62abb00efb319affada9df0029532b1e151b71ab`；candidate tag仍不存在 |
 | live appcast unchanged | working and `origin/mobile-dev` SHA-256 both `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267` |

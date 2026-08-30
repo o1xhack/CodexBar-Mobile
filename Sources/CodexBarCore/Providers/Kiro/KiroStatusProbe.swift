@@ -87,9 +87,8 @@ public struct KiroUsageSnapshot: Sendable {
             bonusCreditsUsed: self.bonusCreditsUsed,
             bonusCreditsTotal: self.bonusCreditsTotal,
             bonusExpiryDays: self.bonusExpiryDays,
-            overagesStatus: usageLimits.overageEnabled == false
-                ? "Disabled"
-                : (usageLimits.overageEnabled == true ? self.overagesStatus ?? "Enabled" : self.overagesStatus),
+            overagesStatus: usageLimits.overageEnabled.map { $0 ? "Enabled" : "Disabled" }
+                ?? self.overagesStatus,
             overageCreditsUsed: usageLimits.overageUsed,
             estimatedOverageCostUSD: usageLimits.overageCharges
                 ?? (usageLimits.currencyCode.uppercased() == "USD" ? self.estimatedOverageCostUSD : nil),

@@ -16,9 +16,10 @@ Goal 启动时上游最新正式 release 已是
 不拆分中间版本。
 
 目标候选为 Mac `0.56.0.1 (131.1)`、iOS `1.23.0 (196)`、Sparkle version
-`131.1.1.23.0`，candidate tag `v0.56.0.1-mobile.1.23.0`。本轮允许本地 commits、
-签名/公证产物与 GitHub draft；不允许 push branch、merge、tag publish、live release、
-appcast publish、TestFlight upload 或 CloudKit Production deploy。
+`131.1.1.23.0`，candidate tag `v0.56.0.1-mobile.1.23.0`。初始 Goal 允许本地 commits、
+签名/公证产物与 GitHub draft；2026-08-30 用户追加授权 push task branch、创建 PR 并完成
+Code Review 循环。merge、tag publish、live release、appcast publish、TestFlight upload 与
+CloudKit Production deploy 仍未授权。
 
 ## 分支证据
 

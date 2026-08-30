@@ -100,6 +100,33 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "管理" } }
       }
     },
+    "Disabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Disabled" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "無効" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已禁用" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "已停用" } }
+      }
+    },
+    "Enabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enabled" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "有効" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已启用" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "已啟用" } }
+      }
+    },
+    "of %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "of %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "/ %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "/ %@" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "/ %@" } }
+      }
+    },
     "Overage": {
       "extractionState": "manual",
       "localizations": {

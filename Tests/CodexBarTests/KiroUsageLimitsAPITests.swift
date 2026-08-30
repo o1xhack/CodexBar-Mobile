@@ -172,6 +172,24 @@ struct KiroUsageLimitsAPITests {
     }
 
     @Test
+    func `api enabled overage wins over a stale cli disabled status`() throws {
+        let limits = try KiroUsageLimitsAPI.parse(Data(Self.overageInUseResponse.utf8))
+        let probe = KiroStatusProbe()
+        let cliReport = try probe.parse(output: """
+        Estimated Usage | resets on 2026-09-01 | KIRO POWER
+        Credits (10000.00 of 10000 covered in plan)
+        ████████████████████████████████████████████████████████████████████████████████ 100%
+        Overages: Disabled
+        """)
+        let snapshot = cliReport.withUsageLimits(limits).toUsageSnapshot()
+        let rows = snapshot.details.flatMap(\.rows)
+
+        #expect(rows.contains { $0.label == "Overages" && $0.value == "Enabled" })
+        #expect(rows.contains { $0.label == "Overage usage" })
+        #expect(rows.contains { $0.label == "Overage credits left" })
+    }
+
+    @Test
     func `rejects plan usage above the reported plan limit`() {
         let json = Self.overageInUseResponse
             .replacingOccurrences(
