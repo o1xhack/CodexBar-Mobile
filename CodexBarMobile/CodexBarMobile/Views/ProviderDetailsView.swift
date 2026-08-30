@@ -23,8 +23,8 @@ enum ProviderDetailLocalization {
     /// intentionally absent and therefore remain verbatim.
     private static let semanticLabels: Set<String> = [
         "30d cash", "30d credits", "30d spend", "30d tokens", "7d spend",
-        "API credits", "API key", "API key budget", "API key remaining", "API key used",
-        "Actual cost", "Agent hours", "Audio", "Available", "Avg decision",
+        "API credits", "API key", "API key budget", "API key limit", "API key remaining", "API key used",
+        "Account balance", "Actual cost", "Agent hours", "Audio", "Available", "Avg decision",
         "Balance", "Billing history", "Billing summary", "Bobcoin usage", "Bonus credits left", "Budget ledger",
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
         "Context files", "Context used", "Cost items", "Credit history", "Credit quota",
@@ -35,7 +35,7 @@ enum ProviderDetailLocalization {
         "Output", "Overage", "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
         "Period", "Plan", "Points", "Prepaid balance", "Prompts", "Quota details", "Quota services",
         "Rate limit", "Remaining", "Request quota", "Requests", "Reset window",
-        "Routed", "Saved", "TTS characters", "This month", "This week",
+        "Routed", "Saved", "Spend history", "TTS characters", "This month", "This week",
         "Today", "Today cash", "Today spend", "Today tokens", "Token quota", "Tools",
         "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage summary",
         "Used", "credits", "points", "tokens",
@@ -66,14 +66,23 @@ enum ProviderDetailLocalization {
         return MobileLocalizedString.value(label, defaultValue: label, locale: locale)
     }
 
-    /// Localizes only stable, first-party Kiro value fragments. Dynamic provider values and
+    /// Localizes only stable value fragments emitted by bundled providers. Dynamic values and
     /// custom-plugin content remain verbatim, and the canonical CloudKit payload stays unchanged.
     static func localizedValue(
         _ value: String,
         providerID: String,
         locale: Locale = .current) -> String
     {
-        guard providerID == "kiro" else { return value }
+        switch providerID {
+        case "openrouter":
+            return self.localizedOpenRouterValue(value, locale: locale) ?? value
+        case "zai":
+            return self.localizedZAIBalanceBreakdown(value, locale: locale) ?? value
+        case "kiro":
+            break
+        default:
+            return value
+        }
 
         if value == "Enabled" || value == "Disabled" {
             return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
@@ -106,6 +115,68 @@ enum ProviderDetailLocalization {
         }
 
         return value
+    }
+
+    private static func localizedOpenRouterValue(_ value: String, locale: Locale) -> String? {
+        let stableValues: Set<String> = [
+            "Management API key not configured",
+            "Management API key required",
+            "No limit configured",
+            "Request failed",
+            "Request timed out",
+            "Response was invalid",
+            "Response was unavailable",
+            "Spending cap, not balance",
+            "Unavailable right now",
+        ]
+        if stableValues.contains(value) {
+            return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+        }
+
+        let httpPrefix = "Request returned HTTP "
+        if value.hasPrefix(httpPrefix) {
+            let status = String(value.dropFirst(httpPrefix.count))
+            guard Int(status) != nil else { return nil }
+            return self.localizedFormat(
+                "Request returned HTTP %@",
+                argument: status,
+                locale: locale)
+        }
+
+        let requestMarker = " requests / "
+        guard let markerRange = value.range(of: requestMarker) else { return nil }
+        let count = String(value[..<markerRange.lowerBound])
+        let interval = String(value[markerRange.upperBound...])
+        guard Int(count) != nil, !interval.isEmpty else { return nil }
+        let format = MobileLocalizedString.value(
+            "%@ requests / %@",
+            defaultValue: "%@ requests / %@",
+            locale: locale)
+        return String(format: format, locale: locale, arguments: [count, interval])
+    }
+
+    private static func localizedZAIBalanceBreakdown(_ value: String, locale: Locale) -> String? {
+        let prefixes = [
+            (prefix: "recharged ", format: "recharged %@"),
+            (prefix: "granted ", format: "granted %@"),
+            (prefix: "spent ", format: "spent %@"),
+        ]
+        let fragments = value.components(separatedBy: " · ")
+        guard !fragments.isEmpty else { return nil }
+
+        var localized: [String] = []
+        for fragment in fragments {
+            guard let match = prefixes.first(where: { fragment.hasPrefix($0.prefix) }) else { return nil }
+            let amount = String(fragment.dropFirst(match.prefix.count))
+            guard !amount.isEmpty else { return nil }
+            localized.append(self.localizedFormat(match.format, argument: amount, locale: locale))
+        }
+        return localized.joined(separator: " · ")
+    }
+
+    private static func localizedFormat(_ key: String, argument: String, locale: Locale) -> String {
+        let format = MobileLocalizedString.value(key, defaultValue: key, locale: locale)
+        return String(format: format, locale: locale, arguments: [argument])
     }
 
     private static func localizedKiroCap(_ value: String, locale: Locale) -> String? {

@@ -196,6 +196,125 @@ struct V056SyncSemanticsTests {
             locale: Locale(identifier: "ja")) == "期限切れ")
     }
 
+    @Test
+    func `OpenRouter and z ai stable detail fragments localize in all four languages`() {
+        let expectations: [(
+            locale: String,
+            keyLimit: String,
+            spendHistory: String,
+            spendingCap: String,
+            noLimit: String,
+            unavailable: String,
+            timeout: String,
+            invalid: String,
+            failed: String,
+            responseUnavailable: String,
+            managementRequired: String,
+            managementNotConfigured: String,
+            httpFailure: String,
+            rate: String,
+            balance: String,
+            balanceBreakdown: String)] = [
+                (
+                    "en", "API key limit", "Spend history", "Spending cap, not balance", "No limit configured",
+                    "Unavailable right now", "Request timed out", "Response was invalid", "Request failed",
+                    "Response was unavailable", "Management API key required", "Management API key not configured",
+                    "Request returned HTTP 403", "100 requests / 10s", "Account balance",
+                    "recharged ¥20.00 · granted ¥5.00 · spent ¥7.00"),
+                (
+                    "ja", "API キー上限", "支出履歴", "残高ではなく利用上限", "上限未設定",
+                    "現在利用できません", "リクエストがタイムアウトしました", "応答が無効でした",
+                    "リクエストに失敗しました", "応答を取得できませんでした", "管理 API キーが必要です",
+                    "管理 API キーが設定されていません", "リクエストが HTTP 403 を返しました",
+                    "100 件のリクエスト / 10s", "アカウント残高", "入金 ¥20.00 · 付与 ¥5.00 · 利用済み ¥7.00"),
+                (
+                    "zh-Hans", "API 密钥限额", "支出历史", "消费上限，并非余额", "未设置限额",
+                    "当前不可用", "请求超时", "响应无效", "请求失败", "无法获取响应", "需要管理 API 密钥",
+                    "未配置管理 API 密钥", "请求返回 HTTP 403", "100 个请求 / 10s", "账户余额",
+                    "充值 ¥20.00 · 赠送 ¥5.00 · 已消费 ¥7.00"),
+                (
+                    "zh-Hant", "API 金鑰限額", "支出歷史", "消費上限，並非餘額", "未設定限額",
+                    "目前無法使用", "請求逾時", "回應無效", "請求失敗", "無法取得回應", "需要管理 API 金鑰",
+                    "未設定管理 API 金鑰", "請求傳回 HTTP 403", "100 個請求 / 10s", "帳戶餘額",
+                    "儲值 ¥20.00 · 贈送 ¥5.00 · 已消費 ¥7.00"),
+            ]
+
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderDetailLocalization.localized(
+                "API key limit",
+                providerID: "openrouter",
+                locale: locale) == expectation.keyLimit)
+            #expect(ProviderDetailLocalization.localized(
+                "Spend history",
+                providerID: "openrouter",
+                locale: locale) == expectation.spendHistory)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Spending cap, not balance",
+                providerID: "openrouter",
+                locale: locale) == expectation.spendingCap)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "No limit configured",
+                providerID: "openrouter",
+                locale: locale) == expectation.noLimit)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Unavailable right now",
+                providerID: "openrouter",
+                locale: locale) == expectation.unavailable)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Request timed out",
+                providerID: "openrouter",
+                locale: locale) == expectation.timeout)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Response was invalid",
+                providerID: "openrouter",
+                locale: locale) == expectation.invalid)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Request failed",
+                providerID: "openrouter",
+                locale: locale) == expectation.failed)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Response was unavailable",
+                providerID: "openrouter",
+                locale: locale) == expectation.responseUnavailable)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Management API key required",
+                providerID: "openrouter",
+                locale: locale) == expectation.managementRequired)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Management API key not configured",
+                providerID: "openrouter",
+                locale: locale) == expectation.managementNotConfigured)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "Request returned HTTP 403",
+                providerID: "openrouter",
+                locale: locale) == expectation.httpFailure)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "100 requests / 10s",
+                providerID: "openrouter",
+                locale: locale) == expectation.rate)
+            #expect(ProviderDetailLocalization.localized(
+                "Account balance",
+                providerID: "zai",
+                locale: locale) == expectation.balance)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "recharged ¥20.00 · granted ¥5.00 · spent ¥7.00",
+                providerID: "zai",
+                locale: locale) == expectation.balanceBreakdown)
+        }
+
+        #expect(ProviderDetailLocalization.localized(
+            "API key limit",
+            providerID: "custom-plugin") == "API key limit")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Unavailable right now",
+            providerID: "custom-plugin") == "Unavailable right now")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "recharged custom value · provider-defined detail",
+            providerID: "zai",
+            locale: Locale(identifier: "zh-Hans")) == "recharged custom value · provider-defined detail")
+    }
+
     private static func roundTripped(_ provider: ProviderUsageSnapshot) throws -> ProviderUsageSnapshot {
         try self.decoder.decode(ProviderUsageSnapshot.self, from: self.encoder.encode(provider))
     }

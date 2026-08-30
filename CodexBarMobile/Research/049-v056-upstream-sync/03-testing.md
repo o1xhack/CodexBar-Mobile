@@ -147,7 +147,12 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   save-confirmed delete保护；已从slot重建旧key并覆盖reconciliation、save未确认/确认路径，
   `swift test --filter 'SyncModelTests|CloudSyncSnapshotMigrationSaveThenDeleteTests'`
   33/33通过；full lint（SwiftLint 2093 files/0 violations、4语言catalog/source audit）
-  再次通过，第七轮review待push后执行；
+  再次通过；第七轮在`f189e2247`完成且无新finding，但unresolved-thread audit发现
+  第五轮另有OpenRouter `API key limit`固定状态与z.ai `Account balance` breakdown两条
+  P2未被纳入前次修复/resolve；已扩展provider-aware detail边界，覆盖OpenRouter固定
+  降级状态、HTTP/rate格式及z.ai余额片段，dynamic/custom值保持原样；iOS
+  `V056SyncSemanticsTests` 5/5与full lint（SwiftLint 2093 files/0 violations、4语言
+  catalog/source audit）通过，第八轮review待push后执行；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 

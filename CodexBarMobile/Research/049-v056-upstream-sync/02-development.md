@@ -71,6 +71,7 @@ Date: 2026-08-28
 | 6 | PR #105 / `84d51b643` | exact-head Codex Code Review | bonus secondary value的`expires in 19d`后缀在中/日文iOS仍为英文 | 拆分`of N`与expiry片段，复用既有4语言Kiro expiry key，覆盖19/1/0天；iOS 4/4 | fixed; re-review pending |
 | 7 | PR #105 / `6b8e9f768` | ready-triggered第5轮Code Review | Kiro `Overage` window与Antigravity `Offline · N conversation(s)`仍为英文 | 按第6轮前置architecture audit统一改造provider-aware window展示边界；固定Kiro语义、结构化Antigravity count、unknown/custom原样；4语言fixture；iOS 8/8；full lint pass | fixed; round 6 pending |
 | 8 | PR #105 / `78568bf34` | exact-head第6轮Code Review | 无email Claude Swap旧版以`Account N`作CloudKit key，slot迁移未保护旧record，save失败时可能先删后丢 | 从durable slot重建旧`Account N` predecessor key；复用save-confirmed delete队列；覆盖reconciliation、未确认save不删、确认后删除；focused sync migration 33/33；full lint pass | fixed; round 7 pending |
+| 9 | PR #105 / `f189e2247` | 第7轮完成后的unresolved-thread audit | 第5轮另有OpenRouter `API key limit`稳定值与z.ai `Account balance` breakdown两条P2未被纳入前次修复/resolve | 扩展provider-aware detail边界：OpenRouter固定状态、HTTP/rate格式与z.ai余额片段4语言本地化；dynamic/custom原样；iOS 5/5；full lint pass | fixed; round 8 pending |
 
 ## Draft artifact 记录
 
