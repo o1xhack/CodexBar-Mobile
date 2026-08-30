@@ -15,6 +15,9 @@ struct V056SyncSemanticsTests {
         let creditValue: String
         let capValue: String
         let bonusValue: String
+        let overageWindow: String
+        let offlineOne: String
+        let offlineMany: String
     }
 
     private static let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -94,19 +97,23 @@ struct V056SyncSemanticsTests {
             .init(
                 locale: "en", plan: "Plan", credits: "Credits left", overage: "Overage cost", tools: "Tools",
                 enabled: "Enabled", creditValue: "3603.49 credits", capValue: "of 10000",
-                bonusValue: "of 200 · expires in 19 days"),
+                bonusValue: "of 200 · expires in 19 days", overageWindow: "Overage",
+                offlineOne: "Offline · 1 conversation", offlineMany: "Offline · 12 conversations"),
             .init(
                 locale: "ja", plan: "プラン", credits: "残りクレジット", overage: "超過コスト", tools: "ツール",
                 enabled: "有効", creditValue: "3603.49 クレジット", capValue: "/ 10000",
-                bonusValue: "/ 200 · あと19日で期限切れ"),
+                bonusValue: "/ 200 · あと19日で期限切れ", overageWindow: "超過分",
+                offlineOne: "オフライン · 1 件の会話", offlineMany: "オフライン · 12 件の会話"),
             .init(
                 locale: "zh-Hans", plan: "套餐", credits: "剩余额度", overage: "超额费用", tools: "工具",
                 enabled: "已启用", creditValue: "3603.49 额度", capValue: "/ 10000",
-                bonusValue: "/ 200 · 19 天后过期"),
+                bonusValue: "/ 200 · 19 天后过期", overageWindow: "超额用量",
+                offlineOne: "离线 · 1 个对话", offlineMany: "离线 · 12 个对话"),
             .init(
                 locale: "zh-Hant", plan: "方案", credits: "剩餘額度", overage: "超額費用", tools: "工具",
                 enabled: "已啟用", creditValue: "3603.49 額度", capValue: "/ 10000",
-                bonusValue: "/ 200 · 19 天後過期"),
+                bonusValue: "/ 200 · 19 天後過期", overageWindow: "超額用量",
+                offlineOne: "離線 · 1 個對話", offlineMany: "離線 · 12 個對話"),
         ]
 
         for expectation in expectations {
@@ -150,7 +157,33 @@ struct V056SyncSemanticsTests {
             #expect(ProviderWindowLabel.localized(
                 "Grok Bot",
                 fallback: "Limit",
+                providerID: "cursor",
                 locale: locale) == "Grok Bot")
+            #expect(ProviderWindowLabel.localized(
+                "Overage",
+                fallback: "Limit",
+                providerID: "kiro",
+                locale: locale) == expectation.overageWindow)
+            #expect(ProviderWindowLabel.localized(
+                "Offline · 1 conversation",
+                fallback: "Limit",
+                providerID: "antigravity",
+                locale: locale) == expectation.offlineOne)
+            #expect(ProviderWindowLabel.localized(
+                "Offline · 12 conversations",
+                fallback: "Limit",
+                providerID: "antigravity",
+                locale: locale) == expectation.offlineMany)
+            #expect(ProviderWindowLabel.localized(
+                "Offline · 12 conversations",
+                fallback: "Limit",
+                providerID: "custom-plugin",
+                locale: locale) == "Offline · 12 conversations")
+            #expect(ProviderWindowLabel.localized(
+                "Overage",
+                fallback: "Limit",
+                providerID: "custom-plugin",
+                locale: locale) == "Overage")
         }
 
         #expect(ProviderDetailLocalization.localizedValue(

@@ -127,6 +127,24 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "/ %@" } }
       }
     },
+    "v056_window_antigravity_offline_conversation_one": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline · 1 conversation" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "オフライン · 1 件の会話" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "离线 · 1 个对话" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "離線 · 1 個對話" } }
+      }
+    },
+    "v056_window_antigravity_offline_conversations_format": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Offline · %lld conversations" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "オフライン · %lld 件の会話" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "离线 · %lld 个对话" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "離線 · %lld 個對話" } }
+      }
+    },
     "Overage": {
       "extractionState": "manual",
       "localizations": {

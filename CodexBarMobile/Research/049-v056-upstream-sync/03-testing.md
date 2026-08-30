@@ -138,7 +138,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   overage文本且无API cap时仍显示authoritative API usage/charges，Kiro 20/20通过，
   第三轮在`84d51b643`发现bonus expiry后缀仍为英文；已复用既有4语言Kiro expiry
   key并覆盖19/1/0天，iOS `V056SyncSemanticsTests` 4/4通过，第四轮review待修复
-  push后执行；
+  push后执行；第四轮无finding，PR转ready后第五轮在`6b8e9f768`发现Kiro overage
+  window及Antigravity offline count两个同根本地化缺口；已按workflow写入architecture
+  audit，统一改造provider-aware window展示边界并保留unknown/custom label原样，第六轮
+  review前iOS `V045ProviderPresentationTests` + `V056SyncSemanticsTests` 8/8、full
+  lint（SwiftLint 2093 files/0 violations、4语言catalog/source audit）通过；
 - 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
   release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
 
