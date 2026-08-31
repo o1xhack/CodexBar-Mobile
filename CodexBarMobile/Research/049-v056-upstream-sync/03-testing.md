@@ -27,8 +27,9 @@ Date: 2026-08-28
 | CloudKit Production audit | pass | static diff + `cktool export-schema`；结论 `NO_DEPLOY` |
 | 16-case compatibility gate | substituted-complete | 16 行全部列出；无 2 Mac + 2 iPhone 实机，使用 S1-S5 替代证据 |
 | local/agent review blocker count | pass | 三路 exact-head review 最终 blocker=0；CloudKit/iOS focused 复测通过；draft body finding 已修并 API 复核 |
-| signed/notarized draft | pass | source `0d7db66a68ce...`；notary `Accepted`；ZIP/dSYM、candidate appcast与 GitHub draft全部回读验证 |
-| no push/merge/live/TestFlight/deploy boundary | pass | remote task branch/tag 0 lines；draft-only；live feed hash与`origin/mobile-dev`一致；未 push/merge/publish/TestFlight/deploy |
+| signed/notarized live Mac release | pass | 从 merge commit `9f3b28746` 重建；notary `Accepted`；staple/Gatekeeper/launch通过；ZIP/dSYM、live appcast与GitHub release全部回读验证 |
+| iOS App Store Connect handoff | pass | Archive/upload `1.23.0 (196)`；`VALID` / `APP_STORE_ELIGIBLE`；四语言 `What's New`；build双向绑定回读通过 |
+| final authorization boundary | pass | CloudKit `NO_DEPLOY`未deploy；App Review与public iOS release未执行；其余用户授权的merge/live Mac/upload/bind已完成 |
 
 ## 已执行的关键命令
 
@@ -110,8 +111,7 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
 本轮没有可用的 2 Mac + 2 iPhone old/new 四机环境，因此 16 行均如实标记为
 `substituted`，没有把 simulator/unit/code-audit 证据冒充真实设备 `pass`。替代 gate 完整，
 但真实 Production propagation、silent push/background delivery、不同设备本地 cache 时序和
-旧 binary 运行仍为 release residual risk；公开 release 前若要把这些风险降为实测 pass，必须另行
-安排四机矩阵。
+旧 binary 运行仍为 release residual risk；后续若要把这些风险降为实测 pass，必须另行安排四机矩阵。
 
 ## 必查行为
 
@@ -187,10 +187,36 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   62项process cleanup tests、CI policy/final-path/review-gate和full lint（SwiftLint 2093/0、
   iOS 303 source keys四语完整）全部通过；整体修复提交为`e4a0bb2d3`，第十五轮
   exact-head review结论为`Didn't find any major issues`，0个新thread；
-- 本文件状态为 `done`；task branch push与PR已获用户追加授权并执行，merge/tag/live
-  release/appcast/TestFlight/CloudKit deploy仍未授权且未执行。
+- 本文件状态为 `done`；PR #105、merge-only Final CI、Mac live release/appcast 与 iOS
+  Archive/upload/build binding均已获用户追加授权并执行。CloudKit verdict为 `NO_DEPLOY`，
+  App Review submit与public iOS release仍未授权且未执行。
 
-## Signed draft evidence
+## Published release / ASC closeout evidence
+
+- PR #105 final reviewed head：`b5e8631edb265cfa60aebd86348e084e94fc946b`；merge commit：
+  `9f3b28746ca74222e08bd8a2703d96c305546a26`；Final CI
+  [33343515532](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/33343515532) 12 jobs success；
+- live Mac artifact重新从merge后源码构建，`CodexGitCommit=9f3b28746`；notary submission
+  `f19497f4-fc65-4295-af1d-2e54ef67480f` `Accepted`；codesign、stapler、Gatekeeper与本机重启通过；
+- live release：
+  `https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.56.0.1-mobile.1.23.0`；
+  ZIP `74,884,775` bytes / SHA-256 `9ac9007b0a05530eccaff54b2a9b154fd61b1bd43cf9212535e057b8b1104d30`；
+  dSYM `57,062,195` bytes / SHA-256 `6382c774b1a08af41ab55f788f54fb07a829660917a5e56eb842685b3c93ec40`；
+- appcast live回读为 `0.56.0.1` / `131.1.1.23.0`，enclosure length `74,884,775`，
+  EdDSA signature验证通过；commit `d3b30a48a`；
+- App Store Connect version `1.23.0` 创建为 `MANUAL`，en-US、ja、zh-Hans、zh-Hant
+  四语言 `What's New` API回读一致；
+- `/tmp/CodexBarMobile-20260830-181907.xcarchive` 为 bundle `1.23.0 (196)`，主 app、Widget、
+  Push Extension archive成功；主 app entitlement包含
+  `com.apple.developer.icloud-container-environment=Production`；
+- delivery `00812071-873e-42b7-94ab-dce1c6f12693` 为 `VALID` / `APP_STORE_ELIGIBLE` /
+  non-expired / min iOS 17.0；App Store version→build与build→version双向关系均回读一致；
+- icon gate：1024 source无alpha且视觉完整；Archive 120 CgBI icon无alpha且视觉完整；Apple CDN
+  152 iconAssetToken视觉完整；
+- version保持 `PREPARE_FOR_SUBMISSION` / `MANUAL`，没有创建 submission、没有提交 App Review；
+- #102-#104已附闭环证据并 close；open `upstream-sync` issue回读为空；合并后的 task branch已清理。
+
+## Historical signed draft evidence
 
 - artifact source commit：`0d7db66a68ce341ddf5fc404048407500bddd944`；
 - Apple notarization submission `2e926c37-a720-4c37-b6e0-a83d12b80e24`：`Accepted`；

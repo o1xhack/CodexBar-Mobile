@@ -18,8 +18,10 @@ Goal 启动时上游最新正式 release 已是
 目标候选为 Mac `0.56.0.1 (131.1)`、iOS `1.23.0 (196)`、Sparkle version
 `131.1.1.23.0`，candidate tag `v0.56.0.1-mobile.1.23.0`。初始 Goal 允许本地 commits、
 签名/公证产物与 GitHub draft；2026-08-30 用户追加授权 push task branch、创建 PR 并完成
-Code Review 循环。merge、tag publish、live release、appcast publish、TestFlight upload 与
-CloudKit Production deploy 仍未授权。
+Code Review 循环；随后又明确授权 merge、Mac live release 与 iOS App Store Connect
+version/build handoff。PR #105 已合并，Mac release 与 appcast 已公开，iOS `1.23.0 (196)`
+已上传、处理为 `VALID` 并绑定到四语言 App Store version。CloudKit 审计为 `NO_DEPLOY`，
+因此未执行 schema deploy；App Review submit 与 iOS public release 仍未授权、未执行。
 
 ## 分支证据
 
@@ -35,9 +37,9 @@ CloudKit Production deploy 仍未授权。
 
 | Issue | Release | 本轮处置 |
 |---|---|---|
-| [#102](https://github.com/o1xhack/CodexBar-Mobile/issues/102) | `v0.54.1` | 纳入 v0.56.0 单一 train；draft 阶段保持 open |
-| [#103](https://github.com/o1xhack/CodexBar-Mobile/issues/103) | `v0.55.0` | 纳入 v0.56.0 单一 train；draft 阶段保持 open |
-| [#104](https://github.com/o1xhack/CodexBar-Mobile/issues/104) | `v0.55.1` | 纳入 v0.56.0 单一 train；draft 阶段保持 open |
+| [#102](https://github.com/o1xhack/CodexBar-Mobile/issues/102) | `v0.54.1` | 纳入 v0.56.0 单一 train；live release 后附证据并 close as completed |
+| [#103](https://github.com/o1xhack/CodexBar-Mobile/issues/103) | `v0.55.0` | 纳入 v0.56.0 单一 train；live release 后附证据并 close as completed |
+| [#104](https://github.com/o1xhack/CodexBar-Mobile/issues/104) | `v0.55.1` | 纳入 v0.56.0 单一 train；live release 后附证据并 close as completed |
 | monitor 尚未生成 | `v0.56.0` | 以 GitHub Release 权威事实补入同一 train |
 
 closed issue [#95](https://github.com/o1xhack/CodexBar-Mobile/issues/95) 与 Research 048
@@ -139,3 +141,25 @@ subscription 或 `providerPayloadVersion` bump。实现完成后仍须从最后 
 - P1：Kiro/新增 detail labels 在中日文 UI 中泄漏英文；
 - P2：无 2 Mac + 2 iPhone 实机时 16-case matrix 只能 `substituted`，真实 Production
   propagation、silent push/background convergence 与旧 binary reader 仍有残余风险。
+
+## 发布闭环（2026-08-30）
+
+- PR [#105](https://github.com/o1xhack/CodexBar-Mobile/pull/105) 在 exact-current
+  Code Review gate（15 rounds、0 unresolved、最终 `Didn't find any major issues`）通过后合并；
+  merge commit `9f3b28746ca74222e08bd8a2703d96c305546a26`；
+- merge-only [Final CI 33343515532](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/33343515532)
+  全绿：lint、Linux x64/arm64/musl、6/6 macOS Swift Test 与 aggregate gate 全部 success；
+- 从最终 `mobile-dev` 重建而非复用旧 draft：Apple notary submission
+  `f19497f4-fc65-4295-af1d-2e54ef67480f` 为 `Accepted`，stapler、Gatekeeper、direct launch
+  smoke 全部通过，artifact 内嵌 `CodexGitCommit=9f3b28746`；
+- Mac [live release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.56.0.1-mobile.1.23.0)
+  已公开，zip/dSYM 的远端 digest/size 与本地一致；live appcast 经 enclosure 回下载、EdDSA 与
+  length 验证后，以 `d3b30a48a` 提交到 `mobile-dev`；
+- App Store Connect 已创建 iOS `1.23.0`（`MANUAL`），保存 en-US、ja、zh-Hans、zh-Hant
+  四语言 `What's New`；Archive `1.23.0 (196)` 上传后为 `VALID` / `APP_STORE_ELIGIBLE`，
+  并双向回读确认绑定到该 version；
+- source 1024 icon、Archive 120 icon 与 Apple CDN 152 icon 三层视觉/尺寸验证通过；Archive
+  entitlement 回读为 CloudKit `Production`；
+- #102-#104 均附 release/ASC/CloudKit 证据并 close，当前 open `upstream-sync` issue 为 0；
+  原 task branch 在合并、发布和证据回读后从 local/origin 清理；
+- App Store version 保持 `PREPARE_FOR_SUBMISSION` / `MANUAL`，未提交 App Review，未公开 iOS。

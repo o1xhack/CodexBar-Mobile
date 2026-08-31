@@ -46,6 +46,19 @@ Date: 2026-08-28
 - [x] 临时 candidate appcast 生成、签名与单调性验证；
 - [x] Research 状态与证据收口，blocker=0。
 
+## Phase E — Merge / live release / App Store Connect closeout
+
+- [x] PR #105 exact-current review gate通过后合并到 `mobile-dev`；
+- [x] merge-only Final CI 33343515532 全绿；
+- [x] 从 merge commit重建 Mac Universal artifact，完成 Developer ID签名、Apple notarization、
+  staple、Gatekeeper与launch smoke，不复用旧 draft资产；
+- [x] 公开 tag/release `v0.56.0.1-mobile.1.23.0`，生成、验签并推送 live appcast；
+- [x] 创建 App Store iOS `1.23.0`，保存四语言 `What's New`；
+- [x] Archive/upload build `196`，Apple处理为 `VALID` / `APP_STORE_ELIGIBLE`，绑定到版本页；
+- [x] 完成 source/Archive/Apple CDN三层 icon验证与 Production entitlement回读；
+- [x] #102-#104附证据 close，Todoist移至 Release，清理已合并 task branch；
+- [x] 保持 App Review/public iOS release 未执行；CloudKit verdict `NO_DEPLOY`，未 deploy。
+
 ## Conflict 决策记录
 
 | Path / area | Upstream intent | Fork invariant | Resolution | Verification |
@@ -114,3 +127,19 @@ Date: 2026-08-28
 | candidate appcast | XML valid; `131.1.1.23.0`; enclosure length `74879194`; EdDSA verified; candidate kept only in detached `/tmp` worktree |
 | remote task branch / tag | draft创建时两者均不存在；用户于2026-08-30授权PR后push branch，初始remote head `62abb00efb319affada9df0029532b1e151b71ab`；candidate tag仍不存在 |
 | live appcast unchanged | working and `origin/mobile-dev` SHA-256 both `7a0078d8ab90af5be5d19e343c3054e2df45d9d94d584950491a77907eb03267` |
+
+## Published release 记录
+
+| Evidence | Value |
+|---|---|
+| PR / merge | [#105](https://github.com/o1xhack/CodexBar-Mobile/pull/105) / `9f3b28746ca74222e08bd8a2703d96c305546a26` |
+| Final CI | [33343515532](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/33343515532) / success |
+| Mac notary | `f19497f4-fc65-4295-af1d-2e54ef67480f` / `Accepted` / staple + Gatekeeper + launch pass |
+| live release | [v0.56.0.1-mobile.1.23.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.56.0.1-mobile.1.23.0) / published 2026-08-30 PDT (2026-08-31 UTC) |
+| published ZIP | `9ac9007b0a05530eccaff54b2a9b154fd61b1bd43cf9212535e057b8b1104d30` / `74,884,775` bytes / embedded `9f3b28746` |
+| published dSYM | `6382c774b1a08af41ab55f788f54fb07a829660917a5e56eb842685b3c93ec40` / `57,062,195` bytes |
+| appcast | `131.1.1.23.0` / enclosure `74,884,775` / EdDSA verified / commit `d3b30a48a` |
+| ASC version | `1.23.0` / `PREPARE_FOR_SUBMISSION` / `MANUAL` / four `What's New` locales |
+| ASC build | `196` / `VALID` / `APP_STORE_ELIGIBLE` / bound to `1.23.0` |
+| iOS archive | `/tmp/CodexBarMobile-20260830-181907.xcarchive` / bundle `1.23.0 (196)` / Production CloudKit |
+| remaining authorization boundary | App Review submit and public iOS release not performed |
