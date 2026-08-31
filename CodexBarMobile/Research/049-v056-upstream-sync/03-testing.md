@@ -28,8 +28,8 @@ Date: 2026-08-28
 | 16-case compatibility gate | substituted-complete | 16 行全部列出；无 2 Mac + 2 iPhone 实机，使用 S1-S5 替代证据 |
 | local/agent review blocker count | pass | 三路 exact-head review 最终 blocker=0；CloudKit/iOS focused 复测通过；draft body finding 已修并 API 复核 |
 | signed/notarized live Mac release | pass | 从 merge commit `9f3b28746` 重建；notary `Accepted`；staple/Gatekeeper/launch通过；ZIP/dSYM、live appcast与GitHub release全部回读验证 |
-| iOS App Store Connect handoff | pass | Archive/upload `1.23.0 (196)`；`VALID` / `APP_STORE_ELIGIBLE`；四语言 `What's New`；build双向绑定回读通过 |
-| final authorization boundary | pass | CloudKit `NO_DEPLOY`未deploy；App Review与public iOS release未执行；其余用户授权的merge/live Mac/upload/bind已完成 |
+| iOS App Store Connect handoff | pass | Archive/upload `1.23.0 (196)`；`VALID` / `APP_STORE_ELIGIBLE`；四语言 `What's New`；build双向绑定回读通过；App Review为`WAITING_FOR_REVIEW` |
+| final authorization boundary | pass | CloudKit `NO_DEPLOY`未deploy；App Review已按追加授权提交；`MANUAL` public iOS release未执行 |
 
 ## 已执行的关键命令
 
@@ -188,8 +188,9 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   iOS 303 source keys四语完整）全部通过；整体修复提交为`e4a0bb2d3`，第十五轮
   exact-head review结论为`Didn't find any major issues`，0个新thread；
 - 本文件状态为 `done`；PR #105、merge-only Final CI、Mac live release/appcast 与 iOS
-  Archive/upload/build binding均已获用户追加授权并执行。CloudKit verdict为 `NO_DEPLOY`，
-  App Review submit与public iOS release仍未授权且未执行。
+  Archive/upload/build binding均已获用户追加授权并执行。2026-08-30 用户进一步授权 App Review，
+  submission与version已回读为`WAITING_FOR_REVIEW`。CloudKit verdict为 `NO_DEPLOY`；
+  public iOS release未执行。
 
 ## Published release / ASC closeout evidence
 
@@ -213,7 +214,10 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   non-expired / min iOS 17.0；App Store version→build与build→version双向关系均回读一致；
 - icon gate：1024 source无alpha且视觉完整；Archive 120 CgBI icon无alpha且视觉完整；Apple CDN
   152 iconAssetToken视觉完整；
-- version保持 `PREPARE_FOR_SUBMISSION` / `MANUAL`，没有创建 submission、没有提交 App Review；
+- review submission `3d68c4ed-ad43-4ec1-b066-d945e01d019e` 关联唯一的 iOS `1.23.0`
+  item，并于 `2026-08-31T03:19:07.901Z` 提交；submission与version均为
+  `WAITING_FOR_REVIEW`，build `196`仍为`VALID`且未过期，四语言`What's New`逐项回读非空；
+  releaseType保持`MANUAL`，没有公开iOS；
 - #102-#104已附闭环证据并 close；open `upstream-sync` issue回读为空；合并后的 task branch已清理。
 
 ## Historical signed draft evidence
