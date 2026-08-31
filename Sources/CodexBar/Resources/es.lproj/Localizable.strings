@@ -647,6 +647,8 @@
 "section_keyboard_shortcut" = "Atajo de teclado";
 "open_menu_shortcut_title" = "Abrir menú";
 "open_menu_shortcut_subtitle" = "Abrir el menú de la barra de menús desde cualquier lugar.";
+"record_shortcut" = "Grabar atajo";
+"press_shortcut" = "Pulsar atajo";
 "install_cli" = "Instalar CLI";
 "install_cli_subtitle" = "Crear un enlace simbólico de CodexBarCLI en /usr/local/bin y /opt/homebrew/bin como codexbar.";
 "cli_not_found" = "No se encontró CodexBarCLI en el paquete de la app.";
@@ -811,6 +813,7 @@
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticación";
 "Overages" = "Excesos";
+"Overage" = "Exceso";
 "Activity" = "Actividad";
 "Copied" = "Copiado";
 "Copy error" = "Error al copiar";
@@ -821,6 +824,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "El saldo se actualiza casi en tiempo real (hasta 5 min de retraso)";
 "Daily billing data finalizes at 07:00 UTC" = "Los datos diarios de facturación se cierran a las 07:00 UTC";
 "%@ of %@ credits left" = "Quedan %@ de %@ créditos";
+"of %@" = "de %@";
 "%@ of %@ bonus credits left" = "Quedan %@ de %@ créditos de bonificación";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ restante)";
 "%@/%@ left" = "%@/%@ restante";
@@ -832,6 +836,7 @@
 "Full in ~1 regen" = "Lleno en ~1 regeneración";
 "Full in ~%.0f regens" = "Lleno en ~%.0f regeneraciones";
 "Overage usage" = "Uso excedente";
+"Overage credits left" = "Créditos excedentes restantes";
 "Overage cost" = "Coste excedente";
 "credits" = "créditos";
 "Zen balance" = "Saldo Zen";
@@ -1363,6 +1368,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Apilado compacto";
 "menu_bar_layout_preset_custom" = "Personalizado";
 "menu_bar_layout_live_preview" = "Vista previa en directo";
+"menu_bar_layout_default_preview" = "Vista previa del diseño predeterminado";
+"menu_bar_layout_overrides_notice" = "Estos proveedores habilitados usan sus propios diseños guardados:";
+"menu_bar_layout_use_all_accessibility" = "%@: Usar el diseño de todos los proveedores";
 "menu_bar_layout_strip" = "Franja de la barra de menús";
 "menu_bar_layout_remove_line_break" = "Quitar salto de línea";
 "menu_bar_layout_chip_hint" = "Selecciona, arrastra para reordenar o usa la acción Quitar.";
@@ -1370,6 +1378,7 @@
 "menu_bar_layout_empty_line" = "Suelta una ficha aquí";
 "menu_bar_layout_line" = "Línea %d";
 "menu_bar_layout_drag_remove" = "Arrastra aquí para quitar";
+"menu_bar_layout_remove_selected" = "Quitar selección";
 "menu_bar_layout_size" = "Tamaño";
 "menu_bar_layout_size_small" = "Pequeño";
 "menu_bar_layout_size_regular" = "Normal";
@@ -1598,3 +1607,4 @@
 "menu_bar_layout_conditional_default_session_spent" = "Sesión casi agotada";
 "menu_bar_layout_conditional_default_either_high" = "Sesión o semana en nivel alto";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Semana por modelo por encima del 60 %";
+"Spending cap, not balance" = "Límite de gasto, no saldo";

@@ -158,25 +158,32 @@ six_reviews=$(jq -nc --argjson author "$codex" '[
 write_fixture six-rounds-no-audit "$six_reviews" "$clean_comment" '[]'
 expect_fail six-rounds-no-audit
 
-audit_body=$'Codex review architecture audit\nHead: aaaaaaaaaa\nRepeated finding pattern: Review findings share an ownership-boundary flaw.\nRoot design/requirements problem: The gate encoded comments without an explicit lifecycle.\nRevised approach: Model ordered review evidence and validate the pre-sixth checkpoint.'
+audit_body=$'Codex review architecture audit\nHead: 5555555555\nRepeated finding pattern: Review findings share an ownership-boundary flaw.\nRoot design/requirements problem: The gate encoded comments without an explicit lifecycle.\nRevised approach: Model ordered review evidence and validate the pre-sixth checkpoint.'
 late_audit=$(jq -nc --argjson author "$owner" --arg body "$audit_body" \
   '{author:$author,body:$body,createdAt:"2026-08-17T00:00:07Z"}')
 write_fixture six-rounds-late-audit "$six_reviews" "${clean_comment%]} ,$late_audit]" '[]'
 expect_fail six-rounds-late-audit
 
 marker_only=$(jq -nc --argjson author "$owner" \
-  '{author:$author,body:"Codex review architecture audit\nHead: aaaaaaaaaa",createdAt:"2026-08-17T00:00:00Z"}')
+  '{author:$author,body:"Codex review architecture audit\nHead: 5555555555",createdAt:"2026-08-17T00:00:05Z"}')
 write_fixture six-rounds-marker-only "$six_reviews" "${clean_comment%]} ,$marker_only]" '[]'
 expect_fail six-rounds-marker-only
 
 audit_comment=$(jq -nc --argjson author "$owner" --arg body "$audit_body" \
-  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:00Z"}')
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:05Z"}')
 write_fixture six-rounds-with-audit "$six_reviews" "${clean_comment%]} ,$audit_comment]" '[]'
 expect_pass six-rounds-with-audit
 
-full_head_audit=${audit_body/Head: aaaaaaaaaa/Head: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+stale_audit=${audit_body/Head: 5555555555/Head: 4444444444}
+stale_audit_comment=$(jq -nc --argjson author "$owner" --arg body "$stale_audit" \
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:05Z"}')
+write_fixture six-rounds-stale-checkpoint-audit "$six_reviews" \
+  "${clean_comment%]} ,$stale_audit_comment]" '[]'
+expect_fail six-rounds-stale-checkpoint-audit
+
+full_head_audit=${audit_body/Head: 5555555555/Head: 5555555555555555555555555555555555555555}
 full_head_comment=$(jq -nc --argjson author "$owner" --arg body "$full_head_audit" \
-  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:00Z"}')
+  '{author:$author,body:$body,createdAt:"2026-08-17T00:00:05Z"}')
 write_fixture six-rounds-with-full-head-audit "$six_reviews" \
   "${clean_comment%]} ,$full_head_comment]" '[]'
 expect_pass six-rounds-with-full-head-audit

@@ -73,7 +73,8 @@ struct ProviderUsageView: View {
                     UsageCardView(
                         label: ProviderWindowLabel.localized(
                             window.label,
-                            fallback: self.defaultLabel(at: index)),
+                            fallback: self.defaultLabel(at: index),
+                            providerID: self.provider.providerID),
                         window: window,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)",

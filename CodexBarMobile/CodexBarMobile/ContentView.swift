@@ -654,12 +654,14 @@ enum CostDiagnosticsLedgerAggregationResolver {
         cwlWindowDays: Int,
         modelContext: ModelContext,
         activeDeviceIDs: Set<String>?,
-        sourceSnapshots: [SyncedUsageSnapshot] = []) -> CostLedgerAggregation?
+        sourceSnapshots: [SyncedUsageSnapshot] = [],
+        asOf: Date = Date()) -> CostLedgerAggregation?
     {
         guard cwlEnabled else { return nil }
         return try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
             windowDays: cwlWindowDays,
             in: modelContext,
+            asOf: asOf,
             activeDeviceIDs: activeDeviceIDs,
             sourceSnapshots: sourceSnapshots)
     }
@@ -2234,6 +2236,7 @@ private struct BudgetRowView: View {
 
             BudgetProgressView(
                 budget: self.row.budget,
+                providerID: self.row.provider.providerID,
                 tintColor: providerTint(for: self.row.provider))
         }
     }
@@ -3290,7 +3293,10 @@ private struct RawProviderRow: View {
                             .foregroundStyle(.tertiary)
                     }
                     if let window = self.provider.allRateWindows.first {
-                        Text("\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
+                        // Developer inspector: keep provider wire text verbatim so
+                        // payload diagnostics can distinguish producer output from
+                        // the localized production presentation.
+                        Text(verbatim: "\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -3385,7 +3391,9 @@ private struct RawRateWindowRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(self.window.label ?? "Rate Limit")
+                // Developer inspector: this row intentionally exposes the
+                // canonical wire label rather than the localized UI label.
+                Text(verbatim: self.window.label ?? "Rate Limit")
                 Spacer()
                 Text("\(Int(self.window.usedPercent))% used")
                     .foregroundStyle(self.window.usedPercent > 80 ? .red : .secondary)
@@ -4058,8 +4066,31 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.22.0",
+            version: "1.23.0",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "iPhone 1.23 adds richer Kiro and Cursor details, Fireworks spend, and safer unknown-cost handling from newer Macs."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Richer provider details — Kiro now shows plan, credits, overages, context, tools, responses, prompts, and management details; Cursor keeps the Grok Bot lane visible."),
+                        String(
+                            localized: "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0."),
+                        String(
+                            localized: "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(
+                            localized: "For all new details, update CodexBar on Mac to version 0.56.0.1 or later. iPhone 1.23 still works with data from older Mac versions."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.22.0",
+            status: "",
             summary: String(
                 localized: "iPhone 1.22 makes cost totals clearer with coverage, source, and token details from newer Macs."),
             sections: [

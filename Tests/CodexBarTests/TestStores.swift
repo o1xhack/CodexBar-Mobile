@@ -121,16 +121,30 @@ func testConfigStore(suiteName: String, reset: Bool = true) -> CodexBarConfigSto
 }
 
 @MainActor
+func testConfigWithAllProvidersDisabled() -> CodexBarConfig {
+    let metadata = ProviderRegistry.shared.metadata
+    var config = CodexBarConfig.makeDefault(metadata: metadata)
+    for index in config.providers.indices {
+        guard let provider = config.providers[index].id.firstPartyProvider,
+              metadata[provider] != nil else { continue }
+        config.providers[index].enabled = false
+    }
+    return config
+}
+
+@MainActor
 func testSettingsStore(
     suiteName: String,
     tokenAccountStore: any ProviderTokenAccountStoring = InMemoryTokenAccountStore(),
-    config: CodexBarConfig? = nil) -> SettingsStore
+    config: CodexBarConfig? = nil,
+    prepareDefaults: ((UserDefaults) -> Void)? = nil) -> SettingsStore
 {
     let isolatedSuiteName = "\(suiteName)-\(UUID().uuidString)"
     guard let defaults = UserDefaults(suiteName: isolatedSuiteName) else {
         preconditionFailure("Could not create test defaults suite")
     }
     defaults.removePersistentDomain(forName: isolatedSuiteName)
+    prepareDefaults?(defaults)
     let configStore = testConfigStore(suiteName: isolatedSuiteName)
     if let config {
         do {
@@ -178,7 +192,7 @@ func withStatusItemControllerForTesting<T>(
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: account ?? AccountInfo(email: nil, plan: nil),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)
@@ -199,7 +213,7 @@ func withStatusItemControllerForTesting<T>(
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: account ?? AccountInfo(email: nil, plan: nil),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)

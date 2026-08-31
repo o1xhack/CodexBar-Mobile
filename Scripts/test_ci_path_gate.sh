@@ -130,9 +130,9 @@ if [[ -s "$unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success true success >/dev/null
-"$verify" success success false skipped false skipped >/dev/null
-"$verify" success success true success false skipped >/dev/null
+"$verify" success success true success true success success >/dev/null
+"$verify" success success false skipped false skipped skipped >/dev/null
+"$verify" success success true success false skipped skipped >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -141,12 +141,24 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped true success
-assert_verify_fails success success false success false skipped
-assert_verify_fails success success "" skipped false skipped
-assert_verify_fails failure success true success true success
-assert_verify_fails success failure true success true success
-assert_verify_fails success success true success true skipped
-assert_verify_fails success success false skipped false success
+assert_verify_fails success success true skipped true success success
+assert_verify_fails success success false success false skipped skipped
+assert_verify_fails success success "" skipped false skipped skipped
+assert_verify_fails failure success true success true success success
+assert_verify_fails success failure true success true success success
+assert_verify_fails success success true success true skipped success
+assert_verify_fails success success true success true success skipped
+assert_verify_fails success success true success true failure success
+assert_verify_fails success success true success true success cancelled
+assert_verify_fails success success false skipped false success skipped
+assert_verify_fails success success false skipped false skipped success
+assert_verify_fails success success true success true success
+
+workflow="${ROOT_DIR}/.github/workflows/ci.yml"
+grep -Fq '      - build-linux-cli' "$workflow"
+grep -Fq '      - build-linux-musl-cli' "$workflow"
+[[ "$(grep -Fc "if: \${{ needs.changes.outputs.linux-tests == 'true' }}" "$workflow")" -eq 2 ]]
+grep -Fq '            "${{ needs.build-linux-cli.result }}" \' "$workflow"
+grep -Fq '            "${{ needs.build-linux-musl-cli.result }}"' "$workflow"
 
 printf 'CI final path gate tests passed.\n'

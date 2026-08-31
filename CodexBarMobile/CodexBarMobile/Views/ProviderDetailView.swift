@@ -318,7 +318,10 @@ struct ProviderDetailView: View {
 
                 // Budget progress
                 if let budget = self.provider.budget, budget.limitAmount > 0 {
-                    BudgetProgressView(budget: budget, tintColor: self.providerColor)
+                    BudgetProgressView(
+                        budget: budget,
+                        providerID: self.provider.providerID,
+                        tintColor: self.providerColor)
                 }
 
                 // Utilization history chart
@@ -489,7 +492,8 @@ struct ProviderDetailView: View {
                     UsageCardView(
                         label: ProviderWindowLabel.localized(
                             window.label,
-                            fallback: self.defaultLabel(at: index)),
+                            fallback: self.defaultLabel(at: index),
+                            providerID: self.provider.providerID),
                         window: window,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "provider-detail-percent-\(self.provider.providerID)-\(index)",

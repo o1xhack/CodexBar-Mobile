@@ -77,6 +77,8 @@ public struct GrokUsageSnapshot: Sendable {
 public struct GrokStatusProbe: Sendable {
     public static let teamUsageUnavailableMessage =
         "Grok team usage is unavailable from the current billing surface; identity is still available."
+    public static let usageUnavailableMessage =
+        "Grok usage is unavailable because its billing sources did not report a usage percentage."
 
     public init() {}
 
@@ -122,7 +124,7 @@ public struct GrokStatusProbe: Sendable {
         }
 
         // Local fallback summary always succeeds (empty if no sessions yet).
-        let localSummary = GrokLocalSessionScanner.summarize(env: env)
+        let localSummary = try await GrokLocalSessionScanner.summarizeOffMainThread(env: env)
         let cliVersion = Self.detectVersion(env: env)
 
         // `localSummary` is *not* currently projected into a visible RateWindow or

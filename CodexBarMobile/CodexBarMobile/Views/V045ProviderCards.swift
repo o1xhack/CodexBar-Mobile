@@ -50,8 +50,27 @@ enum ProviderWindowLabel {
     static func localized(
         _ label: String?,
         fallback: String,
+        providerID: String? = nil,
         locale: Locale = .current) -> String
     {
+        if providerID == "kiro", label == "Overage" {
+            return MobileLocalizedString.value("Overage", defaultValue: "Overage", locale: locale)
+        }
+        if providerID == "antigravity",
+           let count = self.antigravityOfflineConversationCount(from: label)
+        {
+            if count == 1 {
+                return MobileLocalizedString.value(
+                    "v056_window_antigravity_offline_conversation_one",
+                    defaultValue: "Offline · 1 conversation",
+                    locale: locale)
+            }
+            let format = MobileLocalizedString.value(
+                "v056_window_antigravity_offline_conversations_format",
+                defaultValue: "Offline · %lld conversations",
+                locale: locale)
+            return String(format: format, locale: locale, arguments: [Int64(count)])
+        }
         if let label,
            label.hasSuffix(" only"),
            label.count > " only".count
@@ -137,6 +156,26 @@ enum ProviderWindowLabel {
                 defaultValue: "Extra usage",
                 locale: locale)
         }
+    }
+
+    private static func antigravityOfflineConversationCount(from label: String?) -> Int? {
+        let prefix = "Offline · "
+        let singularSuffix = " conversation"
+        let pluralSuffix = " conversations"
+        guard let label, label.hasPrefix(prefix) else { return nil }
+
+        let suffix: String
+        if label.hasSuffix(pluralSuffix) {
+            suffix = pluralSuffix
+        } else if label.hasSuffix(singularSuffix) {
+            suffix = singularSuffix
+        } else {
+            return nil
+        }
+        let countText = label.dropFirst(prefix.count).dropLast(suffix.count)
+        guard let count = Int(countText), count > 0 else { return nil }
+        guard (count == 1) == (suffix == singularSuffix) else { return nil }
+        return count
     }
 }
 

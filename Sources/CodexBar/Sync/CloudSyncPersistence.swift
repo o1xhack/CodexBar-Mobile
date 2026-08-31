@@ -24,6 +24,8 @@ struct CloudSyncPersistence: Sendable {
         var snapshotTokenAccountIDs: [String: UUID]
         var fleetDevices: [String: DeviceSyncPayload]
         var fleetSnapshots: [String: AccountSnapshotSyncPayload]
+        var pendingSnapshotDeletes: Set<String>
+        var pendingPredecessorDeletes: [String: Set<String>]
 
         init(
             stateSerialization: CKSyncEngine.State.Serialization?,
@@ -37,7 +39,9 @@ struct CloudSyncPersistence: Sendable {
             snapshotOwnershipKnownRecordNames: Set<String> = [],
             snapshotTokenAccountIDs: [String: UUID] = [:],
             fleetDevices: [String: DeviceSyncPayload] = [:],
-            fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:])
+            fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:],
+            pendingSnapshotDeletes: Set<String> = [],
+            pendingPredecessorDeletes: [String: Set<String>] = [:])
         {
             self.stateSerialization = stateSerialization
             self.encodedSystemFields = encodedSystemFields
@@ -51,6 +55,8 @@ struct CloudSyncPersistence: Sendable {
             self.snapshotTokenAccountIDs = snapshotTokenAccountIDs
             self.fleetDevices = fleetDevices
             self.fleetSnapshots = fleetSnapshots
+            self.pendingSnapshotDeletes = pendingSnapshotDeletes
+            self.pendingPredecessorDeletes = pendingPredecessorDeletes
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -66,6 +72,8 @@ struct CloudSyncPersistence: Sendable {
             case snapshotTokenAccountIDs
             case fleetDevices
             case fleetSnapshots
+            case pendingSnapshotDeletes
+            case pendingPredecessorDeletes
         }
 
         init(from decoder: any Decoder) throws {
@@ -106,6 +114,12 @@ struct CloudSyncPersistence: Sendable {
             self.fleetSnapshots = try container.decodeIfPresent(
                 [String: AccountSnapshotSyncPayload].self,
                 forKey: .fleetSnapshots) ?? [:]
+            self.pendingSnapshotDeletes = try container.decodeIfPresent(
+                Set<String>.self,
+                forKey: .pendingSnapshotDeletes) ?? []
+            self.pendingPredecessorDeletes = try container.decodeIfPresent(
+                [String: Set<String>].self,
+                forKey: .pendingPredecessorDeletes) ?? [:]
         }
     }
 
