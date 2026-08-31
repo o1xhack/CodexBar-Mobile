@@ -214,7 +214,11 @@ xcrun cktool export-schema --team-id 3TUERHN53E \
   non-expired / min iOS 17.0；App Store version→build与build→version双向关系均回读一致；
 - icon gate：1024 source无alpha且视觉完整；Archive 120 CgBI icon无alpha且视觉完整；Apple CDN
   152 iconAssetToken视觉完整；
-- review submission `3d68c4ed-ad43-4ec1-b066-d945e01d019e` 关联唯一的 iOS `1.23.0`
+- pre-submission snapshot：PR #106 merge commit `0a7e5adac` 于
+  `2026-08-31T03:04:28Z` 固化初始 closeout 状态；version 为
+  `PREPARE_FOR_SUBMISSION` / `MANUAL`，没有 review submission；
+- post-submission snapshot：review submission `3d68c4ed-ad43-4ec1-b066-d945e01d019e`
+  关联唯一的 iOS `1.23.0`
   item，并于 `2026-08-31T03:19:07.901Z` 提交；submission与version均为
   `WAITING_FOR_REVIEW`，build `196`仍为`VALID`且未过期，四语言`What's New`逐项回读非空；
   releaseType保持`MANUAL`，没有公开iOS；
