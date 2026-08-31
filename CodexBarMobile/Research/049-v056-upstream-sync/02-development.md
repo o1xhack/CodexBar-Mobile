@@ -57,7 +57,9 @@ Date: 2026-08-28
 - [x] Archive/upload build `196`，Apple处理为 `VALID` / `APP_STORE_ELIGIBLE`，绑定到版本页；
 - [x] 完成 source/Archive/Apple CDN三层 icon验证与 Production entitlement回读；
 - [x] #102-#104附证据 close，Todoist移至 Release，清理已合并 task branch；
-- [x] 保持 App Review/public iOS release 未执行；CloudKit verdict `NO_DEPLOY`，未 deploy。
+- [x] 初始 closeout 保持 App Review/public iOS release 未执行；CloudKit verdict `NO_DEPLOY`，未 deploy；
+- [x] 2026-08-30 获得追加授权后提交 App Review，回读 `WAITING_FOR_REVIEW`；保持 `MANUAL`，
+  未执行 public iOS release。
 
 ## Conflict 决策记录
 
@@ -139,7 +141,9 @@ Date: 2026-08-28
 | published ZIP | `9ac9007b0a05530eccaff54b2a9b154fd61b1bd43cf9212535e057b8b1104d30` / `74,884,775` bytes / embedded `9f3b28746` |
 | published dSYM | `6382c774b1a08af41ab55f788f54fb07a829660917a5e56eb842685b3c93ec40` / `57,062,195` bytes |
 | appcast | `131.1.1.23.0` / enclosure `74,884,775` / EdDSA verified / commit `d3b30a48a` |
-| ASC version | `1.23.0` / `PREPARE_FOR_SUBMISSION` / `MANUAL` / four `What's New` locales |
+| ASC pre-submission snapshot | PR #106 merge `2026-08-31T03:04:28Z` / `1.23.0` / `PREPARE_FOR_SUBMISSION` / `MANUAL` / no review submission |
+| ASC current version | `1.23.0` / `WAITING_FOR_REVIEW` / `MANUAL` / four `What's New` locales |
 | ASC build | `196` / `VALID` / `APP_STORE_ELIGIBLE` / bound to `1.23.0` |
+| App Review submission | `3d68c4ed-ad43-4ec1-b066-d945e01d019e` / submitted `2026-08-31T03:19:07.901Z` / `WAITING_FOR_REVIEW` |
 | iOS archive | `/tmp/CodexBarMobile-20260830-181907.xcarchive` / bundle `1.23.0 (196)` / Production CloudKit |
-| remaining authorization boundary | App Review submit and public iOS release not performed |
+| remaining authorization boundary | public iOS release not performed; `MANUAL` release remains in force |

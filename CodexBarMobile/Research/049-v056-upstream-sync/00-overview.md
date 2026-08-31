@@ -21,7 +21,9 @@ Goal 启动时上游最新正式 release 已是
 Code Review 循环；随后又明确授权 merge、Mac live release 与 iOS App Store Connect
 version/build handoff。PR #105 已合并，Mac release 与 appcast 已公开，iOS `1.23.0 (196)`
 已上传、处理为 `VALID` 并绑定到四语言 App Store version。CloudKit 审计为 `NO_DEPLOY`，
-因此未执行 schema deploy；App Review submit 与 iOS public release 仍未授权、未执行。
+因此未执行 schema deploy。2026-08-30 用户进一步授权 App Review submission；Apple 已接收
+submission，version 与 submission 均为 `WAITING_FOR_REVIEW`。发布方式仍为 `MANUAL`，
+iOS public release 未执行。
 
 ## 分支证据
 
@@ -162,4 +164,9 @@ subscription 或 `providerPayloadVersion` bump。实现完成后仍须从最后 
   entitlement 回读为 CloudKit `Production`；
 - #102-#104 均附 release/ASC/CloudKit 证据并 close，当前 open `upstream-sync` issue 为 0；
   原 task branch 在合并、发布和证据回读后从 local/origin 清理；
-- App Store version 保持 `PREPARE_FOR_SUBMISSION` / `MANUAL`，未提交 App Review，未公开 iOS。
+- 初始 closeout snapshot 由 PR #106 merge commit `0a7e5adac` 在
+  `2026-08-31T03:04:28Z` 固化：version 为 `PREPARE_FOR_SUBMISSION` / `MANUAL`，
+  尚无 review submission；
+- 后续 App Review submission `3d68c4ed-ad43-4ec1-b066-d945e01d019e` 于
+  `2026-08-31T03:19:07.901Z` 提交；submission 与 version 均回读为 `WAITING_FOR_REVIEW`；
+  `MANUAL` release 保持不变，未公开 iOS。
