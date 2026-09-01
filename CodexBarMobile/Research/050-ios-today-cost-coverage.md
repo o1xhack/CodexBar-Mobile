@@ -44,7 +44,7 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 
 - 定向成本与展示链路：196 tests passed；首轮发现并保留 3 个既有 fail-closed 场景后复测全绿；
 - Widget 旧缓存兼容：缺少新增 lower-bound 字段的旧 JSON 仍可解码，字段按 `nil` 处理；
-- 完整 `CodexBarMobileTests`：748 tests passed，0 failed；其中新增参数化 matrix 的
+- 完整 `CodexBarMobileTests`：749 tests passed，0 failed；其中新增参数化 matrix 的
   16/16 dynamic cases全部通过；
 - iPhone 17 Pro / iOS 26.5：Release simulator build、install、launch 与 Cost tab navigation通过；
 - repository lint：SwiftFormat 0/2094、SwiftLint 0 violations / 2093 files、四语言
@@ -108,7 +108,11 @@ lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot
 - PR #110 第四轮 exact-head review 发现 lower-bound 不应由其他日期的 window-level gap 永久
   触发，且 provider subtitle 与 diagnostics summary 尚未传播 qualifier；修复后只有
   `historyCoverageIsEstablished == false` 才标记 `≥`，历史 gap warning 继续保留，两个展示面也与
-  Overview/share/widget 一致。定向 117 tests 与完整 748 tests 均通过。
+  Overview/share/widget 一致。定向 117 tests 与当轮完整 748 tests 均通过；第五轮修复后完整
+  suite 更新为 749 tests passed。
+- PR #110 第五轮 exact-head review 发现 Widget aggregate 会把有效的 `≥$0.00` lower bound 当成
+  普通零值隐藏；修复后仅在 lower-bound 成立时保留零值，普通 exact `$0.00` 的既有隐藏策略不变，
+  并新增 Widget aggregate/provider 回归测试。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

@@ -377,7 +377,9 @@ enum CodexBarWidgetSnapshotBuilder {
             deviceCount: activeSnapshots.count,
             providerCount: visibleSummaries.count,
             errorCount: errorCount,
-            todayCostUSD: !todayCostIsUnavailable && todayCost > 0 ? todayCost : nil,
+            todayCostUSD: !todayCostIsUnavailable && (todayCost > 0 || todayCostIsLowerBound)
+                ? todayCost
+                : nil,
             todayCostIsLowerBound: todayCostIsLowerBound ? true : nil,
             thirtyDayCostUSD: !thirtyDayCostIsIncomplete && thirtyDayCost > 0 ? thirtyDayCost : nil,
             todayTokens: todayTokens > 0 ? todayTokens : nil,

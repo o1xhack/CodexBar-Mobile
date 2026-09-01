@@ -805,6 +805,49 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.thirtyDayCostUSD == nil)
     }
 
+    @Test
+    func `retains a zero Today lower bound in widget totals`() {
+        let now = Self.localNoonToday()
+        let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 0,
+                sessionTokens: 0,
+                last30DaysCostUSD: 0,
+                last30DaysTokens: 0,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 0,
+                    totalTokens: 0,
+                    costIsKnown: true)],
+                sourceUpdatedAt: now,
+                sourceDayKey: todayKey,
+                sessionDayKey: todayKey,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: false))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "MacBook",
+            deviceID: "device-a")
+
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+
+        #expect(widget.todayCostUSD == 0)
+        #expect(widget.todayCostIsLowerBound == true)
+        #expect(widget.topProviders.first?.todayCostUSD == 0)
+        #expect(widget.topProviders.first?.todayCostIsLowerBound == true)
+    }
+
     /// Exhaustive binary ordering from docs/ios-sync-compatibility-testing.md:
     /// bit 3 = Mac A, bit 2 = Mac B, bit 1 = iPhone A, bit 0 = iPhone B.
     /// The hotfix does not change the Mac payload, so old/new writer fixtures
