@@ -10,6 +10,15 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新的 Mac 夥伴 — Mac 版 CodexBar 現已包含 upstream 0.54.1–0.56.0 的 provider、效能、可靠性與安全性更新。" } }
       }
     },
+    "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "正確な今日のコスト — 過去の履歴がまだ不完全でも、現在の Mac 日付で確定している支出は、概要、診断、共有カード、ウィジェットに引き続き表示されます。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "准确的今日费用 — 即使更早的历史记录仍不完整，当前 Mac 日期中已知的支出仍会显示在总览、诊断、分享卡片和小组件中。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "準確的今日費用 — 即使較早的歷史記錄仍不完整，目前 Mac 日期中已知的支出仍會顯示在總覽、診斷、分享卡片和小工具中。" } }
+      }
+    },
     "Bonus credits left": {
       "extractionState": "manual",
       "localizations": {

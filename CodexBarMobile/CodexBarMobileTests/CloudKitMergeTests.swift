@@ -2028,9 +2028,9 @@ struct CloudKitMergeTests {
         #expect(mergedToday.costUSD == 12)
         #expect(mergedToday.totalTokens == 120)
         #expect(mergedToday.costIsKnown == true)
-        // The amount is retained as a visible lower bound in the dated row,
-        // but the aggregate catch-up bit prevents an unqualified Today card.
-        #expect(cost.todayTotals(now: now).displayCostUSD == nil)
+        // Historical catch-up remains visible as an incomplete-history
+        // warning, but it no longer erases an independently known Today row.
+        #expect(cost.todayTotals(now: now).displayCostUSD == 12)
     }
 
     @Test
@@ -2875,6 +2875,54 @@ struct CloudKitMergeTests {
         #expect(cost.costDayKey(for: now) == "2026-08-22")
         #expect(today.displayCostUSD == 1)
         #expect(today.tokens == 100)
+    }
+
+    @Test
+    func `todayTotals keeps a known dated amount during incomplete historical catch-up`() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: 4.56,
+            sessionTokens: 4_000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30_000,
+            daily: [SyncDailyPoint(
+                dayKey: Self.pinnedTodayKey,
+                costUSD: 4.56,
+                totalTokens: 4_000,
+                costIsKnown: true)],
+            coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
+            sourceUpdatedAt: Self.pinnedToday,
+            sourceDayKey: Self.pinnedTodayKey,
+            sessionDayKey: Self.pinnedTodayKey,
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: false)
+
+        let today = cost.todayTotals(now: Self.pinnedToday)
+
+        #expect(today.displayCostUSD == 4.56)
+        #expect(today.tokens == 4_000)
+        #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
+    }
+
+    @Test
+    func `todayTotals keeps a known session fallback during incomplete historical catch-up`() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1_000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30_000,
+            daily: [],
+            coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
+            sourceUpdatedAt: Self.pinnedToday,
+            sourceDayKey: Self.pinnedTodayKey,
+            sessionDayKey: Self.pinnedTodayKey,
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: false)
+
+        let today = cost.todayTotals(now: Self.pinnedToday)
+
+        #expect(today.displayCostUSD == 1.23)
+        #expect(today.tokens == 1_000)
+        #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
     }
 
     @Test

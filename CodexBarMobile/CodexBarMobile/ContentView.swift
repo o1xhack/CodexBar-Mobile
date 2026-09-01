@@ -4079,6 +4079,8 @@ private enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0."),
                         String(
+                            localized: "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete."),
+                        String(
                             localized: "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates."),
                     ]),
                 .init(

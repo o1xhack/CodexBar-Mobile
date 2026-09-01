@@ -620,6 +620,86 @@ struct WidgetSnapshotBuilderTests {
     }
 
     @Test
+    func `keeps known Today cost while historical coverage is incomplete`() {
+        let now = Self.localNoonToday()
+        let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        let macBook = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 7.37,
+                sessionTokens: 7_000,
+                last30DaysCostUSD: 619.55,
+                last30DaysTokens: 600_000,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 7.37,
+                    totalTokens: 7_000,
+                    costIsKnown: true)],
+                coverage: SyncCostCoverage(priced: 99, unpriced: 1, unmetered: 0, estimated: 0),
+                sourceUpdatedAt: now,
+                sourceDayKey: todayKey,
+                sessionDayKey: todayKey,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: false))
+        let studio = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 193.58,
+                sessionTokens: 193_000,
+                last30DaysCostUSD: 9_503.87,
+                last30DaysTokens: 9_000_000,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 193.58,
+                    totalTokens: 193_000,
+                    costIsKnown: true)],
+                coverage: SyncCostCoverage(priced: 999, unpriced: 1, unmetered: 0, estimated: 0),
+                sourceUpdatedAt: now,
+                sourceDayKey: todayKey,
+                sessionDayKey: todayKey,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: false))
+        let snapshots = [
+            SyncedUsageSnapshot(
+                providers: [macBook],
+                syncTimestamp: now,
+                deviceName: "MacBook",
+                deviceID: "device-a"),
+            SyncedUsageSnapshot(
+                providers: [studio],
+                syncTimestamp: now,
+                deviceName: "Studio",
+                deviceID: "device-b"),
+        ]
+
+        let merged = CloudSyncReader.mergeSnapshots(snapshots)
+        let insights = merged.map { CostDashboardInsights(snapshot: $0, now: now) }
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+
+        #expect(abs((insights?.totalTodayCost ?? 0) - 200.95) < 0.0001)
+        #expect(insights?.totalTodayCostIsKnown == true)
+        #expect(insights?.hasIncompleteCostData == true)
+        #expect(abs((widget.todayCostUSD ?? 0) - 200.95) < 0.0001)
+        #expect(widget.thirtyDayCostUSD == nil)
+    }
+
+    @Test
     func `suppresses Today subtotal when a modern provider has no current-day cost`() throws {
         let now = Self.localNoonToday()
         let yesterday = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))

@@ -148,6 +148,8 @@ struct CostDiagnosticsReportTests {
             ledgerAvailable: false)
 
         #expect(partialReport.totalCostIsKnown)
+        #expect(partialReport.todayCostIsKnown)
+        #expect(partialReport.todayCostUSD == 2)
         #expect(partialReport.costCoverageIsIncomplete)
         #expect(!partialReport.checks.contains(where: { $0.status == .pass }))
     }

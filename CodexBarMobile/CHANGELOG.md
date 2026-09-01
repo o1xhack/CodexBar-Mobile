@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.23.0 (196)] — 2026-08-28 — CodexBar 0.56.0 upstream sync roll-up
+## [1.23.0 (197)] — 2026-09-01 — CodexBar 0.56.0 upstream sync roll-up
 
 ### Added
 
@@ -22,13 +22,21 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   its token signal while incomplete or unavailable cost remains unknown rather
   than appearing as an authoritative `$0`.
 
+### Fixed
+
+- **Today cost during historical catch-up** — A current, independently known
+  daily or session amount stays visible in Overview, diagnostics, share cards,
+  and widgets while older cost history remains incomplete. Undated, stale, and
+  explicitly unknown Today data still fail closed.
+
 ### Notes
 
 - Pairs with Mac CodexBar `0.56.0.1` / build `131.1`, composite Sparkle version
   `131.1.1.23.0`, candidate tag `v0.56.0.1-mobile.1.23.0`, and upstream
   `steipete/CodexBar` `v0.56.0`.
 - iOS `MARKETING_VERSION`: `1.22.0` → `1.23.0`; iOS
-  `CURRENT_PROJECT_VERSION`: `195` → `196`.
+  `CURRENT_PROJECT_VERSION`: `195` → `197` (build `197` contains the Today-cost
+  hotfix; build `196` was the original upstream-sync candidate).
 - The synced models, `providerPayloadVersion = 1`, CloudKit record types, fields,
   indexes, zones, subscriptions, and query predicates are unchanged.
 

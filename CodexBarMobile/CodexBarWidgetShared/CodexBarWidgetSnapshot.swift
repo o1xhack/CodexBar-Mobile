@@ -355,11 +355,14 @@ enum CodexBarWidgetSnapshotBuilder {
         let sessionDayKey = summary.sessionDayKey ?? sourceDayKey
         let sourceIsStale = sourceDayKey.map { $0 != dayKey } ?? false
         let sessionSourceIsStale = sessionDayKey.map { $0 != dayKey } ?? false
-        let todayCoverageIsIncomplete = summary.hasInvalidBucketTimeZoneIdentifier ||
-            summary.historyCoverageIsEstablished == false ||
+        // Historical coverage belongs to the configured scan window. A known
+        // dated point/session remains displayable while an undated legacy
+        // fallback keeps the aggregate coverage guard.
+        let todayCalendarIsInvalid = summary.hasInvalidBucketTimeZoneIdentifier
+        let historicalCoverageIsIncomplete = summary.historyCoverageIsEstablished == false ||
             summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
         if let point = summary.daily.first(where: { $0.dayKey == dayKey }) {
-            let costIsKnown = todayCoverageIsIncomplete || sourceIsStale ? false : point.costIsKnown
+            let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : point.costIsKnown
             return (
                 costIsKnown == false ? nil : point.costUSD,
                 point.totalTokens,
@@ -368,7 +371,9 @@ enum CodexBarWidgetSnapshotBuilder {
         if sessionSourceIsStale {
             return (nil, nil, false)
         }
-        let costIsKnown = todayCoverageIsIncomplete
+        let hasQualifiedCurrentSession = sessionDayKey == dayKey && summary.sessionCostIsKnown == true
+        let costIsKnown = todayCalendarIsInvalid ||
+            (historicalCoverageIsIncomplete && !hasQualifiedCurrentSession)
             ? false
             : summary.sessionCostIsKnown ?? (summary.sessionCostUSD == nil ? nil : true)
         return (
