@@ -40,6 +40,10 @@ extension SyncCostSummary {
         /// `false` means a zero cost is only a token-only wire placeholder.
         /// `nil` is a legacy payload and retains its historical display.
         let costIsKnown: Bool?
+        /// `true` means the priced rows seen so far are displayable only as a
+        /// lower bound because the producer has not finished establishing the
+        /// configured scan window.
+        let isLowerBound: Bool
 
         var displayCostUSD: Double? {
             self.costIsKnown == false ? nil : self.costUSD
@@ -60,29 +64,44 @@ extension SyncCostSummary {
         let sessionDayKey = self.sessionDayKey ?? sourceDayKey
         let sourceIsStale = sourceDayKey.map { $0 != todayKey } ?? false
         let sessionSourceIsStale = sessionDayKey.map { $0 != todayKey } ?? false
-        // The coverage bit and gap counters are aggregate, not date-scoped.
-        // Until the Mac certifies the scan, a priced Today row is still only a
-        // lower bound because an unvisited file may add more usage.
-        let todayCoverageIsIncomplete = self.hasInvalidBucketTimeZoneIdentifier ||
-            self.historyCoverageIsEstablished == false ||
+        // Historical coverage and gap counters describe the whole configured
+        // scan window, not this dated row. Keep the history warning visible,
+        // but do not erase an independently known, current-day amount. An
+        // undated session fallback is not independently qualified, so it keeps
+        // the aggregate coverage guard used by older payloads.
+        let todayCalendarIsInvalid = self.hasInvalidBucketTimeZoneIdentifier
+        let historyScanIsIncomplete = self.historyCoverageIsEstablished == false
+        let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
             self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
+            let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : todayPoint.costIsKnown
             return TodayTotals(
                 costUSD: todayPoint.costUSD,
                 tokens: todayPoint.totalTokens,
                 isEstimated: todayPoint.isEstimated,
-                costIsKnown: todayCoverageIsIncomplete || sourceIsStale ? false : todayPoint.costIsKnown)
+                costIsKnown: costIsKnown,
+                isLowerBound: costIsKnown != false && historyScanIsIncomplete)
         }
         if sessionSourceIsStale {
-            return TodayTotals(costUSD: nil, tokens: nil, isEstimated: nil, costIsKnown: false)
+            return TodayTotals(
+                costUSD: nil,
+                tokens: nil,
+                isEstimated: nil,
+                costIsKnown: false,
+                isLowerBound: false)
         }
+        let hasQualifiedCurrentSession = sessionDayKey == todayKey && self.sessionCostIsKnown == true
+        let sessionCostIsKnown: Bool? = todayCalendarIsInvalid ||
+            (historicalCoverageIsIncomplete && !hasQualifiedCurrentSession)
+            ? false
+            : self.sessionCostIsKnown ?? (self.sessionCostUSD == nil ? nil : true)
         return TodayTotals(
             costUSD: self.sessionCostUSD,
             tokens: self.sessionTokens,
             isEstimated: nil,
-            costIsKnown: todayCoverageIsIncomplete
-                ? false
-                : self.sessionCostIsKnown ?? (self.sessionCostUSD == nil ? nil : true))
+            costIsKnown: sessionCostIsKnown,
+            isLowerBound: sessionCostIsKnown != false &&
+                self.sessionCostUSD != nil && historyScanIsIncomplete)
     }
 
     /// Logical day distance from the producer's current cost bucket.

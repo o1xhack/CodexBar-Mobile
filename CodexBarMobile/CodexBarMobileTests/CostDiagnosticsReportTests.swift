@@ -59,6 +59,8 @@ struct CostDiagnosticsReportTests {
 
         #expect(report.totalCostUSD == 10)
         #expect(report.todayCostUSD == 10)
+        #expect(!report.todayCostIsLowerBound)
+        #expect(report.todayCostDisplayValue == "$10.00")
         #expect(report.activeDeviceCount == 1)
         #expect(report.excludedDeviceCount == 0)
         #expect(report.checks.first(where: { $0.kind == .providerShare })?.status == .pass)
@@ -148,6 +150,10 @@ struct CostDiagnosticsReportTests {
             ledgerAvailable: false)
 
         #expect(partialReport.totalCostIsKnown)
+        #expect(partialReport.todayCostIsKnown)
+        #expect(partialReport.todayCostUSD == 2)
+        #expect(partialReport.todayCostIsLowerBound)
+        #expect(partialReport.todayCostDisplayValue == "≥$2.00")
         #expect(partialReport.costCoverageIsIncomplete)
         #expect(!partialReport.checks.contains(where: { $0.status == .pass }))
     }

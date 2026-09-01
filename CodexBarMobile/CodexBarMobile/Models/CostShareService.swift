@@ -61,6 +61,7 @@ struct ShareCardData {
     let dailyBars: [DailyBar] // bars for chart (7 or 30 entries)
     var totalCostIsKnown = true
     var todayCostIsKnown = true
+    var todayCostIsLowerBound = false
     var costCoverageIsIncomplete = false
     var avgDailyCostIsKnown = true
 
@@ -106,6 +107,12 @@ struct ShareCardData {
             .map(\.cost)
             .max() ?? 0
         return maximum > 0 ? maximum : 1
+    }
+
+    var todayCostDisplayValue: String {
+        guard self.todayCostIsKnown else { return "—" }
+        let prefix = self.todayCostIsLowerBound ? "≥" : ""
+        return "\(prefix)\(CostFormatting.usd(self.todayCost))"
     }
 
     func chartBarHeight(for day: DailyBar, chartHeight: CGFloat) -> CGFloat {
@@ -826,6 +833,7 @@ extension ShareCardData {
         }
         self.totalCostIsKnown = periodCostIsKnown
         self.todayCostIsKnown = insights.totalTodayCostIsKnown
+        self.todayCostIsLowerBound = insights.totalTodayCostIsLowerBound
         let selectedPeriodUsesIncompleteSummary = period == .month &&
             monthlyUsesProviderSummary &&
             insights.providerRows.contains {

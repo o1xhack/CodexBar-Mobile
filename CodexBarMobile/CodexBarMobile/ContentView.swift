@@ -952,7 +952,8 @@ private struct CostDashboardView: View {
                         ? Self.formatUSD(self.insights.totalTodayCost)
                         : "—",
                     subtitle: self.providersActiveSubtitle,
-                    tintColor: .mint)
+                    tintColor: .mint,
+                    isLowerBound: self.insights.totalTodayCostIsLowerBound)
 
                 CostMetricCard(
                     title: "Top Driver",
@@ -1261,8 +1262,8 @@ private struct CostDashboardView: View {
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
         let today = !row.todayCostIsKnown
             ? "—"
-            : row.todayCost > 0
-            ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
+            : row.todayCost > 0 || row.todayCostIsLowerBound
+            ? "\(String(localized: "Today")) \(row.todayCostDisplayValue)"
             : String(localized: "No spend today")
         let tokens = row.thirtyDayTokens > 0 ? Self
             .formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
@@ -1392,6 +1393,7 @@ struct CostDashboardInsights {
         let todayCost: Double
         let thirtyDayCostIsKnown: Bool
         let todayCostIsKnown: Bool
+        let todayCostIsLowerBound: Bool
         let thirtyDayTokens: Int
         let todayTokens: Int
         let dailyPoints: [DailyPoint]
@@ -1405,6 +1407,7 @@ struct CostDashboardInsights {
             todayCost: Double,
             thirtyDayCostIsKnown: Bool = true,
             todayCostIsKnown: Bool = true,
+            todayCostIsLowerBound: Bool = false,
             thirtyDayTokens: Int,
             todayTokens: Int,
             dailyPoints: [DailyPoint],
@@ -1415,6 +1418,7 @@ struct CostDashboardInsights {
             self.todayCost = todayCost
             self.thirtyDayCostIsKnown = thirtyDayCostIsKnown
             self.todayCostIsKnown = todayCostIsKnown
+            self.todayCostIsLowerBound = todayCostIsLowerBound
             self.thirtyDayTokens = thirtyDayTokens
             self.todayTokens = todayTokens
             self.dailyPoints = dailyPoints
@@ -1426,6 +1430,12 @@ struct CostDashboardInsights {
         /// Hit on user QA 2026-05-04 — see RawSyncDataView fix in same commit.
         var id: String {
             self.provider.cardIdentityKey
+        }
+
+        var todayCostDisplayValue: String {
+            guard self.todayCostIsKnown else { return "—" }
+            let prefix = self.todayCostIsLowerBound ? "≥" : ""
+            return "\(prefix)\(CostFormatting.usd(self.todayCost))"
         }
     }
 
@@ -1486,6 +1496,10 @@ struct CostDashboardInsights {
             return row.todayCostIsKnown ? true : nil
         }
         return !opinions.isEmpty && opinions.allSatisfy(\.self)
+    }
+
+    var totalTodayCostIsLowerBound: Bool {
+        self.totalTodayCostIsKnown && self.providerRows.contains(where: \.todayCostIsLowerBound)
     }
 
     var hasIncompleteCostData: Bool {
@@ -1593,6 +1607,7 @@ struct CostDashboardInsights {
                     todayCost: todayCost,
                     thirtyDayCostIsKnown: resolvedThirtyDayCost != nil,
                     todayCostIsKnown: resolvedTodayCost != nil,
+                    todayCostIsLowerBound: todayTotals.isLowerBound,
                     thirtyDayTokens: thirtyDayTokens,
                     todayTokens: todayTokens,
                     dailyPoints: providerDailyPoints))
@@ -1746,6 +1761,7 @@ struct CostDashboardInsights {
                 todayCost: todayCost,
                 thirtyDayCostIsKnown: totals.costIsKnown,
                 todayCostIsKnown: resolvedTodayCost != nil,
+                todayCostIsLowerBound: fallbackToday?.isLowerBound == true,
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints,
@@ -1803,6 +1819,7 @@ struct CostDashboardInsights {
                 todayCost: todayCost,
                 thirtyDayCostIsKnown: resolvedCostIsKnown,
                 todayCostIsKnown: resolvedTodayCost != nil,
+                todayCostIsLowerBound: todayTotals.isLowerBound,
                 thirtyDayTokens: resolvedTokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
@@ -3640,7 +3657,7 @@ private struct CostDiagnosticsView: View {
                         value: report.totalCostIsKnown ? CostFormatting.usd(report.totalCostUSD) : "—")
                     LabeledContent(
                         "Today",
-                        value: report.todayCostIsKnown ? CostFormatting.usd(report.todayCostUSD) : "—")
+                        value: report.todayCostDisplayValue)
                     LabeledContent("Active Days", value: "\(report.activeDayCount)")
                     LabeledContent("Top Driver", value: self.topDriverText(report))
                     LabeledContent("Active Devices", value: "\(report.activeDeviceCount)")
@@ -4078,6 +4095,8 @@ private enum MobileReleaseNotesCatalog {
                             localized: "Richer provider details — Kiro now shows plan, credits, overages, context, tools, responses, prompts, and management details; Cursor keeps the Grok Bot lane visible."),
                         String(
                             localized: "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0."),
+                        String(
+                            localized: "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, diagnostics, share cards, and widgets."),
                         String(
                             localized: "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates."),
                     ]),

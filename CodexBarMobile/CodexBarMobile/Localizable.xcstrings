@@ -10,6 +10,15 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新的 Mac 夥伴 — Mac 版 CodexBar 現已包含 upstream 0.54.1–0.56.0 的 provider、效能、可靠性與安全性更新。" } }
       }
     },
+    "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, diagnostics, share cards, and widgets.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, diagnostics, share cards, and widgets." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "正確な今日のコスト — 履歴の追いつき処理中も当日の支出を表示し、概要、プロバイダーカード、診断、共有カード、ウィジェットでは安全な下限値を ≥ で示します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "准确的今日费用 — 历史数据追赶期间仍显示当天支出，并在总览、Provider 卡片、诊断、分享卡片和小组件中用 ≥ 标记安全下限。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "準確的今日費用 — 歷史資料追趕期間仍顯示當天支出，並在總覽、Provider 卡片、診斷、分享卡片和小工具中用 ≥ 標記安全下限。" } }
+      }
+    },
     "Bonus credits left": {
       "extractionState": "manual",
       "localizations": {
@@ -17,6 +26,24 @@
         "ja": { "stringUnit": { "state": "translated", "value": "残りボーナスクレジット" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余奖励额度" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘獎勵額度" } }
+      }
+    },
+    "Lower bound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lower bound" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "下限値" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下限值" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "下限值" } }
+      }
+    },
+    "Lower bound and estimated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lower bound and estimated" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "下限値かつ推定値" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下限值且为估算值" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "下限值且為估算值" } }
       }
     },
     "Context files": {

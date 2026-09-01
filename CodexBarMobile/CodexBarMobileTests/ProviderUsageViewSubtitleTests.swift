@@ -169,4 +169,31 @@ struct ProviderUsageViewSubtitleTests {
         #expect(ProviderUsageView.costTeaserParts(cost, now: producerToday).count == 2)
         #expect(ProviderUsageView.costTeaserParts(cost, now: producerTomorrow).isEmpty)
     }
+
+    @Test("Cost teaser marks a current-day lower bound while history catches up")
+    @MainActor
+    func costTeaserMarksLowerBound() throws {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let now = try #require(utc.date(from: DateComponents(year: 2001, month: 1, day: 2, hour: 12)))
+        let cost = SyncCostSummary(
+            sessionCostUSD: 7,
+            sessionTokens: 700,
+            last30DaysCostUSD: 70,
+            last30DaysTokens: 7_000,
+            daily: [SyncDailyPoint(
+                dayKey: "2001-01-02",
+                costUSD: 7,
+                totalTokens: 700,
+                costIsKnown: true)],
+            sourceDayKey: "2001-01-02",
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: false)
+
+        let parts = ProviderUsageView.costTeaserParts(cost, now: now)
+
+        #expect(parts.first?.contains("≥") == true)
+        #expect(parts.count == 1)
+    }
 }

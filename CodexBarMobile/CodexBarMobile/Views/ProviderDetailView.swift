@@ -558,7 +558,8 @@ struct ProviderDetailView: View {
                         value: CostFormatting.cost(todayCost, currencyCode: cost.currencyCode),
                         subtitle: today.tokens.map { Self.formatTokens($0) },
                         tintColor: self.providerColor,
-                        isEstimated: today.isEstimated == true)
+                        isEstimated: today.isEstimated == true,
+                        isLowerBound: today.isLowerBound)
                 }
                 if let monthCost = cost.last30DaysCostUSD {
                     CostMetricCard(
