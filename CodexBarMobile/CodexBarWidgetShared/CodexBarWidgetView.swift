@@ -826,7 +826,7 @@ struct CodexBarWidgetView: View {
 
     private var todayCostProviders: [CodexBarWidgetProviderSummary] {
         displayProviders
-            .filter { ($0.todayCostUSD ?? 0) > 0 }
+            .filter(\.hasDisplayableTodayCost)
             .sorted { lhs, rhs in
             let lhsCost = lhs.todayCostUSD ?? 0
             let rhsCost = rhs.todayCostUSD ?? 0

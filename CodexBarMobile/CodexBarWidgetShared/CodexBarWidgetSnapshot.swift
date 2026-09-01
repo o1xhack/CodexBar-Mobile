@@ -60,6 +60,11 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
         }
         return nil
     }
+
+    var hasDisplayableTodayCost: Bool {
+        guard let todayCostUSD else { return false }
+        return todayCostUSD > 0 || self.todayCostIsLowerBound == true
+    }
 }
 
 struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {

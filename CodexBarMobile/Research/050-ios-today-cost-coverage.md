@@ -112,7 +112,8 @@ lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot
   suite 更新为 749 tests passed。
 - PR #110 第五轮 exact-head review 发现 Widget aggregate 会把有效的 `≥$0.00` lower bound 当成
   普通零值隐藏；修复后仅在 lower-bound 成立时保留零值，普通 exact `$0.00` 的既有隐藏策略不变，
-  并新增 Widget aggregate/provider 回归测试。
+  并把 provider row 的展示条件收敛到 `hasDisplayableTodayCost`，新增 Widget aggregate/provider
+  回归测试。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

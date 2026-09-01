@@ -846,6 +846,7 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.todayCostIsLowerBound == true)
         #expect(widget.topProviders.first?.todayCostUSD == 0)
         #expect(widget.topProviders.first?.todayCostIsLowerBound == true)
+        #expect(widget.topProviders.first?.hasDisplayableTodayCost == true)
     }
 
     /// Exhaustive binary ordering from docs/ios-sync-compatibility-testing.md:
