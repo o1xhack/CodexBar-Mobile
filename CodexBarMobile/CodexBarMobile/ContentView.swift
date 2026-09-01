@@ -952,7 +952,8 @@ private struct CostDashboardView: View {
                         ? Self.formatUSD(self.insights.totalTodayCost)
                         : "—",
                     subtitle: self.providersActiveSubtitle,
-                    tintColor: .mint)
+                    tintColor: .mint,
+                    isLowerBound: self.insights.totalTodayCostIsLowerBound)
 
                 CostMetricCard(
                     title: "Top Driver",
@@ -1392,6 +1393,7 @@ struct CostDashboardInsights {
         let todayCost: Double
         let thirtyDayCostIsKnown: Bool
         let todayCostIsKnown: Bool
+        let todayCostIsLowerBound: Bool
         let thirtyDayTokens: Int
         let todayTokens: Int
         let dailyPoints: [DailyPoint]
@@ -1405,6 +1407,7 @@ struct CostDashboardInsights {
             todayCost: Double,
             thirtyDayCostIsKnown: Bool = true,
             todayCostIsKnown: Bool = true,
+            todayCostIsLowerBound: Bool = false,
             thirtyDayTokens: Int,
             todayTokens: Int,
             dailyPoints: [DailyPoint],
@@ -1415,6 +1418,7 @@ struct CostDashboardInsights {
             self.todayCost = todayCost
             self.thirtyDayCostIsKnown = thirtyDayCostIsKnown
             self.todayCostIsKnown = todayCostIsKnown
+            self.todayCostIsLowerBound = todayCostIsLowerBound
             self.thirtyDayTokens = thirtyDayTokens
             self.todayTokens = todayTokens
             self.dailyPoints = dailyPoints
@@ -1486,6 +1490,10 @@ struct CostDashboardInsights {
             return row.todayCostIsKnown ? true : nil
         }
         return !opinions.isEmpty && opinions.allSatisfy(\.self)
+    }
+
+    var totalTodayCostIsLowerBound: Bool {
+        self.totalTodayCostIsKnown && self.providerRows.contains(where: \.todayCostIsLowerBound)
     }
 
     var hasIncompleteCostData: Bool {
@@ -1593,6 +1601,7 @@ struct CostDashboardInsights {
                     todayCost: todayCost,
                     thirtyDayCostIsKnown: resolvedThirtyDayCost != nil,
                     todayCostIsKnown: resolvedTodayCost != nil,
+                    todayCostIsLowerBound: todayTotals.isLowerBound,
                     thirtyDayTokens: thirtyDayTokens,
                     todayTokens: todayTokens,
                     dailyPoints: providerDailyPoints))
@@ -1746,6 +1755,7 @@ struct CostDashboardInsights {
                 todayCost: todayCost,
                 thirtyDayCostIsKnown: totals.costIsKnown,
                 todayCostIsKnown: resolvedTodayCost != nil,
+                todayCostIsLowerBound: fallbackToday?.isLowerBound == true,
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints,
@@ -1803,6 +1813,7 @@ struct CostDashboardInsights {
                 todayCost: todayCost,
                 thirtyDayCostIsKnown: resolvedCostIsKnown,
                 todayCostIsKnown: resolvedTodayCost != nil,
+                todayCostIsLowerBound: todayTotals.isLowerBound,
                 thirtyDayTokens: resolvedTokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints))
@@ -4079,7 +4090,7 @@ private enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Honest spend — Fireworks provider-reported spend and Antigravity token-only days stay distinct, so unknown cost never appears as $0."),
                         String(
-                            localized: "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete."),
+                            localized: "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, and widgets."),
                         String(
                             localized: "A current Mac companion — CodexBar for Mac now includes upstream 0.54.1–0.56.0 provider, performance, reliability, and security updates."),
                     ]),

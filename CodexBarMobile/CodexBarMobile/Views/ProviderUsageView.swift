@@ -343,7 +343,10 @@ struct ProviderUsageView: View {
     static func costTeaserParts(_ cost: SyncCostSummary, now: Date = Date()) -> [String] {
         let today = cost.todayTotals(now: now)
         return [
-            today.displayCostUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
+            today.displayCostUSD.map {
+                let amount = "\(today.isLowerBound ? "≥" : "")\(Self.formatUSD($0))"
+                return "\(String(localized: "Today")): \(amount)"
+            },
             cost.completeHistoryCostUSD(at: now).map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
         ].compactMap { $0 }
     }

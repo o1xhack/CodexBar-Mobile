@@ -24,10 +24,11 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 ### Fixed
 
-- **Today cost during historical catch-up** — A current, independently known
-  daily or session amount stays visible in Overview, diagnostics, share cards,
-  and widgets while older cost history remains incomplete. Undated, stale, and
-  explicitly unknown Today data still fail closed.
+- **Today cost during historical catch-up** — A current, priced daily or session
+  amount stays visible in Overview, diagnostics, share cards, and widgets while
+  older cost history remains incomplete. The `≥` marker identifies a safe lower
+  bound until scanning finishes; undated, stale, and explicitly unknown Today
+  data still fail closed.
 
 ### Notes
 

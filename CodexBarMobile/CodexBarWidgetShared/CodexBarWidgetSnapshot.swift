@@ -16,11 +16,40 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
     let loginMethod: String?
     let usagePercent: Double?
     let todayCostUSD: Double?
+    let todayCostIsLowerBound: Bool?
     let thirtyDayCostUSD: Double?
     let tokensToday: Int?
     let isError: Bool
     let statusMessage: String?
     let lastUpdated: Date
+
+    init(
+        id: String,
+        providerName: String,
+        providerID: String,
+        loginMethod: String?,
+        usagePercent: Double?,
+        todayCostUSD: Double?,
+        todayCostIsLowerBound: Bool? = nil,
+        thirtyDayCostUSD: Double?,
+        tokensToday: Int?,
+        isError: Bool,
+        statusMessage: String?,
+        lastUpdated: Date)
+    {
+        self.id = id
+        self.providerName = providerName
+        self.providerID = providerID
+        self.loginMethod = loginMethod
+        self.usagePercent = usagePercent
+        self.todayCostUSD = todayCostUSD
+        self.todayCostIsLowerBound = todayCostIsLowerBound
+        self.thirtyDayCostUSD = thirtyDayCostUSD
+        self.tokensToday = tokensToday
+        self.isError = isError
+        self.statusMessage = statusMessage
+        self.lastUpdated = lastUpdated
+    }
 
     var displaySubtitle: String? {
         if let loginMethod, !loginMethod.isEmpty {
@@ -41,12 +70,45 @@ struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {
     let providerCount: Int
     let errorCount: Int
     let todayCostUSD: Double?
+    let todayCostIsLowerBound: Bool?
     let thirtyDayCostUSD: Double?
     let todayTokens: Int?
     let maxUsagePercent: Double?
     let topProviders: [CodexBarWidgetProviderSummary]
     let message: String?
     let isStale: Bool
+
+    init(
+        state: CodexBarWidgetSnapshotState,
+        generatedAt: Date,
+        latestSyncAt: Date?,
+        deviceCount: Int,
+        providerCount: Int,
+        errorCount: Int,
+        todayCostUSD: Double?,
+        todayCostIsLowerBound: Bool? = nil,
+        thirtyDayCostUSD: Double?,
+        todayTokens: Int?,
+        maxUsagePercent: Double?,
+        topProviders: [CodexBarWidgetProviderSummary],
+        message: String?,
+        isStale: Bool)
+    {
+        self.state = state
+        self.generatedAt = generatedAt
+        self.latestSyncAt = latestSyncAt
+        self.deviceCount = deviceCount
+        self.providerCount = providerCount
+        self.errorCount = errorCount
+        self.todayCostUSD = todayCostUSD
+        self.todayCostIsLowerBound = todayCostIsLowerBound
+        self.thirtyDayCostUSD = thirtyDayCostUSD
+        self.todayTokens = todayTokens
+        self.maxUsagePercent = maxUsagePercent
+        self.topProviders = topProviders
+        self.message = message
+        self.isStale = isStale
+    }
 
     static func placeholder(now: Date = .now) -> CodexBarWidgetSnapshot {
         CodexBarWidgetSnapshot(
@@ -215,6 +277,7 @@ enum CodexBarWidgetSnapshotBuilder {
                     providerCount: snapshot.providerCount,
                     errorCount: snapshot.errorCount,
                     todayCostUSD: snapshot.todayCostUSD,
+                    todayCostIsLowerBound: snapshot.todayCostIsLowerBound,
                     thirtyDayCostUSD: snapshot.thirtyDayCostUSD,
                     todayTokens: snapshot.todayTokens,
                     maxUsagePercent: snapshot.maxUsagePercent,
@@ -280,9 +343,12 @@ enum CodexBarWidgetSnapshotBuilder {
             .filter { provider, _ in !provider.isProviderLevelCostEnvelope }
             .map(\.1)
         let costSummaries = providers.compactMap(\.costSummary)
-        let todayCostIsIncomplete = costSummaries.contains { summary in
+        let todayCostIsUnavailable = costSummaries.contains { summary in
             let today = self.todayTotals(from: summary, now: now)
             return today.costIsKnown == false
+        }
+        let todayCostIsLowerBound = !todayCostIsUnavailable && costSummaries.contains { summary in
+            self.todayTotals(from: summary, now: now).isLowerBound
         }
         let thirtyDayCostIsIncomplete = costSummaries.contains {
             $0.hasIncompleteHistoricalCostCoverage(at: now)
@@ -311,7 +377,8 @@ enum CodexBarWidgetSnapshotBuilder {
             deviceCount: activeSnapshots.count,
             providerCount: visibleSummaries.count,
             errorCount: errorCount,
-            todayCostUSD: !todayCostIsIncomplete && todayCost > 0 ? todayCost : nil,
+            todayCostUSD: !todayCostIsUnavailable && todayCost > 0 ? todayCost : nil,
+            todayCostIsLowerBound: todayCostIsLowerBound ? true : nil,
             thirtyDayCostUSD: !thirtyDayCostIsIncomplete && thirtyDayCost > 0 ? thirtyDayCost : nil,
             todayTokens: todayTokens > 0 ? todayTokens : nil,
             maxUsagePercent: maxUsage,
@@ -338,7 +405,8 @@ enum CodexBarWidgetSnapshotBuilder {
             providerID: provider.providerID,
             loginMethod: provider.loginMethod,
             usagePercent: usagePercent,
-            todayCostUSD: today?.costUSD,
+            todayCostUSD: today?.costIsKnown == false ? nil : today?.costUSD,
+            todayCostIsLowerBound: today?.isLowerBound == true ? true : nil,
             thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD(at: now),
             tokensToday: today?.tokens,
             isError: provider.isError,
@@ -348,7 +416,7 @@ enum CodexBarWidgetSnapshotBuilder {
 
     private static func todayTotals(
         from summary: SyncCostSummary,
-        now: Date) -> (costUSD: Double?, tokens: Int?, costIsKnown: Bool?)
+        now: Date) -> (costUSD: Double?, tokens: Int?, costIsKnown: Bool?, isLowerBound: Bool)
     {
         let dayKey = summary.costDayKey(for: now)
         let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map(summary.costDayKey)
@@ -366,10 +434,11 @@ enum CodexBarWidgetSnapshotBuilder {
             return (
                 costIsKnown == false ? nil : point.costUSD,
                 point.totalTokens,
-                costIsKnown)
+                costIsKnown,
+                costIsKnown != false && historicalCoverageIsIncomplete)
         }
         if sessionSourceIsStale {
-            return (nil, nil, false)
+            return (nil, nil, false, false)
         }
         let hasQualifiedCurrentSession = sessionDayKey == dayKey && summary.sessionCostIsKnown == true
         let costIsKnown = todayCalendarIsInvalid ||
@@ -379,6 +448,7 @@ enum CodexBarWidgetSnapshotBuilder {
         return (
             costIsKnown == false ? nil : summary.sessionCostUSD,
             summary.sessionTokens,
-            costIsKnown)
+            costIsKnown,
+            costIsKnown != false && summary.sessionCostUSD != nil && historicalCoverageIsIncomplete)
     }
 }

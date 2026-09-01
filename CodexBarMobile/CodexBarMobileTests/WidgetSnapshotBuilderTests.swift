@@ -6,6 +6,54 @@ import Testing
 @Suite("Widget snapshot builder")
 struct WidgetSnapshotBuilderTests {
     @Test
+    func `decodes legacy widget cache without lower-bound fields`() throws {
+        let now = Self.date("2026-06-28T12:00:00Z")
+        let provider = CodexBarWidgetProviderSummary(
+            id: "codex:dev@example.com",
+            providerName: "Codex",
+            providerID: "codex",
+            loginMethod: "Pro",
+            usagePercent: 81,
+            todayCostUSD: 7.25,
+            todayCostIsLowerBound: true,
+            thirtyDayCostUSD: 72.50,
+            tokensToday: 45000,
+            isError: false,
+            statusMessage: nil,
+            lastUpdated: now)
+        let current = CodexBarWidgetSnapshot(
+            state: .loaded,
+            generatedAt: now,
+            latestSyncAt: now,
+            deviceCount: 1,
+            providerCount: 1,
+            errorCount: 0,
+            todayCostUSD: 7.25,
+            todayCostIsLowerBound: true,
+            thirtyDayCostUSD: 72.50,
+            todayTokens: 45000,
+            maxUsagePercent: 81,
+            topProviders: [provider],
+            message: nil,
+            isStale: false)
+
+        let encoded = try JSONEncoder().encode(current)
+        var legacy = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        legacy.removeValue(forKey: "todayCostIsLowerBound")
+        var providers = try #require(legacy["topProviders"] as? [[String: Any]])
+        providers[0].removeValue(forKey: "todayCostIsLowerBound")
+        legacy["topProviders"] = providers
+
+        let decoded = try JSONDecoder().decode(
+            CodexBarWidgetSnapshot.self,
+            from: JSONSerialization.data(withJSONObject: legacy))
+
+        #expect(decoded.todayCostUSD == 7.25)
+        #expect(decoded.todayCostIsLowerBound == nil)
+        #expect(decoded.topProviders.first?.todayCostIsLowerBound == nil)
+    }
+
+    @Test
     func `builds overview metrics from real sync snapshots`() {
         let now = Self.date("2026-06-28T12:00:00Z")
         let snapshot = SyncedUsageSnapshot(
@@ -694,8 +742,11 @@ struct WidgetSnapshotBuilderTests {
 
         #expect(abs((insights?.totalTodayCost ?? 0) - 200.95) < 0.0001)
         #expect(insights?.totalTodayCostIsKnown == true)
+        #expect(insights?.totalTodayCostIsLowerBound == true)
         #expect(insights?.hasIncompleteCostData == true)
         #expect(abs((widget.todayCostUSD ?? 0) - 200.95) < 0.0001)
+        #expect(widget.todayCostIsLowerBound == true)
+        #expect(widget.topProviders.allSatisfy { $0.todayCostIsLowerBound == true })
         #expect(widget.thirtyDayCostUSD == nil)
     }
 

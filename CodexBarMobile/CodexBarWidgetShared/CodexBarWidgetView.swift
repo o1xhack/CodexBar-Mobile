@@ -305,7 +305,9 @@ struct CodexBarWidgetView: View {
         HStack(alignment: .top, spacing: spacing.metricColumn) {
             compactMetric(
                 label: String(localized: "Today"),
-                value: costText(entry.snapshot.todayCostUSD),
+                value: costText(
+                    entry.snapshot.todayCostUSD,
+                    isLowerBound: entry.snapshot.todayCostIsLowerBound == true),
                 systemImage: "dollarsign.circle",
                 accent: palette.metricAccent(.todayCost))
             verticalDivider(height: spacing.metricDividerHeight)
@@ -462,7 +464,9 @@ struct CodexBarWidgetView: View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 todayCostLabel(String(localized: "Today"), systemImage: "dollarsign.circle")
-                Text(costText(entry.snapshot.todayCostUSD))
+                Text(costText(
+                    entry.snapshot.todayCostUSD,
+                    isLowerBound: entry.snapshot.todayCostIsLowerBound == true))
                     .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(palette.value)
@@ -495,7 +499,9 @@ struct CodexBarWidgetView: View {
                 todayCostLabel(String(localized: "Today"), systemImage: "dollarsign.circle")
             }
 
-            Text(costText(entry.snapshot.todayCostUSD))
+            Text(costText(
+                entry.snapshot.todayCostUSD,
+                isLowerBound: entry.snapshot.todayCostIsLowerBound == true))
                 .font(.system(size: heroFontSize, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(palette.value)
@@ -846,7 +852,9 @@ struct CodexBarWidgetView: View {
         case .usage:
             return percentValueText(provider.usagePercent)
         case .todayCost:
-            return costText(provider.todayCostUSD)
+            return costText(
+                provider.todayCostUSD,
+                isLowerBound: provider.todayCostIsLowerBound == true)
         case .thirtyDayCost:
             return costText(provider.thirtyDayCostUSD)
         }
@@ -912,9 +920,10 @@ struct CodexBarWidgetView: View {
         }
     }
 
-    private func costText(_ value: Double?) -> String {
+    private func costText(_ value: Double?, isLowerBound: Bool = false) -> String {
         guard let value else { return "—" }
-        return value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
+        let amount = value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
+        return isLowerBound ? "≥\(amount)" : amount
     }
 
     private func tokensText(_ value: Int?) -> String {

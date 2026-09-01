@@ -10,13 +10,13 @@
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "更新的 Mac 夥伴 — Mac 版 CodexBar 現已包含 upstream 0.54.1–0.56.0 的 provider、效能、可靠性與安全性更新。" } }
       }
     },
-    "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete.": {
+    "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, and widgets.": {
       "extractionState": "manual",
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Accurate Today cost — known spend for the current Mac day stays visible across Overview, diagnostics, share cards, and widgets even when older history is still incomplete." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "正確な今日のコスト — 過去の履歴がまだ不完全でも、現在の Mac 日付で確定している支出は、概要、診断、共有カード、ウィジェットに引き続き表示されます。" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "准确的今日费用 — 即使更早的历史记录仍不完整，当前 Mac 日期中已知的支出仍会显示在总览、诊断、分享卡片和小组件中。" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "準確的今日費用 — 即使較早的歷史記錄仍不完整，目前 Mac 日期中已知的支出仍會顯示在總覽、診斷、分享卡片和小工具中。" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Accurate Today cost — current-day spend stays visible while history catches up, with ≥ marking a safe lower bound across Overview, provider cards, and widgets." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "正確な今日のコスト — 履歴の追いつき処理中も当日の支出を表示し、概要、プロバイダーカード、ウィジェットでは安全な下限値を ≥ で示します。" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "准确的今日费用 — 历史数据追赶期间仍显示当天支出，并在总览、Provider 卡片和小组件中用 ≥ 标记安全下限。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "準確的今日費用 — 歷史資料追趕期間仍顯示當天支出，並在總覽、Provider 卡片和小工具中用 ≥ 標記安全下限。" } }
       }
     },
     "Bonus credits left": {
@@ -26,6 +26,15 @@
         "ja": { "stringUnit": { "state": "translated", "value": "残りボーナスクレジット" } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "剩余奖励额度" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "剩餘獎勵額度" } }
+      }
+    },
+    "Lower bound": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lower bound" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "下限値" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下限值" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "下限值" } }
       }
     },
     "Context files": {

@@ -10,6 +10,9 @@ struct CostMetricCard: View {
     /// in the local pricing table). The footnote in `ProviderDetailView`
     /// explains the asterisk.
     var isEstimated: Bool = false
+    /// Prefix the amount with ≥ when the producer has priced the rows scanned
+    /// so far but has not yet established that the configured scan is complete.
+    var isLowerBound: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -35,13 +38,16 @@ struct CostMetricCard: View {
     }
 
     private func valueText(font: Font) -> some View {
-        let display = self.isEstimated ? "\(self.value)*" : self.value
+        let estimatedDisplay = self.isEstimated ? "\(self.value)*" : self.value
+        let display = self.isLowerBound ? "≥\(estimatedDisplay)" : estimatedDisplay
         return Text(display)
             .font(font)
             .fontWeight(.bold)
             .foregroundStyle(self.tintColor)
             .fixedSize(horizontal: true, vertical: false)
-            .accessibilityHint(self.isEstimated ? Text("Estimated") : Text(""))
+            .accessibilityHint(
+                self.isLowerBound ? Text("Lower bound") :
+                    self.isEstimated ? Text("Estimated") : Text(""))
     }
 }
 

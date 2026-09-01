@@ -2900,6 +2900,7 @@ struct CloudKitMergeTests {
 
         #expect(today.displayCostUSD == 4.56)
         #expect(today.tokens == 4_000)
+        #expect(today.isLowerBound)
         #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
     }
 
@@ -2922,6 +2923,7 @@ struct CloudKitMergeTests {
 
         #expect(today.displayCostUSD == 1.23)
         #expect(today.tokens == 1_000)
+        #expect(today.isLowerBound)
         #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
     }
 
