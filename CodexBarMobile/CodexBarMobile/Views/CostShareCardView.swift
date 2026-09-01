@@ -206,7 +206,7 @@ private struct TodayCard: View {
             .padding(.bottom, 16)
 
             // Hero number
-            Text(data.todayCostIsKnown ? formatUSD(data.todayCost) : "—")
+            Text(data.todayCostDisplayValue)
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)

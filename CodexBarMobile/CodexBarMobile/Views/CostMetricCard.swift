@@ -45,9 +45,16 @@ struct CostMetricCard: View {
             .fontWeight(.bold)
             .foregroundStyle(self.tintColor)
             .fixedSize(horizontal: true, vertical: false)
-            .accessibilityHint(
-                self.isLowerBound ? Text("Lower bound") :
-                    self.isEstimated ? Text("Estimated") : Text(""))
+            .accessibilityHint(self.valueAccessibilityHint)
+    }
+
+    private var valueAccessibilityHint: Text {
+        switch (self.isLowerBound, self.isEstimated) {
+        case (true, true): Text("Lower bound and estimated")
+        case (true, false): Text("Lower bound")
+        case (false, true): Text("Estimated")
+        case (false, false): Text("")
+        }
     }
 }
 

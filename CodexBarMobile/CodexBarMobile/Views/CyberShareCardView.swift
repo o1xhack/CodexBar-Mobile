@@ -191,6 +191,12 @@ private struct CyberCard: View {
         period == .today ? data.todayCostIsKnown : data.totalCostIsKnown
     }
 
+    private var heroCostDisplayValue: String {
+        period == .today
+            ? data.todayCostDisplayValue
+            : self.heroCostIsKnown ? formatUSD(self.heroCost) : "—"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Spacer().frame(height: 16)
@@ -222,7 +228,7 @@ private struct CyberCard: View {
             }
 
             // 3. Cost — medium, accent color
-            Text(self.heroCostIsKnown ? formatUSD(self.heroCost) : "—")
+            Text(self.heroCostDisplayValue)
                 .font(.system(size: 20, weight: .bold, design: .monospaced).monospacedDigit())
                 .foregroundStyle(theme.accent)
                 .shadow(color: theme.accentGlow, radius: 6)

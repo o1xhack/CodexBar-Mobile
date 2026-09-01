@@ -21,7 +21,7 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
   coverage guard；历史扫描未完成时把可见金额标为 `≥` lower bound，不声称它已经是最终总额；
 - 历史覆盖状态继续控制 30/365 日总额与 `Historical cost coverage is incomplete` 告警；
 - 缺失/unknown 的 Today point、跨日陈旧来源和非法 producer calendar 仍然 fail closed；
-- App 与 Widget 共用相同语义，避免 Overview、diagnostics、share card 与 widget 再次分叉；
+- App、分享卡与 Widget 共用相同语义，避免 Overview、diagnostics、share card 与 widget 再次分叉；
 - 不修改 wire model、CloudKit schema 或 Mac producer。
 
 ## 影响文件
@@ -44,7 +44,7 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 
 - 定向成本与展示链路：196 tests passed；首轮发现并保留 3 个既有 fail-closed 场景后复测全绿；
 - Widget 旧缓存兼容：缺少新增 lower-bound 字段的旧 JSON 仍可解码，字段按 `nil` 处理；
-- 完整 `CodexBarMobileTests`：744 tests passed，0 failed；
+- 完整 `CodexBarMobileTests`：745 tests passed，0 failed；
 - iPhone 17 Pro / iOS 26.5：Release simulator build、install、launch 与 Cost tab navigation通过；
 - repository lint：SwiftFormat 0/2094、SwiftLint 0 violations / 2093 files、四语言
   localization source/catalog audit、CI policy与release guards全部通过；
@@ -55,6 +55,8 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 - PR #110 首轮 exact-head review 指出 `historyCoverageIsEstablished=false` 也可能包含会影响
   Today 的尚未扫描 session；修复后不再把可见金额称作最终值，App 与 Widget 均显式传播
   lower-bound 状态并显示 `≥`，同时补 snapshot propagation 与 teaser 测试。
+- PR #110 第二轮 exact-head review 发现分享卡未传播 lower-bound qualifier，以及 `≥…*` 组合
+  状态会丢失 Estimated 的 VoiceOver 提示；两处均已修复并补四语言组合提示。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

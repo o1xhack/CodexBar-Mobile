@@ -739,11 +739,15 @@ struct WidgetSnapshotBuilderTests {
         let merged = CloudSyncReader.mergeSnapshots(snapshots)
         let insights = merged.map { CostDashboardInsights(snapshot: $0, now: now) }
         let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+        let share = insights.map { ShareCardData(insights: $0, period: .today) }
 
         #expect(abs((insights?.totalTodayCost ?? 0) - 200.95) < 0.0001)
         #expect(insights?.totalTodayCostIsKnown == true)
         #expect(insights?.totalTodayCostIsLowerBound == true)
         #expect(insights?.hasIncompleteCostData == true)
+        #expect(share?.todayCostIsKnown == true)
+        #expect(share?.todayCostIsLowerBound == true)
+        #expect(share?.todayCostDisplayValue == "≥$200.95")
         #expect(abs((widget.todayCostUSD ?? 0) - 200.95) < 0.0001)
         #expect(widget.todayCostIsLowerBound == true)
         #expect(widget.topProviders.allSatisfy { $0.todayCostIsLowerBound == true })
