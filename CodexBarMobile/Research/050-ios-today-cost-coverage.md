@@ -44,7 +44,7 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 
 - 定向成本与展示链路：196 tests passed；首轮发现并保留 3 个既有 fail-closed 场景后复测全绿；
 - Widget 旧缓存兼容：缺少新增 lower-bound 字段的旧 JSON 仍可解码，字段按 `nil` 处理；
-- 完整 `CodexBarMobileTests`：746 tests passed，0 failed；其中新增参数化 matrix 的
+- 完整 `CodexBarMobileTests`：748 tests passed，0 failed；其中新增参数化 matrix 的
   16/16 dynamic cases全部通过；
 - iPhone 17 Pro / iOS 26.5：Release simulator build、install、launch 与 Cost tab navigation通过；
 - repository lint：SwiftFormat 0/2094、SwiftLint 0 violations / 2093 files、四语言
@@ -105,6 +105,10 @@ lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot
 - 16/16 substituted cases 通过后，本 PR 的 canonical compatibility gate 结论为
   **SUBSTITUTED PASS**；不得对外表述为 2 Mac × 2 iPhone physical-device PASS。
 - PR #110 第三轮 exact-head review 指出最初证据没有列全 16 cases；本节与参数化测试补齐该 gate。
+- PR #110 第四轮 exact-head review 发现 lower-bound 不应由其他日期的 window-level gap 永久
+  触发，且 provider subtitle 与 diagnostics summary 尚未传播 qualifier；修复后只有
+  `historyCoverageIsEstablished == false` 才标记 `≥`，历史 gap warning 继续保留，两个展示面也与
+  Overview/share/widget 一致。定向 117 tests 与完整 748 tests 均通过。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

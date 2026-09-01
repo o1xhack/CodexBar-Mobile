@@ -65,6 +65,7 @@ struct CostDiagnosticsReport: Equatable {
     let todayCostUSD: Double
     let totalCostIsKnown: Bool
     let todayCostIsKnown: Bool
+    let todayCostIsLowerBound: Bool
     let costCoverageIsIncomplete: Bool
     let totalTokens: Int
     let activeDayCount: Int
@@ -75,6 +76,12 @@ struct CostDiagnosticsReport: Equatable {
     let excludedDeviceCount: Int
     let providerRules: [CostDiagnosticsProviderRule]
     let checks: [CostDiagnosticsCheck]
+
+    var todayCostDisplayValue: String {
+        guard self.todayCostIsKnown else { return "—" }
+        let prefix = self.todayCostIsLowerBound ? "≥" : ""
+        return "\(prefix)\(CostFormatting.usd(self.todayCostUSD))"
+    }
 
     static func make(
         insights: CostDashboardInsights,
@@ -162,6 +169,7 @@ struct CostDiagnosticsReport: Equatable {
             todayCostUSD: insights.totalTodayCost,
             totalCostIsKnown: insights.total30DayCostIsKnown,
             todayCostIsKnown: insights.totalTodayCostIsKnown,
+            todayCostIsLowerBound: insights.totalTodayCostIsLowerBound,
             costCoverageIsIncomplete: insights.hasIncompleteCostData,
             totalTokens: insights.total30DayTokens,
             activeDayCount: insights.activeDayCount,

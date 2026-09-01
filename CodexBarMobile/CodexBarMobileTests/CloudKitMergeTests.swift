@@ -2905,6 +2905,32 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `todayTotals does not qualify known Today for gaps on older days`() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: 4.56,
+            sessionTokens: 4_000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30_000,
+            daily: [SyncDailyPoint(
+                dayKey: Self.pinnedTodayKey,
+                costUSD: 4.56,
+                totalTokens: 4_000,
+                costIsKnown: true)],
+            coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
+            sourceUpdatedAt: Self.pinnedToday,
+            sourceDayKey: Self.pinnedTodayKey,
+            sessionDayKey: Self.pinnedTodayKey,
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true)
+
+        let today = cost.todayTotals(now: Self.pinnedToday)
+
+        #expect(today.displayCostUSD == 4.56)
+        #expect(!today.isLowerBound)
+        #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
+    }
+
+    @Test
     func `todayTotals keeps a known session fallback during incomplete historical catch-up`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,

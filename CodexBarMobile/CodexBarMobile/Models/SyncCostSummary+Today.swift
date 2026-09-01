@@ -70,7 +70,8 @@ extension SyncCostSummary {
         // undated session fallback is not independently qualified, so it keeps
         // the aggregate coverage guard used by older payloads.
         let todayCalendarIsInvalid = self.hasInvalidBucketTimeZoneIdentifier
-        let historicalCoverageIsIncomplete = self.historyCoverageIsEstablished == false ||
+        let historyScanIsIncomplete = self.historyCoverageIsEstablished == false
+        let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
             self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
             let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : todayPoint.costIsKnown
@@ -79,7 +80,7 @@ extension SyncCostSummary {
                 tokens: todayPoint.totalTokens,
                 isEstimated: todayPoint.isEstimated,
                 costIsKnown: costIsKnown,
-                isLowerBound: costIsKnown != false && historicalCoverageIsIncomplete)
+                isLowerBound: costIsKnown != false && historyScanIsIncomplete)
         }
         if sessionSourceIsStale {
             return TodayTotals(
@@ -100,7 +101,7 @@ extension SyncCostSummary {
             isEstimated: nil,
             costIsKnown: sessionCostIsKnown,
             isLowerBound: sessionCostIsKnown != false &&
-                self.sessionCostUSD != nil && historicalCoverageIsIncomplete)
+                self.sessionCostUSD != nil && historyScanIsIncomplete)
     }
 
     /// Logical day distance from the producer's current cost bucket.

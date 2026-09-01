@@ -745,12 +745,63 @@ struct WidgetSnapshotBuilderTests {
         #expect(insights?.totalTodayCostIsKnown == true)
         #expect(insights?.totalTodayCostIsLowerBound == true)
         #expect(insights?.hasIncompleteCostData == true)
+        #expect(insights?.providerRows.first?.todayCostDisplayValue == "≥$200.95")
         #expect(share?.todayCostIsKnown == true)
         #expect(share?.todayCostIsLowerBound == true)
         #expect(share?.todayCostDisplayValue == "≥$200.95")
         #expect(abs((widget.todayCostUSD ?? 0) - 200.95) < 0.0001)
         #expect(widget.todayCostIsLowerBound == true)
         #expect(widget.topProviders.allSatisfy { $0.todayCostIsLowerBound == true })
+        #expect(widget.thirtyDayCostUSD == nil)
+    }
+
+    @Test
+    func `does not qualify known Today when only older history has gaps`() {
+        let now = Self.localNoonToday()
+        let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 7.37,
+                sessionTokens: 7_000,
+                last30DaysCostUSD: 619.55,
+                last30DaysTokens: 600_000,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: 7.37,
+                    totalTokens: 7_000,
+                    costIsKnown: true)],
+                coverage: SyncCostCoverage(priced: 99, unpriced: 1, unmetered: 0, estimated: 0),
+                sourceUpdatedAt: now,
+                sourceDayKey: todayKey,
+                sessionDayKey: todayKey,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: true))
+        let snapshots = [SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "MacBook",
+            deviceID: "device-a")]
+
+        let merged = CloudSyncReader.mergeSnapshots(snapshots)
+        let insights = merged.map { CostDashboardInsights(snapshot: $0, now: now) }
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+
+        #expect(insights?.totalTodayCostIsKnown == true)
+        #expect(insights?.totalTodayCostIsLowerBound == false)
+        #expect(insights?.hasIncompleteCostData == true)
+        #expect(insights?.providerRows.first?.todayCostDisplayValue == "$7.37")
+        #expect(widget.todayCostUSD == 7.37)
+        #expect(widget.todayCostIsLowerBound == nil)
+        #expect(widget.topProviders.first?.todayCostIsLowerBound == nil)
         #expect(widget.thirtyDayCostUSD == nil)
     }
 
