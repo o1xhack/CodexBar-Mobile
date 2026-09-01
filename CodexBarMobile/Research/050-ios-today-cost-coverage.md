@@ -44,7 +44,8 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 
 - 定向成本与展示链路：196 tests passed；首轮发现并保留 3 个既有 fail-closed 场景后复测全绿；
 - Widget 旧缓存兼容：缺少新增 lower-bound 字段的旧 JSON 仍可解码，字段按 `nil` 处理；
-- 完整 `CodexBarMobileTests`：745 tests passed，0 failed；
+- 完整 `CodexBarMobileTests`：746 tests passed，0 failed；其中新增参数化 matrix 的
+  16/16 dynamic cases全部通过；
 - iPhone 17 Pro / iOS 26.5：Release simulator build、install、launch 与 Cost tab navigation通过；
 - repository lint：SwiftFormat 0/2094、SwiftLint 0 violations / 2093 files、四语言
   localization source/catalog audit、CI policy与release guards全部通过；
@@ -57,6 +58,53 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
   lower-bound 状态并显示 `≥`，同时补 snapshot propagation 与 teaser 测试。
 - PR #110 第二轮 exact-head review 发现分享卡未传播 lower-bound qualifier，以及 `≥…*` 组合
   状态会丢失 Estimated 的 VoiceOver 提示；两处均已修复并补四语言组合提示。
+
+## 2 Mac × 2 iPhone old/new 兼容性 gate
+
+本 hotfix 改变跨版本 Today-cost 展示与 `CodexBarWidgetSnapshot` 的 additive optional 字段，
+因此 `docs/ios-sync-compatibility-testing.md` 的 16-case gate 适用。这里的 `old Mac` 是已发布
+`mobile-dev` producer，`new Mac` 是本分支 candidate；本分支没有修改 Mac source、wire model 或
+CloudKit schema，所以二者都使用 `0.56.0.1` production payload contract。`old iPhone` 是
+`1.23.0 (196)` 展示 contract，`new iPhone` 是 `1.23.0 (197)` candidate。
+
+当前运行环境只有一台开发 Mac 和一台已连接 iPhone，无法反复安装并同时保留 2 Mac × 2 iPhone
+的 old/new binaries，因此以下结果严格标记为 `substituted PASS`，不是实机 PASS。替代证据为
+`WidgetSnapshotBuilderTests.2 Mac x 2 iPhone Today cost old-new matrix`：参数化执行 masks 0–15，
+使用两个 distinct Mac writer ID，经 production `CloudSyncConstants` codec round-trip 后，由两个
+独立 reader 路径执行 merge、App Today、share card 与 widget presentation。old reader contract
+保持 `—`，new reader 显示 `≥$200.95`；两者都保留 raw `$200.95`、唯一 provider identity 与两个
+device records，同版本 readers 必须收敛。另有双向 additive Codable 证据：new reader 解码缺少
+lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot 时忽略新 key 且不崩溃。
+
+| Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
+|---:|---|---|---|---|---|---|---|
+| 1 | old | old | old | old | substituted PASS | mask 0 | all-published control；两 reader 均为 `—` |
+| 2 | old | old | old | new | substituted PASS | mask 1 | new reader 解 published writers，显示 `≥$200.95` |
+| 3 | old | old | new | old | substituted PASS | mask 2 | case 2 reader role mirror |
+| 4 | old | old | new | new | substituted PASS | mask 3 | 两个 new readers 独立构建 widget snapshot 并收敛 |
+| 5 | old | new | old | old | substituted PASS | mask 4 | unchanged mixed writer contract；old readers fail closed |
+| 6 | old | new | old | new | substituted PASS | mask 5 | mixed writers/readers；raw total 与 qualified display 分离 |
+| 7 | old | new | new | old | substituted PASS | mask 6 | case 6 reader role mirror |
+| 8 | old | new | new | new | substituted PASS | mask 7 | mixed writers；new App/share/widget 均收敛 |
+| 9 | new | old | old | old | substituted PASS | mask 8 | writer role reverse；old readers fail closed |
+| 10 | new | old | old | new | substituted PASS | mask 9 | writer/reader 双重非对称 |
+| 11 | new | old | new | old | substituted PASS | mask 10 | case 10 reader role mirror |
+| 12 | new | old | new | new | substituted PASS | mask 11 | reversed writers；new readers 收敛 |
+| 13 | new | new | old | old | substituted PASS | mask 12 | candidate writers 保持 published wire；old readers 不崩溃 |
+| 14 | new | new | old | new | substituted PASS | mask 13 | candidate payload 同时供 old/new reader 读取 |
+| 15 | new | new | new | old | substituted PASS | mask 14 | case 14 reader role mirror |
+| 16 | new | new | new | new | substituted PASS | mask 15 | all-candidate App/share/widget convergence |
+
+### 剩余风险与 gate verdict
+
+- 未覆盖四台真实设备上的 Production CloudKit propagation、silent push 时序、foreground/background
+  切换与两个独立 WidgetKit host cache；这些仍是 release 前真实硬件 QA 风险。
+- published iOS binary 不理解 additive lower-bound key。candidate snapshot 可被它安全解码，但若用户
+  降级并由系统恢复 candidate 的 archived widget timeline，旧 UI 无法显示 `≥`；下一次旧版 timeline
+  refresh 会按 published fail-closed 逻辑重新隐藏 Today。正常升级方向由 legacy decode test 覆盖。
+- 16/16 substituted cases 通过后，本 PR 的 canonical compatibility gate 结论为
+  **SUBSTITUTED PASS**；不得对外表述为 2 Mac × 2 iPhone physical-device PASS。
+- PR #110 第三轮 exact-head review 指出最初证据没有列全 16 cases；本节与参数化测试补齐该 gate。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

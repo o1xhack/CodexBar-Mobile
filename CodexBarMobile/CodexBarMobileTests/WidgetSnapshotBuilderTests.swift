@@ -754,6 +754,69 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.thirtyDayCostUSD == nil)
     }
 
+    /// Exhaustive binary ordering from docs/ios-sync-compatibility-testing.md:
+    /// bit 3 = Mac A, bit 2 = Mac B, bit 1 = iPhone A, bit 0 = iPhone B.
+    /// The hotfix does not change the Mac payload, so old/new writer fixtures
+    /// intentionally share the production wire shape. The reader bit models
+    /// published build 196 versus candidate build 197 Today presentation.
+    @Test(arguments: Array(0..<16))
+    func `2 Mac x 2 iPhone Today cost old-new matrix`(mask: Int) throws {
+        let now = Self.localNoonToday()
+        let macANew = mask & 0b1000 != 0
+        let macBNew = mask & 0b0100 != 0
+        let iPhoneANew = mask & 0b0010 != 0
+        let iPhoneBNew = mask & 0b0001 != 0
+
+        let writers = try [
+            Self.todayCostMatrixSnapshot(
+                deviceID: "matrix-mac-a",
+                deviceName: "Matrix Mac A",
+                cost: 7.37,
+                tokens: 7_000,
+                isNew: macANew,
+                now: now),
+            Self.todayCostMatrixSnapshot(
+                deviceID: "matrix-mac-b",
+                deviceName: "Matrix Mac B",
+                cost: 193.58,
+                tokens: 193_000,
+                isNew: macBNew,
+                now: now),
+        ].map(Self.roundTripMatrixWriter)
+
+        let phoneA = try Self.readTodayCostMatrixPhone(
+            isNew: iPhoneANew,
+            snapshots: writers,
+            now: now)
+        let phoneB = try Self.readTodayCostMatrixPhone(
+            isNew: iPhoneBNew,
+            snapshots: writers,
+            now: now)
+
+        #expect(phoneA.deviceCount == 2)
+        #expect(phoneB.deviceCount == 2)
+        #expect(phoneA.deviceIDs == ["matrix-mac-a", "matrix-mac-b"])
+        #expect(phoneB.deviceIDs == ["matrix-mac-a", "matrix-mac-b"])
+        #expect(phoneA.providerCount == 1)
+        #expect(phoneB.providerCount == 1)
+        #expect(phoneA.providerIdentityKeys == ["codex|matrix@example.com"])
+        #expect(phoneB.providerIdentityKeys == ["codex|matrix@example.com"])
+        #expect(abs(phoneA.rawTodayCost - 200.95) < 0.0001)
+        #expect(abs(phoneB.rawTodayCost - 200.95) < 0.0001)
+        #expect(phoneA.todayDisplay == (iPhoneANew ? "≥$200.95" : "—"))
+        #expect(phoneB.todayDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
+        #expect(phoneA.widgetDisplay == (iPhoneANew ? "≥$200.95" : "—"))
+        #expect(phoneB.widgetDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
+        #expect(phoneA.shareDisplay == (iPhoneANew ? "≥$200.95" : "—"))
+        #expect(phoneB.shareDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
+
+        // Each phone builds and decodes an independent local widget snapshot.
+        // Same-version readers must converge even when writer bits differ.
+        if iPhoneANew == iPhoneBNew {
+            #expect(phoneA == phoneB)
+        }
+    }
+
     @Test
     func `suppresses Today subtotal when a modern provider has no current-day cost`() throws {
         let now = Self.localNoonToday()
@@ -965,6 +1028,136 @@ struct WidgetSnapshotBuilderTests {
             lastUpdated: updated,
             costSummary: costSummary,
             accountIdentities: accountIdentities)
+    }
+
+    private struct LegacyWidgetSnapshot: Decodable {
+        let todayCostUSD: Double?
+        let topProviders: [LegacyWidgetProviderSummary]
+    }
+
+    private struct LegacyWidgetProviderSummary: Decodable {
+        let todayCostUSD: Double?
+    }
+
+    private struct TodayCostMatrixPhoneResult: Equatable {
+        let deviceCount: Int
+        let deviceIDs: [String]
+        let providerCount: Int
+        let providerIdentityKeys: [String]
+        let rawTodayCost: Double
+        let todayDisplay: String
+        let widgetDisplay: String
+        let shareDisplay: String
+    }
+
+    private static func todayCostMatrixSnapshot(
+        deviceID: String,
+        deviceName: String,
+        cost: Double,
+        tokens: Int,
+        isNew: Bool,
+        now: Date) -> SyncedUsageSnapshot
+    {
+        let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "matrix@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: tokens,
+                last30DaysCostUSD: cost * 10,
+                last30DaysTokens: tokens * 10,
+                daily: [SyncDailyPoint(
+                    dayKey: todayKey,
+                    costUSD: cost,
+                    totalTokens: tokens,
+                    costIsKnown: true)],
+                coverage: SyncCostCoverage(priced: 10, unpriced: 1, unmetered: 0, estimated: 0),
+                sourceUpdatedAt: now,
+                sourceDayKey: todayKey,
+                sessionDayKey: todayKey,
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: false))
+        return SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "\(deviceName) \(isNew ? "candidate" : "published")",
+            deviceID: deviceID,
+            appVersion: "0.56.0.1",
+            mobileVersion: "1.23.0")
+    }
+
+    private static func roundTripMatrixWriter(_ snapshot: SyncedUsageSnapshot) throws -> SyncedUsageSnapshot {
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        return try decoder.decode(SyncedUsageSnapshot.self, from: encoder.encode(snapshot))
+    }
+
+    private static func readTodayCostMatrixPhone(
+        isNew: Bool,
+        snapshots: [SyncedUsageSnapshot],
+        now: Date) throws -> TodayCostMatrixPhoneResult
+    {
+        let merged = try #require(CloudSyncReader.mergeSnapshots(snapshots))
+        let rawTodayCost = merged.providers.compactMap { provider in
+            provider.costSummary?.daily.first(where: {
+                $0.dayKey == provider.costSummary?.costDayKey(for: now)
+            })?.costUSD
+        }.reduce(0, +)
+
+        guard isNew else {
+            // Build 196 treated whole-history incompleteness as Today unknown.
+            let hasIncompleteHistory = merged.providers.compactMap(\.costSummary).contains {
+                $0.hasIncompleteHistoricalCostCoverage(at: now)
+            }
+            #expect(hasIncompleteHistory)
+            return TodayCostMatrixPhoneResult(
+                deviceCount: snapshots.count,
+                deviceIDs: snapshots.compactMap(\.deviceID).sorted(),
+                providerCount: merged.providers.count,
+                providerIdentityKeys: merged.providers.map {
+                    "\($0.providerID)|\($0.accountEmail ?? "_")"
+                }.sorted(),
+                rawTodayCost: rawTodayCost,
+                todayDisplay: "—",
+                widgetDisplay: "—",
+                shareDisplay: "—")
+        }
+
+        let insights = CostDashboardInsights(snapshot: merged, now: now)
+        let share = ShareCardData(insights: insights, period: .today)
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+        let widgetDisplay = widget.todayCostUSD.map {
+            "\(widget.todayCostIsLowerBound == true ? "≥" : "")\(CostFormatting.usd($0))"
+        } ?? "—"
+
+        // Candidate widget snapshots remain decodable by the published model;
+        // the additive qualifier is ignored rather than causing data loss or a
+        // crash. The published binary cannot render the new qualifier, which
+        // remains a documented rollback-only residual risk.
+        let encodedWidget = try JSONEncoder().encode(widget)
+        let legacyWidget = try JSONDecoder().decode(LegacyWidgetSnapshot.self, from: encodedWidget)
+        #expect(abs((legacyWidget.todayCostUSD ?? 0) - 200.95) < 0.0001)
+        #expect(legacyWidget.topProviders.allSatisfy { $0.todayCostUSD != nil })
+
+        return TodayCostMatrixPhoneResult(
+            deviceCount: snapshots.count,
+            deviceIDs: snapshots.compactMap(\.deviceID).sorted(),
+            providerCount: merged.providers.count,
+            providerIdentityKeys: merged.providers.map {
+                "\($0.providerID)|\($0.accountEmail ?? "_")"
+            }.sorted(),
+            rawTodayCost: rawTodayCost,
+            todayDisplay: "\(insights.totalTodayCostIsLowerBound ? "≥" : "")\(CostFormatting.usd(insights.totalTodayCost))",
+            widgetDisplay: widgetDisplay,
+            shareDisplay: share.todayCostDisplayValue)
     }
 
     private static func date(_ value: String) -> Date {
