@@ -62,38 +62,44 @@ v0.56 / iOS 1.23.0 只是继续携带这一逻辑。
 ## 2 Mac × 2 iPhone old/new 兼容性 gate
 
 本 hotfix 改变跨版本 Today-cost 展示与 `CodexBarWidgetSnapshot` 的 additive optional 字段，
-因此 `docs/ios-sync-compatibility-testing.md` 的 16-case gate 适用。这里的 `old Mac` 是已发布
-`mobile-dev` producer，`new Mac` 是本分支 candidate；本分支没有修改 Mac source、wire model 或
-CloudKit schema，所以二者都使用 `0.56.0.1` production payload contract。`old iPhone` 是
-`1.23.0 (196)` 展示 contract，`new iPhone` 是 `1.23.0 (197)` candidate。
+因此 `docs/ios-sync-compatibility-testing.md` 的 16-case gate 适用。这里的 `old Mac` 使用已发布
+tag `v0.52.0.1-mobile.1.21.0` 的 pre-coverage payload shape：没有 `costIsKnown`、coverage/provenance、
+source/session day provenance 与 history-completeness keys；`new Mac` 使用当前已发布
+`v0.56.0.1-mobile.1.23.0` shape，包含上述 additive keys。本 hotfix 本身没有修改 Mac source、
+wire model 或 CloudKit schema；选择这两个真实发布边界是为了让 Mac old/new 位确实改变编码后的
+JSON，而不是用两个相同 writer 冒充 16-case coverage。`old iPhone` 是 `1.23.0 (196)` 展示
+contract，`new iPhone` 是 `1.23.0 (197)` candidate。
 
 当前运行环境只有一台开发 Mac 和一台已连接 iPhone，无法反复安装并同时保留 2 Mac × 2 iPhone
 的 old/new binaries，因此以下结果严格标记为 `substituted PASS`，不是实机 PASS。替代证据为
 `WidgetSnapshotBuilderTests.2 Mac x 2 iPhone Today cost old-new matrix`：参数化执行 masks 0–15，
-使用两个 distinct Mac writer ID，经 production `CloudSyncConstants` codec round-trip 后，由两个
-独立 reader 路径执行 merge、App Today、share card 与 widget presentation。old reader contract
-保持 `—`，new reader 显示 `≥$200.95`；两者都保留 raw `$200.95`、唯一 provider identity 与两个
-device records，同版本 readers 必须收敛。另有双向 additive Codable 证据：new reader 解码缺少
-lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot 时忽略新 key 且不崩溃。
+使用两个 distinct Mac writer ID；每个 Mac 位在 v0.52 legacy 与 v0.56 modern fixture 之间切换，
+测试逐 writer 断言版本元数据以及 modern-only JSON keys 的存在/缺失，再经 production
+`CloudSyncConstants` codec round-trip。两个独立 reader 路径随后执行 merge、App Today、share card
+与 widget presentation。全 legacy writers 时 old/new reader 都显示 exact `$200.95`；只要至少一个
+modern unfinished writer 存在，old reader 按 published contract 显示 `—`，new reader 显示
+`≥$200.95`。全部组合都保留 raw `$200.95`、唯一 provider identity 与两个 device records，同版本
+readers 必须收敛。另有双向 additive Codable 证据：new reader 解码缺少 lower-bound keys 的 legacy
+snapshot；published model 解码 candidate snapshot 时忽略新 key 且不崩溃。
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
-| 1 | old | old | old | old | substituted PASS | mask 0 | all-published control；两 reader 均为 `—` |
-| 2 | old | old | old | new | substituted PASS | mask 1 | new reader 解 published writers，显示 `≥$200.95` |
+| 1 | old | old | old | old | substituted PASS | mask 0 | 两个 v0.52 writers；两 reader 均 exact `$200.95` |
+| 2 | old | old | old | new | substituted PASS | mask 1 | new reader 解 legacy writers，仍为 exact `$200.95` |
 | 3 | old | old | new | old | substituted PASS | mask 2 | case 2 reader role mirror |
-| 4 | old | old | new | new | substituted PASS | mask 3 | 两个 new readers 独立构建 widget snapshot 并收敛 |
-| 5 | old | new | old | old | substituted PASS | mask 4 | unchanged mixed writer contract；old readers fail closed |
-| 6 | old | new | old | new | substituted PASS | mask 5 | mixed writers/readers；raw total 与 qualified display 分离 |
+| 4 | old | old | new | new | substituted PASS | mask 3 | 两个 new readers 独立解 legacy payload 并收敛 |
+| 5 | old | new | old | old | substituted PASS | mask 4 | v0.52 + v0.56 mixed writers；old readers 为 `—` |
+| 6 | old | new | old | new | substituted PASS | mask 5 | old reader `—`；new reader `≥$200.95` |
 | 7 | old | new | new | old | substituted PASS | mask 6 | case 6 reader role mirror |
-| 8 | old | new | new | new | substituted PASS | mask 7 | mixed writers；new App/share/widget 均收敛 |
-| 9 | new | old | old | old | substituted PASS | mask 8 | writer role reverse；old readers fail closed |
-| 10 | new | old | old | new | substituted PASS | mask 9 | writer/reader 双重非对称 |
+| 8 | old | new | new | new | substituted PASS | mask 7 | mixed writers；new App/share/widget 均为 `≥$200.95` |
+| 9 | new | old | old | old | substituted PASS | mask 8 | writer role reverse；old readers 为 `—` |
+| 10 | new | old | old | new | substituted PASS | mask 9 | reversed writers；old `—` / new `≥$200.95` |
 | 11 | new | old | new | old | substituted PASS | mask 10 | case 10 reader role mirror |
-| 12 | new | old | new | new | substituted PASS | mask 11 | reversed writers；new readers 收敛 |
-| 13 | new | new | old | old | substituted PASS | mask 12 | candidate writers 保持 published wire；old readers 不崩溃 |
-| 14 | new | new | old | new | substituted PASS | mask 13 | candidate payload 同时供 old/new reader 读取 |
+| 12 | new | old | new | new | substituted PASS | mask 11 | reversed writers；new readers 收敛到 `≥$200.95` |
+| 13 | new | new | old | old | substituted PASS | mask 12 | 两个 v0.56 writers；old readers 均为 `—` |
+| 14 | new | new | old | new | substituted PASS | mask 13 | modern payload 同时供 old/new reader 读取 |
 | 15 | new | new | new | old | substituted PASS | mask 14 | case 14 reader role mirror |
-| 16 | new | new | new | new | substituted PASS | mask 15 | all-candidate App/share/widget convergence |
+| 16 | new | new | new | new | substituted PASS | mask 15 | all-modern App/share/widget convergence |
 
 ### 剩余风险与 gate verdict
 
@@ -114,6 +120,9 @@ lower-bound keys 的 legacy snapshot；published model 解码 candidate snapshot
   普通零值隐藏；修复后仅在 lower-bound 成立时保留零值，普通 exact `$0.00` 的既有隐藏策略不变，
   并把 provider row 的展示条件收敛到 `hasDisplayableTodayCost`，新增 Widget aggregate/provider
   回归测试。
+- PR #110 第六轮 exact-head review 发现最初 matrix 的 old/new Mac 只有名字不同，不能证明 writer
+  compatibility；修复后 old writer 使用 v0.52 pre-coverage wire、new writer 使用 v0.56 modern wire，
+  每个 fixture 都断言版本与结构差异，16 个 masks 再次全部通过。
 
 实现与本地验证完成。PR exact-current-head Code Review作为 GitHub handoff gate执行；未授权且
 不执行 merge、TestFlight上传或 public release。

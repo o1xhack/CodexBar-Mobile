@@ -851,9 +851,9 @@ struct WidgetSnapshotBuilderTests {
 
     /// Exhaustive binary ordering from docs/ios-sync-compatibility-testing.md:
     /// bit 3 = Mac A, bit 2 = Mac B, bit 1 = iPhone A, bit 0 = iPhone B.
-    /// The hotfix does not change the Mac payload, so old/new writer fixtures
-    /// intentionally share the production wire shape. The reader bit models
-    /// published build 196 versus candidate build 197 Today presentation.
+    /// Old writers use the published pre-coverage v0.52 wire shape; new writers
+    /// use v0.56 coverage/freshness fields. The reader bit models published
+    /// build 196 versus candidate build 197 Today presentation.
     @Test(arguments: Array(0..<16))
     func `2 Mac x 2 iPhone Today cost old-new matrix`(mask: Int) throws {
         let now = Self.localNoonToday()
@@ -879,6 +879,7 @@ struct WidgetSnapshotBuilderTests {
                 now: now),
         ].map(Self.roundTripMatrixWriter)
 
+        let hasModernWriter = macANew || macBNew
         let phoneA = try Self.readTodayCostMatrixPhone(
             isNew: iPhoneANew,
             snapshots: writers,
@@ -898,12 +899,18 @@ struct WidgetSnapshotBuilderTests {
         #expect(phoneB.providerIdentityKeys == ["codex|matrix@example.com"])
         #expect(abs(phoneA.rawTodayCost - 200.95) < 0.0001)
         #expect(abs(phoneB.rawTodayCost - 200.95) < 0.0001)
-        #expect(phoneA.todayDisplay == (iPhoneANew ? "≥$200.95" : "—"))
-        #expect(phoneB.todayDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
-        #expect(phoneA.widgetDisplay == (iPhoneANew ? "≥$200.95" : "—"))
-        #expect(phoneB.widgetDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
-        #expect(phoneA.shareDisplay == (iPhoneANew ? "≥$200.95" : "—"))
-        #expect(phoneB.shareDisplay == (iPhoneBNew ? "≥$200.95" : "—"))
+        let phoneAExpected = Self.todayCostMatrixDisplay(
+            isNewReader: iPhoneANew,
+            hasModernWriter: hasModernWriter)
+        let phoneBExpected = Self.todayCostMatrixDisplay(
+            isNewReader: iPhoneBNew,
+            hasModernWriter: hasModernWriter)
+        #expect(phoneA.todayDisplay == phoneAExpected)
+        #expect(phoneB.todayDisplay == phoneBExpected)
+        #expect(phoneA.widgetDisplay == phoneAExpected)
+        #expect(phoneB.widgetDisplay == phoneBExpected)
+        #expect(phoneA.shareDisplay == phoneAExpected)
+        #expect(phoneB.shareDisplay == phoneBExpected)
 
         // Each phone builds and decodes an independent local widget snapshot.
         // Same-version readers must converge even when writer bits differ.
@@ -1145,15 +1152,30 @@ struct WidgetSnapshotBuilderTests {
         let shareDisplay: String
     }
 
+    private struct TodayCostMatrixWriterFixture {
+        let snapshot: SyncedUsageSnapshot
+        let isNew: Bool
+    }
+
     private static func todayCostMatrixSnapshot(
         deviceID: String,
         deviceName: String,
         cost: Double,
         tokens: Int,
         isNew: Bool,
-        now: Date) -> SyncedUsageSnapshot
+        now: Date) -> TodayCostMatrixWriterFixture
     {
         let todayKey = SyncCostSummary.iso8601DayKeyForTest(now)
+        // Published 0.52 is the last fork payload before the v0.53/v0.54 cost
+        // coverage additions. Candidate 0.56 carries the modern per-day
+        // knownness, coverage, freshness, and scan-completion fields. Keeping
+        // these writers structurally distinct makes every Mac bit in the
+        // canonical 16-case matrix exercise real wire compatibility.
+        let dailyPoint = SyncDailyPoint(
+            dayKey: todayKey,
+            costUSD: cost,
+            totalTokens: tokens,
+            costIsKnown: isNew ? true : nil)
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -1169,30 +1191,59 @@ struct WidgetSnapshotBuilderTests {
                 sessionTokens: tokens,
                 last30DaysCostUSD: cost * 10,
                 last30DaysTokens: tokens * 10,
-                daily: [SyncDailyPoint(
-                    dayKey: todayKey,
-                    costUSD: cost,
-                    totalTokens: tokens,
-                    costIsKnown: true)],
-                coverage: SyncCostCoverage(priced: 10, unpriced: 1, unmetered: 0, estimated: 0),
-                sourceUpdatedAt: now,
-                sourceDayKey: todayKey,
-                sessionDayKey: todayKey,
-                sessionCostIsKnown: true,
-                historyCoverageIsEstablished: false))
-        return SyncedUsageSnapshot(
-            providers: [provider],
-            syncTimestamp: now,
-            deviceName: "\(deviceName) \(isNew ? "candidate" : "published")",
-            deviceID: deviceID,
-            appVersion: "0.56.0.1",
-            mobileVersion: "1.23.0")
+                daily: [dailyPoint],
+                costProvenance: isNew ? .listPriceEstimate : nil,
+                coverage: isNew
+                    ? SyncCostCoverage(priced: 10, unpriced: 1, unmetered: 0, estimated: 0)
+                    : nil,
+                sourceUpdatedAt: isNew ? now : nil,
+                sourceDayKey: isNew ? todayKey : nil,
+                sessionDayKey: isNew ? todayKey : nil,
+                sessionCostIsKnown: isNew ? true : nil,
+                historyCoverageIsEstablished: isNew ? false : nil))
+        return TodayCostMatrixWriterFixture(
+            snapshot: SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: "\(deviceName) \(isNew ? "candidate" : "published")",
+                deviceID: deviceID,
+                appVersion: isNew ? "0.56.0.1" : "0.52.0.1",
+                mobileVersion: isNew ? "1.23.0" : "1.21.0"),
+            isNew: isNew)
     }
 
-    private static func roundTripMatrixWriter(_ snapshot: SyncedUsageSnapshot) throws -> SyncedUsageSnapshot {
+    private static func roundTripMatrixWriter(
+        _ fixture: TodayCostMatrixWriterFixture) throws -> SyncedUsageSnapshot
+    {
         let encoder = CloudSyncConstants.makeJSONEncoder()
         let decoder = CloudSyncConstants.makeJSONDecoder()
-        return try decoder.decode(SyncedUsageSnapshot.self, from: encoder.encode(snapshot))
+        let data = try encoder.encode(fixture.snapshot)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let providers = try #require(object["providers"] as? [[String: Any]])
+        let provider = try #require(providers.first)
+        let summary = try #require(provider["costSummary"] as? [String: Any])
+        let daily = try #require(summary["daily"] as? [[String: Any]])
+        let point = try #require(daily.first)
+
+        #expect((object["appVersion"] as? String) == (fixture.isNew ? "0.56.0.1" : "0.52.0.1"))
+        #expect((object["mobileVersion"] as? String) == (fixture.isNew ? "1.23.0" : "1.21.0"))
+        #expect((point["costIsKnown"] as? Bool) == (fixture.isNew ? true : nil))
+        #expect((summary["coverage"] != nil) == fixture.isNew)
+        #expect((summary["sourceDayKey"] != nil) == fixture.isNew)
+        #expect((summary["sessionCostIsKnown"] != nil) == fixture.isNew)
+        #expect((summary["historyCoverageIsEstablished"] != nil) == fixture.isNew)
+
+        return try decoder.decode(SyncedUsageSnapshot.self, from: data)
+    }
+
+    private static func todayCostMatrixDisplay(
+        isNewReader: Bool,
+        hasModernWriter: Bool) -> String
+    {
+        if hasModernWriter {
+            return isNewReader ? "≥$200.95" : "—"
+        }
+        return "$200.95"
     }
 
     private static func readTodayCostMatrixPhone(
@@ -1212,7 +1263,7 @@ struct WidgetSnapshotBuilderTests {
             let hasIncompleteHistory = merged.providers.compactMap(\.costSummary).contains {
                 $0.hasIncompleteHistoricalCostCoverage(at: now)
             }
-            #expect(hasIncompleteHistory)
+            let display = hasIncompleteHistory ? "—" : CostFormatting.usd(rawTodayCost)
             return TodayCostMatrixPhoneResult(
                 deviceCount: snapshots.count,
                 deviceIDs: snapshots.compactMap(\.deviceID).sorted(),
@@ -1221,9 +1272,9 @@ struct WidgetSnapshotBuilderTests {
                     "\($0.providerID)|\($0.accountEmail ?? "_")"
                 }.sorted(),
                 rawTodayCost: rawTodayCost,
-                todayDisplay: "—",
-                widgetDisplay: "—",
-                shareDisplay: "—")
+                todayDisplay: display,
+                widgetDisplay: display,
+                shareDisplay: display)
         }
 
         let insights = CostDashboardInsights(snapshot: merged, now: now)
