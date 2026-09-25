@@ -16,6 +16,7 @@ Date: 2026-09-25
 - `Shared/Notifications/QuotaProviderList.swift` 为 bifrost、helmcode、nous、muse、huggingface、v0、gitkraken、devpass 追加配额通知订阅；只有余额、费用或记忆而无额度事件的 provider 不进入配额订阅。Mac/iOS 配额测试均覆盖 78 个 quota provider 的三个状态。
 - `MockProviderInjector` 添加 16 个上游新 ID 和 16 组真实 ID 样例，并给 CodeRabbit、Hyper、Atlas Cloud、LLMMan 补详情样例；Crof 仅保留历史 mock 兼容。iOS 通用详情卡沿用已有渲染，新增 ID 有调色板回退。
 - 上游迁入 plugin 的 Perplexity、ElevenLabs、LLMProxy 原 typed snapshot 不再由 native fetcher 生成。本轮在 plugin 输出中保留可显示的余额、促销额度、字符、语音槽、overage、请求、tokens、key 状态与 provider 费用详情；iOS 通过现有通用详情卡展示。原专属卡布局未沿用，数据仍可读。旧模型类型仅作为 fork 编译和旧 payload 解码兼容，不恢复旧 native 网络 fetcher。
+- UI 复核发现新内置 plugin 的固定详情字段原样透传时会在中文、日文界面显示英文；已将本轮 bundled provider ID、固定标题/行标签、有限的固定值纳入四语言白名单，动态服务名、模型名、自定义 plugin 字段继续保留原文。多账号标签缺少身份时的 Account N 回退也使用已有四语言格式。iOS 仍沿用 Usage 列表、详情卡与 Cost 布局，没有新增导航层级。
 - 上游 Codex 可同时取多个可见账户。fork 同步将非当前账户的 co-resident `codexAccountSnapshots` 转成独立 CloudKit account record，观察其变化并触发自动 push；当前账户仍负责 provider 级费用/历史，避免重复累加。另恢复 Mac fleet 删除缓存同步入口，旧设备删除只落在既有 `CodexBarSync` zone。
 - 上游 Codex/Claude 费用 parser 语义变化将 `parserLogicVersion` 从 15 升至 16，更新生成哈希，旧缓存会重算。
 

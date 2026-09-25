@@ -30,6 +30,7 @@ Date: 2026-09-25
 - 最后一轮只读复审覆盖费用快照时区、`Estimated:` 面板文案、Codex sync 注释及发布关键 diff，未发现新增阻塞；`git diff HEAD --check` 通过。独立复审结论仅覆盖代码，完整 Mac suite 须以实际跑完为准。
 - 最新只读复审再次核对 OpenRouter 日期替换语义、额度窗口文案、99 组 mock 构成和架构守卫格式化后的精确指纹；未发现弱化断言或阻塞缺陷。最终完整 Mac suite 与 lint 单独记录其运行结果。
 - `PreviewData.swift` 已按卡片类型复核：现有 Bedrock、Z.ai 等 generic detail 样例覆盖本轮新增 provider 的通用详情呈现；新 ID 由 Mac mock/provider 配额样例和同步 fixture 覆盖，故不逐 provider 添加相同预览卡。Plugin 化后的 Perplexity、ElevenLabs、LLMProxy 专属 typed 卡在 iOS 侧改由通用详情显示；余额、额度、字符/语音槽与代理费用等字段已映射进 `details`，视觉样式与旧专属卡不同。
+- 用户询问多 Mac 与 UI 后再审计，发现本轮内置 plugin 的固定详情标签缺少 iOS 本地化白名单；已补四语言目录与动态标签保护。循环复审又发现 Muse 登录/Weekly/动态 Plan、v0 额度文案与动态 Scope、Bifrost 周期和合成 `Other models`、新服务多账号 tab 的边界，均已修复并加入测试；最终只读复审未发现阻塞。iOS 27 iPhone 18 Pro Simulator 签名定向 `V066ProviderPresentationTests` 4 tests / 1 suite 全部通过，结果包 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v066-ui-localization-final5.xcresult`；`audit-i18n`、三文件 SwiftLint/SwiftFormat、`git diff --check` 均通过。首轮禁用签名的模拟器测试在 CloudKit container 初始化前崩溃，0 项测试执行，已改用签名构建复测；失败结果不计入产品测试结论。实际运行的演示数据确认 Usage→详情导航与现有卡片布局，但演示数据没有本轮新 provider，故未获得其真实内容的视觉截图；真实双 Mac/双 iPhone 仍为下表替代验证。
 
 ## CloudKit Production schema 审计
 

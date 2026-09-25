@@ -39,20 +39,26 @@ struct ProviderAccountGroup: Identifiable {
 
     /// Identifier-stable across renders: `providerID` is unique per
     /// group (the whole point of grouping).
-    var id: String { self.providerID }
+    var id: String {
+        self.providerID
+    }
 
-    var hasMultipleAccounts: Bool { self.accounts.count > 1 }
+    var hasMultipleAccounts: Bool {
+        self.accounts.count > 1
+    }
 
     /// First account in the group — used for list-row preview
     /// (`ProviderUsageView` rendering) and as the default initially-
     /// selected tab in the detail view.
-    var representative: ProviderUsageSnapshot { self.accounts[0] }
+    var representative: ProviderUsageSnapshot {
+        self.accounts[0]
+    }
 
     /// Short label for tab `index`. Used by the segmented control at
     /// the top of `ProviderDetailView` when `hasMultipleAccounts`.
     /// Strategy (first non-empty wins): account-email local-part →
     /// loginMethod → `Account N`.
-    func tabLabel(forIndex index: Int) -> String {
+    func tabLabel(forIndex index: Int, locale: Locale = .current) -> String {
         guard self.accounts.indices.contains(index) else { return "" }
         let snapshot = self.accounts[index]
         if let email = snapshot.accountEmail,
@@ -65,9 +71,16 @@ struct ProviderAccountGroup: Identifiable {
             if !local.isEmpty { return local }
         }
         if let login = snapshot.loginMethod, !login.isEmpty {
-            return login
+            return ProviderDetailLocalization.localizedValue(
+                login,
+                providerID: self.providerID,
+                locale: locale)
         }
-        return "Account \(index + 1)"
+        let format = MobileLocalizedString.value(
+            "Account %lld",
+            defaultValue: "Account %lld",
+            locale: locale)
+        return String(format: format, locale: locale, arguments: [Int64(index + 1)])
     }
 
     /// Stable accessibility identifier for the tab at `index` — used
@@ -77,7 +90,7 @@ struct ProviderAccountGroup: Identifiable {
     }
 }
 
-extension Array where Element == ProviderUsageSnapshot {
+extension [ProviderUsageSnapshot] {
     /// Group post-merge snapshots by `providerID`, preserving first-
     /// appearance order so the resulting Usage list mirrors the
     /// Mac-side provider enable order (which the wire format already

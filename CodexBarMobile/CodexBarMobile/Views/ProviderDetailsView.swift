@@ -12,10 +12,11 @@ enum ProviderDetailLocalization {
     /// Only labels emitted by bundled providers are localized. Custom plugin
     /// authors own their wording, so an arbitrary label must round-trip exactly.
     private static let firstPartyProviderIDs: Set<String> = [
-        "amp", "claude", "clawrouter", "codex", "copilot", "cursor", "deepgram",
-        "deepseek", "fireworks", "groq", "ibmbob", "kiro", "mimo",
-        "minimax", "openai", "openrouter", "poe", "sakana", "sub2api",
-        "wayfinder", "xai", "zai", "zoommate",
+        "amp", "bifrost", "claude", "clawrouter", "codex", "copilot", "cursor",
+        "deepgram", "deepseek", "devpass", "elevenlabs", "fireworks", "gitkraken",
+        "groq", "helmcode", "huggingface", "ibmbob", "kiro", "llmproxy", "mimo",
+        "minimax", "muse", "nous", "openai", "openrouter", "perplexity", "poe",
+        "sakana", "sub2api", "v0", "wayfinder", "xai", "zai", "zoommate",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
@@ -24,30 +25,42 @@ enum ProviderDetailLocalization {
     private static let semanticLabels: Set<String> = [
         "30d cash", "30d credits", "30d spend", "30d tokens", "7d spend",
         "API credits", "API key", "API key budget", "API key limit", "API key remaining", "API key used",
-        "Account balance", "Actual cost", "Agent hours", "Audio", "Available", "Avg decision",
-        "Balance", "Billing history", "Billing summary", "Bobcoin usage", "Bonus credits left", "Budget ledger",
+        "Account balance", "Active keys", "Actual cost", "Agent hours", "All-time key usage",
+        "API key (all time)", "Audio", "Available", "Avg decision",
+        "Balance", "Billable usage", "Billing history", "Billing remaining", "Billing summary",
+        "Billing type", "Bobcoin usage", "Bonus credits left", "Budget ledger", "Budgets",
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
-        "Context files", "Context used", "Cost items", "Credit history", "Credit quota",
-        "Credits", "Credits left", "Credits total", "Credits used",
-        "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage",
-        "Extra usage", "Gateway", "Granted", "Individual credits", "Key spend",
+        "Characters", "Context files", "Context used", "Cost items", "Credit history", "Credit quota",
+        "Credits", "Credits left", "Credits total", "Credits used", "Cycle remaining", "Cycle used",
+        "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage", "DevPass credits",
+        "Exhausted keys", "Extra usage", "Gateway", "GPU time remaining", "GPU time used",
+        "Granted", "Gross inference usage", "Included inference amount", "Individual credits",
+        "Inference Providers", "Key spend", "Key spending limit",
         "Kiro responses", "Last 30 days", "Last 30 days (partial)", "Manage", "Models", "Monthly credit limit",
-        "Output", "Overage", "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
-        "Period", "Plan", "Points", "Prepaid balance", "Prompts", "Quota details", "Quota services",
-        "Rate limit", "Remaining", "Request quota", "Requests", "Reset window",
-        "Routed", "Saved", "Spend history", "TTS characters", "This month", "This week",
+        "Monthly grant", "Muse Code subscription", "On-demand balance", "Other models", "Output", "Overage",
+        "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
+        "Period", "Personal", "Plan", "Points", "Prepaid balance", "Premium weekly",
+        "Professional voices", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
+        "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
+        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window",
+        "Rest of organization", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
+        "Spend history", "Spending limit", "Subscription", "Subscription credits", "Top-up credits",
+        "Total usable", "Total usage", "TTS characters", "This month", "This week",
         "Today", "Today cash", "Today spend", "Today tokens", "Token quota", "Tools",
-        "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage summary",
-        "Used", "credits", "points", "tokens",
+        "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage summary", "Used", "v0 API",
+        "Voice slots", "Weekly", "Weekly usage", "Your shared usage", "ZeroGPU", "5 hours",
+        "credits", "points", "tokens",
     ]
 
     /// These sections deliberately use provider-returned account, team, model,
     /// service, or cost-item names as row labels. Even if a customer-created
     /// name happens to equal one of our semantic strings, it must stay verbatim.
     private static let verbatimRowSections: [String: Set<String>] = [
+        "bifrost": ["Budgets", "Models"],
         "claude": ["Cost items"],
         "groq": ["Models"],
         "ibmbob": ["Bobcoin usage"],
+        "llmproxy": ["Providers"],
         "minimax": ["Quota services"],
     ]
 
@@ -66,11 +79,28 @@ enum ProviderDetailLocalization {
         return MobileLocalizedString.value(label, defaultValue: label, locale: locale)
     }
 
+    static func rowContext(
+        providerID: String,
+        section: SyncProviderDetailSection,
+        row: SyncProviderDetailSection.Row,
+        index: Int) -> Context
+    {
+        // Bifrost appends this one synthetic count after five provider-supplied model names.
+        // A real model named "Other models" in those first five must stay verbatim.
+        if providerID == "bifrost", section.title == "Models", section.rows.count == 6,
+           index == 5, row.label == "Other models", Int(row.value) != nil
+        {
+            return .semantic
+        }
+        return .rowLabel(sectionTitle: section.title)
+    }
+
     /// Localizes only stable value fragments emitted by bundled providers. Dynamic values and
     /// custom-plugin content remain verbatim, and the canonical CloudKit payload stays unchanged.
     static func localizedValue(
         _ value: String,
         providerID: String,
+        rowLabel: String? = nil,
         locale: Locale = .current) -> String
     {
         switch providerID {
@@ -78,6 +108,10 @@ enum ProviderDetailLocalization {
             return self.localizedOpenRouterValue(value, locale: locale) ?? value
         case "zai":
             return self.localizedZAIBalanceBreakdown(value, locale: locale) ?? value
+        case "bifrost", "devpass", "elevenlabs", "gitkraken", "helmcode", "huggingface",
+             "llmproxy", "muse", "nous", "perplexity", "v0":
+            return self.localizedBundledPluginValue(
+                value, providerID: providerID, rowLabel: rowLabel, locale: locale)
         case "kiro":
             break
         default:
@@ -117,8 +151,65 @@ enum ProviderDetailLocalization {
         return value
     }
 
+    private static func localizedBundledPluginValue(
+        _ value: String,
+        providerID: String,
+        rowLabel: String?,
+        locale: Locale) -> String
+    {
+        let v0QuotaRow = providerID == "v0" &&
+            (rowLabel == "Billing remaining" || rowLabel == "Rate-limit remaining")
+        let fixedValue: Bool = switch providerID {
+        case "perplexity": value == "Unavailable"
+        case "v0": (v0QuotaRow && value == "Unavailable") ||
+            (rowLabel == nil && value == "API key")
+        case "gitkraken": value == "No allowance" || value == "Unlimited"
+        case "muse": (rowLabel == "Quota" && value == "Not included in this login response") ||
+            (rowLabel == nil && value == "Muse login")
+        case "devpass": rowLabel == nil && value == "Pay as you go"
+        case "nous": rowLabel == nil && value == "Subscription"
+        case "helmcode": rowLabel == nil && value == "Dashboard session"
+        default: false
+        }
+        if fixedValue {
+            return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+        }
+        if providerID == "gitkraken" {
+            let fragments = value.components(separatedBy: " · ")
+            if fragments.count == 2 {
+                return fragments.map {
+                    self.localizedBundledPluginValue(
+                        $0, providerID: providerID, rowLabel: rowLabel, locale: locale)
+                }.joined(separator: " · ")
+            }
+        }
+        if providerID == "perplexity" || providerID == "gitkraken" {
+            for suffix in [" credits used", " credits"] where value.hasSuffix(suffix) {
+                let amount = String(value.dropLast(suffix.count))
+                let unit = String(suffix.dropFirst())
+                return "\(amount) \(MobileLocalizedString.value(unit, defaultValue: unit, locale: locale))"
+            }
+        }
+        if v0QuotaRow, let cap = self.localizedKiroCap(value, locale: locale) {
+            return cap
+        }
+        if v0QuotaRow, value.hasPrefix("limit ") {
+            let amount = String(value.dropFirst("limit ".count))
+            if !amount.isEmpty, amount.allSatisfy({ $0.isNumber || ",. ".contains($0) }) {
+                return self.localizedFormat("limit %@", argument: amount, locale: locale)
+            }
+        }
+        if providerID == "bifrost" {
+            let periods: Set = ["Hourly", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly"]
+            if periods.contains(value) {
+                return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+            }
+        }
+        return value
+    }
+
     private static func localizedOpenRouterValue(_ value: String, locale: Locale) -> String? {
-        let stableValues: Set<String> = [
+        let stableValues: Set = [
             "Management API key not configured",
             "Management API key required",
             "No limit configured",
@@ -240,24 +331,30 @@ struct ProviderDetailsView: View {
                         .font(.headline)
                 }
 
-                ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(section.rows.enumerated()), id: \.offset) { index, row in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text(ProviderDetailLocalization.localized(
                             row.label,
                             providerID: self.providerID,
-                            context: .rowLabel(sectionTitle: section.title)))
+                            context: ProviderDetailLocalization.rowContext(
+                                providerID: self.providerID,
+                                section: section,
+                                row: row,
+                                index: index)))
                             .foregroundStyle(.secondary)
                         Spacer(minLength: 12)
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(ProviderDetailLocalization.localizedValue(
                                 row.value,
-                                providerID: self.providerID))
+                                providerID: self.providerID,
+                                rowLabel: row.label))
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
                             if let secondaryValue = row.secondaryValue {
                                 Text(ProviderDetailLocalization.localizedValue(
                                     secondaryValue,
-                                    providerID: self.providerID))
+                                    providerID: self.providerID,
+                                    rowLabel: row.label))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -333,9 +430,11 @@ struct ProviderDetailsTeaserView: View {
     static func displayValue(
         _ value: String,
         providerID: String,
+        rowLabel: String? = nil,
         locale: Locale = .current) -> String
     {
-        ProviderDetailLocalization.localizedValue(value, providerID: providerID, locale: locale)
+        ProviderDetailLocalization.localizedValue(
+            value, providerID: providerID, rowLabel: rowLabel, locale: locale)
     }
 
     var body: some View {
@@ -345,16 +444,20 @@ struct ProviderDetailsTeaserView: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
             }
-            ForEach(Array(self.section.rows.prefix(2).enumerated()), id: \.offset) { _, row in
+            ForEach(Array(self.section.rows.prefix(2).enumerated()), id: \.offset) { index, row in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(ProviderDetailLocalization.localized(
                         row.label,
                         providerID: self.providerID,
-                        context: .rowLabel(sectionTitle: self.section.title)))
+                        context: ProviderDetailLocalization.rowContext(
+                            providerID: self.providerID,
+                            section: self.section,
+                            row: row,
+                            index: index)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Text(Self.displayValue(row.value, providerID: self.providerID))
+                    Text(Self.displayValue(row.value, providerID: self.providerID, rowLabel: row.label))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .monospacedDigit()
