@@ -742,9 +742,9 @@ extension InlineCostHistoryDashboardLabelTests {
         let dashboard = try #require(model.inlineUsageDashboard)
         #expect(dashboard.kpis.map(\.title) == [
             "Today",
-            "Est. Current window",
+            "Estimated: Current window",
             "Latest tokens",
-            "Est. Current window tokens",
+            "Estimated: Current window tokens",
             "30d",
             "30d tokens",
         ])

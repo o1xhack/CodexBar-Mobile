@@ -36,9 +36,11 @@ struct CopilotAllowanceCacheTests {
                 attempts: [])
         }
         let refresh = Task { await fixture.store.refreshProvider(.copilot, allowDisabled: true) }
-        while !gate.started {
+        for _ in 0..<1000 {
+            if gate.started { break }
             await Task.yield()
         }
+        try #require(gate.started)
         if accountOverride {
             fixture.store.setCopilotSeatCreditEntitlement(clear ? "" : "7000")
         } else if clear {
@@ -224,6 +226,10 @@ final class CopilotAllowanceFixture {
             suiteName: "CopilotAllowanceFixture",
             userDefaults: InMemoryUserDefaults(),
             config: testConfigWithAllProvidersDisabled())
+        // These allowance tests exercise selected-account cache behavior.
+        // Sync and widgets fan out to all accounts under the current fork policy.
+        self.settings.iCloudSyncEnabled = false
+        self.settings.accountWidgetsEnabled = false
         self.store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),

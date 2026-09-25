@@ -1965,8 +1965,9 @@ final class SyncCoordinator {
         }
 
         // Append every cached non-active Codex snapshot so this push covers
-        // all known accounts in one go. iOS merges by (providerID,
-        // accountEmail) so distinct emails produce distinct cards. Done
+        // all known accounts in one go. iOS prefers the stable
+        // accountRecordKey, so separate workspaces sharing one email retain
+        // distinct cards. Done
         // even when `isActiveGhost == true` to preserve provider presence
         // in the L1 cleanup diff during the refresh race window.
         let cachedNonActive = self.multiAccountCache.cachedSnapshots(

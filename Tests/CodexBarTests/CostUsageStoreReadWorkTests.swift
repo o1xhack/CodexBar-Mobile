@@ -88,6 +88,7 @@ struct CostUsageStoreReadWorkTests {
             daily: full.daily,
             projects: retainedReport ? [] : full.projects,
             sessions: retainedReport ? [] : full.sessions,
+            bucketTimeZoneIdentifier: full.bucketTimeZoneIdentifier,
             updatedAt: fixture.now.addingTimeInterval(retainedReport ? -60 : 0))
     }
 

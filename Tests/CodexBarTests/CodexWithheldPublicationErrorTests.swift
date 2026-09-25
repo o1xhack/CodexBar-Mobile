@@ -222,6 +222,7 @@ extension CodexAccountScopedRefreshTests {
         settings.codexCookieSource = .off
         settings.codexUsageDataSource = .oauth
         settings.multiAccountMenuLayout = stacked ? .stacked : .segmented
+        settings.iCloudSyncEnabled = true
         let root = CodexCredentialFixtures.root.appendingPathComponent(UUID().uuidString)
         let targetHome = root.appendingPathComponent("target")
         let siblingHome = root.appendingPathComponent("sibling")
@@ -300,7 +301,8 @@ extension CodexAccountScopedRefreshTests {
         }
 
         #expect(await targetLoader.callCount == 2)
-        #expect(await siblingLoader.callCount == (stacked ? 2 : 0))
+        // CloudKit publishes every visible account even in segmented mode.
+        #expect(await siblingLoader.callCount == 2)
         let recovered = try #require(store.codexAccountSnapshots.first { $0.id == targetVisible.id })
         let unchanged = try #require(store.codexAccountSnapshots.first { $0.id == siblingVisible.id })
         #expect(recovered.error == nil)
