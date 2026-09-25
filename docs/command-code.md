@@ -38,8 +38,11 @@ On Linux, browser import is unavailable. Set `cookieSource` to `manual` and
 provide the Command Code `Cookie` header in `cookieHeader`; both `auto` and
 `web` CLI source modes then use the billing API.
 
-The monthly grant size comes from the optional subscription lookup, which can
-time out while credits remain available. CodexBar keeps the last confirmed plan
+The credits response reports the monthly grant size (`monthlyCreditsGranted`),
+and CodexBar sizes the monthly row from it. The optional subscription lookup
+supplies the plan name and the billing-period end, and sizes the grant only
+when the credits response omits it. That lookup can time out while credits
+remain available. CodexBar keeps the last confirmed plan
 in memory, scoped to the credential that produced it. A kept plan is dropped at `currentPeriodEnd`, a day
 after the last refresh that confirmed it, when a lookup reports the free tier,
 and when a lookup reports a plan this build cannot size. Nothing is written to
@@ -54,10 +57,11 @@ billing endpoint.
 - The menu bar item and provider card use the Command Code icon and label.
 - The primary and secondary rows show 5-hour and weekly rolling usage.
 - The tertiary row shows monthly credits used/remaining.
-- The monthly row is sized from the kept plan when the subscription lookup fails,
-  and from the fresh credits response in every case. With no kept plan the row is
-  unavailable rather than shown as untouched, which is what a one-shot
-  `codexbar usage` run reports after a failed lookup. The rolling rows stay
+- The monthly row is sized from the reported grant, or from the kept plan when
+  the credits response omits the grant and the subscription lookup fails. Usage
+  always comes from the fresh credits response. After a failed lookup with no
+  kept plan, the row keeps its usage but has no reset time; with no grant size at
+  all, the row is unavailable rather than shown as untouched. The rolling rows stay
   available either way. The app also preserves an already-proven depleted monthly
   row while enrichment is unavailable and fresh credits still show depletion.
 - Widgets do not expose Command Code in the provider picker yet.

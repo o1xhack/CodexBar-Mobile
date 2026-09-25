@@ -13,14 +13,17 @@ extension UsageMenuCardView.Model {
             MenuCardHeightFingerprint.field("name", self.providerName),
             MenuCardHeightFingerprint.field("email", self.email),
             MenuCardHeightFingerprint.field("subtitle", self.subtitleText),
+            MenuCardHeightFingerprint.field("lastKnownUsage", self.lastKnownUsageText),
             "subtitleStyle=\(self.subtitleStyle.heightFingerprint)",
             MenuCardHeightFingerprint.field("plan", self.planText),
+            "planEmphasized=\(self.planEmphasis.isEmphasized)",
             MenuCardHeightFingerprint.field("placeholder", self.placeholder),
             MenuCardHeightFingerprint.field("credits", self.creditsText),
             "creditsRemaining=\(self.creditsRemaining.map(String.init(describing:)) ?? "nil")",
+            "creditsShowProgress=\(self.creditsShowProgress)",
             MenuCardHeightFingerprint.field("creditsHint", self.creditsHintText),
             MenuCardHeightFingerprint.field("creditsCopy", self.creditsHintCopyText),
-            "codexResetCredits=\(self.codexResetCredits?.heightFingerprint ?? "")",
+            "limitResetCredits=\(self.limitResetCredits?.heightFingerprint ?? "")",
             "metrics=\(MenuCardHeightFingerprint.join(self.metrics.map(\.heightFingerprint)))",
             "notes=\(notesFingerprint)",
             "providerDetails=\(self.providerDetails.heightFingerprint)",
@@ -43,9 +46,11 @@ extension [ProviderDetailSection] {
                 MenuCardHeightFingerprint.field("title", section.title),
                 MenuCardHeightFingerprint.join(section.rows.map { row in
                     MenuCardHeightFingerprint.join([
+                        MenuCardHeightFingerprint.field("id", row.id),
                         MenuCardHeightFingerprint.field("label", row.label),
                         MenuCardHeightFingerprint.field("value", row.value),
                         MenuCardHeightFingerprint.field("secondary", row.secondaryValue),
+                        "progress=\(row.progress == nil ? "0" : "1")",
                     ])
                 }),
                 section.chart.map { chart in
@@ -152,7 +157,7 @@ extension UsageMenuCardView.Model.TokenUsageSection {
     }
 }
 
-extension CodexResetCreditsPresentation {
+extension LimitResetCreditsPresentation {
     fileprivate var heightFingerprint: String {
         MenuCardHeightFingerprint.join([
             MenuCardHeightFingerprint.field("text", self.text),
@@ -168,7 +173,19 @@ extension InlineUsageDashboardModel {
             self.valueStyle.heightFingerprint,
             MenuCardHeightFingerprint.join(self.kpis.map(\.heightFingerprint)),
             MenuCardHeightFingerprint.join(self.points.map(\.heightFingerprint)),
+            MenuCardHeightFingerprint.join(self.quotaWindows.map(\.heightFingerprint)),
             MenuCardHeightFingerprint.join(self.detailLines.map { MenuCardHeightFingerprint.field("detail", $0) }),
+        ])
+    }
+}
+
+extension InlineUsageDashboardModel.QuotaWindow {
+    fileprivate var heightFingerprint: String {
+        MenuCardHeightFingerprint.join([
+            MenuCardHeightFingerprint.field("qwTitle", self.title),
+            MenuCardHeightFingerprint.field("qwRange", self.range),
+            MenuCardHeightFingerprint.field("qwValue", self.value),
+            MenuCardHeightFingerprint.field("qwNote", self.note),
         ])
     }
 }

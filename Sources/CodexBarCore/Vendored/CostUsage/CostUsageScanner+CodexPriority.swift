@@ -6,6 +6,8 @@ import Crypto
 import Foundation
 #if canImport(SQLite3)
 import SQLite3
+#else
+import CSQLite3
 #endif
 
 extension CostUsageScanner {
@@ -46,12 +48,8 @@ extension CostUsageScanner {
 
     private static let requestMarker = "websocket request:"
 
-    static func defaultCodexPriorityDatabaseURL() -> URL {
-        CodexPriorityDatabasePath.defaultURL()
-    }
-
     static func resolvedCodexPriorityDatabaseURL(_ databaseURL: URL?) -> URL {
-        databaseURL ?? self.defaultCodexPriorityDatabaseURL()
+        databaseURL ?? CodexPriorityDatabasePath.defaultURL()
     }
 
     /// Restores a previously persisted cursor into the process memo when that path has no live
@@ -60,7 +58,6 @@ extension CostUsageScanner {
         _ cursor: CodexPriorityTurnsPersistedCursor?,
         databaseURL: URL)
     {
-        #if canImport(SQLite3)
         guard let cursor, cursor.databasePath == databaseURL.path else { return }
         let path = databaseURL.path
         let needsSeed = self.codexPriorityTurnsMemo.withLock { $0[path] == nil }
@@ -70,33 +67,25 @@ extension CostUsageScanner {
             guard memo[path] == nil else { return }
             memo[path] = self.memoState(from: cursor, observationID: observationID)
         }
-        #endif
     }
 
     /// Drops process-local accumulated state so the next scan rebuilds from row 0.
     static func dropCodexPriorityTurnsMemo(databaseURL: URL) {
-        #if canImport(SQLite3)
         self.codexPriorityTurnsMemo.withLock { memo in
             _ = memo.removeValue(forKey: databaseURL.path)
         }
-        #endif
     }
 
     /// Snapshot of the live process memo for `databaseURL`. Nil when this process has not
     /// opened the DB.
     static func codexPriorityTurnsPersistedCursor(databaseURL: URL) -> CodexPriorityTurnsPersistedCursor? {
-        #if canImport(SQLite3)
-        return self.codexPriorityTurnsMemo.withLock { memo in
+        self.codexPriorityTurnsMemo.withLock { memo in
             memo[databaseURL.path].map {
                 self.persistedCursor(from: $0, databasePath: databaseURL.path)
             }
         }
-        #else
-        return nil
-        #endif
     }
 
-    #if canImport(SQLite3)
     /// Accumulated priority-turn state for one trace database. A durable cursor is persisted
     /// with Codex cache metadata and reseeded into this process-local memo after relaunch.
     /// The `logs` table uses an `INTEGER PRIMARY KEY AUTOINCREMENT` id, so rowids are
@@ -288,8 +277,6 @@ extension CostUsageScanner {
     }
     #endif
 
-    #endif
-
     /// Resolves priority turn metadata from the codex CLI trace database. The full-table
     /// `LIKE` scan over `feedback_log_body` grows with the database (hundreds of megabytes on
     /// active machines) and used to run on every refresh past the scan interval. For windows
@@ -322,7 +309,6 @@ extension CostUsageScanner {
             return CodexPriorityTurnsResolution(turns: [:], validationPending: expectExistingDatabase)
         }
 
-        #if canImport(SQLite3)
         if let untilDayKey, untilDayKey < CostUsageDayRange.dayKey(from: Date()) {
             return self.boundedCodexPriorityTurns(
                 databaseURL: url,
@@ -449,12 +435,8 @@ extension CostUsageScanner {
                 sinceDayKey: sinceDayKey,
                 untilDayKey: untilDayKey),
             validationPending: false)
-        #else
-        return CodexPriorityTurnsResolution(turns: [:], validationPending: false)
-        #endif
     }
 
-    #if canImport(SQLite3)
     private static func filteredResolvedCodexPriorityTurns(
         _ state: CodexPriorityTurnsMemoState,
         sinceDayKey: String?,
@@ -1034,7 +1016,6 @@ extension CostUsageScanner {
         defer { sqlite3_finalize(stmt) }
         return sqlite3_step(stmt) == SQLITE_ROW
     }
-    #endif
 
     static func parseCodexPriorityTraceRow(timestamp: String?, body: String) -> CodexPriorityTurnMetadata? {
         guard let markerRange = body.range(of: self.requestMarker) else {
@@ -1116,7 +1097,6 @@ extension CostUsageScanner {
         return value.isEmpty ? nil : String(value)
     }
 
-    #if canImport(SQLite3)
     private static func text(stmt: OpaquePointer?, index: Int32) -> String? {
         guard sqlite3_column_type(stmt, index) != SQLITE_NULL,
               let cString = sqlite3_column_text(stmt, index)
@@ -1131,7 +1111,6 @@ extension CostUsageScanner {
         }
         return self.text(stmt: stmt, index: index)
     }
-    #endif
 
     private static func timestamp(_ timestamp: String?, isInRangeSince since: String?, until: String?) -> Bool {
         guard since != nil || until != nil else { return true }

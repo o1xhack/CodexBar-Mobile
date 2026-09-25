@@ -23,17 +23,18 @@ struct SpendDashboardPublicationTests {
         // the wait deadline even though the observation semantics are unchanged.
         let isolatedCodexHome = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        settings._test_codexReconciliationEnvironment = ["CODEX_HOME": isolatedCodexHome.path]
+        let environment = ["CODEX_HOME": isolatedCodexHome.path]
+        settings._test_codexReconciliationEnvironment = environment
         defer {
             settings._test_codexReconciliationEnvironment = nil
             try? FileManager.default.removeItem(at: isolatedCodexHome)
         }
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
+            fetcher: UsageFetcher(environment: environment),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: [:])
+            environmentBase: environment)
         // Provider-specific by design: claude stays enabled so ownership fingerprints cover an
         // independent provider, but its refresh is pinned to one confirmed-empty publication so the
         // source-revision baseline cannot depend on live network behavior or repeat refreshes.
@@ -140,7 +141,8 @@ struct SpendDashboardPublicationTests {
         let profileHome = CodexCredentialFixtures.root
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try Self.writeCodexAuthFile(homeURL: profileHome)
-        settings._test_codexReconciliationEnvironment = ["CODEX_HOME": missingLiveHome.path]
+        let environment = ["CODEX_HOME": missingLiveHome.path]
+        settings._test_codexReconciliationEnvironment = environment
         settings.updateProviderConfig(provider: .codex) { config in
             config.codexProfileHomePaths = [profileHome.path]
             config.codexActiveSource = .profileHome(path: profileHome.path)
@@ -150,11 +152,11 @@ struct SpendDashboardPublicationTests {
             try? FileManager.default.removeItem(at: profileHome)
         }
         let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
+            fetcher: UsageFetcher(environment: environment),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: [:])
+            environmentBase: environment)
         var statusLoadCount = 0
         store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
             statusLoadCount += 1

@@ -155,6 +155,8 @@ public struct UserProviderPlugin: @unchecked Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         approvalStore: ProviderPluginApprovalStore,
         now: Date = Date(),
+        sourceMode: ProviderSourceMode = .auto,
+        cookieSource: ProviderCookieSource = .auto,
         cookieResolver: ProviderPluginRuntime.CookieResolver? = nil,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver? = nil) async throws -> UsageSnapshot
     {
@@ -171,6 +173,8 @@ public struct UserProviderPlugin: @unchecked Sendable {
                 settings: settings,
                 secrets: resolvedSecrets,
                 now: now,
+                sourceMode: sourceMode,
+                cookieSource: cookieSource,
                 cookieResolver: cookieResolver,
                 instanceCookieResolver: instanceCookieResolver)
         }
@@ -476,7 +480,7 @@ public enum UserProviderPluginManager {
             }
         }
         try approvalStore.remove(instanceID: plugin.manifest.id)
-        config.providers.removeAll { $0.id == plugin.manifest.id }
+        config.removeProviderConfig(for: plugin.manifest.id)
         if let historyDirectory {
             let historyURL = historyDirectory.appendingPathComponent("\(plugin.manifest.id.rawValue).json")
             if FileManager.default.fileExists(atPath: historyURL.path) {

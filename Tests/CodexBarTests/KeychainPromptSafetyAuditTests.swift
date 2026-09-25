@@ -21,10 +21,16 @@ struct KeychainPromptSafetyAuditTests {
 
     @Test
     func `default test runner explicitly suppresses real keychain access`() throws {
-        let script = try Self.readRepoFile("Scripts/test.sh")
+        let script = try Self.readRepoFile("Scripts/test_environment.sh")
 
         #expect(script.contains("CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS"))
         #expect(script.contains("export CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1"))
+        for runner in ["Scripts/test.sh", "Scripts/test_fast.sh"] {
+            let source = try Self.readRepoFile(runner)
+            let environment = try #require(source.range(of: "source \"${ROOT_DIR}/Scripts/test_environment.sh\""))
+            let launch = try #require(source.range(of: "exec python3"))
+            #expect(environment.upperBound < launch.lowerBound)
+        }
     }
 
     @Test
@@ -35,6 +41,21 @@ struct KeychainPromptSafetyAuditTests {
         #expect(ttyTests.contains("LIVE_CLAUDE_TTY"))
         #expect(ttyTests.contains("guard ProcessInfo.processInfo.environment[\"LIVE_CODEX_TTY\"] == \"1\""))
         #expect(ttyTests.contains("guard ProcessInfo.processInfo.environment[\"LIVE_CLAUDE_TTY\"] == \"1\""))
+    }
+
+    @Test
+    func `live Claude fetch gates the provider and raw diagnostic subprocess`() throws {
+        let source = try Self.readRepoFile("Tests/CodexBarTests/ClaudeUsageTests.swift")
+        let start = try #require(source.range(of: "func `live claude fetch PTY`()"))
+        let end = try #require(source.range(of: "private static func captureClaudeUsageRaw("))
+        let liveTest = source[start.lowerBound..<end.lowerBound]
+        let gate = try #require(liveTest.range(of:
+            "guard Self.allowsLiveClaudeFetch(environment: ProcessInfo.processInfo.environment) else"))
+        let fetch = try #require(liveTest.range(of: "let fetcher = ClaudeUsageFetcher("))
+        let diagnostic = try #require(liveTest.range(of: "Self.captureClaudeUsageRaw("))
+
+        #expect(gate.upperBound < fetch.lowerBound)
+        #expect(gate.upperBound < diagnostic.lowerBound)
     }
 
     @Test
@@ -178,7 +199,8 @@ struct KeychainPromptSafetyAuditTests {
             "Sources/CodexBarCore/KeychainCacheStore.swift",
             // Audited 2026-08-02: resolves only read-only ACL inspection functions
             // (SecKeychainItemCopyAccess, SecAccessCopyMatchingACLList, SecACLCopyContents,
-            // SecTrustedApplicationValidateWithPath); attributes-only, cannot prompt (#2528).
+            // SecTrustedApplicationValidateWithPath, SecTrustedApplicationCopyExternalRepresentation);
+            // attributes-only, cannot prompt (#2528, #3837).
             "Sources/CodexBarCore/KeychainAccessPreflight.swift",
             "Sources/CodexBarCore/KeychainNoUIQuery.swift",
             "Sources/CodexBarCore/KeychainSecurity.swift",

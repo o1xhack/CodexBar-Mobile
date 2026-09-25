@@ -16,7 +16,7 @@ struct KimiMembershipTests {
         {"user":{"membership":{"level":"\(level)"}},"version":"GOODS_VERSION_V1",
         "usage":{"limit":"100","used":"25","remaining":"75"}}
         """
-        let snapshot = try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data(json.utf8))
+        let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
         #expect(snapshot.toUsageSnapshot().loginMethod(for: .kimi) == title)
     }
 
@@ -30,8 +30,8 @@ struct KimiMembershipTests {
     func `absent or malformed optional membership preserves valid usage`(_ fields: String) throws {
         var json = try #require(JSONSerialization.jsonObject(with: Data(fields.utf8)) as? [String: Any])
         json["usage"] = ["limit": "100", "used": "25", "remaining": "75"]
-        let snapshot = try KimiUsageFetcher._parseCodeAPIUsageForTesting(JSONSerialization.data(withJSONObject: json))
-        #expect(snapshot.weekly.used == "25")
+        let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: JSONSerialization.data(withJSONObject: json))
+        #expect(snapshot.weekly?.used == "25")
         #expect(snapshot.planName == nil)
     }
 
@@ -41,7 +41,7 @@ struct KimiMembershipTests {
         {"user":{"membership":{"level":"LEVEL_ADVANCED"}},
         "version":\(version),"usage":{"limit":"100","used":"25"}}
         """
-        let snapshot = try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data(json.utf8))
+        let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
         #expect(snapshot.planName == "LEVEL_ADVANCED")
     }
 
@@ -68,7 +68,9 @@ struct KimiMembershipTests {
             return (Data(json.utf8), response)
         }
         let snapshot = try await KimiUsageFetcher.fetchCodeAPIUsage(
-            apiKey: "fixture-api-key", webAuthToken: "fixture-web-token", transport: transport)
+            apiKey: "fixture-api-key",
+            webAuthToken: "fixture-web-token",
+            transport: transport)
         #expect(snapshot.planName == "Allegro")
         #expect(snapshot.subscriptionBalance?.amountUsedRatio == 0.42)
     }
@@ -115,7 +117,7 @@ struct KimiMembershipTests {
                     updatedAt: Date())
             })
         #expect(attempted == ["desktop", "old-browser", "current-browser"])
-        #expect(snapshot.weekly.used == "25")
+        #expect(snapshot.weekly?.used == "25")
     }
 
     @Test
@@ -158,7 +160,9 @@ struct KimiMembershipTests {
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
         let executable = bin.appendingPathComponent("kimi")
         try "#!/bin/sh\n[ \"$1\" = --version ] && printf '0.38.0\\n'\n".write(
-            to: executable, atomically: true, encoding: .utf8)
+            to: executable,
+            atomically: true,
+            encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
         #expect(ProviderVersionDetector.kimiVersion(environment: [:], home: home, pathLookup: { nil }) == "0.38.0")
         #expect(ProviderVersionDetector.kimiVersion(
@@ -173,15 +177,20 @@ struct KimiMembershipTests {
             let url = try #require(request.url)
             let isPlan = url.path.hasSuffix("/GetSubscription")
             let response = try #require(HTTPURLResponse(
-                url: url, statusCode: isPlan ? 500 : 200, httpVersion: nil, headerFields: nil))
+                url: url,
+                statusCode: isPlan ? 500 : 200,
+                httpVersion: nil,
+                headerFields: nil))
             let json = url.path.hasSuffix("/usages")
                 ? #"{"usage":{"limit":"100","used":"25","remaining":"75"}}"#
                 : #"{"subscriptionBalance":{"amountUsedRatio":0.42}}"#
             return (Data(json.utf8), response)
         }
         let snapshot = try await KimiUsageFetcher.fetchCodeAPIUsage(
-            apiKey: "test-api-key", webAuthToken: "test-web-token", transport: transport)
-        #expect(snapshot.weekly.used == "25")
+            apiKey: "test-api-key",
+            webAuthToken: "test-web-token",
+            transport: transport)
+        #expect(snapshot.weekly?.used == "25")
         #expect(snapshot.planName == nil)
         #expect(snapshot.subscriptionBalance?.amountUsedRatio == 0.42)
     }

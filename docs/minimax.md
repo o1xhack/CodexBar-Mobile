@@ -26,7 +26,10 @@ falls back across the provider's supported web requests when needed.
 
 3) **Browser cookie import** (automatic)
    - Uses provider metadata for browser order and MiniMax domain filters.
-   - Chromium browser storage can supplement imported cookies with access-token context when available.
+   - Chromium browser storage can supplement imported cookies with access-token context when available. Discovery
+     follows the shared Chromium catalog, including Comet and Yandex, and only visits browsers with profile data.
+     It tries localStorage first, then sessionStorage, then MiniMax-origin IndexedDB when earlier stores yield no
+     tokens. These raw-storage reads do not decrypt cookies or request Keychain access.
 
 4) **Manual session cookie header** (optional web-path override)
    - Stored in `~/.codexbar/config.json` via Preferences → Providers → MiniMax (Cookie source → Manual).
@@ -54,6 +57,7 @@ Endpoint fallback, rejected-credential handling, and optional billing enrichment
 
 ## Snapshot mapping
 - Primary usage, reset timing, and plan/tier are derived from Coding Plan response fields or page text.
+- Unrepresentable integer fields and page durations are ignored without discarding otherwise usable usage percentages.
 - Web-session billing history, when available, is mapped into the shared inline usage dashboard:
   - 30-day token trend.
   - Top model and top method breakdowns.

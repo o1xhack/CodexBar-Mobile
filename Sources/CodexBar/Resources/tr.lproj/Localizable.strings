@@ -133,6 +133,10 @@
 "Cookie: …" = "Çerez: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Maliyet";
+"Token history" = "Token geçmişi";
+"Local token history · dollar costs unavailable" = "Yerel token geçmişi · dolar maliyetleri mevcut değil";
+"Partial local history · recorded token subtotal" = "Kısmi yerel geçmiş · kaydedilen token ara toplamı";
+"Local token history is unavailable or incomplete." = "Yerel token geçmişi mevcut değil veya eksik.";
 "Could not add Codex account" = "Codex hesabı eklenemedi";
 "Could not open Terminal for Gemini" = "Gemini için Terminal açılamadı";
 "Could not start claude /login" = "claude /login başlatılamadı";
@@ -618,6 +622,12 @@
 "cost_summary_off" = "Kapalı";
 "merge_icons_title" = "Simgeleri birleştir";
 "merge_icons_subtitle" = "Sağlayıcı seçicili tek bir menü çubuğu simgesi kullan.";
+"merged_icon_style_title" = "Birleşik simge stili";
+"merged_icon_style_subtitle" = "Değiştirici sağlayıcılar arasında tek tek geçiş yapar; Yığılmış ise iki sağlayıcıyı aynı anda, her biri kendi satırında gösterir.";
+"merged_icon_style_switcher" = "Değiştirici";
+"merged_icon_style_stacked" = "Yığılmış";
+"merge_icon_stacked_top_provider_title" = "Üst satır";
+"merge_icon_stacked_bottom_provider_title" = "Alt satır";
 "show_most_used_provider_title" = "En çok kullanılan sağlayıcıyı göster";
 "show_most_used_provider_subtitle" = "Menü çubuğu, kota sınırına en yakın sağlayıcıyı otomatik olarak gösterir.";
 "display_mode_title" = "Görünüm modu";
@@ -884,6 +894,12 @@
 "usage_percent_suffix_used" = "kullanıldı";
 "Store multiple DeepSeek API keys." = "Birden fazla DeepSeek API anahtarı depolayın.";
 "This week" = "Bu hafta";
+"Current window" = "Geçerli pencere";
+"Last week" = "Geçen hafta";
+"%d weeks ago" = "%d hafta önce";
+"Previous window" = "Önceki pencere";
+"%d windows ago" = "%d pencere önce";
+"Recent windows" = "Son pencereler";
 "Week" = "Hafta";
 "Month" = "Ay";
 "Models" = "Modeller";
@@ -944,6 +960,8 @@
 "Overage" = "Aşım";
 "Activity" = "Etkinlik";
 "Copied" = "Kopyalandı";
+"Managed by Homebrew" = "Homebrew tarafından yönetiliyor";
+"Copy update command" = "Güncelleme komutunu kopyala";
 "Copy error" = "Kopyalama hatası";
 "Copy path" = "Yolu kopyala";
 "Extra usage spent" = "Harcanan ek kullanım";
@@ -1162,11 +1180,13 @@
 "Open Augment (Log Out & Back In)" = "Augment'i aç (oturumu kapat ve tekrar aç)";
 "Open Codebuff Dashboard" = "Codebuff gösterge panelini aç";
 "Open Command Code Settings" = "Command Code ayarlarını aç";
-"Open Crof dashboard" = "Crof gösterge panelini aç";
 "Open Manus" = "Manus'u aç";
 "Open MiMo Balance" = "MiMo bakiyesini aç";
 "Open Moonshot Console" = "Moonshot konsolunu aç";
 "Open Ollama API Keys" = "Ollama API anahtarlarını aç";
+"Open llmman" = "llmman'ı aç";
+"Stored in ~/.codexbar/config.json. Only needed when llmman serve requires API keys." = "~/.codexbar/config.json dosyasında saklanır. Yalnızca llmman serve API anahtarı gerektirdiğinde gereklidir.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "llmman serve adresi. Varsayılan: http://127.0.0.1:17434.";
 "Open StepFun Platform" = "StepFun platformunu aç";
 "Open T3 Chat Settings" = "T3 Chat ayarlarını aç";
 "Open Volcengine Ark Console" = "Volcengine Ark konsolunu aç";
@@ -1229,7 +1249,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "~/.codexbar/config.json dosyasında depolandı. Anthropic Yönetici API anahtarı gerektirir.";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "~/.codexbar/config.json dosyasında depolandı. /v1/quota-stats için kullanılır.";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "~/.codexbar/config.json dosyasında depolandı. Ayrıca CODEBUFF_API_KEY sağlayabilir veya CodexBar'ın ~/.config/manicode/credentials.json dosyasını okumasına izin verebilirsiniz (`codebuff login` tarafından oluşturulur).";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "~/.codexbar/config.json dosyasında depolandı. Ayrıca CROF_API_KEY sağlayabilirsiniz.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "~/.codexbar/config.json dosyasında depolandı. Ayrıca KILO_API_KEY veya ~/.local/share/kilo/auth.json (kilo.access) sağlayabilirsiniz.";
 "T3 Chat cookie" = "T3 Chat çerezi";
 "Team mode" = "Takım modu";
@@ -1338,6 +1357,8 @@
 "Tracked tokens" = "İzlenen tokenlar";
 "Subscriptions" = "Abonelikler";
 "By subscription" = "Aboneliğe göre";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Model düzeyinde geçmiş yok";
 "Daily estimated spend" = "Günlük tahmini harcama";
 "Hourly estimated spend" = "Saatlik tahmini harcama";
@@ -1431,6 +1452,33 @@
 "Cost today unavailable" = "Bugünkü maliyet: kullanılamıyor";
 "30-day cost unavailable" = "30 günlük maliyet: kullanılamıyor";
 "Resets" = "Sıfırlamalar";
+"codex_workspaces_title" = "Çalışma Alanları";
+"codex_workspaces_estimated_local_logs" = "Yerel Codex günlüklerinden tahmin edildi";
+"codex_workspaces_no_local_usage" = "Henüz yerel Codex kullanımı yok";
+"codex_workspaces_tokens" = "Tokenlar";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_estimated_cost_short" = "Tahm. maliyet";
+"codex_workspaces_estimated_cost_value" = "tahm. %@";
+"codex_workspaces_sessions" = "Oturumlar";
+"codex_workspaces_session_count" = "Oturumlar: %@";
+"codex_workspaces_top_model" = "En çok kullanılan model";
+"codex_workspaces_local_codex_chat" = "Yerel Codex sohbeti";
+"codex_workspaces_indexing_local_logs" = "Yerel Codex günlükleri dizine ekleniyor…";
+"codex_workspaces_failed_read_logs" = "Codex günlükleri okunamadı";
+"codex_workspaces_scanning_logs" = "Codex günlükleri taranıyor…";
+"codex_workspaces_indexing_projects" = "Projeler dizine ekleniyor…";
+"codex_workspaces_saving_project_index" = "Proje dizini kaydediliyor…";
+"codex_workspaces_cost_unavailable" = "Maliyet kullanılamıyor";
+"codex_workspaces_refresh_usage_data" = "Kullanım verilerini yenile";
+"codex_workspaces_retry" = "Tekrar dene";
+"codex_workspaces_partial_data" = "Kısmi veriler";
+"codex_workspaces_high_usage" = "Yüksek kullanım";
+"codex_workspaces_elevated_usage" = "Artmış kullanım";
+"codex_workspaces_normal_usage" = "Normal kullanım";
+"codex_workspaces_no_sessions" = "Bu çalışma alanında oturum yok";
+"codex_workspaces_session" = "Oturum";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Başlatıldı";
 "Finish now" = "Şimdi tamamla";
 "Continue in background" = "Arka planda devam et";
 
@@ -1548,9 +1596,37 @@
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
 "%@ (unavailable)" = "%@ (kullanılamıyor)";
 "Spending cap, not balance" = "Harcama sınırı, bakiye değil";
+
+"Color Pace Indicator" = "Kullanım hızını renklendir";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";
 "%@ weekly" = "%@ haftalık";
 
-// Retained fork translations.
+"agent_sessions_hide_unreachable_title" = "Erişilemeyen ana bilgisayarları gizle";
+"agent_sessions_hide_unreachable_subtitle" = "Oturumları alınamadığında ana bilgisayarları gizle.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";
+"Incomplete" = "Eksik";
+"Est. subtotal (%@): %@" = "Tahmini ara toplam (%@): %@";
+"Excluded requests with missing final usage: %d" = "Nihai kullanım verileri eksik olduğu için hariç tutulan istekler: %d";
+
+"overview_layout_title" = "Genel Bakış düzeni";
+"overview_layout_subtitle" = "Genel Bakış’ın ne kadar bilgi göstereceğini seçin.";
+"overview_layout_detailed" = "Ayrıntılı";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
+"antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
+"antigravity_no_priced_token_history" = "Fiyatlandırılmış Antigravity token geçmişi yok.";
+
+/* Fork additions retained across upstream merge. */
 "5-hour" = "5 saat";
 "API key verified. Ollama does not expose Cloud quota limits through the API." = "API anahtarı doğrulandı. Ollama, Cloud kota limitlerini API üzerinden göstermez.";
 "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar, kullanımı getirmek için macOS Anahtarlığı'ndan Kimi K2 API anahtarınızı isteyecek. Devam etmek için Tamam'a tıklayın.";

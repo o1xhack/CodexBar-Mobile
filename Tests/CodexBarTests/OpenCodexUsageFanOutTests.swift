@@ -136,7 +136,7 @@ struct OpenCodexUsageFanOutTests {
         #expect(SpendDashboardSource.preferredMergeIndex(for: .codex, in: multipleCodex) == nil)
     }
 
-    @Test func `mergingOpenCodexInputs drops opencodex when hidden in hiddenSourceIDs`() {
+    @Test func `hidden OpenCodex inputs publish a disabled observation`() {
         let dummySnapshot = CostUsageTokenSnapshot(
             sessionTokens: nil,
             sessionCostUSD: nil,
@@ -165,8 +165,9 @@ struct OpenCodexUsageFanOutTests {
             now: Date(),
             force: false)
 
-        let result = SpendDashboardSource.mergingOpenCodexInputs([dummy], request: request)
-        #expect(!result.contains(where: { $0.id == SpendDashboardModel.openCodexSourceID }))
+        let result = SpendDashboardSource.mergingOpenCodexInputsWithObservation([dummy], request: request)
+        #expect(!result.inputs.contains(where: { $0.id == SpendDashboardModel.openCodexSourceID }))
+        #expect(result.observation == .disabled)
     }
 
     @Test
@@ -307,6 +308,9 @@ struct OpenCodexUsageFanOutTests {
         #expect(snapshot == reference)
         #expect(snapshot.daily.count >= 3)
         #expect(snapshot.hourly.count >= 5)
+        let unmeteredHour = try #require(snapshot.hourly.first { $0.totalTokens == 12 })
+        #expect(!unmeteredHour.tokensAreComplete)
+        #expect(!unmeteredHour.costIsComplete)
         #expect(snapshot.sessions.contains { $0.sessionID == "chat-dup" && $0.requestCount == 1 })
 
         let catalogPriced = try #require(
@@ -667,10 +671,20 @@ private enum OpenCodexUsageSnapshotReference {
         }
         let hourly = hoursByStart.keys.sorted().map { hour in
             let bucket = hoursByStart[hour] ?? HourAccumulator()
+            let entriesInHour = windowed.filter {
+                (calendar.dateInterval(of: .hour, for: $0.timestamp)?.start ?? $0.timestamp) == hour
+            }
             return CostUsageHourlyEntry(
                 hour: hour,
                 totalTokens: bucket.sawTokens ? bucket.tokens : nil,
-                costUSD: bucket.sawCost ? bucket.cost : nil)
+                costUSD: bucket.sawCost ? bucket.cost : nil,
+                tokensAreComplete: entriesInHour.allSatisfy { $0.resolvedTotalTokens != nil },
+                costIsComplete: entriesInHour.allSatisfy {
+                    Self.listPriceUSD(
+                        entry: $0,
+                        customPricing: customPricing,
+                        modelsDevCacheRoot: modelsDevCacheRoot) != nil
+                })
         }
         let todayEntry = CostUsageTokenSnapshot.entry(
             in: daily,
@@ -688,7 +702,7 @@ private enum OpenCodexUsageSnapshotReference {
             .summary(forLastDays: days, calendar: calendar)
         return CostUsageTokenSnapshot(
             sessionTokens: todayEntry?.totalTokens ?? (daily.isEmpty ? nil : 0),
-            sessionCostUSD: todayEntry?.costUSD ?? (daily.isEmpty ? nil : 0),
+            sessionCostUSD: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.costUSD,
             sessionRequests: todayEntry?.requestCount ?? (daily.isEmpty ? nil : 0),
             last30DaysTokens: windowSummary.totalTokens,
             last30DaysCostUSD: windowSummary.totalCostUSD,

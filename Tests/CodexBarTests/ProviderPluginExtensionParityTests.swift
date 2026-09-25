@@ -11,20 +11,21 @@ struct ProviderPluginExtensionParityTests {
     func `Qoder cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"total_quota":{"quota_summary":{"used_value":25,"limit_value":100,"remaining_value":75,"unit":"credits"}},"shared_quota":{"quota_summary":{"used_value":5,"limit_value":20,"remaining_value":15}},"next_reset_at":"2027-01-15T00:00:00Z"}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try QoderUsageFetcher.parseUsage(data: Data(fixture.utf8), now: now).toUsageSnapshot()
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "qoder",
             transport: Self.transport { _ in fixture })
             .fetchUsage(now: now, cookieResolver: { _, _ in "session=fixture" })
 
-        Self.expectCoreParity(swift, script)
+        #expect(script.primary?.usedPercent == 25)
+        #expect(script.primary?.resetDescription == "30 / 120 credits")
+        #expect(script.identity?.loginMethod == "browser / qoder.com")
     }
 
     @Test
     func `Manus cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"totalCredits":1200,"freeCredits":200,"periodicCredits":300,"refreshCredits":40,"maxRefreshCredits":100,"proMonthlyCredits":1000,"eventCredits":0,"addonCredits":0,"nextRefreshTime":"2027-01-15T00:00:00Z","refreshInterval":"daily"}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try ManusUsageFetcher.parseResponse(Data(fixture.utf8)).toUsageSnapshot(now: now)
+        let swift = try ManusReferenceParser.parseResponse(Data(fixture.utf8)).toUsageSnapshot(now: now)
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "manus",
             transport: Self.transport { _ in fixture })
@@ -33,18 +34,63 @@ struct ProviderPluginExtensionParityTests {
         Self.expectCoreParity(swift, script)
     }
 
+    @Test(arguments: [
+        #"{"data":{"totalCredits":5},"result":{}}"#,
+        #"{"data":null,"result":{"totalCredits":5},"response":{"refreshInterval":"daily"}}"#,
+        #"{"response":{"totalCredits":5},"availableCredits":{}}"#,
+    ])
+    func `Manus ignores unused lower priority envelopes`(body: String) async throws {
+        let swift = try ManusReferenceParser.parseResponse(Data(body.utf8)).toUsageSnapshot()
+        let script = try await ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+            .fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        #expect(swift.identity?.loginMethod == "Balance: 5 credits")
+        #expect(script.identity?.loginMethod == swift.identity?.loginMethod)
+    }
+
+    @Test(arguments: ["0", "false", #""""#])
+    func `Manus rejects selected primitive envelopes`(payload: String) async throws {
+        let body = "{\"data\":\(payload),\"result\":{\"totalCredits\":5}}"
+        #expect(throws: (any Error).self) {
+            try ManusReferenceParser.parseResponse(Data(body.utf8))
+        }
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+        await #expect(throws: ProviderFetchClassifiedError.self) {
+            try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        }
+    }
+
+    @Test(arguments: ["", "data", "result", "response", "availableCredits"])
+    func `Manus plugin rejects missing credits and preserves explicit zero`(envelope: String) async throws {
+        for payload in ["{}", #"{"error":"session expired"}"#, #"{"refreshInterval":"daily"}"#] {
+            let body = envelope.isEmpty ? payload : "{\"\(envelope)\":\(payload)}"
+            let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+            do {
+                _ = try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+                Issue.record("Expected missing credits failure for \(body)")
+            } catch {
+                #expect(error.localizedDescription.contains("missing expected credits fields"))
+            }
+        }
+        let payload = #"{"totalCredits":0}"#
+        let body = envelope.isEmpty ? payload : "{\"\(envelope)\":\(payload)}"
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+        let snapshot = try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        #expect(snapshot.identity?.loginMethod == "Balance: 0 credits")
+    }
+
     @Test
     func `Perplexity cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"balance_cents":900,"renewal_date_ts":1893456000,"current_period_purchased_cents":200,"credit_grants":[{"type":"recurring","amount_cents":1000},{"type":"promotional","amount_cents":300,"expires_at_ts":1893456000},{"type":"purchased","amount_cents":200}],"total_usage_cents":1100}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try PerplexityUsageFetcher._parseResponseForTesting(Data(fixture.utf8), now: now)
-            .toUsageSnapshot()
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "perplexity",
             transport: Self.transport { _ in fixture })
             .fetchUsage(now: now, cookieResolver: { _, _ in "__Secure-next-auth.session-token=fixture" })
 
-        Self.expectCoreParity(swift, script)
+        #expect(script.primary?.usedPercent == 100)
+        #expect(script.secondary?.usedPercent == 0)
+        #expect(script.tertiary?.usedPercent == 50)
+        #expect(script.identity?.loginMethod == "Pro")
     }
 
     @Test

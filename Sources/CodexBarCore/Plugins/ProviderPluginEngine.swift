@@ -11,6 +11,19 @@ struct ProviderPluginContextOptions: Sendable {
     static let production = Self(optionalRequestTimeoutSeconds: nil)
 
     let optionalRequestTimeoutSeconds: TimeInterval?
+    var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
+    var cookieSource: ProviderCookieSource = .auto
+    var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
+    var cookieSessionResolver: ProviderPluginRuntime.CookieSessionResolver?
+    var cookieSessionInvalidator: ProviderPluginRuntime.CookieSessionInvalidator?
+
+    func rejectCookie(domain: String, id: String) {
+        if !id.isEmpty, let invalidate = self.cookieSessionInvalidator {
+            invalidate(domain, id)
+        } else {
+            self.cookieInvalidator?(domain)
+        }
+    }
 }
 
 enum ProviderPluginSourceLint {
@@ -73,7 +86,7 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
 
     func globalType(of name: String) throws -> String
     func requestInterrupt()
@@ -86,13 +99,16 @@ protocol ProviderPluginValue {
     var isUndefined: Bool { get }
     var isString: Bool { get }
     var isNumber: Bool { get }
+    var isBoolean: Bool { get }
     var isDate: Bool { get }
 
+    func propertyNames() throws -> [String]
     func property(_ name: String) -> (any ProviderPluginValue)?
     func element(at index: Int) -> (any ProviderPluginValue)?
     func stringValue() -> String
     func int32Value() -> Int32
     func doubleValue() -> Double
+    func boolValue() -> Bool
     func dateValue() -> Date?
 }
 
@@ -128,8 +144,19 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         return CFGetTypeID(number) != CFBooleanGetTypeID()
     }
 
+    var isBoolean: Bool {
+        guard let number = self.value as? NSNumber else { return false }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
+    }
+
     var isDate: Bool {
         false
+    }
+
+    func propertyNames() throws -> [String] {
+        let keys = Array((self.value as? [String: Any] ?? [:]).keys)
+        guard keys.count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return keys
     }
 
     func property(_ name: String) -> (any ProviderPluginValue)? {
@@ -159,6 +186,10 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         (self.value as? NSNumber)?.doubleValue ?? .nan
     }
 
+    func boolValue() -> Bool {
+        (self.value as? NSNumber)?.boolValue ?? false
+    }
+
     func dateValue() -> Date? {
         nil
     }
@@ -169,9 +200,11 @@ final class JSONProviderPluginValue: ProviderPluginValue {
 
 final class JavaScriptCorePluginValue: ProviderPluginValue {
     let value: JSValue
+    private let keyEnumerator: JSValue
 
-    init(_ value: JSValue) {
+    init(_ value: JSValue, keyEnumerator: JSValue) {
         self.value = value
+        self.keyEnumerator = keyEnumerator
     }
 
     var isObject: Bool {
@@ -198,16 +231,34 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.isNumber
     }
 
+    var isBoolean: Bool {
+        self.value.isBoolean
+    }
+
     var isDate: Bool {
         self.value.isDate
     }
 
+    func propertyNames() throws -> [String] {
+        guard let keys = self.keyEnumerator.call(withArguments: [self.value]), keys.isArray else {
+            throw ProviderPluginError.invalidSnapshot("cannot enumerate result keys")
+        }
+        let count = keys.forProperty("length").toDouble()
+        guard count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return try (0..<Int(count)).map { index in
+            guard let key = keys.atIndex(index), key.isString else {
+                throw ProviderPluginError.invalidSnapshot("symbol result keys are not supported")
+            }
+            return key.toString()
+        }
+    }
+
     func property(_ name: String) -> (any ProviderPluginValue)? {
-        self.value.forProperty(name).map(JavaScriptCorePluginValue.init)
+        self.value.forProperty(name).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func element(at index: Int) -> (any ProviderPluginValue)? {
-        self.value.atIndex(index).map(JavaScriptCorePluginValue.init)
+        self.value.atIndex(index).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func stringValue() -> String {
@@ -220,6 +271,10 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
 
     func doubleValue() -> Double {
         self.value.toDouble()
+    }
+
+    func boolValue() -> Bool {
+        self.value.toBool()
     }
 
     func dateValue() -> Date? {

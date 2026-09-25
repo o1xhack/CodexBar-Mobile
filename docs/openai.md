@@ -9,6 +9,9 @@ read_when:
 
 CodexBar's OpenAI API provider targets the API Platform organization dashboard, not ChatGPT/Codex subscription limits.
 
+The bundled `openai.js` plugin is authoritative on QuickJS and JavaScriptCore. Swift retains settings and the typed
+usage-card adapter; the script supplies daily history, source labels, project scoping, and legacy billing fallback.
+
 ## Data sources
 
 1. Preferred: `OPENAI_ADMIN_KEY` or configured key with Admin API access.
@@ -49,7 +52,8 @@ provider config:
 
 Project scoping is tied to the configured Admin API key. Selected OpenAI token accounts intentionally scrub
 `OPENAI_PROJECT_ID`/`workspaceID` so one account cannot inherit another account's project filter. Project-scoped Admin
-API failures do not fall back to the legacy billing endpoint, because that endpoint is not project-filtered.
+API failures with a configured Admin key or `OPENAI_ADMIN_KEY` do not fall back to the legacy billing endpoint, because
+that endpoint is not project-filtered. The legacy `OPENAI_API_KEY` environment path retains its existing balance fallback.
 
 ## Menu display
 

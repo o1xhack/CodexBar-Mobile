@@ -23,6 +23,9 @@ CodexBar reads Qoder big model credit usage from the Qoder account dashboard. It
 
 Bare `Cookie:` headers default to `qoder.com`. Request captures are parsed only when the target URL or header host
 clearly belongs to `qoder.com` or `qoder.com.cn`.
+The settings snapshot binds the manual credential to that origin before normalizing its header. A China capture is
+never offered to the global endpoint, and a rejected plain header is never retried against China. Existing plain
+headers retain the global default; no config rewrite is needed.
 
 ## Data Source
 
@@ -33,6 +36,9 @@ CodexBar requests:
 
 The selected site controls the `Origin` and `Referer` headers. Automatic mode imports Qoder cookies from Chrome
 and caches valid cookie headers. Invalid cached sessions are skipped so a fresh browser cookie can be retried.
+The bundled JavaScript provider performs HTTP requests and quota parsing on both QuickJS and JavaScriptCore. Browser
+profiles are tried in order with separate caches for each domain. The successful candidate's source and site are kept
+for the source label and usage-dashboard action.
 
 ## Display
 
@@ -67,7 +73,7 @@ captures should come from the same site.
 ## Related Files
 
 - `Sources/CodexBarCore/Providers/Qoder/QoderProviderDescriptor.swift`
-- `Sources/CodexBarCore/Providers/Qoder/QoderUsageFetcher.swift`
-- `Sources/CodexBarCore/Providers/Qoder/QoderUsageSnapshot.swift`
-- `Sources/CodexBarCore/Providers/Qoder/QoderCookieImporter.swift`
+- `Sources/CodexBarCore/Resources/Plugins/qoder.js`
+- `Sources/CodexBarCore/Providers/Qoder/QoderCookieRouting.swift`
+- `Sources/CodexBarCore/Plugins/ProviderPluginCookieBroker.swift`
 - `Sources/CodexBar/Providers/Qoder/QoderProviderImplementation.swift`

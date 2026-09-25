@@ -43,6 +43,15 @@ enum ProviderPluginSnapshotMapper {
             throw ProviderPluginError.invalidSnapshot("fetchUsage must resolve to an object")
         }
 
+        try self.object(
+            value,
+            allowed: [
+                "primary", "secondary", "tertiary", "extraWindows", "cost", "costUsage", "details",
+                "identity",
+                "subscriptionRenewsAt", "subscriptionExpiresAt", "dataConfidence", "empty",
+            ],
+            path: "usage")
+
         let primary = try self.window(value, property: "primary")
         let secondary = try self.window(value, property: "secondary")
         let tertiary = try self.window(value, property: "tertiary")
@@ -54,15 +63,20 @@ enum ProviderPluginSnapshotMapper {
         let subscriptionRenewsAt = try self.optionalDate(value, property: "subscriptionRenewsAt")
         let subscriptionExpiresAt = try self.optionalDate(value, property: "subscriptionExpiresAt")
         let dataConfidence = try self.dataConfidence(value)
+        let empty = value.property("empty")
+        if let empty, !empty.isUndefined, !empty.isBoolean {
+            throw ProviderPluginError.invalidSnapshot("empty must be a boolean")
+        }
 
-        guard primary != nil || secondary != nil || tertiary != nil || !(extraRateWindows?.isEmpty ?? true)
+        guard empty?.boolValue() == true
+            || primary != nil || secondary != nil || tertiary != nil || !(extraRateWindows?.isEmpty ?? true)
             || providerCost != nil
             || costUsage != nil
             || !details.isEmpty
             || self.hasMeaningfulIdentity(identity)
         else {
             throw ProviderPluginError.invalidSnapshot(
-                "snapshot must contain at least one rate window, cost, detail section, or identity field")
+                "snapshot must contain a rate window, cost, detail section, or identity field, or declare empty: true")
         }
 
         return UsageSnapshot(
@@ -102,11 +116,10 @@ enum ProviderPluginSnapshotMapper {
         guard value.isArray else {
             throw ProviderPluginError.invalidSnapshot("details must be an array")
         }
-        let count = Int(value.property("length")?.int32Value() ?? 0)
-        guard count <= ProviderDetailSection.maximumSectionsPerSnapshot else {
-            throw ProviderPluginError.invalidSnapshot(
-                "details exceeds \(ProviderDetailSection.maximumSectionsPerSnapshot) sections")
-        }
+        let count = try self.boundedArrayCount(
+            value,
+            maximum: ProviderDetailSection.maximumSectionsPerSnapshot,
+            path: "details")
         return try (0..<count).map { index in
             guard let section = value.element(at: index), section.isObject, !section.isArray else {
                 throw ProviderPluginError.invalidSnapshot("details[\(index)] must be an object")
@@ -116,11 +129,10 @@ enum ProviderPluginSnapshotMapper {
             guard let rowsValue = section.property("rows"), rowsValue.isArray else {
                 throw ProviderPluginError.invalidSnapshot("\(path).rows must be an array")
             }
-            let rowCount = Int(rowsValue.property("length")?.int32Value() ?? 0)
-            guard rowCount <= ProviderDetailSection.maximumRowsPerSection else {
-                throw ProviderPluginError.invalidSnapshot(
-                    "\(path).rows exceeds \(ProviderDetailSection.maximumRowsPerSection) entries")
-            }
+            let rowCount = try self.boundedArrayCount(
+                rowsValue,
+                maximum: ProviderDetailSection.maximumRowsPerSection,
+                path: "\(path).rows")
             let rows = try (0..<rowCount).map { rowIndex in
                 guard let row = rowsValue.element(at: rowIndex), row.isObject, !row.isArray else {
                     throw ProviderPluginError.invalidSnapshot("\(path).rows[\(rowIndex)] must be an object")
@@ -129,11 +141,24 @@ enum ProviderPluginSnapshotMapper {
                 return try ProviderDetailSection.Row(
                     label: self.requiredDetailString(row, property: "label", path: rowPath),
                     value: self.requiredDetailString(row, property: "value", path: rowPath),
-                    secondaryValue: self.optionalDetailString(row, property: "secondaryValue", path: rowPath))
+                    secondaryValue: self.optionalDetailString(row, property: "secondaryValue", path: rowPath),
+                    progress: self.detailProgress(row, path: rowPath),
+                    usageValue: self.optionalFiniteNumber(row, property: "usageValue", path: rowPath))
             }
             let chart = try self.detailChart(section, path: path)
             return try ProviderDetailSection(title: title, rows: rows, chart: chart)
         }
+    }
+
+    private static func detailProgress(
+        _ row: any ProviderPluginValue,
+        path: String) throws -> ProviderDetailSection.Row.Progress?
+    {
+        guard let fraction = try self.optionalFiniteNumber(row, property: "progress", path: path) else { return nil }
+        guard (0...1).contains(fraction) else {
+            throw ProviderPluginError.invalidSnapshot("\(path).progress must be between 0 and 1")
+        }
+        return try ProviderDetailSection.Row.Progress(used: fraction, total: 1)
     }
 
     private static func detailChart(
@@ -154,11 +179,10 @@ enum ProviderPluginSnapshotMapper {
         guard let pointsValue = chart.property("points"), pointsValue.isArray else {
             throw ProviderPluginError.invalidSnapshot("\(chartPath).points must be an array")
         }
-        let pointCount = Int(pointsValue.property("length")?.int32Value() ?? 0)
-        guard pointCount <= ProviderDetailSection.maximumPointsPerChart else {
-            throw ProviderPluginError.invalidSnapshot(
-                "\(chartPath).points exceeds \(ProviderDetailSection.maximumPointsPerChart) entries")
-        }
+        let pointCount = try self.boundedArrayCount(
+            pointsValue,
+            maximum: ProviderDetailSection.maximumPointsPerChart,
+            path: "\(chartPath).points")
         let points = try (0..<pointCount).map { pointIndex in
             guard let point = pointsValue.element(at: pointIndex), point.isObject, !point.isArray else {
                 throw ProviderPluginError.invalidSnapshot("\(chartPath).points[\(pointIndex)] must be an object")
@@ -230,10 +254,7 @@ enum ProviderPluginSnapshotMapper {
         guard value.isArray else {
             throw ProviderPluginError.invalidSnapshot("extraWindows must be an array")
         }
-        let count = Int(value.property("length")?.int32Value() ?? 0)
-        guard count <= 64 else {
-            throw ProviderPluginError.invalidSnapshot("extraWindows exceeds 64 entries")
-        }
+        let count = try self.boundedArrayCount(value, maximum: 64, path: "extraWindows")
         return try (0..<count).map { index in
             guard let item = value.element(at: index), item.isObject, !item.isArray else {
                 throw ProviderPluginError.invalidSnapshot("extraWindows[\(index)] must be an object")
@@ -245,7 +266,14 @@ enum ProviderPluginSnapshotMapper {
             let window = try self.window(
                 windowValue?.isObject == true && windowValue?.isNull == false ? windowValue! : item,
                 path: "\(path).window")
-            return NamedRateWindow(id: id, title: title, window: window)
+            var usageKnown = true
+            if let value = item.property("usageKnown"), !value.isUndefined {
+                guard value.isBoolean else {
+                    throw ProviderPluginError.invalidSnapshot("\(path).usageKnown must be a boolean")
+                }
+                usageKnown = value.boolValue()
+            }
+            return NamedRateWindow(id: id, title: title, window: window, usageKnown: usageKnown)
         }
     }
 
@@ -311,10 +339,7 @@ enum ProviderPluginSnapshotMapper {
         guard let entriesValue = value.property("entries"), entriesValue.isArray else {
             throw ProviderPluginError.invalidSnapshot("costUsage.entries must be an array")
         }
-        let count = Int(entriesValue.property("length")?.int32Value() ?? 0)
-        guard count <= 10000 else {
-            throw ProviderPluginError.invalidSnapshot("costUsage.entries exceeds 10000 entries")
-        }
+        let count = try self.boundedArrayCount(entriesValue, maximum: 10000, path: "costUsage.entries")
 
         let parsedEntries = try self.costUsageEntries(
             entriesValue,
@@ -383,9 +408,6 @@ enum ProviderPluginSnapshotMapper {
                 entry,
                 property: "reasoningTokens",
                 path: path)
-            if let reasoningTokens, reasoningTokens > outputTokens {
-                throw ProviderPluginError.invalidSnapshot("\(path).reasoningTokens must not exceed outputTokens")
-            }
             let requests = try self.requiredNonnegativeInteger(entry, property: "requests", path: path)
             let cost = try self.requiredFiniteNumber(entry, property: "cost", path: path)
             guard cost >= 0 else {
@@ -671,11 +693,7 @@ enum ProviderPluginSnapshotMapper {
             throw ProviderPluginError.invalidSnapshot("\(path).\(property) must be a Date or ISO-8601 string")
         }
         let text = propertyValue.stringValue()
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        guard let date = fractional.date(from: text) ?? plain.date(from: text) else {
+        guard let date = ISO8601DateParser.parse(text) else {
             throw ProviderPluginError.invalidSnapshot("\(path).\(property) is not a valid ISO-8601 date")
         }
         return date

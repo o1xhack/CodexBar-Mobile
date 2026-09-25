@@ -1,6 +1,6 @@
 import Foundation
 
-public struct AlibabaTokenPlanUsageSnapshot: Sendable {
+public struct AlibabaTokenPlanUsageSnapshot: Sendable, OneConsoleTokenPlanSnapshot {
     public let planName: String?
     public let usedQuota: Double?
     public let totalQuota: Double?
@@ -16,6 +16,7 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
     public let weeklyUsedPercent: Double?
     public let weeklyTotalQuota: Double?
     public let weeklyResetsAt: Date?
+    public let monthlyWindow: RateWindow?
     public let updatedAt: Date
 
     public init(
@@ -32,6 +33,7 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
         weeklyUsedPercent: Double? = nil,
         weeklyTotalQuota: Double? = nil,
         weeklyResetsAt: Date? = nil,
+        monthlyWindow: RateWindow? = nil,
         updatedAt: Date)
     {
         self.planName = planName
@@ -47,7 +49,41 @@ public struct AlibabaTokenPlanUsageSnapshot: Sendable {
         self.weeklyUsedPercent = weeklyUsedPercent
         self.weeklyTotalQuota = weeklyTotalQuota
         self.weeklyResetsAt = weeklyResetsAt
+        self.monthlyWindow = monthlyWindow
         self.updatedAt = updatedAt
+    }
+
+    init(
+        planName: String?,
+        usedQuota: Double?,
+        totalQuota: Double?,
+        remainingQuota: Double?,
+        resetsAt: Date?,
+        fiveHourUsedPercent: Double?,
+        fiveHourTotalQuota: Double?,
+        fiveHourResetsAt: Date?,
+        weeklyUsedPercent: Double?,
+        weeklyTotalQuota: Double?,
+        weeklyResetsAt: Date?,
+        monthlyWindow: RateWindow?,
+        updatedAt: Date)
+    {
+        self.init(
+            planName: planName,
+            usedQuota: usedQuota,
+            totalQuota: totalQuota,
+            remainingQuota: remainingQuota,
+            resetsAt: resetsAt,
+            fiveHourUsedPercent: fiveHourUsedPercent,
+            fiveHourTotalQuota: fiveHourTotalQuota,
+            fiveHourResetsAt: fiveHourResetsAt,
+            sevenDayUsedPercent: nil,
+            sevenDayResetsAt: nil,
+            weeklyUsedPercent: weeklyUsedPercent,
+            weeklyTotalQuota: weeklyTotalQuota,
+            weeklyResetsAt: weeklyResetsAt,
+            monthlyWindow: monthlyWindow,
+            updatedAt: updatedAt)
     }
 }
 

@@ -10,6 +10,12 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
     /// for display because the provider returned no authenticated email.
     /// Identity grouping must never treat that fallback as a stable email.
     public let accountEmailIsFallbackLabel: Bool?
+    /// Live-only verified ownership for saved-account widgets; never changes sync or hook identity.
+    public private(set) var widgetAccountOwnerID: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case providerID, accountEmail, accountOrganization, loginMethod, accountID, accountEmailIsFallbackLabel
+    }
 
     public init(
         providerID: ProviderInstanceID?,
@@ -17,7 +23,8 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
         accountOrganization: String?,
         loginMethod: String?,
         accountID: String? = nil,
-        accountEmailIsFallbackLabel: Bool? = nil)
+        accountEmailIsFallbackLabel: Bool? = nil,
+        widgetAccountOwnerID: String? = nil)
     {
         self.providerID = providerID
         self.accountEmail = accountEmail
@@ -25,6 +32,7 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
         self.loginMethod = loginMethod
         self.accountID = accountID
         self.accountEmailIsFallbackLabel = accountEmailIsFallbackLabel
+        self.widgetAccountOwnerID = widgetAccountOwnerID
     }
 
     public func scoped(to instanceID: ProviderInstanceID) -> ProviderIdentitySnapshot {

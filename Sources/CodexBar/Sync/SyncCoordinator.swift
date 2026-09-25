@@ -217,7 +217,8 @@ final class SyncCoordinator {
         withObservationTracking {
             _ = self.store.snapshots
             _ = self.store.errors
-            _ = self.store.tokenSnapshots
+            _ = self.store.tokenSnapshotPublications
+            _ = self.store.codexAccountSnapshots
             _ = self.store.credits
             _ = self.settings.iCloudSyncEnabled
             // Multi-account: re-push when the active Codex managed account
@@ -1742,7 +1743,7 @@ final class SyncCoordinator {
 
     // swiftlint:enable function_parameter_count
 
-    /// For multi-account providers (Codex via observation-cache + token-based
+    /// For multi-account providers (Codex via co-resident snapshots and cache + token-based
     /// providers via direct read of `accountSnapshots`), records each account's
     /// snapshot into `multiAccountCache`, then appends cached / live non-active
     /// snapshots to `providerSnapshots`. Also purges cache entries for accounts
@@ -1756,10 +1757,9 @@ final class SyncCoordinator {
     /// can emit one CKRecord per known account on each push without
     /// touching upstream's account-scoped refresh machinery.
     ///
-    /// **Cold start.** A fresh process knows the active account on first
-    /// push; non-active accounts populate as the user switches between
-    /// them. Until then, iOS sees the active account only — same as
-    /// pre-fix behavior, never worse.
+    /// **Cold start.** Fresh co-resident Codex account results populate on the
+    /// first push; the observation cache remains a fallback for accounts
+    /// whose last good result predates the current refresh.
     private func captureAndExpandMultiAccountSnapshots(
         into providerSnapshots: inout [ProviderUsageSnapshot],
         enabledSet: Set<UsageProvider>)
@@ -1881,9 +1881,8 @@ final class SyncCoordinator {
     }
 
     /// Codex multi-account expansion (R1). Captures the active managed
-    /// account's freshly-built snapshot into `multiAccountCache`, then
-    /// appends every cached non-active snapshot so the push covers all
-    /// known managed accounts. Pure side-effect on the in/out
+    /// account and all co-resident inactive results into `multiAccountCache`,
+    /// then appends cached non-active snapshots. Pure side-effect on the in/out
     /// `providerSnapshots` and the cache; safe to call even when no Codex
     /// multi-account configuration exists (early-exits without mutation).
     private func expandCodexMultiAccount(
@@ -1938,6 +1937,31 @@ final class SyncCoordinator {
                 activeSnap,
                 providerID: codexProviderID,
                 accountID: activeAccountID)
+        }
+
+        // Upstream fetches visible Codex accounts side by side. Hydrate the
+        // CloudKit cache from those co-resident results, so a newly added
+        // inactive account reaches iPhone without first being selected in
+        // the Mac menu. Keep the active record from the main loop because
+        // it owns the provider-level cost and history aggregates.
+        for entry in self.store.codexAccountSnapshots {
+            guard let storedID = entry.account.storedAccountID?.uuidString,
+                  storedID != activeAccountID,
+                  livingIDs.contains(storedID),
+                  let snapshot = entry.snapshot
+            else { continue }
+            let perAccount = self.buildProviderUsageSnapshot(
+                for: .codex,
+                snapshot: snapshot,
+                error: entry.error,
+                metadata: self.store.providerMetadata[.codex],
+                sharedCostSummary: nil,
+                sharedUtilizationHistory: nil,
+                accountRecordKey: storedID.lowercased())
+            self.multiAccountCache.record(
+                perAccount,
+                providerID: codexProviderID,
+                accountID: storedID)
         }
 
         // Append every cached non-active Codex snapshot so this push covers
@@ -2114,7 +2138,7 @@ final class SyncCoordinator {
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
-        let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        let tokenSnapshot = self.store.tokenSnapshotPublications[provider.instanceID]?.snapshot
         let fallbackBucketTimeZone = self.settings.costUsageBucketCalendar.timeZone
         let tokenBucketTimeZoneIdentifier = tokenSnapshot?.bucketTimeZoneIdentifier
             ?? Self.costSummaryBucketTimeZoneIdentifier(

@@ -22501,7 +22501,91 @@
       "ja": { "stringUnit": { "state": "translated", "value": "推論" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "推理" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "推理" } }
-    } }
+    } },
+    "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 与 Mac 0.66 保持同步，在 iPhone 和 iPad 上显示新增服务的额度及费用详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 與 Mac 0.66 保持同步，在 iPhone 和 iPad 上顯示新增服務的額度及費用詳情。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 は Mac 0.66 に対応し、新しいサービスの利用枠と支出の詳細を iPhone と iPad に表示します。"
+          }
+        }
+      }
+    },
+    "See quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 Bifrost、Muse Code、Hugging Face、v0、GitKraken AI 和 DevPass 等新增服务的额度与用量详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 Bifrost、Muse Code、Hugging Face、v0、GitKraken AI 和 DevPass 等新增服務的額度與用量詳情。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost、Muse Code、Hugging Face、v0、GitKraken AI、DevPass など、新しいサービスの利用枠と使用状況を確認できます。"
+          }
+        }
+      }
+    },
+    "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接收另外八项服务的额度提醒。现有提醒和历史记录在不同版本的 Mac 与 iPhone 上继续可用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接收另外八項服務的額度提醒。現有提醒和歷史記錄在不同版本的 Mac 與 iPhone 上繼續可用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新たに8つのサービスで利用枠の通知を受け取れます。既存の通知と保存済み履歴は、異なるバージョンの Mac と iPhone 間でも引き続き利用できます。"
+          }
+        }
+      }
+    }
   },
   "version": "1.0"
 }

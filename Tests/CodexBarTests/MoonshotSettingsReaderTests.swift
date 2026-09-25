@@ -4,7 +4,7 @@ import Testing
 
 private struct MoonshotStubClaudeFetcher: ClaudeUsageFetching {
     func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
-        throw MoonshotUsageError.missingCredentials
+        throw URLError(.userAuthenticationRequired)
     }
 
     func debugRawProbe(model _: String) async -> String {
@@ -102,16 +102,70 @@ struct MoonshotSettingsReaderTests {
             fetcher: UsageFetcher(environment: env),
             claudeFetcher: MoonshotStubClaudeFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0))
-        let strategy = MoonshotAPIFetchStrategy(transport: transport)
+        let strategies = await MoonshotProviderDescriptor.descriptor.fetchPlan.pipeline.resolveStrategies(context)
+        #expect(strategies.count == 1)
+        #expect(strategies.first is ScriptFetchStrategy)
+        let strategy = MoonshotProviderDescriptor.scriptStrategy(transport: transport)
 
         #expect(await strategy.isAvailable(context) == false)
         await #expect {
             try await strategy.fetch(context)
         } throws: { error in
-            guard case MoonshotUsageError.missingCredentials = error else { return false }
-            return true
+            let classified = error as? ProviderFetchClassifiedError
+            return classified?.kind == .missingCredential && classified?.message == "Missing Moonshot API key."
         }
         #expect(await transport.requests().isEmpty)
+    }
+
+    @Test(arguments: MoonshotRegion.allCases, [true, false])
+    func `script strategy resolves regional settings and credentials without a feature flag`(
+        region: MoonshotRegion, savedKey: Bool) async throws
+    {
+        let environment = savedKey
+            ? [
+                MoonshotSettingsReader.configAPIKeyEnvironmentKey: "saved-token",
+                MoonshotSettingsReader.configAPIKeyRegionEnvironmentKey: region.rawValue,
+                "MOONSHOT_API_KEY": "other-region-token",
+                "MOONSHOT_REGION": region == .china ? "international" : "china",
+                "CODEXBAR_JS_PROVIDERS": "0",
+            ]
+            : [
+                "MOONSHOT_API_KEY": "environment-token",
+                "MOONSHOT_REGION": region.rawValue,
+                "CODEXBAR_JS_PROVIDERS": "0",
+            ]
+        let transport = ProviderHTTPTransportStub { request in
+            let expectedOrigin = region == .china ? "https://api.moonshot.cn" : "https://api.moonshot.ai"
+            #expect(request.url?.absoluteString == "\(expectedOrigin)/v1/users/me/balance")
+            #expect(request.value(forHTTPHeaderField: "Authorization")
+                == "Bearer \(savedKey ? "saved-token" : "environment-token")")
+            let body = """
+            {"code":0,"data":{"available_balance":49.58,"voucher_balance":50,"cash_balance":12.34},
+            "scode":"0x0","status":true}
+            """
+            return (Data(body.utf8), HTTPURLResponse(
+                url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }
+        let context = ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .api,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: environment,
+            settings: .make(moonshot: .init(region: savedKey ? region : nil)),
+            fetcher: UsageFetcher(environment: environment),
+            claudeFetcher: MoonshotStubClaudeFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0))
+        let strategy = MoonshotProviderDescriptor.scriptStrategy(transport: transport)
+        #expect(await strategy.isAvailable(context))
+        let result = try await strategy.fetch(context)
+        #expect(result.sourceLabel == "api")
+        #expect(result.strategyID == "moonshot.js")
+        #expect(result.usage
+            .loginMethod(for: .moonshot) == (region == .china ? "Balance: CN¥49.58" : "Balance: $49.58"))
+        #expect(await transport.requests().count == 1)
     }
 }
 

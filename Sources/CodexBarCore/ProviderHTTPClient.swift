@@ -184,12 +184,15 @@ public final class ProviderHTTPClient: ProviderHTTPTransport, @unchecked Sendabl
         return configuration
     }
 
-    private static func sharedSession() -> URLSession {
-        if self.isRunningTests {
+    static func sharedSession(
+        isRunningTests: Bool = TestProcessSafety.isRunning,
+        configuration: URLSessionConfiguration = ProviderHTTPClient.defaultConfiguration()) -> URLSession
+    {
+        if isRunningTests {
             // XCTest URLProtocol.registerClass stubs only intercept URLSession.shared on macOS.
             return .shared
         }
-        return self.redirectGuardedSession()
+        return self.redirectGuardedSession(configuration: configuration)
     }
 
     static func redirectGuardedSession(
@@ -199,17 +202,6 @@ public final class ProviderHTTPClient: ProviderHTTPTransport, @unchecked Sendabl
             configuration: configuration,
             delegate: ProviderHTTPRedirectGuardDelegate(),
             delegateQueue: nil)
-    }
-
-    static var isRunningTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil {
-            return true
-        }
-        if ProcessInfo.processInfo.processName.lowercased().contains("xctest") {
-            return true
-        }
-        return CommandLine.arguments.contains { $0.lowercased().contains(".xctest") }
     }
 
     public func data(for request: URLRequest) async throws -> (Data, URLResponse) {
@@ -243,11 +235,28 @@ final class ProviderHTTPRedirectGuardDelegate: NSObject, URLSessionTaskDelegate,
     }
 
     private static func normalizedPort(_ url: URL) -> Int? {
-        if let port = url.port { return port }
+        if let port = url.port {
+            return port
+        }
         switch url.scheme?.lowercased() {
         case "http": return 80
         case "https": return 443
         default: return nil
         }
+    }
+}
+
+/// Owns one ephemeral session per request while the provider retains its redirect policy.
+struct ProviderHTTPSessionFactory: Sendable {
+    var makeSession: @Sendable (URLSessionTaskDelegate?) -> URLSession = { delegate in
+        URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+    }
+
+    var finishSession: @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() }
+
+    func response(for request: URLRequest, delegate: URLSessionTaskDelegate?) async throws -> ProviderHTTPResponse {
+        let session = self.makeSession(delegate)
+        defer { self.finishSession(session) }
+        return try await ProviderHTTPClient(session: session).response(for: request)
     }
 }

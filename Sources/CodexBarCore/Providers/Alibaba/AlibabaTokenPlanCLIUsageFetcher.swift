@@ -24,28 +24,21 @@ enum AlibabaTokenPlanCLIUsageError: LocalizedError, Sendable, Equatable {
 enum AlibabaTokenPlanCLIUsageParser {
     static func parse(_ data: Data, now: Date = Date()) throws -> AlibabaTokenPlanUsageSnapshot {
         guard let object = try? JSONSerialization.jsonObject(with: data),
-              let payload = object as? [String: Any]
+              object is [String: Any],
+              let snapshot = AlibabaTokenPlanUsageSnapshot.personalUsage(
+                  in: OneConsoleJSON.expandEmbeddedJSON(object),
+                  subscriptionData: nil,
+                  quotaConfigData: nil,
+                  defaultPlanName: "Token Plan",
+                  now: now,
+                  ratio: self.ratio,
+                  resetDate: self.resetDate,
+                  requiresUsageForReset: true)
         else {
             throw AlibabaTokenPlanCLIUsageError.invalidOutput
         }
 
-        let fiveHourRatio = self.ratio(payload["per5HourPercentage"])
-        let weeklyRatio = self.ratio(payload["per1WeekPercentage"])
-        guard fiveHourRatio != nil || weeklyRatio != nil else {
-            throw AlibabaTokenPlanCLIUsageError.invalidOutput
-        }
-
-        return AlibabaTokenPlanUsageSnapshot(
-            planName: "Token Plan",
-            usedQuota: nil,
-            totalQuota: nil,
-            remainingQuota: nil,
-            resetsAt: nil,
-            fiveHourUsedPercent: fiveHourRatio.map { $0 * 100 },
-            fiveHourResetsAt: fiveHourRatio == nil ? nil : self.resetDate(payload["per5HourResetTime"]),
-            weeklyUsedPercent: weeklyRatio.map { $0 * 100 },
-            weeklyResetsAt: weeklyRatio == nil ? nil : self.resetDate(payload["per1WeekResetTime"]),
-            updatedAt: now)
+        return snapshot
     }
 
     private static func ratio(_ value: Any?) -> Double? {
@@ -90,8 +83,10 @@ enum AlibabaTokenPlanCLIUsageFetcher {
     }
 
     static func arguments(region: AlibabaTokenPlanAPIRegion) -> [String] {
-        [
-            "usage", "token-plan",
+        let command = region.usesPersonalTokenPlanAPI
+            ? ["console", "call", "--api", "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage", "--data", "{}"]
+            : ["usage", "token-plan"]
+        return command + [
             "--console-region", region.currentRegionID,
             "--console-site", region.cliConsoleSite,
             "--output", "json",

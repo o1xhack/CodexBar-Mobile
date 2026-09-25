@@ -24,6 +24,33 @@ struct ClaudeSwapAccountProjectionTests {
     private let now = Date(timeIntervalSince1970: 1_782_000_000)
 
     @Test
+    func `read only adapters suppress account activation`() {
+        let list = ClaudeSwapAccountList(
+            activeAccountNumber: 1,
+            accounts: [
+                ClaudeSwapAccountRow(
+                    number: 1,
+                    email: "work@example.com",
+                    isActive: true,
+                    usageStatus: .foreignCredential,
+                    fiveHour: nil,
+                    sevenDay: nil),
+                ClaudeSwapAccountRow(
+                    number: 2,
+                    email: "personal@example.com",
+                    isActive: false,
+                    usageStatus: .ok,
+                    fiveHour: ClaudeSwapUsageWindow(usedPercent: 5, resetsAt: nil),
+                    sevenDay: nil),
+            ],
+            supportsAccountSwitching: false)
+
+        let accounts = ClaudeSwapAccountProjection.accountSnapshots(from: list, now: self.now)
+        #expect(accounts.count == 2)
+        #expect(accounts.allSatisfy { !$0.canActivate })
+    }
+
+    @Test
     func `projects rows into provider neutral snapshots with active account first`() throws {
         let reset = Date(timeIntervalSince1970: 1_782_170_999)
         let list = ClaudeSwapAccountList(
@@ -107,7 +134,7 @@ struct ClaudeSwapAccountProjectionTests {
     }
 
     @Test
-    func `unavailable without windows or prior snapshot reports deferred polling`() throws {
+    func `unavailable without windows or prior snapshot does not invent a polling cause`() throws {
         let list = ClaudeSwapAccountList(
             activeAccountNumber: nil,
             accounts: [
@@ -122,7 +149,7 @@ struct ClaudeSwapAccountProjectionTests {
 
         let snapshot = try #require(ClaudeSwapAccountProjection.accountSnapshots(from: list, now: self.now).first)
         #expect(snapshot.snapshot == nil)
-        #expect(snapshot.error == "Polling deferred until a limit resets.")
+        #expect(snapshot.error == "Usage unavailable.")
         #expect(snapshot.canActivate == true)
         #expect(snapshot.error?.contains("Usage fetch failed") != true)
     }
@@ -331,7 +358,7 @@ struct ClaudeSwapAccountProjectionTests {
                 previousAccounts: previous,
                 now: self.now).first)
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test
@@ -505,7 +532,7 @@ struct ClaudeSwapAccountProjectionTests {
                 now: self.now).first)
         #expect(account.displayLabel == "new@example.com")
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test
@@ -541,7 +568,7 @@ struct ClaudeSwapAccountProjectionTests {
                 previousAccounts: previous,
                 now: self.now).first)
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test
@@ -672,7 +699,7 @@ struct ClaudeSwapAccountProjectionTests {
                 now: self.now).first)
         #expect(account.displayLabel == "new@example.com")
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test
@@ -712,7 +739,7 @@ struct ClaudeSwapAccountProjectionTests {
                 now: self.now).first)
         #expect(account.displayLabel == "Account 1")
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test
@@ -805,7 +832,7 @@ struct ClaudeSwapAccountProjectionTests {
                 previousAccounts: stripped,
                 now: self.now).first)
         #expect(account.snapshot == nil)
-        #expect(account.error == "Polling deferred until a limit resets.")
+        #expect(account.error == "Usage unavailable.")
     }
 
     @Test

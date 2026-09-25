@@ -41,3 +41,5 @@ Date: 2026-09-25
 - 上游 provider 扩充和 plugin 化可能改变 `UsageProvider`、`UsageSnapshot`、typed details 的 iOS 映射；不能只靠 Mac 编译证明兼容。
 - CloudSync 旧设备删除是跨设备写操作，必须审计与 Mobile 独立的 zone、record type 与旧客户端容错。
 - Mac 签名/公证及 GitHub draft 使用发布凭证；届时按 Goal 明示门槛暂停确认。无 push、merge、tag publish、live release、TestFlight 上传。
+
+详细方案与证据：[01-design.md](01-design.md)、[02-implementation.md](02-implementation.md)、[03-testing.md](03-testing.md)。

@@ -18,34 +18,23 @@ final class MoonshotCurrencyNativeProofTests: XCTestCase {
               environment["CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS"] != "1"
         else { return XCTFail("Native proof requires credential and session isolation") }
         let directory = try URL(fileURLWithPath: XCTUnwrap(environment["CODEXBAR_MOONSHOT_PROOF_DIRECTORY"]))
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MoonshotStubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-        defer {
-            session.invalidateAndCancel()
-            MoonshotStubURLProtocol.handler = nil
-            MoonshotStubURLProtocol.requests = []
-        }
-        MoonshotStubURLProtocol.handler = { request in
-            guard let url = request.url,
-                  url.absoluteString == "https://api.moonshot.cn/v1/users/me/balance"
-            else { throw URLError(.unsupportedURL) }
-            let json = """
-            {"code":0,"data":{"available_balance":50,"voucher_balance":50,"cash_balance":-0.42},
-             "scode":"0x0","status":true}
-            """
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, Data(json.utf8))
-        }
-        let fetched = try await MoonshotUsageFetcher.fetchUsage(
-            apiKey: "synthetic-proof-token", region: .china, session: session)
-        let after = fetched.toUsageSnapshot()
+        let runtime = try ProviderPluginRuntime(
+            bundledPlugin: "moonshot",
+            transport: ProviderHTTPTransportHandler { request in
+                let body = """
+                {"code":0,"data":{"available_balance":50,"voucher_balance":50,"cash_balance":-0.42},
+                "scode":"0x0","status":true}
+                """
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                return (Data(body.utf8), response)
+            })
+        let after = try await runtime.fetchUsage(
+            settings: ["BASE_URL": MoonshotRegion.china.apiBaseURLString],
+            secrets: ["MOONSHOT_API_KEY": "synthetic-proof-token"])
         // Reproduce the previous USD labels using the same amounts and unchanged international formatter.
-        let before = MoonshotUsageSummary(
-            availableBalance: 50,
-            voucherBalance: 50,
-            cashBalance: -0.42,
-            updatedAt: fetched.summary.updatedAt).toUsageSnapshot()
+        let before = try await runtime.fetchUsage(
+            settings: ["BASE_URL": MoonshotRegion.international.apiBaseURLString],
+            secrets: ["MOONSHOT_API_KEY": "synthetic-proof-token"])
         XCTAssertEqual(before.loginMethod(for: .moonshot), "Balance: $50.00 · $0.42 in deficit")
         XCTAssertEqual(after.loginMethod(for: .moonshot), "Balance: CN¥50.00 · CN¥0.42 in deficit")
         let cli = CLIRenderer.renderText(
@@ -93,7 +82,6 @@ final class MoonshotCurrencyNativeProofTests: XCTestCase {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,

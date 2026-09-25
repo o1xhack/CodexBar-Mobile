@@ -8,7 +8,12 @@ extension StatusItemController {
         let visibleProviders = self.store.enabledProvidersForDisplay().map(\.rawValue).sorted().joined(separator: ",")
         let providerSignatures: String
         let primaryProvider: UsageProvider?
-        if mergeIcons {
+        if let stackedProviders = self.stackedMergeIconProvidersIfActive() {
+            primaryProvider = stackedProviders.top
+            providerSignatures = [stackedProviders.top, stackedProviders.bottom]
+                .map { self.providerStoreIconObservationSignature(for: $0, showBrandPercent: showBrandPercent) }
+                .joined(separator: "||")
+        } else if mergeIcons {
             let primary = self.primaryProviderForUnifiedIcon()
             primaryProvider = primary
             providerSignatures = self.providerStoreIconObservationSignature(
@@ -91,7 +96,7 @@ extension StatusItemController {
     }
 
     private func storedMenuBarLayoutResetSignature(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let selections = Set(resolution.layout
             .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals).compactMap(\.resetWindow))
@@ -112,7 +117,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering,
               resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
                   .contains(.accountLabel),
@@ -125,7 +130,7 @@ extension StatusItemController {
     }
 
     private func storedMenuBarLayoutCostSignature(for provider: UsageProvider) -> String? {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
@@ -150,7 +155,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let showsBalance = resolution.layout
             .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
@@ -160,8 +165,13 @@ extension StatusItemController {
         // The rendered text only carries the remaining row. A `balance used` predicate reads the "Used"
         // row instead, which no display token surfaces, so sign both amounts exactly.
         let amounts = MenuBarLayoutBalanceResolver.balanceAmountsUSD(provider: provider, snapshot: snapshot)
+        let codexCredits = self.menuBarLayoutCodexCredits(provider: provider, snapshot: snapshot)
+        let balanceText = MenuBarLayoutBalanceResolver.balance(
+            provider: provider,
+            snapshot: snapshot,
+            codexCredits: codexCredits)
         return [
-            "text=\(MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot) ?? "nil")",
+            "text=\(balanceText ?? "nil")",
             "remaining=\(Self.exactSignatureValue(amounts.remaining))",
             "used=\(Self.exactSignatureValue(amounts.used))",
         ].joined(separator: ",")
@@ -180,7 +190,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
@@ -199,7 +209,8 @@ extension StatusItemController {
         if metrics.contains(.automaticPace) {
             paceWindows.insert(.automatic)
         }
-        let needsRunsOut = metrics.contains(.runsOutIn)
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let needsRunsOut = metrics.contains(.runsOutIn) || tokens.contains(.runsOut) || tokens.contains(.runsOutCompact)
         guard !paceWindows.isEmpty || needsRunsOut else { return nil }
 
         let now = Date()
@@ -247,15 +258,15 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
 
         // `selectedLanes` never walks conditional branches, so read the flattened tokens instead: a
         // `lanePercent` inside a then/else branch renders and must be signed like any placed token.
-        let lanes = Set(resolution.layout
-            .flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
-            .compactMap(\.selectedLane))
-        guard !lanes.isEmpty else { return nil }
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        let lanes = Set(tokens.compactMap(\.selectedLane))
+        let extras = MenuBarLayoutRenderExtra.signature(tokens: tokens, provider: provider, snapshot: snapshot)
+        guard !lanes.isEmpty || extras != nil else { return nil }
 
         let windows = self.menuBarLayoutWindows(provider: provider, snapshot: snapshot, now: Date())
         let showUsed = self.settings.usageBarsShowUsed
@@ -267,7 +278,7 @@ extension StatusItemController {
                     : Self.laneWindow(lane, in: windows)?.remainingPercent
                 return "\(lane.rawValue)=\(Self.iconSignatureValue(percent))"
             }
-            .joined(separator: ",")
+            .joined(separator: ",") + "@\(extras.map(String.init) ?? "nil")"
     }
 
     /// Window readings conditional predicates depend on but no display token exposes.
@@ -282,7 +293,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?)
         -> String?
     {
-        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        let resolution = self.renderedMenuBarLayoutResolution(for: provider)
         guard !resolution.usesLegacyRendering else { return nil }
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
             .filter(\.readsRateWindow)

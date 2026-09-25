@@ -18,6 +18,9 @@ The Manus provider tracks credit usage on [manus.im](https://manus.im) via brows
 - **Cookie auth**: Automatic browser cookie import (Safari, Chrome, Firefox) or manual cookie header.
 - **Env var support**: `MANUS_SESSION_TOKEN` (raw token) or `MANUS_COOKIE` (full cookie header) for CLI/headless usage.
 
+Monthly and daily credit counts remain visible as details in menus and CLI output. Only a supplied daily reset date
+produces a reset clock; monthly renewal dates remain unavailable.
+
 ## Setup
 
 1. Open **Settings → Providers**
@@ -44,9 +47,11 @@ A single API endpoint is fetched with a bearer token derived from the `session_i
 
 - `POST https://api.manus.im/user.v1.UserService/GetAvailableCredits` — returns credit fields including `totalCredits`, `freeCredits`, `periodicCredits`, `proMonthlyCredits`, `refreshCredits`, `maxRefreshCredits`, `nextRefreshTime`, and `refreshInterval`.
 
-Cookie domain: `manus.im`. Valid `session_id` cookies are cached in Keychain and reused until the session expires.
+Cookie domain: `manus.im`. The shared cookie broker reuses cached sessions, then visits browser profiles in order.
+Rejected sessions advance to the next candidate in the same refresh, followed by the environment token. Manual
+mode uses only the supplied cookie or bare token; Off disables all sources, including the environment fallback.
 
-The response parser tolerates both a direct object and common envelope shapes (`data` / `result` / `response` / `availableCredits`). Payloads missing all expected credit fields are rejected as a parse error rather than surfacing a misleading zero-credit snapshot.
+The bundled plugin runs on QuickJS and JavaScriptCore and tolerates both a direct object and common envelope shapes (`data` / `result` / `response` / `availableCredits`). The selected credits object must contain at least one credit field; empty, error-only, and timing-only objects are rejected rather than surfacing a misleading zero-credit snapshot. Sparse responses and explicit zero balances remain valid.
 
 ## Token accounts
 

@@ -213,7 +213,7 @@ enum MockProviderInjector {
         // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
         // additions below and with `QuotaProviderList` (Shared/Notifications).
         "openai", "manus", "windsurf", "mimo", "doubao",
-        "deepseek", "codebuff", "crof", "venice", "commandcode",
+        "deepseek", "codebuff", "venice", "commandcode",
         "stepfun",
         // iOS 1.7.0 catch-up (upstream v0.26.0 new providers).
         "moonshot", "bedrock",
@@ -235,6 +235,11 @@ enum MockProviderInjector {
         "qwencloud", "zoommate", "xai", "notion",
         // iOS 1.21.0 catch-up (upstream v0.49.0 new providers).
         "fireworks", "ibmbob",
+        // v0.59-v0.66 upstream additions. The quota-eligible subset also
+        // appears at the tail of QuotaProviderList.
+        "bifrost", "helmcode", "nous", "muse", "coderabbit",
+        "replicate", "huggingface", "pi", "v0", "typesafe",
+        "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -246,7 +251,7 @@ enum MockProviderInjector {
     /// Provider IDs removed upstream but retained by Shared/iOS so an older
     /// Mac can still exercise mixed-version decoding and first-class cards.
     static let legacyCompatibilityProviderIDs: Set<String> = [
-        "kimik2", "crossmodel",
+        "kimik2", "crossmodel", "crof",
     ]
 
     /// All mock providerIDs (real-borrowed ∪ synthetic). Convenience
@@ -1585,6 +1590,151 @@ enum MockProviderInjector {
             primaryResetDescription: "3,700 / 10,000 Bobcoins",
             secondary: nil,
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // Upstream v0.59-v0.66 first-class provider preview fixtures.
+        .init(
+            providerID: "bifrost", providerName: "Bifrost",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 42, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 3.2, sessionCostUSD: 0.25),
+        .init(
+            providerID: "helmcode", providerName: "Helmcode",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 55, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "nous", providerName: "Nous Portal",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 30, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "muse", providerName: "Muse Code",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 61, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "coderabbit", providerName: "CodeRabbit",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "replicate", providerName: "Replicate",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 9.4, sessionCostUSD: 0.25),
+        .init(
+            providerID: "huggingface", providerName: "Hugging Face",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 25, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 4.6, sessionCostUSD: 0.25),
+        .init(
+            providerID: "pi", providerName: "Pi",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 1.7, sessionCostUSD: 0.25),
+        .init(
+            providerID: "v0", providerName: "v0",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 38, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.3, sessionCostUSD: 0.25),
+        .init(
+            providerID: "typesafe", providerName: "TypeSafe",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 5.1, sessionCostUSD: 0.25),
+        .init(
+            providerID: "hyper", providerName: "Charm Hyper",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "gitkraken", providerName: "GitKraken AI",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 47, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "devpass", providerName: "DevPass",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 34, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "atlascloud", providerName: "Atlas Cloud",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "vercel", providerName: "Vercel AI Gateway",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 7.8, sessionCostUSD: 0.25),
+        .init(
+            providerID: "llmman", providerName: "llmman",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1675,7 +1825,7 @@ enum MockProviderInjector {
     // Moonshot / z.ai hourly / OpenAI Dashboard / Antigravity).
     // Without this, mock injection mode would silently hide every new
     // v0.26 card — a real regression vector.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     private static func v026ExtrasFor(providerID: String) -> V026MockExtras? {
         let now = Self.nowReference
         switch providerID {
@@ -1883,6 +2033,22 @@ enum MockProviderInjector {
                         value: "3,700 / 10,000 Bobcoins",
                         secondaryValue: "Standard"),
                 ])])
+        case "coderabbit":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Code reviews",
+                rows: [.init(label: "Reviews", value: "28 this month")])])
+        case "hyper":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Hypercredits",
+                rows: [.init(label: "Balance", value: "42.5 HC")])])
+        case "atlascloud":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Credits",
+                rows: [.init(label: "Balance", value: "$18.40")])])
+        case "llmman":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Daemon",
+                rows: [.init(label: "Loaded models", value: "3")])])
         default:
             return nil
         }

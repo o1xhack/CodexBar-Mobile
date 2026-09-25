@@ -84,7 +84,7 @@ public enum KeychainPromptHandler {
 }
 
 public enum KeychainAccessPreflight {
-    public enum Outcome: Sendable {
+    public enum Outcome: Sendable, Equatable {
         case allowed
         /// The item is readable, but its decrypt ACL does not trust the current executable.
         case interactionRequired
@@ -113,6 +113,12 @@ public enum KeychainAccessPreflight {
         private let lock = NSLock()
         private var outcomes: [GenericPasswordKey: Outcome] = [:]
 
+        func invalidate(service: String) {
+            self.lock.withLock {
+                self.outcomes = self.outcomes.filter { $0.key.service != service }
+            }
+        }
+
         func outcome(
             for key: GenericPasswordKey,
             check: () -> Outcome) -> Outcome
@@ -134,9 +140,11 @@ public enum KeychainAccessPreflight {
     #if DEBUG
     final class CheckGenericPasswordOverrideStore: @unchecked Sendable {
         let check: (String, String?) -> Outcome
+        let retryDelay: () -> Void
 
-        init(check: @escaping (String, String?) -> Outcome) {
+        init(check: @escaping (String, String?) -> Outcome, retryDelay: @escaping () -> Void) {
             self.check = check
+            self.retryDelay = retryDelay
         }
     }
 
@@ -148,10 +156,11 @@ public enum KeychainAccessPreflight {
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
         _ override: ((String, String?) -> Outcome)?,
+        retryDelay: @escaping () -> Void = {},
         operation: () throws -> T) rethrows -> T
     {
         try self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map(CheckGenericPasswordOverrideStore.init(check:)))
+            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
         {
             try operation()
         }
@@ -159,11 +168,12 @@ public enum KeychainAccessPreflight {
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
         _ override: ((String, String?) -> Outcome)?,
+        retryDelay: @escaping () -> Void = {},
         isolation _: isolated (any Actor)? = #isolation,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map(CheckGenericPasswordOverrideStore.init(check:)))
+            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
         {
             try await operation()
         }
@@ -190,8 +200,41 @@ public enum KeychainAccessPreflight {
         return self.checkGenericPasswordUncached(service: service, account: account)
     }
 
+    static func invalidateGenericPasswordChecks(service: String) {
+        self.genericPasswordCheckMemo?.invalidate(service: service)
+    }
+
+    /// Retry only inconclusive no-UI checks; the operation memo above stores their final outcome.
+    private static let temporarilyUnavailableRetryCount = 3
+    private static let temporarilyUnavailableRetryDelayMicroseconds: UInt32 = 30000
+
     private static func checkGenericPasswordUncached(service: String, account: String?) -> Outcome {
         #if os(macOS)
+        var outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+        var attempt = 1
+        while case .temporarilyUnavailable = outcome, attempt < self.temporarilyUnavailableRetryCount {
+            self.waitBeforePreflightRetry()
+            outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+            attempt += 1
+        }
+        return outcome
+        #else
+        return .notFound
+        #endif
+    }
+
+    #if os(macOS)
+    private static func waitBeforePreflightRetry() {
+        #if DEBUG
+        if let override = self.taskCheckGenericPasswordOverrideStore {
+            override.retryDelay()
+            return
+        }
+        #endif
+        usleep(self.temporarilyUnavailableRetryDelayMicroseconds)
+    }
+
+    private static func performGenericPasswordPreflightAttempt(service: String, account: String?) -> Outcome {
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
             return override.check(service, account)
@@ -241,10 +284,8 @@ public enum KeychainAccessPreflight {
                 metadata: ["service": service, "status": "\(status)"])
             return .failure(Int(status))
         }
-        #else
-        return .notFound
-        #endif
     }
+    #endif
 
     #if os(macOS)
     static func makeGenericPasswordPreflightQuery(service: String, account: String?) -> [String: Any] {
@@ -366,6 +407,8 @@ public enum KeychainAccessPreflight {
         return inspectionIncomplete ? .indeterminate : .rejected
     }
 
+    private static let validationMemo = ValidationMemo()
+
     static func trustedApplication(
         _ application: SecTrustedApplication,
         validatesExecutableAt path: String) -> OSStatus?
@@ -374,7 +417,22 @@ public enum KeychainAccessPreflight {
             named: "SecTrustedApplicationValidateWithPath",
             as: SecTrustedApplicationValidateWithPathFunction.self)
         else { return nil }
-        return path.withCString { validate(application, $0) }
+        return self.validationMemo.validate(
+            trustedApplication: self.trustedApplicationRepresentation(application), path: path)
+        {
+            path.withCString { validate(application, $0) }
+        }
+    }
+
+    private static func trustedApplicationRepresentation(_ application: SecTrustedApplication) -> Data? {
+        // CopyData only contains the path; the full representation also distinguishes signing requirements.
+        guard let copy = self.securityFunction(
+            named: "SecTrustedApplicationCopyExternalRepresentation",
+            as: SecTrustedApplicationCopyExternalRepresentationFunction.self)
+        else { return nil }
+        var data: Unmanaged<CFData>?
+        guard copy(application, &data) == errSecSuccess else { return nil }
+        return data?.takeRetainedValue() as Data?
     }
 
     private typealias SecKeychainItemCopyAccessFunction = @convention(c) (
@@ -391,6 +449,9 @@ public enum KeychainAccessPreflight {
     private typealias SecTrustedApplicationValidateWithPathFunction = @convention(c) (
         SecTrustedApplication,
         UnsafePointer<CChar>) -> OSStatus
+    private typealias SecTrustedApplicationCopyExternalRepresentationFunction = @convention(c) (
+        SecTrustedApplication,
+        UnsafeMutablePointer<Unmanaged<CFData>?>) -> OSStatus
 
     private nonisolated(unsafe) static let securityFrameworkHandle: UnsafeMutableRawPointer? = dlopen(
         "/System/Library/Frameworks/Security.framework/Security",

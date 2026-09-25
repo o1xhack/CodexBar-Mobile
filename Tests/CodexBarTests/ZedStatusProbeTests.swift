@@ -18,7 +18,7 @@ struct ZedStatusProbeTests {
     }
     """
 
-    private static func fixture(plan: String, used: Int, limit: String, overdue: Bool = false) -> Data {
+    static func fixture(plan: String, used: Int, limit: String, overdue: Bool = false) -> Data {
         Data(
             """
             {
@@ -52,69 +52,20 @@ struct ZedStatusProbeTests {
         return (data, response)
     }
 
-    @Test
-    func `decodes free plan with limited edit predictions`() throws {
-        let response = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_free", used: 12, limit: "50"))
-        #expect(response.plan.planV3 == "zed_free")
-        #expect(response.plan.usage.editPredictions.used == 12)
-        #expect(response.plan.usage.editPredictions.limit == .limited(50))
-        #expect(response.user.githubLogin == "octocat")
-    }
-
-    @Test
-    func `decodes pro plan with unlimited edit predictions`() throws {
-        let response = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_pro", used: 0, limit: "\"unlimited\""))
-        #expect(response.plan.planV3 == "zed_pro")
-        #expect(response.plan.usage.editPredictions.limit == .unlimited)
-    }
-
-    @Test
-    func `decodes pro trial student and business plans`() throws {
-        let trial = try ZedStatusProbe.parseResponse(Self.fixture(
-            plan: "zed_pro_trial",
-            used: 3,
-            limit: "\"unlimited\""))
-        let student = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_student", used: 1, limit: "25"))
-        let business = try ZedStatusProbe.parseResponse(Self.fixture(
-            plan: "zed_business",
-            used: 0,
-            limit: "\"unlimited\""))
-
-        #expect(trial.plan.planV3 == "zed_pro_trial")
-        #expect(student.plan.planV3 == "zed_student")
-        #expect(business.plan.planV3 == "zed_business")
-    }
-
-    @Test
-    func `maps free plan to usage snapshot`() throws {
-        let response = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_free", used: 10, limit: "20"))
-        let snapshot = ZedUsageSnapshot(response: response).toUsageSnapshot()
-
-        #expect(snapshot.identity?.loginMethod == "Zed Free")
-        #expect(snapshot.identity?.accountEmail == "octocat")
-        #expect(snapshot.primary?.resetDescription == "10 / 20 predictions")
-        #expect(snapshot.primary?.usedPercent == 50)
-        #expect(snapshot.secondary?.resetsAt != nil)
-        #expect(snapshot.extraRateWindows == nil)
-    }
-
-    @Test
-    func `maps pro plan with unlimited edit predictions`() throws {
-        let response = try ZedStatusProbe.parseResponse(Self.fixture(plan: "zed_pro", used: 0, limit: "\"unlimited\""))
-        let snapshot = ZedUsageSnapshot(response: response).toUsageSnapshot()
-
-        #expect(snapshot.identity?.loginMethod == "Zed Pro")
+    @Test(arguments: ["zed_free", "zed_pro", "zed_pro_trial", "zed_student", "zed_business"])
+    func `editor plans retain names and unlimited predictions`(plan: String) async throws {
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "zed", transport: ProviderHTTPTransportStub { _ in
+            Self.httpResponse(data: Self.fixture(plan: plan, used: 3, limit: "\"unlimited\""), statusCode: 200)
+        })
+        let snapshot = try await runtime.fetchUsage(
+            settings: ["API_URL": ZedStatusProbe.cloudAPIURL.absoluteString],
+            secrets: ["EDITOR_AUTH": "4242 fixture-token"],
+            sourceMode: .api)
+        let label = plan.split(separator: "_").map(\.capitalized).joined(separator: " ")
+        #expect(snapshot.identity?.loginMethod == label)
         #expect(snapshot.primary?.resetDescription == "Unlimited")
+        #expect(snapshot.primary?.usedPercent == 0)
         #expect(snapshot.extraRateWindows == nil)
-    }
-
-    @Test
-    func `maps overdue invoices warning window`() throws {
-        let response = try ZedStatusProbe.parseResponse(
-            Self.fixture(plan: "zed_pro", used: 0, limit: "\"unlimited\"", overdue: true))
-        let snapshot = ZedUsageSnapshot(response: response).toUsageSnapshot()
-
-        #expect(snapshot.extraRateWindows?.contains(where: { $0.id == "zed.overdue-invoices" }) == true)
     }
 
     @Test
@@ -181,13 +132,6 @@ struct ZedStatusProbeTests {
     }
 
     @Test
-    func `display plan names normalize zed enums`() {
-        #expect(ZedUsageSnapshot.displayPlanName("zed_pro") == "Zed Pro")
-        #expect(ZedUsageSnapshot.displayPlanName("zed_pro_trial") == "Zed Pro Trial")
-        #expect(ZedUsageSnapshot.displayPlanName("zed_student") == "Zed Student")
-    }
-
-    @Test
     func `fetch uses authorization header from keychain credentials`() async throws {
         let transport = ProviderHTTPTransportStub { request in
             #expect(request.url?.absoluteString == "https://cloud.zed.dev/client/users/me")
@@ -204,7 +148,7 @@ struct ZedStatusProbeTests {
             settingsLoader: { ZedClientSettings(credentialsURL: nil, serverURL: nil) })
 
         let snapshot = try await probe.fetch()
-        #expect(snapshot.response.plan.planV3 == "zed_pro")
+        #expect(snapshot.identity?.loginMethod == "Zed Pro")
     }
 
     @Test
@@ -292,8 +236,8 @@ struct ZedStatusProbeTests {
             },
             settingsLoader: { nil })
 
-        await #expect(throws: ZedStatusProbeError.unauthorized) {
-            _ = try await probe.fetch()
+        await ZedPluginTests.expectFailure(.authenticationExpired) {
+            try await probe.fetch()
         }
     }
 

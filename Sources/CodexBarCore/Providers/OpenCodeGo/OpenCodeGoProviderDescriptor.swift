@@ -2,33 +2,35 @@ import Foundation
 
 public enum OpenCodeGoProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-    private static let credentials = ProviderCredentialAdapter(
-        supportsAPIKeyOverride: true,
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: OpenCodeGoSettingsReader.apiKeyEnvironmentKey,
         apiKeyDebugLabel: OpenCodeGoSettingsReader.apiKeyEnvironmentKey,
-        environmentProjections: [.apiKey(OpenCodeGoSettingsReader.apiKeyEnvironmentKey)],
-        tokenResolver: { kind, environment, _ in
-            guard kind == .primary,
-                  let token = OpenCodeGoSettingsReader.apiKey(environment: environment)
-            else { return nil }
-            return ProviderTokenResolution(token: token, source: .environment)
-        },
+        resolve: OpenCodeGoSettingsReader.apiKey,
         tokenAccountSupport: TokenAccountSupport(
-            title: "Session tokens",
-            subtitle: "Store multiple OpenCode Go Cookie headers.",
-            placeholder: "Cookie: …",
+            title: "OpenCode Go accounts",
+            subtitle: "Store multiple OpenCode Go API keys or Cookie headers.",
+            placeholder: "API key or Cookie: …",
             injection: .cookieHeader,
             requiresManualCookieSource: true,
-            cookieName: nil),
-        authDetector: { environment, _ in
-            OpenCodeGoSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+            cookieName: nil,
+            environmentOverride: { token in
+                guard let key = OpenCodeGoSettingsReader.tokenAccountAPIKey(token) else { return nil }
+                return [OpenCodeGoSettingsReader.apiKeyEnvironmentKey: key]
+            },
+            environmentScrubber: { environment, _ in
+                environment.removeValue(forKey: OpenCodeGoSettingsReader.apiKeyEnvironmentKey)
+            }),
+        selectedAccountSourceModeResolver: { base, account, _ in
+            guard base == .auto, let account,
+                  OpenCodeGoSettingsReader.tokenAccountAPIKey(account.token) != nil else { return base }
+            return .api
         })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .opencodego,
             menuBarMetrics: ProviderMenuBarMetricCapabilities(
-                supported: [.automatic, .primary, .secondary, .tertiary],
-                tertiaryRequiresWindow: true),
+                supported: [.automatic, .primary, .secondary, .tertiary]),
             settingsSection: .init(
                 OpenCodeGoProviderSettingsKey.self,
                 cookieSettings: { settings in

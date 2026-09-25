@@ -180,7 +180,10 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
     public let topModel: String?
     public let categoryBreakdown: [DeepSeekCategoryBreakdown]
     public let daily: [DeepSeekDailyUsage]
+    public let modelCosts: [DeepSeekModelCost]
     public let currency: String
+    public let apiKeyCount: Int
+    public let period: DeepSeekUsagePeriod
     public let updatedAt: Date
 
     public init(
@@ -194,6 +197,9 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
         categoryBreakdown: [DeepSeekCategoryBreakdown],
         daily: [DeepSeekDailyUsage],
         currency: String,
+        modelCosts: [DeepSeekModelCost] = [],
+        apiKeyCount: Int = 0,
+        period: DeepSeekUsagePeriod = .currentMonth,
         updatedAt: Date)
     {
         self.todayTokens = todayTokens
@@ -205,9 +211,27 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
         self.topModel = topModel
         self.categoryBreakdown = categoryBreakdown
         self.daily = daily
+        self.modelCosts = modelCosts
         self.currency = currency
+        self.apiKeyCount = apiKeyCount
+        self.period = period
         self.updatedAt = updatedAt
     }
+}
+
+public struct DeepSeekModelCost: Sendable, Equatable {
+    public let model: String
+    public let cost: Double
+
+    public init(model: String, cost: Double) {
+        self.model = model
+        self.cost = cost
+    }
+}
+
+public enum DeepSeekUsagePeriod: Sendable, Equatable {
+    case last30Days
+    case currentMonth
 }
 
 public struct DeepSeekCategoryBreakdown: Sendable, Equatable {
@@ -474,7 +498,7 @@ enum DeepSeekUsageCostParser {
         let monthResult = self.aggregateMonth(ctx: dailyCtx)
 
         // Model and category breakdown from totals
-        let (topModel, categoryBreakdown) = self.buildBreakdowns(
+        let (topModel, categoryBreakdown, modelCosts) = self.buildBreakdowns(
             totalAmounts: input.totalAmounts,
             totalCosts: input.totalCosts)
 
@@ -492,6 +516,9 @@ enum DeepSeekUsageCostParser {
             categoryBreakdown: categoryBreakdown,
             daily: dailyUsages,
             currency: input.currency,
+            modelCosts: modelCosts,
+            apiKeyCount: 0,
+            period: .currentMonth,
             updatedAt: input.now)
     }
 
@@ -598,11 +625,12 @@ enum DeepSeekUsageCostParser {
 
     private static func buildBreakdowns(
         totalAmounts: [DeepSeekModelUsage],
-        totalCosts: [DeepSeekCostModelUsage]) -> (String?, [DeepSeekCategoryBreakdown])
+        totalCosts: [DeepSeekCostModelUsage]) -> (String?, [DeepSeekCategoryBreakdown], [DeepSeekModelCost])
     {
         var modelTokens: [String: Int] = [:]
         var categoryTokens: [DeepSeekUsageCategory: Int] = [:]
         var categoryCosts: [DeepSeekUsageCategory: Double] = [:]
+        var modelCosts = ModelCostTotals()
 
         for modelUsage in totalAmounts {
             guard let model = modelUsage.model else { continue }
@@ -619,18 +647,28 @@ enum DeepSeekUsageCostParser {
         }
 
         for costUsage in totalCosts {
-            guard costUsage.model != nil else { continue }
-            for item in costUsage.usage ?? [] {
-                guard let category = DeepSeekUsageCategory(rawValue: item.type ?? "") else { continue }
+            guard let model = costUsage.model else { continue }
+            guard let items = costUsage.usage else {
+                modelCosts.add(nil, model: model)
+                continue
+            }
+            for item in items {
+                guard let category = DeepSeekUsageCategory(rawValue: item.type ?? "") else {
+                    modelCosts.add(nil, model: model)
+                    continue
+                }
                 if category != .request {
-                    let amount = Self.parseCostAmount(item.amount)
-                    categoryCosts[category, default: 0] += amount
+                    let amount = item.amount.flatMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                    categoryCosts[category, default: 0] += amount ?? 0
+                    modelCosts.add(amount, model: model)
                 }
             }
         }
 
         let topModel = modelTokens.max {
-            if $0.value == $1.value { return $0.key > $1.key }
+            if $0.value == $1.value {
+                return $0.key > $1.key
+            }
             return $0.value < $1.value
         }?.key
 
@@ -642,7 +680,34 @@ enum DeepSeekUsageCostParser {
                 cost: categoryCosts[category]))
         }
 
-        return (topModel, breakdown)
+        return (topModel, breakdown, modelCosts.values)
+    }
+
+    private struct ModelCostTotals {
+        private var totals: [String: Double] = [:]
+        private var unavailable: Set<String> = []
+
+        mutating func add(_ amount: Double?, model rawModel: String?) {
+            guard let model = rawModel?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !model.isEmpty, !self.unavailable.contains(model)
+            else { return }
+            if let amount, amount.isFinite, amount.sign != .minus {
+                let total = (self.totals[model] ?? 0) + amount
+                if total.isFinite {
+                    self.totals[model] = total
+                    return
+                }
+            }
+            // A malformed component must not leave a plausible but incomplete model total.
+            self.unavailable.insert(model)
+            self.totals.removeValue(forKey: model)
+        }
+
+        var values: [DeepSeekModelCost] {
+            self.totals.map { DeepSeekModelCost(model: $0.key, cost: $0.value) }.sorted {
+                $0.cost == $1.cost ? $0.model < $1.model : $0.cost > $1.cost
+            }
+        }
     }
 
     private static func buildDailyUsages(ctx: DailyAggregationContext) -> [DeepSeekDailyUsage] {
@@ -721,5 +786,313 @@ enum DeepSeekUsageCostParser {
         formatter.timeZone = calendar.timeZone
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: trimmed)
+    }
+
+    // MARK: - By-API-key dashboard series
+
+    /// The Platform usage page lists spend per key and model as timestamped
+    /// buckets. Fold that into the same summary the menu already shows.
+    static func parseByAPIKey(
+        amountData: Data,
+        costData: Data,
+        now: Date = Date(),
+        calendar: Calendar = .current,
+        rangeStart: Date? = nil,
+        rangeEnd: Date? = nil) throws -> DeepSeekUsageSummary
+    {
+        let (amount, cost) = try self.decodeByAPIKeyPayloads(amountData: amountData, costData: costData)
+
+        let start = rangeStart ?? calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
+        let end = rangeEnd ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+        let startSeconds = Int(start.timeIntervalSince1970)
+        let endSeconds = Int(end.timeIntervalSince1970)
+
+        var dayAmounts: [String: [String: [DeepSeekUsageItem]]] = [:]
+        var categoryTotals: [DeepSeekUsageCategory: Int] = [:]
+        var modelTokens: [String: Int] = [:]
+        var apiKeyIDs = Set<String>()
+
+        for series in amount.data?.bizData?.series ?? [] {
+            if let id = series.apiKey?.id {
+                apiKeyIDs.insert(id)
+            }
+            let model = series.model ?? "unknown"
+            for bucket in series.buckets ?? [] where bucket.time >= startSeconds && bucket.time < endSeconds {
+                let date = self.dayString(fromUnix: bucket.time, calendar: calendar)
+                var items: [DeepSeekUsageItem] = []
+                for (type, scalar) in bucket.usage ?? [:] {
+                    items.append(DeepSeekUsageItem(type: type, amount: scalar.value))
+                    guard let category = DeepSeekUsageCategory(rawValue: type) else { continue }
+                    let value = self.parseTokenAmount(scalar.value)
+                    if category == .request {
+                        continue
+                    }
+                    categoryTotals[category, default: 0] += value
+                    modelTokens[model, default: 0] += value
+                }
+                let existing = dayAmounts[date]?[model] ?? []
+                var merged = existing
+                merged.append(contentsOf: items)
+                var models = dayAmounts[date] ?? [:]
+                models[model] = merged
+                dayAmounts[date] = models
+            }
+        }
+
+        var dayCosts: [String: Double] = [:]
+        var modelCosts = ModelCostTotals()
+        let costBlocks = cost.data?.bizData?.data ?? []
+        let selectedBlock = self.preferredCostBlock(costBlocks)
+        let currency = selectedBlock?.currency?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "CNY"
+        for series in selectedBlock?.series ?? [] {
+            if let id = series.apiKey?.id {
+                apiKeyIDs.insert(id)
+            }
+            guard let buckets = series.buckets else {
+                modelCosts.add(nil, model: series.model)
+                continue
+            }
+            for bucket in buckets where bucket.time >= startSeconds && bucket.time < endSeconds {
+                let date = self.dayString(fromUnix: bucket.time, calendar: calendar)
+                let amount = bucket.cost.flatMap { Double($0.value) }
+                dayCosts[date, default: 0] += amount ?? 0
+                modelCosts.add(amount, model: series.model)
+            }
+        }
+
+        let todayString = AggregationContext.dayString(now, calendar: calendar)
+        var periodTokens = 0
+        var periodRequests = 0
+        var daily: [DeepSeekDailyUsage] = []
+        for date in Set(dayAmounts.keys).union(dayCosts.keys).sorted() {
+            var tokens = 0
+            var requests = 0
+            if let amounts = dayAmounts[date] {
+                for items in amounts.values {
+                    for item in items {
+                        guard let category = DeepSeekUsageCategory(rawValue: item.type ?? "") else { continue }
+                        if category == .request {
+                            requests += self.parseTokenAmount(item.amount)
+                        } else {
+                            tokens += self.parseTokenAmount(item.amount)
+                        }
+                    }
+                }
+            }
+            periodTokens += tokens
+            periodRequests += requests
+            daily.append(DeepSeekDailyUsage(
+                date: date,
+                totalTokens: tokens,
+                cost: dayCosts[date],
+                requestCount: requests))
+        }
+
+        let breakdown = [
+            DeepSeekUsageCategory.promptCacheHitToken,
+            .promptCacheMissToken,
+            .responseToken,
+        ].map { category in
+            DeepSeekCategoryBreakdown(category: category, tokens: categoryTotals[category] ?? 0, cost: nil)
+        }
+        let topModel = modelTokens.max {
+            if $0.value == $1.value {
+                return $0.key > $1.key
+            }
+            return $0.value < $1.value
+        }?.key
+
+        let today = daily.first { $0.date == todayString }
+        return DeepSeekUsageSummary(
+            todayTokens: today?.totalTokens ?? 0,
+            currentMonthTokens: periodTokens,
+            todayCost: dayCosts[todayString],
+            currentMonthCost: dayCosts.values.reduce(0, +),
+            requestCount: today?.requestCount ?? 0,
+            currentMonthRequestCount: periodRequests,
+            topModel: topModel,
+            categoryBreakdown: breakdown,
+            daily: daily,
+            currency: currency,
+            modelCosts: modelCosts.values,
+            apiKeyCount: apiKeyIDs.count,
+            period: .last30Days,
+            updatedAt: now)
+    }
+
+    private static func decodeByAPIKeyPayloads(amountData: Data, costData: Data) throws
+        -> (ByAPIKeyAmountPayload, ByAPIKeyCostPayload)
+    {
+        let amount: ByAPIKeyAmountPayload
+        let cost: ByAPIKeyCostPayload
+        do {
+            amount = try JSONDecoder().decode(ByAPIKeyAmountPayload.self, from: amountData)
+        } catch {
+            throw DeepSeekUsageError.parseFailed("amount: \(self.decodingFailureDescription(error))")
+        }
+        do {
+            cost = try JSONDecoder().decode(ByAPIKeyCostPayload.self, from: costData)
+        } catch {
+            throw DeepSeekUsageError.parseFailed("cost: \(self.decodingFailureDescription(error))")
+        }
+        if let code = amount.code, code != 0 {
+            if self.isAuthenticationError(code) {
+                throw DeepSeekUsageError.invalidPlatformToken
+            }
+            throw DeepSeekUsageError.apiError("amount code \(code)")
+        }
+        if let code = cost.code, code != 0 {
+            if self.isAuthenticationError(code) {
+                throw DeepSeekUsageError.invalidPlatformToken
+            }
+            throw DeepSeekUsageError.apiError("cost code \(code)")
+        }
+        if let bizCode = amount.data?.bizCode, bizCode != 0 {
+            if self.isAuthenticationError(bizCode) {
+                throw DeepSeekUsageError.invalidPlatformToken
+            }
+            throw DeepSeekUsageError.apiError("amount biz_code \(bizCode)")
+        }
+        if let bizCode = cost.data?.bizCode, bizCode != 0 {
+            if self.isAuthenticationError(bizCode) {
+                throw DeepSeekUsageError.invalidPlatformToken
+            }
+            throw DeepSeekUsageError.apiError("cost biz_code \(bizCode)")
+        }
+        guard amount.data?.bizData != nil else {
+            throw DeepSeekUsageError.parseFailed("Missing amount biz_data")
+        }
+        guard cost.data?.bizData != nil else {
+            throw DeepSeekUsageError.parseFailed("Missing cost biz_data")
+        }
+
+        return (amount, cost)
+    }
+
+    private static func preferredCostBlock(_ blocks: [ByAPIKeyCostCurrency]) -> ByAPIKeyCostCurrency? {
+        func spend(_ block: ByAPIKeyCostCurrency) -> Double {
+            (block.series ?? []).reduce(0) { total, series in
+                total + (series.buckets ?? []).reduce(0) { $0 + ($1.cost.flatMap { Double($0.value) } ?? 0) }
+            }
+        }
+        return blocks.first { $0.currency == "USD" && spend($0) > 0 }
+            ?? blocks.first { spend($0) > 0 }
+            ?? blocks.first { $0.currency == "USD" }
+            ?? blocks.first
+    }
+
+    private static func dayString(fromUnix time: Int, calendar: Calendar) -> String {
+        self.AggregationContext.dayString(Date(timeIntervalSince1970: TimeInterval(time)), calendar: calendar)
+    }
+}
+
+extension String {
+    fileprivate var nilIfEmpty: String? {
+        self.isEmpty ? nil : self
+    }
+}
+
+private struct ByAPIKeyAmountPayload: Decodable {
+    let code: Int?
+    let data: ByAPIKeyAmountData?
+}
+
+private struct ByAPIKeyAmountData: Decodable {
+    let bizCode: Int?
+    let bizData: ByAPIKeyAmountBiz?
+    enum CodingKeys: String, CodingKey { case bizCode = "biz_code"; case bizData = "biz_data" }
+}
+
+private struct ByAPIKeyAmountBiz: Decodable {
+    let series: [ByAPIKeyAmountSeries]?
+}
+
+private struct ByAPIKeyAmountSeries: Decodable {
+    let apiKey: ByAPIKeyIdentity?
+    let model: String?
+    let buckets: [ByAPIKeyAmountBucket]?
+    enum CodingKeys: String, CodingKey { case apiKey = "api_key"; case model, buckets }
+}
+
+private struct ByAPIKeyAmountBucket: Decodable {
+    let time: Int
+    let usage: [String: ByAPIKeyScalar]?
+}
+
+private struct ByAPIKeyCostPayload: Decodable {
+    let code: Int?
+    let data: ByAPIKeyCostData?
+}
+
+private struct ByAPIKeyCostData: Decodable {
+    let bizCode: Int?
+    let bizData: ByAPIKeyCostBiz?
+    enum CodingKeys: String, CodingKey { case bizCode = "biz_code"; case bizData = "biz_data" }
+}
+
+private struct ByAPIKeyCostBiz: Decodable {
+    let data: [ByAPIKeyCostCurrency]?
+}
+
+private struct ByAPIKeyCostCurrency: Decodable {
+    let currency: String?
+    let series: [ByAPIKeyCostSeries]?
+}
+
+private struct ByAPIKeyCostSeries: Decodable {
+    let apiKey: ByAPIKeyIdentity?
+    let model: String?
+    let buckets: [ByAPIKeyCostBucket]?
+    enum CodingKeys: String, CodingKey { case apiKey = "api_key"; case model, buckets }
+}
+
+private struct ByAPIKeyCostBucket: Decodable {
+    let time: Int
+    let cost: ByAPIKeyScalar?
+}
+
+private struct ByAPIKeyIdentity: Decodable {
+    let name: String?
+    let trackingID: String?
+    enum CodingKeys: String, CodingKey { case name; case trackingID = "tracking_id" }
+
+    init(from decoder: Decoder) throws {
+        if let trackingID = try? decoder.singleValueContainer().decode(String.self) {
+            self.trackingID = trackingID
+            self.name = nil
+        } else {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.trackingID = try container.decodeIfPresent(String.self, forKey: .trackingID)
+            self.name = try container.decodeIfPresent(String.self, forKey: .name)
+        }
+    }
+
+    var id: String {
+        let tracking = self.trackingID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !tracking.isEmpty {
+            return tracking
+        }
+        let name = self.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "unknown" : name
+    }
+}
+
+private struct ByAPIKeyScalar: Decodable {
+    let value: String
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self.value = "0"
+        } else if let string = try? container.decode(String.self) {
+            self.value = string
+        } else if let int = try? container.decode(Int.self) {
+            self.value = String(int)
+        } else if let double = try? container.decode(Double.self) {
+            self.value = String(double)
+        } else {
+            throw DecodingError.typeMismatch(
+                String.self,
+                .init(codingPath: decoder.codingPath, debugDescription: "Expected a scalar usage value"))
+        }
     }
 }

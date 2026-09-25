@@ -64,7 +64,10 @@ artifact_matches_current_inputs() {
 
 artifact_pair_matches() {
   local zip=$1 dsym_zip=$2 temp_dir status=0
-  temp_dir=$(mktemp -d /tmp/codexbar-artifact-pair.XXXXXX)
+  local scratch_root="${CODEXBAR_RELEASE_STAGE_BASE:-/Volumes/StudioSSD/Developer/BuildScratch/CodexBar}"
+  [[ -d "$scratch_root" && -w "$scratch_root" ]] || \
+    err "Release scratch directory is missing or not writable: $scratch_root"
+  temp_dir=$(mktemp -d "$scratch_root/codexbar-artifact-pair.XXXXXX")
 
   unzip -q "$zip" "CodexBar.app/Contents/MacOS/CodexBar" -d "$temp_dir/app" || status=$?
   if [[ "$status" -eq 0 ]]; then
@@ -211,20 +214,24 @@ phase1() {
   probe_sparkle_key "$KEY_FILE"
   extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 
-  git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
-  git push -f origin "$TAG"
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" != "1" ]]; then
+    git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
+    git push -f origin "$TAG"
+  fi
 
   # gh allows multiple drafts for the same logical tag (the tag doesn't
   # actually materialize on GitHub until the draft is published), so a
   # previous failed phase 1 can leave an orphan draft that sits next to
   # any fresh one we create. Sweep those out before creating the new draft
   # so the user doesn't see two "CodexBar 0.20.x" entries in the UI.
-  orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
-    --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
-  for id in $orphan_ids; do
-    echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
-    gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
-  done
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" != "1" ]]; then
+    orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
+      --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
+    for id in $orphan_ids; do
+      echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
+      gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
+    done
+  fi
 
   # Pin --repo to our fork explicitly. Without it, gh inspects local
   # remotes and may pick the upstream remote (steipete/CodexBar) since
@@ -232,10 +239,23 @@ phase1() {
   # which fails with "tag exists locally but has not been pushed to
   # steipete/CodexBar". Fork tags only live on origin; hard-code the
   # repo to match the orphan-cleanup gh api call above.
+  local draft_target_args=()
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" == "1" ]]; then
+    # The candidate commit exists only locally in this mode. GitHub must
+    # target a commit it already has; the draft is retargeted after the
+    # reviewed branch is merged and pushed, before any publication.
+    draft_target_args=(--target "$RELEASE_BRANCH")
+    {
+      printf '\n---\n\n'
+      printf '**Unpublished candidate:** built from local commit `%s`.\n' "$(git rev-parse HEAD)"
+      printf 'Draft target `%s` is a placeholder; retarget to the reviewed release commit before publishing.\n' "$RELEASE_BRANCH"
+    } >>"$NOTES_FILE"
+  fi
   gh release create "$TAG" \
     "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
     --repo o1xhack/CodexBar-Mobile \
     --draft \
+    "${draft_target_args[@]}" \
     --title "${RELEASE_TITLE}" \
     --notes-file "$NOTES_FILE"
 
@@ -247,7 +267,7 @@ phase1() {
 ============================================================
 Phase 1 complete — DRAFT release is staged (not public yet).
 
-  Tag:        $TAG
+  Draft tag:  $TAG
   Review at:  $draft_url
 
 What to verify in the GitHub UI:
@@ -259,9 +279,7 @@ What to verify in the GitHub UI:
 When ready to publish + push appcast:
   ./Scripts/release.sh --finalize
 
-To abort and clean up:
-  gh release delete $TAG --yes
-  git push origin :$TAG
+To abort and clean up, delete this draft in GitHub after reviewing its assets.
 ============================================================
 EOF
 }
@@ -355,7 +373,10 @@ case "${1:-phase1}" in
   phase2|--phase2|--finalize)
     phase2
     ;;
+  --draft-no-tag-push)
+    DRAFT_NO_TAG_PUSH=1 phase1
+    ;;
   *)
-    err "Usage: $0 [--finalize]"
+    err "Usage: $0 [--draft-no-tag-push|--finalize]"
     ;;
 esac

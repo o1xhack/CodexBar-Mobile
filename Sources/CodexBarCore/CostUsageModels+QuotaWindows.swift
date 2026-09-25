@@ -1,0 +1,732 @@
+import Foundation
+
+extension CostUsageTokenSnapshot {
+    public static let quotaWeekMinutes = 7 * 24 * 60
+
+    /// Buckets local cost into consecutive quota windows.
+    ///
+    /// Pass the live Weekly `resetsAt` / `windowMinutes` to match the quota bar. When reset
+    /// metadata is missing, no quota summaries are returned; calendar reports remain available.
+    /// Exact slices use half-open `[start, end)` membership so an event is never counted in two
+    /// windows. Legacy hour buckets and daily residuals are treated as intervals; if a reset cuts
+    /// such a coarse interval, that interval is omitted instead of guessing its side. Other days
+    /// and fully contained buckets in the same window still count.
+    ///
+    /// `observedNextResets` are previously published Weekly `resetsAt` values (for example from
+    /// legacy callers). Pass `resetObservations` to retain forecast chronology. Cancelled forecasts
+    /// are excluded from elapsed reset candidates. Unconfirmed boundaries remain estimated,
+    /// so an official rollover and a later banked reset on the same day become two windows instead
+    /// of one 7-day block. Gaps larger than one quota week between those observed resets are filled
+    /// with nominal weekly boundaries. `observedResetInstants` are known start times such as a
+    /// redeemed reset-credit `redeemedAt`.
+    public func quotaWeekSummaries(
+        resetAt: Date?,
+        windowMinutes: Int? = nil,
+        observedNextResets: [Date] = [],
+        observedResetInstants: [Date] = [],
+        resetObservations: [CostUsageQuotaResetObservation] = [],
+        weekCount: Int = 4,
+        now: Date? = nil,
+        calendar: Calendar = .current) -> [CostUsageQuotaWeek]
+    {
+        guard let resetAt, resetAt.timeIntervalSince1970.isFinite else { return [] }
+        let calendar = CostUsageLocalDay.gregorianCalendar(matching: calendar)
+        let now = now ?? self.updatedAt
+        let duration = TimeInterval(Self.normalizedQuotaWeekMinutes(windowMinutes) * 60)
+        let evidence = QuotaResetEvidence(
+            observations: resetObservations,
+            resetInstants: observedResetInstants,
+            duration: duration,
+            now: now)
+        guard !evidence.isCancelled(resetAt) else { return [] }
+        let currentEnd = Self.currentQuotaWeekEnd(
+            resetAt: resetAt,
+            duration: duration,
+            now: now,
+            calendar: calendar)
+        let historyStart = calendar.date(
+            byAdding: .day,
+            value: -(max(1, self.historyDays) - 1),
+            to: calendar.startOfDay(for: self.updatedAt)) ?? self.updatedAt
+        let projectionDays = self.memoizedQuotaProjectionDays(calendar: calendar)
+
+        let count = max(1, min(weekCount, 8))
+        let boundaries = Self.quotaWeekBoundaries(
+            currentEnd: currentEnd,
+            observed: (observedNextResets + evidence.observations.map(\.resetsAt), evidence),
+            weekCount: count,
+            now: now,
+            stride: QuotaWeekStride(
+                duration: duration,
+                calendar: calendar,
+                usesCalendarFallback: false))
+        var weeks: [CostUsageQuotaWeek] = []
+        weeks.reserveCapacity(count)
+        var offset = 0
+        var endIndex = boundaries.count - 1
+        while offset < count, endIndex > 0 {
+            let end = boundaries[endIndex]
+            let start = boundaries[endIndex - 1]
+            endIndex -= 1
+            // A window that starts before scanned history would report a truncated slice as a
+            // complete older week. Keep the current window (it is the live quota) and drop the rest.
+            if offset > 0, start < historyStart {
+                break
+            }
+            let projection = Self.projectQuotaWindow(
+                start: start,
+                end: end,
+                days: projectionDays)
+            weeks.append(CostUsageQuotaWeek(
+                offset: offset,
+                start: start,
+                end: end,
+                totalTokens: projection.totalTokens,
+                totalCostUSD: projection.totalCostUSD,
+                entryCount: projection.entryCount,
+                tokensAreComplete: projection.tokensAreComplete && self.historyIsFullyScanned
+                    && start >= historyStart,
+                costIsComplete: projection.costIsComplete && self.historyIsFullyScanned
+                    && start >= historyStart,
+                boundariesAreEstimated: !evidence.confirms(start)
+                    || (offset > 0 && !evidence.confirms(end)) || resetAt <= now))
+            offset += 1
+        }
+        return weeks
+    }
+
+    /// Builds the per-day projection off the caller's critical path. The projection walks every
+    /// exact slice, so callers that publish a snapshot to UI should warm it from a background task;
+    /// `quotaWeekSummaries` then reuses it instead of rebuilding it on each menu card build.
+    public func warmQuotaProjection(calendar: Calendar = .current) {
+        _ = self.memoizedQuotaProjectionDays(calendar: CostUsageLocalDay.gregorianCalendar(matching: calendar))
+    }
+
+    private func memoizedQuotaProjectionDays(calendar: Calendar) -> [QuotaProjectionDay] {
+        self.quotaProjectionMemo.days(timeZone: calendar.timeZone) {
+            Self.quotaProjectionDays(
+                daily: self.daily,
+                quotaSlices: self.quotaSlices,
+                hourly: self.hourly,
+                calendar: calendar)
+        }
+    }
+
+    public static let quotaWeekBoundaryTolerance: TimeInterval = 2 * 60
+
+    /// Reconstructs quota-window edges from the live next reset plus any previously observed
+    /// Weekly `resetsAt` values or known reset instants. Future observed next-reset values
+    /// contribute their nominal window start, but are not treated as reset instants until elapsed.
+    public static func quotaWeekBoundaries(
+        liveNextReset: Date?,
+        observedNextResets: [Date],
+        observedResetInstants: [Date] = [],
+        resetObservations: [CostUsageQuotaResetObservation] = [],
+        windowMinutes: Int? = nil,
+        weekCount: Int = 4,
+        now: Date,
+        calendar: Calendar = .current) -> [Date]
+    {
+        let calendar = CostUsageLocalDay.gregorianCalendar(matching: calendar)
+        let duration = TimeInterval(self.normalizedQuotaWeekMinutes(windowMinutes) * 60)
+        let evidence = QuotaResetEvidence(
+            observations: resetObservations,
+            resetInstants: observedResetInstants,
+            duration: duration,
+            now: now)
+        let currentEnd = self.currentQuotaWeekEnd(
+            resetAt: liveNextReset,
+            duration: duration,
+            now: now,
+            calendar: calendar)
+        return self.quotaWeekBoundaries(
+            currentEnd: currentEnd,
+            observed: (observedNextResets + evidence.observations.map(\.resetsAt), evidence),
+            weekCount: max(1, min(weekCount, 8)),
+            now: now,
+            stride: QuotaWeekStride(
+                duration: duration,
+                calendar: calendar,
+                usesCalendarFallback: liveNextReset == nil))
+    }
+
+    private struct QuotaWeekStride {
+        let duration: TimeInterval
+        let calendar: Calendar
+        let usesCalendarFallback: Bool
+
+        func step(from date: Date, weeks: Int) -> Date {
+            if self.usesCalendarFallback {
+                return self.calendar.date(byAdding: .day, value: 7 * weeks, to: date)
+                    ?? date.addingTimeInterval(self.duration * TimeInterval(weeks))
+            }
+            return date.addingTimeInterval(self.duration * TimeInterval(weeks))
+        }
+    }
+
+    private static func quotaWeekBoundaries(
+        currentEnd: Date,
+        observed: (nextResets: [Date], evidence: QuotaResetEvidence),
+        weekCount: Int,
+        now: Date,
+        stride: QuotaWeekStride) -> [Date]
+    {
+        var dates: [Date] = [
+            currentEnd,
+            stride.step(from: currentEnd, weeks: -1),
+        ]
+        dates.reserveCapacity(weekCount + 1 + observed.nextResets.count * 2 + observed.evidence.resetInstants.count)
+        for next in observed.nextResets where next.timeIntervalSince1970.isFinite {
+            // Retain the prior period's nominal start, but never revive a cancelled forecast.
+            dates.append(stride.step(from: next, weeks: -1))
+            if next <= now, !observed.evidence.isCancelled(next) {
+                dates.append(next)
+            }
+        }
+        let latestAllowed = currentEnd.addingTimeInterval(self.quotaWeekBoundaryTolerance)
+        // Only the requested recent windows can be displayed. Bound gap filling even for
+        // very old, but finite, persisted dates.
+        let earliestNeeded = stride.step(from: currentEnd, weeks: -(weekCount + 2))
+        var unique = self.uniqueSortedDates(dates, tolerance: self.quotaWeekBoundaryTolerance)
+            .filter { $0 >= earliestNeeded && $0 <= latestAllowed }
+        // The live reset is authoritative. Ascending tolerance de-duplication otherwise keeps an
+        // older observed reset and can make the current window end just before `now`.
+        unique.removeAll { abs($0.timeIntervalSince(currentEnd)) < self.quotaWeekBoundaryTolerance }
+        unique.append(currentEnd)
+        unique.sort()
+        unique = self.fillQuotaWeekBoundaryGaps(unique, stride: stride)
+        let needed = weekCount + 1
+        var previousCount = -1
+        while unique.count < needed, stride.duration > 0, unique.count != previousCount, let oldest = unique.first {
+            previousCount = unique.count
+            unique.insert(stride.step(from: oldest, weeks: -1), at: 0)
+            unique = self.uniqueSortedDates(unique, tolerance: self.quotaWeekBoundaryTolerance)
+        }
+        let elapsedForecasts = Set(observed.nextResets.filter { $0 <= now && !observed.evidence.isCancelled($0) })
+        unique.removeAll { date in
+            date != currentEnd && !elapsedForecasts.contains(date)
+                && observed.evidence.resetInstants.contains {
+                    abs($0.timeIntervalSince(date)) < self.quotaWeekBoundaryTolerance
+                }
+        }
+        // Exact redeemed instants must survive forecast jitter de-duplication, including
+        // multiple real resets less than two minutes apart.
+        unique.append(contentsOf: observed.evidence.resetInstants.filter { $0 >= earliestNeeded && $0 < currentEnd })
+        return Array(Set(unique)).sorted()
+    }
+
+    /// Insert nominal weekly ticks inside gaps larger than one quota week, so a 30-day hole
+    /// between observed resets does not collapse into a single "previous window". Gaps shorter
+    /// than `duration` (official plus banked reset on the same day) stay intact.
+    private static func fillQuotaWeekBoundaryGaps(_ dates: [Date], stride: QuotaWeekStride) -> [Date] {
+        guard dates.count >= 2, stride.duration > 0 else { return dates }
+        var filled: [Date] = []
+        filled.reserveCapacity(dates.count)
+        filled.append(dates[0])
+        for later in dates.dropFirst() {
+            var cursor = filled[filled.count - 1]
+            while true {
+                let next = stride.step(from: cursor, weeks: 1)
+                if next <= cursor { break }
+                if later.timeIntervalSince(next) <= self.quotaWeekBoundaryTolerance { break }
+                filled.append(next)
+                cursor = next
+            }
+            filled.append(later)
+        }
+        return self.uniqueSortedDates(filled, tolerance: self.quotaWeekBoundaryTolerance)
+    }
+
+    private static func uniqueSortedDates(_ dates: [Date], tolerance: TimeInterval) -> [Date] {
+        let sorted = dates.sorted()
+        var unique: [Date] = []
+        unique.reserveCapacity(sorted.count)
+        for date in sorted {
+            if let last = unique.last, abs(date.timeIntervalSince(last)) < tolerance {
+                continue
+            }
+            unique.append(date)
+        }
+        return unique
+    }
+
+    public static func normalizedQuotaWeekMinutes(_ windowMinutes: Int?) -> Int {
+        let week = self.quotaWeekMinutes
+        guard let windowMinutes, (week - 24 * 60)...(week + 24 * 60) ~= windowMinutes else {
+            return week
+        }
+        return windowMinutes
+    }
+
+    public static func quotaWeekReset(from window: RateWindow?) -> Date? {
+        guard let window else { return nil }
+        if let minutes = window.windowMinutes {
+            let week = self.quotaWeekMinutes
+            guard (week - 24 * 60)...(week + 24 * 60) ~= minutes else { return nil }
+        }
+        return window.resetsAt
+    }
+
+    private static func currentQuotaWeekEnd(
+        resetAt: Date?,
+        duration: TimeInterval,
+        now: Date,
+        calendar: Calendar) -> Date
+    {
+        guard duration > 0 else {
+            return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+        }
+        if let resetAt {
+            if resetAt > now {
+                return resetAt
+            }
+            let elapsed = now.timeIntervalSince(resetAt)
+            let periods = floor(elapsed / duration) + 1
+            return resetAt.addingTimeInterval(periods * duration)
+        }
+        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) ?? now
+    }
+
+    fileprivate struct QuotaProjectionSlice {
+        let start: Date
+        /// Nil denotes an exact event. Non-nil denotes a coarse `[start, end)` interval.
+        let end: Date?
+        let totalTokens: Int?
+        let costUSD: Double?
+        let tokensAreComplete: Bool
+        let costIsComplete: Bool
+
+        func overlaps(start windowStart: Date, end windowEnd: Date) -> Bool {
+            if let end {
+                return self.start < windowEnd && end > windowStart
+            }
+            return self.start >= windowStart && self.start < windowEnd
+        }
+
+        func isContained(start windowStart: Date, end windowEnd: Date) -> Bool {
+            if let end {
+                return self.start >= windowStart && end <= windowEnd
+            }
+            return self.start >= windowStart && self.start < windowEnd
+        }
+    }
+
+    fileprivate struct QuotaProjectionDay {
+        let start: Date
+        let end: Date
+        let daily: CostUsageDailyReport.Entry?
+        let slices: [QuotaProjectionSlice]
+
+        func overlaps(start windowStart: Date, end windowEnd: Date) -> Bool {
+            self.start < windowEnd && self.end > windowStart
+        }
+
+        func isContained(start windowStart: Date, end windowEnd: Date) -> Bool {
+            self.start >= windowStart && self.end <= windowEnd
+        }
+    }
+
+    private struct QuotaContribution<Value> {
+        let isValid: Bool
+        let sawValue: Bool
+        let value: Value
+        let usedDaily: Bool
+    }
+
+    private struct QuotaWindowProjection {
+        let totalTokens: Int?
+        let totalCostUSD: Double?
+        let entryCount: Int
+        let tokensAreComplete: Bool
+        let costIsComplete: Bool
+    }
+
+    private enum QuotaReconciliation {
+        case exact
+        case residual
+        case inconsistent
+    }
+
+    private static func quotaProjectionDays(
+        daily: [CostUsageDailyReport.Entry],
+        quotaSlices: [CostUsageTimedEntry],
+        hourly: [CostUsageHourlyEntry],
+        calendar: Calendar) -> [QuotaProjectionDay]
+    {
+        var slicesByDay: [String: [QuotaProjectionSlice]] = [:]
+        var dayMemo = CostUsageLocalDayKeyMemo()
+        if !quotaSlices.isEmpty {
+            for entry in quotaSlices {
+                let dayKey = dayMemo.key(for: entry.timestamp, calendar: calendar)
+                slicesByDay[dayKey, default: []].append(QuotaProjectionSlice(
+                    start: entry.timestamp,
+                    end: nil,
+                    totalTokens: entry.totalTokens,
+                    costUSD: entry.costUSD,
+                    tokensAreComplete: entry.tokensAreComplete,
+                    costIsComplete: entry.costIsComplete))
+            }
+            for slice in self.quotaHourlyResidualSlices(
+                exact: quotaSlices,
+                hourly: hourly,
+                calendar: calendar)
+            {
+                let dayKey = dayMemo.key(for: slice.start, calendar: calendar)
+                slicesByDay[dayKey, default: []].append(slice)
+            }
+        } else {
+            for entry in hourly {
+                let dayKey = dayMemo.key(for: entry.hour, calendar: calendar)
+                let hourEnd = calendar.date(byAdding: .hour, value: 1, to: entry.hour)
+                    ?? entry.hour.addingTimeInterval(60 * 60)
+                slicesByDay[dayKey, default: []].append(QuotaProjectionSlice(
+                    start: entry.hour,
+                    end: hourEnd,
+                    totalTokens: entry.totalTokens,
+                    costUSD: entry.costUSD,
+                    tokensAreComplete: entry.tokensAreComplete,
+                    costIsComplete: entry.costIsComplete))
+            }
+        }
+
+        var dailyByDay: [String: CostUsageDailyReport.Entry] = [:]
+        for entry in daily {
+            guard let dayKey = self.quotaLocalDayKey(for: entry.date, calendar: calendar) else { continue }
+            dailyByDay[dayKey] = entry
+        }
+
+        return Set(dailyByDay.keys).union(slicesByDay.keys)
+            .compactMap { dayKey -> QuotaProjectionDay? in
+                guard let dayStart = CostUsageLocalDay.date(fromKey: dayKey, calendar: calendar),
+                      let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
+                else { return nil }
+                return QuotaProjectionDay(
+                    start: dayStart,
+                    end: dayEnd,
+                    daily: dailyByDay[dayKey],
+                    slices: (slicesByDay[dayKey] ?? []).sorted { $0.start < $1.start })
+            }
+            .sorted { $0.start < $1.start }
+    }
+
+    private static func quotaLocalDayKey(for rawDate: String, calendar: Calendar) -> String? {
+        let trimmed = rawDate.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count >= 10 {
+            let prefix = String(trimmed.prefix(10))
+            if prefix.count == 10, prefix[prefix.index(prefix.startIndex, offsetBy: 4)] == "-",
+               prefix[prefix.index(prefix.startIndex, offsetBy: 7)] == "-"
+            {
+                return prefix
+            }
+        }
+        guard let parsed = CostUsageDateParser.parse(trimmed) else { return nil }
+        return CostUsageLocalDay.key(from: parsed, calendar: calendar)
+    }
+
+    /// Preserve legacy/coarse providers when their hourly data is merged with a newer exact
+    /// source. Native scanners publish both views, so only the provable hourly-minus-exact
+    /// remainder is retained and no exact usage is counted twice.
+    private static func quotaHourlyResidualSlices(
+        exact: [CostUsageTimedEntry],
+        hourly: [CostUsageHourlyEntry],
+        calendar: Calendar) -> [QuotaProjectionSlice]
+    {
+        var exactByHour: [Date: CostUsageTemporalTotals] = [:]
+        var hourMemo = CostUsageHourStartMemo()
+        for entry in exact {
+            let hourStart = hourMemo.start(for: entry.timestamp, calendar: calendar)
+            var accumulator = exactByHour[hourStart] ?? CostUsageTemporalTotals()
+            accumulator.add(
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD,
+                tokensAreComplete: entry.tokensAreComplete,
+                costIsComplete: entry.costIsComplete)
+            exactByHour[hourStart] = accumulator
+        }
+
+        return hourly.compactMap { entry -> QuotaProjectionSlice? in
+            let interval = calendar.dateInterval(of: .hour, for: entry.hour)
+            let hourStart = interval?.start ?? entry.hour
+            let hourEnd = interval?.end
+                ?? calendar.date(byAdding: .hour, value: 1, to: hourStart)
+                ?? hourStart.addingTimeInterval(60 * 60)
+            let exactHour = exactByHour[hourStart]
+
+            let residualTokens: Int? = {
+                guard let hourlyTokens = entry.totalTokens, hourlyTokens >= 0 else { return nil }
+                guard let exactHour else { return hourlyTokens }
+                guard let exactTokens = exactHour.knownTokenSubtotal, exactTokens <= hourlyTokens else { return nil }
+                return hourlyTokens - exactTokens
+            }()
+            let residualCost: Double? = {
+                guard let hourlyCost = entry.costUSD, hourlyCost.isFinite, hourlyCost >= 0 else { return nil }
+                guard let exactHour else { return hourlyCost }
+                guard let exactCost = exactHour.knownCostSubtotal else { return nil }
+                let residual = hourlyCost - exactCost
+                let tolerance = max(1e-9, abs(hourlyCost) * 1e-9)
+                guard residual >= -tolerance else { return nil }
+                return abs(residual) <= tolerance ? 0 : residual
+            }()
+
+            let tokensAreComplete = residualTokens != nil && entry.tokensAreComplete
+                && (exactHour?.tokensAreComplete ?? true)
+            let costIsComplete = residualCost != nil && entry.costIsComplete && (exactHour?.costIsComplete ?? true)
+            if residualTokens == 0, residualCost == 0, tokensAreComplete, costIsComplete {
+                return nil
+            }
+            return QuotaProjectionSlice(
+                start: hourStart,
+                end: hourEnd,
+                totalTokens: residualTokens,
+                costUSD: residualCost,
+                tokensAreComplete: tokensAreComplete,
+                costIsComplete: costIsComplete)
+        }
+    }
+
+    private static func projectQuotaWindow(
+        start: Date,
+        end: Date,
+        days: [QuotaProjectionDay]) -> QuotaWindowProjection
+    {
+        var totals = CostUsageTemporalTotals()
+        var entryCount = 0
+        var tokensAreComplete = true
+        var costIsComplete = true
+
+        for day in days where day.overlaps(start: start, end: end) {
+            let coverage = self.quotaWindowCoverage(day: day, start: start, end: end)
+            tokensAreComplete = tokensAreComplete && coverage.tokens
+            costIsComplete = costIsComplete && coverage.cost
+            let tokenContribution = self.projectQuotaTokens(day: day, start: start, end: end)
+            let costContribution = self.projectQuotaCost(day: day, start: start, end: end)
+            totals.add(
+                totalTokens: tokenContribution
+                    .isValid ? (tokenContribution.sawValue ? tokenContribution.value : nil) : -1,
+                costUSD: costContribution.isValid ? (costContribution.sawValue ? costContribution.value : nil) : -1)
+
+            entryCount += day.slices.count(where: { $0.overlaps(start: start, end: end) })
+            if tokenContribution.usedDaily || costContribution.usedDaily || day.slices.isEmpty {
+                entryCount += 1
+            }
+        }
+
+        return QuotaWindowProjection(
+            totalTokens: totals.totalTokens,
+            totalCostUSD: totals.costUSD,
+            entryCount: entryCount,
+            tokensAreComplete: tokensAreComplete && totals.totalTokens != nil,
+            costIsComplete: costIsComplete && totals.costUSD != nil)
+    }
+
+    /// Completeness is independent of the useful subtotal retained by the projection.
+    private static func quotaWindowCoverage(
+        day: QuotaProjectionDay,
+        start: Date,
+        end: Date) -> (tokens: Bool, cost: Bool)
+    {
+        var tokens = true
+        var cost = true
+        for slice in day.slices where slice.overlaps(start: start, end: end) {
+            let contained = slice.isContained(start: start, end: end)
+            tokens = tokens && (contained || slice.totalTokens == 0) && slice.tokensAreComplete
+            cost = cost && (contained || slice.costUSD == 0) && slice.costIsComplete
+        }
+        if let daily = day.daily {
+            tokens = tokens && daily.totalTokens.map { $0 >= 0 } == true
+                && max(0, daily.unmeteredRequestCount ?? 0) == 0 && daily.incompleteRequestCount == 0
+            cost = cost && self.dailyCostIsComplete(daily)
+            if !day.isContained(start: start, end: end) {
+                if let value = daily.totalTokens {
+                    tokens = tokens && self.tokenReconciliation(day.slices, daily: value) == .exact
+                }
+                if let value = daily.costUSD {
+                    cost = cost && self.costReconciliation(day.slices, daily: value) == .exact
+                }
+            }
+        }
+        return (tokens, cost)
+    }
+
+    private static func projectQuotaTokens(
+        day: QuotaProjectionDay,
+        start: Date,
+        end: Date) -> QuotaContribution<Int>
+    {
+        guard let daily = day.daily else {
+            return self.projectTokenSlices(day.slices, start: start, end: end)
+        }
+        if daily.hasOnlyIncompleteRequests {
+            return QuotaContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
+        }
+        guard let dailyTokens = daily.totalTokens,
+              dailyTokens >= 0
+        else {
+            if daily.totalTokens == nil {
+                return self.projectTokenSlices(day.slices, start: start, end: end)
+            }
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+        }
+
+        switch self.tokenReconciliation(day.slices, daily: dailyTokens) {
+        case .exact:
+            if day.slices.isEmpty {
+                return QuotaContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
+            }
+            return self.projectTokenSlices(day.slices, start: start, end: end)
+        case .inconsistent:
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+        case .residual:
+            break
+        }
+        guard day.isContained(start: start, end: end) else {
+            // A reset that cuts a coarse daily total cannot assign that remainder, but exact
+            // timestamped slices on either side still belong to their windows.
+            return self.projectTokenSlices(day.slices, start: start, end: end)
+        }
+        return QuotaContribution(isValid: true, sawValue: true, value: dailyTokens, usedDaily: true)
+    }
+
+    private static func projectQuotaCost(
+        day: QuotaProjectionDay,
+        start: Date,
+        end: Date) -> QuotaContribution<Double>
+    {
+        guard let daily = day.daily else {
+            return self.projectCostSlices(day.slices, start: start, end: end)
+        }
+        if daily.hasOnlyIncompleteRequests {
+            return QuotaContribution(isValid: true, sawValue: false, value: 0, usedDaily: false)
+        }
+        guard let dailyCost = self.knownDailyCost(daily) else {
+            if daily.costUSD == nil {
+                return self.projectCostSlices(day.slices, start: start, end: end)
+            }
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+        }
+
+        if !self.dailyCostIsComplete(daily) {
+            let temporal = self.projectCostSlices(day.slices, start: start, end: end)
+            guard temporal.isValid, day.isContained(start: start, end: end) else { return temporal }
+            // Partial daily and timestamped evidence can overlap. Retain the larger proven
+            // subtotal; adding them would count some requests twice.
+            return QuotaContribution(
+                isValid: true, sawValue: true, value: max(dailyCost, temporal.value), usedDaily: true)
+        }
+
+        switch self.costReconciliation(day.slices, daily: dailyCost) {
+        case .exact:
+            if day.slices.isEmpty {
+                return QuotaContribution(isValid: true, sawValue: true, value: 0, usedDaily: false)
+            }
+            return self.projectCostSlices(day.slices, start: start, end: end)
+        case .inconsistent:
+            return QuotaContribution(isValid: false, sawValue: false, value: 0, usedDaily: false)
+        case .residual:
+            break
+        }
+        guard day.isContained(start: start, end: end) else {
+            // A reset that cuts a coarse daily total cannot assign that remainder, but exact
+            // timestamped slices on either side still belong to their windows.
+            return self.projectCostSlices(day.slices, start: start, end: end)
+        }
+        return QuotaContribution(isValid: true, sawValue: true, value: dailyCost, usedDaily: true)
+    }
+
+    private static func dailyCostIsComplete(_ daily: CostUsageDailyReport.Entry) -> Bool {
+        self.knownDailyCost(daily) != nil
+            && max(0, daily.unmeteredRequestCount ?? 0) == 0
+            && max(0, daily.unpricedRequestCount ?? 0) == 0
+            && daily.incompleteRequestCount == 0
+            && !(daily.modelBreakdowns ?? []).contains { $0.costUSD == nil }
+    }
+
+    private static func knownDailyCost(_ daily: CostUsageDailyReport.Entry) -> Double? {
+        guard let cost = daily.costUSD, cost.isFinite, cost >= 0 else { return nil }
+        return cost
+    }
+
+    private static func tokenReconciliation(
+        _ slices: [QuotaProjectionSlice],
+        daily: Int) -> QuotaReconciliation
+    {
+        var totals = CostUsageTemporalTotals()
+        for slice in slices {
+            totals.addTokens(slice.totalTokens.flatMap { $0 >= 0 ? $0 : nil })
+        }
+        guard let total = totals.knownTokenSubtotal, total <= daily else { return .inconsistent }
+        return (slices.isEmpty || totals.tokensAreComplete) && total == daily ? .exact : .residual
+    }
+
+    private static func costReconciliation(
+        _ slices: [QuotaProjectionSlice],
+        daily: Double) -> QuotaReconciliation
+    {
+        if slices.isEmpty { return daily == 0 ? .exact : .residual }
+        var totals = CostUsageTemporalTotals()
+        for slice in slices {
+            totals.addCost(slice.costUSD.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil })
+        }
+        guard let total = totals.knownCostSubtotal else { return .inconsistent }
+        let tolerance = max(1e-9, abs(daily) * 1e-9)
+        if total > daily + tolerance { return .inconsistent }
+        return totals.costIsComplete && abs(total - daily) <= tolerance ? .exact : .residual
+    }
+
+    private static func projectTokenSlices(
+        _ slices: [QuotaProjectionSlice],
+        start: Date,
+        end: Date) -> QuotaContribution<Int>
+    {
+        var totals = CostUsageTemporalTotals()
+        for slice in slices where slice.isContained(start: start, end: end) {
+            // A cut coarse interval is unassignable; exact events and contained buckets still count.
+            totals.addTokens(slice.totalTokens)
+        }
+        return QuotaContribution(
+            isValid: totals.knownTokenSubtotal != nil,
+            sawValue: totals.totalTokens != nil,
+            value: totals.totalTokens ?? 0,
+            usedDaily: false)
+    }
+
+    private static func projectCostSlices(
+        _ slices: [QuotaProjectionSlice],
+        start: Date,
+        end: Date) -> QuotaContribution<Double>
+    {
+        var totals = CostUsageTemporalTotals()
+        for slice in slices where slice.isContained(start: start, end: end) {
+            totals.addCost(slice.costUSD)
+        }
+        return QuotaContribution(
+            isValid: totals.knownCostSubtotal != nil,
+            sawValue: totals.costUSD != nil,
+            value: totals.costUSD ?? 0,
+            usedDaily: false)
+    }
+}
+
+/// Per-snapshot cache of the quota projection. The projection is a pure function of the snapshot's
+/// immutable entries and the bucket time zone, so copies of a snapshot share one memo and it never
+/// participates in equality.
+final class CostUsageQuotaProjectionMemo: @unchecked Sendable, Equatable {
+    private let lock = NSLock()
+    private var cached: (timeZone: TimeZone, days: [CostUsageTokenSnapshot.QuotaProjectionDay])?
+
+    static func == (_: CostUsageQuotaProjectionMemo, _: CostUsageQuotaProjectionMemo) -> Bool {
+        true
+    }
+
+    fileprivate func days(
+        timeZone: TimeZone,
+        build: () -> [CostUsageTokenSnapshot.QuotaProjectionDay]) -> [CostUsageTokenSnapshot.QuotaProjectionDay]
+    {
+        self.lock.withLock {
+            if let cached = self.cached, cached.timeZone == timeZone { return cached.days }
+            let days = build()
+            self.cached = (timeZone, days)
+            return days
+        }
+    }
+}

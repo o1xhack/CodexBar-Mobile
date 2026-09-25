@@ -325,6 +325,14 @@ extension SettingsStore {
         }
     }
 
+    var menuBarColorPace: Bool {
+        get { self.defaultsState.menuBarColorPace }
+        set {
+            self.defaultsState.menuBarColorPace = newValue
+            self.userDefaults.set(newValue, forKey: "menuBarColorPace")
+        }
+    }
+
     var menuBarHighContrastOnInactiveDisplays: Bool {
         get { self.defaultsState.menuBarHighContrastOnInactiveDisplays }
         set {
@@ -373,6 +381,14 @@ extension SettingsStore {
     var kiroMenuBarDisplayMode: KiroMenuBarDisplayMode {
         get { KiroMenuBarDisplayMode(rawValue: self.kiroMenuBarDisplayModeRaw ?? "") ?? .automatic }
         set { self.kiroMenuBarDisplayModeRaw = newValue.rawValue }
+    }
+
+    var accountWidgetsEnabled: Bool {
+        get { self.defaultsState.accountWidgetsEnabled }
+        set {
+            self.defaultsState.accountWidgetsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "accountWidgetsEnabled")
+        }
     }
 
     var multiAccountMenuLayout: MultiAccountMenuLayout {
@@ -430,7 +446,6 @@ extension SettingsStore {
     var menuBarLayout: MenuBarLayout {
         get {
             self.defaultsState.storedMenuBarLayout ?? MenuBarLayout.migrated(
-                iconStyle: self.menuBarIconStyle,
                 displayMode: self.menuBarDisplayMode,
                 metricPreference: .automatic,
                 resetTimeDisplayStyle: self.resetTimeDisplayStyle)
@@ -493,7 +508,6 @@ extension SettingsStore {
             return .stored(stored)
         }
         return .legacy(
-            iconStyle: self.menuBarIconStyle,
             displayMode: self.menuBarDisplayMode,
             metricPreference: self.menuBarMetricPreference(for: provider),
             resetTimeDisplayStyle: self.resetTimeDisplayStyle,
@@ -544,6 +558,7 @@ extension SettingsStore {
     private func persistMenuBarLayout(_ layout: MenuBarLayout) {
         guard let blobs = try? MenuBarLayoutPersistence.encoded(layout) else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)
+        self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.layoutV3)
         self.userDefaults.set(blobs.released, forKey: MenuBarLayoutUserDefaultsKey.layoutReleased)
         self.userDefaults.set(blobs.legacy, forKey: MenuBarLayoutUserDefaultsKey.layout)
     }
@@ -553,6 +568,7 @@ extension SettingsStore {
             .encodedLibrary(self.defaultsState.menuBarLayoutConditionals)
         else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)
+        self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.conditionalsV3)
         self.userDefaults.set(blobs.released, forKey: MenuBarLayoutUserDefaultsKey.conditionalsReleased)
         self.userDefaults.set(blobs.legacy, forKey: MenuBarLayoutUserDefaultsKey.conditionals)
     }
@@ -561,6 +577,7 @@ extension SettingsStore {
         guard let blobs = try? MenuBarLayoutPersistence.encodedOverrides(self.defaultsState.menuBarLayoutOverridesRaw)
         else { return }
         self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)
+        self.userDefaults.set(blobs.v3, forKey: MenuBarLayoutUserDefaultsKey.overridesV3)
         self.userDefaults.set(blobs.released, forKey: MenuBarLayoutUserDefaultsKey.overridesReleased)
         self.userDefaults.set(blobs.legacy, forKey: MenuBarLayoutUserDefaultsKey.overrides)
     }
@@ -813,6 +830,15 @@ extension SettingsStore {
         }
     }
 
+    var copilotSeatCreditEntitlementRaw: String {
+        get { self.defaultsState.copilotSeatCreditEntitlementRaw }
+        set {
+            self.defaultsState.copilotSeatCreditEntitlementRaw = newValue
+            self.userDefaults.set(newValue, forKey: "copilotSeatCreditEntitlement")
+            self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
     private var claudeWebExtrasEnabledRaw: Bool {
         get { self.defaultsState.claudeWebExtrasEnabledRaw }
         set {
@@ -946,11 +972,43 @@ extension SettingsStore {
         }
     }
 
+    var mergedOverviewLayout: MergedOverviewLayout {
+        get { MergedOverviewLayout(rawValue: self.defaultsState.mergedOverviewLayoutRaw) ?? .detailed }
+        set {
+            self.defaultsState.mergedOverviewLayoutRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "mergedOverviewLayout")
+        }
+    }
+
     var switcherShowsIcons: Bool {
         get { self.defaultsState.switcherShowsIcons }
         set {
             self.defaultsState.switcherShowsIcons = newValue
             self.userDefaults.set(newValue, forKey: "switcherShowsIcons")
+        }
+    }
+
+    var mergeIconsStacked: Bool {
+        get { self.defaultsState.mergeIconsStacked }
+        set {
+            self.defaultsState.mergeIconsStacked = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconsStacked")
+        }
+    }
+
+    var mergeIconStackedTopProviderRaw: String? {
+        get { self.defaultsState.mergeIconStackedTopProviderRaw }
+        set {
+            self.defaultsState.mergeIconStackedTopProviderRaw = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconStackedTopProvider")
+        }
+    }
+
+    var mergeIconStackedBottomProviderRaw: String? {
+        get { self.defaultsState.mergeIconStackedBottomProviderRaw }
+        set {
+            self.defaultsState.mergeIconStackedBottomProviderRaw = newValue
+            self.userDefaults.set(newValue, forKey: "mergeIconStackedBottomProvider")
         }
     }
 
@@ -1207,6 +1265,14 @@ extension SettingsStore {
         set {
             self.defaultsState.agentSessionsManualHosts = newValue
             self.userDefaults.set(newValue, forKey: "agentSessionsManualHosts")
+        }
+    }
+
+    var agentSessionsHideUnreachableHosts: Bool {
+        get { self.defaultsState.agentSessionsHideUnreachableHosts }
+        set {
+            self.defaultsState.agentSessionsHideUnreachableHosts = newValue
+            self.userDefaults.set(newValue, forKey: "agentSessionsHideUnreachableHosts")
         }
     }
 

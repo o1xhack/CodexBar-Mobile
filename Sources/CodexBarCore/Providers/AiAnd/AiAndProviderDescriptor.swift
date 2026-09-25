@@ -46,33 +46,31 @@ public enum AiAndProviderDescriptor {
             }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [AiAndAPIFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "aiand",
                 aliases: ["ai&", "ai-and"],
                 versionDetector: nil))
     }
-}
 
-struct AiAndAPIFetchStrategy: ProviderFetchStrategy {
-    let id = "aiand.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        AiAndSettingsReader.apiKey(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let credential = AiAndSettingsReader.apiKey(environment: context.env) else {
-            throw AiAndUsageError.notConfigured
-        }
-        let usage = try await AiAndUsageFetcher.fetchUsage(credential)
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    static func scriptStrategy(
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "aiand.js",
+            provider: .aiand,
+            bundledPlugin: "aiand",
+            secretKey: AiAndSettingsReader.apiKeyEnvironmentKey,
+            sourceLabel: "api",
+            transport: transport,
+            validateContext: { context in
+                guard AiAndSettingsReader.apiKey(environment: context.env) != nil else {
+                    throw ProviderFetchClassifiedError(
+                        kind: .missingCredential,
+                        message: "Missing ai& API key. Add one in Settings or set AIAND_API_KEY.")
+                }
+            },
+            resolveSecret: AiAndSettingsReader.apiKey,
+            isEnabled: { _ in true })
     }
 }

@@ -6,7 +6,6 @@ import SQLite3
 import CSQLite3
 #endif
 
-#if canImport(SQLite3) || canImport(CSQLite3)
 /// Read-only access to the official Kimi Desktop Chromium cookie store.
 public enum KimiDesktopAuthToken: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.provider(.kimi, scope: "cookie"))
@@ -21,16 +20,18 @@ public enum KimiDesktopAuthToken: Sendable {
             .appendingPathComponent("Cookies", isDirectory: false)
     }
 
+    #if canImport(SQLite3) || canImport(CSQLite3)
     public static func load(
+        region: KimiRegion = .china,
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> String?
     {
-        self.load(databaseURL: self.cookiesDatabaseURL(homeDirectory: homeDirectory))
+        self.load(databaseURL: self.cookiesDatabaseURL(homeDirectory: homeDirectory), region: region)
     }
 
-    static func load(databaseURL: URL) -> String? {
+    static func load(databaseURL: URL, region: KimiRegion = .china) -> String? {
         guard FileManager.default.isReadableFile(atPath: databaseURL.path) else { return nil }
         do {
-            return try self.read(databaseURL: databaseURL, immutable: false)
+            return try self.read(databaseURL: databaseURL, region: region, immutable: false)
         } catch let failure as SQLiteReadFailure {
             // Chromium can leave the main database in WAL mode after a clean shutdown removes both sidecars.
             // Immutable mode reads that idle file without recreating sidecars; active WAL databases stay on the
@@ -40,7 +41,7 @@ public enum KimiDesktopAuthToken: Sendable {
                 return nil
             }
             do {
-                return try self.read(databaseURL: databaseURL, immutable: true)
+                return try self.read(databaseURL: databaseURL, region: region, immutable: true)
             } catch let fallbackFailure as SQLiteReadFailure {
                 Self.log.debug("Kimi Desktop Cookies immutable read failed: \(fallbackFailure.message)")
                 return nil
@@ -52,7 +53,7 @@ public enum KimiDesktopAuthToken: Sendable {
         }
     }
 
-    private static func read(databaseURL: URL, immutable: Bool) throws -> String? {
+    private static func read(databaseURL: URL, region: KimiRegion, immutable: Bool) throws -> String? {
         var db: OpaquePointer?
         let filename = immutable ? "\(databaseURL.absoluteURL.absoluteString)?immutable=1" : databaseURL.path
         let flags = immutable ? SQLITE_OPEN_READONLY | SQLITE_OPEN_URI : SQLITE_OPEN_READONLY
@@ -69,7 +70,7 @@ public enum KimiDesktopAuthToken: Sendable {
         SELECT value
         FROM cookies
         WHERE name = 'kimi-auth'
-          AND host_key IN ('www.kimi.com', '.www.kimi.com', '.kimi.com', 'kimi.com')
+          AND host_key IN ('www.\(region.domain)', '.www.\(region.domain)', '.\(region.domain)', '\(region.domain)')
         ORDER BY last_access_utc DESC
         LIMIT 1
         """
@@ -96,11 +97,7 @@ public enum KimiDesktopAuthToken: Sendable {
     static func isExpired(_ token: String, now: Date = Date()) -> Bool {
         let parts = token.split(separator: ".")
         guard parts.count == 3 else { return false }
-        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
-        guard let data = Data(base64Encoded: payload),
-              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let claims = UsageFetcher.parseJWT(token),
               let expiry = claims["exp"] as? Double else { return false }
         return expiry <= now.timeIntervalSince1970
     }
@@ -120,21 +117,12 @@ public enum KimiDesktopAuthToken: Sendable {
         let code: Int32
         let message: String
     }
-}
-#else
-public enum KimiDesktopAuthToken: Sendable {
-    public static func cookiesDatabaseURL(
-        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL
+    #else
+    public static func load(
+        region _: KimiRegion = .china,
+        homeDirectory _: URL = FileManager.default.homeDirectoryForCurrentUser) -> String?
     {
-        homeDirectory
-            .appendingPathComponent("Library", isDirectory: true)
-            .appendingPathComponent("Application Support", isDirectory: true)
-            .appendingPathComponent("kimi-desktop", isDirectory: true)
-            .appendingPathComponent("Cookies", isDirectory: false)
-    }
-
-    public static func load(homeDirectory _: URL = FileManager.default.homeDirectoryForCurrentUser) -> String? {
         nil
     }
+    #endif
 }
-#endif

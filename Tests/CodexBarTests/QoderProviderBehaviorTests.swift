@@ -49,55 +49,6 @@ struct QoderProviderBehaviorTests {
         }
     }
 
-    private final class Recorder: @unchecked Sendable {
-        private let lock = NSLock()
-        private var cookieHeaders: [String] = []
-        private var skippedLabels: [Set<String>] = []
-        private var sites: [QoderWebSite] = []
-        private var site: QoderWebSite?
-
-        func appendCookieHeader(_ value: String) {
-            self.lock.withLock {
-                self.cookieHeaders.append(value)
-            }
-        }
-
-        func appendSkippedLabels(_ value: Set<String>) {
-            self.lock.withLock {
-                self.skippedLabels.append(value)
-            }
-        }
-
-        func setSite(_ value: QoderWebSite) {
-            self.lock.withLock {
-                self.site = value
-            }
-        }
-
-        func appendSite(_ value: QoderWebSite) {
-            self.lock.withLock {
-                self.sites.append(value)
-                self.site = value
-            }
-        }
-
-        func cookieHeadersSnapshot() -> [String] {
-            self.lock.withLock { self.cookieHeaders }
-        }
-
-        func skippedLabelsSnapshot() -> [Set<String>] {
-            self.lock.withLock { self.skippedLabels }
-        }
-
-        func siteSnapshot() -> QoderWebSite? {
-            self.lock.withLock { self.site }
-        }
-
-        func sitesSnapshot() -> [QoderWebSite] {
-            self.lock.withLock { self.sites }
-        }
-    }
-
     @Test
     func `token account selection forces manual cookie source in CLI settings snapshot`() throws {
         let accounts = ProviderTokenAccountData(
@@ -152,7 +103,6 @@ struct QoderProviderBehaviorTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -192,7 +142,6 @@ struct QoderProviderBehaviorTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -269,237 +218,237 @@ struct QoderProviderBehaviorTests {
 struct QoderManualCookieRoutingTests {
     @Test
     func `manual cookie header can route to Qoder China site`() {
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=abc") == .international)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=qoder.com.cn-looking-value") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=abc") == .international)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=qoder.com.cn-looking-value") == .international)
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "sid=abc; note=curl https://qoder.com.cn") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "sid=abc; redirect=https://example.com/curl") == .international)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=abc; Domain=.qoder.com.cn") == .china)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=abc; Domain=qoder.com.cn") == .china)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=abc; Domain=www.qoder.com.cn") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=abc; Domain=.qoder.com.cn") == .china)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=abc; Domain=qoder.com.cn") == .china)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=abc; Domain=www.qoder.com.cn") == .china)
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl https://qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "HTTPS_PROXY=http://127.0.0.1:8080 curl https://qoder.com.cn") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "HTTPS_PROXY=http://127.0.0.1:8080 \\\ncurl https://qoder.com.cn -H 'Cookie: sid=abc'") ==
             .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "\\\ncurl https://qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "\\\r\ncurl https://qoder.com -H 'Cookie: sid=abc'") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H 'Origin: https://qoder.com' " +
                     "-H 'Referer: https://qoder.com/account/usage' -H 'Cookie: sid=abc'") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Origin: https://qoder.com.cn' " +
                     "-H 'Referer: https://qoder.com.cn/account/usage' -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl https://www.qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl --url https://qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl --url https://qoder.com --data 'x=1; Domain=qoder.com.cn'") ==
             .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --data 'GET /account/usage HTTP/1.1\nHost: qoder.com.cn'") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "GET https://qoder.com.cn/account/usage") == .china)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn") ==
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "GET https://qoder.com.cn/account/usage") == .china)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn") ==
             .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: www.qoder.com.cn") ==
             .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn:443") ==
             .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn:evil") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn:") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn:65536") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com.cn:443:444") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com") ==
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: qoder.com") ==
             .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "TRACE /account/usage HTTP/1.1\nHost: qoder.com.cn") ==
             nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "CONNECT qoder.com.cn:443 HTTP/1.1") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "BREW /account/usage HTTP/1.1\nHost: qoder.com.cn") ==
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "CONNECT qoder.com.cn:443 HTTP/1.1") == nil)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "BREW /account/usage HTTP/1.1\nHost: qoder.com.cn") ==
             nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl -H 'Referer: https://qoder.com.cn/account/usage' https://qoder.com -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl --proxy-header 'X: https://qoder.com.cn' https://qoder.com -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "curl -X GET https://qoder.com.cn") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sudo curl https://qoder.com.cn") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "sid=abc; curl https://qoder.com.cn") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "curl -X GET https://qoder.com.cn") == nil)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sudo curl https://qoder.com.cn") == nil)
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "sid=abc; curl https://qoder.com.cn") == nil)
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl https://qoder.com/account https://qoder.com/profile") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl --url https://qoder.com/account https://qoder.com/profile") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl https://qoder.com https://qoder.com.cn -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "curl https://example.com -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET https://qoder.com/account/usage HTTP/1.1\nHost: qoder.com.cn") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(forManualCookieHeader: "GET https://qoder.com/account/usage HTTP/1.1\nHost: example.com") == nil)
-        #expect(QoderWebFetchStrategy.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: example.com") ==
+        #expect(QoderCookieRouting.site(forManualCookieHeader: "GET /account/usage HTTP/1.1\nHost: example.com") ==
             nil)
     }
 
     @Test
     func `manual curl Host headers must match authoritative Qoder target`() {
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H 'Host: qoder.com' -H 'Cookie: sid=abc'") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host: www.qoder.com.cn:443' -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -sH 'Host: qoder.com.cn' -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -fsSLHHost:qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -HHost:qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --header=Host:qoder.com.cn -H 'Cookie: sid=abc'") == .china)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn \\\n-H 'Host: qoder.com.cn' \\\r\n-H 'Cookie: sid=abc'") == .china)
 
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H 'Host: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host: qoder.com' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host: qoder.com.cn:evil' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host: qoder.com.cn' -H 'Host: qoder.com' -H 'Cookie: sid=abc'") ==
             nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -sH 'Host: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -fsSLHHost:qoder.com.cn -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -HHost:qoder.com.cn -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -XH 'Host: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H @headers.txt -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --header @- -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host:' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -H 'Host;' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --header=Host\\; -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -sHHost\\; -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn -K qoder.curlrc -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --config qoder.curlrc -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --config=qoder.curlrc -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --variable site=qoder.com.cn --expand-header 'Host: {{site}}' " +
                     "-H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --variable site=qoder.com.cn --expand-url 'https://{{site}}' " +
                     "-H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --expand-config '{{config}}' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn ; echo -H 'Cookie: sid=global'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn | cat -H 'Cookie: sid=global'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn > headers.txt -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com && echo done -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl 'https://qoder.com/account/usage?a=1&b=2;next=ok' -H 'Cookie: sid=abc'") ==
             .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H 'X-Note: a;b|c&d=<e>' -H 'Cookie: sid=abc'") == .international)
@@ -507,84 +456,84 @@ struct QoderManualCookieRoutingTests {
 
     @Test
     func `manual curl rejects shell synthesis and injected controls`() {
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --location-trusted -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A $'agent\r\nHost: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com --referer $'https://qoder.com\r\nHost: qoder.com.cn' " +
                     "-H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A \\'$'agent\\r\\nHost: qoder.com.cn'\\' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A \\'$'agent\r\nHost: qoder.com.cn'\\' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H 'User-Agent: agent\\\nHost: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A $'agent\\r\\nHost: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A $(printf agent) -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A `printf agent` -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A $AGENT -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "\"curl\" https://qoder.com.cn -A $AGENT -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "'/usr/bin/curl' https://qoder.com.cn -A $AGENT -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "\\curl https://qoder.com.cn -A $AGENT -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "QODER_AGENT=$AGENT \\\ncurl https://qoder.com.cn -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H \"User-Agent: $AGENT\" -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A $\"agent\" -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -H @<(printf 'Host: qoder.com.cn') -H 'Cookie: sid=abc'") == nil)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A \\'literal\\' -H 'Cookie: sid=abc'") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A \\\"literal\\\" -H 'Cookie: sid=abc'") == .international)
-        #expect(QoderWebFetchStrategy
+        #expect(QoderCookieRouting
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com -A literal\\\\slash -H 'Cookie: sid=abc'") == .international)
@@ -601,9 +550,10 @@ extension QoderProviderBehaviorTests {
             Self.cookieRecord(domain: "www.qoder.com.cn", name: "china-www", value: "1"),
         ]
 
-        let filtered = QoderCookieImporter.records(records, for: .international)
+        let filtered = records
+            .filter { ProviderPluginCookieBroker.matches(cookieDomain: $0.domain, domain: "qoder.com") }
 
-        #expect(QoderCookieImporter.cookieQuery(for: .international).domainMatch == .exact)
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "qoder.com").domainMatch == .exact)
         #expect(filtered.map(\.name) == ["global"])
     }
 
@@ -615,360 +565,14 @@ extension QoderProviderBehaviorTests {
             Self.cookieRecord(domain: ".www.qoder.com.cn", name: "china-www", value: "1"),
         ]
 
-        let filtered = QoderCookieImporter.records(records, for: .china)
+        let filtered = records.filter { ProviderPluginCookieBroker.matches(
+            cookieDomain: $0.domain,
+            domain: "qoder.com.cn") }
 
-        #expect(QoderCookieImporter.cookieQuery(for: .china).domainMatch == .exact)
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "qoder.com.cn").domainMatch == .exact)
         #expect(filtered.map(\.name) == ["china", "china-www"])
     }
     #endif
-
-    @Test
-    func `auto cookie fetch retries every imported candidate before succeeding`() async throws {
-        let candidates = [
-            QoderResolvedCookie(cookieHeader: "sid=expired-one", sourceLabel: "Chrome Default / qoder.com"),
-            QoderResolvedCookie(cookieHeader: "sid=expired-two", sourceLabel: "Chrome Profile 2 / qoder.com.cn"),
-            QoderResolvedCookie(cookieHeader: "sid=valid", sourceLabel: "Chrome Profile 3 / qoder.com.cn"),
-        ]
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { cookieHeader, _, _ in
-                recorder.appendCookieHeader(cookieHeader)
-                if cookieHeader != "sid=valid" {
-                    throw QoderUsageError.invalidCredentials
-                }
-                return QoderUsageSnapshot(
-                    usedCredits: 125,
-                    totalCredits: 500,
-                    remainingCredits: 375,
-                    usagePercentage: 25,
-                    unit: "credit")
-            },
-            cookieResolver: { _, _, skippedLabels in
-                recorder.appendSkippedLabels(skippedLabels)
-                return candidates.first { !skippedLabels.contains($0.sourceLabel) }
-            })
-
-        let result = try await strategy.fetch(self.makeContext(settings: .make(
-            qoder: .init(cookieSource: .auto, manualCookieHeader: nil))))
-
-        #expect(recorder.cookieHeadersSnapshot() == ["sid=expired-one", "sid=expired-two", "sid=valid"])
-        #expect(recorder.skippedLabelsSnapshot() == [
-            Set<String>(),
-            ["Chrome Default / qoder.com"],
-            ["Chrome Default / qoder.com", "Chrome Profile 2 / qoder.com.cn"],
-        ])
-        #expect(result.sourceLabel == "Chrome Profile 3 / qoder.com.cn")
-        #expect(result.usage.primary?.resetDescription == "125 / 500 credits")
-    }
-
-    @Test
-    func `auto cookie source label trusts authoritative suffix over browser label text`() async throws {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.appendSite(site)
-                return QoderUsageSnapshot(
-                    usedCredits: 125,
-                    totalCredits: 500,
-                    remainingCredits: 375,
-                    usagePercentage: 25,
-                    unit: "credit")
-            },
-            cookieResolver: { _, _, _ in
-                QoderResolvedCookie(
-                    cookieHeader: "sid=global",
-                    sourceLabel: "Chrome Profile qoder.com.cn / qoder.com")
-            })
-
-        let result = try await strategy.fetch(self.makeContext(settings: .make(
-            qoder: .init(cookieSource: .auto, manualCookieHeader: nil))))
-
-        #expect(recorder.sitesSnapshot() == [.international])
-        #expect(result.sourceLabel == "Chrome Profile qoder.com.cn / qoder.com")
-    }
-
-    @Test
-    func `auto cookie fetch retries freshly imported session after stale cache`() async throws {
-        let sourceLabel = "Chrome Default / qoder.com"
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { cookieHeader, _, _ in
-                recorder.appendCookieHeader(cookieHeader)
-                if cookieHeader == "sid=expired-cache" {
-                    throw QoderUsageError.invalidCredentials
-                }
-                return QoderUsageSnapshot(
-                    usedCredits: 125,
-                    totalCredits: 500,
-                    remainingCredits: 375,
-                    usagePercentage: 25,
-                    unit: "credit")
-            },
-            cookieResolver: { _, allowCached, skippedLabels in
-                recorder.appendSkippedLabels(skippedLabels)
-                if allowCached {
-                    return QoderResolvedCookie(
-                        cookieHeader: "sid=expired-cache",
-                        sourceLabel: sourceLabel,
-                        isFromCache: true)
-                }
-                return QoderResolvedCookie(cookieHeader: "sid=fresh", sourceLabel: sourceLabel)
-            })
-
-        let result = try await strategy.fetch(self.makeContext(settings: .make(
-            qoder: .init(cookieSource: .auto, manualCookieHeader: nil))))
-
-        #expect(recorder.cookieHeadersSnapshot() == ["sid=expired-cache", "sid=fresh"])
-        #expect(recorder.skippedLabelsSnapshot() == [Set<String>(), Set<String>()])
-        #expect(result.sourceLabel == sourceLabel)
-    }
-
-    @Test
-    func `manual cookie fetch uses China endpoint when header identifies China site`() async throws {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.setSite(site)
-                return QoderUsageSnapshot(
-                    usedCredits: 0,
-                    totalCredits: 300,
-                    remainingCredits: 300,
-                    usagePercentage: 0,
-                    unit: "credit")
-            })
-
-        let result = try await strategy.fetch(self.makeContext(settings: .make(
-            qoder: .init(
-                cookieSource: .manual,
-                manualCookieHeader: "curl https://qoder.com.cn -H 'Cookie: sid=china'"))))
-
-        #expect(recorder.siteSnapshot() == .china)
-        #expect(result.sourceLabel == "manual / qoder.com.cn")
-    }
-
-    @Test
-    func `manual cookie value that looks like China domain stays on global endpoint`() async throws {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.appendSite(site)
-                return QoderUsageSnapshot(
-                    usedCredits: 0,
-                    totalCredits: 300,
-                    remainingCredits: 300,
-                    usagePercentage: 0,
-                    unit: "credit")
-            })
-
-        let result = try await strategy.fetch(self.makeContext(settings: .make(
-            qoder: .init(
-                cookieSource: .manual,
-                manualCookieHeader: "sid=qoder.com.cn-looking-value"))))
-
-        #expect(recorder.sitesSnapshot() == [.international])
-        #expect(result.sourceLabel == "manual / qoder.com")
-    }
-
-    @Test
-    func `manual request-like cookie with ambiguous target fails before request`() async {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.appendSite(site)
-                return QoderUsageSnapshot(
-                    usedCredits: 0,
-                    totalCredits: 300,
-                    remainingCredits: 300,
-                    usagePercentage: 0,
-                    unit: "credit")
-            })
-
-        await #expect(throws: QoderUsageError.invalidCredentials) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .manual,
-                    manualCookieHeader: "curl --proxy-header 'X: https://qoder.com.cn' https://qoder.com"))))
-        }
-
-        #expect(recorder.sitesSnapshot().isEmpty)
-    }
-
-    @Test
-    func `manual curl with appended command does not resolve cookie or send request`() async {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { cookieHeader, site, _ in
-                recorder.appendCookieHeader(cookieHeader)
-                recorder.appendSite(site)
-                return QoderUsageSnapshot(
-                    usedCredits: 0,
-                    totalCredits: 300,
-                    remainingCredits: 300,
-                    usagePercentage: 0,
-                    unit: "credit")
-            })
-
-        await #expect(throws: QoderUsageError.invalidCredentials) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .manual,
-                    manualCookieHeader: "curl https://qoder.com.cn ; echo -H 'Cookie: sid=global'"))))
-        }
-
-        #expect(recorder.cookieHeadersSnapshot().isEmpty)
-        #expect(recorder.sitesSnapshot().isEmpty)
-    }
-
-    @Test
-    func `manual plain cookie fetch does not retry China after global auth failure`() async {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.appendSite(site)
-                throw QoderUsageError.invalidCredentials
-            })
-
-        await #expect(throws: QoderUsageError.invalidCredentials) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .manual,
-                    manualCookieHeader: "sid=plain-cookie"))))
-        }
-
-        #expect(recorder.sitesSnapshot() == [.international])
-    }
-
-    @Test
-    func `manual plain cookie fetch does not retry China after global network failure`() async {
-        let recorder = Recorder()
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, site, _ in
-                recorder.appendSite(site)
-                throw QoderUsageError.networkError("timed out")
-            })
-
-        await #expect(throws: QoderUsageError.networkError("timed out")) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .manual,
-                    manualCookieHeader: "sid=plain-cookie"))))
-        }
-
-        #expect(recorder.sitesSnapshot() == [.international])
-    }
-
-    @Test
-    func `auto cookie fetch preserves invalid credentials when fresh import is exhausted`() async {
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, _, _ in
-                throw QoderUsageError.invalidCredentials
-            },
-            cookieResolver: { _, allowCached, _ in
-                if allowCached {
-                    return QoderResolvedCookie(
-                        cookieHeader: "sid=expired-cache",
-                        sourceLabel: "Chrome Default / qoder.com",
-                        isFromCache: true)
-                }
-                throw QoderUsageError.missingCredentials
-            })
-
-        await #expect(throws: QoderUsageError.invalidCredentials) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .auto,
-                    manualCookieHeader: nil))))
-        }
-    }
-
-    @Test
-    func `auto cookie fetch preserves terminal non auth error when fresh import is exhausted`() async {
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, _, _ in
-                throw QoderUsageError.networkError("global timed out")
-            },
-            cookieResolver: { _, allowCached, _ in
-                if allowCached {
-                    return QoderResolvedCookie(
-                        cookieHeader: "sid=stale-cache",
-                        sourceLabel: "Chrome Default / qoder.com",
-                        isFromCache: true)
-                }
-                throw QoderUsageError.missingCredentials
-            })
-
-        await #expect(throws: QoderUsageError.networkError("global timed out")) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .auto,
-                    manualCookieHeader: nil))))
-        }
-    }
-
-    @Test
-    func `auto cookie fetch preserves terminal non auth error when later candidate also fails`() async {
-        let candidates = [
-            QoderResolvedCookie(cookieHeader: "sid=global", sourceLabel: "Chrome Default / qoder.com"),
-            QoderResolvedCookie(cookieHeader: "sid=china", sourceLabel: "Chrome Default / qoder.com.cn"),
-        ]
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { cookieHeader, _, _ in
-                if cookieHeader == "sid=global" {
-                    throw QoderUsageError.networkError("timed out")
-                }
-                throw QoderUsageError.apiError(503)
-            },
-            cookieResolver: { _, _, skippedLabels in
-                candidates.first { !skippedLabels.contains($0.sourceLabel) }
-            })
-
-        await #expect(throws: QoderUsageError.apiError(503)) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .auto,
-                    manualCookieHeader: nil))))
-        }
-    }
-
-    @Test
-    func `auto cookie fetch preserves later non auth error after auth failure`() async {
-        let candidates = [
-            QoderResolvedCookie(cookieHeader: "sid=global", sourceLabel: "Chrome Default / qoder.com"),
-            QoderResolvedCookie(cookieHeader: "sid=china", sourceLabel: "Chrome Default / qoder.com.cn"),
-        ]
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { cookieHeader, _, _ in
-                if cookieHeader == "sid=global" {
-                    throw QoderUsageError.invalidCredentials
-                }
-                throw QoderUsageError.networkError("china timed out")
-            },
-            cookieResolver: { _, _, skippedLabels in
-                candidates.first { !skippedLabels.contains($0.sourceLabel) }
-            })
-
-        await #expect(throws: QoderUsageError.networkError("china timed out")) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .auto,
-                    manualCookieHeader: nil))))
-        }
-    }
-
-    @Test
-    func `manual plain cookie fetch reports invalid credentials when every candidate is auth failure`() async {
-        let strategy = QoderWebFetchStrategy(
-            usageLoader: { _, _, _ in
-                throw QoderUsageError.invalidCredentials
-            })
-
-        await #expect(throws: QoderUsageError.invalidCredentials) {
-            try await strategy.fetch(self.makeContext(settings: .make(
-                qoder: .init(
-                    cookieSource: .manual,
-                    manualCookieHeader: "sid=plain-cookie"))))
-        }
-    }
 
     @Test
     @MainActor

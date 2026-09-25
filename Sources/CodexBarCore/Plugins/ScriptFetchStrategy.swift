@@ -116,11 +116,23 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             throw ProviderPluginError.invalidManifest(
                 "bundled plugin id '\(runtime.manifest.id.rawValue)' does not match '\(self.provider.rawValue)'")
         }
-        let usage = try await runtime.fetchUsage(
+        let cookies = ProviderPluginCookieBroker(
+            provider: self.provider, domains: runtime.manifest.cookieDomains, context: context)
+        let result = try await runtime.fetchResult(
             settings: values.settings,
             secrets: values.secrets,
-            cookieResolver: ProviderPluginCookieBroker.resolver(context: context))
-        return self.makeResult(usage: usage, sourceLabel: self.sourceLabel)
+            sourceMode: context.sourceMode,
+            cookieSource: cookies.cookieSource,
+            cookieInvalidator: { cookies.rejectCookie(domain: $0) },
+            cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
+            cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
+            cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
+        try Task.checkCancellation()
+        let saved = result.persist.isEmpty ? ProviderSettingsSaveOutcome.unchanged
+            : await context.settingsWriter?(self.provider, result.persist) ?? .failed
+        try Task.checkCancellation()
+        return self.makeResult(
+            usage: result.usage, sourceLabel: result.sourceLabel ?? self.sourceLabel, diagnostic: saved.diagnostic)
     }
 
     public func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
@@ -139,71 +151,5 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             timeout: self.timeout)
         self.runtime = runtime
         return runtime
-    }
-}
-
-extension ProviderFetchPlan {
-    struct ScriptPrototypeAPIConfiguration: Sendable {
-        let provider: UsageProvider
-        let plugin: String
-        let secretKey: String
-        let strategyID: String
-        let sourceLabel: String
-        let reportsMissingCredentials: Bool
-
-        init(
-            provider: UsageProvider,
-            plugin: String,
-            secretKey: String,
-            strategyID: String,
-            sourceLabel: String = "api",
-            reportsMissingCredentials: Bool = false)
-        {
-            self.provider = provider
-            self.plugin = plugin
-            self.secretKey = secretKey
-            self.strategyID = strategyID
-            self.sourceLabel = sourceLabel
-            self.reportsMissingCredentials = reportsMissingCredentials
-        }
-    }
-
-    static func scriptPrototypeAPI(
-        configuration: ScriptPrototypeAPIConfiguration,
-        resolveToken: @escaping APITokenFetchStrategy.TokenResolver,
-        resolveSettings: @escaping @Sendable ([String: String]) -> [String: String] = { _ in [:] },
-        validateContext: @escaping ScriptFetchStrategy.ContextValidator = { _ in },
-        missingCredentialsError: @escaping APITokenFetchStrategy.MissingCredentialsError,
-        loadUsage: @escaping APITokenFetchStrategy.UsageLoader) -> ProviderFetchPlan
-    {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
-                let swift = APITokenFetchStrategy(
-                    id: configuration.strategyID,
-                    sourceLabel: configuration.sourceLabel,
-                    reportsMissingCredentials: configuration.reportsMissingCredentials,
-                    resolveToken: resolveToken,
-                    missingCredentialsError: missingCredentialsError,
-                    loadUsage: loadUsage)
-                guard ProviderPluginPrototype.isEnabled(environment: context.env) else {
-                    return [swift]
-                }
-                return [
-                    ScriptFetchStrategy(
-                        id: "\(configuration.provider.rawValue).js",
-                        provider: configuration.provider,
-                        bundledPlugin: configuration.plugin,
-                        secretKey: configuration.secretKey,
-                        validateContext: validateContext,
-                        resolveValues: { context in
-                            guard let token = resolveToken(context.env) else { return nil }
-                            return ScriptFetchStrategy.Values(
-                                settings: resolveSettings(context.env),
-                                secrets: [configuration.secretKey: token])
-                        }),
-                    swift,
-                ]
-            }))
     }
 }

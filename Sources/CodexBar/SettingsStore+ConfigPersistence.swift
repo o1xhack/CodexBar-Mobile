@@ -69,15 +69,9 @@ extension SettingsStore {
             reason: "provider-\(provider.rawValue)",
             affectsBackgroundWork: affectsBackgroundWork)
         { config in
-            if let index = config.providers.firstIndex(where: { $0.id == provider.instanceID }) {
-                var entry = config.providers[index]
-                mutate(&entry)
-                config.providers[index] = entry
-            } else {
-                var entry = ProviderConfig(id: provider.instanceID)
-                mutate(&entry)
-                config.providers.append(entry)
-            }
+            var entry = config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
+            mutate(&entry)
+            config.setProviderConfig(entry)
         }
     }
 
@@ -100,15 +94,9 @@ extension SettingsStore {
     {
         guard !self.configLoading else { return }
         var config = self.config
-        if let index = config.providers.firstIndex(where: { $0.id == provider.instanceID }) {
-            var entry = config.providers[index]
-            mutate(&entry)
-            config.providers[index] = entry
-        } else {
-            var entry = ProviderConfig(id: provider.instanceID)
-            mutate(&entry)
-            config.providers.append(entry)
-        }
+        var entry = config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
+        mutate(&entry)
+        config.setProviderConfig(entry)
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
@@ -154,8 +142,12 @@ extension SettingsStore {
             }
 
             for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
+                seen.insert(provider.instanceID)
                 ordered.append(configsByID[provider.instanceID] ?? ProviderConfig(id: provider.instanceID))
             }
+
+            // A loaded plugin can become unavailable without losing its retained configuration.
+            ordered.append(contentsOf: config.providers.filter { !seen.contains($0.id) })
 
             config.providers = ordered
         }
@@ -270,9 +262,45 @@ extension SettingsStore {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    func savePluginSettings(
+        provider: UsageProvider,
+        values: [String: String],
+        isCurrent: () -> Bool) async -> ProviderSettingsSaveOutcome
+    {
+        // Drain any detached save before committing the discovery, then recheck its ownership.
+        while !Task.isCancelled, let pending = self.configPersistTask {
+            await pending.value
+            if self.configPersistTask == pending { break }
+        }
+        guard !Task.isCancelled, !self.configLoading, isCurrent() else { return .stale }
+        do {
+            var config = try self.configStore.load() ?? self.config
+            let original = self.config
+                .providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
+            guard ProviderPluginResultPolicy.matches(
+                config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID), original)
+            else { return .stale }
+            let updated = try ProviderDescriptorRegistry.descriptor(for: provider).pluginResultPolicy
+                .applying(values, to: original)
+            guard !ProviderPluginResultPolicy.matches(updated, original) else { return .unchanged }
+            config.setProviderConfig(updated)
+            let data = try self.configStore.encodedData(for: config)
+            try ConfigFileWatcher.withAppWrite(data, watcher: self.configFileWatcher) {
+                try self.configStore.saveEncodedData(data)
+            }
+            self.config = config.normalized()
+            self.updateProviderState(config: self.config)
+            self.bumpConfigRevision(.local(reason: "plugin-settings", affectsBackgroundWork: false))
+            return .saved
+        } catch {
+            return .failed
+        }
+    }
+
     func schedulePersistConfig() {
         guard !self.configLoading else { return }
-        self.configPersistTask?.cancel()
+        let previousSave = self.configPersistTask
+        previousSave?.cancel()
         if Self.isRunningTests {
             do {
                 let data = try self.configStore.encodedData(for: self.config)
@@ -287,6 +315,7 @@ extension SettingsStore {
         let store = self.configStore
         let watcher = self.configFileWatcher
         self.configPersistTask = Task { @MainActor in
+            await previousSave?.value
             do {
                 try await Task.sleep(nanoseconds: 350_000_000)
             } catch {

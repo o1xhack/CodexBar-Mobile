@@ -202,9 +202,9 @@ for ARCH in "${ARCH_LIST[@]}"; do
   stage_build_products "$ARCH"
 done
 
-# Build the app bundle in /tmp to avoid Dropbox adding resource forks during signing
-APP_FINAL="$ROOT/CodexBar.app"
-APP="/tmp/codexbar-build-$$/CodexBar.app"
+# Build the app bundle outside cloud-synced roots to avoid resource forks during signing.
+APP_FINAL="${CODEXBAR_APP_FINAL_PATH:-$ROOT/CodexBar.app}"
+APP="${CODEXBAR_PACKAGE_STAGE_ROOT:-/tmp}/codexbar-build-$$/CodexBar.app"
 STAGED_APP_PATH="${CODEXBAR_STAGED_APP_PATH:-}"
 INSTALL_APP_PATH="${CODEXBAR_INSTALL_PATH:-}"
 rm -rf "$APP_FINAL" "$(dirname "$APP")"
@@ -732,7 +732,7 @@ if [[ -n "$INSTALL_APP_PATH" ]]; then
   echo "Installed $INSTALL_APP_PATH"
 fi
 
-# Move the signed app bundle from /tmp back to the project directory
+# Copy the packaged bundle to the selected output path.
 copy_app_bundle "$APP" "$APP_FINAL"
 rm -rf "$(dirname "$APP")"
 APP="$APP_FINAL"

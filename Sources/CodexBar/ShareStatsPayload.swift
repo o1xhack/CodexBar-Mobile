@@ -27,60 +27,6 @@ private struct ShareStatsModelFamilyKey: Hashable {
     let currencyCode: String
 }
 
-private struct ShareStatsModelFamilyAccumulator {
-    let key: ShareStatsModelFamilyKey
-    private var totalTokens: Int?
-    private var estimatedCost: Double?
-    private var tokenOverflowed = false
-    private var costOverflowed = false
-    private var tokenIncomplete: Bool
-    private var costIncomplete: Bool
-
-    init(key: ShareStatsModelFamilyKey, row: ShareStatsModelPayload) {
-        self.key = key
-        self.totalTokens = row.totalTokens
-        self.estimatedCost = row.estimatedCost
-        self.tokenIncomplete = row.totalTokens == nil
-        self.costIncomplete = row.estimatedCost == nil
-    }
-
-    mutating func add(_ row: ShareStatsModelPayload) {
-        self.tokenIncomplete = self.tokenIncomplete || row.totalTokens == nil
-        self.costIncomplete = self.costIncomplete || row.estimatedCost == nil
-        if !self.tokenOverflowed, let value = row.totalTokens {
-            if let totalTokens {
-                let result = totalTokens.addingReportingOverflow(value)
-                self.totalTokens = result.overflow ? nil : result.partialValue
-                self.tokenOverflowed = result.overflow
-            } else {
-                self.totalTokens = value
-            }
-        }
-        if !self.costOverflowed, let value = row.estimatedCost {
-            if let estimatedCost {
-                let total = estimatedCost + value
-                self.estimatedCost = total.isFinite ? total : nil
-                self.costOverflowed = !total.isFinite
-            } else {
-                self.estimatedCost = value
-            }
-        }
-    }
-
-    var payload: ShareStatsModelPayload? {
-        let totalTokens = self.tokenIncomplete ? nil : self.totalTokens
-        let estimatedCost = self.costIncomplete ? nil : self.estimatedCost
-        guard totalTokens != nil || estimatedCost != nil else { return nil }
-        return ShareStatsModelPayload(
-            provider: self.key.provider,
-            providerName: self.key.providerName,
-            modelName: self.key.modelName,
-            currencyCode: self.key.currencyCode,
-            totalTokens: totalTokens,
-            estimatedCost: estimatedCost)
-    }
-}
-
 struct ShareStatsCurrencyPayload: Sendable, Equatable, Identifiable {
     let currencyCode: String
     let estimatedCost: Double?
@@ -107,11 +53,13 @@ struct ShareStatsCurrencyPayload: Sendable, Equatable, Identifiable {
 struct ShareStatsPayload: Sendable, Equatable {
     let days: Int
     let periodEnd: Date
+    let periodEndTimeZone: TimeZone
     let providers: [ShareStatsProviderPayload]
     let topModels: [ShareStatsModelPayload]
     let currencies: [ShareStatsCurrencyPayload]
     let totalTokens: Int?
     let hasPartialTokens: Bool
+    let hasPartialModels: Bool
 
     init(
         days: Int,
@@ -120,15 +68,23 @@ struct ShareStatsPayload: Sendable, Equatable {
         topModels: [ShareStatsModelPayload],
         currencies: [ShareStatsCurrencyPayload],
         totalTokens: Int?,
-        hasPartialTokens: Bool = false)
+        hasPartialTokens: Bool = false,
+        hasPartialModels: Bool = false,
+        periodEndTimeZone: TimeZone = .current)
     {
         self.days = days
         self.periodEnd = periodEnd
+        self.periodEndTimeZone = periodEndTimeZone
         self.providers = providers
         self.topModels = topModels
         self.currencies = currencies
         self.totalTokens = totalTokens
         self.hasPartialTokens = hasPartialTokens
+        self.hasPartialModels = hasPartialModels
+    }
+
+    var modelRankingDetail: String {
+        self.hasPartialModels ? "PARTIAL" : "BY USAGE"
     }
 
     var hasShareableData: Bool {
@@ -180,10 +136,20 @@ enum ShareStatsSanitizer {
         else { return nil }
 
         let normalized = value.lowercased()
+        guard !normalized.contains("://"), !normalized.contains("\\") else { return nil }
+        // Gateways add one namespace; shared output still uses fixed public family labels.
+        let components = normalized.split(separator: "/", omittingEmptySubsequences: false)
+        let model: String
+        switch components.count {
+        case 1: model = normalized
+        case 2 where !components[0].isEmpty && !components[1].isEmpty:
+            model = String(components[1])
+        default: return nil
+        }
         let regionalPrefixes = ["us.", "eu.", "apac.", "global."]
-        let familyName = regionalPrefixes.first { normalized.hasPrefix($0) }.map {
-            String(normalized.dropFirst($0.count))
-        } ?? normalized
+        let familyName = regionalPrefixes.first { model.hasPrefix($0) }.map {
+            String(model.dropFirst($0.count))
+        } ?? model
         let publicModelFamilies: [(prefixes: [String], label: String)] = [
             (["amazon.nova-", "nova-"], "Amazon Nova"),
             (["anthropic.claude-", "claude-", "claude "], "Claude"),
@@ -210,10 +176,6 @@ enum ShareStatsSanitizer {
             (["tts-"], "OpenAI TTS"),
             (["whisper-"], "Whisper"),
         ]
-        guard !normalized.contains("://"),
-              !normalized.contains("/"),
-              !normalized.contains("\\")
-        else { return nil }
         return publicModelFamilies.first { family in
             family.prefixes.contains(where: familyName.hasPrefix)
         }?.label
@@ -267,14 +229,28 @@ enum ShareStatsBuilder {
                     coveredDayCount: row.coveredDayCount)
             }
         }
-        let sanitizedModels = model.groups.filter {
-            $0.modelHistoryCompleteness == .complete
-        }.flatMap { group in
-            group.models.compactMap { row -> ShareStatsModelPayload? in
+        var hasPartialModels = false
+        let sanitizedModels = model.groups.flatMap { group -> [ShareStatsModelPayload] in
+            let incompleteProviders = group.incompleteModelProviders.union(
+                group.providers.filter { $0.incompleteRequestCount > 0 }.map(\.provider))
+            hasPartialModels = hasPartialModels || !incompleteProviders.isEmpty
+            // Models can be day-scoped while shared totals still describe the full window.
+            guard group.selectedDay == nil else {
+                // Only proven-zero totals establish an idle full window.
+                hasPartialModels = hasPartialModels || !group.models.isEmpty || group.providers.contains {
+                    $0.totalTokens != 0 || $0.totalCost != 0
+                }
+                return []
+            }
+            return group.models.compactMap { row -> ShareStatsModelPayload? in
                 let estimatedCost = self.finiteCost(row.totalCost)
-                guard let modelName = ShareStatsSanitizer.modelName(row.modelName),
+                guard !incompleteProviders.contains(row.provider), row.incompleteRequestCount == 0,
+                      let modelName = ShareStatsSanitizer.modelName(row.modelName),
                       row.totalTokens != nil
-                else { return nil }
+                else {
+                    hasPartialModels = true
+                    return nil
+                }
                 return ShareStatsModelPayload(
                     provider: row.provider,
                     providerName: row.providerName,
@@ -284,21 +260,29 @@ enum ShareStatsBuilder {
                     estimatedCost: estimatedCost)
             }
         }
-        var modelFamilies: [ShareStatsModelFamilyKey: ShareStatsModelFamilyAccumulator] = [:]
-        for row in sanitizedModels {
-            let key = ShareStatsModelFamilyKey(
+        let modelFamilies = Dictionary(grouping: sanitizedModels) { row in
+            ShareStatsModelFamilyKey(
                 provider: row.provider,
                 providerName: row.providerName,
                 modelName: row.modelName,
                 currencyCode: row.currencyCode)
-            if var existing = modelFamilies[key] {
-                existing.add(row)
-                modelFamilies[key] = existing
-            } else {
-                modelFamilies[key] = ShareStatsModelFamilyAccumulator(key: key, row: row)
-            }
         }
-        let topModels = modelFamilies.values.compactMap(\.payload).sorted { lhs, rhs in
+        let topModels = modelFamilies.compactMap { key, rows -> ShareStatsModelPayload? in
+            let totalTokens = self.combinedTotalTokens(rows.map(\.totalTokens))
+            let costs = rows.compactMap(\.estimatedCost)
+            let estimatedCost = costs.count == rows.count ? self.finiteCost(costs.reduce(0, +)) : nil
+            guard totalTokens != nil || estimatedCost != nil else {
+                hasPartialModels = true
+                return nil
+            }
+            return ShareStatsModelPayload(
+                provider: key.provider,
+                providerName: key.providerName,
+                modelName: key.modelName,
+                currencyCode: key.currencyCode,
+                totalTokens: totalTokens,
+                estimatedCost: estimatedCost)
+        }.sorted { lhs, rhs in
             switch (lhs.totalTokens, rhs.totalTokens) {
             case let (left?, right?) where left != right: return left > right
             case (_?, nil): return true
@@ -319,7 +303,14 @@ enum ShareStatsBuilder {
         }
         let totalTokens = self.combinedTotalTokens(model.groups.map(\.totalTokens))
         let hasPartialTokens = model.groups.contains(where: \.hasPartialTokens)
-        let periodEnd = model.groups.map(\.chartDomain.upperBound).max() ?? Date()
+        guard let periodGroup = model.groups.max(by: { $0.chartDomain.upperBound < $1.chartDomain.upperBound }) else {
+            return nil
+        }
+        // The chart extends through the next day's start; sharing names the last included civil day.
+        let lastIncludedInstant = max(
+            periodGroup.chartDomain.lowerBound,
+            periodGroup.chartDomain.upperBound.addingTimeInterval(-1))
+        let periodEnd = periodGroup.calendar.startOfDay(for: lastIncludedInstant)
         let payload = ShareStatsPayload(
             days: model.requestedDays,
             periodEnd: periodEnd,
@@ -327,7 +318,9 @@ enum ShareStatsBuilder {
             topModels: topModels,
             currencies: currencies,
             totalTokens: totalTokens,
-            hasPartialTokens: hasPartialTokens)
+            hasPartialTokens: hasPartialTokens,
+            hasPartialModels: hasPartialModels,
+            periodEndTimeZone: periodGroup.timeZone)
         return payload.hasShareableData ? payload : nil
     }
 
@@ -339,17 +332,50 @@ enum ShareStatsBuilder {
     static func combinedTotalTokens(_ values: [Int?]) -> Int? {
         let known = values.compactMap(\.self)
         guard !known.isEmpty else { return nil }
-        var total = 0
-        for value in known {
-            let result = total.addingReportingOverflow(value)
-            guard !result.overflow else { return nil }
-            total = result.partialValue
+        return CheckedSum.integers(known)
+    }
+}
+
+@MainActor
+enum ShareStatsPayloadFactory {
+    static func make(model: SpendDashboardModel, store: UsageStore) -> ShareStatsPayload? {
+        ShareStatsBuilder.make(
+            model: model,
+            subscriptionNames: self.subscriptionNames(model: model, store: store))
+    }
+
+    private static func subscriptionNames(
+        model: SpendDashboardModel,
+        store: UsageStore) -> [String: ShareStatsSubscriptionName]
+    {
+        var names: [String: ShareStatsSubscriptionName] = [:]
+        for group in model.groups {
+            for row in group.providers {
+                let snapshots: [UsageSnapshot?] = if row.provider == .codex,
+                                                     row.id.hasPrefix("codex:")
+                {
+                    [
+                        store.codexAccountSnapshots.first {
+                            row.id == "codex:\($0.id)"
+                        }?.snapshot,
+                    ]
+                } else {
+                    [store.snapshot(for: row.provider.instanceID)]
+                }
+                if let name = ShareStatsSubscriptionName.first(from: snapshots, provider: row.provider) {
+                    names[row.id] = name
+                }
+            }
         }
-        return total
+        return names
     }
 }
 
 enum ShareStatsFormatting {
+    static func subscriptionSummary(count: Int) -> String {
+        count == 1 ? "1 subscription" : "\(count) subscriptions"
+    }
+
     static func compactCount(_ value: Int) -> String {
         let magnitude = abs(Double(value))
         let (divisor, suffix): (Double, String)
@@ -366,6 +392,12 @@ enum ShareStatsFormatting {
 
     static func currency(_ value: Double, code: String) -> String {
         UsageFormatter.currencyString(value, currencyCode: code)
+    }
+
+    static func dataThrough(_ payload: ShareStatsPayload) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = payload.periodEndTimeZone
+        return self.dataThrough(payload.periodEnd, calendar: calendar)
     }
 
     static func dataThrough(_ date: Date, calendar: Calendar = .current) -> String {
@@ -427,7 +459,7 @@ enum ShareStatsFormatting {
             return "\(provider.providerName)\(subscription): \(metrics.joined(separator: " · "))"
         })
         if !payload.topModels.isEmpty {
-            lines.append("Top models:")
+            lines.append(payload.hasPartialModels ? "Top models (partial):" : "Top models:")
             lines.append(contentsOf: payload.topModels.prefix(5).map { model in
                 var metrics: [String] = []
                 if let tokens = model.totalTokens {
@@ -439,7 +471,7 @@ enum ShareStatsFormatting {
                 return "\(model.modelName) (\(model.providerName)): \(metrics.joined(separator: " · "))"
             })
         }
-        lines.append("Generated locally by CodexBar · Data through \(self.dataThrough(payload.periodEnd))")
+        lines.append("Generated locally by CodexBar · Data through \(self.dataThrough(payload))")
         return lines.joined(separator: "\n")
     }
 }
