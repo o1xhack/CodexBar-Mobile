@@ -133,7 +133,7 @@ struct CodexBarApp: App {
             }
             CommandGroup(replacing: .help) {
                 Button(L("CodexBar Help")) {
-                    guard let url = URL(string: "https://github.com/steipete/CodexBar/blob/main/README.md")
+                    guard let url = URL(string: "https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/README.md")
                     else { return }
                     NSWorkspace.shared.open(url)
                 }
