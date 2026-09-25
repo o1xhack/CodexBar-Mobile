@@ -37,6 +37,25 @@ struct TokenPlanMonthlyWindowTests {
         #expect(usage.tertiary == nil)
     }
 
+    @Test
+    func `subscription credits do not hide a monthly rate window`() throws {
+        let personal = try AlibabaTokenPlanCLIUsageParser.parse(
+            Data(#"{"per1MonthPercentage":0.3}"#.utf8), now: Self.now)
+        let summary = AlibabaTokenPlanUsageSnapshot(
+            planName: "Token Plan",
+            usedQuota: 11250,
+            totalQuota: 45000,
+            remainingQuota: 33750,
+            resetsAt: nil,
+            updatedAt: Self.now)
+        let merged = personal.mergingSubscriptionSummary(summary)
+        let usage = merged.toUsageSnapshot()
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.resetDescription == "11,250 / 45,000 credits used")
+        #expect(usage.extraRateWindows?.map(\.title) == ["Monthly"])
+        #expect(usage.extraRateWindows?.first?.window.usedPercent == 30)
+    }
+
     @Test(arguments: [false, true])
     func `web monthly quota preserves totals and provider identity`(qwen: Bool) throws {
         let subscription = Data(#"{"data":{"specCode":"standard"}}"#.utf8)

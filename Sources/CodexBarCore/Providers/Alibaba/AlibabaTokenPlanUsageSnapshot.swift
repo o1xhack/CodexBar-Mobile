@@ -103,6 +103,7 @@ extension AlibabaTokenPlanUsageSnapshot {
             weeklyUsedPercent: self.weeklyUsedPercent,
             weeklyTotalQuota: self.weeklyTotalQuota,
             weeklyResetsAt: self.weeklyResetsAt,
+            monthlyWindow: self.monthlyWindow,
             updatedAt: max(self.updatedAt, summary.updatedAt))
     }
 
@@ -140,9 +141,13 @@ extension AlibabaTokenPlanUsageSnapshot {
         // returns a partial response. Consumers such as CLI guard and dashboard
         // JSON interpret primary as session and secondary as weekly.
         let hasRollingWindows = fiveHour != nil || weekly != nil
-        let primary = hasRollingWindows ? fiveHour : monthlyCredits
+        let monthlyIsPrimary = !hasRollingWindows && monthlyCredits == nil
+        let primary = hasRollingWindows ? fiveHour : (monthlyCredits ?? self.monthlyWindow)
         let secondary = hasRollingWindows ? weekly : nil
         let tertiary = hasRollingWindows ? monthlyCredits : nil
+        let extraRateWindows = monthlyIsPrimary ? nil : self.monthlyWindow.map {
+            [NamedRateWindow(id: "monthly", title: "Monthly", window: $0)]
+        }
 
         let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let loginMethod = (planName?.isEmpty ?? true) ? nil : planName
@@ -157,6 +162,7 @@ extension AlibabaTokenPlanUsageSnapshot {
             primary: primary,
             secondary: secondary,
             tertiary: tertiary,
+            extraRateWindows: extraRateWindows,
             providerCost: nil,
             alibabaTokenPlanUsage: self,
             updatedAt: self.updatedAt,

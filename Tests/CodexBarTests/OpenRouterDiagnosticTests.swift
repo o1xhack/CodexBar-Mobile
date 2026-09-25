@@ -36,9 +36,9 @@ struct OpenRouterDiagnosticTests {
             OpenRouterDiagnosticFixture.activity(prompt: "5000000000000000", completion: "4007199254740992"),
             #"""
             {"data":[
-              {"date":"2026-08-17","model":"example/a","prompt_tokens":1,
+              {"date":"2026-08-16","model":"example/a","prompt_tokens":1,
                "completion_tokens":1,"requests":1,"usage":1e308},
-              {"date":"2026-08-17","model":"example/b","prompt_tokens":1,
+              {"date":"2026-08-16","model":"example/b","prompt_tokens":1,
                "completion_tokens":1,"requests":1,"usage":1e308}
             ]}
             """#,
@@ -168,8 +168,10 @@ enum OpenRouterDiagnosticFixture {
     static func activity(
         model: String = "example/model", prompt: String = "1", completion: String = "1") -> String
     {
+        // August 17 is the latest completed UTC day for the injected clock; the dated response replaces it.
+        // Keep history-only diagnostics on August 16 so malformed history is not discarded before validation.
         """
-        {"data":[{"date":"2026-08-17","model":"\(model)","prompt_tokens":\(prompt),
+        {"data":[{"date":"2026-08-16","model":"\(model)","prompt_tokens":\(prompt),
           "completion_tokens":\(completion),"requests":1,"usage":1}]}
         """
     }

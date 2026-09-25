@@ -36,7 +36,7 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains the 29 providers known through v0.54.0 (regression sentinel)`() {
+    func `Catalog contains the 36 providers known through v0.66.0 (regression sentinel)`() {
         // v0.54.0 baseline — 29 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -46,6 +46,7 @@ struct TokenAccountSyncCoverageTests {
         //   v0.36.1 added LiteLLM API-key token accounts; Poe/Chutes/Zed do
         //     not expose token-account catalog support.
         //   v0.39.0 added Qoder cookie-based token accounts.
+        //   v0.59.0-v0.66.0 added seven more token-account providers.
         // If this count changes (up or down), confirm the catalog change
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
@@ -67,6 +68,9 @@ struct TokenAccountSyncCoverageTests {
             "ibmbob",
             // v0.53.0 addition
             "grok",
+            // v0.59.0-v0.66.0 additions
+            "huggingface", "replicate", "typesafe", "bifrost",
+            "doubao", "kimi", "hyper",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

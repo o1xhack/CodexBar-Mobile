@@ -60,7 +60,7 @@ struct QuotaWindowPresentationTests {
             calendar: .current)
         #expect(row.value == "$4.00 · ≥ 600")
         #expect(row.note == "Partial estimate")
-        #expect(row.range.hasPrefix("Est. "))
+        #expect(row.range.hasPrefix("Estimated: "))
         #expect(UsageMenuCardView.Model.quotaMetricValue(nil, complete: false) == "—")
     }
 

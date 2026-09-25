@@ -7,7 +7,7 @@ Date: 2026-09-25
 
 - 本轮从最新 `origin/mobile-dev` `d0d4fe55a8d648e34221c97c2636a34e509b4311` 创建 `upstream-sync/v0.66.0-mobile.2.1.0`，所有写入仅在该分支。
 - 基线以 `version.env` 为准：`UPSTREAM_VERSION=v0.58.0`、`UPSTREAM_SYNC_DATE=2026-09-10`；当前 Mac `0.58.0.1 (141.1)`，iOS 工程 `2.0.0 (211)`。
-- `steipete/CodexBar` GitHub Releases 的最新正式版本是 [v0.66.0](https://github.com/steipete/CodexBar/releases/tag/v0.66.0)，2026-09-24 18:15:52 UTC 发布，tag peeled commit `a6f2b8725934dfefa80ee3295504ec1a53fc4677`。v0.66.0 虽尚无监控 issue，已纳入同一版本以覆盖当前正式上游。
+- `steipete/CodexBar` GitHub Releases 的最新正式版本是 [v0.66.0](https://github.com/steipete/CodexBar/releases/tag/v0.66.0)，2026-09-24 18:15:52 UTC 发布；签名 tag object 为 `a6f2b8725934dfefa80ee3295504ec1a53fc4677`，peeled commit 为 `e665cbf64976839dc947e70a942ba8226388d4c9`。v0.66.0 虽尚无监控 issue，已纳入同一版本以覆盖当前正式上游。
 - 目标是一次 Git merge 和一个用户可见 Mac/iOS 版本。上游 v0.58.0→v0.66.0 约 382 个非 merge 提交，预合并 46 处冲突。`v0.58.0` 是双方共同祖先。
 
 ## Open issue 对应关系

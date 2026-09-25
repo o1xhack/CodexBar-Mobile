@@ -275,6 +275,7 @@ struct WidgetTokenOwnerTests {
             let (settings, store) = self.makeStore()
             let id = settings.tokenAccounts(for: .claude)[0].id
             settings.updateTokenAccount(provider: .claude, accountID: id, token: "sk-ant-oat01-fixture-work")
+            settings.addTokenAccount(provider: .claude, label: "Other", token: "sk-ant-oat01-fixture-other")
             let account = settings.tokenAccounts(for: .claude)[0]
             self.publish(account, to: store, owner: "verified-owner")
             let original = try #require(store.makeWidgetAccountEntries(now: self.measuredAt).first)

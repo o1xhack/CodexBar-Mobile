@@ -235,19 +235,12 @@ struct MockProviderAdvancedScenariosTests {
         let realBorrowedMocks = snapshots.filter {
             realCatalog.contains($0.providerID)
         }
-        // 79 snapshots use current real provider IDs (3 codex + 2 claude + 1
-        // perplexity + 61 simple — 35 v0.25.1-era + 2 v0.26.0 (moonshot,
-        // bedrock) + 7 Phase G multi-account second tabs + 5 v0.27.0
-        // (grok, groq, elevenlabs, deepgram, llmproxy) + 3 v0.28+v0.29
-        // (azureopenai, alibabatokenplan, t3chat) + devin + 4 v0.36
-        // providers + 3 current v0.38/v0.39 providers + 8 v0.42-v0.45
-        // providers + 4 v0.46-v0.47 providers + Fireworks and IBM Bob).
-        // All 79 share their providerID with a real provider. Quota push
-        // coverage is narrower by design: IBM Bob is subscribed, while
-        // spend-only Fireworks cannot emit quota transitions.
-        // Phase G + iOS 1.8.0 + 1.9.0 + 1.12.0 + 1.13.0 + 1.17.0 + 1.19.0:
-        // 43 → 50 → 55 → 59 → 63 → 66 → 73 → 77 → 79.
-        #expect(realBorrowedMocks.count == 79)
+        // v0.59-v0.66 adds 16 current provider fixtures and retires Crof
+        // from the current catalog: 79 → 94 current-ID snapshots. Multiple
+        // accounts deliberately give some provider IDs more than one snapshot.
+        #expect(realBorrowedMocks.count == 94)
+        #expect(Set(realBorrowedMocks.map(\.providerID)) ==
+            MockProviderInjector.realProviderIDsBorrowedByMocks.intersection(realCatalog))
         for snap in realBorrowedMocks {
             #expect(
                 realCatalog.contains(snap.providerID),
