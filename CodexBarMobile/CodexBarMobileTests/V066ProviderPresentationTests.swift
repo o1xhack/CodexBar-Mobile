@@ -80,6 +80,29 @@ struct V066ProviderPresentationTests {
     }
 
     @Test
+    func `TypeSafe credit expiry keeps amounts and date in four languages`() {
+        let expectations: [(locale: String, value: String)] = [
+            ("en", "5 of 10, expires Sep 2"),
+            ("zh-Hans", "5 / 10，Sep 2 到期"),
+            ("zh-Hant", "5 / 10，Sep 2 到期"),
+            ("ja", "5 / 10、有効期限 Sep 2"),
+        ]
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "5 of 10, expires Sep 2",
+                providerID: "typesafe",
+                rowLabel: "Credit",
+                locale: locale) == expectation.value)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "5 of 10, expires Sep 2",
+                providerID: "typesafe",
+                rowLabel: "Plan",
+                locale: locale) == "5 of 10, expires Sep 2")
+        }
+    }
+
+    @Test
     func `new plugin values preserve counts and localize fixed words`() {
         let locale = Locale(identifier: "zh-Hans")
         #expect(ProviderDetailLocalization.localizedValue(

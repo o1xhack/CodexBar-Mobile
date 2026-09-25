@@ -185,6 +185,11 @@ enum ProviderDetailLocalization {
                 return self.localizedFormat("Balance: %@", argument: amount, locale: locale)
             }
         }
+        if providerID == "typesafe", rowLabel == "Credit",
+           let localized = self.localizedTypeSafeCreditValue(value, locale: locale)
+        {
+            return localized
+        }
         if providerID == "gitkraken" {
             let fragments = value.components(separatedBy: " · ")
             if fragments.count == 2 {
@@ -239,6 +244,25 @@ enum ProviderDetailLocalization {
         case "helmcode": rowLabel == nil && value == "Dashboard session"
         default: false
         }
+    }
+
+    private static func localizedTypeSafeCreditValue(_ value: String, locale: Locale) -> String? {
+        let expiryParts = value.components(separatedBy: ", expires ")
+        guard expiryParts.count == 2 else { return nil }
+        let amountParts = expiryParts[0].components(separatedBy: " of ")
+        guard amountParts.count == 2,
+              amountParts.allSatisfy({ !$0.isEmpty }),
+              !expiryParts[1].isEmpty
+        else {
+            return nil
+        }
+        let format = MobileLocalizedString.value(
+            "%@ of %@, expires %@",
+            defaultValue: "%@ of %@, expires %@",
+            locale: locale)
+        return String(format: format, locale: locale, arguments: [
+            amountParts[0], amountParts[1], expiryParts[1],
+        ])
     }
 
     private static func localizedOpenRouterValue(_ value: String, locale: Locale) -> String? {

@@ -148,7 +148,7 @@ PY
 require_finalize_checkout() {
   require_clean_worktree
 
-  local current_branch local_head remote_head tag_commit
+  local current_branch local_head remote_head tag_commit local_tag remote_tag
   current_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   [[ "$current_branch" == "$RELEASE_BRANCH" ]] || \
     err "Finalize must run from '$RELEASE_BRANCH' (current: '${current_branch:-detached}')."
@@ -160,9 +160,14 @@ require_finalize_checkout() {
     err "Finalize checkout is not identical to origin/${RELEASE_BRANCH}; update it first."
 
   tag_commit=$(git rev-parse "${TAG}^{commit}" 2>/dev/null) || \
-    err "Release tag $TAG is missing. Run phase 1 after PR approval."
+    err "Release tag $TAG is missing. For a tagless draft, complete the post-review tag promotion printed by phase 1."
   git merge-base --is-ancestor "$tag_commit" HEAD || \
     err "Release tag $TAG is not contained in $RELEASE_BRANCH. Merge/retag before finalize."
+  local_tag=$(git rev-parse "$TAG")
+  remote_tag=$(git ls-remote --exit-code origin "refs/tags/$TAG" | awk '{print $1}') || \
+    err "Release tag $TAG is not pushed to origin; complete tag promotion before finalize."
+  [[ "$local_tag" == "$remote_tag" ]] || \
+    err "Local and origin release tags differ; reconcile $TAG before finalize."
 }
 
 phase1() {
@@ -276,8 +281,29 @@ What to verify in the GitHub UI:
   - ${RELEASE_ASSET_BASENAME}.dSYM.zip is present
   - Tag matches: $TAG
 
-When ready to publish + push appcast:
+EOF
+
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" == "1" ]]; then
+    cat <<EOF
+This draft has no Git tag. --finalize cannot run yet.
+After the PR has a clean current-head review and green checks, obtain separate
+authorization to merge, push a tag, and publish. Then:
+  1. Merge the reviewed PR into $RELEASE_BRANCH and update that checkout from origin.
+  2. Verify the reviewed release commit and staged assets, then from $RELEASE_BRANCH run:
+       git tag -a -m "${RELEASE_TITLE}" "$TAG"
+       git push origin "$TAG"
+       gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --target "$RELEASE_BRANCH" --draft
+  3. Verify the draft target and tag point to the reviewed release commit.
+  4. Run ./Scripts/release.sh --finalize only when live publication is authorized.
+EOF
+  else
+    cat <<EOF
+When ready to publish + push appcast, after the release gate passes:
   ./Scripts/release.sh --finalize
+EOF
+  fi
+
+  cat <<EOF
 
 To abort and clean up, delete this draft in GitHub after reviewing its assets.
 ============================================================
