@@ -37,6 +37,49 @@ struct V066ProviderPresentationTests {
     }
 
     @Test
+    func `reviewed provider sections localize in all four languages`() {
+        let expectations: [(locale: String, billing: String, hypercredits: String, loaded: String)] = [
+            ("en", "Billing", "Hypercredits", "Loaded"),
+            ("zh-Hans", "账单", "Hyper 额度", "已加载"),
+            ("zh-Hant", "帳單", "Hyper 額度", "已載入"),
+            ("ja", "請求", "Hyper クレジット", "読み込み済み"),
+        ]
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            for providerID in ["coderabbit", "replicate", "typesafe"] {
+                #expect(ProviderDetailLocalization.localized(
+                    "Billing", providerID: providerID, locale: locale) == expectation.billing)
+            }
+            #expect(ProviderDetailLocalization.localized(
+                "Hypercredits", providerID: "hyper", locale: locale) == expectation.hypercredits)
+            #expect(ProviderDetailLocalization.localized(
+                "Loaded", providerID: "llmman", locale: locale) == expectation.loaded)
+        }
+    }
+
+    @Test
+    func `new provider dynamic labels remain verbatim`() {
+        let locale = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localized(
+            "Spent (2026-09 billing)",
+            providerID: "typesafe",
+            context: .rowLabel(sectionTitle: "Billing"),
+            locale: locale) == "支出（2026-09 billing）")
+        #expect(ProviderDetailLocalization.localized(
+            "Loaded",
+            providerID: "llmman",
+            context: .rowLabel(sectionTitle: "Loaded models"),
+            locale: locale) == "Loaded")
+        #expect(ProviderDetailLocalization.localized(
+            "Loaded", providerID: "custom-plugin", locale: locale) == "Loaded")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Balance: $12.50", providerID: "typesafe", locale: locale) == "余额：$12.50")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Balance: $12.50", providerID: "typesafe", rowLabel: "Plan", locale: locale)
+            == "Balance: $12.50")
+    }
+
+    @Test
     func `new plugin values preserve counts and localize fixed words`() {
         let locale = Locale(identifier: "zh-Hans")
         #expect(ProviderDetailLocalization.localizedValue(
@@ -124,6 +167,8 @@ struct V066ProviderPresentationTests {
             ("v0", "API key", "API 密钥"),
             ("nous", "Subscription", "订阅"),
             ("helmcode", "Dashboard session", "控制台会话"),
+            ("hyper", "Browser session", "浏览器会话"),
+            ("llmman", "Local daemon", "本地后台服务"),
         ] {
             let account = ProviderUsageSnapshot(
                 providerID: providerID,

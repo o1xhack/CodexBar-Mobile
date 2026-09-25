@@ -1,7 +1,7 @@
 name: Linux desktop and Omarchy
 on:
   push:
-    branches: [main]
+    branches: [main, mobile-dev]
     paths:
       - 'Integrations/Omarchy/**'
       - 'Integrations/Linux/**'

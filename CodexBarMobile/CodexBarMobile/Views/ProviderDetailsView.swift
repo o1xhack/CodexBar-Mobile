@@ -12,11 +12,13 @@ enum ProviderDetailLocalization {
     /// Only labels emitted by bundled providers are localized. Custom plugin
     /// authors own their wording, so an arbitrary label must round-trip exactly.
     private static let firstPartyProviderIDs: Set<String> = [
-        "amp", "bifrost", "claude", "clawrouter", "codex", "copilot", "cursor",
-        "deepgram", "deepseek", "devpass", "elevenlabs", "fireworks", "gitkraken",
-        "groq", "helmcode", "huggingface", "ibmbob", "kiro", "llmproxy", "mimo",
-        "minimax", "muse", "nous", "openai", "openrouter", "perplexity", "poe",
-        "sakana", "sub2api", "v0", "wayfinder", "xai", "zai", "zoommate",
+        "aiand", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
+        "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
+        "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
+        "huggingface", "hyper", "ibmbob", "kiro", "litellm", "llmman", "llmproxy",
+        "mimo", "minimax", "moonshot", "muse", "nous", "openai", "openrouter",
+        "perplexity", "pi", "poe", "replicate", "sakana", "sub2api", "typesafe",
+        "v0", "vercel", "wayfinder", "xai", "zai", "zoommate",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
@@ -25,30 +27,35 @@ enum ProviderDetailLocalization {
     private static let semanticLabels: Set<String> = [
         "30d cash", "30d credits", "30d spend", "30d tokens", "7d spend",
         "API credits", "API key", "API key budget", "API key limit", "API key remaining", "API key used",
-        "Account balance", "Active keys", "Actual cost", "Agent hours", "All-time key usage",
+        "Account balance", "Active keys", "Actual cost", "Additional credits", "Agent hours", "All-time key usage",
         "API key (all time)", "Audio", "Available", "Avg decision",
-        "Balance", "Billable usage", "Billing history", "Billing remaining", "Billing summary",
+        "Available balance", "Balance", "Billable usage", "Billing", "Billing history",
+        "Billing remaining", "Billing summary",
         "Billing type", "Bobcoin usage", "Bonus credits left", "Budget ledger", "Budgets",
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
-        "Characters", "Context files", "Context used", "Cost items", "Credit history", "Credit quota",
-        "Credits", "Credits left", "Credits total", "Credits used", "Cycle remaining", "Cycle used",
+        "Characters", "Context files", "Context used", "Cost items", "Credit", "Credit balance",
+        "Credit history", "Credit quota", "Credits", "Credits left", "Credits total", "Credits used",
+        "Cycle remaining", "Cycle used", "Daemon",
         "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage", "DevPass credits",
         "Exhausted keys", "Extra usage", "Gateway", "GPU time remaining", "GPU time used",
         "Granted", "Gross inference usage", "Included inference amount", "Individual credits",
         "Inference Providers", "Key spend", "Key spending limit",
-        "Kiro responses", "Last 30 days", "Last 30 days (partial)", "Manage", "Models", "Monthly credit limit",
+        "Hypercredits", "Kiro responses", "Last 30 days", "Last 30 days (partial)", "Lifetime spend",
+        "Loaded", "Loaded models", "Manage", "Models", "Monthly credit limit",
         "Monthly grant", "Muse Code subscription", "On-demand balance", "Other models", "Output", "Overage",
         "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
-        "Period", "Personal", "Plan", "Points", "Prepaid balance", "Premium weekly",
+        "Period", "Period resets", "Personal", "Plan", "Points", "Prepaid balance", "Premium weekly",
         "Professional voices", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
         "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window",
-        "Rest of organization", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
-        "Spend history", "Spending limit", "Subscription", "Subscription credits", "Top-up credits",
+        "Rest of organization", "Reviews", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
+        "Spend history", "Spending limit", "Spent", "Spent this month", "Stored", "Subscription",
+        "Subscription credits", "Team credits", "Top-up credits",
         "Total usable", "Total usage", "TTS characters", "This month", "This week",
         "Today", "Today cash", "Today spend", "Today tokens", "Token quota", "Tools",
-        "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage summary", "Used", "v0 API",
-        "Voice slots", "Weekly", "Weekly usage", "Your shared usage", "ZeroGPU", "5 hours",
+        "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage billing", "Usage summary",
+        "Used", "v0 API", "Version", "Voice slots", "Weekly", "Weekly usage", "Your shared usage",
+        "ZeroGPU", "5 hours",
         "credits", "points", "tokens",
     ]
 
@@ -61,6 +68,7 @@ enum ProviderDetailLocalization {
         "groq": ["Models"],
         "ibmbob": ["Bobcoin usage"],
         "llmproxy": ["Providers"],
+        "llmman": ["Loaded models"],
         "minimax": ["Quota services"],
     ]
 
@@ -70,6 +78,14 @@ enum ProviderDetailLocalization {
         context: Context = .semantic,
         locale: Locale = .current) -> String
     {
+        if providerID == "typesafe", case .rowLabel(sectionTitle: "Billing") = context,
+           label.hasPrefix("Spent ("), label.hasSuffix(")")
+        {
+            let cycle = String(label.dropFirst("Spent (".count).dropLast())
+            if !cycle.isEmpty {
+                return self.localizedFormat("Spent (%@)", argument: cycle, locale: locale)
+            }
+        }
         guard self.firstPartyProviderIDs.contains(providerID),
               self.semanticLabels.contains(label),
               self.shouldLocalize(context: context, providerID: providerID)
@@ -108,8 +124,9 @@ enum ProviderDetailLocalization {
             return self.localizedOpenRouterValue(value, locale: locale) ?? value
         case "zai":
             return self.localizedZAIBalanceBreakdown(value, locale: locale) ?? value
-        case "bifrost", "devpass", "elevenlabs", "gitkraken", "helmcode", "huggingface",
-             "llmproxy", "muse", "nous", "perplexity", "v0":
+        case "bifrost", "clinepass", "devpass", "elevenlabs", "gitkraken", "helmcode",
+             "huggingface", "hyper", "llmman", "llmproxy", "muse", "nous", "perplexity",
+             "typesafe", "v0":
             return self.localizedBundledPluginValue(
                 value, providerID: providerID, rowLabel: rowLabel, locale: locale)
         case "kiro":
@@ -159,20 +176,14 @@ enum ProviderDetailLocalization {
     {
         let v0QuotaRow = providerID == "v0" &&
             (rowLabel == "Billing remaining" || rowLabel == "Rate-limit remaining")
-        let fixedValue: Bool = switch providerID {
-        case "perplexity": value == "Unavailable"
-        case "v0": (v0QuotaRow && value == "Unavailable") ||
-            (rowLabel == nil && value == "API key")
-        case "gitkraken": value == "No allowance" || value == "Unlimited"
-        case "muse": (rowLabel == "Quota" && value == "Not included in this login response") ||
-            (rowLabel == nil && value == "Muse login")
-        case "devpass": rowLabel == nil && value == "Pay as you go"
-        case "nous": rowLabel == nil && value == "Subscription"
-        case "helmcode": rowLabel == nil && value == "Dashboard session"
-        default: false
-        }
-        if fixedValue {
+        if self.isFixedBundledPluginValue(value, providerID: providerID, rowLabel: rowLabel) {
             return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+        }
+        if providerID == "typesafe", rowLabel == nil, value.hasPrefix("Balance: ") {
+            let amount = String(value.dropFirst("Balance: ".count))
+            if !amount.isEmpty {
+                return self.localizedFormat("Balance: %@", argument: amount, locale: locale)
+            }
         }
         if providerID == "gitkraken" {
             let fragments = value.components(separatedBy: " · ")
@@ -206,6 +217,28 @@ enum ProviderDetailLocalization {
             }
         }
         return value
+    }
+
+    private static func isFixedBundledPluginValue(
+        _ value: String,
+        providerID: String,
+        rowLabel: String?) -> Bool
+    {
+        switch providerID {
+        case "perplexity": value == "Unavailable"
+        case "v0": ((rowLabel == "Billing remaining" || rowLabel == "Rate-limit remaining") &&
+                value == "Unavailable") || (rowLabel == nil && value == "API key")
+        case "gitkraken": value == "No allowance" || value == "Unlimited"
+        case "muse": (rowLabel == "Quota" && value == "Not included in this login response") ||
+            (rowLabel == nil && value == "Muse login")
+        case "devpass": rowLabel == nil && value == "Pay as you go"
+        case "clinepass": rowLabel == nil && value == "API key"
+        case "hyper": rowLabel == nil && (value == "API key" || value == "Browser session")
+        case "llmman": rowLabel == nil && (value == "API key" || value == "Local daemon")
+        case "nous": rowLabel == nil && value == "Subscription"
+        case "helmcode": rowLabel == nil && value == "Dashboard session"
+        default: false
+        }
     }
 
     private static func localizedOpenRouterValue(_ value: String, locale: Locale) -> String? {

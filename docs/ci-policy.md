@@ -11,6 +11,7 @@ this trigger model as an incidental merge-conflict resolution.
 | Every PR update | `PR Fast Checks` (`pr-fast.yml`) | portable lint, repository checks, CI-policy guard |
 | PR merged to `mobile-dev` | `Final CI` (`ci.yml`) | lint plus only the macOS/Linux matrices selected by the merged diff |
 | Trusted `upstream-sync/*` merge | `Final CI` | verifies the published upstream tag/checks, then reuses upstream heavy CI |
+| Desktop/Omarchy paths merged to `mobile-dev` | `Linux desktop and Omarchy` (`omarchy.yml`) | path-filtered Qt desktop builds on both Linux architectures |
 | Exceptional/risky change | `Final CI` manual dispatch | complete macOS and Linux matrices |
 | Release | release workflows and `docs/RELEASE-CHECKLIST.md` | local build/test, signing, notarization, Sparkle and release verification |
 
@@ -50,6 +51,7 @@ Shared/Sync/CloudKit/iOS, versioning and release behavior still follow
 `Scripts/check_ci_policy.sh` runs inside portable lint and enforces:
 
 - `pr-fast.yml` is the only workflow that handles PR update events;
+- `omarchy.yml` covers desktop and Omarchy changes pushed to `mobile-dev` after merge;
 - `ci.yml` listens only to PR `closed`, not `synchronize`;
 - the PR workflow contains no macOS runner, Swift build/test or Linux matrix;
 - this policy remains routed through `AGENTS.md` and the Git workflow skill.
