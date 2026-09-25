@@ -26,7 +26,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
 [![Site](https://img.shields.io/badge/site-codexbar.app-16d3b4?style=flat-square)](https://codexbar.app)
 
-<a href="https://codexbar.app"><img src="docs/social.png" alt="CodexBar — every AI coding limit in your menu bar. 69 providers." width="100%" /></a>
+<a href="https://codexbar.app"><img src="docs/social.png?v=0f272ca638af95c0" alt="CodexBar — every AI coding limit in your menu bar. 84 providers." width="100%" /></a>
 
 Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and shows when each window resets. Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, GroqCloud, ElevenLabs, Deepgram, z.ai, MiniMax, Kiro, Zed, Vertex AI, Augment, OpenRouter, LiteLLM, LLM Proxy, Codebuff, Command Code, ClinePass, AWS Bedrock, and many newer coding providers. One status item per provider, or Merge Icons mode with a provider switcher. No Dock icon, minimal UI, dynamic bar icons.
 
@@ -100,7 +100,7 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
 - [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
 - [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
-- [OpenCode Go](docs/opencode.md) — Usage API, browser fallback, and local SQLite cost history.
+- [OpenCode Go](docs/opencodego.md) — Usage API, browser fallback, and local SQLite cost history.
 - [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
 - [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
 - [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.
@@ -140,7 +140,6 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Moonshot / Kimi API](docs/moonshot.md) — API key for Moonshot/Kimi API account balance tracking.
 - [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
 - [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
-- [Crof](docs/crof.md) — API key for dollar credit balance and optional request quota tracking.
 - [Command Code](docs/command-code.md) — Browser or manual cookies for monthly USD credits from Command Code billing.
 - [Qoder](docs/qoder.md) — Browser or manual cookies for Qoder big model credit usage.
 - [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
@@ -159,6 +158,27 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [ZenMux](docs/zenmux.md) — Management API key for rolling five-hour and seven-day quota windows plus PAYG balance.
 - [xAI](docs/xai.md) — Management API key + team ID for prepaid credit balance and daily platform spend.
 - [IBM Bob](docs/ibm-bob.md) — API key for monthly Bobcoin budget and usage across subscription teams.
+- [ClinePass](docs/clinepass.md) — API key for five-hour, weekly, and monthly subscription limits.
+- [llmman](docs/llmman.md) — Local daemon memory used by loaded models, with an optional API key.
+- [Charm Hyper](docs/hyper.md) — Native Hypercredit balance through Chrome/manual sessions or API key.
+- [Groq](docs/groq.md) — Browser session for console spend and usage, with an Enterprise Prometheus API-key fallback.
+- [Bifrost](docs/bifrost.md) — Self-hosted gateway budgets, rate limits, and model spend.
+- [Helmcode](docs/helmcode.md) — Dashboard sessions for per-model quotas and Cloud prepaid balance.
+- [LongCat](docs/longcat.md) — Token-pack quota and fuel-pack balances.
+- [ai&](docs/aiand.md) — API key for organization spend from request logs.
+- [Notion AI](docs/notion.md) — Workspace rolling and monthly allowances.
+- [Nous Portal](docs/nous.md) — Hermes OAuth login for monthly credits and purchased top-ups.
+- [Muse Code](docs/muse.md) — Muse CLI login for subscription quotas and local token history.
+- [CodeRabbit](docs/coderabbit.md) — Local CLI review counts, billing state, and period resets.
+- [Replicate](docs/replicate.md) — Monthly spend and optional prepaid credits.
+- [Hugging Face](docs/huggingface.md) — Inference Providers charges and optional ZeroGPU quota.
+- [Pi](docs/pi.md) — Local Pi/OMP transcripts for token history and cost estimates.
+- [v0](docs/v0.md) — Billing balance and rate limits from a platform API key.
+- [TypeSafe](docs/typesafe.md) — Billing spend, balance, and credit expirations.
+- [GitKraken AI](docs/gitkraken.md) — Weekly personal credits and organization pool sharing.
+- [DevPass](docs/devpass.md) — Plan credits, weekly allowances, and key-scoped spending.
+- [Atlas Cloud](docs/atlascloud.md) — Available USD balance from an API key.
+- [Vercel AI Gateway](docs/vercel.md) — Team balance and lifetime spend.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
@@ -171,15 +191,16 @@ show an incident indicator.
 - Optional Codex web dashboard enrichments (code review remaining, usage breakdown, credits history).
 - Inline spend and usage charts for API-backed providers such as OpenAI, Claude Admin API, OpenRouter, LiteLLM, z.ai, MiniMax, Mistral, and AWS Bedrock.
 - Configurable cost-usage scans for Codex + Claude, plus reused chart UI for supported provider histories. Codex history uses a WAL-enabled SQLite store capped at 25,000 retained session entries and 256 MiB.
-- A persistent Settings → Usage & Spend view for local 7/30-day estimates, grouped by native currency and limited to providers that expose cost history.
+- A persistent Settings → Usage & Spend view for local estimates, grouped by native currency and provider. Accounts, history sources, model breakdowns, and daily/hourly trends retain incomplete-history labels and privacy controls.
 - Provider status polling with incident badges in the menu and icon overlay.
-- Merge Icons mode to combine providers into one status item + switcher.
+- Merge Icons mode to combine providers into one status item + switcher, including stacked first-line status for two enabled built-in providers.
 - Display controls for provider icons, labels, bars, reset-time style, and highest-usage auto-selection.
 - Fresh installs default to Adaptive refresh. Existing users keep every valid stored choice, while legacy unset or
   invalid preferences resolve to 5 minutes. Manual and fixed 1m, 2m, 5m, 15m, and 30m alternatives remain available.
 - Bundled CLI (`codexbar`) for scripts and CI (including `codexbar cost --provider codex`, `claude`, or `both` for local cost usage); macOS and Linux CLI builds available.
 - WidgetKit widgets for supported providers.
-- Localized app and website with a shared 21-language catalog, automatic website detection, persistent pickers, and RTL support.
+- Localized app and website with a shared 23-language catalog, automatic website detection, persistent pickers, and RTL support.
+- [Linux desktop app](Integrations/Linux/README.md) and [Omarchy widget](Integrations/Omarchy/README.md) are available alongside the macOS app and CLI.
 - Optional session quota notifications and weekly-reset confetti.
 - Privacy-first: on-device parsing by default; browser cookies are opt-in and reused (no passwords stored).
 

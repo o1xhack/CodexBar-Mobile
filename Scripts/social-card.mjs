@@ -171,9 +171,15 @@ function imageReferences(repoRoot, imageHash) {
   ]) {
     index = replaceTagAttribute(index, "meta", (attrs) => attrs[attribute] === name, "content", imageURL, name);
   }
-  // README.md is fork-owned and hash-guarded; an upstream social-card
-  // refresh must not rewrite it during an upstream merge.
-  return { "docs/index.html": index };
+  const readme = replaceTagAttribute(
+    fs.readFileSync(path.join(repoRoot, "README.md"), "utf8"),
+    "img",
+    (attrs) => /^docs\/social\.png(?:[?#]|$)/.test(attrs.src ?? ""),
+    "src",
+    `${imagePath}${query}`,
+    "README social card",
+  );
+  return { "docs/index.html": index, "README.md": readme };
 }
 
 export function checkSocialCard(repoRoot) {

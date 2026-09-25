@@ -62,7 +62,7 @@ function fixture(t) {
   return { root, write, read, update: () => updateSocialCard(root, path.join(root, "rendered.png")) };
 }
 
-test("updater records all rendered inputs and updates site image references", (t) => {
+test("updater records all rendered inputs and updates the three image references", (t) => {
   const f = fixture(t);
   f.update();
   checkSocialCard(f.root);
@@ -74,7 +74,7 @@ test("updater records all rendered inputs and updates site image references", (t
   assert(fs.readFileSync(path.join(f.root, "docs/social.png")).equals(pngFixture));
   const url = `https://codexbar.app/social.png?v=${hash.slice(0, 16)}`;
   assert.equal(f.read("docs/index.html").split(url).length - 1, 2);
-  assert(f.read("README.md").includes('src="docs/social.png"'));
+  assert(f.read("README.md").includes(`src="docs/social.png?v=${hash.slice(0, 16)}"`));
   assert(f.read("docs/index.html").includes('content="Keep this description"'));
   assert(f.read("README.md").includes('<img src="unrelated.png" alt="Keep this">'));
 });
@@ -101,7 +101,7 @@ test("check rejects a replaced PNG even when HTML and cache tokens are unchanged
   assert.throws(() => checkSocialCard(f.root), /Social card render is stale/);
 });
 
-for (const relativePath of ["docs/index.html"]) {
+for (const relativePath of ["docs/index.html", "README.md"]) {
   test(`check rejects stale image cache tokens in ${relativePath}`, (t) => {
     const f = fixture(t);
     f.update();

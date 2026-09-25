@@ -6,7 +6,7 @@ Date: 2026-09-25
 ## 上游合并与 fork 边界
 
 - 在 `upstream-sync/v0.66.0-mobile.2.1.0` 对官方 `v0.66.0` tag 做本地双 parent merge，包含 v0.59.0–v0.66.0 的 Mac provider、plugin、菜单、费用、性能、安全、CLI、Linux 与站点变更。46 处冲突逐项解决，保留 fork 的发布、签名、公证、CloudKit/iOS 同步、CI 触发与版本规则。
-- `README.md` 在 merge 阶段严格保留 fork 内容。上游删去但 fork README 仍引用的 `docs/crof.md` 和 fork 的 `CLAUDE.md` 入口被保留。README 的事实更新在 merge 提交后单独审阅。
+- `README.md` 在 merge 提交 `bf896f1c4` 阶段严格保留 fork 内容。随后单独审阅上游事实，更新 fork README 的 84 provider、23 语言、新 provider、Linux/Omarchy 与 Mac Usage & Spend 说明，并更新 fork README 哈希守卫。已删除的 Crof provider 从 README 移除，恢复过渡时所需的 `docs/crof.md` 随之删除；fork 的 `CLAUDE.md` 入口保留。
 - 原 fork Mac 发布脚本继续负责签名、公证、双资产和 Sparkle；新增无 push 的 draft 模式，GitHub draft 以远端现存 `mobile-dev` 为占位 target，在 release notes 标注构建所用本地 commit。此 Goal 不创建或推送 tag，也不进入 live finalize。
 - `.github/workflows/omarchy.yml` 的上游 PR 触发改为手动 dispatch，以保持 fork 的 PR Fast Checks / merge 后 Final CI 规则。`Scripts/check_ci_policy.sh` 与 fork README guard 均通过。
 
