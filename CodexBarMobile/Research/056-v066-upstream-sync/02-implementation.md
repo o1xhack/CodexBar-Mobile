@@ -1,6 +1,6 @@
 # 实现与数据通道审计
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-25
 
 ## 上游合并与 fork 边界

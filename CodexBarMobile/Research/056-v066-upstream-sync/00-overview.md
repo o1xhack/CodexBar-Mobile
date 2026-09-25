@@ -1,6 +1,6 @@
 # v0.59.0–v0.66.0 一次性上游同步
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-25
 
 ## 基线、目标与分支

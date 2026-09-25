@@ -1,6 +1,6 @@
 # 单版本设计与验证方案
 
-Status: `ready`（本 Goal 已确认方案）
+Status: `done`（本 Goal 已确认并实施方案）
 
 ## 合并策略
 
