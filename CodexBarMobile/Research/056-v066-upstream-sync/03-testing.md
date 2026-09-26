@@ -1,6 +1,6 @@
 # 测试、CloudKit 与发布证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-25
 
 ## 已取得的证据
@@ -24,7 +24,7 @@ Date: 2026-09-25
 - `bash Scripts/changelog-to-html.sh 0.66.0.1` 成功提取 fork 的单版本 Mac 发行说明，标题为 `CodexBar 0.66.0.1-Mobile 2.1.0`，并包含新增、变更、修复段；提取结果保存在 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v066-changelog-extract.html`。
 - merge 提交时 README 与 fork `mobile-dev` 逐字节相同；随后独立审阅并更新 fork README 中的 84 provider、23 语言和新增功能事实，移除失效 Crof 链接，恢复上游 social-card cache token 检查，并有意更新 `Scripts/check_fork_readme.sh` 哈希。当前文档链接检查通过 284 条本地链接。
 - Review 发现并修复：Codex 非当前账号的 co-resident 结果需被 `SyncCoordinator` 观察以触发自动 push；无 push draft 不能把 GitHub 尚不存在的本地 commit 作为 `--target`；app/dSYM 校验的二进制解压目录必须位于 StudioSSD BuildScratch。Mac 定向回归和相关脚本校验已通过。
-- 修复后独立复审确认上述三个阻塞项已解除，当前 draft-only 范围未发现新增阻塞项。将来 live finalize 必须在合并推送后核对 draft target 与最终 reviewed commit，本 Goal 不执行。
+- 修复后独立复审确认上述三个阻塞项已解除；此处记录的是当时的 draft 阶段结论。用户随后授权合并与正式发布，最终结果见下文。
 - README 独立适配与 Alibaba/Codex/Copilot 旧测试修正再次经过只读复审，未发现新阻塞；fork 下载入口、README 哈希、上游 Personal API 区分、CloudKit fanout 测试范围和有界等待均已核查。
 - 经独立 README 审阅后，恢复上游对 `README.md` 与 `docs/index.html` 双路径的 social-card cache token 校验；`Scripts/check_fork_readme.sh` 继续验证 fork 身份，`check-site-locales` 与 social-card 26 个测试通过。
 - 最后一轮只读复审覆盖费用快照时区、`Estimated:` 面板文案、Codex sync 注释及发布关键 diff，未发现新增阻塞；`git diff HEAD --check` 通过。独立复审结论仅覆盖代码，完整 Mac suite 须以实际跑完为准。
@@ -65,7 +65,12 @@ Date: 2026-09-25
 | 15 | new | new | new | old | substituted | V047/V049/V058 sync fixtures + WidgetSnapshotBuilderTests case 15 | 真实双 Mac/双 iPhone、silent push 未测 |
 | 16 | new | new | new | new | substituted | V047/V049/V058 sync fixtures + WidgetSnapshotBuilderTests case 16 | 真实双 Mac/双 iPhone、silent push 未测 |
 
-## 待完成与发布边界
+## 最终 PR、Mac 发布与 iOS 送审
 
-- Mac 全套单元测试、旧功能回归、最终 lint、CloudKit schema 审计和独立 diff review 已完成，未发现剩余阻塞项。真实双 Mac × 双 iPhone Production 组合只有替代验证，风险见上表。
-- Mac 签名、公证与 GitHub draft 使用发布凭证，需按 Goal 门槛征求授权。使用已审阅的 `Scripts/release.sh --draft-no-tag-push`：构建、签名、公证并创建 draft；GitHub draft 暂指向远端已有的 `mobile-dev`，notes 明确记录真正构建的本地 commit。此模式不推送 tag、不清理旧 draft；live 发布前须在另一次获准流程中把 draft target 调整到最终 reviewed commit。本 Goal 不执行 live finalize、appcast push 或 TestFlight。
+- 用户后来明确授权 PR 合并、Mac 正式发布、关闭 issue，以及 iOS 上传和送审。PR [#144](https://github.com/o1xhack/CodexBar-Mobile/pull/144) 在 head `19ece35c7de20bf66a980479c5ee19b2541ceae9` 完成 4 轮 Codex CR，0 未解决 thread、PR Fast Checks 通过，`Scripts/check_pr_review_gate.sh 144` 通过后合并为 `d7fbeb5548c4c9d5da0925568ec20b7813d2a6b1`。发布路径修复 [#145](https://github.com/o1xhack/CodexBar-Mobile/pull/145) 经 2 轮 CR 在 head `189a6057e8f89e66ffc3b4bd42620bb140ab0ca6` clean、0 未解决 thread 后合并为 `5149ac52e3929746eaf23844e2d80eb87316baf2`；发布环境路径测试修复 [#146](https://github.com/o1xhack/CodexBar-Mobile/pull/146) 经 1 轮 clean CR 在 head `f3968989fa34822ebac7ee7ad671f1f539cd4576`、0 未解决 thread 后合并为 `db57454525966a6187512ce678592bcec92ee87b`。三个 PR 的 Fast Checks 均通过；#145/#146 的 Final CI 通过，#144 的 Linux/Omarchy merge CI 通过。
+- Mac 发行输入为 `db57454525966a6187512ce678592bcec92ee87b`，tag `v0.66.0.1-mobile.2.1.0` 本地与远端 peeled commit 均相同。`Scripts/release.sh` 最终 phase 1 使用 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar`：完整 lint、arm64/x86_64 构建、Widget 双架构 Xcode 构建通过；实际 Widget 命令的 `-derivedDataPath` 为 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/xcode-widget-extension-release`。Developer ID 签名、Apple notarization `018da03e-321e-4867-81e8-4713ba2463f2` 为 `Accepted`、staple/validate、`syspolicy_check` 和已装订 bundle 启动验证通过。最终 ZIP SHA-256 `27095bd95766f0c8174044fafa1b9e978ea5c1c2e55fa65dbee6a7b368f70460`，dSYM ZIP SHA-256 `2f45d8380b2321d103ad104a1596651b698f3916a7c9ebb122581dc4f2c1ebce`。
+- Mac [正式 release](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.66.0.1-mobile.2.1.0) 已发布，非 draft；`appcast.xml` 在 `ad63cc8224299f92f6f7b3fdfb92deb322296a24` 推至 `mobile-dev`，Sparkle `156.1.2.1.0`、enclosure 长度 `82467812` 与签名均通过远端下载复核。Research `00-overview.md` 列出的 #125/#126/#127/#128/#132/#133/#135/#136/#137/#138/#141/#142/#143 已逐一引用 release 并以 completed 关闭。
+- CloudKit 审计再次按最后公开 tag `v0.58.0.1-mobile.1.23.0` 对比：`Shared/iCloud/CloudConstants.swift` 零 diff，`UsageSnapshot.swift` 无新增必填 `public let`，无新 record type/field/index/zone/query；Mac 与 iOS entitlement 均为 `Production`，结论仍为 **NO_DEPLOY**，未执行 schema deploy。
+- iOS archive 源码为 `ad63cc8224299f92f6f7b3fdfb92deb322296a24`，即已审阅的 iOS 代码及 Mac appcast 提交；`xcodegen generate` 与 Release `xcodebuild archive` 通过，归档 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/ios-2.1.0-212.xcarchive`，结果包 `ios-2.1.0-212-archive.xcresult`。归档内主 app 版本 `2.1.0 (212)`，CloudKit entitlement 为 `Production`；1024×1024 无 Alpha 源图、120×120 归档图标以及 Apple CDN 上已处理构建的图标均目视一致。`xcodebuild -exportArchive` 使用 Xcode 登录会话与 `-packageAuthorizationProvider netrc` 上传成功。ASC build `5dd1c8d8-fb42-42fa-8b44-8a7cc647483e` 的 processing state 为 `VALID`，pre-release version 为 `2.1.0`。
+- App Store version `a5595745-157f-4f77-b179-4e094e384308` 绑定上述 build，英语（en-US）、简中、繁中、日语四份 `whatsNew` 已回读；审核 submission `3c13ee85-54b1-4286-902a-e07a8595c928` 于 `2026-09-26T01:19:05.852Z` 提交。版本与 submission 均回读为 `WAITING_FOR_REVIEW`，releaseType=`MANUAL`；这表示**已送审但尚未通过或上架**。
+- 上表 16 个 2 Mac × 2 iPhone 组合仍全部为 `substituted`，没有物理双 Mac、双 iPhone Production 实测。模拟器与 fixture 覆盖不等于真实多设备无故障保证；silent push、同时写入、旧版缓存及生产网络/账户权限风险保留，已同步到 Todoist QA 跟进任务。
