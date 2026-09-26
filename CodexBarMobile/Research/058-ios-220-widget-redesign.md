@@ -34,6 +34,10 @@ including All, Claude Code, and Codex when available.
 - Neither iOS app nor widget extension currently has an App Group entitlement.
   `ModelContainerFactory` has a prospective group path but falls back to app
   storage today. The widget cannot safely assume it can read the app's store.
+  Crucially, granting the entitlement would make `defaultStoreURL()` switch
+  automatically to the group path on the next launch; there is no store-file
+  migration in that factory. A naive capability addition would strand existing
+  local history in the old app sandbox.
 - The widget bundle already compiles the shared localization catalog. The
   shipping deployment target is iOS 17, and `.systemExtraLarge` is for iPad.
 - Upstream and fork open-PR searches for widget/heatmap prior art returned none
@@ -92,6 +96,10 @@ SwiftData ledger. This keeps per-day and provider identity semantics aligned
 with the app, preserves past days no longer in the latest sync blob, and avoids
 running ledger migration/aggregation in a short-lived widget extension. The
 App Group entitlement and provisioning change must be validated before release.
+The iOS SwiftData store must stay at its existing app-sandbox location in 2.2.0;
+only the new read-only projection goes into the App Group. Explicitly adjust
+`ModelContainerFactory` before enabling the capability and test an upgrade with
+preexisting history, including cold launch and failed projection publication.
 The projection records source identity/name, day keys, known/zero/partial/unknown
 state, annual scale inputs, generation time, and app refresh state. Read failures
 must not become fabricated zero days. On cold install before the first app
@@ -109,7 +117,9 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
    known zero, unknown, partial totals, stale data, and disappearing sources.
 2. Publish the projection from the app's existing history refresh path, then
    read it in widget timelines through an atomic App Group file. Keep widget
-   refresh bounded and cache-aware. Verify entitlement/signing in Production.
+   refresh bounded and cache-aware. Pin the current SwiftData store URL so the
+   new entitlement does not relocate or hide existing history. Verify this
+   upgrade path plus entitlement/signing in Production.
 3. Add focused App Intent configuration and responsive heatmap views for all
    four families. Simplify existing status modes without changing their meaning.
 4. Update four-language strings, `project.yml` to 2.2.0 with the next coherent
