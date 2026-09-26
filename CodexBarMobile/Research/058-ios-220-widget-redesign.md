@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `in-progress` (user approved implementation on 2026-09-25)
+Status: `done` (implementation and signed iPhone SpringBoard QA completed on 2026-09-25)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -314,3 +314,34 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   it does not establish that duplicating these widget
   configuration types would fix this particular runtime error. Preserve the
   signed-device test as the decisive gate before changing intent ownership.
+- The signed 2.2.0 (214) Debug build was then exercised on the paired iPhone Air
+  through iPhone Mirroring. The device's CodexBar app showed real Token Activity
+  history. The widget gallery offered the existing status widget and the new
+  Token Activity small, medium, and large families. All three heatmap sizes
+  were placed on the actual Home Screen and rendered real data; the earlier
+  unsigned-simulator App Intent registration diagnostic did not reproduce on
+  this signed device.
+- The small widget's edit sheet offered All, Claude Code, and Codex. Selecting
+  Codex produced 33 active days in its five-week grid; selecting Claude Code
+  produced one active day and the sparse pattern visible in the app's Token
+  Activity detail. Reopening the editor retained the chosen source. A separate
+  medium widget on another Home Screen page showed All with 76 active days in
+  12 weeks; selecting Codex updated its title and grid while retaining 76
+  active days. The medium selection was independent of the small widget's
+  Claude Code selection.
+- The large comparison widget initially rendered All (76 active days) above
+  Claude Code (one active day). Its editor exposed two separate source fields.
+  Changing the first to Codex yielded Codex (76) above Claude Code (one), and
+  reopening the editor confirmed both stored choices. Changing only the second
+  to All changed the lower panel to All (76) while the upper Codex panel stayed
+  unchanged. The second source was restored to Claude Code and the real Home
+  Screen again showed Codex (76) above Claude Code (one). This verifies both
+  configuration fields, per-instance persistence, and configuration-to-timeline
+  propagation on a normally signed physical device.
+- Extra-large is iPad-only. The iPadOS simulator loaded its All + Codex
+  comparison on SpringBoard and retained edited choices, and the final adaptive
+  layout passed narrow-width render inspection. No signed physical iPad was
+  available for an additional device check. Distribution signing and upload
+  remain a separate release task; the Developer Portal currently has no
+  distribution certificate for the widget profile. No push, PR, TestFlight
+  upload, or public release was performed in this development task.
