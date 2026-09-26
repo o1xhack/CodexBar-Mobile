@@ -64,9 +64,11 @@ including All, Claude Code, and Codex when available.
    interpret it. Remove redundant metric strips, divider chains, decorative
    symbols, and unrelated sync rows. Show a concise freshness/error cue only
    when it changes the meaning of the selected content.
-2. Add a dedicated Token Activity widget kind so configuration remains focused.
-   Use one source selector for small/medium, two ordered source slots for large,
-   and configurable source slots suited to extra-large's available space.
+2. Add two focused Token Activity widget kinds: a single-source widget for
+   small/medium and a comparison widget for large/extra-large. This keeps the
+   edit sheet from showing unused second-source controls on small widgets.
+   The comparison widget has exactly two ordered, independently selected
+   sources in both families; extra-large gives each panel more time and room.
    Default selections should be useful without editing; duplicate selections
    should be prevented or handled clearly. Each placed widget stores its own
    App Intent configuration.
@@ -86,6 +88,22 @@ including All, Claude Code, and Codex when available.
 5. Adapt to light, dark, tinted/clear, and Dynamic Type. Keep colors subordinate
    to shape, contrast, and labels. Tapping opens the relevant in-app Token
    Activity detail when feasible; the widget remains useful without a tap.
+
+### Layout targets for first rendered prototype
+
+| Family | Selection | Primary visual | Supporting information |
+|---|---|---|---|
+| Small | One source | Recent 5-week calendar grid | Source name and one concise activity summary |
+| Medium | One source | Recent 12-week calendar grid | Source name, time range, and compact legend |
+| Large | Two sources | Two 10-to-12-week grids | One header per source, one shared explanation of missing days |
+| Extra-large | Two sources | Two longer grids, side by side when space permits | Clear source headers and readable month markers |
+
+These are density targets, not fixed day counts: measure actual WidgetKit
+dimensions and Dynamic Type before choosing the final week count. Preserve
+seven-day columns and touch-free readability; do not add a KPI dashboard around
+the grids. For the status widget, a small family shows one value and a short
+label; medium and larger families may add one relevant comparison or trend but
+must not fill extra space with unrelated metrics.
 
 ## Data design and decision point
 
