@@ -43,13 +43,14 @@ struct WidgetActivitySourceQuery: EntityQuery {
             WidgetActivitySourceEntity(id: "claude", name: "Claude Code"),
             WidgetActivitySourceEntity(id: "codex", name: "Codex"),
         ]
-        guard let projection = try? WidgetActivityStore.read() else { return standard }
+        guard let projection = try? WidgetActivityStore.read(), !projection.sources.isEmpty
+        else { return standard }
         let projected = projection.sources.map { WidgetActivitySourceEntity(id: $0.id, name: $0.name) }
         let projectedByID = Dictionary(projected.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let extra = projectedByID.values
-            .filter { entity in !standard.contains { $0.id == entity.id } }
+            .filter { $0.id != WidgetActivityProjection.allSourceID }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        return standard.map { projectedByID[$0.id] ?? $0 } + extra
+        return [projectedByID[WidgetActivityProjection.allSourceID] ?? .all] + extra
     }
 
     static func firstProvider() -> WidgetActivitySourceEntity? {

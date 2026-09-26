@@ -281,3 +281,13 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   passed with zero violations and all four locales complete. The updated
   signed Debug build was installed on the iPhone Air without removing data;
   the device remained locked, so physical widget behavior is still unverified.
+- The signed widget extension's extracted App Intents metadata contains both
+  source entities, their queries, and the single/comparison configuration
+  parameters. This rules out missing compile-time metadata in that artifact;
+  only a signed SpringBoard configuration change can prove runtime resolution.
+  The source picker now uses exactly the sources in a nonempty published
+  projection (plus All). Before the first projection, it offers All, Claude
+  Code, and Codex so the edit sheet is usable during setup. A disappeared
+  configured source still resolves to the explicit unavailable state. The
+  device Debug build compiled and was reinstalled after this change; the
+  iPhone Air still needs to be unlocked for its Home Screen QA.
