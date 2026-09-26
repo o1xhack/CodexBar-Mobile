@@ -44,13 +44,17 @@ struct WidgetActivityView: View {
     private var loadedView: some View {
         if self.isComparison {
             if self.family == .systemExtraLarge {
-                HStack(alignment: .center, spacing: 20) {
-                    self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: 20)
-                    Rectangle().fill(.primary.opacity(0.10)).frame(width: 1, height: 150)
-                    self.secondPanel(weeks: 20)
+                GeometryReader { geometry in
+                    let panelWidth = (geometry.size.width - 61) / 2
+                    let cellSize = min(14, max(7, floor((panelWidth - 57) / 20)))
+                    HStack(alignment: .center, spacing: 20) {
+                        self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: 20, cellSize: cellSize)
+                        Rectangle().fill(.primary.opacity(0.10)).frame(width: 1, height: 150)
+                        self.secondPanel(weeks: 20, cellSize: cellSize)
+                    }
+                    .padding(20)
+                    .frame(maxHeight: .infinity)
                 }
-                .padding(20)
-                .frame(maxHeight: .infinity)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: 12)
@@ -112,18 +116,18 @@ struct WidgetActivityView: View {
     }
 
     @ViewBuilder
-    private func secondPanel(weeks: Int) -> some View {
+    private func secondPanel(weeks: Int, cellSize: CGFloat? = nil) -> some View {
         let first = self.entry.sourceIDs.first ?? "all"
         let second = self.entry.sourceIDs.dropFirst().first ?? "all"
         if first == second {
             self.stateView(String(localized: "Choose a different source"))
         } else {
-            self.panel(for: second, weeks: weeks)
+            self.panel(for: second, weeks: weeks, cellSize: cellSize)
         }
     }
 
     @ViewBuilder
-    private func panel(for id: String, weeks: Int) -> some View {
+    private func panel(for id: String, weeks: Int, cellSize: CGFloat? = nil) -> some View {
         if let source = self.entry.projection.source(id: id) {
             VStack(alignment: .leading, spacing: self.family == .systemSmall ? 8 : 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -152,7 +156,7 @@ struct WidgetActivityView: View {
                     source: source,
                     weeks: weeks,
                     referenceDate: self.entry.date,
-                    cellSize: self.family == .systemSmall ? 14 : (self.family == .systemExtraLarge ? 14 : 11),
+                    cellSize: cellSize ?? (self.family == .systemSmall ? 14 : 11),
                     compact: self.family == .systemSmall)
                     .frame(maxWidth: .infinity)
                 HStack(spacing: 4) {

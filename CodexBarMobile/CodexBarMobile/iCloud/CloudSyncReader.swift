@@ -6,10 +6,11 @@ import SwiftData
 /// iOS-side reader that fetches usage snapshots from CloudKit (all devices)
 /// and falls back to legacy KVS for older Mac app versions.
 final class CloudSyncReader: @unchecked Sendable {
-    private let syncManager: CloudSyncManager
+    private let configuredSyncManager: CloudSyncManager?
+    private var syncManager: CloudSyncManager { self.configuredSyncManager ?? .shared }
 
-    init(syncManager: CloudSyncManager = .shared) {
-        self.syncManager = syncManager
+    init(syncManager: CloudSyncManager? = nil) {
+        self.configuredSyncManager = syncManager
     }
 
     // MARK: - CloudKit (primary)

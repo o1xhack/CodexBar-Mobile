@@ -213,10 +213,13 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   projection and rendered the extra-large comparison on SpringBoard as All +
   Claude Code. The second source was changed to Codex in the edit sheet, and
   SpringBoard immediately rendered All + Codex; reopening the editor confirmed
-  the saved value. This proves the two-panel selection path on that simulator.
-  Visual review found the 9-point extra-large cells too small, so they were
-  enlarged to 14 points and the compact month range retained. The updated
-  view compiled; the installed widget continued to show its cached timeline.
+  the saved value. This proves the edit and immediate snapshot path on that
+  simulator. Visual review found the 9-point extra-large cells too small on
+  the 13-inch iPad; a fixed 14-point change then clipped both panels in the
+  narrow extra-large render. The final layout derives cell size from widget
+  width. `ios220-widget-focused15.xcresult` passed all six render cases, and
+  its exported narrow extra-large image was visually inspected without
+  clipping.
 - A subsequent unsigned simulator reinstall removed the simulator's synthetic
   App Group container. Its picker then showed only All, exposing that the
   query depended entirely on the projection file. The query now always offers
@@ -246,7 +249,11 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   CloudKit and App Group values in a simulated `.xcent` but signed the actual
   binary with an empty entitlement dictionary. Manually signing with those
   simulated entitlements let the app install but the simulator denied launch
-  for restricted entitlements. The last successful focused run remains
-  `ios220-widget-focused10.xcresult` before this simulator signing transition;
-  latest source changes compile, but their focused tests require a valid
-  team-signed environment.
+  for restricted entitlements. The test host now recognizes XCTest launch,
+  uses existing preview data, and defers `CloudSyncManager.shared` until an
+  actual sync operation. This keeps unit/render tests free of live CloudKit
+  initialization: `ios220-widget-focused14.xcresult` passed six XCTest and
+  four Swift Testing cases, `ios220-model-store-focused.xcresult` passed six
+  Swift Testing cases, and `ios220-widget-focused15.xcresult` passed the six
+  render cases after the adaptive layout fix. Signed-device QA is still
+  required for the App Group and App Intent selection pipeline.

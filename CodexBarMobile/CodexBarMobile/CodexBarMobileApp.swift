@@ -5,6 +5,12 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
+private enum MobileTestLaunch {
+    static var isUnitTestHost: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+}
+
 @main
 struct CodexBarMobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -29,7 +35,7 @@ struct CodexBarMobileApp: App {
             UserDefaults.standard.set(currentVersion, forKey: "onboardingSeenVersion")
         }
 
-        if arguments.contains("UI_TEST_PREVIEW_DATA") {
+        if arguments.contains("UI_TEST_PREVIEW_DATA") || MobileTestLaunch.isUnitTestHost {
             _usageData = State(initialValue: PreviewData.makeSyncedUsageData())
         } else {
             _usageData = State(initialValue: SyncedUsageData())
@@ -40,7 +46,8 @@ struct CodexBarMobileApp: App {
         WindowGroup {
             ContentView(usageData: usageData)
                 .onAppear {
-                    guard !ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA") else { return }
+                    guard !ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA"),
+                          !MobileTestLaunch.isUnitTestHost else { return }
                     usageData.startObserving()
                 }
         }
@@ -82,6 +89,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         let isTestLaunch = ProcessInfo.processInfo.arguments.contains("UI_TEST_RESET_DEFAULTS")
             || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
+            || MobileTestLaunch.isUnitTestHost
         guard !isTestLaunch else { return true }
 
         // 1. Request notification permission on first launch (Decision A — option 1).
