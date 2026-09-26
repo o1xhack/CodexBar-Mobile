@@ -449,7 +449,10 @@ build_widget_extension() {
 
   ensure_widget_extension_project
 
-  local derived_dir="$ROOT/.build/xcode-widget-extension-${LOWER_CONF}"
+  # Local release runs set CODEXBAR_RELEASE_STAGE_BASE to the SSD BuildScratch.
+  # Keep the repo-local default for portable CI and ordinary developer builds.
+  local derived_dir
+  derived_dir=$(codexbar_widget_derived_data_dir "$ROOT" "$LOWER_CONF")
   local project_dir="$ROOT/WidgetExtension/CodexBarWidgetExtension.xcodeproj"
   local build_log="$derived_dir/xcodebuild.log"
   local timeout_seconds="${CODEXBAR_WIDGET_EXTENSION_TIMEOUT_SECONDS:-900}"
