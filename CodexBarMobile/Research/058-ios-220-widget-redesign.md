@@ -385,3 +385,29 @@ Apple's current widget appearance.
   Claude comparison. The latter had aligned left edges and no dividing rule.
   The physical Home Screen capture is at
   `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/WidgetScreenshots/ios-220-large-medium-iphone-air.png`.
+
+## 2026-09-26 sparse-state and typography refinement
+
+Signed iPhone review found that the earlier 0.6-point outline on every unknown
+day looked like an empty form grid when Claude Code had only two active days.
+The source tint itself already came from `ProviderColorPalette`, but the widget
+applied a different opacity curve from the in-app Token Activity grid and
+colored the full source heading. Thus the hue was shared while the visible
+intensity and text treatment differed.
+
+- Unknown days now use a very light neutral fill without a stroke; confirmed
+  zero days use a slightly stronger neutral fill. Future dates stay invisible.
+  Positive days use the projection's quartile intensity directly, matching the
+  in-app `TokenActivityGrid` opacity instead of applying another curve.
+- Source labels use the system primary foreground and a semibold subheadline.
+  A six-point provider-color marker carries the accent. The active-day count
+  was removed from the normal widget view; sync, stale, or error state still
+  appears as secondary text when needed. In accented mode, WidgetKit owns the
+  content tint and the source marker joins its accent group.
+- The production widget view was rendered in all four sizes with light, dark,
+  and tinted appearances. The signed build was installed on the paired iPhone
+  Air and inspected with real sparse Claude Code data on small and large
+  widgets, alongside the medium Codex grid. Captures:
+  `WidgetScreenshots/ios-220-neutral-empty-small-iphone-air.png` and
+  `WidgetScreenshots/ios-220-neutral-empty-large-medium-iphone-air.png` under
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/`.

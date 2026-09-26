@@ -8,10 +8,14 @@ struct WidgetActivityView: View {
     let entry: WidgetActivityEntry
     var previewFamily: WidgetFamily?
 
-    private var family: WidgetFamily { self.previewFamily ?? self.environmentFamily }
+    private var family: WidgetFamily {
+        self.previewFamily ?? self.environmentFamily
+    }
+
     private var isComparison: Bool {
         self.family == .systemLarge || self.family == .systemExtraLarge
     }
+
     private var activityStatus: String? {
         if self.entry.projection.state == .error { return String(localized: "Sync Error") }
         if self.entry.projection.state == .syncing { return String(localized: "Syncing") }
@@ -47,7 +51,6 @@ struct WidgetActivityView: View {
         .widgetURL(URL(string: "codexbar://token-activity"))
     }
 
-    @ViewBuilder
     private var loadedView: some View {
         GeometryReader { geometry in
             let inset: CGFloat = 11
@@ -91,17 +94,24 @@ struct WidgetActivityView: View {
             let cellSize = WidgetActivityLayout.cellSize(width: width, weeks: weeks, compact: compact)
             let color = ProviderColorPalette.color(for: id, tintHex: source.tintHex)
             VStack(alignment: .leading, spacing: compact ? 7 : 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Circle()
+                        .fill(self.renderingMode == .accented ? Color.primary : color)
+                        .frame(width: 6, height: 6)
+                        .alignmentGuide(.firstTextBaseline) { dimensions in
+                            dimensions[VerticalAlignment.center]
+                        }
+                        .widgetAccentable()
+                        .accessibilityHidden(true)
                     Text(id == WidgetActivityProjection.allSourceID ? String(localized: "All") : source.name)
-                        .font(compact ? .subheadline.weight(.semibold) : .headline)
-                        .foregroundStyle(self.renderingMode == .accented ? .primary : color)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     Spacer(minLength: 0)
-                    if !compact {
-                        Text(self.activityStatus ?? self.summary(for: source, weeks: weeks))
+                    if let activityStatus = self.activityStatus {
+                        Text(activityStatus)
                             .font(.caption2)
-                            .monospacedDigit()
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -114,13 +124,6 @@ struct WidgetActivityView: View {
                     color: color,
                     compact: compact)
                     .frame(width: width, alignment: .leading)
-                if compact {
-                    Text(self.activityStatus ?? self.summary(for: source, weeks: weeks))
-                        .font(.caption2)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
             }
             .frame(width: width, alignment: .leading)
         } else {
@@ -133,12 +136,6 @@ struct WidgetActivityView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-
-    private func summary(for source: WidgetActivitySource, weeks: Int) -> String {
-        let active = WidgetActivityWindow.activeDayCount(
-            source: source, weeks: weeks, referenceDate: self.entry.date)
-        return "\(active) " + String(localized: "Active Days")
     }
 
     private func stateView(_ message: String) -> some View {
@@ -180,18 +177,20 @@ private struct WidgetActivityGrid: View {
             (0..<7).flatMap { weekday in (0..<self.weeks).map { ($0, weekday) } }
         }
         return positions.compactMap { week, weekday -> (key: String, day: WidgetActivityDay?, isFuture: Bool)? in
-                guard let date = calendar.date(byAdding: .day, value: week * 7 + weekday, to: firstWeek) else {
-                    return nil
-                }
-                let components = calendar.dateComponents([.year, .month, .day], from: date)
-                let key = String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
-                return (key, byKey[key], date > today)
+            guard let date = calendar.date(byAdding: .day, value: week * 7 + weekday, to: firstWeek) else {
+                return nil
+            }
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            let key = String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+            return (key, byKey[key], date > today)
         }
     }
 
     var body: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.fixed(self.cellSize), spacing: WidgetActivityLayout.cellSpacing), count: self.compact ? 7 : self.weeks),
+            columns: Array(
+                repeating: GridItem(.fixed(self.cellSize), spacing: WidgetActivityLayout.cellSpacing),
+                count: self.compact ? 7 : self.weeks),
             alignment: .leading,
             spacing: WidgetActivityLayout.cellSpacing)
         {
@@ -206,24 +205,17 @@ private struct WidgetActivityGrid: View {
 
     private func cell(_ day: WidgetActivityDay?, isFuture: Bool) -> some View {
         let tokens = day?.tokens
-        let unknown = tokens == nil || day?.isLowerBound == true
         let fill: Color = if tokens == nil {
-            .clear
+            .secondary.opacity(0.06)
         } else if tokens == 0 {
-            .secondary.opacity(0.15)
+            .secondary.opacity(0.14)
         } else if self.renderingMode == .accented {
-            .primary.opacity(0.24 + (day?.intensity ?? 0) * 0.72)
+            .primary.opacity(day?.intensity ?? 0.25)
         } else {
-            self.color.opacity(0.24 + (day?.intensity ?? 0) * 0.72)
+            self.color.opacity(day?.intensity ?? 0.25)
         }
         return RoundedRectangle(cornerRadius: 2)
             .fill(fill)
-            .overlay {
-                RoundedRectangle(cornerRadius: 2)
-                    .strokeBorder(
-                        Color.secondary.opacity(unknown ? 0.22 : 0),
-                        lineWidth: 0.6)
-            }
             .frame(width: self.cellSize, height: self.cellSize)
             .opacity(isFuture ? 0 : 1)
             .widgetAccentable(tokens != nil && tokens != 0)
