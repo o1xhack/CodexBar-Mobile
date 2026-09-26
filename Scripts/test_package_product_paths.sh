@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/package_product_paths.sh"
 
+# Exercise each override independently even when the caller is a release script.
+unset CODEXBAR_WIDGET_DERIVED_DATA_ROOT CODEXBAR_RELEASE_STAGE_BASE CODEXBAR_PACKAGE_STAGE_ROOT
+
 [[ "$(codexbar_widget_derived_data_dir "$ROOT" release)" == "$ROOT/.build/xcode-widget-extension-release" ]]
 [[ "$(CODEXBAR_PACKAGE_STAGE_ROOT=/Volumes/StudioSSD/Developer/BuildScratch/CodexBar \
   codexbar_widget_derived_data_dir "$ROOT" release)" == \
