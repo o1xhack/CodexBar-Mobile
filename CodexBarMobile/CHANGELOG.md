@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.1.0 (213)] — Unreleased
+
+### Fixed
+- Keep near-black provider accents readable in Dark Mode across Usage, details, and charts. Mac-synced near-white icon tints also remain readable on light cards; built-in Light Mode brand colors are unchanged.
+
 ## [2.1.0 (212)] — Submitted for App Review 2026-09-25
 
 ### Added

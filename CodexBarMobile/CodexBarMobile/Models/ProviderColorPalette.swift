@@ -18,9 +18,75 @@ enum ProviderColorPalette {
         if let tint = provider.providerIconTintHex,
            let color = self.color(fromHex: tint)
         {
-            return color
+            return self.readable(color, adjustsLightMode: true)
         }
         return self.color(for: provider.providerID)
+    }
+
+    /// Minimum WCAG relative luminance a tint may have in dark mode — more
+    /// than 4.5:1 contrast against the dark card background (#1C1C1E). Near-black
+    /// and deep brand colors (Grok #000000/#1A1A1A, xAI, Zed, Windsurf navy)
+    /// otherwise render as unreadable text and bars on dark cards.
+    static let minimumDarkModeLuminance: CGFloat = 0.24
+
+    /// A Mac-supplied near-white icon tint can disappear on a light card.
+    /// This ceiling gives at least 4.5:1 contrast against white while the
+    /// built-in palette keeps its existing Light Mode brand colors.
+    static let maximumSyncedLightModeLuminance: CGFloat = 0.18
+
+    /// Dark Mode lifts deep tints. Mac-supplied hex colors also darken when
+    /// necessary in Light Mode; built-in brand colors retain their light value.
+    static func readable(_ color: Color, adjustsLightMode: Bool = false) -> Color {
+        let base = UIColor(color)
+        return Color(UIColor { traits in
+            let resolved = base.resolvedColor(with: traits)
+            if traits.userInterfaceStyle == .dark { return self.lifted(resolved) }
+            return adjustsLightMode ? self.darkened(resolved) : resolved
+        })
+    }
+
+    static func lifted(_ color: UIColor) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
+        let blended = { (t: CGFloat) in (r + (1 - r) * t, g + (1 - g) * t, b + (1 - b) * t) }
+        let luminanceAt = { (t: CGFloat) in
+            let (br, bg, bb) = blended(t)
+            return self.relativeLuminance(red: br, green: bg, blue: bb)
+        }
+        guard luminanceAt(0) < self.minimumDarkModeLuminance else { return color }
+        // Luminance rises monotonically with the blend; bisect for the
+        // smallest lift that reaches the minimum.
+        var low: CGFloat = 0, high: CGFloat = 1
+        for _ in 0..<20 {
+            let mid = (low + high) / 2
+            if luminanceAt(mid) < self.minimumDarkModeLuminance { low = mid } else { high = mid }
+        }
+        let (lr, lg, lb) = blended(high)
+        return UIColor(red: lr, green: lg, blue: lb, alpha: a)
+    }
+
+    static func darkened(_ color: UIColor) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
+        let luminanceAt = { (t: CGFloat) in
+            self.relativeLuminance(red: r * (1 - t), green: g * (1 - t), blue: b * (1 - t))
+        }
+        guard luminanceAt(0) > self.maximumSyncedLightModeLuminance else { return color }
+        var low: CGFloat = 0, high: CGFloat = 1
+        for _ in 0..<20 {
+            let mid = (low + high) / 2
+            if luminanceAt(mid) > self.maximumSyncedLightModeLuminance { low = mid } else { high = mid }
+        }
+        return UIColor(red: r * (1 - high), green: g * (1 - high), blue: b * (1 - high), alpha: a)
+    }
+
+    /// WCAG 2 relative luminance of sRGB components.
+    static func relativeLuminance(red: CGFloat, green: CGFloat, blue: CGFloat) -> CGFloat {
+        func linear(_ component: CGFloat) -> CGFloat {
+            let c = min(max(component, 0), 1)
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
     }
 
     private static func color(fromHex value: String) -> Color? {
@@ -39,6 +105,10 @@ enum ProviderColorPalette {
     /// so we don't accidentally collapse two distinct providers back into the
     /// same color.
     static func color(for providerIdentifier: String) -> Color {
+        self.readable(self.brandColor(for: providerIdentifier))
+    }
+
+    private static func brandColor(for providerIdentifier: String) -> Color {
         let normalized = providerIdentifier
             .lowercased()
             .replacingOccurrences(of: " ", with: "")

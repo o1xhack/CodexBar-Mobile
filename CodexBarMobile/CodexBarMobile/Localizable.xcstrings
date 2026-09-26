@@ -22586,6 +22586,34 @@
         }
       }
     },
+    "Provider colors stay readable in Dark Mode, and light colors synced from Mac stay visible on light cards.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider colors stay readable in Dark Mode, and light colors synced from Mac stay visible on light cards."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色模式下服务商颜色清晰可见；从 Mac 同步来的浅色在浅色卡片上也能看清。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色模式下服務商顏色清晰可見；從 Mac 同步來的淺色在淺色卡片上也能看清。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダークモードでもサービスの色が見やすくなりました。Mac から同期した明るい色も、明るいカード上で見やすく表示されます。"
+          }
+        }
+      }
+    },
     "5 hours": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"5 hours"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"5 小时"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"5 小時"}},"ja":{"stringUnit":{"state":"translated","value":"5時間"}}}},
     "Active keys": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Active keys"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"有效密钥"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"有效金鑰"}},"ja":{"stringUnit":{"state":"translated","value":"有効なキー"}}}},
     "All-time key usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"All-time key usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"密钥累计用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"金鑰累計用量"}},"ja":{"stringUnit":{"state":"translated","value":"キーの累計使用量"}}}},

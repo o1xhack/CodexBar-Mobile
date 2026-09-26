@@ -1,6 +1,6 @@
+import CodexBarSync
 import SwiftUI
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the consolidated provider-tint palette introduced in iOS 1.3.0 (70).
@@ -497,7 +497,6 @@ struct ProviderColorPaletteTests {
         }
     }
 
-
     // MARK: - iOS 1.20.0 · v0.46-v0.47 provider catch-up
 
     @Test("v0.46-v0.47 provider colors are distinct from the generic blue fallback")
@@ -526,6 +525,87 @@ struct ProviderColorPaletteTests {
     }
 }
 
+@Suite("Provider color dark-mode contrast")
+struct ProviderColorContrastTests {
+    private func snapshot(_ tint: String?) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 0),
+            providerIconTintHex: tint)
+    }
+
+    private func resolved(_ color: Color, _ style: UIUserInterfaceStyle) -> UIColor {
+        UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
+    }
+
+    private func luminance(_ color: UIColor) -> CGFloat {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return ProviderColorPalette.relativeLuminance(red: r, green: g, blue: b)
+    }
+
+    private func contrast(_ foreground: UIColor, against background: UIColor) -> CGFloat {
+        let values = [self.luminance(foreground), self.luminance(background)].sorted()
+        return (values[1] + 0.05) / (values[0] + 0.05)
+    }
+
+    @Test
+    func `Near-black provider tints are lifted to a readable shade in dark mode`() {
+        for id in ["grok", "xai", "zed", "windsurf"] {
+            let color = ProviderColorPalette.color(for: id)
+            #expect(self.contrast(
+                self.resolved(color, .dark),
+                against: UIColor(red: 28 / 255, green: 28 / 255, blue: 30 / 255, alpha: 1)) >= 4.5)
+            #expect(self.luminance(self.resolved(color, .light)) < 0.05)
+        }
+    }
+
+    @Test
+    func `Synced black icon tint is lifted in dark mode through the snapshot path`() {
+        let color = ProviderColorPalette.color(for: self.snapshot("#000000"))
+        #expect(self.luminance(self.resolved(color, .dark)) >= 0.239)
+        #expect(self.luminance(self.resolved(color, .light)) < 0.001)
+    }
+
+    @Test(arguments: ["#FFFFFF", "#FFFF00"])
+    func `Synced pale icon tint darkens on light cards without dimming in dark mode`(hex: String) {
+        let color = ProviderColorPalette.color(for: self.snapshot(hex))
+        #expect(self.contrast(self.resolved(color, .light), against: .white) >= 4.5)
+        #expect(self.luminance(self.resolved(color, .dark)) > 0.9)
+    }
+
+    @Test
+    func `Invalid synced tint falls back to the provider palette in both appearances`() {
+        let fallback = ProviderColorPalette.color(for: "grok")
+        let invalid = ProviderColorPalette.color(for: self.snapshot("not-a-hex-color"))
+        #expect(self.resolved(invalid, .light).isApproximately(self.resolved(fallback, .light)))
+        #expect(self.resolved(invalid, .dark).isApproximately(self.resolved(fallback, .dark)))
+    }
+
+    @Test
+    func `Older Mac snapshot without a tint uses the same readable palette`() {
+        let fallback = ProviderColorPalette.color(for: "grok")
+        let oldSnapshot = ProviderColorPalette.color(for: self.snapshot(nil))
+        #expect(self.resolved(oldSnapshot, .light).isApproximately(self.resolved(fallback, .light)))
+        #expect(self.resolved(oldSnapshot, .dark).isApproximately(self.resolved(fallback, .dark)))
+    }
+
+    @Test
+    func `Bright tints are unchanged in dark mode`() {
+        let claude = ProviderColorPalette.color(for: "claude")
+        let dark = self.resolved(claude, .dark)
+        let light = self.resolved(claude, .light)
+        #expect(dark.isApproximately(light))
+    }
+}
+
 // MARK: - Test helpers
 
 extension UIColor {
@@ -536,9 +616,13 @@ extension UIColor {
         var lhsB: CGFloat = 0; var lhsA: CGFloat = 0
         var rhsR: CGFloat = 0; var rhsG: CGFloat = 0
         var rhsB: CGFloat = 0; var rhsA: CGFloat = 0
+        // Brand pins are light-mode values; dark mode may lift them
+        // (ProviderColorPalette.readable), so resolve independent of the
+        // simulator's appearance.
+        let light = UITraitCollection(userInterfaceStyle: .light)
         guard
-            getRed(&lhsR, green: &lhsG, blue: &lhsB, alpha: &lhsA),
-            other.getRed(&rhsR, green: &rhsG, blue: &rhsB, alpha: &rhsA)
+            resolvedColor(with: light).getRed(&lhsR, green: &lhsG, blue: &lhsB, alpha: &lhsA),
+            other.resolvedColor(with: light).getRed(&rhsR, green: &rhsG, blue: &rhsB, alpha: &rhsA)
         else {
             return false
         }

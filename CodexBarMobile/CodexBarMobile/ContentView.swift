@@ -4317,6 +4317,8 @@ private enum MobileReleaseNotesCatalog {
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),
                 String(localized: "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."),
+                String(
+                    localized: "Provider colors stay readable in Dark Mode, and light colors synced from Mac stay visible on light cards."),
             ])]),
         ReleaseNotesVersion(
             version: "2.0.0", status: "",

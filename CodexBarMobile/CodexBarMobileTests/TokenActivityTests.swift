@@ -302,7 +302,8 @@ struct TokenActivityTests {
         let personal = series(email: "personal@example.com")
         let work = series(email: "work@example.com")
 
-        #expect(CostShareSheet.heatmapSourceTitle(for: personal.id, in: [personal, work]) == "Codex · personal@example.com")
+        #expect(CostShareSheet
+            .heatmapSourceTitle(for: personal.id, in: [personal, work]) == "Codex · personal@example.com")
         #expect(CostShareSheet.heatmapSourceTitle(for: nil, in: [personal, work]) == String(localized: "All Providers"))
 
         let oauth = series(email: nil, loginMethod: "OAuth", accountRecordKey: "oauth")
@@ -316,15 +317,18 @@ struct TokenActivityTests {
 
         let customTint = series(email: "tint@example.com", tint: "#D044A7")
         let color = UIColor(CostShareSheet.heatmapColor(for: customTint))
-        var red = CGFloat.zero
-        var green = CGFloat.zero
-        var blue = CGFloat.zero
-        var alpha = CGFloat.zero
-        #expect(color.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
-        #expect(abs(red - 208.0 / 255.0) < 0.001)
-        #expect(abs(green - 68.0 / 255.0) < 0.001)
-        #expect(abs(blue - 167.0 / 255.0) < 0.001)
-        #expect(abs(alpha - 1) < 0.001)
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let resolved = color.resolvedColor(with: UITraitCollection(userInterfaceStyle: style))
+            var red = CGFloat.zero
+            var green = CGFloat.zero
+            var blue = CGFloat.zero
+            var alpha = CGFloat.zero
+            #expect(resolved.getRed(&red, green: &green, blue: &blue, alpha: &alpha))
+            let luminance = ProviderColorPalette.relativeLuminance(red: red, green: green, blue: blue)
+            #expect(style == .dark ? luminance >= 0.239 : luminance <= 0.181)
+            #expect(red > green && blue > green)
+            #expect(abs(alpha - 1) < 0.001)
+        }
 
         #expect(CostShareSheet.usesSideBySideLayout(width: 700, dynamicTypeSize: .large))
         #expect(!CostShareSheet.usesSideBySideLayout(width: 700, dynamicTypeSize: .accessibility1))
