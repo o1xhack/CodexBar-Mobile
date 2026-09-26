@@ -291,3 +291,15 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   configured source still resolves to the explicit unavailable state. The
   device Debug build compiled and was reinstalled after this change; the
   iPhone Air still needs to be unlocked for its Home Screen QA.
+- A second comparison widget was placed on page 2 of the iPadOS 27 simulator
+  beside the existing extra-large comparison on page 1. Its editor saved
+  Codex + Claude Code, while reopening the first widget had previously saved
+  All + Codex. The new large widget remained at its placeholder, including
+  after a simulator reboot. `CodexBarMobileWidgets` logged an XPC interruption
+  while linking the App Intent, followed by `No AppIntent in timeline(for:with:)`
+  and WidgetKit's empty-view-collection error. The first extra-large widget
+  continued to display its cached All + Codex timeline. Thus the simulator
+  proves the two edit-sheet values can differ, but does **not** prove that the
+  second selection rendered independently. A signed-device run must verify
+  that full path; do not count cached first-widget pixels as fresh timeline
+  success for the second widget.
