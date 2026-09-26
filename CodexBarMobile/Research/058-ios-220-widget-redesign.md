@@ -257,3 +257,19 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   Swift Testing cases, and `ios220-widget-focused15.xcresult` passed the six
   render cases after the adaptive layout fix. Signed-device QA is still
   required for the App Group and App Intent selection pipeline.
+- Apple Developer inspection found the widget extension App ID had iCloud but
+  no App Groups capability. The existing Xcode-managed widget development
+  profile also lacked the group entitlement. On 2026-09-25, the extension App
+  ID was assigned the existing `group.com.o1xhack.codexbar` group. A new
+  development profile (`7f06dbc8-b960-492d-a2ef-538677eaaabe`) includes the
+  iPhone Air and the App Group; Xcode then refreshed its managed widget profile
+  (`3e43cea1-65a8-4af7-be93-b652110f13f2`). A device Debug build succeeded
+  with `-allowProvisioningUpdates`. Inspection of the built app and widget
+  extension shows the same App Group and Production CloudKit entitlements.
+  The build was installed on the paired iPhone Air without removing app data.
+  The device screen was off during the first `sim-use` preflight and screenshot,
+  so no physical widget behavior has yet been claimed.
+- An App Store Connect widget profile was not generated: the Developer Portal
+  currently offers no distribution certificate for that profile type. This is
+  a future archive/upload preparation item, not part of the Debug-device
+  signing proof. Do not infer distribution readiness from the development build.
