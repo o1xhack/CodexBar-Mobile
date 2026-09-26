@@ -273,3 +273,11 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   currently offers no distribution certificate for that profile type. This is
   a future archive/upload preparation item, not part of the Debug-device
   signing proof. Do not infer distribution readiness from the development build.
+- The widget's active-day summary previously counted the last `weeks × 7` data
+  points, while its grid begins on a Monday. Early in a week that included
+  days outside the visible grid. Both the summary and grid now use the same
+  Monday-aligned start date. `ios220-summary-test.xcresult` passed all five
+  projection tests, including the boundary and future-day case. Full lint
+  passed with zero violations and all four locales complete. The updated
+  signed Debug build was installed on the iPhone Air without removing data;
+  the device remained locked, so physical widget behavior is still unverified.

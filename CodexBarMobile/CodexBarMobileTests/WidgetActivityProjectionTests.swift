@@ -102,4 +102,22 @@ struct WidgetActivityProjectionTests {
         #expect(TokenActivity.total([currentBlobOnly], dayKey: olderKey).value == nil)
         #expect(projection.source(id: "codex")?.days.first { $0.key == olderKey }?.tokens == 810)
     }
+
+    @Test func `Active-day summary counts only dates visible in the Monday-aligned grid`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "GMT"))
+        let monday = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 21)))
+        let source = WidgetActivitySource(id: "codex", name: "Codex", days: [
+            WidgetActivityDay(key: "2026-08-20", tokens: 100, isLowerBound: false, intensity: 0.25),
+            WidgetActivityDay(key: "2026-08-24", tokens: 200, isLowerBound: false, intensity: 0.50),
+            WidgetActivityDay(key: "2026-09-20", tokens: 0, isLowerBound: false, intensity: 0),
+            WidgetActivityDay(key: "2026-09-21", tokens: 300, isLowerBound: true, intensity: 0.75),
+            WidgetActivityDay(key: "2026-09-22", tokens: 400, isLowerBound: false, intensity: 1),
+        ])
+
+        #expect(WidgetActivityWindow.startDate(weeks: 5, referenceDate: monday, calendar: calendar)
+            == calendar.date(from: DateComponents(year: 2026, month: 8, day: 24)))
+        #expect(WidgetActivityWindow.activeDayCount(
+            source: source, weeks: 5, referenceDate: monday, calendar: calendar) == 2)
+    }
 }

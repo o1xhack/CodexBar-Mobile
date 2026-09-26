@@ -178,18 +178,17 @@ struct WidgetActivityView: View {
     }
 
     private func summary(for source: WidgetActivitySource, weeks: Int) -> String {
-        let recent = source.days.suffix(weeks * 7)
-        let active = recent.count { ($0.tokens ?? 0) > 0 }
+        let active = WidgetActivityWindow.activeDayCount(
+            source: source, weeks: weeks, referenceDate: self.entry.date)
         return "\(active) " + String(localized: "Active Days")
     }
 
     private func dateRange(for weeks: Int) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
-        calendar.firstWeekday = 2
         let today = calendar.startOfDay(for: self.entry.date)
-        guard let currentWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start,
-              let firstWeek = calendar.date(byAdding: .weekOfYear, value: 1 - weeks, to: currentWeek)
+        guard let firstWeek = WidgetActivityWindow.startDate(
+            weeks: weeks, referenceDate: self.entry.date, calendar: calendar)
         else { return "" }
         let formatter = DateFormatter()
         formatter.calendar = calendar
@@ -226,10 +225,9 @@ private struct WidgetActivityGrid: View {
     private var cells: [(key: String, day: WidgetActivityDay?, isFuture: Bool)] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
-        calendar.firstWeekday = 2
         let today = calendar.startOfDay(for: self.referenceDate)
-        guard let currentWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start,
-              let firstWeek = calendar.date(byAdding: .weekOfYear, value: 1 - self.weeks, to: currentWeek)
+        guard let firstWeek = WidgetActivityWindow.startDate(
+            weeks: self.weeks, referenceDate: self.referenceDate, calendar: calendar)
         else { return [] }
         let byKey = Dictionary(uniqueKeysWithValues: self.source.days.map { ($0.key, $0) })
         let positions: [(Int, Int)] = if self.compact {
@@ -292,5 +290,36 @@ private struct WidgetActivityGrid: View {
         }
         let prefix = day?.isLowerBound == true ? "≥" : ""
         return key + ", " + prefix + tokens.formatted() + " " + String(localized: "Tokens")
+    }
+}
+
+enum WidgetActivityWindow {
+    static func startDate(weeks: Int, referenceDate: Date, calendar baseCalendar: Calendar) -> Date? {
+        guard weeks > 0 else { return nil }
+        var calendar = baseCalendar
+        calendar.firstWeekday = 2
+        let today = calendar.startOfDay(for: referenceDate)
+        guard let currentWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start else { return nil }
+        return calendar.date(byAdding: .weekOfYear, value: 1 - weeks, to: currentWeek)
+    }
+
+    static func activeDayCount(
+        source: WidgetActivitySource,
+        weeks: Int,
+        referenceDate: Date,
+        calendar: Calendar = .current) -> Int
+    {
+        guard let firstDay = self.startDate(weeks: weeks, referenceDate: referenceDate, calendar: calendar)
+        else { return 0 }
+        let firstKey = self.dayKey(firstDay, calendar: calendar)
+        let lastKey = self.dayKey(referenceDate, calendar: calendar)
+        return source.days.count { day in
+            day.key >= firstKey && day.key <= lastKey && (day.tokens ?? 0) > 0
+        }
+    }
+
+    private static func dayKey(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 }
