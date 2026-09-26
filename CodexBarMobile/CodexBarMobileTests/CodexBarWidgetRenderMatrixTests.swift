@@ -167,6 +167,31 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    func testTokenActivityUnavailableAndDuplicateSourcesRenderClearly() {
+        let projection = WidgetActivityProjection.preview(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let cases: [(name: String, family: WidgetFamily, ids: [String])] = [
+            ("removed single", .systemSmall, ["removed-provider"]),
+            ("removed comparison", .systemLarge, ["all", "removed-provider"]),
+            ("duplicate comparison", .systemLarge, ["codex", "codex"]),
+            ("removed extra large", .systemExtraLarge, ["all", "removed-provider"]),
+        ]
+        for item in cases {
+            guard let size = self.families.first(where: { $0.family == item.family })?.size else {
+                XCTFail("Missing render size for \(item.name)")
+                continue
+            }
+            let entry = WidgetActivityEntry(date: projection.generatedAt, sourceIDs: item.ids, projection: projection)
+            let view = ZStack {
+                Color.white
+                WidgetActivityView(entry: entry, previewFamily: item.family)
+            }
+            .frame(width: size.width, height: size.height)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            self.assertVisibleImage(renderer.uiImage, context: item.name)
+        }
+    }
+
     func testLoadedFooterLineIsAlwaysCentered() throws {
         let sourceURL = Self.sourceFileURL(
             forRelative: "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetView.swift")

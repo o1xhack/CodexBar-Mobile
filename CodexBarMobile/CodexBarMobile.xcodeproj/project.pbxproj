@@ -17,7 +17,6 @@
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		08DAFDFF22C66A2F782B89A9 /* V026RenderedTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63562F3CAD90EB09C32903E /* V026RenderedTextTests.swift */; };
-		09380D119A2CB1833A8DA237 /* WidgetActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BE83EF8A97B23EC95B8FB0 /* WidgetActivityIntent.swift */; };
 		09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */; };
 		0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
@@ -45,7 +44,6 @@
 		2E8C1EB06CD3DA4A1895AB87 /* CWLSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
 		2F4CC45C6E15E86CBCF14C7E /* V056SyncSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC810414C28A706C3F440DC /* V056SyncSemanticsTests.swift */; };
-		2F8283647019503BF0185079 /* WidgetActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16BE83EF8A97B23EC95B8FB0 /* WidgetActivityIntent.swift */; };
 		2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */; };
 		3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */; };
 		33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */; };
@@ -74,6 +72,7 @@
 		4DB89DB1AD9D92776B164DD2 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		4E63C52D8C920C2076DD3CD5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		51850DD4E4EA2B3B12B8253C /* CodexBarWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E024B1E38E5CEBF63EDB05E3 /* CodexBarWidgetIntent.swift */; };
+		51B959DA09C7567CA39D8118 /* WidgetActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EC98A4019F273E58290240 /* WidgetActivityIntent.swift */; };
 		5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */; };
 		5318530147AE0495BD05345D /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */; };
@@ -312,7 +311,6 @@
 		148D664C4F52FEB3A2993FE7 /* SyncCostSummary+Today.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncCostSummary+Today.swift"; sourceTree = "<group>"; };
 		157142B7B8F8ADF6A79DCD07 /* V026ViewSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026ViewSmokeTests.swift; sourceTree = "<group>"; };
 		158C8DC0415A1D743CD3D63A /* CyberShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CyberShareCardView.swift; sourceTree = "<group>"; };
-		16BE83EF8A97B23EC95B8FB0 /* WidgetActivityIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetActivityIntent.swift; sourceTree = "<group>"; };
 		17EBCA2388AA438982DDCD57 /* V049SyncCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V049SyncCompatTests.swift; sourceTree = "<group>"; };
 		184B00DD94E1D273C99C173C /* MobileAdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAdaptiveLayout.swift; sourceTree = "<group>"; };
 		18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncErrorTests.swift; sourceTree = "<group>"; };
@@ -413,6 +411,7 @@
 		A45A7C39DD816CBE4C4EF9EB /* CodexBarMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CodexBarMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A4CAFB868825B9A3F09FE0AA /* DeviceLifecycleEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLifecycleEventTests.swift; sourceTree = "<group>"; };
 		A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountGroup.swift; sourceTree = "<group>"; };
+		A7EC98A4019F273E58290240 /* WidgetActivityIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetActivityIntent.swift; sourceTree = "<group>"; };
 		A9F340DA45364A878F1BB616 /* V027Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V027Snapshots.swift; sourceTree = "<group>"; };
 		AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramUsageCard.swift; sourceTree = "<group>"; };
 		AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailRedaction.swift; sourceTree = "<group>"; };
@@ -617,7 +616,6 @@
 				D797A59C0C527242716F6546 /* CodexBarWidgetView.swift */,
 				E61A19B110DF384F7EE02BD5 /* DeviceSnapshotResolver.swift */,
 				B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */,
-				16BE83EF8A97B23EC95B8FB0 /* WidgetActivityIntent.swift */,
 				484A69D6665BE9EADD5FA571 /* WidgetActivityProjection.swift */,
 				6CA751A1638AFC94E23C38FA /* WidgetActivityView.swift */,
 			);
@@ -762,6 +760,7 @@
 				CE2C3390F97E462D74C5A28D /* CodexBarWidgets.swift */,
 				BAC28C0DE37814E0D17EF05B /* CodexBarWidgetTimeline.swift */,
 				F73457F32FC7DD4C6DE7F847 /* Info.plist */,
+				A7EC98A4019F273E58290240 /* WidgetActivityIntent.swift */,
 				E143BBA8CCF436071E8DFE5F /* WidgetActivityTimeline.swift */,
 				F74DC452F05CFF7BC6196E10 /* WidgetExtension.entitlements */,
 			);
@@ -1231,7 +1230,6 @@
 				6BEB6B051976D09ED07BFFD3 /* UtilizationAggregateView.swift in Sources */,
 				06AF0C16DB94FEF7CEB249F1 /* UtilizationHistoryView.swift in Sources */,
 				F32843B6E5627A730F7FFBF0 /* V045ProviderCards.swift in Sources */,
-				2F8283647019503BF0185079 /* WidgetActivityIntent.swift in Sources */,
 				B4A74E58A58B3CBCE5D3900E /* WidgetActivityProjection.swift in Sources */,
 				F1E70894B80CE53B4E5597FE /* WidgetActivityProjectionBuilder.swift in Sources */,
 				10FEFC29978C1B22D5599BD7 /* WidgetActivityPublisher.swift in Sources */,
@@ -1298,7 +1296,7 @@
 				728CF23CFF13DD0CA289EE7F /* CodexBarWidgets.swift in Sources */,
 				2BB9F05F0803DC295D55C93C /* DeviceSnapshotResolver.swift in Sources */,
 				57C973F513DAC5CC5E587DDE /* ProviderSnapshotMerger.swift in Sources */,
-				09380D119A2CB1833A8DA237 /* WidgetActivityIntent.swift in Sources */,
+				51B959DA09C7567CA39D8118 /* WidgetActivityIntent.swift in Sources */,
 				55DA4BB195EF540E5EC8FDAB /* WidgetActivityProjection.swift in Sources */,
 				55C7C6DD91048AE5A198CA85 /* WidgetActivityTimeline.swift in Sources */,
 				CA364295E052B5CFC0CFC614 /* WidgetActivityView.swift in Sources */,

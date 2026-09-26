@@ -82,6 +82,10 @@ struct WidgetActivityView: View {
                     Text(self.summary(for: source, weeks: weeks))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                    Text(self.dateRange(for: weeks))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     if self.entry.projection.isStale {
                         Text(String(localized: "Stale"))
                             .font(.caption2)
@@ -148,7 +152,7 @@ struct WidgetActivityView: View {
                     source: source,
                     weeks: weeks,
                     referenceDate: self.entry.date,
-                    cellSize: self.family == .systemSmall ? 14 : (self.family == .systemExtraLarge ? 9 : 11),
+                    cellSize: self.family == .systemSmall ? 14 : (self.family == .systemExtraLarge ? 14 : 11),
                     compact: self.family == .systemSmall)
                     .frame(maxWidth: .infinity)
                 HStack(spacing: 4) {
@@ -156,7 +160,8 @@ struct WidgetActivityView: View {
                         .lineLimit(1)
                     if self.family != .systemSmall {
                         Spacer(minLength: 0)
-                        Text(String(localized: "Recent weeks"))
+                        Text(self.dateRange(for: weeks))
+                            .lineLimit(1)
                     }
                 }
                 .font(.caption2)
@@ -172,6 +177,22 @@ struct WidgetActivityView: View {
         let recent = source.days.suffix(weeks * 7)
         let active = recent.count { ($0.tokens ?? 0) > 0 }
         return "\(active) " + String(localized: "Active Days")
+    }
+
+    private func dateRange(for weeks: Int) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        calendar.firstWeekday = 2
+        let today = calendar.startOfDay(for: self.entry.date)
+        guard let currentWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start,
+              let firstWeek = calendar.date(byAdding: .weekOfYear, value: 1 - weeks, to: currentWeek)
+        else { return "" }
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.setLocalizedDateFormatFromTemplate("MMM")
+        let firstMonth = formatter.string(from: firstWeek)
+        let lastMonth = formatter.string(from: today)
+        return firstMonth == lastMonth ? firstMonth : firstMonth + "–" + lastMonth
     }
 
     private func stateView(_ message: String) -> some View {

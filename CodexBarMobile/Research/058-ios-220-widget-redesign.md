@@ -194,6 +194,14 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   read-error state. A separate offscreen extra-large render with the same
   SwiftUI view showed both selected panels without clipping. Medium loaded
   layout was also checked offscreen, but not placed on SpringBoard.
+- Follow-up implementation on 2026-09-25 aligned the widget publication task's
+  refresh key with `TokenActivitySection`: local-history clear tombstones,
+  source revisions, and producer/reader day boundaries now trigger a new
+  projection. The medium and comparison layouts show compact month ranges
+  after a full localized date range proved too long in rendered Chinese
+  previews. `ios220-widget-focused10.xcresult` passed six XCTest cases and ten
+  Swift Testing cases, including a historical ledger point absent from the
+  current sync blob and missing/duplicate-source rendering.
 - A manually ad-hoc-signed app with App Group entitlements could be installed
   but the system rejected its widget extension at launch with
   `OS_REASON_CODESIGNING` / restricted entitlements. A normal simulator build
@@ -201,3 +209,44 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   this does not prove a valid development/distribution profile or physical
   device App Group access. Production signing and real-device verification
   remain release gates. The connected iPhone was not modified for this QA run.
+- On iPad, the scheduled WidgetKit timeline refresh loaded the synthetic
+  projection and rendered the extra-large comparison on SpringBoard as All +
+  Claude Code. The second source was changed to Codex in the edit sheet, and
+  SpringBoard immediately rendered All + Codex; reopening the editor confirmed
+  the saved value. This proves the two-panel selection path on that simulator.
+  Visual review found the 9-point extra-large cells too small, so they were
+  enlarged to 14 points and the compact month range retained. The updated
+  view compiled; the installed widget continued to show its cached timeline.
+- A subsequent unsigned simulator reinstall removed the simulator's synthetic
+  App Group container. Its picker then showed only All, exposing that the
+  query depended entirely on the projection file. The query now always offers
+  All, Claude Code, and Codex, and appends any additional projected sources.
+  The unsigned simulator cannot verify App Group persistence across reinstall;
+  signed-device QA is still needed.
+- The iPhone simulator also placed a loaded medium widget from the synthetic
+  projection, with a readable title, active-day summary, month range, and
+  12-week grid. Its edit sheet offered the three standard sources and saved a
+  Codex selection, but the rendered timeline still displayed All. `chronod`
+  serialized the selected `codex` entity; the extension logged
+  `WidgetActivitySourceEntity is not a registered AppEntity identifier` during
+  resolution. A scheduled 15-minute timeline refresh did not change the
+  displayed source. The App Intent entity types now live only in the widget
+  extension target, avoiding duplicate app/extension metadata definitions.
+  An unsigned reinstall removed the simulator App Group registration and a
+  further simulator probe still emitted the entity-registration diagnostic.
+  Source-to-render propagation therefore remains unverified until a build
+  signed with the real team/profile can be tested. The picker fallback itself
+  remains available before the first projection is published.
+- An iOS 27.0 iPad simulator test-host run exited before XCTest bootstrap:
+  the crash stack points to `CKContainer.init` after an unsigned test launch
+  without CloudKit entitlements. This is test infrastructure evidence, not a
+  failure of the heatmap assertions. A later iOS 26.5 iPhone simulator run
+  also exited before XCTest bootstrap after an unsigned reinstall removed its
+  App Group registration. Xcode's `Sign to Run Locally` simulator build put
+  CloudKit and App Group values in a simulated `.xcent` but signed the actual
+  binary with an empty entitlement dictionary. Manually signing with those
+  simulated entitlements let the app install but the simulator denied launch
+  for restricted entitlements. The last successful focused run remains
+  `ios220-widget-focused10.xcresult` before this simulator signing transition;
+  latest source changes compile, but their focused tests require a valid
+  team-signed environment.

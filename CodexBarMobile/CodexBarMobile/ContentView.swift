@@ -60,6 +60,7 @@ struct ContentView: View {
     @State private var costReferenceDate = Date()
     @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var widgetUsesLedger = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var widgetHistoryClearedAt: Double = 0
     @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
 
     init(usageData: SyncedUsageData, previewTab: MobileRootTab? = nil) {
@@ -98,8 +99,14 @@ struct ContentView: View {
     }
 
     private var widgetActivityRefreshKey: String {
-        "\(self.usageData.publicationRevision)|\(self.widgetUsesLedger)|" +
-            "\(TokenActivity.dayKey(self.costReferenceDate, calendar: .current))|" +
+        let providers = self.usageData.snapshot.map { MockProviderDetector.filteredProviders(from: $0) } ?? []
+        let dayRevision = TokenActivity.dayRevision(
+            providers: providers,
+            snapshots: self.usageData.deviceSnapshots,
+            referenceDate: self.costReferenceDate)
+        return "\(self.usageData.publicationRevision)|\(self.widgetUsesLedger)|" +
+            "\(self.widgetHistoryClearedAt)|\(TokenActivity.sourceRevision(self.usageData.deviceSnapshots))|" +
+            "\(dayRevision)|" +
             "\(self.readerTimeZoneIdentifier)|\(self.usageData.syncStatus)"
     }
 

@@ -83,4 +83,23 @@ struct WidgetActivityProjectionTests {
         #expect(failed.sources == previous.sources)
         #expect(failed.latestSyncAt == previous.latestSyncAt)
     }
+
+    @Test func `Projection retains ledger history beyond the current sync blob`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "GMT"))
+        let olderDate = try #require(calendar.date(byAdding: .day, value: -180, to: self.now))
+        let olderKey = TokenActivity.dayKey(olderDate, calendar: calendar)
+        let currentKey = TokenActivity.dayKey(self.now, calendar: calendar)
+        let ledgerSeries = TokenActivitySeries(provider: self.provider("codex", name: "Codex"), days: [
+            SyncDailyPoint(dayKey: olderKey, costUSD: 0, totalTokens: 810, tokenCountIsKnown: true),
+            SyncDailyPoint(dayKey: currentKey, costUSD: 0, totalTokens: 120, tokenCountIsKnown: true),
+        ], hasLedgerCounts: true)
+        let currentBlobOnly = TokenActivitySeries(provider: self.provider("codex", name: "Codex"), days: [
+            SyncDailyPoint(dayKey: currentKey, costUSD: 0, totalTokens: 120, tokenCountIsKnown: true),
+        ])
+        let projection = WidgetActivityProjectionBuilder.make(
+            series: [ledgerSeries], latestSyncAt: self.now, now: self.now, calendar: calendar)
+        #expect(TokenActivity.total([currentBlobOnly], dayKey: olderKey).value == nil)
+        #expect(projection.source(id: "codex")?.days.first { $0.key == olderKey }?.tokens == 810)
+    }
 }

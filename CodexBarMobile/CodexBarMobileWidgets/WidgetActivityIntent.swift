@@ -1,6 +1,8 @@
 import AppIntents
 import Foundation
 
+// Keep these entities in the widget target so App Intents registers one owner.
+
 struct WidgetActivitySourceEntity: AppEntity {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Token Source"
     static let defaultQuery = WidgetActivitySourceQuery()
@@ -36,9 +38,18 @@ struct WidgetActivitySourceQuery: EntityQuery {
     }
 
     static func available() -> [WidgetActivitySourceEntity] {
-        guard let projection = try? WidgetActivityStore.read() else { return [.all] }
-        let entities = projection.sources.map { WidgetActivitySourceEntity(id: $0.id, name: $0.name) }
-        return entities.isEmpty ? [.all] : entities
+        let standard = [
+            WidgetActivitySourceEntity.all,
+            WidgetActivitySourceEntity(id: "claude", name: "Claude Code"),
+            WidgetActivitySourceEntity(id: "codex", name: "Codex"),
+        ]
+        guard let projection = try? WidgetActivityStore.read() else { return standard }
+        let projected = projection.sources.map { WidgetActivitySourceEntity(id: $0.id, name: $0.name) }
+        let projectedByID = Dictionary(projected.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let extra = projectedByID.values
+            .filter { entity in !standard.contains { $0.id == entity.id } }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        return standard.map { projectedByID[$0.id] ?? $0 } + extra
     }
 
     static func firstProvider() -> WidgetActivitySourceEntity? {
