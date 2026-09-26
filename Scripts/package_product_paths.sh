@@ -21,6 +21,13 @@ codexbar_swiftpm_bin_path() {
   printf '%s\n' "$path"
 }
 
+codexbar_widget_derived_data_dir() {
+  local repo_root="$1"
+  local conf="$2"
+  local build_root="${CODEXBAR_WIDGET_DERIVED_DATA_ROOT:-${CODEXBAR_RELEASE_STAGE_BASE:-${CODEXBAR_PACKAGE_STAGE_ROOT:-$repo_root/.build}}}"
+  printf '%s/xcode-widget-extension-%s\n' "${build_root%/}" "$conf"
+}
+
 codexbar_require_product_file() {
   local bin_dir="$1"
   local name="$2"

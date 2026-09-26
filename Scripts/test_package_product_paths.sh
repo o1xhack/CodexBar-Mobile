@@ -4,6 +4,17 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/package_product_paths.sh"
 
+[[ "$(codexbar_widget_derived_data_dir "$ROOT" release)" == "$ROOT/.build/xcode-widget-extension-release" ]]
+[[ "$(CODEXBAR_PACKAGE_STAGE_ROOT=/Volumes/StudioSSD/Developer/BuildScratch/CodexBar \
+  codexbar_widget_derived_data_dir "$ROOT" release)" == \
+  "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/xcode-widget-extension-release" ]]
+[[ "$(CODEXBAR_RELEASE_STAGE_BASE=/Volumes/StudioSSD/Developer/BuildScratch/CodexBar \
+  codexbar_widget_derived_data_dir "$ROOT" release)" == \
+  "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/xcode-widget-extension-release" ]]
+[[ "$(CODEXBAR_WIDGET_DERIVED_DATA_ROOT=/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/custom \
+  codexbar_widget_derived_data_dir "$ROOT" debug)" == \
+  "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/custom/xcode-widget-extension-debug" ]]
+
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-package-paths.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
