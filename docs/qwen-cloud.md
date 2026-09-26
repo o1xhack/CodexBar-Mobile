@@ -1,5 +1,5 @@
 ---
-summary: "Qwen Cloud provider notes: cookie auth, 5-hour and weekly token-plan usage, and setup."
+summary: "Qwen Cloud provider notes: cookie auth, rolling and monthly token-plan usage, and setup."
 read_when:
   - Adding or modifying the Qwen Cloud provider
   - Debugging Qwen Cloud cookie import or token-plan usage fetching
@@ -13,8 +13,9 @@ Qwen Cloud console (`home.qwencloud.com`), including plans that grant hosted Cla
 
 ## Features
 
-- **Current quota windows**: Shows 5-hour and weekly usage percentages, reset times, and plan-specific
+- **Current quota windows**: Shows reported 5-hour, weekly, and monthly usage percentages, reset times, and plan-specific
   credit limits from the same APIs used by the Qwen Cloud dashboard.
+- Monthly-only responses use the primary **Monthly** bar. When rolling windows are also present, monthly usage appears as a separate **Monthly** row; absent quota totals remain unknown.
 - **Cookie-based auth**: Uses browser cookies or a pasted `Cookie:` header.
 - **Adjustable menu-bar display**: In **Settings → Menu Bar**, add the session/weekly percentage or usage-bar
   items and arrange them like any other provider.
@@ -35,10 +36,11 @@ Qwen Cloud console (`home.qwencloud.com`), including plans that grant hosted Cla
 
 - Calls Qwen Cloud's current individual Token Plan APIs through the `sfm_bailian` console gateway:
   `personal/api/v2/usage`, `personal/api/v2/subscription`, and `personal/api/v2/quota-config`.
-- The usage response supplies the 5-hour and weekly consumed ratios and reset times. The subscription response
+- The usage response supplies the 5-hour, weekly, and monthly consumed ratios and reset times. The subscription response
   identifies the active tier, and quota configuration supplies that tier's numeric credit limits.
 - Sends form-encoded fields for `product=sfm_bailian`, `action=IntlBroadScopeAspnGateway`,
   `region=ap-southeast-1`, `language=en-US`, a resolved `sec_token`, and the provider-native API payload.
+- Form encoding preserves reserved characters in the security token and JSON parameters, including cookie-derived anonymous IDs.
 - Uses Qwen Cloud / alibabacloud login cookies, with `sec_token` resolved from the dashboard HTML,
   a `sec_token` cookie, or the `/tool/user/info.json` endpoint
 - Supports `QWEN_CLOUD_HOST` and `QWEN_CLOUD_QUOTA_URL` for testing endpoint overrides, and

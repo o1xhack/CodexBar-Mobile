@@ -59,7 +59,7 @@ public enum AccountIdentityComputer {
              // after we ship corresponding iOS render support and have a
              // real cross-Mac merge use case for that provider.
              .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
-             .codebuff, .crof, .venice, .commandcode, .stepfun,
+             .codebuff, .venice, .commandcode, .stepfun,
              // Upstream v0.26.0 new providers. Same rationale as above —
              // iOS 1.7 surfaces these via single-account cards; promote
              // to Tier-A only when cross-Mac merging is needed.
@@ -89,7 +89,12 @@ public enum AccountIdentityComputer {
              // Upstream v0.46.0-v0.47.0 providers. The mobile bridge carries
              // their usage and display identity, but none exposes a proven
              // stable cross-Mac account identifier yet.
-             .qwencloud, .zoommate, .xai, .notion, .fireworks, .ibmbob:
+             .qwencloud, .zoommate, .xai, .notion, .fireworks, .ibmbob,
+             // v0.59–v0.66 providers remain per-device until a stable account
+             // identifier is proven across Macs and exposed by the iOS bridge.
+             .bifrost, .helmcode, .nous, .muse, .coderabbit, .replicate,
+             .huggingface, .pi, .v0, .typesafe, .hyper, .gitkraken,
+             .devpass, .atlascloud, .vercel, .llmman:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

@@ -39,6 +39,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      fallback, while a team principal degrades to identity-only with an explicit
      unsupported-team-usage diagnostic. When xAI exposes billing on the agent
      protocol, no code change is required.
+   - Missing methods are classified by JSON-RPC code `-32601`, independently of
+     the error message. The team fallback retains local token history even when
+     the CLI changes its wording; other RPC errors remain failures.
+   - A terminal CLI billing failure returns before scanning local session history or probing the CLI version, so the provider fallback does not wait for data that would be discarded. Successful billing and the established identity-only team fallback retain local history and plan enrichment.
    - After a successful RPC billing result (or the identity-only team fallback),
      CodexBar still GETs `/v1/settings` for `subscription_tier_display` so the
      billed plan is not lost just because the CLI route succeeded first. The
@@ -57,6 +61,13 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      `onDemandUsed.val / onDemandCap.val * 100`. A parseable current period
      without either value represents unknown usage. The reset timestamp comes from
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
+     A complete `currentPeriod.start/end` also supplies the full window duration;
+     when the current-period end is unavailable, `billingPeriodStart/End` supplies
+     the matching fallback bounds. Missing, invalid, reversed, or future starts
+     leave the duration unknown. Measured weekly windows retain pace projections
+     near reset; time remaining alone is never used to populate the duration.
+     Measured monthly windows keep their Monthly label near reset and do not use
+     weekly pace projections.
    - Unknown usage yields no rate window at all, and a successful strategy ends the
      fetch pipeline, so a period-only credits answer would otherwise hide the usage
      bar for plans whose payload never publishes `creditUsagePercent`. Before that
@@ -85,6 +96,17 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      active billing period. A missing proxy value alone remains unknown. The retry
      also runs under a 6-second budget, because period-only payloads recur on every
      refresh and a grok.com outage must not delay the credits answer already in hand.
+   - Weekly credits do not include usage-limit reset coupons. After a successful
+     SuperGrok OAuth or CLI-proxy usage refresh, CodexBar POSTs an empty gRPC-web
+     request to `https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets`
+     with the same bearer, or the exact cookie session that supplied browser billing. Ambient cookie storage is
+     disabled for this request. Available tokens (`token_id` + `validity_end`) render as
+     a `Limit Reset Credits` section. The credential-scoped lookup refreshes a
+     short-lived in-memory cache in the background, with a 2-second transport
+     budget, so the app can publish already-fetched weekly usage immediately. The CLI waits for the bounded
+     optional result. Turning off optional usage skips the lookup. Expired or persisted inventory is not shown.
+     CodexBar does not
+     redeem or modify reset tokens.
    - Plan name does not come from the credits payload. After a successful
      auth-file or SuperGrok OAuth web billing result (CLI-proxy) or the team
      identity-only path, CodexBar GETs `https://cli-chat-proxy.grok.com/v1/settings`
@@ -98,8 +120,16 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      that omit `subscription_tier_display` all drop the plan overlay and fall
      back to the OIDC SuperGrok label. There is no process-lifetime tier cache.
 4) **grok.com billing gRPC-web fallback** (best-effort)
-   - POSTs an empty gRPC-web protobuf request to
+   - POSTs `GetGrokCreditsConfigRequest { exclude_legacy_monthly_usage: false }`
+     (gRPC-web binary frame `00 00 00 00 02 08 00`) to
      `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig`.
+     Explicit false preserves the default billing semantics while supplying a
+     nonempty message for servers that reject an empty frame with gRPC status 13
+     (`Missing request message.`). Field 1 is a boolean, not a period selector;
+     `08 02` would enable exclusion of legacy monthly usage. The public
+     [billing descriptor](https://cdn.grok.com/_next/static/chunks/32g78bk5hhe1q.js)
+     was checked on September 21, 2026. No response-percentage inference changes
+     are required by this encoding; affected-account recovery remains unverified.
    - This endpoint now requires the browser-held Web Key Exchange (WKE) keypair.
      Cookie-only authentication can fail with gRPC status 16 and
      `no-credentials`; signing in through Chrome alone cannot provide that proof
@@ -209,6 +239,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
     when `resetsAt` matches a common cycle, falling back to the registered
     "Credits" label otherwise. Settings and history views continue to use
     "Credits" as the stable metric name.
+- **Usage-limit reset coupons**:
+  - From `GetRemainingResets`, not from `/v1/billing?format=credits`.
+  - Shown as a `Limit Reset Credits` detail row (`1 available`, next expiry).
+  - Best-effort: timeouts, 404s, and empty inventories leave weekly usage intact.
 - **Identity**:
   - `accountEmail` from credential `email`.
   - `accountOrganization` from credential `team_id`.
@@ -244,6 +278,18 @@ dollars. Local session scans run on the dedicated background usage-scan queue;
 menu cards and spend views reuse the already-published snapshot instead of
 walking the session directory whenever they render.
 
+`costUsage` is live-only data and is intentionally omitted from `codexbar usage`
+JSON and persisted usage snapshots. Its absence in JSON does not establish that
+Usage & Spend lost the in-memory local token history. In Auto mode, an RPC
+`-32601` failure advances to the proxy/web strategy, which scans local sessions
+and attaches the token history to its successful quota snapshot. Local signals
+remain token-only; they do not establish completed-turn counts or dollar spend.
+
+## Menu bar appearance
+
+Grok quota icons show a visor and twin antennae in both single- and two-meter layouts.
+Enable **Hide Critters** to use plain quota bars. Status badges retain their normal placement.
+
 ## Status
 
 xAI has not exposed a Statuspage-style status feed yet. The "View Status" link
@@ -256,6 +302,7 @@ points to `https://status.x.ai`.
 - `Sources/CodexBarCore/Providers/Grok/GrokPlan.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokRPCClient.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokCreditsProxyFetcher.swift`
+- `Sources/CodexBarCore/Providers/Grok/GrokRemainingResetsFetcher.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokCLISettingsFetcher.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokWebBillingFetcher.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokStatusProbe.swift`

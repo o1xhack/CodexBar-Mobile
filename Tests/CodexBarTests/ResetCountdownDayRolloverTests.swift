@@ -38,12 +38,27 @@ struct ResetCountdownDayRolloverTests {
                 == "Resets in 1d 0h")
     }
 
-    @Test
-    func `Zed cycle at exactly 24h rolls over to a day`() {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `Zed cycle at exactly 24h rolls over to a day`(engine: ProviderPluginEngineKind) async throws {
         // Was "Cycle ends in 24h 0m".
-        #expect(
-            ZedUsageSnapshot.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Cycle ends in 1d 0h")
+        let runtime = try BundledPluginTestSupport.runtime(
+            "zed",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                let data = ZedStatusProbeTests.fixture(
+                    plan: "zed_pro",
+                    used: 0,
+                    limit: "\"unlimited\"")
+                let body = try #require(String(data: data, encoding: .utf8))
+                return try ZedPluginTests.response(request, body: body)
+            })
+        let now = try #require(ISO8601DateParser.parse("2026-06-12T00:00:00Z"))
+        let snapshot = try await runtime.fetchUsage(
+            settings: ["API_URL": ZedStatusProbe.cloudAPIURL.absoluteString],
+            secrets: ["EDITOR_AUTH": "4242 fixture-token"],
+            now: now,
+            sourceMode: .api)
+        #expect(snapshot.secondary?.resetDescription == "Cycle ends in 1d 0h")
     }
 
     @Test

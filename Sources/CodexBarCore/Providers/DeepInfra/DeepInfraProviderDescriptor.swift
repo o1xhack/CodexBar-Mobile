@@ -12,7 +12,7 @@ public enum DeepInfraProviderDescriptor {
             injection: .environment(key: DeepInfraSettingsReader.apiKeyEnvironmentKey),
             requiresManualCookieSource: false,
             cookieName: nil),
-        missingCredentialMessage: { _ in DeepInfraUsageError.missingCredentials.errorDescription })
+        missingCredentialMessage: { _ in "Missing DeepInfra API key." })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -71,13 +71,20 @@ public enum DeepInfraProviderDescriptor {
                     hidesPrimaryResetWithoutDate: true,
                     movePrimaryDetailToStatus: { _ in true }),
                 menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
-            fetchPlan: .apiToken(
-                strategyID: "deepinfra.api",
-                resolveToken: { ProviderTokenResolver.token(for: .deepinfra, environment: $0) },
-                missingCredentialsError: { DeepInfraUsageError.missingCredentials },
-                loadUsage: { apiKey, _ in
-                    try await DeepInfraUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-                }),
+            fetchPlan: ProviderFetchPlan(
+                sourceModes: [.auto, .api],
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                    [ScriptFetchStrategy(
+                        id: "deepinfra.js",
+                        provider: .deepinfra,
+                        bundledPlugin: "deepinfra",
+                        secretKey: DeepInfraSettingsReader.apiKeyEnvironmentKey,
+                        sourceLabel: "api",
+                        // Two required 30-second GETs, each with one retry and up to ten seconds of backoff.
+                        timeout: 145,
+                        resolveSecret: { ProviderTokenResolver.token(for: .deepinfra, environment: $0) },
+                        isEnabled: { _ in true })]
+                })),
             cli: ProviderCLIConfig(
                 name: "deepinfra",
                 aliases: ["deep-infra", "di"],

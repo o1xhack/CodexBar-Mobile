@@ -11,8 +11,9 @@ read_when:
 Moonshot / Kimi Open Platform is API-only. Balance is reported by `GET /v1/users/me/balance`,
 so CodexBar only needs a valid API key to show the current account balance.
 
-The native fetcher remains authoritative because this balance-only result is intentionally represented in snapshot
-identity without a rate window, cost, or detail, while the plugin contract rejects identity-only snapshots.
+The bundled TypeScript plugin is authoritative on QuickJS and JavaScriptCore. Swift resolves the region and its bound
+credential before passing the selected API origin to the plugin. Identity-only snapshots and `ctx.format.currency`
+preserve native USD/CNY balance and deficit text, including decimal half-even rounding and negative zero.
 
 ## Rationale
 
@@ -49,7 +50,7 @@ third-party Kimi relays.
 ## Key files
 
 - `Sources/CodexBarCore/Providers/Moonshot/MoonshotProviderDescriptor.swift` (descriptor + fetch strategy)
-- `Sources/CodexBarCore/Providers/Moonshot/MoonshotUsageFetcher.swift` (HTTP client + JSON parser)
+- `Sources/CodexBarCore/Resources/Plugins/moonshot.ts` (HTTP request, JSON validation, and balance projection; generated `moonshot.js` ships)
 - `Sources/CodexBarCore/Providers/Moonshot/MoonshotSettingsReader.swift` (env var resolution)
 - `Sources/CodexBar/Providers/Moonshot/MoonshotProviderImplementation.swift` (settings field + activation logic)
 - `Sources/CodexBar/Providers/Moonshot/MoonshotSettingsStore.swift` (SettingsStore extension)

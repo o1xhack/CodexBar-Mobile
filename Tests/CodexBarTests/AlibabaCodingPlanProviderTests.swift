@@ -223,6 +223,39 @@ struct AlibabaCodingPlanUsageSnapshotTests {
 
 struct AlibabaCodingPlanUsageParsingTests {
     @Test
+    func `quota lookup keeps dictionary traversal precedence across arrays`() throws {
+        let json = """
+        {
+          "codingPlanQuotaInfo": [{
+            "codingPlanQuotaInfo": {"per5HourUsedQuota": 90, "per5HourTotalQuota": 100},
+            "per5HourUsedQuota": 20,
+            "per5HourTotalQuota": 100
+          }]
+        }
+        """
+        let snapshot = try AlibabaCodingPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        // Named quota lookup stops at arrays; the fallback selects the first quota-bearing object.
+        #expect(snapshot.fiveHourUsedQuota == 20)
+        #expect(snapshot.fiveHourTotalQuota == 100)
+    }
+
+    @Test
+    func `plan lookup prefers current exact keys before nested preferred keys`() throws {
+        let json = """
+        {
+          "packageName": "Current plan",
+          "PLANNAME": "Wrong case",
+          "data": {"planName": "Nested plan"},
+          "codingPlanQuotaInfo": {"per5HourUsedQuota": 20, "per5HourTotalQuota": 100}
+        }
+        """
+        let snapshot = try AlibabaCodingPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        #expect(snapshot.planName == "Current plan")
+    }
+
+    @Test
     func `parses quota payload`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let json = """
@@ -839,8 +872,12 @@ struct AlibabaCodingPlanUsageFetcherRequestTests {
         }
     }
 
-    @Test
-    func `cookie SEC token fallback survives user info request failure`() async throws {
+    @Test(arguments: ["", "+&=%2B /東京"])
+    func `cookie SEC token fallback survives user info request failure`(suffix: String) async throws {
+        let secToken = "cookie-sec-token" + suffix
+        let anonymousID = "fixture-anon" + (suffix.isEmpty ? "" : "+%2B")
+        let cookieHeader = "sec_token=\(secToken); login_aliyunid_ticket=ticket; " +
+            "login_aliyunid_pk=user; cna=\(anonymousID)"
         let registered = URLProtocol.registerClass(AlibabaConsoleSECTokenStubURLProtocol.self)
         defer {
             if registered {
@@ -862,7 +899,15 @@ struct AlibabaCodingPlanUsageFetcherRequestTests {
 
             if url.host == "bailian-singapore-cs.alibabacloud.com", request.httpMethod == "POST" {
                 let body = Self.requestBodyString(from: request)
-                #expect(body.contains("sec_token=cookie-sec-token"))
+                let fields = try FormBodyTestSupport.decode(Data(body.utf8))
+                #expect(Set(fields.keys) == ["params", "region", "sec_token"])
+                #expect(fields["sec_token"] == secToken)
+                #expect(request.value(forHTTPHeaderField: "Cookie") == cookieHeader)
+                let paramsData = try #require(fields["params"]?.data(using: .utf8))
+                let params = try #require(JSONSerialization.jsonObject(with: paramsData) as? [String: Any])
+                let data = try #require(params["Data"] as? [String: Any])
+                let cornerstone = try #require(data["cornerstoneParam"] as? [String: Any])
+                #expect(cornerstone["X-Anonymous-Id"] as? String == anonymousID)
                 let json = """
                 {
                   "data": {
@@ -885,7 +930,7 @@ struct AlibabaCodingPlanUsageFetcherRequestTests {
         }
 
         let snapshot = try await AlibabaCodingPlanUsageFetcher.fetchUsage(
-            cookieHeader: "sec_token=cookie-sec-token; login_aliyunid_ticket=ticket; login_aliyunid_pk=user",
+            cookieHeader: cookieHeader,
             region: .international,
             environment: [:],
             now: Date(timeIntervalSince1970: 1_700_000_000))

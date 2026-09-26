@@ -74,7 +74,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR2 Extensibility / determinism
 
     @Test
-    func `MR2.1: enabled count is exactly 83 after v0.49 catch-up`() {
+    func `MR2.1: enabled count is exactly 99 after v0.66 catch-up`() {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
@@ -89,7 +89,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.19.0 adds eight v0.42-v0.45 provider snapshots → 77.
         // iOS 1.20.0 adds Qwen, ZoomMate, xAI, and Notion snapshots → 81.
         // iOS 1.21.0 adds Fireworks and IBM Bob snapshots → 83.
-        #expect(MockProviderInjector.allMocks().count == 83)
+        #expect(MockProviderInjector.allMocks().count == 99)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
@@ -97,7 +97,7 @@ struct MockProviderInjectorIntegrationTests {
     /// entry), so unique providerID count only changes when a new real
     /// provider is appended.
     @Test
-    func `MR2.2: 73 distinct providerIDs match the published allowlists`() {
+    func `MR2.2: 89 distinct providerIDs match the published allowlists`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -112,8 +112,8 @@ struct MockProviderInjectorIntegrationTests {
         // then v0.36 added four more first-class provider IDs, and
         // v0.38/v0.39 added four more.
         #expect(
-            uniqueIDs.count == 73,
-            "should be 73 distinct mock provider IDs (69 current + 2 legacy + 2 synthetic)")
+            uniqueIDs.count == 89,
+            "should be 89 distinct mock provider IDs (84 current + 3 legacy + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.legacyCompatibilityProviderIDs)
             .union(MockProviderInjector.syntheticProviderIDs)
@@ -163,7 +163,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR3 SyncCoordinator integration
 
     @Test
-    func `MR3.1: enabled mock causes 83 mock providers in lastSnapshot`() async throws {
+    func `MR3.1: enabled mock causes 99 mock providers in lastSnapshot`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-1-Enable")
@@ -190,7 +190,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.19.0: +8 v0.42-v0.45 providers → 77.
         // iOS 1.20.0: +4 v0.46-v0.47 providers → 81.
         // iOS 1.21.0: +Fireworks and IBM Bob → 83.
-        #expect(mockProviders.count == 83)
+        #expect(mockProviders.count == 99)
     }
 
     @Test
@@ -243,8 +243,8 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.8/1.9/1.12/1.13/1.17/1.19/1.20:
         // 45 → 57 → 60 → 61 → 65 → 69 → 77 → 81 → 83.
         #expect(
-            mockEnvelopes.count == 83,
-            "iOS 1.21.0 expects all 83 mock envelopes, including generic v0.49 details.")
+            mockEnvelopes.count == 99,
+            "iOS 2.1.0 expects all 99 mock envelopes, including new generic details.")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -358,7 +358,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 83, "83 mock providers also emit")
+        #expect(mockProviders.count == 99, "99 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -730,7 +730,7 @@ struct MockProviderInjectorIntegrationTests {
         // Wayfinder, and ZenMux. Qwen, ZoomMate, and Notion add no USD
         // cost; IBM Bob uses Bobcoins. xAI and Fireworks contribute cost
         // data. Remaining 62 carry cost data.
-        #expect(withCost.count == 62, "expected 62 mocks with cost data; got \(withCost.count)")
+        #expect(withCost.count == 69, "expected 69 mocks with cost data; got \(withCost.count)")
     }
 
     @Test

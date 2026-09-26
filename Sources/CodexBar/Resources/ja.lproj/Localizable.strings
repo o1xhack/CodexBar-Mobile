@@ -150,6 +150,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "コスト";
+"Token history" = "トークン履歴";
+"Local token history · dollar costs unavailable" = "ローカルトークン履歴 · ドル建てコストは不明";
+"Partial local history · recorded token subtotal" = "一部のローカル履歴 · 記録されたトークンの小計";
+"Local token history is unavailable or incomplete." = "ローカルトークン履歴を取得できないか、履歴が不完全です。";
 "Could not add Codex account" = "Codex アカウントを追加できませんでした";
 "Could not open Terminal for Gemini" = "Gemini 用のターミナルを開けませんでした";
 "Could not start claude /login" = "claude /login を開始できませんでした";
@@ -609,6 +613,12 @@
 "cost_summary_off" = "オフ";
 "merge_icons_title" = "アイコンを統合";
 "merge_icons_subtitle" = "プロバイダ切替付きの単一のメニューバーアイコンを使用します。";
+"merged_icon_style_title" = "結合アイコンのスタイル";
+"merged_icon_style_subtitle" = "「切り替え」はプロバイダを1つずつ順番に表示し、「積み重ね」は2つのプロバイダを同時に1行ずつ表示します。";
+"merged_icon_style_switcher" = "切り替え";
+"merged_icon_style_stacked" = "積み重ね";
+"merge_icon_stacked_top_provider_title" = "上段";
+"merge_icon_stacked_bottom_provider_title" = "下段";
 "show_most_used_provider_title" = "最も使用中のプロバイダを表示";
 "show_most_used_provider_subtitle" = "レート制限に最も近いプロバイダをメニューバーに自動表示します。";
 "display_mode_title" = "表示モード";
@@ -879,6 +889,12 @@
 "usage_percent_suffix_used" = "使用済み";
 "Store multiple DeepSeek API keys." = "複数の DeepSeek API キーを保存します。";
 "This week" = "今週";
+"Current window" = "現在のウィンドウ";
+"Last week" = "先週";
+"%d weeks ago" = "%d週間前";
+"Previous window" = "前のウィンドウ";
+"%d windows ago" = "%dウィンドウ前";
+"Recent windows" = "最近のウィンドウ";
 "Week" = "週";
 "Month" = "月";
 "Models" = "モデル";
@@ -938,6 +954,8 @@
 "Overage" = "超過分";
 "Activity" = "アクティビティ";
 "Copied" = "コピーしました";
+"Managed by Homebrew" = "Homebrew で管理されています";
+"Copy update command" = "更新コマンドをコピー";
 "Copy error" = "エラーをコピー";
 "Copy path" = "パスをコピー";
 "Extra usage spent" = "追加使用分の支出";
@@ -1147,11 +1165,13 @@
 "Open Augment (Log Out & Back In)" = "Augment を開く(ログアウトして再ログイン)";
 "Open Codebuff Dashboard" = "Codebuff ダッシュボードを開く";
 "Open Command Code Settings" = "Command Code 設定を開く";
-"Open Crof dashboard" = "Crof ダッシュボードを開く";
 "Open Manus" = "Manus を開く";
 "Open MiMo Balance" = "MiMo 残高を開く";
 "Open Moonshot Console" = "Moonshot コンソールを開く";
 "Open Ollama API Keys" = "Ollama API キーを開く";
+"Open llmman" = "llmman を開く";
+"Stored in ~/.codexbar/config.json. Only needed when llmman serve requires API keys." = "~/.codexbar/config.json に保存されます。llmman serve が API キーを要求する場合のみ必要です。";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "llmman serve のアドレス。既定値は http://127.0.0.1:17434 です。";
 "Open StepFun Platform" = "StepFun プラットフォームを開く";
 "Open T3 Chat Settings" = "T3 Chat 設定を開く";
 "Open Volcengine Ark Console" = "Volcengine Ark コンソールを開く";
@@ -1215,7 +1235,6 @@
 "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key." = "~/.codexbar/config.json に保存されます。Anthropic の Admin API キーが必要です。";
 "Stored in ~/.codexbar/config.json. Used for /v1/quota-stats." = "~/.codexbar/config.json に保存されます。/v1/quota-stats に使用されます。";
 "Stored in ~/.codexbar/config.json. You can also provide CODEBUFF_API_KEY or let CodexBar read ~/.config/manicode/credentials.json (created by `codebuff login`)." = "~/.codexbar/config.json に保存されます。CODEBUFF_API_KEY を指定するか、CodexBar に ~/.config/manicode/credentials.json(`codebuff login` で作成)を読み込ませることもできます。";
-"Stored in ~/.codexbar/config.json. You can also provide CROF_API_KEY." = "~/.codexbar/config.json に保存されます。CROF_API_KEY を指定することもできます。";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "~/.codexbar/config.json に保存されます。KILO_API_KEY または ~/.local/share/kilo/auth.json(kilo.access)を指定することもできます。";
 "T3 Chat cookie" = "T3 Chat Cookie";
 "Team mode" = "チームモード";
@@ -1337,6 +1356,8 @@
 "Tracked tokens" = "追跡対象トークン";
 "Subscriptions" = "サブスクリプション";
 "By subscription" = "サブスクリプション別";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "モデル別の履歴はありません";
 "Daily estimated spend" = "日別推定支出";
 "Hourly estimated spend" = "時間別推定支出";
@@ -1430,6 +1451,33 @@
 "Cost today unavailable" = "今日のコスト: 利用不可";
 "30-day cost unavailable" = "30日間のコスト: 利用不可";
 "Resets" = "リセット";
+"codex_workspaces_cost_unavailable" = "コストを利用できません";
+"codex_workspaces_elevated_usage" = "使用量がやや多い";
+"codex_workspaces_estimated_cost_short" = "推定コスト";
+"codex_workspaces_estimated_cost_value" = "推定 %@";
+"codex_workspaces_estimated_local_logs" = "ローカルの Codex ログから推定";
+"codex_workspaces_failed_read_logs" = "Codex ログを読み込めませんでした";
+"codex_workspaces_high_usage" = "使用量が多い";
+"codex_workspaces_indexing_local_logs" = "ローカル Codex ログをインデックス作成中…";
+"codex_workspaces_indexing_projects" = "プロジェクトをインデックス作成中…";
+"codex_workspaces_local_codex_chat" = "ローカル Codex チャット";
+"codex_workspaces_model" = "モデル";
+"codex_workspaces_no_local_usage" = "ローカルの Codex 使用状況はまだありません";
+"codex_workspaces_no_sessions" = "このワークスペースにはセッションがありません";
+"codex_workspaces_normal_usage" = "通常の使用量";
+"codex_workspaces_partial_data" = "一部のデータ";
+"codex_workspaces_refresh_usage_data" = "使用状況データを更新";
+"codex_workspaces_retry" = "再試行";
+"codex_workspaces_saving_project_index" = "プロジェクトインデックスを保存中…";
+"codex_workspaces_scanning_logs" = "Codex ログをスキャン中…";
+"codex_workspaces_session" = "セッション";
+"codex_workspaces_session_count" = "セッション: %@";
+"codex_workspaces_sessions" = "セッション";
+"codex_workspaces_started" = "開始日時";
+"codex_workspaces_title" = "ワークスペース";
+"codex_workspaces_token_count_accessibility" = "%@ トークン";
+"codex_workspaces_tokens" = "トークン";
+"codex_workspaces_top_model" = "上位のモデル";
 "Finish now" = "今すぐ完了";
 "Continue in background" = "バックグラウンドで続行";
 
@@ -1620,4 +1668,32 @@
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "このプロバイダーのメニュー、設定プレビュー、概要に表示する使用量の行を選択します。";
 "%@ (unavailable)" = "%@（利用不可）";
 "Spending cap, not balance" = "利用上限額（残高ではありません）";
+
+"Color Pace Indicator" = "使用ペースを色分け";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "想定より使用が遅い場合は緑（余裕あり）、速い場合は赤（上限に早く達するおそれ）で表示します。";
 "%@ weekly" = "%@（週間）";
+
+"agent_sessions_hide_unreachable_title" = "接続できないホストを非表示";
+"agent_sessions_hide_unreachable_subtitle" = "セッションの取得に失敗したホストを非表示にします。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "使用状況の概要を共有…";
+"Usage snapshot unavailable" = "使用状況の概要を利用できません";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar で共有用の使用状況の概要を準備できませんでした。「使用状況と支出」を更新して、もう一度お試しください。";
+"Incomplete" = "不完全";
+"Est. subtotal (%@): %@" = "推定小計 (%@): %@";
+"Excluded requests with missing final usage: %d" = "最終的な使用量が未記録のため除外されたリクエスト: %d";
+
+"overview_layout_title" = "概要のレイアウト";
+"overview_layout_subtitle" = "概要に表示する情報量を選択します。";
+"overview_layout_detailed" = "詳細";
+"overview_layout_compact" = "コンパクト";
+
+"section_widgets" = "ウィジェット";
+"account_widgets_title" = "ウィジェット用にアカウントを更新する";
+"account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "ローカル使用量 × 公開API価格 · Antigravity の請求やクレジットではありません";
+"antigravity_quota_window_note" = "ウィンドウの費用は全モデルを含みます · 表示中のウィンドウは最も制限の厳しいファミリーです";
+"antigravity_no_priced_token_history" = "価格付きの Antigravity トークン履歴がありません。";

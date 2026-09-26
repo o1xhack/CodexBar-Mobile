@@ -60,8 +60,8 @@ struct MockProviderInjectorTests {
         // iOS 1.20.0 adds 4 v0.46-v0.47 provider mocks. 77 → 81.
         // iOS 1.21.0 adds Fireworks and IBM Bob. 81 → 83.
         #expect(
-            MockProviderInjector.allMocks().count == 83,
-            "iOS 1.21.0: 81 → 83 (+Fireworks and IBM Bob).")
+            MockProviderInjector.allMocks().count == 99,
+            "iOS 2.1.0: 83 → 99 (+16 upstream providers).")
     }
 
     @Test
@@ -293,6 +293,9 @@ struct MockProviderInjectorTests {
         //   - clinepass/neuralwatt/longcat/zenmux (v0.42-v0.45 quota
         //     or prepaid-balance providers, not USD-spend histories)
         //   - wayfinder (local routing/savings telemetry, no billing)
+        //   - new quota/credit/detail-only providers without USD cost history:
+        //     helmcode, nous, muse, gitkraken, devpass, coderabbit, hyper,
+        //     atlascloud, and llmman.
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
@@ -302,6 +305,8 @@ struct MockProviderInjectorTests {
                 "azureopenai", "alibabatokenplan", "t3chat",
                 "poe", "sakana", "qoder", "clinepass", "neuralwatt",
                 "longcat", "wayfinder", "zenmux", "qwencloud", "zoommate", "notion", "ibmbob",
+                "helmcode", "nous", "muse", "gitkraken", "devpass",
+                "coderabbit", "hyper", "atlascloud", "llmman",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")

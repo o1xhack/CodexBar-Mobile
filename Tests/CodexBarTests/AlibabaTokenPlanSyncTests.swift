@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 @Suite(.serialized)
@@ -90,5 +90,57 @@ struct AlibabaTokenPlanSyncTests {
         #expect(provider.secondary?.label == "Weekly")
         #expect(provider.secondary?.windowMinutes == 7 * 24 * 60)
         #expect(provider.rateWindows.map(\.label) == ["Weekly", "Credits"])
+    }
+
+    @Test
+    func `sync retains monthly rate window alongside subscription credits`() async throws {
+        let suite = "AlibabaTokenPlanSyncTests-monthly-credits"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .alibabatokenplan,
+            metadata: #require(ProviderDefaults.metadata[.alibabatokenplan]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let personal = AlibabaTokenPlanUsageSnapshot(
+            planName: "Personal",
+            usedQuota: nil,
+            totalQuota: nil,
+            remainingQuota: nil,
+            resetsAt: nil,
+            monthlyWindow: RateWindow(
+                usedPercent: 30,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: nil),
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let summary = AlibabaTokenPlanUsageSnapshot(
+            planName: "Personal",
+            usedQuota: 11250,
+            totalQuota: 45000,
+            remainingQuota: 33750,
+            resetsAt: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        store._setSnapshotForTesting(
+            personal.mergingSubscriptionSummary(summary).toUsageSnapshot(),
+            provider: .alibabatokenplan)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.alibabatokenplan.rawValue }))
+        #expect(provider.rateWindows.map(\.label) == ["Credits", "Monthly"])
+        #expect(provider.rateWindows.last?.usedPercent == 30)
     }
 }

@@ -62,8 +62,9 @@ Notes:
 - If log rows ever disagree on currency, only rows matching the newest row's currency are summed.
 - API keys are organization-scoped: every key in the same organization reports the same org-wide spend.
 
-The native fetcher remains authoritative. An empty window must omit cost rather than guess a currency, producing a
-successful snapshot with no window, cost, or detail; the current plugin snapshot contract rejects that result.
+The bundled TypeScript plugin is authoritative on QuickJS and JavaScriptCore. Decimal strings are summed with exact
+integer arithmetic before the final display conversion. Empty windows explicitly declare `empty: true`, preserving a
+successful snapshot without guessing a currency or inventing a quota. Swift only supplies registration and credentials.
 
 ## CLI Usage
 

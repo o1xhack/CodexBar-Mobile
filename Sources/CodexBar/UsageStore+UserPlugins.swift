@@ -12,22 +12,75 @@ extension UsageStore {
     }
 
     func refreshUserPluginDiscovery(loader: UserProviderPluginLoader = UserProviderPluginLoader()) {
+        let previous = UserProviderPluginRegistry.all
         _ = UserProviderPluginRegistry.refresh(loader: loader)
         self.settings.updateProviderState(config: self.settings.configSnapshot)
+        for plugin in previous {
+            guard let current = UserProviderPluginRegistry.plugin(for: plugin.manifest.id) else {
+                self.clearUserPluginState(plugin.manifest.id)
+                continue
+            }
+            if current.runtime !== plugin.runtime {
+                self.providerRefreshCoordinator.invalidateRequests(for: plugin.manifest.id)
+            }
+        }
     }
 
     @discardableResult
     func refreshUserPlugin(_ instanceID: ProviderInstanceID) async -> ProviderSnapshotPublicationSource? {
-        guard let plugin = UserProviderPluginRegistry.plugin(for: instanceID),
+        guard !Task.isCancelled, instanceID.firstPartyProvider == nil,
+              UserProviderPluginRegistry.plugin(for: instanceID) != nil,
               self.settings.isPluginEnabled(instanceID)
         else {
-            self.snapshots.removeValue(forKey: instanceID)
-            self.errors.removeValue(forKey: instanceID)
-            self.providerSnapshotPublicationSources.removeValue(forKey: instanceID)
+            self.clearUserPluginState(instanceID)
             return nil
         }
+
+        let previousSource = self.providerSnapshotPublicationSources[instanceID]
+        let request = self.providerRefreshCoordinator.beginReplacingRequest(for: instanceID)
+        self.providerRefreshCoordinator.beginActivity(for: instanceID)
         self.refreshingProviders.insert(instanceID)
-        defer { self.refreshingProviders.remove(instanceID) }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.providerRefreshCoordinator.endActivity(for: instanceID) {
+                    self.refreshingProviders.remove(instanceID)
+                }
+            }
+            for predecessor in request.predecessorStates {
+                await predecessor.waitForTaskCompletion()
+            }
+            if !Task.isCancelled,
+               self.providerRefreshCoordinator.isCurrent(request.generation, for: instanceID),
+               self.settings.isPluginEnabled(instanceID),
+               let plugin = UserProviderPluginRegistry.plugin(for: instanceID)
+            {
+                _ = await self.refreshUserPluginPass(plugin, generation: request.generation)
+            }
+            self.providerRefreshCoordinator.complete(request.state, for: instanceID, retryRequired: false)
+        }
+        request.state.install(task: task)
+        _ = await self.providerRefreshCoordinator.wait(for: instanceID, state: request.state)
+        let currentSource = self.providerSnapshotPublicationSources[instanceID]
+        return currentSource != previousSource ? currentSource : nil
+    }
+
+    private func refreshUserPluginPass(
+        _ plugin: UserProviderPlugin,
+        generation: UInt64) async -> ProviderSnapshotPublicationSource?
+    {
+        let instanceID = plugin.manifest.id
+        let enablementRevision = self.settings.providerEnablementRevision(forInstanceID: instanceID)
+        let configRevision = self.settings.providerConfigRevision(forInstanceID: instanceID)
+        func canPublish() -> Bool {
+            !Task.isCancelled &&
+                self.providerRefreshCoordinator.isCurrent(generation, for: instanceID) &&
+                self.settings.isPluginEnabled(instanceID) &&
+                self.settings.providerEnablementRevision(forInstanceID: instanceID) == enablementRevision &&
+                self.settings.providerConfigRevision(forInstanceID: instanceID) == configRevision &&
+                UserProviderPluginRegistry.plugin(for: instanceID)?.runtime === plugin.runtime
+        }
+
         let config = self.settings.pluginConfig(instanceID)
         do {
             let snapshot = try await plugin.fetchUsage(
@@ -37,6 +90,7 @@ extension UsageStore {
                 approvalStore: self.pluginApprovalStore,
                 instanceCookieResolver: UserProviderPluginCookieBroker.resolver(
                     browserDetection: self.browserDetection))
+            guard canPublish() else { return nil }
             self.snapshots[instanceID] = snapshot
             self.errors[instanceID] = nil
             self.lastSourceLabels[instanceID] = plugin.fileURL.pathExtension.lowercased()
@@ -49,14 +103,19 @@ extension UsageStore {
             self.providerSnapshotPublicationSources[instanceID] = source
             return source
         } catch {
+            guard canPublish() else { return nil }
             self.errors[instanceID] = error.localizedDescription
             return nil
         }
     }
 
-    func approveUserPlugin(_ plugin: UserProviderPlugin) throws {
-        let settings = self.settings.pluginConfig(plugin.manifest.id)?.pluginSettings ?? [:]
-        try self.pluginApprovalStore.record(plugin.approvalBinding(settings: settings))
+    func clearUserPluginState(_ instanceID: ProviderInstanceID) {
+        self.providerRefreshCoordinator.invalidateRequests(for: instanceID)
+        self.refreshingProviders.remove(instanceID)
+        self.snapshots.removeValue(forKey: instanceID)
+        self.errors.removeValue(forKey: instanceID)
+        self.lastSourceLabels.removeValue(forKey: instanceID)
+        self.providerSnapshotPublicationSources.removeValue(forKey: instanceID)
     }
 
     func deleteUserPlugin(_ plugin: UserProviderPlugin) throws {
@@ -67,9 +126,7 @@ extension UsageStore {
             config: &config,
             historyDirectory: self.planUtilizationHistoryStore.directoryURL)
         self.settings.replaceConfigAfterPluginDeletion(config)
-        self.snapshots.removeValue(forKey: plugin.manifest.id)
-        self.errors.removeValue(forKey: plugin.manifest.id)
-        self.lastSourceLabels.removeValue(forKey: plugin.manifest.id)
+        self.clearUserPluginState(plugin.manifest.id)
         self.refreshUserPluginDiscovery()
     }
 }

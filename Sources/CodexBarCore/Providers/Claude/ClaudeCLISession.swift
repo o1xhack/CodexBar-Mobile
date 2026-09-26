@@ -7,53 +7,9 @@ import Musl
 #endif
 import Foundation
 
-private actor ClaudeCLISessionOperationGate {
-    private struct Waiter {
-        let id: UUID
-        let continuation: CheckedContinuation<Bool, Never>
-    }
-
-    private var ownerID: UUID?
-    private var waiters: [Waiter] = []
-
-    func acquire(id: UUID, rejectIfCancelled: Bool) async -> Bool {
-        if rejectIfCancelled, Task.isCancelled {
-            return false
-        }
-        guard self.ownerID != nil else {
-            self.ownerID = id
-            return true
-        }
-        return await withCheckedContinuation { continuation in
-            self.waiters.append(Waiter(id: id, continuation: continuation))
-        }
-    }
-
-    func cancel(id: UUID) {
-        if self.ownerID == id {
-            return
-        }
-        guard let index = self.waiters.firstIndex(where: { $0.id == id }) else { return }
-        let waiter = self.waiters.remove(at: index)
-        waiter.continuation.resume(returning: false)
-    }
-
-    func release(id: UUID) {
-        guard self.ownerID == id else { return }
-        guard !self.waiters.isEmpty else {
-            self.ownerID = nil
-            return
-        }
-        let waiter = self.waiters.removeFirst()
-        self.ownerID = waiter.id
-        waiter.continuation.resume(returning: true)
-    }
-}
-
 actor ClaudeCLISession {
     static let shared = ClaudeCLISession()
     private static let log = CodexBarLog.logger(LogCategories.provider(.claude, scope: "cli"))
-    private static let probeSessionIDFilename = ".codexbar-session-id"
     private static let fallbackProbeSessionID = UUID()
     #if DEBUG
     @TaskLocal private static var sessionOverrideForTesting: ClaudeCLISession?
@@ -119,7 +75,12 @@ actor ClaudeCLISession {
     private var processGroup: pid_t?
     private var sessionIdentity: SessionIdentity?
     private var startedAt: Date?
-    private let operationGate = ClaudeCLISessionOperationGate()
+    private let operationGate = AsyncOperationGate()
+    private let workingDirectory: URL?
+
+    init(workingDirectory: URL? = nil) {
+        self.workingDirectory = workingDirectory
+    }
 
     private let promptSends: [String: String] = [
         "Do you trust the files in this folder?": "y\r",
@@ -128,33 +89,6 @@ actor ClaudeCLISession {
         "Ready to code here?": "\r",
         "Press Enter to continue": "\r",
     ]
-
-    private struct RollingBuffer {
-        private let maxNeedle: Int
-        private var tail = Data()
-
-        init(maxNeedle: Int) {
-            self.maxNeedle = max(0, maxNeedle)
-        }
-
-        mutating func append(_ data: Data) -> Data {
-            guard !data.isEmpty else { return Data() }
-            var combined = Data()
-            combined.reserveCapacity(self.tail.count + data.count)
-            combined.append(self.tail)
-            combined.append(data)
-            if self.maxNeedle > 1 {
-                if combined.count >= self.maxNeedle - 1 {
-                    self.tail = combined.suffix(self.maxNeedle - 1)
-                } else {
-                    self.tail = combined
-                }
-            } else {
-                self.tail.removeAll(keepingCapacity: true)
-            }
-            return combined
-        }
-    }
 
     private static func normalizedNeedle(_ text: String) -> String {
         String(text.lowercased().filter { !$0.isWhitespace })
@@ -222,18 +156,11 @@ actor ClaudeCLISession {
     }
 
     private func captureExclusive(request: CaptureRequest) async throws -> String {
-        let subcommand = request.subcommand
-        let binary = request.binary
-        let accountScope = request.accountScope
-        let timeout = request.timeout
-        let environment = request.environment
-        let idleTimeout = request.idleTimeout
-        let stopOnSubstrings = request.stopOnSubstrings
-        let stopWhenNormalized = request.stopWhenNormalized
-        let settleAfterStop = request.settleAfterStop
-        let sendEnterEvery = request.sendEnterEvery
-
-        try self.ensureStarted(binary: binary, accountScope: accountScope, environment: environment)
+        if try self.ensureStarted(request: request) {
+            // Dismiss /usage or /status before typing; keep Escape separate from the next command's input.
+            try self.send("\u{1b}")
+            try await Task.sleep(nanoseconds: 150_000_000)
+        }
         if let startedAt {
             let sinceStart = Date().timeIntervalSince(startedAt)
             // Claude's TUI can drop early keystrokes while it's still initializing. Wait a bit longer than the
@@ -243,15 +170,15 @@ actor ClaudeCLISession {
                 try await Task.sleep(nanoseconds: delay)
             }
         }
-        self.drainOutput()
+        _ = self.readChunk()
 
-        let trimmed = subcommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = request.subcommand.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
             try self.send(trimmed)
             try self.send("\r")
         }
 
-        let stopNeedles = stopOnSubstrings.map { Self.normalizedNeedle($0) }
+        let stopNeedles = request.stopOnSubstrings.map { Self.normalizedNeedle($0) }
         var sendMap = self.promptSends
         for (needle, keys) in Self.commandPaletteSends(for: trimmed) {
             sendMap[needle] = keys
@@ -259,11 +186,11 @@ actor ClaudeCLISession {
         let sendNeedles = sendMap.map { (needle: Self.normalizedNeedle($0.key), keys: $0.value) }
         let cursorQuery = Data([0x1B, 0x5B, 0x36, 0x6E])
         let needleLengths =
-            stopOnSubstrings.map(\.utf8.count) +
+            request.stopOnSubstrings.map(\.utf8.count) +
             sendMap.keys.map(\.utf8.count) +
             [cursorQuery.count]
         let maxNeedle = needleLengths.max() ?? cursorQuery.count
-        var scanBuffer = RollingBuffer(maxNeedle: maxNeedle)
+        var scanBuffer = StreamScanBuffer(maxNeedle: maxNeedle)
         var triggeredSends = Set<String>()
 
         var buffer = BoundedOutputBuffer()
@@ -276,14 +203,12 @@ actor ClaudeCLISession {
         var scanTailText = ""
         var normalizedScan = ""
         var utf8Carry = Data()
-        let deadline = Date().addingTimeInterval(timeout)
+        let deadline = Date().addingTimeInterval(request.timeout)
         var lastOutputAt = Date()
         var lastEnterAt = Date()
         var stoppedEarly = false
         // Only send periodic Enter when the caller explicitly asks for it (used for /usage rendering).
         // For /status, periodic input can keep producing output and prevent idle-timeout short-circuiting.
-        let effectiveEnterEvery: TimeInterval? = sendEnterEvery
-
         while Date() < deadline {
             let newData = self.readChunk()
             if !newData.isEmpty {
@@ -308,7 +233,7 @@ actor ClaudeCLISession {
                 }
 
                 if stopNeedles
-                    .contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+                    .contains(where: normalizedScan.contains) || (request.stopWhenNormalized?(normalizedScan) == true)
                 {
                     stoppedEarly = true
                     break
@@ -316,7 +241,7 @@ actor ClaudeCLISession {
             }
 
             if self.shouldStopForIdleTimeout(
-                idleTimeout: idleTimeout,
+                idleTimeout: request.idleTimeout,
                 bufferIsEmpty: buffer.isEmpty,
                 lastOutputAt: lastOutputAt)
             {
@@ -324,7 +249,7 @@ actor ClaudeCLISession {
                 break
             }
 
-            self.sendPeriodicEnterIfNeeded(every: effectiveEnterEvery, lastEnterAt: &lastEnterAt)
+            self.sendPeriodicEnterIfNeeded(every: request.sendEnterEvery, lastEnterAt: &lastEnterAt)
 
             if let proc = self.process, !proc.isRunning {
                 throw SessionError.processExited
@@ -334,7 +259,7 @@ actor ClaudeCLISession {
         }
 
         if stoppedEarly {
-            let settle = max(0, min(settleAfterStop, deadline.timeIntervalSinceNow))
+            let settle = max(0, min(request.settleAfterStop, deadline.timeIntervalSinceNow))
             if settle > 0 {
                 let settleDeadline = Date().addingTimeInterval(settle)
                 while Date() < settleDeadline {
@@ -387,24 +312,25 @@ actor ClaudeCLISession {
         await self.operationGate.release(id: operationID)
     }
 
-    private func ensureStarted(
-        binary: String,
-        accountScope: String?,
-        environment: [String: String]) throws
-    {
+    /// Returns whether the existing process was reused.
+    private func ensureStarted(request: CaptureRequest) throws -> Bool {
         let sessionIdentity = SessionIdentity(
-            binaryPath: binary,
-            accountScope: accountScope,
-            environment: Self.launchEnvironment(baseEnv: environment))
+            binaryPath: request.binary,
+            accountScope: request.accountScope,
+            environment: Self.launchEnvironment(baseEnv: request.environment))
         if let proc = self.process, proc.isRunning, self.sessionIdentity == sessionIdentity {
             Self.log.debug("Claude CLI session reused")
-            return
+            return true
         }
         self.cleanup()
 
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
-        var win = winsize(ws_row: 50, ws_col: 160, ws_xpixel: 0, ws_ypixel: 0)
+        var win = winsize(
+            ws_row: UInt16(ClaudeCLIScreen.rows),
+            ws_col: UInt16(ClaudeCLIScreen.columns),
+            ws_xpixel: 0,
+            ws_ypixel: 0)
         guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
             Self.log.warning("Claude CLI PTY openpty failed")
             throw SessionError.launchFailed("openpty failed")
@@ -415,8 +341,8 @@ actor ClaudeCLISession {
         let secondaryHandle = FileHandle(fileDescriptor: secondaryFD, closeOnDealloc: true)
 
         let proc = Process()
-        let resolvedURL = URL(fileURLWithPath: binary)
-        let workingDirectory = ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
+        let resolvedURL = URL(fileURLWithPath: request.binary)
+        let workingDirectory = self.workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
         // A crashed probe can leave a JSONL behind. Claude treats `--session-id` as creation-only when that local
         // transcript exists, so clear the probe-owned artifact before reusing the account-side identifier.
         ClaudeProbeSessionArtifactCleaner.cleanupProbeSessionArtifacts(
@@ -430,7 +356,7 @@ actor ClaudeCLISession {
            let watchdog = TTYCommandRunner.locateBundledHelper("CodexBarClaudeWatchdog")
         {
             proc.executableURL = URL(fileURLWithPath: watchdog)
-            proc.arguments = ["--", binary] + claudeArguments
+            proc.arguments = ["--", request.binary] + claudeArguments
         } else {
             proc.executableURL = resolvedURL
             proc.arguments = claudeArguments
@@ -455,7 +381,7 @@ actor ClaudeCLISession {
             try proc.run()
             Self.log.debug(
                 "Claude CLI session started",
-                metadata: ["binary": URL(fileURLWithPath: binary).lastPathComponent])
+                metadata: ["binary": resolvedURL.lastPathComponent])
         } catch {
             Self.log.warning("Claude CLI launch failed", metadata: ["error": error.localizedDescription])
             try? primaryHandle.close()
@@ -466,7 +392,7 @@ actor ClaudeCLISession {
         let pid = proc.processIdentifier
         guard TTYCommandRunner.registerActiveProcessForAppShutdown(
             pid: pid,
-            binary: URL(fileURLWithPath: binary).lastPathComponent)
+            binary: resolvedURL.lastPathComponent)
         else {
             proc.terminate()
             kill(pid, SIGKILL)
@@ -488,21 +414,28 @@ actor ClaudeCLISession {
         self.processGroup = processGroup
         self.sessionIdentity = sessionIdentity
         self.startedAt = Date()
+        return false
     }
 
+    /// Opt usage probes out of Remote Control without changing saved settings or managed policy.
+    static let probeSettingsArguments = ["--settings", #"{"remoteControlAtStartup":false}"#]
+
     static func launchArguments(sessionID: UUID) -> [String] {
-        // `/usage` is interactive, while Claude's no-persistence option is print-only. Reusing one explicit ID keeps
-        // repeated probe launches from registering a fresh empty account session every time. The probe never uses MCP
-        // tools, so ignore ambient MCP configuration rather than waiting for unrelated user servers to initialize.
-        ["--allowed-tools", "", "--strict-mcp-config", "--session-id", sessionID.uuidString.lowercased()]
+        // Reuse a probe-owned ID: interactive `/usage` cannot use print-only no-persistence.
+        // Ignore ambient MCP servers.
+        ["--allowed-tools", "", "--strict-mcp-config"] + self.probeSettingsArguments + [
+            "--session-id", sessionID.uuidString.lowercased(),
+        ]
     }
 
     static func loadOrCreateProbeSessionID(
         in directory: URL,
         fileManager fm: FileManager = .default) -> UUID
     {
-        let url = directory.appendingPathComponent(self.probeSessionIDFilename, isDirectory: false)
-        if let existing = self.readProbeSessionID(from: url) {
+        let url = directory.appendingPathComponent(".codexbar-session-id", isDirectory: false)
+        if let raw = try? String(contentsOf: url, encoding: .utf8),
+           let existing = UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines))
+        {
             return existing
         }
 
@@ -532,11 +465,6 @@ actor ClaudeCLISession {
         }
         #endif
         return sessionID
-    }
-
-    private static func readProbeSessionID(from url: URL) -> UUID? {
-        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        return UUID(uuidString: raw.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     static func launchEnvironment(baseEnv: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
@@ -623,10 +551,6 @@ actor ClaudeCLISession {
             break
         }
         return appended
-    }
-
-    private func drainOutput() {
-        _ = self.readChunk()
     }
 
     private func shouldStopForIdleTimeout(

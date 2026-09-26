@@ -33,6 +33,10 @@ printf '%s' "$ZENMUX_MANAGEMENT_API_KEY" | codexbar config set-api-key --provide
 
 ## Data Source
 
+The bundled JavaScript plugin owns requests and quota parsing on both QuickJS and JavaScriptCore, without requiring
+`CODEXBAR_JS_PROVIDERS`. Swift retains provider registration, credential resolution, and settings. Each request keeps
+its 15-second deadline. PAYG enrichment follows the app's optional-usage preference or the CLI's credits option.
+
 CodexBar requests:
 
 - `GET https://zenmux.ai/api/v1/management/subscription/detail`
@@ -57,7 +61,8 @@ codexbar --provider zenmux
 
 - Confirm the key was created under ZenMux Management rather than the normal API-key page.
 - A `401` or `403` means ZenMux rejected the Management API key.
-- A PAYG-balance failure does not suppress otherwise valid subscription quota data.
+- A PAYG-balance failure does not suppress otherwise valid subscription quota data, except for authentication rejection
+  or cancellation, which still fail the refresh. A negative USD PAYG balance remains visible as an overdue balance.
 
 ## Sources
 

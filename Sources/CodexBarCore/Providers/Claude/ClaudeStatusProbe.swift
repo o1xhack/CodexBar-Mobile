@@ -201,6 +201,10 @@ public struct ClaudeStatusProbe: Sendable {
 extension ClaudeStatusProbe {
     // MARK: - Parsing helpers
 
+    private static func cleanCapture(_ text: String) -> String {
+        ClaudeCLIScreen.render(text, preservePlainReports: true)
+    }
+
     private struct LabelSearchContext {
         let lines: [String]
         let normalizedLines: [String]
@@ -219,8 +223,8 @@ extension ClaudeStatusProbe {
     }
 
     public static func parse(text: String, statusText: String? = nil) throws -> ClaudeStatusSnapshot {
-        let clean = TextParsing.stripANSICodes(text)
-        let statusClean = statusText.map(TextParsing.stripANSICodes)
+        let clean = Self.cleanCapture(text)
+        let statusClean = statusText.map(Self.cleanCapture)
         guard !clean.isEmpty else { throw ClaudeStatusProbeError.timedOut }
 
         let shouldDump = ProcessInfo.processInfo.environment["DEBUG_CLAUDE_DUMP"] == "1"
@@ -275,7 +279,7 @@ extension ClaudeStatusProbe {
             }
         }
 
-        let identity = Self.parseIdentity(usageText: clean, statusText: statusClean)
+        let identity = Self.extractIdentity(usageText: clean, statusText: statusClean)
 
         guard let sessionPct else {
             Self.dumpIfNeeded(
@@ -319,8 +323,8 @@ extension ClaudeStatusProbe {
     }
 
     public static func parseIdentity(usageText: String?, statusText: String?) -> ClaudeAccountIdentity {
-        let usageClean = usageText.map(TextParsing.stripANSICodes) ?? ""
-        let statusClean = statusText.map(TextParsing.stripANSICodes)
+        let usageClean = usageText.map(Self.cleanCapture) ?? ""
+        let statusClean = statusText.map(Self.cleanCapture)
         return self.extractIdentity(usageText: usageClean, statusText: statusClean)
     }
 
@@ -422,7 +426,7 @@ extension ClaudeStatusProbe {
     }
 
     private static func usageOutputLooksRelevant(_ text: String) -> Bool {
-        let normalized = TextParsing.stripANSICodes(text).lowercased().filter { !$0.isWhitespace }
+        let normalized = Self.cleanCapture(text).lowercased().filter { !$0.isWhitespace }
         return normalized.contains("currentsession")
             || normalized.contains("currentweek")
             || normalized.contains("loadingusage")
@@ -431,7 +435,7 @@ extension ClaudeStatusProbe {
     }
 
     private static func validateUsageBeforeStatusProbe(_ text: String) throws {
-        let clean = TextParsing.stripANSICodes(text)
+        let clean = Self.cleanCapture(text)
         if let usageError = self.extractUsageError(text: clean) {
             throw self.usageProbeError(message: usageError)
         }
@@ -730,7 +734,7 @@ extension ClaudeStatusProbe {
     }
 
     private static func isUsageStillLoading(text: String) -> Bool {
-        let normalized = TextParsing.stripANSICodes(text).lowercased().filter { !$0.isWhitespace }
+        let normalized = Self.cleanCapture(text).lowercased().filter { !$0.isWhitespace }
         guard normalized.contains("loadingusage") else { return false }
         return !self.usageCaptureHasSessionValue(normalized) && self.allPercents(text).isEmpty
     }
@@ -946,21 +950,6 @@ extension ClaudeStatusProbe {
 
     private static func normalizedForLabelSearch(_ text: String) -> String {
         String(text.lowercased().unicodeScalars.filter(CharacterSet.alphanumerics.contains))
-    }
-
-    /// Capture all "Reset"/"Resets" strings to surface in the menu.
-    private static func allResets(_ text: String) -> [String] {
-        let pat = #"\bResets?\b[^\r\n]*"#
-        guard let regex = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) else { return [] }
-        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-        var results: [String] = []
-        regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
-            guard let match,
-                  let r = Range(match.range(at: 0), in: text) else { return }
-            let raw = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
-            results.append(self.cleanResetLine(raw))
-        }
-        return results
     }
 
     private static func cleanResetLine(_ raw: String) -> String {

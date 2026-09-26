@@ -37,12 +37,19 @@ Ollama API keys currently do not expire, but they can be revoked from the key se
 2. Copy a `Cookie:` header from the Network tab.
 3. Paste it into **Ollama → Cookie source → Manual**.
 
+If Manual is selected with no header or saved cookie account, the settings row says **No cookie header pasted.**
+Use **Use automatic cookies** to return to Auto, or paste a header. The action is hidden in API-key mode and while
+Keychain access is disabled in Advanced settings. CodexBar does not switch cookie sources automatically.
+
 ## How it works
 
 - API-key mode first probes the authenticated `https://ollama.com/api/web_search` endpoint without performing a
   search, then fetches `https://ollama.com/api/tags` for the model catalog. The catalog endpoint is public and cannot
   verify a key by itself.
 - Cookie mode fetches `https://ollama.com/settings` using browser cookies.
+- Temporary network failures during API-key validation or catalog fetching retain the prior API identity snapshot
+  and its original timestamp. Localized errors use the same startup retry policy; rejected API keys still invalidate
+  prior data. API-key mode does not supply Cloud Usage quota windows.
 - Cookie discovery recognizes the current WorkOS AuthKit `wos-session` cookie alongside legacy Ollama and NextAuth
   session names.
 - Redirects from settings to `/signin` or the WorkOS AuthKit authorization page are treated as expired sessions, so
@@ -58,6 +65,12 @@ Ollama API keys currently do not expire, but they can be revoked from the key se
   is retained; legacy snapshots continue to use the existing history-tab selection rules.
 
 ## Troubleshooting
+
+### “Ollama cookie source is Manual, but no cookie header is configured”
+
+Paste a `Cookie:` header from `https://ollama.com/settings`, or select **Use automatic cookies** in Ollama settings.
+Signing in to the website alone does not fill the Manual field. Empty Manual configuration stops before browser
+import or a network request; a nonempty header without a recognized session cookie still reports the error below.
 
 ### “No Ollama session cookie found”
 

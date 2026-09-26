@@ -321,8 +321,8 @@ struct ConfigValidationTests {
         }))
 
         #expect(issue.message ==
-            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, openrouter, " +
-            "sub2api, and wayfinder " +
+            "enterpriseHost is set but only azureopenai, bifrost, clawrouter, copilot, kimi, litellm, llmman, " +
+            "llmproxy, openrouter, sub2api, and wayfinder " +
             "support enterpriseHost.")
     }
 
@@ -378,8 +378,8 @@ struct ConfigValidationTests {
         let issues = CodexBarConfigValidator.validate(config)
         let issue = issues.first { $0.provider == .gemini && $0.code == "workspace_unused" }
         let expectedMessage =
-            "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, and xai " +
-            "support workspaceID."
+            "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, " +
+            "xai, and gitkraken support workspaceID."
         #expect(issue?.message == expectedMessage)
     }
 

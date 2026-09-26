@@ -1,0 +1,19 @@
+{
+  "sources": {
+    "docs/icon.png": "54cf6ac4663c7b341a085493e787815949c5680e5cb58bda865f8a2c5aab24b1",
+    "docs/logos/atlascloud.svg": "4f0473521a417df2d7e0da049fa495b94337eb8433b3f4eb06a66068b3e90d37",
+    "docs/logos/bifrost.svg": "9d0e0c88583a956024f01f106e19b343505837c40a463f1197673ab29ecde489",
+    "docs/logos/gitkraken.svg": "20b52166e290620e572aca954b633ba5db8892f48fef65b01502fa4e6f47f9d7",
+    "docs/logos/helmcode.svg": "815993dc14457df021454bb59972c0cb9ff8651271f74b0cb8a5bf0f9fa191c3",
+    "docs/logos/typesafe.svg": "b9106d3ab93bf4a81be2f9a395211bd4578a6b83c06fde2c7a8226fc3e1416c5",
+    "docs/logos/v0.svg": "88555a2f0ea4f137efeccecf61233241a0ab42c1b05f4f37c8780bbe53c84631",
+    "docs/logos/vercel.svg": "8055b9c3701a1b634558a0fc7ac13e265cb37b7b0d2471204e5a7324f8f8d82b",
+    "docs/social.html": "786c2a31e7d84e58ac2dc5ed707b63c7f26bfe42f5f9e7d251eb7d3981ed6836"
+  },
+  "image": {
+    "path": "docs/social.png",
+    "sha256": "0f272ca638af95c0f3c5ddeec47c014388798075488894a67acc8285cd72b4ca",
+    "width": 1200,
+    "height": 630
+  }
+}

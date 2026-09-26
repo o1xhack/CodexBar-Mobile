@@ -22501,7 +22501,171 @@
       "ja": { "stringUnit": { "state": "translated", "value": "推論" } },
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "推理" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "推理" } }
-    } }
+    } },
+    "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 与 Mac 0.66 保持同步，在 iPhone 和 iPad 上显示新增服务的额度及费用详情。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 與 Mac 0.66 保持同步，在 iPhone 和 iPad 上顯示新增服務的額度及費用詳情。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 2.1 は Mac 0.66 に対応し、新しいサービスの利用枠と支出の詳細を iPhone と iPad に表示します。"
+          }
+        }
+      }
+    },
+    "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 Bifrost、Muse Code、Hugging Face、v0、GitKraken AI 和 DevPass 等新增服务的额度与用量详情，标签支持中文。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 Bifrost、Muse Code、Hugging Face、v0、GitKraken AI 和 DevPass 等新增服務的額度與用量詳情，標籤支援中文。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost、Muse Code、Hugging Face、v0、GitKraken AI、DevPass など、新しいサービスの利用枠と使用状況を日本語の項目名で確認できます。"
+          }
+        }
+      }
+    },
+    "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接收另外八项服务的额度提醒。现有提醒和历史记录在不同版本的 Mac 与 iPhone 上继续可用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接收另外八項服務的額度提醒。現有提醒和歷史記錄在不同版本的 Mac 與 iPhone 上繼續可用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新たに8つのサービスで利用枠の通知を受け取れます。既存の通知と保存済み履歴は、異なるバージョンの Mac と iPhone 間でも引き続き利用できます。"
+          }
+        }
+      }
+    },
+    "5 hours": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"5 hours"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"5 小时"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"5 小時"}},"ja":{"stringUnit":{"state":"translated","value":"5時間"}}}},
+    "Active keys": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Active keys"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"有效密钥"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"有效金鑰"}},"ja":{"stringUnit":{"state":"translated","value":"有効なキー"}}}},
+    "All-time key usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"All-time key usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"密钥累计用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"金鑰累計用量"}},"ja":{"stringUnit":{"state":"translated","value":"キーの累計使用量"}}}},
+    "API key (all time)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"API key (all time)"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"API 密钥（累计）"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"API 金鑰（累計）"}},"ja":{"stringUnit":{"state":"translated","value":"API キー（累計）"}}}},
+    "Billable usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Billable usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"计费用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"計費用量"}},"ja":{"stringUnit":{"state":"translated","value":"課金対象の使用量"}}}},
+    "Billing remaining": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Billing remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余账单额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘帳單額度"}},"ja":{"stringUnit":{"state":"translated","value":"請求枠の残量"}}}},
+    "Billing type": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Billing type"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"计费类型"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"計費類型"}},"ja":{"stringUnit":{"state":"translated","value":"請求方式"}}}},
+    "Characters": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Characters"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"字符数"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"字元數"}},"ja":{"stringUnit":{"state":"translated","value":"文字数"}}}},
+    "credits used": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"credits used"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已用额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已用額度"}},"ja":{"stringUnit":{"state":"translated","value":"使用済みクレジット"}}}},
+    "Cycle remaining": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Cycle remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"周期剩余额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"週期剩餘額度"}},"ja":{"stringUnit":{"state":"translated","value":"サイクルの残量"}}}},
+    "Cycle used": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Cycle used"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"周期已用额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"週期已用額度"}},"ja":{"stringUnit":{"state":"translated","value":"サイクルの使用量"}}}},
+    "DevPass credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"DevPass credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"DevPass 额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"DevPass 額度"}},"ja":{"stringUnit":{"state":"translated","value":"DevPass クレジット"}}}},
+    "Exhausted keys": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Exhausted keys"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"额度用尽的密钥"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"額度用盡的金鑰"}},"ja":{"stringUnit":{"state":"translated","value":"上限に達したキー"}}}},
+    "GPU time remaining": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"GPU time remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余 GPU 时长"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘 GPU 時間"}},"ja":{"stringUnit":{"state":"translated","value":"GPU 時間の残量"}}}},
+    "GPU time used": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"GPU time used"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已用 GPU 时长"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已用 GPU 時間"}},"ja":{"stringUnit":{"state":"translated","value":"使用済み GPU 時間"}}}},
+    "Gross inference usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Gross inference usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"推理总用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"推論總用量"}},"ja":{"stringUnit":{"state":"translated","value":"推論の総使用量"}}}},
+    "Included inference amount": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Included inference amount"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"包含的推理额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"包含的推論額度"}},"ja":{"stringUnit":{"state":"translated","value":"含まれる推論枠"}}}},
+    "Inference Providers": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Inference Providers"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"推理服务"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"推論服務"}},"ja":{"stringUnit":{"state":"translated","value":"推論プロバイダー"}}}},
+    "Key spending limit": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Key spending limit"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"密钥消费上限"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"金鑰消費上限"}},"ja":{"stringUnit":{"state":"translated","value":"キーの利用額上限"}}}},
+    "Monthly grant": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Monthly grant"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每月赠送额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每月贈送額度"}},"ja":{"stringUnit":{"state":"translated","value":"毎月の付与額"}}}},
+    "Muse Code subscription": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Muse Code subscription"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"Muse Code 订阅"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"Muse Code 訂閱"}},"ja":{"stringUnit":{"state":"translated","value":"Muse Code サブスクリプション"}}}},
+    "No allowance": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"No allowance"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"无可用额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"無可用額度"}},"ja":{"stringUnit":{"state":"translated","value":"利用可能な枠なし"}}}},
+    "Not included in this login response": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Not included in this login response"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"此登录响应未提供"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"此登入回應未提供"}},"ja":{"stringUnit":{"state":"translated","value":"このログイン応答には含まれません"}}}},
+    "On-demand balance": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"On-demand balance"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"按需使用余额"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"隨選使用餘額"}},"ja":{"stringUnit":{"state":"translated","value":"従量利用の残高"}}}},
+    "Other models": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Other models"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"其他模型"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"其他模型"}},"ja":{"stringUnit":{"state":"translated","value":"その他のモデル"}}}},
+    "Pay as you go": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Pay as you go"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"按量付费"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"按量付費"}},"ja":{"stringUnit":{"state":"translated","value":"従量課金"}}}},
+    "Personal": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Personal"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"个人"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"個人"}},"ja":{"stringUnit":{"state":"translated","value":"個人"}}}},
+    "Premium weekly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Premium weekly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"高级额度（每周）"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"進階額度（每週）"}},"ja":{"stringUnit":{"state":"translated","value":"プレミアム枠（週次）"}}}},
+    "Professional voices": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Professional voices"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"专业语音"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"專業語音"}},"ja":{"stringUnit":{"state":"translated","value":"プロ音声"}}}},
+    "Promotional": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Promotional"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"促销额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"促銷額度"}},"ja":{"stringUnit":{"state":"translated","value":"プロモーション枠"}}}},
+    "Purchased": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Purchased"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已购买额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已購買額度"}},"ja":{"stringUnit":{"state":"translated","value":"購入済みクレジット"}}}},
+    "Quota": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Quota"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"額度"}},"ja":{"stringUnit":{"state":"translated","value":"利用枠"}}}},
+    "Rate-limit remaining": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Rate-limit remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余速率额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘速率額度"}},"ja":{"stringUnit":{"state":"translated","value":"レート制限の残量"}}}},
+    "Recurring": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Recurring"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"周期额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"週期額度"}},"ja":{"stringUnit":{"state":"translated","value":"定期付与"}}}},
+    "Reset": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Reset"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"重置时间"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"重置時間"}},"ja":{"stringUnit":{"state":"translated","value":"リセット"}}}},
+    "Rest of organization": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Rest of organization"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"组织其他成员"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"組織其他成員"}},"ja":{"stringUnit":{"state":"translated","value":"組織内のその他の利用"}}}},
+    "Rollover credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Rollover credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"结转额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"結轉額度"}},"ja":{"stringUnit":{"state":"translated","value":"繰越クレジット"}}}},
+    "Scope": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Scope"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"范围"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"範圍"}},"ja":{"stringUnit":{"state":"translated","value":"適用範囲"}}}},
+    "Shared pool": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Shared pool"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"共享额度池"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"共用額度池"}},"ja":{"stringUnit":{"state":"translated","value":"共有枠"}}}},
+    "Spending limit": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Spending limit"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"消费上限"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"消費上限"}},"ja":{"stringUnit":{"state":"translated","value":"利用額上限"}}}},
+    "Subscription": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Subscription"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"订阅"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"訂閱"}},"ja":{"stringUnit":{"state":"translated","value":"サブスクリプション"}}}},
+    "Subscription credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Subscription credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"订阅额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"訂閱額度"}},"ja":{"stringUnit":{"state":"translated","value":"サブスクリプションのクレジット"}}}},
+    "Top-up credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Top-up credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"充值额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"儲值額度"}},"ja":{"stringUnit":{"state":"translated","value":"追加購入したクレジット"}}}},
+    "Total usable": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Total usable"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"可用总额"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"可用總額"}},"ja":{"stringUnit":{"state":"translated","value":"利用可能な合計"}}}},
+    "Total usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Total usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"总用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"總用量"}},"ja":{"stringUnit":{"state":"translated","value":"総使用量"}}}},
+    "v0 API": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"v0 API"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"v0 API"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"v0 API"}},"ja":{"stringUnit":{"state":"translated","value":"v0 API"}}}},
+    "Voice slots": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Voice slots"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"语音名额"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"語音名額"}},"ja":{"stringUnit":{"state":"translated","value":"音声スロット"}}}},
+    "Weekly usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Weekly usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每周用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每週用量"}},"ja":{"stringUnit":{"state":"translated","value":"週次使用量"}}}},
+    "Your shared usage": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Your shared usage"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"你的共享用量"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"你的共用用量"}},"ja":{"stringUnit":{"state":"translated","value":"自分の共有枠の使用量"}}}},
+    "ZeroGPU": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"ZeroGPU"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"ZeroGPU"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"ZeroGPU"}},"ja":{"stringUnit":{"state":"translated","value":"ZeroGPU"}}}},
+    "Daily": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Daily"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每天"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每天"}},"ja":{"stringUnit":{"state":"translated","value":"毎日"}}}},
+    "Hourly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Hourly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每小时"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每小時"}},"ja":{"stringUnit":{"state":"translated","value":"毎時"}}}},
+    "limit %@": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"limit %@"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"上限 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"上限 %@"}},"ja":{"stringUnit":{"state":"translated","value":"上限 %@"}}}},
+    "Monthly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Monthly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每月"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每月"}},"ja":{"stringUnit":{"state":"translated","value":"毎月"}}}},
+    "Muse login": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Muse login"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"Muse 登录"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"Muse 登入"}},"ja":{"stringUnit":{"state":"translated","value":"Muse ログイン"}}}},
+    "Quarterly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Quarterly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每季度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每季"}},"ja":{"stringUnit":{"state":"translated","value":"四半期ごと"}}}},
+    "Yearly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Yearly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每年"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每年"}},"ja":{"stringUnit":{"state":"translated","value":"毎年"}}}},
+    "Dashboard session": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Dashboard session"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"控制台会话"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"控制台工作階段"}},"ja":{"stringUnit":{"state":"translated","value":"ダッシュボードのセッション"}}}},
+    "Additional credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Additional credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"其他额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"其他額度"}},"ja":{"stringUnit":{"state":"translated","value":"追加クレジット"}}}},
+    "Available balance": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Available balance"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"可用余额"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"可用餘額"}},"ja":{"stringUnit":{"state":"translated","value":"利用可能残高"}}}},
+    "Balance: %@": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Balance: %@"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"余额：%@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"餘額：%@"}},"ja":{"stringUnit":{"state":"translated","value":"残高：%@"}}}},
+    "Billing": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Billing"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"账单"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"帳單"}},"ja":{"stringUnit":{"state":"translated","value":"請求"}}}},
+    "Browser session": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Browser session"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"浏览器会话"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"瀏覽器工作階段"}},"ja":{"stringUnit":{"state":"translated","value":"ブラウザーセッション"}}}},
+    "Credit": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Credit"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"額度"}},"ja":{"stringUnit":{"state":"translated","value":"クレジット"}}}},
+    "Credit balance": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Credit balance"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"额度余额"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"額度餘額"}},"ja":{"stringUnit":{"state":"translated","value":"クレジット残高"}}}},
+    "Daemon": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Daemon"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"后台服务"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"背景服務"}},"ja":{"stringUnit":{"state":"translated","value":"デーモン"}}}},
+    "Hypercredits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Hypercredits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"Hyper 额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"Hyper 額度"}},"ja":{"stringUnit":{"state":"translated","value":"Hyper クレジット"}}}},
+    "Lifetime spend": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Lifetime spend"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"累计支出"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"累計支出"}},"ja":{"stringUnit":{"state":"translated","value":"累計支出"}}}},
+    "Loaded": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Loaded"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已加载"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已載入"}},"ja":{"stringUnit":{"state":"translated","value":"読み込み済み"}}}},
+    "Loaded models": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Loaded models"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已加载的模型"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已載入的模型"}},"ja":{"stringUnit":{"state":"translated","value":"読み込み済みモデル"}}}},
+    "Local daemon": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Local daemon"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"本地后台服务"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"本機背景服務"}},"ja":{"stringUnit":{"state":"translated","value":"ローカルデーモン"}}}},
+    "Period resets": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Period resets"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"周期重置"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"週期重設"}},"ja":{"stringUnit":{"state":"translated","value":"期間のリセット"}}}},
+    "Reviews": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Reviews"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"审查次数"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"審查次數"}},"ja":{"stringUnit":{"state":"translated","value":"レビュー数"}}}},
+    "Spent": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Spent"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"支出"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"支出"}},"ja":{"stringUnit":{"state":"translated","value":"支出"}}}},
+    "Spent (%@)": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Spent (%@)"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"支出（%@）"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"支出（%@）"}},"ja":{"stringUnit":{"state":"translated","value":"支出（%@）"}}}},
+    "Spent this month": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Spent this month"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"本月支出"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"本月支出"}},"ja":{"stringUnit":{"state":"translated","value":"今月の支出"}}}},
+    "Stored": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Stored"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已存储"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已儲存"}},"ja":{"stringUnit":{"state":"translated","value":"保存済み"}}}},
+    "Team credits": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Team credits"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"团队额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"團隊額度"}},"ja":{"stringUnit":{"state":"translated","value":"チームクレジット"}}}},
+    "Usage billing": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Usage billing"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"用量计费"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"用量計費"}},"ja":{"stringUnit":{"state":"translated","value":"利用料金"}}}},
+    "%@ of %@, expires %@": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ of %@, expires %@"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"%@ / %@，%@ 到期"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"%@ / %@，%@ 到期"}},"ja":{"stringUnit":{"state":"translated","value":"%@ / %@、有効期限 %@"}}}}
   },
   "version": "1.0"
 }

@@ -7,6 +7,7 @@ ROOT_DIR="${CI_POLICY_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 workflow_dir="$ROOT_DIR/.github/workflows"
 pr_fast="$workflow_dir/pr-fast.yml"
 final_ci="$workflow_dir/ci.yml"
+desktop_ci="$workflow_dir/omarchy.yml"
 workflow_trigger_parser="$SCRIPT_DIR/workflow_has_pr_trigger.rb"
 rc=0
 
@@ -22,6 +23,7 @@ workflow_has_pr_trigger() {
 
 [[ -f "$pr_fast" ]] || fail ".github/workflows/pr-fast.yml is missing"
 [[ -f "$final_ci" ]] || fail ".github/workflows/ci.yml is missing"
+[[ -f "$desktop_ci" ]] || fail ".github/workflows/omarchy.yml is missing"
 [[ -f "$workflow_trigger_parser" ]] || fail "workflow trigger parser is missing"
 if [[ -f "$workflow_trigger_parser" ]] && ! ruby -c "$workflow_trigger_parser" >/dev/null; then
   fail "workflow trigger parser has invalid Ruby syntax"
@@ -52,6 +54,15 @@ if [[ -f "$final_ci" ]]; then
   if grep -Fq 'mobile-dev' <<< "$push_block"; then
     fail "Final CI must use the merged PR event, not duplicate mobile-dev push runs"
   fi
+fi
+
+if [[ -f "$desktop_ci" ]]; then
+  grep -Eq '^    branches: \[main, mobile-dev\]$' "$desktop_ci" \
+    || fail "Linux desktop builds must run after mobile-dev merges"
+  grep -Fq "'Integrations/Omarchy/**'" "$desktop_ci" \
+    || fail "Linux desktop workflow must cover Omarchy changes"
+  grep -Fq "'Integrations/Linux/**'" "$desktop_ci" \
+    || fail "Linux desktop workflow must cover desktop changes"
 fi
 
 while IFS= read -r workflow; do

@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (70 after v0.49 catch-up)`() {
+    func `Provider list has expected count (78 after v0.66 catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -31,7 +31,7 @@ struct QuotaProviderListTests {
         // in iOS 1.21.0 (IBM Bob; Fireworks has no quota window).
         // Must stay synced with
         // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 70)
+        #expect(QuotaProviderList.providers.count == 78)
     }
 
     @Test
@@ -95,7 +95,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 70 × 3 = 210 (depleted + restored + warning)`() {
+    func `iOS subscription count is 78 × 3 = 234 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -117,12 +117,12 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 210)
+        #expect(subscriptionCount == 234)
     }
 
     @Test
     func `IBM Bob is appended and Fireworks remains spend-only`() throws {
-        let bob = try #require(QuotaProviderList.providers.last)
+        let bob = try #require(QuotaProviderList.providers.first { $0.id == "ibmbob" })
         #expect(bob.id == "ibmbob")
         #expect(bob.displayName == "IBM Bob")
         #expect(!QuotaProviderList.providers.contains(where: { $0.id == "fireworks" }))

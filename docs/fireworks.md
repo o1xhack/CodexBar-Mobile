@@ -41,16 +41,21 @@ it in Settings. A configured slug remains useful for selecting among multiple ac
 - There is no balance display; the Fireworks web console (app.fireworks.ai → Settings/Billing) is the
   authoritative balance source.
 
-## Plugin conversion status
+## Plugin implementation
 
-The native fetcher remains authoritative. A valid response with no rated line items for a listed account
-intentionally produces a successful snapshot with no rate window, cost, or detail; the current plugin snapshot
-contract rejects that shape.
+The bundled `fireworks.js` plugin is authoritative on QuickJS and JavaScriptCore. A listed account with no rated
+line items returns `empty: true`, without inventing a quota or identity. Discovery returns the account-specific source
+label and requests an `ACCOUNT_SLUG` update. The descriptor allows that plain setting only; secrets and other providers'
+settings cannot be written through this result contract.
+
+The app and CLI own saving the discovered slug. They check that the provider settings still match the fetch inputs,
+preserve unrelated settings, and report the actual save outcome. If saving fails or the fetch is stale, successful
+usage remains available with a diagnostic and the discovered slug is not installed in app state.
 
 ## Key files
 
 - `Sources/CodexBarCore/Providers/Fireworks/FireworksProviderDescriptor.swift` (descriptor + fetch strategy)
-- `Sources/CodexBarCore/Providers/Fireworks/FireworksUsageFetcher.swift` (HTTP client + JSON parser)
+- `Sources/CodexBarCore/Resources/Plugins/fireworks.js` (HTTP requests, discovery, and billing parser)
 - `Sources/CodexBarCore/Providers/Fireworks/FireworksSettingsReader.swift` (env var resolution)
 - `Sources/CodexBar/Providers/Fireworks/FireworksProviderImplementation.swift` (settings fields)
 - `Sources/CodexBar/Providers/Fireworks/FireworksSettingsStore.swift` (SettingsStore extension)

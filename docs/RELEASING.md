@@ -56,7 +56,7 @@ Gotchas fixed:
 - Manual sanity check before uploading: `find CodexBar.app -name '._*'` should return nothing; then `spctl --assess --type execute --verbose CodexBar.app` and `codesign --verify --deep --strict --verbose CodexBar.app` should both pass on the packaged bundle.
 
 ## iCloud sync (CloudKit)
-Release builds embed `Scripts/profiles/CodexBar-DeveloperID.provisionprofile` at `Contents/embedded.provisionprofile` and claim the iCloud entitlements (`Scripts/package_app.sh` does both automatically; it fails hard if the profile file is missing). The profile expires 2044-07-29; Gatekeeper re-validates it at every launch.
+Upstream-team identity-signed release builds embed `Scripts/profiles/CodexBar-DeveloperID.provisionprofile` at `Contents/embedded.provisionprofile` and claim the iCloud entitlements (`Scripts/package_app.sh` does both automatically; it fails hard if the profile file is missing). Packaging derives the team from the selected `APP_IDENTITY`; other teams omit upstream CloudKit resources. `sign-and-notarize.sh` honors that same identity, with required timestamping and hardened runtime. The profile expires 2044-07-29; Gatekeeper re-validates it at every launch.
 
 Schema changes: any new record type or field in `Sources/CodexBar*/Sync/` must be reflected in `Scripts/cloudkit/schema.ckdb` and deployed **before** shipping the build:
 ```
@@ -85,6 +85,21 @@ must be updated via `brew`.
 
 After publishing the GitHub release, `.github/workflows/release-cli.yml` builds the macOS, glibc Linux, and static musl Linux CLI tarballs for arm64 and x86_64, uploads them plus checksums, then dispatches the Homebrew tap update for both the CLI formula and app cask. Homebrew continues to use the glibc Linux assets. If the final dispatch is rate-limited, the tarballs and app zip may still be present; rerun or manually update the tap formula/cask from the published assets.
 
+The independent `.github/workflows/release-linux-desktop.yml` workflow also runs
+on `release.published`. It checks out the release tag, builds and tests the Qt
+desktop natively on Ubuntu 24.04 x86_64 and ARM64, embeds the tag's version, and
+uploads both `CodexBarDesktop-v<version>-linux-<arch>.tar.gz` archives and their
+SHA-256 files only after both builds succeed. `.mac-release.env` includes these
+four assets in the release wait/check contract. The desktop archives include the
+Omarchy adapter and installer; the CLI remains a separate download.
+
+A manual **Release Linux desktop** run builds the selected workflow ref with the
+provided version label and uploads workflow artifacts only. Use it to validate
+packaging before a release. Rerun a failed published-release workflow to retry
+asset upload; it replaces assets with the same names. Do not publish a new release
+just to test this workflow. Existing releases whose tags predate the integration
+are not automatically backfilled.
+
 Each Homebrew handoff uses the release tag, workflow run ID, and run attempt as its request ID, so a retry waits for its own tap update instead of observing an earlier attempt.
 
 ## Checklist (quick)
@@ -95,7 +110,7 @@ Each Homebrew handoff uses the release tag, workflow run ID, and run attempt as 
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast via `Scripts/release.sh` or `Scripts/make_appcast.sh`; use `SPARKLE_PRIVATE_KEY_FILE` only if overriding Keychain signing.
   - Upload the dSYM archive alongside the app zip on the GitHub release; the release script now automates this and will fail if it’s missing.
-  - After publishing the release and the Release CLI workflow finishes, run `Scripts/check-release-assets.sh <tag>` to confirm the app zip, dSYM zip, CLI tarballs, and CLI checksums are present on GitHub.
+  - After publishing the release and the Release CLI workflow finishes, run `Scripts/check-release-assets.sh <tag>` on macOS to confirm the app zip, dSYM zip, CLI tarballs/checksums and Linux desktop tarballs/checksums are present on GitHub. It also downloads the app zip, extracts it with `ditto`, and strictly verifies the app and nested code signatures across all architectures, requiring CodexBar's bundle ID and Developer ID team `Y5PE65HELJ`, without launching the app or reading signing keys; any failed download, extraction, or signature check fails the command.
   - Generate the appcast + HTML release notes: `./Scripts/make_appcast.sh CodexBar-macos-universal-<ver>.zip https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml`
   - Beta channel: prefix the command with `SPARKLE_CHANNEL=beta` to tag the entry.
   - Verify the enclosure signature + size: `./Scripts/verify_appcast.sh <ver>`
@@ -112,7 +127,7 @@ Each Homebrew handoff uses the release tag, workflow run ID, and run attempt as 
 - [ ] Changelog/release notes are user-facing: avoid internal-only bullets (build numbers, script bumps) and keep entries concise
 - [ ] Download uploaded `CodexBar-macos-universal-<ver>.zip`, unzip via `ditto`, run, and verify signature (`spctl -a -t exec -vv CodexBar.app` + `stapler validate`)
 - [ ] Confirm `appcast.xml` points to the new zip/version and renders the HTML release notes (not escaped tags)
-- [ ] Verify on GitHub Releases: app zip, dSYM, CLI archives, and checksums are present; release notes match the changelog and the version/tag are correct
+- [ ] Verify on GitHub Releases: app zip, dSYM, CLI archives, Linux desktop archives, and checksums are present; release notes match the changelog and the version/tag are correct
 - [ ] Open the appcast URL in browser to confirm the new entry is visible and enclosure URL is reachable
 - [ ] Manually visit the enclosure URL (curl -I) to ensure 200/OK (no 404) after publishing assets/release
 - [ ] Ensure `sparkle:edSignature` is present for the enclosure in appcast (generated by `generate_appcast` with the ed25519 key)
@@ -125,6 +140,7 @@ Each Homebrew handoff uses the release tag, workflow run ID, and run attempt as 
 
 ## Troubleshooting
 - **White plate icon**: regenerate icns via `build_icon.sh` (ictool) to ensure transparent padding.
+- **Notarization upload timeout**: if `notarytool submit` fails during S3 upload with `HTTPClientError.deadlineExceeded` or `abortedUpload`, retry with `CODEXBAR_NOTARY_S3_ACCELERATION=0 ./Scripts/release.sh`. This passes `--no-s3-acceleration` to use the standard S3 upload endpoint. Unset the variable or use `1` for the default accelerated upload; other values fail before packaging. This changes only the upload transport, not signing or notarization validation.
 - **Notarization invalid**: verify deep+timestamp signing, especially Sparkle’s Autoupdate/Updater and XPCs; rerun package + sign-and-notarize.
 - **App won’t launch**: ensure Sparkle.framework is embedded under `Contents/Frameworks` and rpath added; codesign deep.
 - **App “damaged” dialog after unzip**: re-extract with `ditto -x -k`, removing any `._*` files, then re-verify with `spctl`.

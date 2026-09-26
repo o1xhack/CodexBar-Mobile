@@ -149,6 +149,17 @@ public enum QuotaProviderList {
         // exposes spend only and must never emit quota transitions.
         // Append-only: 69 → 70 providers × 3 states = 210 subscriptions.
         Provider(id: "ibmbob", displayName: "IBM Bob"),
+        // iOS 2.1.0 / Mac v0.66.0: only providers with a consumable
+        // percentage window can emit quota transitions. Append to preserve
+        // every existing zone and subscription identifier.
+        Provider(id: "bifrost", displayName: "Bifrost"),
+        Provider(id: "helmcode", displayName: "Helmcode"),
+        Provider(id: "nous", displayName: "Nous Portal"),
+        Provider(id: "muse", displayName: "Muse Code"),
+        Provider(id: "huggingface", displayName: "Hugging Face"),
+        Provider(id: "v0", displayName: "v0"),
+        Provider(id: "gitkraken", displayName: "GitKraken AI"),
+        Provider(id: "devpass", displayName: "DevPass"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

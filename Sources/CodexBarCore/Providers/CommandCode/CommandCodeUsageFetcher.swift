@@ -103,6 +103,7 @@ public enum CommandCodeUsageFetcher {
             purchasedCredits: credits.purchasedCredits,
             premiumMonthlyCredits: credits.premiumMonthlyCredits,
             opensourceMonthlyCredits: credits.opensourceMonthlyCredits,
+            monthlyCreditsGranted: credits.monthlyCreditsGranted,
             fiveHourWindow: credits.fiveHourWindow,
             weeklyWindow: credits.weeklyWindow,
             plan: resolved.plan,
@@ -112,8 +113,9 @@ public enum CommandCodeUsageFetcher {
             updatedAt: now)
     }
 
-    /// Sizes the monthly grant from this refresh when the subscription lookup answered, and from the
-    /// plan remembered for this billing period when it did not. The percentage always comes from the
+    /// Resolves the plan and billing period from this refresh when the subscription lookup answered, and
+    /// from the plan remembered for this billing period when it did not. The plan names the grant and sizes
+    /// it when the credits response omits `monthlyCreditsGranted`. The percentage always comes from the
     /// fresh credits response, so a remembered plan reports current spend rather than a stale reading.
     ///
     /// Only the grant size and its period are remembered. `subscriptionStatus` describes the current
@@ -198,6 +200,7 @@ public enum CommandCodeUsageFetcher {
         let purchasedCredits: Double
         let premiumMonthlyCredits: Double
         let opensourceMonthlyCredits: Double
+        let monthlyCreditsGranted: Double?
         let fiveHourWindow: RateWindow?
         let weeklyWindow: RateWindow?
     }
@@ -301,6 +304,7 @@ public enum CommandCodeUsageFetcher {
             purchasedCredits: self.double(from: credits["purchasedCredits"]) ?? 0,
             premiumMonthlyCredits: self.double(from: credits["premiumMonthlyCredits"]) ?? 0,
             opensourceMonthlyCredits: self.double(from: credits["opensourceMonthlyCredits"]) ?? 0,
+            monthlyCreditsGranted: self.double(from: credits["monthlyCreditsGranted"]),
             fiveHourWindow: self.rateWindow(
                 from: windowLimits?["fiveHour"],
                 windowMinutes: 5 * 60),
@@ -375,13 +379,6 @@ public enum CommandCodeUsageFetcher {
         guard let s = value as? String else { return nil }
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractional.date(from: trimmed) {
-            return date
-        }
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        return plain.date(from: trimmed)
+        return ISO8601DateParser.parse(trimmed)
     }
 }

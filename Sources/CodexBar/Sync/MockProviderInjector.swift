@@ -14,17 +14,17 @@ import Foundation
 /// Synthetic provider data for end-to-end iCloud sync testing without
 /// real provider subscriptions.
 ///
-/// **Mix design** (Mac 0.23.6+): 6 mocks use real provider IDs (`codex`,
-/// `claude`, `perplexity`) so iOS renders them with first-class provider
-/// styling — exercising the critical multi-account first-class rendering
-/// path that real users hit. The remaining 2 mocks use `_mock_*`
-/// prefixed IDs to also exercise the unknown-provider fallback rendering
-/// path (forward-compat insurance: when a future Mac adds a new provider
-/// the iOS app doesn't yet know about, that fallback path must still
-/// work).
+/// **Mix design**: the eight rich fixtures include six snapshots for
+/// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
+/// snapshots. The full catalog now has 99 snapshots: 94 using current
+/// provider IDs (84 distinct), three legacy-ID compatibility fixtures,
+/// and two unknown-ID fixtures. This exercises both first-class account
+/// rendering and the fallback path when a future Mac sends a provider
+/// the iOS app does not yet know about. All values and accounts remain
+/// synthetic.
 ///
-/// 8 total `ProviderUsageSnapshot` entries across 5 distinct
-/// `providerID` values:
+/// The original rich core has 8 `ProviderUsageSnapshot` entries across
+/// 5 distinct `providerID` values:
 ///
 /// 1. **`codex`** × 3 (Alice / Bob / Carol) — REAL providerID. Exercises
 ///    R1 Codex multi-account cache + per-account record emission +
@@ -46,10 +46,10 @@ import Foundation
 ///    + 30-day utilization history + 3-lane rate windows + budget. Tests
 ///    that fallback rendering doesn't choke on rich data.
 ///
-/// All real-providerID mocks include synthetic cost data (session +
+/// Many real-providerID mocks include synthetic cost data (session +
 /// 30-day total + daily breakdown for Alice) so iPhone's Cost dashboard
-/// aggregation (Daily Spend, per-provider share, model breakdown,
-/// month-over-month) is end-to-end testable.
+/// aggregation is testable. Quota, credit, and detail-only providers omit
+/// USD cost when their fixture does not represent a spend history.
 ///
 /// **Account email convention**: every mock uses the `*-mock@*.test` TLD
 /// (RFC 6761 reserved for testing) so even though some mocks share
@@ -88,7 +88,7 @@ import Foundation
 ///
 /// **Cost data + your real numbers**: Daily Spend / per-provider share /
 /// model breakdown on iPhone aggregates ALL providers' cost. While mocks
-/// are active, totals are inflated by ~$48/30day from synthetic data.
+/// are active, totals include potentially substantial synthetic spend.
 /// Once you toggle off and CloudKit cleanup runs (~1 cycle / ~30s), real
 /// numbers automatically restore. Real CKRecords are never modified.
 @MainActor
@@ -113,11 +113,8 @@ enum MockProviderInjector {
     /// - 8 rich mocks (codex × 3 multi-account + claude × 2 multi-account
     ///   + perplexity 3-credit-segment + 2 synthetic `_mock_*` fallback
     ///   error/rich) — exercise the high-traffic UI paths.
-    /// - 75 simple snapshots cover all real-borrowed provider IDs and the
-    ///   seven extra multi-account tabs, including Fireworks and IBM Bob.
-    ///
-    /// Total: **83 ProviderUsageSnapshot entries across 73 distinct
-    /// providerIDs** (69 current + 2 legacy-compatibility + 2 synthetic).
+    /// - Simple snapshots cover the borrowed current provider IDs, legacy
+    ///   compatibility IDs, and seven extra multi-account tabs.
     /// iOS 1.9.0 bumps a few
     /// headline providers to realistic heavy spend + synthesizes ~55-day daily
     /// histories so the CWL ledger / Cost dashboard are testable at scale; the
@@ -198,11 +195,11 @@ enum MockProviderInjector {
     /// synthetic account is unambiguously distinct from any real account
     /// the user has on the same provider.
     ///
-    /// Mac 0.23.6+ extended to all 27 real providers in
-    /// `UsageProvider.allCases` (P2: full provider coverage). Three of
-    /// these (`codex`, `claude`, `perplexity`) have rich multi-account
-    /// or credit-breakdown mocks; the other 24 have simpler
-    /// single-account mocks via `simpleProviderProfiles`.
+    /// Originally extended to 27 providers in Mac 0.23.6; now covers
+    /// all 84 current `UsageProvider` IDs. Codex, Claude, and Perplexity
+    /// have rich multi-account or credit-breakdown fixtures. Other
+    /// provider IDs use `simpleProviderProfiles`, including the new
+    /// v0.59-v0.66 provider samples.
     static let realProviderIDsBorrowedByMocks: Set<String> = [
         "codex", "claude", "cursor", "opencode", "opencodego",
         "alibaba", "factory", "gemini", "antigravity", "copilot",
@@ -213,7 +210,7 @@ enum MockProviderInjector {
         // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
         // additions below and with `QuotaProviderList` (Shared/Notifications).
         "openai", "manus", "windsurf", "mimo", "doubao",
-        "deepseek", "codebuff", "crof", "venice", "commandcode",
+        "deepseek", "codebuff", "venice", "commandcode",
         "stepfun",
         // iOS 1.7.0 catch-up (upstream v0.26.0 new providers).
         "moonshot", "bedrock",
@@ -235,6 +232,11 @@ enum MockProviderInjector {
         "qwencloud", "zoommate", "xai", "notion",
         // iOS 1.21.0 catch-up (upstream v0.49.0 new providers).
         "fireworks", "ibmbob",
+        // v0.59-v0.66 upstream additions. The quota-eligible subset also
+        // appears at the tail of QuotaProviderList.
+        "bifrost", "helmcode", "nous", "muse", "coderabbit",
+        "replicate", "huggingface", "pi", "v0", "typesafe",
+        "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -246,7 +248,7 @@ enum MockProviderInjector {
     /// Provider IDs removed upstream but retained by Shared/iOS so an older
     /// Mac can still exercise mixed-version decoding and first-class cards.
     static let legacyCompatibilityProviderIDs: Set<String> = [
-        "kimik2", "crossmodel",
+        "kimik2", "crossmodel", "crof",
     ]
 
     /// All mock providerIDs (real-borrowed ∪ synthetic). Convenience
@@ -807,15 +809,15 @@ enum MockProviderInjector {
             ])
     }
 
-    // MARK: - Simple single-account profiles for the remaining 24 providers
+    // MARK: - Simple single-account profiles for other providers
 
     /// Compact data row defining a simple single-account mock for one
     /// real providerID. Used by `makeSimpleProviderMock(profile:)` to
     /// generate `ProviderUsageSnapshot` values without 50+ lines of
     /// boilerplate per provider.
     ///
-    /// The 3 high-traffic providers (codex, claude, perplexity) have
-    /// hand-tuned rich mocks above; this struct is for the other 24.
+    /// Codex, Claude, and Perplexity have hand-tuned rich mocks above;
+    /// this struct covers the remaining current and legacy providers.
     private struct SimpleProviderProfile {
         let providerID: String
         let providerName: String
@@ -1585,6 +1587,151 @@ enum MockProviderInjector {
             primaryResetDescription: "3,700 / 10,000 Bobcoins",
             secondary: nil,
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // Upstream v0.59-v0.66 first-class provider preview fixtures.
+        .init(
+            providerID: "bifrost", providerName: "Bifrost",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 42, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 3.2, sessionCostUSD: 0.25),
+        .init(
+            providerID: "helmcode", providerName: "Helmcode",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 55, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "nous", providerName: "Nous Portal",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 30, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "muse", providerName: "Muse Code",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 61, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "coderabbit", providerName: "CodeRabbit",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "replicate", providerName: "Replicate",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 9.4, sessionCostUSD: 0.25),
+        .init(
+            providerID: "huggingface", providerName: "Hugging Face",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 25, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 4.6, sessionCostUSD: 0.25),
+        .init(
+            providerID: "pi", providerName: "Pi",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 1.7, sessionCostUSD: 0.25),
+        .init(
+            providerID: "v0", providerName: "v0",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 38, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.3, sessionCostUSD: 0.25),
+        .init(
+            providerID: "typesafe", providerName: "TypeSafe",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 5.1, sessionCostUSD: 0.25),
+        .init(
+            providerID: "hyper", providerName: "Charm Hyper",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "gitkraken", providerName: "GitKraken AI",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 47, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "devpass", providerName: "DevPass",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: 34, primaryLabel: "Quota",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "atlascloud", providerName: "Atlas Cloud",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "vercel", providerName: "Vercel AI Gateway",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: 7.8, sessionCostUSD: 0.25),
+        .init(
+            providerID: "llmman", providerName: "llmman",
+            accountLocal: "sample", loginMethod: "Mock account",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -1675,7 +1822,7 @@ enum MockProviderInjector {
     // Moonshot / z.ai hourly / OpenAI Dashboard / Antigravity).
     // Without this, mock injection mode would silently hide every new
     // v0.26 card — a real regression vector.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     private static func v026ExtrasFor(providerID: String) -> V026MockExtras? {
         let now = Self.nowReference
         switch providerID {
@@ -1883,6 +2030,22 @@ enum MockProviderInjector {
                         value: "3,700 / 10,000 Bobcoins",
                         secondaryValue: "Standard"),
                 ])])
+        case "coderabbit":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Code reviews",
+                rows: [.init(label: "Reviews", value: "28 this month")])])
+        case "hyper":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Hypercredits",
+                rows: [.init(label: "Balance", value: "42.5 HC")])])
+        case "atlascloud":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Credits",
+                rows: [.init(label: "Balance", value: "$18.40")])])
+        case "llmman":
+            return V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Daemon",
+                rows: [.init(label: "Loaded models", value: "3")])])
         default:
             return nil
         }

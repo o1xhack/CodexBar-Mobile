@@ -20,6 +20,7 @@ public enum OpenAIAPIProviderDescriptor {
         ProviderDescriptor(
             id: .openai,
             credentials: self.credentials,
+            pluginResultPolicy: ProviderPluginResultPolicy(cardMapper: mapPluginCard),
             config: ProviderConfigCapabilities(workspaceIDValidationOrder: 1),
             metadata: ProviderMetadata(
                 id: .openai,
@@ -82,100 +83,31 @@ public enum OpenAIAPIProviderDescriptor {
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
-                let swift = OpenAIAPIBalanceFetchStrategy()
-                guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
-                return [
-                    ScriptFetchStrategy(
-                        id: "openai.js",
-                        provider: .openai,
-                        bundledPlugin: "openai",
-                        secretKey: OpenAIAPISettingsReader.apiKeyEnvironmentKey,
-                        resolveValues: { context in
-                            guard let credential = OpenAIAPIUsageCredential(environment: context.env)
-                            else { return nil }
-                            var settings: [String: String] = [:]
-                            if let projectID = credential.projectID {
-                                settings[OpenAIAPISettingsReader.projectIDEnvironmentKey] = projectID
-                            }
-                            settings["OPENAI_HISTORY_DAYS"] = String(context.costUsageHistoryDays)
-                            settings["OPENAI_ALLOW_BALANCE_FALLBACK"] =
-                                credential.allowsLegacyBalanceFallback ? "1" : "0"
-                            return ScriptFetchStrategy.Values(
-                                settings: settings,
-                                secrets: [OpenAIAPISettingsReader.apiKeyEnvironmentKey: credential.apiKey])
-                        }),
-                    swift,
+        ProviderFetchPlan(sourceModes: [.auto, .api], pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+            [Self.scriptStrategy()]
+        }))
+    }
+
+    static func scriptStrategy(transport: any ProviderHTTPTransport = ProviderHTTPClient
+        .shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "openai.js",
+            provider: .openai,
+            bundledPlugin: "openai",
+            secretKey: OpenAIAPISettingsReader.apiKeyEnvironmentKey,
+            transport: transport,
+            resolveValues: { context in
+                guard let credential = OpenAIAPIUsageCredential(environment: context.env) else { return nil }
+                var settings = [
+                    "OPENAI_HISTORY_DAYS": String(context.costUsageHistoryDays),
+                    "OPENAI_ALLOW_BALANCE_FALLBACK": credential.allowsLegacyBalanceFallback ? "1" : "0",
                 ]
-            }))
-    }
-}
-
-struct OpenAIAPIBalanceFetchStrategy: ProviderFetchStrategy {
-    let id: String = "openai.api.balance"
-    let kind: ProviderFetchKind = .apiToken
-    let usageFetcher: @Sendable (OpenAIAPIUsageCredential, Int) async throws -> OpenAIAPIUsageSnapshot
-    let balanceFetcher: @Sendable (String) async throws -> OpenAIAPICreditBalanceSnapshot
-
-    init(
-        usageFetcher: @escaping @Sendable (OpenAIAPIUsageCredential, Int) async throws -> OpenAIAPIUsageSnapshot =
-            OpenAIAPIBalanceFetchStrategy.fetchUsage(credential:days:),
-        balanceFetcher: @escaping @Sendable (String) async throws -> OpenAIAPICreditBalanceSnapshot = { apiKey in
-            try await OpenAIAPICreditBalanceFetcher.fetchBalance(apiKey: apiKey)
-        })
-    {
-        self.usageFetcher = usageFetcher
-        self.balanceFetcher = balanceFetcher
-    }
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        OpenAIAPIUsageCredential(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let credential = OpenAIAPIUsageCredential(environment: context.env) else {
-            throw OpenAIAPISettingsError.missingToken
-        }
-
-        do {
-            let usage = try await self.usageFetcher(credential, context.costUsageHistoryDays)
-            return self.makeResult(
-                usage: usage.toUsageSnapshot(),
-                sourceLabel: credential.sourceLabel)
-        } catch {
-            let usageError = error
-            if !credential.allowsLegacyBalanceFallback {
-                throw usageError
-            }
-            // Preserve the older balance-only path for unscoped keys and Admin API outages.
-            do {
-                let balance = try await self.balanceFetcher(credential.apiKey)
-                return self.makeResult(
-                    usage: balance.toUsageSnapshot(),
-                    sourceLabel: "billing-api")
-            } catch {
-                if (usageError as? OpenAIAPIUsageError)?.isCredentialRejected != true {
-                    throw usageError
-                }
-                throw error
-            }
-        }
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
-    }
-
-    private static func fetchUsage(
-        credential: OpenAIAPIUsageCredential,
-        days: Int) async throws -> OpenAIAPIUsageSnapshot
-    {
-        try await OpenAIAPIUsageFetcher.fetchUsage(
-            apiKey: credential.apiKey,
-            projectID: credential.projectID,
-            historyDays: days)
+                settings[OpenAIAPISettingsReader.projectIDEnvironmentKey] = credential.projectID
+                return .init(
+                    settings: settings,
+                    secrets: [OpenAIAPISettingsReader.apiKeyEnvironmentKey: credential.apiKey])
+            }, isEnabled: { _ in true })
     }
 }
 
@@ -197,11 +129,136 @@ struct OpenAIAPIUsageCredential: Equatable {
         self.projectID = OpenAIAPISettingsReader.projectID(environment: environment)
     }
 
-    var sourceLabel: String {
-        self.projectID == nil ? "admin-api" : "admin-api:project"
-    }
-
     var allowsLegacyBalanceFallback: Bool {
         self.projectID == nil || !self.usesAdminKey
+    }
+}
+
+extension OpenAIAPIProviderDescriptor {
+    static func mapPluginCard(
+        _ card: any ProviderPluginValue,
+        usage: UsageSnapshot,
+        now: Date) throws -> UsageSnapshot
+    {
+        typealias Mapper = ProviderPluginSnapshotMapper
+        try Mapper.object(card, allowed: ["openAIAPIUsage"], path: "card")
+        guard let payload = card.property("openAIAPIUsage") else {
+            throw ProviderPluginError.invalidSnapshot("card.openAIAPIUsage is required")
+        }
+        try Mapper.object(payload, allowed: ["daily", "historyDays", "projectID"], path: "card.openAIAPIUsage")
+        let historyDays = try Self.cardInteger(payload, "historyDays", maximum: 365)
+        guard historyDays > 0 else { throw ProviderPluginError.invalidSnapshot("historyDays must be positive") }
+        let project = payload.property("projectID")
+        let projectID = try project.flatMap { $0.isUndefined || $0.isNull ? nil : try Mapper.resultString(
+            $0,
+            path: "projectID") }
+        var remainingEntries = 10000
+        let daily = try Self.cardArray(payload, "daily", maximum: 366).map { day in
+            try Mapper.object(
+                day,
+                allowed: [
+                    "startTime", "endTime", "costUSD", "requests", "inputTokens", "cachedInputTokens",
+                    "outputTokens",
+                    "totalTokens", "lineItems", "models",
+                ],
+                path: "daily bucket")
+            let start = try Self.cardNumber(day, "startTime")
+            let end = try Self.cardNumber(day, "endTime")
+            guard start >= 0, end > start, end <= 253_402_300_799 else {
+                throw ProviderPluginError.invalidSnapshot("invalid card bucket interval")
+            }
+            let lines = try Self.cardArray(day, "lineItems", maximum: remainingEntries)
+            remainingEntries -= lines.count
+            let models = try Self.cardArray(day, "models", maximum: remainingEntries)
+            remainingEntries -= models.count
+            let startDate = Date(timeIntervalSince1970: start)
+            return try OpenAIAPIUsageSnapshot.DailyBucket(
+                day: ISO8601DateFormatter().string(from: startDate).prefix(10).description,
+                startTime: startDate,
+                endTime: Date(timeIntervalSince1970: end),
+                costUSD: Self.cardNumber(day, "costUSD"),
+                requests: Self.cardInteger(day, "requests"),
+                inputTokens: Self.cardInteger(day, "inputTokens"),
+                cachedInputTokens: Self.cardInteger(day, "cachedInputTokens"),
+                outputTokens: Self.cardInteger(day, "outputTokens"),
+                totalTokens: Self.cardInteger(day, "totalTokens"),
+                lineItems: lines.map { item in
+                    try Mapper.object(item, allowed: ["name", "costUSD"], path: "line item")
+                    return try .init(name: Self.cardName(item), costUSD: Self.cardNumber(item, "costUSD"))
+                },
+                models: models.map { model in
+                    try Mapper.object(
+                        model,
+                        allowed: [
+                            "name", "requests", "inputTokens", "cachedInputTokens", "outputTokens",
+                            "totalTokens",
+                        ],
+                        path: "model")
+                    return try .init(
+                        name: Self.cardName(model),
+                        requests: Self.cardInteger(model, "requests"),
+                        inputTokens: Self.cardInteger(model, "inputTokens"),
+                        cachedInputTokens: Self.cardInteger(model, "cachedInputTokens"),
+                        outputTokens: Self.cardInteger(model, "outputTokens"),
+                        totalTokens: Self.cardInteger(model, "totalTokens"))
+                })
+        }
+        let history = OpenAIAPIUsageSnapshot(
+            daily: daily,
+            updatedAt: now,
+            historyDays: historyDays,
+            projectID: projectID)
+        return UsageSnapshot(
+            primary: usage.primary,
+            secondary: usage.secondary,
+            tertiary: usage.tertiary,
+            extraRateWindows: usage.extraRateWindows,
+            providerCost: usage.providerCost,
+            costUsage: usage.costUsage,
+            details: usage.details,
+            openAIAPIUsage: history,
+            subscriptionExpiresAt: usage.subscriptionExpiresAt,
+            subscriptionRenewsAt: usage.subscriptionRenewsAt,
+            updatedAt: now,
+            identity: usage.identity,
+            dataConfidence: usage.dataConfidence)
+    }
+
+    private static func cardArray(
+        _ object: any ProviderPluginValue, _ key: String, maximum: Int) throws -> [any ProviderPluginValue]
+    {
+        guard let value = object.property(key), value.isArray,
+              let length = value.property("length"), length.doubleValue() <= Double(maximum)
+        else { throw ProviderPluginError.invalidSnapshot("card.\(key) must be a bounded array") }
+        return try (0..<Int(length.doubleValue())).map { index in
+            guard let element = value.element(at: index) else {
+                throw ProviderPluginError.invalidSnapshot("card.\(key) contains a missing value")
+            }
+            return element
+        }
+    }
+
+    private static func cardNumber(_ object: any ProviderPluginValue, _ key: String) throws -> Double {
+        guard let value = object.property(key), value.isNumber,
+              value.doubleValue().isFinite, abs(value.doubleValue()) <= 9_007_199_254_740_991
+        else { throw ProviderPluginError.invalidSnapshot("card.\(key) must be a finite safe number") }
+        return value.doubleValue()
+    }
+
+    private static func cardInteger(
+        _ object: any ProviderPluginValue, _ key: String, maximum: Int = 900_719_925_474) throws -> Int
+    {
+        // The aggregate of every bounded card row must also fit in a JavaScript-safe integer.
+        let number = try Self.cardNumber(object, key)
+        guard number >= 0, number.rounded() == number, number <= Double(maximum) else {
+            throw ProviderPluginError.invalidSnapshot("card.\(key) must be a bounded nonnegative integer")
+        }
+        return Int(number)
+    }
+
+    private static func cardName(_ object: any ProviderPluginValue) throws -> String {
+        guard let name = object.property("name")
+        else { throw ProviderPluginError.invalidSnapshot("card.name is required") }
+        return try ProviderPluginSnapshotMapper.resultString(name, path: "card.name")
     }
 }

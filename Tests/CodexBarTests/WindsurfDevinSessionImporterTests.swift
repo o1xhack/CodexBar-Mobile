@@ -8,7 +8,8 @@ struct WindsurfDevinSessionImporterTests {
     func `defaults to Chrome before fallback Chromium browsers`() {
         #expect(WindsurfDevinSessionImporter.defaultPreferredBrowsers == [.chrome])
         #expect(!WindsurfDevinSessionImporter.fallbackBrowsers.contains(.chrome))
-        #expect(WindsurfDevinSessionImporter.fallbackBrowsersExcluding([.chrome, .edge]).first == .chromeBeta)
+        #expect(WindsurfDevinSessionImporter.fallbackBrowsers.contains(.yandex))
+        #expect(WindsurfDevinSessionImporter.fallbackBrowsers.contains(.comet))
         #expect(!WindsurfDevinSessionImporter.fallbackBrowsersExcluding([.chrome, .edge]).contains(.edge))
     }
 

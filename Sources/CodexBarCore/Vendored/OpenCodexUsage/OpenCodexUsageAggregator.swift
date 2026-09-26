@@ -29,11 +29,7 @@ enum OpenCodexUsageAggregator {
         var models: [String: ModelAccumulator] = [:]
     }
 
-    struct HourAccumulator {
-        var tokens = CostUsageDailyReport.OptionalCountAccumulator()
-        var cost: Double = 0
-        var sawCost = false
-    }
+    typealias HourAccumulator = CostUsageTemporalTotals
 
     /// Aggregates OpenCodex usage entries into a per-window token/cost snapshot.
     ///
@@ -88,8 +84,8 @@ enum OpenCodexUsageAggregator {
         // `windowed` is sorted by timestamp, so the day/hour memos hit on almost every entry; a miss only costs one
         // Calendar interval lookup. Price once per entry and reuse it for the day, session and hour merges.
         var windowTokens = CostUsageDailyReport.OptionalCountAccumulator()
-        var dayMemo = LocalDayKeyMemo()
-        var hourMemo = HourStartMemo()
+        var dayMemo = CostUsageLocalDayKeyMemo()
+        var hourMemo = CostUsageHourStartMemo()
         for entry in windowed {
             windowTokens.merge(entry.resolvedTotalCount)
             let cost = Self.listPriceUSD(
@@ -142,10 +138,7 @@ enum OpenCodexUsageAggregator {
 
         let hourly = hoursByStart.keys.sorted().map { hour in
             let bucket = hoursByStart[hour] ?? HourAccumulator()
-            return CostUsageHourlyEntry(
-                hour: hour,
-                totalTokens: bucket.tokens.value,
-                costUSD: bucket.sawCost ? bucket.cost : nil)
+            return bucket.hourlyEntry(hour: hour)
         }
 
         let todayEntry = CostUsageTokenSnapshot.entry(
@@ -165,7 +158,7 @@ enum OpenCodexUsageAggregator {
 
         return CostUsageTokenSnapshot(
             sessionTokens: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.totalTokens,
-            sessionCostUSD: todayEntry?.costUSD ?? (daily.isEmpty ? nil : 0),
+            sessionCostUSD: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.costUSD,
             sessionRequests: todayEntry?.requestCount ?? (daily.isEmpty ? nil : 0),
             last30DaysTokens: windowTokens.value,
             last30DaysCostUSD: windowSummary.totalCostUSD,
@@ -229,11 +222,7 @@ enum OpenCodexUsageAggregator {
         cost: Double?,
         into hour: inout HourAccumulator)
     {
-        hour.tokens.merge(entry.resolvedTotalCount)
-        if let cost {
-            hour.cost += cost
-            hour.sawCost = true
-        }
+        hour.add(totalTokens: entry.resolvedTotalCount.value, costUSD: cost)
     }
 
     private static func merge(
@@ -284,9 +273,8 @@ enum OpenCodexUsageAggregator {
 
     /// List-price estimate for one entry. Precedence is unchanged from the per-merge pricing it replaces:
     /// 1. `customPricing` — the snapshot's own overlay (provider-scoped rates passed by the caller);
-    /// 2. `CostUsagePricing.codexCostUSD` with the pre-resolved `customPricingOverlay` (the app-level overlay file,
-    ///    which `codexCostUSD` would otherwise re-load per call) and the pre-resolved models.dev `modelsDevCatalog`
-    ///    (otherwise `ModelsDevCache.load` per call), then the bundled/historical tables.
+    /// 2. App-level exact overrides, then the observed provider's models.dev rates. Only the OpenAI route
+    ///    uses OpenAI bundled/historical tables. Catalog and overlay are resolved once per snapshot.
     private static func listPriceUSD(
         entry: OpenCodexUsageEntry,
         customPricing: CostUsageCustomPricing,
@@ -301,28 +289,38 @@ enum OpenCodexUsageAggregator {
             || usage?.cacheReadTokens != nil
             || usage?.cacheCreationInputTokens != nil
         guard hasTokenData else { return nil }
-        let input = usage?.inputTokens ?? 0
-        let output = usage?.outputTokens ?? 0
+        guard let input = usage?.inputTokens, let output = usage?.outputTokens else { return nil }
         let cacheRead = usage?.cacheReadTokens ?? 0
         let cacheWrite = usage?.cacheCreationInputTokens ?? 0
-        if let overlay = customPricing.costUSD(
-            providerID: entry.provider,
-            model: entry.model,
-            inputTokens: input,
-            outputTokens: output,
-            cacheReadTokens: cacheRead,
-            cacheWriteTokens: cacheWrite)
-        {
-            return overlay
+        if customPricing.rates(providerID: entry.provider, model: entry.model) != nil {
+            return customPricing.costUSD(
+                providerID: entry.provider,
+                model: entry.model,
+                inputTokens: input,
+                outputTokens: output,
+                cacheReadTokens: cacheRead,
+                cacheWriteTokens: cacheWrite)
         }
-        return CostUsagePricing.codexCostUSD(
+        let pricingProvider = OpenCodexUsagePricing.providerID(for: entry)
+        // Legacy OpenAI transport rows can carry a billing route in the model name. Preserve
+        // application overrides keyed by the recorded identity before resolving that route.
+        if let recordedRates = customPricingOverlay.rates(providerID: entry.provider, model: entry.model) {
+            return CostUsageCustomPricing.costUSD(
+                rates: recordedRates,
+                inputTokens: max(0, max(0, input - cacheRead) - cacheWrite),
+                outputTokens: output,
+                cacheReadTokens: cacheRead,
+                cacheWriteTokens: cacheWrite)
+        }
+        return CostUsagePricing.providerCostUSD(
+            providerID: pricingProvider,
             model: entry.model,
             inputTokens: input,
             cachedInputTokens: cacheRead,
-            outputTokens: output,
             cacheWriteInputTokens: cacheWrite,
+            outputTokens: output,
             pricingDate: entry.timestamp,
-            modelsDevCatalog: modelsDevCatalog,
+            catalog: modelsDevCatalog,
             customPricing: customPricingOverlay)
     }
 
@@ -332,54 +330,6 @@ enum OpenCodexUsageAggregator {
         case let (left?, nil): left
         case let (nil, right?): right
         case (nil, nil): nil
-        }
-    }
-}
-
-extension OpenCodexUsageAggregator {
-    /// Reuses the calendar's `[start, next)` day interval while timestamps stay inside it.
-    /// Day keys still come from `CostUsageLocalDay` so DST and non-Gregorian calendars stay aligned: the key derives
-    /// y-m-d from the same Gregorian-in-timezone calendar whose `.day` interval is cached here, so the memo can never
-    /// disagree with computing the key per entry (DST days are simply 23 h / 25 h intervals).
-    private struct LocalDayKeyMemo {
-        var start = Date.distantPast
-        var end = Date.distantPast
-        var key = ""
-
-        mutating func key(for timestamp: Date, calendar: Calendar) -> String {
-            if timestamp >= self.start, timestamp < self.end {
-                return self.key
-            }
-            let dayCalendar = CostUsageLocalDay.gregorianCalendar(matching: calendar)
-            guard let interval = dayCalendar.dateInterval(of: .day, for: timestamp) else {
-                self.start = Date.distantPast
-                self.end = Date.distantPast
-                return CostUsageLocalDay.key(from: timestamp, calendar: calendar)
-            }
-            self.start = interval.start
-            self.end = interval.end
-            self.key = CostUsageLocalDay.key(from: timestamp, calendar: calendar)
-            return self.key
-        }
-    }
-
-    /// Reuses the calendar's hour interval while timestamps stay inside `[start, end)`.
-    private struct HourStartMemo {
-        var start = Date.distantPast
-        var end = Date.distantPast
-
-        mutating func start(for timestamp: Date, calendar: Calendar) -> Date {
-            if timestamp >= self.start, timestamp < self.end {
-                return self.start
-            }
-            guard let interval = calendar.dateInterval(of: .hour, for: timestamp) else {
-                self.start = Date.distantPast
-                self.end = Date.distantPast
-                return timestamp
-            }
-            self.start = interval.start
-            self.end = interval.end
-            return self.start
         }
     }
 }

@@ -13,7 +13,8 @@ source "$ROOT/Scripts/release_dsym_paths.sh"
 RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 ZIP_NAME="${RELEASE_ASSET_BASENAME}.zip"
 DSYM_ZIP="${RELEASE_ASSET_BASENAME}.dSYM.zip"
-RELEASE_STAGE_DIR=$(mktemp -d /tmp/codexbar-release.XXXXXX)
+RELEASE_STAGE_BASE=${CODEXBAR_RELEASE_STAGE_BASE:-${TMPDIR:-/tmp}}
+RELEASE_STAGE_DIR=$(mktemp -d "${RELEASE_STAGE_BASE%/}/codexbar-release.XXXXXX")
 STAGED_APP_BUNDLE="${RELEASE_STAGE_DIR}/${APP_BUNDLE}"
 
 verify_distribution_policy() {
@@ -52,7 +53,7 @@ fi
 # its own mobile-suffixed ZIP_NAME / DSYM_ZIP (defined near the top), so we do
 # NOT use upstream's codexbar_app_zip_name (which drops the -mobile.X suffix
 # that release.sh / make_appcast expect).
-NOTARIZATION_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-notarize.XXXXXX")
+NOTARIZATION_TEMP_DIR=$(mktemp -d "${RELEASE_STAGE_BASE%/}/codexbar-notarize.XXXXXX")
 chmod 700 "$NOTARIZATION_TEMP_DIR"
 API_KEY_PATH="$NOTARIZATION_TEMP_DIR/codexbar-api-key.p8"
 NOTARIZATION_ZIP="$NOTARIZATION_TEMP_DIR/${APP_NAME}Notarize.zip"
@@ -75,7 +76,10 @@ ARCH_LIST=( ${ARCHES_VALUE} )
 for ARCH in "${ARCH_LIST[@]}"; do
   swift build -c release --arch "$ARCH"
 done
-CODEXBAR_STAGED_APP_PATH="$STAGED_APP_BUNDLE" CODEXBAR_WIDGET_METADATA_MODE=required ARCHES="${ARCHES_VALUE}" \
+CODEXBAR_STAGED_APP_PATH="$STAGED_APP_BUNDLE" \
+  CODEXBAR_APP_FINAL_PATH="$RELEASE_STAGE_DIR/CodexBar-packaged.app" \
+  CODEXBAR_PACKAGE_STAGE_ROOT="$RELEASE_STAGE_BASE" \
+  CODEXBAR_WIDGET_METADATA_MODE=required ARCHES="${ARCHES_VALUE}" \
   CODEXBAR_SIGNING=identity ./Scripts/package_app.sh release
 APP_BUNDLE="$STAGED_APP_BUNDLE"
 

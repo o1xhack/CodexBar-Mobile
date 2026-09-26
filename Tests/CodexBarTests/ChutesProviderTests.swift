@@ -5,6 +5,17 @@ import Testing
 
 struct ChutesProviderTests {
     @Test
+    func `descriptor uses the bundled plugin without an opt-in flag`() async throws {
+        let context = Self.context(environment: ["CHUTES_API_KEY": "fixture-key"])
+        let strategies = await ChutesProviderDescriptor.descriptor.fetchPlan.pipeline.resolveStrategies(context)
+        #expect(strategies.count == 1)
+        let strategy = try #require(strategies.first)
+        #expect(strategy is ScriptFetchStrategy)
+        #expect(strategy.id == "chutes.js")
+        #expect(await strategy.isAvailable(context))
+    }
+
+    @Test
     func `settings reader trims quoted API key`() {
         let token = ChutesSettingsReader.apiKey(environment: [
             ChutesSettingsReader.apiKeyEnvironmentKey: " 'chutes-test' ",
@@ -26,8 +37,10 @@ struct ChutesProviderTests {
         #expect(ProviderConfigEnvironment.supportsAPIKeyOverride(for: .chutes))
     }
 
-    @Test
-    func `fetch usage maps active subscription monthly and rolling windows`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `fetch usage maps active subscription monthly and rolling windows`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let rollingReset = try Self.date("2026-06-13T18:00:00Z")
         let monthlyReset = try Self.date("2026-07-01T00:00:00Z")
@@ -64,12 +77,14 @@ struct ChutesProviderTests {
             return Self.makeResponse(url: url, body: body)
         }
 
-        let snapshot = try await ChutesUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetch(
+            engine: engine,
             apiKey: " chutes-key ",
-            environment: [ChutesSettingsReader.apiURLEnvironmentKey: "https://chutes.test"],
+            environment: [ChutesSettingsReader
+                .apiURLEnvironmentKey: "https://chutes.test"],
             transport: transport,
             now: now)
-        let usage = snapshot.toUsageSnapshot()
+        let usage = snapshot
 
         #expect(usage.primary?.usedPercent == 40)
         #expect(usage.primary?.windowMinutes == 240)
@@ -85,8 +100,8 @@ struct ChutesProviderTests {
         #expect(requests.count == 1)
     }
 
-    @Test
-    func `no active subscription falls back to quotas endpoint`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `no active subscription falls back to quotas endpoint`(engine: ProviderPluginEngineKind) async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
@@ -122,12 +137,14 @@ struct ChutesProviderTests {
             }
         }
 
-        let snapshot = try await ChutesUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetch(
+            engine: engine,
             apiKey: "chutes-key",
-            environment: [ChutesSettingsReader.apiURLEnvironmentKey: "https://chutes.test"],
+            environment: [ChutesSettingsReader
+                .apiURLEnvironmentKey: "https://chutes.test"],
             transport: transport,
             now: now)
-        let usage = snapshot.toUsageSnapshot()
+        let usage = snapshot
 
         #expect(usage.primary?.usedPercent == 10)
         #expect(usage.primary?.resetDescription == "10/100 credits")
@@ -143,8 +160,8 @@ struct ChutesProviderTests {
         ])
     }
 
-    @Test
-    func `wrapped quota list fetches per quota usage`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `wrapped quota list fetches per quota usage`(engine: ProviderPluginEngineKind) async throws {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             switch url.path {
@@ -153,6 +170,7 @@ struct ChutesProviderTests {
             case "/users/me/quotas":
                 return Self.makeResponse(url: url, body: #"""
                 {
+                  "quotas": {"metadata": true},
                   "data": [
                     {
                       "chute_id": "wrapped",
@@ -168,12 +186,14 @@ struct ChutesProviderTests {
             }
         }
 
-        let snapshot = try await ChutesUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetch(
+            engine: engine,
             apiKey: "chutes-key",
-            environment: [ChutesSettingsReader.apiURLEnvironmentKey: "https://chutes.test"],
+            environment: [ChutesSettingsReader
+                .apiURLEnvironmentKey: "https://chutes.test"],
             transport: transport)
 
-        #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 25)
+        #expect(snapshot.primary?.usedPercent == 25)
         let requests = await transport.requests()
         #expect(requests.compactMap { $0.url?.path } == [
             "/users/me/subscription_usage",
@@ -182,8 +202,10 @@ struct ChutesProviderTests {
         ])
     }
 
-    @Test
-    func `partial subscription usage fills missing rolling window from quotas`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `partial subscription usage fills missing rolling window from quotas`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
@@ -219,12 +241,14 @@ struct ChutesProviderTests {
             }
         }
 
-        let snapshot = try await ChutesUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetch(
+            engine: engine,
             apiKey: "chutes-key",
-            environment: [ChutesSettingsReader.apiURLEnvironmentKey: "https://chutes.test"],
+            environment: [ChutesSettingsReader
+                .apiURLEnvironmentKey: "https://chutes.test"],
             transport: transport,
             now: now)
-        let usage = snapshot.toUsageSnapshot()
+        let usage = snapshot
 
         #expect(usage.primary?.usedPercent == 40)
         #expect(usage.primary?.windowMinutes == 240)
@@ -238,20 +262,22 @@ struct ChutesProviderTests {
         #expect(paths == ["/users/me/subscription_usage", "/users/me/quotas"])
     }
 
-    @Test
-    func `missing usage fields returns no data snapshot without decode failure`() throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `missing usage fields returns no data snapshot without decode failure`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let data = Data(#"{"subscription":{"active":true},"unexpected":{"nested":true}}"#.utf8)
-        let snapshot = try ChutesUsageParser.parse(data: data, now: Date(timeIntervalSince1970: 123))
-        let usage = snapshot.toUsageSnapshot()
+        let snapshot = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let usage = snapshot
 
-        #expect(!snapshot.hasUsageData)
+        #expect(!usage.hasRateLimitWindows)
         #expect(usage.primary == nil)
         #expect(usage.secondary == nil)
         #expect(usage.loginMethod(for: .chutes) == nil)
     }
 
-    @Test
-    func `identical usage values keep distinct quota windows`() throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `identical usage values keep distinct quota windows`(engine: ProviderPluginEngineKind) async throws {
         let data = Data(#"""
         {
           "quotas": [
@@ -269,8 +295,8 @@ struct ChutesProviderTests {
         }
         """#.utf8)
 
-        let snapshot = try ChutesUsageParser.parse(data: data, now: Date(timeIntervalSince1970: 123))
-        let usage = snapshot.toUsageSnapshot()
+        let snapshot = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let usage = snapshot
 
         #expect(usage.primary?.usedPercent == 0)
         #expect(usage.primary?.windowMinutes == 240)
@@ -278,8 +304,60 @@ struct ChutesProviderTests {
         #expect(usage.secondary?.windowMinutes == 43200)
     }
 
-    @Test
-    func `exact percent value of one stays one percent`() throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `large quota amounts retain their percentage and description`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"rolling_window":{"used":1e20,"limit":2e20,"unit":"credits"}}
+        """#.utf8)
+
+        let snapshot = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let usage = snapshot
+
+        #expect(usage.primary?.usedPercent == 50)
+        #expect(usage.primary?.resetDescription == "100000000000000000000/200000000000000000000 credits")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines, [
+        ("window_minutes", "9223372036854775808"),
+        ("window_hours", "1e308"),
+        ("window_days", "1e308"),
+        ("window_seconds", "1e308"),
+        ("window", #""1e308 minutes""#),
+        ("window", #""1e308 hours""#),
+        ("window", #""1e308 days""#),
+        ("window", #""1e308 months""#),
+    ])
+    func `unrepresentable durations preserve usage with the known window default`(
+        engine: ProviderPluginEngineKind, duration: (String, String)) async throws
+    {
+        let (key, value) = duration
+        let data = Data("""
+        {"rolling_window":{"used":25,"limit":100,"\(key)":\(value)}}
+        """.utf8)
+
+        let snapshot = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let usage = snapshot
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.windowMinutes == 240)
+        #expect(usage.primary?.resetDescription == "25/100 credits")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `unrepresentable generic quota duration remains unknown`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"quotas":[{"used":25,"limit":100,"window_minutes":9223372036854775808}]}
+        """#.utf8)
+
+        let snapshot = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let usage = snapshot
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.windowMinutes == nil)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `exact percent value of one stays one percent`(engine: ProviderPluginEngineKind) async throws {
         let usedData = Data(#"""
         {
           "rolling_window": {
@@ -295,32 +373,34 @@ struct ChutesProviderTests {
         }
         """#.utf8)
 
-        let usedSnapshot = try ChutesUsageParser.parse(
+        let usedSnapshot = try await Self.parse(
+            engine: engine,
             data: usedData,
             now: Date(timeIntervalSince1970: 123))
-        let remainingSnapshot = try ChutesUsageParser.parse(
+        let remainingSnapshot = try await Self.parse(
+            engine: engine,
             data: remainingData,
             now: Date(timeIntervalSince1970: 123))
 
-        #expect(usedSnapshot.toUsageSnapshot().primary?.usedPercent == 1)
-        #expect(remainingSnapshot.toUsageSnapshot().primary?.usedPercent == 99)
+        #expect(usedSnapshot.primary?.usedPercent == 1)
+        #expect(remainingSnapshot.primary?.usedPercent == 99)
     }
 
-    @Test
-    func `auth failure surfaces invalid credentials`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `auth failure surfaces invalid credentials`(engine: ProviderPluginEngineKind) async {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.makeResponse(url: url, body: #"{"detail":"unauthorized"}"#, statusCode: 401)
         }
 
         await #expect {
-            _ = try await ChutesUsageFetcher.fetchUsage(
+            _ = try await Self.fetch(
+                engine: engine,
                 apiKey: "bad-key",
                 environment: [ChutesSettingsReader.apiURLEnvironmentKey: "https://chutes.test"],
                 transport: transport)
         } throws: { error in
-            guard case ChutesUsageError.invalidCredentials = error else { return false }
-            return true
+            (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
         }
     }
 
@@ -330,8 +410,229 @@ struct ChutesProviderTests {
         #expect(descriptor.metadata.displayName == "Chutes")
         #expect(ProviderDescriptorRegistry.all.contains { $0.id == .chutes })
 
-        let implementation = try #require(ProviderImplementationRegistry.implementation(for: .chutes))
+        let implementation = try #require(ProviderCatalog.implementation(for: .chutes))
         #expect(implementation is ChutesProviderImplementation)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `quota enrichment is best effort except for rejected credentials`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        for failingPath in ["quotas", "quota_usage/fixture"] {
+            for code in [403, 500] {
+                let transport = ProviderHTTPTransportStub { request in
+                    let url = try #require(request.url)
+                    if url.path.hasSuffix(failingPath) {
+                        return Self.makeResponse(url: url, body: "upstream error", statusCode: code)
+                    }
+                    let body = url.path.hasSuffix("subscription_usage")
+                        ? #"{"subscription":{"active":false}}"#
+                        : #"{"quotas":[{"chute_id":"fixture","limit":100}]}"#
+                    return Self.makeResponse(url: url, body: body)
+                }
+                if code == 403 {
+                    await #expect {
+                        _ = try await Self.fetch(
+                            engine: engine,
+                            apiKey: "fixture-key",
+                            environment: [:],
+                            transport: transport)
+                    } throws: { ($0 as? ProviderFetchClassifiedError)?.kind == .authenticationExpired }
+                } else {
+                    let usage = try await Self.fetch(
+                        engine: engine,
+                        apiKey: "fixture-key",
+                        environment: [:],
+                        transport: transport)
+                    #expect(!usage.hasRateLimitWindows)
+                    #expect(usage.loginMethod(for: .chutes) == "No active subscription")
+                    #expect(await transport.requests().count == (failingPath == "quotas" ? 2 : 3))
+                }
+            }
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `configured base path and query survive endpoint construction`(engine: ProviderPluginEngineKind) async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            #expect(url.host == "chutes.test")
+            #expect(url.path.hasPrefix("/proxy/users/me/"))
+            #expect(url.query == "tenant=fixture")
+            return Self.makeResponse(url: url, body: "{}")
+        }
+        let usage = try await Self.fetch(
+            engine: engine,
+            apiKey: "fixture-key",
+            environment: ["CHUTES_API_URL": "https://chutes.test/proxy?tenant=fixture"],
+            transport: transport)
+        #expect(usage.loginMethod(for: .chutes) == "No usage data")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `invalid subscription JSON fails but optional invalid JSON does not`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        for required in [true, false] {
+            let transport = ProviderHTTPTransportStub { request in
+                let url = try #require(request.url)
+                return Self.makeResponse(url: url, body: required || url.path.hasSuffix("quotas") ? "not JSON" : "{}")
+            }
+            if required {
+                await #expect {
+                    _ = try await Self.fetch(
+                        engine: engine,
+                        apiKey: "fixture-key",
+                        environment: [:],
+                        transport: transport)
+                } throws: { ($0 as? ProviderFetchClassifiedError)?.kind == .parseFailure }
+            } else {
+                let usage = try await Self.fetch(
+                    engine: engine,
+                    apiKey: "fixture-key",
+                    environment: [:],
+                    transport: transport)
+                #expect(!usage.hasRateLimitWindows)
+            }
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `very large amounts keep the represented integer digits`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"rolling":{"used":1e25,"limit":2e25}}
+        """#.utf8)
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        let expected = String(format: "%.0f/%.0f credits", 1e25, 2e25)
+        #expect(usage.primary?.usedPercent == 50)
+        #expect(usage.primary?.resetDescription == expected)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `normalized aliases fractions and epoch resets preserve quota projection`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let data = Data(#"""
+        {"result":{"plan_name":"Fixture","rolling_4h":{"used_percent":"0.25","reset_at":"1800000000000"},
+        "billing_period":{"remaining":"$1,500","cap":"2,000","duration":"1 month"}}}
+        """#.utf8)
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_800_000_000))
+        #expect(usage.secondary?.usedPercent == 25)
+        #expect(usage.secondary?.resetDescription == "500/2000 credits")
+        #expect(usage.secondary?.windowMinutes == 43200)
+        #expect(usage.loginMethod(for: .chutes) == "Fixture")
+    }
+
+    @Test
+    func `missing credentials fail before transport`() async {
+        let context = Self.context(environment: [:])
+        let transport = ProviderHTTPTransportStub { _ in throw ProviderPluginError.script("unexpected request") }
+        let strategy = ChutesProviderDescriptor.scriptStrategy(transport: transport)
+        #expect(await strategy.isAvailable(context) == false)
+        await #expect {
+            _ = try await strategy.fetch(context)
+        } throws: { ($0 as? ProviderFetchClassifiedError)?.kind == .missingCredential }
+        #expect(await transport.requests().isEmpty)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `large integer amounts preserve native digits`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"rolling":{"used":1234567890123456789,"limit":2469135780246913578}}
+        """#.utf8)
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        #expect(usage.primary?.resetDescription == "1234567890123456768/2469135780246913536 credits")
+    }
+
+    @Test
+    func `insecure endpoint override fails before transport`() async {
+        let context = Self.context(environment: [
+            "CHUTES_API_KEY": "fixture-key",
+            "CHUTES_API_URL": "http://chutes.test",
+        ])
+        let transport = ProviderHTTPTransportStub { _ in throw ProviderPluginError.script("unexpected request") }
+        let strategy = ChutesProviderDescriptor.scriptStrategy(transport: transport)
+        await #expect {
+            _ = try await strategy.fetch(context)
+        } throws: { $0 as? ChutesSettingsError == .invalidEndpointOverride("CHUTES_API_URL") }
+        #expect(await transport.requests().isEmpty)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `distinct raw quotas with equal percentages remain separate`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"quotas":[{"used":25,"remaining":75,"window_minutes":240},
+        {"used":50,"remaining":150,"window_minutes":240}]}
+        """#.utf8)
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.secondary?.usedPercent == 25)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `fractional amounts round like native printf`(engine: ProviderPluginEngineKind) async throws {
+        for (value, expected) in [
+            (1.125, "1.12"),
+            (1.375, "1.38"),
+            (1.625, "1.62"),
+            (-1.125, "-1.12"),
+            (49.585, "49.59"),
+        ] {
+            let data = Data("""
+            {"rolling":{"used":\(value),"limit":100}}
+            """.utf8)
+            let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+            #expect(usage.primary?.resetDescription == "\(expected)/100 credits")
+        }
+    }
+
+    private static func context(environment: [String: String]) -> ProviderFetchContext {
+        let browser = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .api,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: environment,
+            settings: nil,
+            fetcher: UsageFetcher(environment: [:]),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: [:]),
+            browserDetection: browser)
+    }
+
+    private static func fetch(
+        engine: ProviderPluginEngineKind,
+        apiKey: String,
+        environment: [String: String],
+        transport: any ProviderHTTPTransport,
+        now: Date = Date()) async throws -> UsageSnapshot
+    {
+        let runtime = try BundledPluginTestSupport.runtime("chutes", engine: engine, transport: transport)
+        return try await runtime.fetchUsage(
+            settings: ["BASE_URL": ChutesSettingsReader.apiURL(environment: environment).absoluteString],
+            secrets: ["CHUTES_API_KEY": apiKey.trimmingCharacters(in: .whitespacesAndNewlines)],
+            now: now)
+    }
+
+    private static func parse(
+        engine: ProviderPluginEngineKind,
+        data: Data,
+        now: Date) async throws -> UsageSnapshot
+    {
+        let body = try #require(String(data: data, encoding: .utf8))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            return Self.makeResponse(
+                url: url,
+                body: url.path.hasSuffix("subscription_usage")
+                    ? body : "{}")
+        }
+        return try await Self.fetch(
+            engine: engine, apiKey: "fixture-key", environment: [:], transport: transport, now: now)
     }
 
     private static func makeResponse(

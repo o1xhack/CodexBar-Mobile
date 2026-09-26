@@ -5,6 +5,77 @@ import FoundationNetworking
 import Testing
 @testable import CodexBarCore
 
+extension ProviderPluginRuntimeTests {
+    @Test(arguments: Self.labelValidationEngines)
+    func `cookie availability is policy only and Off blocks resolution`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,
+            fetchBody: """
+            const availability = ctx.browser.availability(" EXAMPLE.TEST ");
+            if (availability === "off") {
+              try {
+                await ctx.browser.cookieHeader("example.test");
+                throw new Error("Off resolved a cookie");
+              } catch (error) {
+                if (!String(error).includes("disabled")) throw error;
+              }
+            }
+            return { identity: { loginMethod: availability } };
+            """), engine: engine)
+        for (mode, source, expected) in [
+            (ProviderSourceMode.auto, ProviderCookieSource.auto, "available"),
+            (.web, .manual, "manual"), (.auto, .off, "off"), (.api, .auto, "off"), (.api, .manual, "off"),
+        ] {
+            let snapshot = try await runtime.fetchUsage(
+                secrets: ["TEST_KEY": "fixture"],
+                sourceMode: mode,
+                cookieSource: source,
+                cookieResolver: { _, _ in
+                    Issue.record("Availability or a blocked lookup touched the broker")
+                    return "session=fixture"
+                })
+            #expect(snapshot.identity?.loginMethod == expected)
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `availability rejects undeclared domains without invoking the broker`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,
+            fetchBody: "return { identity: { loginMethod: ctx.browser.availability('other.test') } };"), engine: engine)
+        await #expect(throws: ProviderPluginError.self) {
+            try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture"], cookieResolver: { _, _ in
+                Issue.record("Undeclared availability touched the broker")
+                return "session=fixture"
+            })
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `cookie rejection validates the declared domain on both engines`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test", "second.test"],"#,
+            fetchBody: """
+            ctx.browser.rejectCookie(" EXAMPLE.TEST ");
+            try {
+              ctx.browser.rejectCookie("undeclared.test");
+              throw new Error("undeclared rejection was accepted");
+            } catch (error) {
+              if (!String(error).includes("cookie domain is not declared")) throw error;
+            }
+            return { primary: { usedPercent: 1 } };
+            """), engine: engine)
+        _ = try await runtime.fetchUsage(
+            secrets: ["TEST_KEY": "fixture"], cookieInvalidator: { domain in
+                #expect(domain == "example.test")
+            })
+    }
+}
+
 struct ProviderPluginRuntimeTests {
     @Test(arguments: Self.labelValidationEngines)
     func `detail label checks reject nonstrings without coercion`(engine: ProviderPluginEngineKind) async throws {
@@ -157,26 +228,31 @@ struct ProviderPluginRuntimeTests {
         }
     }
 
-    @Test
-    func `HTTP request deadline defaults to fifteen seconds and accepts bounded override`() async throws {
+    @Test(arguments: Self.labelValidationEngines)
+    func `HTTP request deadline defaults to fifteen seconds and accepts bounded override`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let requests = RequestRecorder()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
             await ctx.http.getJSON("https://api.example.test/default");
-            const response = await ctx.http.getJSON("https://api.example.test/override", { timeoutSeconds: 7.5 });
+            await ctx.http.getJSON("https://api.example.test/fractional", { timeoutSeconds: 7.5 });
+            await ctx.http.getJSON("https://api.example.test/web", { timeoutSeconds: 60 });
+            const response = await ctx.http.getJSON("https://api.example.test/maximum", { timeoutSeconds: 90 });
             return { primary: { usedPercent: response.json.used } };
             """),
-            transport: Self.transport(recorder: requests, body: #"{"used":11}"#))
+            transport: Self.transport(recorder: requests, body: #"{"used":11}"#),
+            engine: engine)
 
         let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
 
         #expect(snapshot.primary?.usedPercent == 11)
         let recorded = await requests.all
-        #expect(recorded.map(\.timeoutInterval) == [15, 7.5])
+        #expect(recorded.map(\.timeoutInterval) == [15, 7.5, 60, 90])
     }
 
-    @Test(arguments: ["0", "0.5", "31", #""slow""#])
-    func `HTTP request deadline rejects values outside one through thirty seconds`(value: String) async throws {
+    @Test(arguments: ["0", "0.5", "90.1", "true", "null", #""slow""#])
+    func `HTTP request deadline rejects values outside one through ninety seconds`(value: String) async throws {
         let requests = RequestRecorder()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
@@ -217,11 +293,8 @@ struct ProviderPluginRuntimeTests {
         do {
             _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
             Issue.record("Expected the request deadline to reject the plugin fetch")
-        } catch let error as ProviderPluginError {
-            guard case .script = error else {
-                Issue.record("Expected a request deadline failure, received \(error)")
-                return
-            }
+        } catch let error as URLError {
+            #expect(error.code == .timedOut)
             await cancellation.waitUntilCancelled()
         } catch {
             Issue.record("Unexpected error: \(error)")
@@ -848,7 +921,7 @@ struct ProviderPluginRuntimeTests {
                 instanceCookieResolver: nil)
             { continuation.resume(returning: $0) }
         }
-        return try result.get()
+        return try result.get().usage
     }
 
     private static func transport(

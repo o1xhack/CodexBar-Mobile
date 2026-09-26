@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 056 | v0.59.0–v0.66.0 single upstream sync (13 open issues #125–#143 plus latest v0.66.0) | `in-progress` | Mac/iOS merge, draft and validation pending | [056-v066-upstream-sync/00-overview.md](056-v066-upstream-sync/00-overview.md) | 2026-09-25 |
 | 053 | iOS 2.0 Token Activity | `done` | 真机对账、兼容与性能验收仍待验证 | [053-ios-2-token-activity/00-summary.md](053-ios-2-token-activity/00-summary.md) | 2026-09-11 |
 | 001 | Daily Provider Utilization Chart | `blocked-upstream` | [upstream PR #565](https://github.com/steipete/CodexBar/pull/565) | [001-daily-utilization-chart.md](001-daily-utilization-chart.md) | 2026-03-19 |
 | 002 | Cost Share Card (One-Tap Share) | `done` | — | [002-cost-share-card.md](002-cost-share-card.md) | 2026-03-19 |

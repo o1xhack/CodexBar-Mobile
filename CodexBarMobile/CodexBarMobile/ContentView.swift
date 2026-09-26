@@ -4312,7 +4312,14 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.0.0", status: String(localized: "Latest"),
+            version: "2.1.0", status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."),
+            sections: [.init(title: String(localized: "What's New"), items: [
+                String(localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),
+                String(localized: "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."),
+            ])]),
+        ReleaseNotesVersion(
+            version: "2.0.0", status: "",
             summary: String(localized: "CodexBar 2.0 supports iOS 27 and iPadOS 27 with a rebuilt data architecture for much faster history, sync, and navigation."),
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(

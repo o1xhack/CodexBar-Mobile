@@ -16,6 +16,12 @@ struct PlanUtilizationSeriesName: RawRepresentable, Hashable, Codable, Expressib
     static let weekly: Self = "weekly"
     static let monthly: Self = "monthly"
     static let opus: Self = "opus"
+    static let antigravityGemini: Self = "antigravityGemini"
+    static let antigravityClaudeGPT: Self = "antigravityClaudeGPT"
+
+    var isQuotaObservation: Bool {
+        self == .antigravityGemini || self == .antigravityClaudeGPT
+    }
 
     func canonicalWindowMinutes(_ windowMinutes: Int) -> Int {
         switch self {
@@ -33,12 +39,29 @@ struct PlanUtilizationHistoryEntry: Codable, Equatable, Hashable, Sendable {
     let capturedAt: Date
     let usedPercent: Double
     let resetsAt: Date?
+
+    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if lhs.capturedAt != rhs.capturedAt {
+            return lhs.capturedAt < rhs.capturedAt
+        }
+        if lhs.usedPercent != rhs.usedPercent {
+            return lhs.usedPercent < rhs.usedPercent
+        }
+        let lhsReset = lhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
+        let rhsReset = rhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
+        return lhsReset < rhsReset
+    }
 }
 
 struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
     let name: PlanUtilizationSeriesName
     let windowMinutes: Int
     let entries: [PlanUtilizationHistoryEntry]
+
+    /// Zero is reserved for observed quota samples with no advertised reset cadence.
+    var hasSupportedCadence: Bool {
+        self.windowMinutes > 0 || (self.windowMinutes == 0 && self.name.isQuotaObservation)
+    }
 
     private enum CodingKeys: String, CodingKey {
         case name
@@ -49,17 +72,7 @@ struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
     init(name: PlanUtilizationSeriesName, windowMinutes: Int, entries: [PlanUtilizationHistoryEntry]) {
         self.name = name
         self.windowMinutes = windowMinutes
-        self.entries = entries.sorted { lhs, rhs in
-            if lhs.capturedAt != rhs.capturedAt {
-                return lhs.capturedAt < rhs.capturedAt
-            }
-            if lhs.usedPercent != rhs.usedPercent {
-                return lhs.usedPercent < rhs.usedPercent
-            }
-            let lhsReset = lhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            let rhsReset = rhs.resetsAt?.timeIntervalSince1970 ?? Date.distantPast.timeIntervalSince1970
-            return lhsReset < rhsReset
-        }
+        self.entries = entries.sorted(by: PlanUtilizationHistoryEntry.precedes)
     }
 
     init(from decoder: any Decoder) throws {
@@ -72,6 +85,13 @@ struct PlanUtilizationSeriesHistory: Codable, Equatable, Sendable {
 
     var latestCapturedAt: Date? {
         self.entries.last?.capturedAt
+    }
+
+    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if lhs.windowMinutes != rhs.windowMinutes {
+            return lhs.windowMinutes < rhs.windowMinutes
+        }
+        return lhs.name.rawValue < rhs.name.rawValue
     }
 }
 
@@ -109,8 +129,12 @@ struct PlanUtilizationHistoryBuckets: Equatable, Sendable {
         return self.accounts[accountKey] ?? []
     }
 
+    func selection(for accountKey: String?) -> PlanUtilizationHistorySelection {
+        PlanUtilizationHistorySelection(accountKey: accountKey, histories: self.histories(for: accountKey))
+    }
+
     mutating func setHistories(_ histories: [PlanUtilizationSeriesHistory], for accountKey: String?) {
-        let sorted = Self.sortedHistories(histories)
+        let sorted = histories.sorted(by: PlanUtilizationSeriesHistory.precedes)
         guard let accountKey, !accountKey.isEmpty else {
             self.unscoped = sorted
             return
@@ -165,26 +189,10 @@ struct PlanUtilizationHistoryBuckets: Equatable, Sendable {
         self.unscoped.isEmpty && self.accounts.values.allSatisfy(\.isEmpty)
     }
 
-    private static func sortedHistories(_ histories: [PlanUtilizationSeriesHistory]) -> [PlanUtilizationSeriesHistory] {
-        histories.sorted { lhs, rhs in
-            if lhs.windowMinutes != rhs.windowMinutes {
-                return lhs.windowMinutes < rhs.windowMinutes
-            }
-            return lhs.name.rawValue < rhs.name.rawValue
-        }
-    }
-
     private static func identityKey(for accountKey: String?) -> String {
         guard let accountKey, !accountKey.isEmpty else { return self.unscopedIdentityKey }
         return accountKey
     }
-}
-
-private struct ProviderHistoryFile: Codable, Sendable {
-    let preferredAccountKey: String?
-    let unscoped: [PlanUtilizationSeriesHistory]
-    let accounts: [String: [PlanUtilizationSeriesHistory]]
-    let sessionEquivalentWindowPairIdentities: [String: String]
 }
 
 private struct ProviderHistoryDocument: Codable, Sendable {
@@ -193,18 +201,6 @@ private struct ProviderHistoryDocument: Codable, Sendable {
     let unscoped: [PlanUtilizationSeriesHistory]
     let accounts: [String: [PlanUtilizationSeriesHistory]]
     let sessionEquivalentWindowPairIdentities: [String: String]
-}
-
-extension ProviderHistoryFile {
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.preferredAccountKey = try container.decodeIfPresent(String.self, forKey: .preferredAccountKey)
-        self.unscoped = try container.decode([PlanUtilizationSeriesHistory].self, forKey: .unscoped)
-        self.accounts = try container.decode([String: [PlanUtilizationSeriesHistory]].self, forKey: .accounts)
-        self.sessionEquivalentWindowPairIdentities = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .sessionEquivalentWindowPairIdentities) ?? [:]
-    }
 }
 
 struct PlanUtilizationHistoryStore: Sendable {
@@ -218,10 +214,6 @@ struct PlanUtilizationHistoryStore: Sendable {
 
     static func defaultAppSupport() -> Self {
         Self()
-    }
-
-    func load() -> [ProviderInstanceID: PlanUtilizationHistoryBuckets] {
-        self.loadProviderFiles()
     }
 
     /// Loads the persisted histories on a utility-priority detached task.
@@ -275,7 +267,7 @@ struct PlanUtilizationHistoryStore: Sendable {
         }
     }
 
-    private func loadProviderFiles() -> [ProviderInstanceID: PlanUtilizationHistoryBuckets] {
+    func load() -> [ProviderInstanceID: PlanUtilizationHistoryBuckets] {
         guard let directoryURL = self.directoryURL,
               let fileURLs = try? FileManager.default.contentsOfDirectory(
                   at: directoryURL,
@@ -296,38 +288,17 @@ struct PlanUtilizationHistoryStore: Sendable {
                 continue
             }
 
-            let history = ProviderHistoryFile(
-                preferredAccountKey: decoded.preferredAccountKey,
-                unscoped: decoded.unscoped,
-                accounts: decoded.accounts,
-                sessionEquivalentWindowPairIdentities: decoded.sessionEquivalentWindowPairIdentities)
-            output[instanceID] = Self.decodeProvider(history)
+            output[instanceID] = Self.decodeProvider(decoded)
         }
 
         return output
     }
 
-    private static func decodeProviders(
-        _ providers: [String: ProviderHistoryFile]) -> [ProviderInstanceID: PlanUtilizationHistoryBuckets]
-    {
-        var output: [ProviderInstanceID: PlanUtilizationHistoryBuckets] = [:]
-        for (rawProvider, providerHistory) in providers {
-            guard let instanceID = ProviderInstanceID(rawValue: rawProvider) else { continue }
-            output[instanceID] = Self.decodeProvider(providerHistory)
-        }
-        return output
-    }
-
-    private static func decodeProvider(_ providerHistory: ProviderHistoryFile) -> PlanUtilizationHistoryBuckets {
+    private static func decodeProvider(_ providerHistory: ProviderHistoryDocument) -> PlanUtilizationHistoryBuckets {
         PlanUtilizationHistoryBuckets(
             preferredAccountKey: providerHistory.preferredAccountKey,
             unscoped: self.sortedHistories(providerHistory.unscoped),
-            accounts: Dictionary(
-                uniqueKeysWithValues: providerHistory.accounts.compactMap { accountKey, histories in
-                    let sorted = Self.sortedHistories(histories)
-                    guard !sorted.isEmpty else { return nil }
-                    return (accountKey, sorted)
-                }),
+            accounts: self.sortedAccounts(providerHistory.accounts),
             sessionEquivalentWindowPairIdentities: providerHistory.sessionEquivalentWindowPairIdentities)
     }
 
@@ -343,19 +314,8 @@ struct PlanUtilizationHistoryStore: Sendable {
     }
 
     private static func sortedHistories(_ histories: [PlanUtilizationSeriesHistory]) -> [PlanUtilizationSeriesHistory] {
-        self.sanitizedHistories(histories).sorted { lhs, rhs in
-            if lhs.windowMinutes != rhs.windowMinutes {
-                return lhs.windowMinutes < rhs.windowMinutes
-            }
-            return lhs.name.rawValue < rhs.name.rawValue
-        }
-    }
-
-    private static func sanitizedHistories(_ histories: [PlanUtilizationSeriesHistory])
-    -> [PlanUtilizationSeriesHistory] {
-        histories.filter { history in
-            history.windowMinutes > 0 && !history.entries.isEmpty
-        }
+        histories.filter { $0.hasSupportedCadence && !$0.entries.isEmpty }
+            .sorted(by: PlanUtilizationSeriesHistory.precedes)
     }
 
     private static func defaultDirectoryURL() -> URL? {

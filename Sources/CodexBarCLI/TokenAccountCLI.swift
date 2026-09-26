@@ -10,6 +10,19 @@ struct TokenAccountCLISelection {
     var usesOverride: Bool {
         self.label != nil || self.index != nil || self.allAccounts
     }
+
+    func providerSelectionError(_ providers: [UsageProvider]) -> String? {
+        guard self.usesOverride else { return nil }
+        guard providers.count == 1 else { return "account selection requires a single provider." }
+        let provider = providers[0]
+        // Provider-specific by design: Codex exposes reconciled live/managed accounts beyond token accounts.
+        let includesReconciledAccounts = provider == .codex && self.allAccounts && self.label == nil && self
+            .index == nil
+        guard includesReconciledAccounts || TokenAccountSupportCatalog.support(for: provider) != nil else {
+            return "\(provider.rawValue) does not support token accounts."
+        }
+        return nil
+    }
 }
 
 enum TokenAccountCLIResolutionScope {
@@ -21,6 +34,7 @@ enum TokenAccountCLIError: LocalizedError {
     case noAccounts(UsageProvider)
     case accountNotFound(UsageProvider, String)
     case indexOutOfRange(UsageProvider, Int, Int)
+    case antigravityCLIAccountSelectionUnsupported
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +44,9 @@ enum TokenAccountCLIError: LocalizedError {
             "No token account labeled '\(label)' for \(provider.rawValue)."
         case let .indexOutOfRange(provider, index, count):
             "Token account index \(index) out of range for \(provider.rawValue) (1-\(count))."
+        case .antigravityCLIAccountSelectionUnsupported:
+            "Antigravity CLI uses its local login and cannot select saved Google accounts. " +
+                "Use --source auto or --source oauth with account selection."
         }
     }
 }
@@ -66,8 +83,20 @@ struct TokenAccountCLIContext {
         }
     }
 
-    func resolvedAccounts(for provider: UsageProvider) throws -> [ProviderTokenAccount] {
-        guard TokenAccountSupportCatalog.support(for: provider) != nil else { return [] }
+    func resolvedAccounts(
+        for provider: UsageProvider, sourceMode: ProviderSourceMode? = nil) throws -> [ProviderTokenAccount]
+    {
+        guard let support = TokenAccountSupportCatalog.support(for: provider) else { return [] }
+        let effectiveSourceMode = sourceMode ?? self.preferredSourceMode(for: provider)
+        // Provider-specific by design: agy owns its login; saved Google accounts cannot select its local identity.
+        if provider == .antigravity, effectiveSourceMode == .cli, self.selection.usesOverride {
+            throw TokenAccountCLIError.antigravityCLIAccountSelectionUnsupported
+        }
+        if !self.selection.usesOverride,
+           support.passiveSourceModes.contains(effectiveSourceMode)
+        {
+            return []
+        }
         guard let data = self.accountsByProvider[provider], !data.accounts.isEmpty else {
             if self.selection.usesOverride {
                 throw TokenAccountCLIError.noAccounts(provider)
@@ -200,7 +229,8 @@ struct TokenAccountCLIContext {
             externalIdentifier: existing.externalIdentifier,
             usageScope: existing.usageScope,
             organizationID: existing.organizationID,
-            workspaceID: existing.workspaceID)
+            workspaceID: existing.workspaceID,
+            seatCreditEntitlement: existing.seatCreditEntitlement)
         providerConfig.tokenAccounts = ProviderTokenAccountData(
             version: data.version,
             accounts: accounts,

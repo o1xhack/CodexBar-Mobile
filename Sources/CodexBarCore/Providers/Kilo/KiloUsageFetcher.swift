@@ -46,11 +46,12 @@ public struct KiloUsageSnapshot: Sendable {
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
-        let total = self.resolvedTotal
-        let used = self.resolvedUsed
+        let credits = CreditUsage(used: self.creditsUsed, total: self.creditsTotal, remaining: self.creditsRemaining)
+        let total = credits.total
+        let used = credits.used
 
         let primary: RateWindow?
-        if let total {
+        if let total, total.isFinite, used.isFinite {
             let usedPercent: Double = if total > 0 {
                 min(100, max(0, (used / total) * 100))
             } else {
@@ -86,52 +87,13 @@ public struct KiloUsageSnapshot: Sendable {
                 loginMethod: loginMethod))
     }
 
-    private var resolvedTotal: Double? {
-        if let creditsTotal { return max(0, creditsTotal) }
-        if let creditsUsed, let creditsRemaining {
-            return max(0, creditsUsed + creditsRemaining)
-        }
-        return nil
-    }
-
-    private var resolvedUsed: Double {
-        if let creditsUsed {
-            return max(0, creditsUsed)
-        }
-        if let total = self.resolvedTotal,
-           let creditsRemaining
-        {
-            return max(0, total - creditsRemaining)
-        }
-        return 0
-    }
-
-    private var resolvedPassTotal: Double? {
-        if let passTotal { return max(0, passTotal) }
-        if let passUsed, let passRemaining {
-            return max(0, passUsed + passRemaining)
-        }
-        return nil
-    }
-
-    private var resolvedPassUsed: Double {
-        if let passUsed {
-            return max(0, passUsed)
-        }
-        if let total = self.resolvedPassTotal,
-           let passRemaining
-        {
-            return max(0, total - passRemaining)
-        }
-        return 0
-    }
-
     private var passWindow: RateWindow? {
-        guard let total = self.resolvedPassTotal else {
+        let credits = CreditUsage(used: self.passUsed, total: self.passTotal, remaining: self.passRemaining)
+        guard let total = credits.total else {
             return nil
         }
 
-        let used = self.resolvedPassUsed
+        let used = credits.used
         let bonus = max(0, self.passBonus ?? 0)
         let baseCredits = max(0, total - bonus)
         let usedPercent: Double = if total > 0 {
@@ -154,7 +116,7 @@ public struct KiloUsageSnapshot: Sendable {
 
     private static func compactNumber(_ value: Double) -> String {
         if value.rounded(.towardZero) == value {
-            return String(Int(value))
+            return String(format: "%.0f", value)
         }
         return String(format: "%.2f", value)
     }
@@ -1158,15 +1120,7 @@ public struct KiloUsageFetcher: Sendable {
                 return self.dateFromEpoch(numeric)
             }
 
-            let withFractional = ISO8601DateFormatter()
-            withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let parsed = withFractional.date(from: trimmed) {
-                return parsed
-            }
-
-            let plain = ISO8601DateFormatter()
-            plain.formatOptions = [.withInternetDateTime]
-            return plain.date(from: trimmed)
+            return ISO8601DateParser.parse(trimmed)
         default:
             return nil
         }

@@ -23,6 +23,11 @@ struct ProviderEndpointOverrideValidator {
     enum HostPolicy {
         case allowAnyHTTPSHost
         case providerOwnedOnly
+
+        init(requireProviderOwned value: String?) {
+            let value = SettingsValue.cleaned(value)?.lowercased() ?? ""
+            self = ["1", "true", "yes", "on"].contains(value) ? .providerOwnedOnly : .allowAnyHTTPSHost
+        }
     }
 
     private let allowedHosts: Set<String>
@@ -31,6 +36,20 @@ struct ProviderEndpointOverrideValidator {
     init(allowedHosts: [String] = [], allowedDomainSuffixes: [String] = []) {
         self.allowedHosts = Set(allowedHosts.map { $0.lowercased() })
         self.allowedDomainSuffixes = Set(allowedDomainSuffixes.map { $0.lowercased() })
+    }
+
+    func rejectedOverrideKey(
+        environment: [String: String],
+        keys: [String],
+        hostKey: String,
+        policy: HostPolicy) -> String?
+    {
+        keys.first { key in
+            guard let value = SettingsValue.cleaned(environment[key]) else { return false }
+            return key == hostKey
+                ? self.validatedHost(value, policy: policy) == nil
+                : self.validatedURL(value, policy: policy) == nil
+        }
     }
 
     func validatedHost(_ raw: String?, policy: HostPolicy = .allowAnyHTTPSHost) -> String? {

@@ -13,7 +13,7 @@ The Alibaba Token Plan provider tracks Team credits and Personal/Solo rolling-wi
 ## Features
 
 - **Token-plan usage display**: Shows used, total, and remaining token-plan credits when Bailian returns quota totals.
-- **Personal/Solo windows**: Shows 5-hour and 7-day usage, reset times, and tier-specific quota totals.
+- **Personal/Solo windows**: Shows reported 5-hour, 7-day, and monthly usage, reset times, and tier-specific quota totals. A monthly-only plan uses the primary usage bar; alongside rolling windows, monthly usage appears as a separate Monthly row.
 - **Bailian CLI auth**: Reuses an already signed-in `bl` executable without importing browser cookies.
 - **Cookie-based auth**: Uses browser cookies or a pasted `Cookie:` header.
 - **Expiry awareness**: Shows the nearest token-plan expiration date as the reset time when the subscription summary includes it.
@@ -35,8 +35,10 @@ The Alibaba Token Plan provider tracks Team credits and Personal/Solo rolling-wi
 
 ## How it works
 
-- Automatic mode runs `bl usage token-plan --console-region <region> --console-site <site> --output json` first.
+- Automatic mode tries the signed-in Bailian CLI first.
   A missing CLI, expired CLI login, or unsupported response falls back to the existing browser-cookie path.
+- Team selections run `bl usage token-plan --console-region <region> --console-site <site> --output json`.
+- Personal/Solo uses `bl console call --api zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage --data '{}'` with the same region, site, and JSON flags. This reads monthly windows that older `bl usage token-plan` versions omit.
 - Explicit **Bailian CLI** and **Browser cookies** modes stay strict and do not switch sources.
 - The Bailian subprocess receives only PATH, home/config discovery, locale, timezone, and proxy variables; ambient
   API keys, browser cookies, cloud credentials, and SSH agent state are not inherited.
@@ -47,6 +49,7 @@ The Alibaba Token Plan provider tracks Team credits and Personal/Solo rolling-wi
 - Browser cookies are rebuilt independently for the dashboard and quota hosts. Personal/Solo requests use the
   quota-host cookie header. The dashboard `sec_token` is resolved best-effort and appended when available
   (some accounts get `BailianGateway.Workspace.NotAuthorised` without it); requests still proceed without it.
+- Gateway forms preserve reserved characters in security tokens and JSON parameters. Missing or empty optional security tokens remain omitted.
 - Config region values are `intl` and `cn` for Team, or `intl-personal` and `cn-personal` for Personal/Solo.
 - Supports `ALIBABA_TOKEN_PLAN_HOST` and `ALIBABA_TOKEN_PLAN_QUOTA_URL` for testing endpoint overrides
 

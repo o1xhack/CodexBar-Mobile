@@ -39,6 +39,13 @@ Common building blocks already exist:
 - OpenAI dashboard web scrape: `OpenAIDashboardFetcher` (WKWebView + JS)
 - cost usage: local log scanner (Codex + Claude)
 
+Browser discovery policy belongs to the provider. Use `ChromiumLocalStorageDiscovery.defaultBrowsers` for
+catalog-derived Chromium storage discovery; the shared traversal handles localStorage, sessionStorage, and
+origin-filtered IndexedDB. For intentionally Chrome-only cookie imports, use
+`BrowserCookieImportSupport.chromeOnly(reason:)` with the provider's reason for avoiding unrelated browser prompts.
+Copilot budgets, Grok, Helmcode, Notion, Qoder, Replicate, TypeSafe, Venice, and ZoomMate retain this restricted
+default. A shared catalog is not permission to widen a provider's documented browser or credential scope.
+
 Provider behavior is descriptor-driven. Two flat first-party manifests form the closed bootstrap boundary:
 `ProviderManifest` lists core descriptors and `ProviderImplementationManifest` lists app implementations. The registries
 retain thread-safe `register(_:)` methods for future dynamic providers.

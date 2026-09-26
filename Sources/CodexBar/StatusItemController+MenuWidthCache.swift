@@ -9,8 +9,10 @@ extension StatusItemController {
         selectedProvider: UsageProvider?,
         descriptor: MenuDescriptor) -> CGFloat
     {
-        let sectionSets: [(provider: UsageProvider?, sections: [MenuDescriptor.Section])] = if self.shouldMergeIcons,
-                                                                                               providers.count > 1
+        let usesMergedSwitcherWidth = self.shouldMergeIcons &&
+            self.switcherProviderIDs(enabledFirstPartyProviders: providers).count > 1
+        let sectionSets: [(provider: UsageProvider?, sections: [MenuDescriptor.Section])] = if usesMergedSwitcherWidth,
+                                                                                               !providers.isEmpty
         {
             providers.map { provider in
                 if provider == selectedProvider {
@@ -49,10 +51,12 @@ extension StatusItemController {
             managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
             codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator,
             updateReady: self.updater.updateStatus.isUpdateReady,
+            canCheckForUpdates: self.updater.isAvailable,
             includeContextualActions: includeContextualActions,
             codexWorkspacesMenuEnabled: codexWorkspacesMenuEnabled,
             agentSessionsEnabled: self.settings.agentSessionsEnabled,
             agentSessionLabelStyle: self.settings.agentSessionLabelStyle,
+            agentSessionsHideUnreachableHosts: self.settings.agentSessionsHideUnreachableHosts,
             localAgentSessions: self.agentSessions.localSessions,
             remoteAgentHosts: self.agentSessions.remoteHosts)
     }
@@ -130,6 +134,8 @@ extension StatusItemController {
         switch action {
         case .installUpdate:
             "installUpdate"
+        case .checkForUpdates:
+            "checkForUpdates"
         case .refresh:
             "refresh"
         case .refreshAugmentSession:

@@ -5,7 +5,7 @@ import Testing
 struct CodexPriorityDatabaseIsolationTests {
     @Test
     func `runtime isolation never defaults to the ambient Codex trace database`() {
-        let directory = CostUsageScanner.defaultCodexPriorityDatabaseURL().deletingLastPathComponent()
+        let directory = CostUsageScanner.resolvedCodexPriorityDatabaseURL(nil).deletingLastPathComponent()
         #expect(directory.lastPathComponent.hasPrefix("codexbar-cost-trace-tests-"))
     }
 
@@ -40,9 +40,9 @@ struct CodexPriorityDatabaseIsolationTests {
 
     @Test
     func `isolated default is stable and explicit trace fixtures remain authoritative`() {
-        let first = CostUsageScanner.defaultCodexPriorityDatabaseURL()
+        let first = CodexPriorityDatabasePath.defaultURL()
         #expect(CostUsageScanner.resolvedCodexPriorityDatabaseURL(nil) == first)
-        #expect(CostUsageScanner.defaultCodexPriorityDatabaseURL() == first)
+        #expect(CodexPriorityDatabasePath.defaultURL() == first)
         let fixture = URL(fileURLWithPath: "/synthetic/priority-trace.sqlite")
         #expect(CostUsageScanner.resolvedCodexPriorityDatabaseURL(fixture) == fixture)
     }

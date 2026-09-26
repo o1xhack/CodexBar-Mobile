@@ -17,10 +17,7 @@ public struct MiniMaxAPISettingsReader: Sendable {
     public static func apiToken(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
-        for key in self.apiTokenEnvironmentKeys {
-            if let token = self.cleaned(environment[key]) { return token }
-        }
-        return nil
+        SettingsValue.first(in: environment, keys: self.apiTokenEnvironmentKeys)
     }
 
     public static func apiKeyKind(
@@ -30,25 +27,10 @@ public struct MiniMaxAPISettingsReader: Sendable {
     }
 
     public static func apiKeyKind(token: String?) -> APIKeyKind? {
-        guard let cleaned = self.cleaned(token) else { return nil }
+        guard let cleaned = SettingsValue.cleaned(token) else { return nil }
         if cleaned.hasPrefix("sk-cp-") { return .codingPlan }
         if cleaned.hasPrefix("sk-api-") { return .standard }
         return .unknown
-    }
-
-    static func cleaned(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-            return nil
-        }
-
-        if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-            (value.hasPrefix("'") && value.hasSuffix("'"))
-        {
-            value = String(value.dropFirst().dropLast())
-        }
-
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : value
     }
 }
 

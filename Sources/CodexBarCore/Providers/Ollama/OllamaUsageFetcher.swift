@@ -111,6 +111,7 @@ public enum OllamaUsageError: LocalizedError, Sendable {
     case parseFailed(String)
     case networkError(String)
     case noSessionCookie
+    case manualCookieHeaderEmpty
     case safariCookieAccessDenied
     case browserCookieDecryptionDenied(String)
     case browserCookieDecryptionDisabled(String)
@@ -131,6 +132,9 @@ public enum OllamaUsageError: LocalizedError, Sendable {
             "Ollama request failed: \(message)"
         case .noSessionCookie:
             "No Ollama session cookie found. Please sign in at \(Self.signInURL) in your browser."
+        case .manualCookieHeaderEmpty:
+            "Ollama cookie source is Manual, but no cookie header is configured. " +
+                "Paste a Cookie header from https://ollama.com/settings, or set Cookie source to Auto."
         case .safariCookieAccessDenied:
             "Safari cookies need Full Disk Access for CodexBar (System Settings > Privacy & Security)."
         case let .browserCookieDecryptionDenied(browserName):
@@ -281,16 +285,6 @@ public enum OllamaCookieImporter {
         return recognized
     }
 
-    static func selectSessionInfo(
-        from candidates: [SessionInfo],
-        logger: ((String) -> Void)? = nil) throws -> SessionInfo
-    {
-        guard let first = try self.selectSessionInfos(from: candidates, logger: logger).first else {
-            throw OllamaUsageError.noSessionCookie
-        }
-        return first
-    }
-
     static func selectSessionInfosWithFallback(
         preferredCandidates: [SessionInfo],
         allowFallbackBrowsers: Bool,
@@ -306,23 +300,6 @@ public enum OllamaCookieImporter {
             let fallbackCandidates = loadFallbackCandidates()
             return try self.selectSessionInfos(from: fallbackCandidates, logger: logger)
         }
-    }
-
-    static func selectSessionInfoWithFallback(
-        preferredCandidates: [SessionInfo],
-        allowFallbackBrowsers: Bool,
-        loadFallbackCandidates: () -> [SessionInfo],
-        logger: ((String) -> Void)? = nil) throws -> SessionInfo
-    {
-        guard let first = try self.selectSessionInfosWithFallback(
-            preferredCandidates: preferredCandidates,
-            allowFallbackBrowsers: allowFallbackBrowsers,
-            loadFallbackCandidates: loadFallbackCandidates,
-            logger: logger).first
-        else {
-            throw OllamaUsageError.noSessionCookie
-        }
-        return first
     }
 
     static func accessError(from error: Error) -> OllamaUsageError? {
@@ -454,25 +431,10 @@ public struct OllamaUsageFetcher: Sendable {
     }
 
     public let browserDetection: BrowserDetection
-    private let makeURLSession: @Sendable (URLSessionTaskDelegate?) -> URLSession
-    private let finishURLSession: @Sendable (URLSession) -> Void
+    var sessionFactory = ProviderHTTPSessionFactory()
 
     public init(browserDetection: BrowserDetection) {
         self.browserDetection = browserDetection
-        self.makeURLSession = { delegate in
-            URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
-        }
-        self.finishURLSession = { $0.finishTasksAndInvalidate() }
-    }
-
-    init(
-        browserDetection: BrowserDetection,
-        makeURLSession: @escaping @Sendable (URLSessionTaskDelegate?) -> URLSession,
-        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
-    {
-        self.browserDetection = browserDetection
-        self.makeURLSession = makeURLSession
-        self.finishURLSession = finishURLSession
     }
 
     public func fetch(
@@ -632,10 +594,15 @@ public struct OllamaUsageFetcher: Sendable {
         lines.append("")
 
         do {
-            let cookieHeader = try await self.resolveCookieHeader(
+            guard let candidate = try await self.resolveCookieCandidates(
                 override: cookieHeaderOverride,
                 manualCookieMode: manualCookieMode,
-                logger: { msg in lines.append("[cookie] \(msg)") })
+                logger: { msg in lines.append("[cookie] \(msg)") }).first
+            else {
+                throw OllamaUsageError.noSessionCookie
+            }
+            let cookieHeader = candidate.cookieHeader
+            lines.append("[cookie] [ollama] Using cookies from \(candidate.sourceLabel)")
             let diagnostics = RedirectDiagnostics(cookieHeader: cookieHeader, logger: nil)
             let cookieNames = CookieHeaderNormalizer.pairs(from: cookieHeader).map(\.name)
             lines.append("Cookie names: \(cookieNames.joined(separator: ", "))")
@@ -684,31 +651,6 @@ public struct OllamaUsageFetcher: Sendable {
         }
     }
 
-    private func resolveCookieHeader(
-        override: String?,
-        manualCookieMode: Bool,
-        logger: ((String) -> Void)?) async throws -> String
-    {
-        if let manualHeader = try Self.resolveManualCookieHeader(
-            override: override,
-            manualCookieMode: manualCookieMode,
-            logger: logger)
-        {
-            return manualHeader
-        }
-        #if os(macOS)
-        let session = try OllamaCookieImporter.importSession(
-            browserDetection: self.browserDetection,
-            preferredBrowsers: OllamaCookieImporter.defaultPreferredBrowsers,
-            allowFallbackBrowsers: OllamaCookieImporter.defaultAllowFallbackBrowsers,
-            logger: logger)
-        logger?("[ollama] Using cookies from \(session.sourceLabel)")
-        return session.cookieHeader
-        #else
-        throw OllamaUsageError.noSessionCookie
-        #endif
-    }
-
     static func resolveManualCookieHeader(
         override: String?,
         manualCookieMode: Bool,
@@ -734,7 +676,7 @@ public struct OllamaUsageFetcher: Sendable {
             return normalized
         }
         if manualCookieMode {
-            throw OllamaUsageError.noSessionCookie
+            throw OllamaUsageError.manualCookieHeaderEmpty
         }
         return nil
     }
@@ -769,9 +711,7 @@ public struct OllamaUsageFetcher: Sendable {
         request.setValue("https://ollama.com", forHTTPHeaderField: "origin")
         request.setValue(Self.settingsURL.absoluteString, forHTTPHeaderField: "referer")
 
-        let session = self.makeURLSession(diagnostics)
-        defer { self.finishURLSession(session) }
-        let httpResponse = try await session.response(for: request)
+        let httpResponse = try await self.sessionFactory.response(for: request, delegate: diagnostics)
         let responseInfo = ResponseInfo(
             statusCode: httpResponse.statusCode,
             url: httpResponse.response.url?.absoluteString ?? "unknown")
@@ -913,24 +853,10 @@ public struct OllamaAPISettingsReader: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
         for key in self.apiKeyEnvironmentKeys {
-            guard let value = self.cleaned(environment[key]), !value.isEmpty else { continue }
+            guard let value = SettingsValue.cleaned(environment[key]) else { continue }
             return value
         }
         return nil
-    }
-
-    private static func cleaned(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty
-        else {
-            return nil
-        }
-        if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-            (value.hasPrefix("'") && value.hasSuffix("'"))
-        {
-            value = String(value.dropFirst().dropLast())
-        }
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -992,7 +918,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {
@@ -1026,7 +954,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {

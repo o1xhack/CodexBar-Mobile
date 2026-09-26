@@ -184,6 +184,51 @@ struct CodexWeeklyResetDiagnosticsTests {
         }
     }
 
+    @Test(arguments: [180.0, 300.0, 900.0])
+    func `unused weekly boundaries advancing with observation time confirm on later refreshes`(
+        offset: TimeInterval) throws
+    {
+        var fixture = Fixture()
+        fixture.initial.boundary = fixture.initial.updatedAt.addingTimeInterval(604_799)
+        fixture.confirmation.boundary = fixture.confirmation.updatedAt.addingTimeInterval(604_798)
+        let candidate = try #require(fixture.creation().candidate)
+        let current = Sample(
+            offset: offset, usedPercent: 0, boundary: Self.epoch.addingTimeInterval(offset + 604_799))
+        let evaluation = CodexWeeklyResetConfirmation.evaluateDelayedCandidate(
+            previous: fixture.previous.snapshot,
+            candidate: candidate,
+            current: current.snapshot,
+            currentIsExactOAuth: true,
+            observedAt: current.updatedAt)
+        #expect(evaluation == .init(decision: .publishCurrent, reason: .confirmedObservation))
+        var ordinary = current
+        ordinary.usedPercent = 2
+        #expect(CodexWeeklyResetConfirmation.initialDecision(
+            previous: fixture.previous.snapshot, initial: ordinary.snapshot) == .publishInitial)
+
+        let cases: [(Reason, (inout Sample) -> Void)] = [
+            (.inconsistentResetBoundary, { $0.usedPercent = 0.5 }),
+            (.inconsistentResetBoundary, { $0.boundary = $0.updatedAt.addingTimeInterval(604_921) }),
+            (.inconsistentResetBoundary, { $0.boundary = $0.updatedAt.addingTimeInterval(600_000) }),
+            (.accountMismatch, { $0.email = "different@example.com" }),
+            (.planMismatch, { $0.plan = "different-plan" }),
+            (.changedCreditInventory, { $0.creditID = "different-credit" }),
+            (.missingCreditInventory, { $0.hasCredits = false }),
+            (.confidenceNotExact, { $0.confidence = .estimated }),
+        ]
+        for (reason, mutate) in cases {
+            var incompatible = current
+            mutate(&incompatible)
+            let rejected = CodexWeeklyResetConfirmation.evaluateDelayedCandidate(
+                previous: fixture.previous.snapshot,
+                candidate: candidate,
+                current: incompatible.snapshot,
+                currentIsExactOAuth: true,
+                observedAt: incompatible.updatedAt)
+            #expect(rejected == .init(decision: .discardCandidate, reason: reason))
+        }
+    }
+
     @Test
     func `publication diagnostic metadata adds only the fixed reason code`() {
         let fixture = Fixture()

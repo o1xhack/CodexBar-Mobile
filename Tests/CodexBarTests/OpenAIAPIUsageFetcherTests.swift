@@ -4,7 +4,7 @@ import Testing
 
 struct OpenAIAPIUsageFetcherTests {
     @Test
-    func `parses admin costs and completions usage into daily summaries`() throws {
+    func `parses admin costs and completions usage into daily summaries`() async throws {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
         let costs = """
         {
@@ -90,7 +90,7 @@ struct OpenAIAPIUsageFetcherTests {
         }
         """
 
-        let snapshot = try OpenAIAPIUsageFetcher._parseSnapshotForTesting(
+        let snapshot = try await Self.pluginSnapshot(
             costs: Data(costs.utf8),
             completions: Data(completions.utf8),
             now: now,
@@ -112,7 +112,7 @@ struct OpenAIAPIUsageFetcherTests {
     }
 
     @Test(arguments: ["NaN", "Infinity", "-Infinity", "1e309", "-1e309"])
-    func `rejects nonfinite cost strings`(value: String) {
+    func `rejects nonfinite cost strings`(value: String) async {
         let costs = """
         {
           "data": [{
@@ -127,19 +127,15 @@ struct OpenAIAPIUsageFetcherTests {
         let completions = #"{"data":[],"has_more":false,"next_page":null}"#
 
         do {
-            _ = try OpenAIAPIUsageFetcher._parseSnapshotForTesting(
+            _ = try await Self.pluginSnapshot(
                 costs: Data(costs.utf8),
                 completions: Data(completions.utf8),
                 now: Date(timeIntervalSince1970: 1_700_179_200))
             Issue.record("Expected a costs parse failure.")
-        } catch let error as OpenAIAPIUsageError {
-            guard case let .parseFailed(endpoint, _) = error else {
-                Issue.record("Expected a costs parse failure, got \(error).")
-                return
-            }
-            #expect(endpoint == "costs")
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .parseFailure)
         } catch {
-            Issue.record("Expected OpenAIAPIUsageError, got \(error).")
+            Issue.record("Expected ProviderFetchClassifiedError, got \(error).")
         }
     }
 
@@ -156,10 +152,8 @@ struct OpenAIAPIUsageFetcherTests {
             return (emptyPage, response)
         }
 
-        let snapshot = try await OpenAIAPIUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetchUsage(
             apiKey: "sk-test",
-            costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-            completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
             session: transport,
             now: now,
             historyDays: 90)
@@ -192,11 +186,10 @@ struct OpenAIAPIUsageFetcherTests {
             return (emptyPage, response)
         }
 
-        let snapshot = try await OpenAIAPIUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetchUsage(
             apiKey: "sk-test",
             projectID: " proj_abc ",
-            costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-            completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
+
             session: transport,
             now: now,
             historyDays: 1)
@@ -227,11 +220,10 @@ struct OpenAIAPIUsageFetcherTests {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
         let transport = OpenAIAdminUsagePaginationScript()
 
-        let snapshot = try await OpenAIAPIUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetchUsage(
             apiKey: "sk-test",
             projectID: "proj_abc",
-            costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-            completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
+
             session: transport,
             now: now,
             historyDays: 1)
@@ -257,14 +249,9 @@ struct OpenAIAPIUsageFetcherTests {
     func `admin usage rejects repeated pagination cursor`() async throws {
         let transport = OpenAIAdminUsageRepeatingCursorScript()
 
-        await #expect(throws: OpenAIAPIUsageError.parseFailed(
-            endpoint: "costs",
-            message: "Pagination cursor repeated."))
-        {
-            try await OpenAIAPIUsageFetcher.fetchUsage(
+        await #expect(throws: ProviderFetchClassifiedError.self) {
+            try await Self.fetchUsage(
                 apiKey: "sk-test",
-                costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-                completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
                 session: transport,
                 now: Date(timeIntervalSince1970: 1_700_179_200),
                 historyDays: 1)
@@ -275,14 +262,9 @@ struct OpenAIAPIUsageFetcherTests {
     func `admin usage rejects missing pagination cursor`() async throws {
         let transport = OpenAIAdminUsageMissingCursorScript()
 
-        await #expect(throws: OpenAIAPIUsageError.parseFailed(
-            endpoint: "costs",
-            message: "Pagination cursor missing."))
-        {
-            try await OpenAIAPIUsageFetcher.fetchUsage(
+        await #expect(throws: ProviderFetchClassifiedError.self) {
+            try await Self.fetchUsage(
                 apiKey: "sk-test",
-                costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-                completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
                 session: transport,
                 now: Date(timeIntervalSince1970: 1_700_179_200),
                 historyDays: 1)
@@ -296,23 +278,16 @@ struct OpenAIAPIUsageFetcherTests {
             completions: #"{"object":"page","data":[],"has_more":false,"next_page":null}"#)
 
         do {
-            _ = try await OpenAIAPIUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 apiKey: "sk-test",
-                costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-                completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
                 session: transport,
                 now: Date(timeIntervalSince1970: 1_700_179_200),
                 historyDays: 1)
             Issue.record("Expected costs parse failure.")
-        } catch let error as OpenAIAPIUsageError {
-            guard case let .parseFailed(endpoint, message) = error else {
-                Issue.record("Expected parse failure, got \(error).")
-                return
-            }
-            #expect(endpoint == "costs")
-            #expect(message.contains("data"))
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .parseFailure)
         } catch {
-            Issue.record("Expected OpenAIAPIUsageError, got \(error).")
+            Issue.record("Expected ProviderFetchClassifiedError, got \(error).")
         }
     }
 
@@ -323,23 +298,16 @@ struct OpenAIAPIUsageFetcherTests {
             completions: #"{"object":"page","data":[],"next_page":null}"#)
 
         do {
-            _ = try await OpenAIAPIUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 apiKey: "sk-test",
-                costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-                completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
                 session: transport,
                 now: Date(timeIntervalSince1970: 1_700_179_200),
                 historyDays: 1)
             Issue.record("Expected completions parse failure.")
-        } catch let error as OpenAIAPIUsageError {
-            guard case let .parseFailed(endpoint, message) = error else {
-                Issue.record("Expected parse failure, got \(error).")
-                return
-            }
-            #expect(endpoint == "completions")
-            #expect(message.contains("missing"))
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .parseFailure)
         } catch {
-            Issue.record("Expected OpenAIAPIUsageError, got \(error).")
+            Issue.record("Expected ProviderFetchClassifiedError, got \(error).")
         }
     }
 
@@ -372,14 +340,11 @@ struct OpenAIAPIUsageFetcherTests {
         """.utf8)
         let transport = OpenAIAdminUsageRetryScript(costs: emptyPage, completions: completions)
 
-        let snapshot = try await OpenAIAPIUsageFetcher.fetchUsage(
+        let snapshot = try await Self.fetchUsage(
             apiKey: "sk-test",
-            costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
-            completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
             session: transport,
             now: now,
-            historyDays: 1,
-            retryPolicy: ProviderHTTPRetryPolicy(maxRetries: 1, baseDelaySeconds: 0, maxDelaySeconds: 0))
+            historyDays: 1)
 
         #expect(snapshot.latestDay.totalTokens == 15)
         #expect(snapshot.latestDay.requests == 1)
@@ -489,6 +454,29 @@ struct OpenAIAPIUsageFetcherTests {
         #expect(snapshot.daily[1].requestCount == 42)
         #expect(snapshot.daily[1].modelBreakdowns?.first?.requestCount == 42)
         #expect(snapshot.daily[1].modelBreakdowns?.first?.modelName == "gpt-5.2-codex")
+    }
+
+    private static func pluginSnapshot(costs: Data, completions: Data, now: Date, historyDays: Int = 30)
+        async throws -> OpenAIAPIUsageSnapshot
+    {
+        try await self.fetchUsage(
+            apiKey: "fixture-key",
+            session: OpenAIAdminUsageOnceFixture(
+                costs: costs,
+                completions: completions),
+            now: now,
+            historyDays: historyDays)
+    }
+
+    private static func fetchUsage(
+        apiKey: String, projectID: String? = nil, session: any ProviderHTTPTransport, now: Date, historyDays: Int)
+        async throws -> OpenAIAPIUsageSnapshot
+    {
+        var settings = ["OPENAI_HISTORY_DAYS": String(historyDays), "OPENAI_ALLOW_BALANCE_FALLBACK": "0"]
+        settings["OPENAI_PROJECT_ID"] = projectID
+        let result = try await ProviderPluginRuntime(bundledPlugin: "openai", transport: session)
+            .fetchUsage(settings: settings, secrets: ["OPENAI_API_KEY": apiKey], now: now)
+        return try #require(result.openAIAPIUsage)
     }
 
     private static func queryValue(_ name: String, in request: URLRequest) -> String? {
@@ -723,5 +711,24 @@ private actor OpenAIAdminUsageRetryScript: ProviderHTTPTransport {
             statusCode: 200,
             httpVersion: "HTTP/1.1",
             headerFields: nil)!)
+    }
+}
+
+private actor OpenAIAdminUsageOnceFixture: ProviderHTTPTransport {
+    let costs: Data
+    let completions: Data
+    var seen: Set<String> = []
+
+    init(costs: Data, completions: Data) {
+        self.costs = costs
+        self.completions = completions
+    }
+
+    func data(for request: URLRequest) throws -> (Data, URLResponse) {
+        let url = try #require(request.url)
+        let data = self.seen.insert(url.path).inserted
+            ? (url.path.contains("/costs") ? self.costs : self.completions)
+            : Data(#"{"data":[],"has_more":false}"#.utf8)
+        return (data, HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!)
     }
 }

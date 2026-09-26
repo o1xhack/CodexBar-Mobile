@@ -105,25 +105,10 @@ public struct AmpUsageFetcher: Sendable {
     @MainActor private static var recentDumps: [String] = []
 
     public let browserDetection: BrowserDetection
-    private let makeURLSession: @Sendable (URLSessionTaskDelegate?) -> URLSession
-    private let finishURLSession: @Sendable (URLSession) -> Void
+    var sessionFactory = ProviderHTTPSessionFactory()
 
     public init(browserDetection: BrowserDetection) {
         self.browserDetection = browserDetection
-        self.makeURLSession = { delegate in
-            URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
-        }
-        self.finishURLSession = { $0.finishTasksAndInvalidate() }
-    }
-
-    init(
-        browserDetection: BrowserDetection,
-        makeURLSession: @escaping @Sendable (URLSessionTaskDelegate?) -> URLSession,
-        finishURLSession: @escaping @Sendable (URLSession) -> Void = { $0.finishTasksAndInvalidate() })
-    {
-        self.browserDetection = browserDetection
-        self.makeURLSession = makeURLSession
-        self.finishURLSession = finishURLSession
     }
 
     public func fetch(
@@ -165,14 +150,12 @@ public struct AmpUsageFetcher: Sendable {
         logger: ((String) -> Void)? = nil,
         now: Date = Date()) async throws -> AmpUsageSnapshot
     {
-        guard let token = AmpSettingsReader.cleaned(apiToken) else {
+        guard let token = SettingsValue.cleaned(apiToken) else {
             throw AmpUsageError.missingAPIToken
         }
         let request = try Self.makeUsageAPIRequest(apiToken: token)
         let diagnostics = APIRedirectDiagnostics(logger: logger)
-        let session = self.makeURLSession(diagnostics)
-        defer { self.finishURLSession(session) }
-        let httpResponse = try await session.response(for: request)
+        let httpResponse = try await self.sessionFactory.response(for: request, delegate: diagnostics)
         logger?("[amp] API response: \(httpResponse.statusCode) " +
             "\(httpResponse.response.url?.absoluteString ?? "unknown")")
         try Self.validateAPIResponse(httpResponse)
@@ -285,9 +268,7 @@ public struct AmpUsageFetcher: Sendable {
             forHTTPHeaderField: "accept")
         Self.applyBrowserHeaders(to: &request)
 
-        let session = self.makeURLSession(diagnostics)
-        defer { self.finishURLSession(session) }
-        let httpResponse = try await session.response(for: request)
+        let httpResponse = try await self.sessionFactory.response(for: request, delegate: diagnostics)
         let responseInfo = ResponseInfo(
             statusCode: httpResponse.statusCode,
             url: httpResponse.response.url?.absoluteString ?? "unknown")

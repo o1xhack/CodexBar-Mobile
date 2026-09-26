@@ -1,7 +1,5 @@
-import AppKit
 import CodexBarCore
 import Foundation
-import SwiftUI
 
 struct OpenCodeGoProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .opencodego
@@ -25,16 +23,15 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
-    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
-        guard support.requiresManualCookieSource else { return true }
-        if !context.settings.tokenAccounts(for: context.provider).isEmpty {
-            return true
-        }
-        return context.settings.opencodegoCookieSource == .manual
+    func tokenAccountsVisibility(context _: ProviderSettingsContext, support _: TokenAccountSupport) -> Bool {
+        true
     }
 
     @MainActor
     func applyTokenAccountCookieSource(settings: SettingsStore) {
+        guard let account = settings.selectedTokenAccount(for: .opencodego),
+              TokenAccountSupportCatalog.envOverride(for: .opencodego, token: account.token) == nil
+        else { return }
         if settings.opencodegoCookieSource != .manual {
             settings.opencodegoCookieSource = .manual
         }
@@ -42,34 +39,18 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        let cookieBinding = Binding(
-            get: { context.settings.opencodegoCookieSource.rawValue },
-            set: { raw in
-                context.settings.opencodegoCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
-            })
-        let cookieOptions = ProviderCookieSourceUI.options(
-            allowsOff: false,
-            keychainDisabled: context.settings.debugDisableKeychainAccess)
-
-        let cookieSubtitle: () -> String? = {
-            ProviderCookieSourceUI.subtitle(
-                source: context.settings.opencodegoCookieSource,
-                keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatic imports browser cookies from opencode.ai.",
-                manual: "Paste a Cookie header captured from the billing page.",
-                off: "OpenCode Go cookies are disabled.")
-        }
-
-        return [
-            ProviderSettingsPickerDescriptor(
+        [
+            ProviderCookieSourceUI.picker(
                 id: "opencodego-cookie-source",
-                title: "Cookie source",
-                subtitle: "Automatic imports browser cookies from opencode.ai.",
-                dynamicSubtitle: cookieSubtitle,
-                binding: cookieBinding,
-                options: cookieOptions,
-                isVisible: nil,
-                onChange: nil,
+                context: context,
+                source: \.opencodegoCookieSource,
+                allowsOff: false,
+                subtitles: {
+                    .init(
+                        auto: L("Automatic imports browser cookies from opencode.ai."),
+                        manual: L("Paste a Cookie header captured from %@.", "the billing page"),
+                        off: L("%@ cookies are disabled.", "OpenCode Go"))
+                },
                 trailingText: {
                     ProviderCookieRefreshAction.trailingText(
                         provider: .opencodego,
@@ -96,18 +77,16 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
                 placeholder: "OpenCode API key",
                 binding: context.providerConfigBinding(.apiKey),
                 actions: [],
-                isVisible: nil,
-                onActivate: nil),
+                isVisible: nil),
             ProviderSettingsFieldDescriptor(
                 id: "opencodego-workspace-id",
                 title: "Workspace ID",
                 subtitle: "Optional override if workspace lookup fails.",
                 kind: .plain,
                 placeholder: "wrk_…",
-                binding: context.stringBinding(\.opencodegoWorkspaceID),
+                binding: context.binding(\.opencodegoWorkspaceID),
                 actions: [],
-                isVisible: nil,
-                onActivate: nil),
+                isVisible: nil),
         ]
     }
 }

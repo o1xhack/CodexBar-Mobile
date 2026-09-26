@@ -14,10 +14,18 @@ public enum ClaudeSwapRetainedUsageStore {
 
     public static func load() -> [ProviderAccountUsageSnapshot] {
         guard let url = self.resolvedFileURL(),
-              let data = try? Data(contentsOf: url),
-              let records = try? JSONDecoder().decode([Record].self, from: data)
+              let data = try? Data(contentsOf: url)
         else { return [] }
+        return self.decode(data)
+    }
+
+    static func decode(_ data: Data) -> [ProviderAccountUsageSnapshot] {
+        guard let records = try? JSONDecoder().decode([Record].self, from: data) else { return [] }
         return records.map(\.account)
+    }
+
+    static func encode(_ accounts: [ProviderAccountUsageSnapshot]) -> Data? {
+        try? JSONEncoder().encode(accounts.compactMap(Record.init(account:)))
     }
 
     /// After a relaunch the in-memory array is empty even when this cache still
@@ -30,8 +38,7 @@ public enum ClaudeSwapRetainedUsageStore {
 
     public static func save(_ accounts: [ProviderAccountUsageSnapshot]) {
         guard let url = self.resolvedFileURL() else { return }
-        let records = accounts.compactMap(Record.init(account:))
-        guard let data = try? JSONEncoder().encode(records) else { return }
+        guard let data = self.encode(accounts) else { return }
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true)
@@ -44,6 +51,13 @@ public enum ClaudeSwapRetainedUsageStore {
         _ accounts: [ProviderAccountUsageSnapshot]) -> [ProviderAccountUsageSnapshot]
     {
         accounts.compactMap(Record.init(account:)).map(\.account)
+    }
+
+    /// Opaque ownership guard for persisted references to a reusable source-issued slot.
+    /// Uses the same fingerprint as retained quota data; never persists the display identity.
+    public static func ownershipFingerprint(for account: ProviderAccountUsageSnapshot) -> String? {
+        guard account.id.source == ClaudeSwapAccountProjection.sourceName else { return nil }
+        return self.fingerprint(from: account)
     }
 
     static func fingerprint(email: String, slot: String) -> String? {
@@ -71,22 +85,11 @@ public enum ClaudeSwapRetainedUsageStore {
     }
 
     private static func resolvedFileURL() -> URL? {
-        if self.isRunningTests { return nil }
+        if TestProcessSafety.isRunning { return nil }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         return base?
             .appendingPathComponent("CodexBar", isDirectory: true)
             .appendingPathComponent("claude-swap-retained-usage.json")
-    }
-
-    private static var isRunningTests: Bool {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil {
-            return true
-        }
-        if ProcessInfo.processInfo.processName.lowercased().contains("xctest") {
-            return true
-        }
-        return CommandLine.arguments.contains { $0.lowercased().contains(".xctest") }
     }
 
     private struct Record: Codable {
@@ -96,6 +99,8 @@ public enum ClaudeSwapRetainedUsageStore {
         var secondary: RateWindow?
         var extraRateWindows: [NamedRateWindow]?
         var updatedAt: Date
+        /// Legacy records predate source-reported fallbacks and decode as live.
+        var usesLastKnownUsage: Bool?
 
         init?(account: ProviderAccountUsageSnapshot) {
             guard account.id.source == ClaudeSwapAccountProjection.sourceName,
@@ -114,6 +119,7 @@ public enum ClaudeSwapRetainedUsageStore {
             self.secondary = snapshot.secondary
             self.extraRateWindows = snapshot.extraRateWindows
             self.updatedAt = snapshot.updatedAt
+            self.usesLastKnownUsage = account.usesLastKnownUsage ? true : nil
         }
 
         var account: ProviderAccountUsageSnapshot {
@@ -124,6 +130,7 @@ public enum ClaudeSwapRetainedUsageStore {
                 provider: .claude,
                 displayLabel: "",
                 isActive: false,
+                usesLastKnownUsage: self.usesLastKnownUsage ?? false,
                 snapshot: UsageSnapshot(
                     primary: self.primary,
                     secondary: self.secondary,

@@ -64,7 +64,10 @@ artifact_matches_current_inputs() {
 
 artifact_pair_matches() {
   local zip=$1 dsym_zip=$2 temp_dir status=0
-  temp_dir=$(mktemp -d /tmp/codexbar-artifact-pair.XXXXXX)
+  local scratch_root="${CODEXBAR_RELEASE_STAGE_BASE:-/Volumes/StudioSSD/Developer/BuildScratch/CodexBar}"
+  [[ -d "$scratch_root" && -w "$scratch_root" ]] || \
+    err "Release scratch directory is missing or not writable: $scratch_root"
+  temp_dir=$(mktemp -d "$scratch_root/codexbar-artifact-pair.XXXXXX")
 
   unzip -q "$zip" "CodexBar.app/Contents/MacOS/CodexBar" -d "$temp_dir/app" || status=$?
   if [[ "$status" -eq 0 ]]; then
@@ -145,7 +148,7 @@ PY
 require_finalize_checkout() {
   require_clean_worktree
 
-  local current_branch local_head remote_head tag_commit
+  local current_branch local_head remote_head tag_commit local_tag remote_tag
   current_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   [[ "$current_branch" == "$RELEASE_BRANCH" ]] || \
     err "Finalize must run from '$RELEASE_BRANCH' (current: '${current_branch:-detached}')."
@@ -157,9 +160,14 @@ require_finalize_checkout() {
     err "Finalize checkout is not identical to origin/${RELEASE_BRANCH}; update it first."
 
   tag_commit=$(git rev-parse "${TAG}^{commit}" 2>/dev/null) || \
-    err "Release tag $TAG is missing. Run phase 1 after PR approval."
+    err "Release tag $TAG is missing. For a tagless draft, complete the post-review tag promotion printed by phase 1."
   git merge-base --is-ancestor "$tag_commit" HEAD || \
     err "Release tag $TAG is not contained in $RELEASE_BRANCH. Merge/retag before finalize."
+  local_tag=$(git rev-parse "$TAG")
+  remote_tag=$(git ls-remote --exit-code origin "refs/tags/$TAG" | awk '{print $1}') || \
+    err "Release tag $TAG is not pushed to origin; complete tag promotion before finalize."
+  [[ "$local_tag" == "$remote_tag" ]] || \
+    err "Local and origin release tags differ; reconcile $TAG before finalize."
 }
 
 phase1() {
@@ -211,20 +219,24 @@ phase1() {
   probe_sparkle_key "$KEY_FILE"
   extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 
-  git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
-  git push -f origin "$TAG"
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" != "1" ]]; then
+    git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
+    git push -f origin "$TAG"
+  fi
 
   # gh allows multiple drafts for the same logical tag (the tag doesn't
   # actually materialize on GitHub until the draft is published), so a
   # previous failed phase 1 can leave an orphan draft that sits next to
   # any fresh one we create. Sweep those out before creating the new draft
   # so the user doesn't see two "CodexBar 0.20.x" entries in the UI.
-  orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
-    --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
-  for id in $orphan_ids; do
-    echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
-    gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
-  done
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" != "1" ]]; then
+    orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
+      --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
+    for id in $orphan_ids; do
+      echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
+      gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
+    done
+  fi
 
   # Pin --repo to our fork explicitly. Without it, gh inspects local
   # remotes and may pick the upstream remote (steipete/CodexBar) since
@@ -232,10 +244,23 @@ phase1() {
   # which fails with "tag exists locally but has not been pushed to
   # steipete/CodexBar". Fork tags only live on origin; hard-code the
   # repo to match the orphan-cleanup gh api call above.
+  local draft_target_args=()
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" == "1" ]]; then
+    # The candidate commit exists only locally in this mode. GitHub must
+    # target a commit it already has; the draft is retargeted after the
+    # reviewed branch is merged and pushed, before any publication.
+    draft_target_args=(--target "$RELEASE_BRANCH")
+    {
+      printf '\n---\n\n'
+      printf '**Unpublished candidate:** built from local commit `%s`.\n' "$(git rev-parse HEAD)"
+      printf 'Draft target `%s` is a placeholder; retarget to the reviewed release commit before publishing.\n' "$RELEASE_BRANCH"
+    } >>"$NOTES_FILE"
+  fi
   gh release create "$TAG" \
     "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
     --repo o1xhack/CodexBar-Mobile \
     --draft \
+    "${draft_target_args[@]}" \
     --title "${RELEASE_TITLE}" \
     --notes-file "$NOTES_FILE"
 
@@ -247,7 +272,7 @@ phase1() {
 ============================================================
 Phase 1 complete — DRAFT release is staged (not public yet).
 
-  Tag:        $TAG
+  Draft tag:  $TAG
   Review at:  $draft_url
 
 What to verify in the GitHub UI:
@@ -256,12 +281,31 @@ What to verify in the GitHub UI:
   - ${RELEASE_ASSET_BASENAME}.dSYM.zip is present
   - Tag matches: $TAG
 
-When ready to publish + push appcast:
-  ./Scripts/release.sh --finalize
+EOF
 
-To abort and clean up:
-  gh release delete $TAG --yes
-  git push origin :$TAG
+  if [[ "${DRAFT_NO_TAG_PUSH:-0}" == "1" ]]; then
+    cat <<EOF
+This draft has no Git tag. --finalize cannot run yet.
+After the PR has a clean current-head review and green checks, obtain separate
+authorization to merge, push a tag, and publish. Then:
+  1. Merge the reviewed PR into $RELEASE_BRANCH and update that checkout from origin.
+  2. Verify the reviewed release commit and staged assets, then from $RELEASE_BRANCH run:
+       git tag -a -m "${RELEASE_TITLE}" "$TAG"
+       git push origin "$TAG"
+       gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --target "$RELEASE_BRANCH" --draft
+  3. Verify the draft target and tag point to the reviewed release commit.
+  4. Run ./Scripts/release.sh --finalize only when live publication is authorized.
+EOF
+  else
+    cat <<EOF
+When ready to publish + push appcast, after the release gate passes:
+  ./Scripts/release.sh --finalize
+EOF
+  fi
+
+  cat <<EOF
+
+To abort and clean up, delete this draft in GitHub after reviewing its assets.
 ============================================================
 EOF
 }
@@ -355,7 +399,10 @@ case "${1:-phase1}" in
   phase2|--phase2|--finalize)
     phase2
     ;;
+  --draft-no-tag-push)
+    DRAFT_NO_TAG_PUSH=1 phase1
+    ;;
   *)
-    err "Usage: $0 [--finalize]"
+    err "Usage: $0 [--draft-no-tag-push|--finalize]"
     ;;
 esac

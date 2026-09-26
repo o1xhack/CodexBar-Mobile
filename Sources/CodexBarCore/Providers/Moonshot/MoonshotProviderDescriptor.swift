@@ -80,7 +80,7 @@ public enum MoonshotProviderDescriptor {
                 planRow: ProviderPlanRowPresentation(label: "Balance", stripsBalancePrefix: true)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [MoonshotAPIFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "moonshot",
                 aliases: [],
@@ -90,38 +90,36 @@ public enum MoonshotProviderDescriptor {
                 config.apiKeyRegion = config.sanitizedRegion ?? MoonshotRegion.international.rawValue
             })
     }
-}
 
-struct MoonshotAPIFetchStrategy: ProviderFetchStrategy {
-    let id = "moonshot.api"
-    let kind: ProviderFetchKind = .apiToken
-    private let transport: any ProviderHTTPTransport
-
-    init(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) {
-        self.transport = transport
+    static func scriptStrategy(
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "moonshot.js",
+            provider: .moonshot,
+            bundledPlugin: "moonshot",
+            secretKey: "MOONSHOT_API_KEY",
+            sourceLabel: "api",
+            transport: transport,
+            validateContext: { context in
+                guard Self.apiKey(context) != nil else {
+                    throw ProviderFetchClassifiedError(kind: .missingCredential, message: "Missing Moonshot API key.")
+                }
+            },
+            resolveValues: { context in
+                guard let apiKey = Self.apiKey(context) else { return nil }
+                return .init(
+                    settings: ["BASE_URL": Self.region(context).apiBaseURLString],
+                    secrets: ["MOONSHOT_API_KEY": apiKey])
+            },
+            isEnabled: { _ in true })
     }
 
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        MoonshotSettingsReader.apiKey(for: self.region(context), environment: context.env) != nil
+    private static func apiKey(_ context: ProviderFetchContext) -> String? {
+        MoonshotSettingsReader.apiKey(for: self.region(context), environment: context.env)
     }
 
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let region = self.region(context)
-        guard let apiKey = MoonshotSettingsReader.apiKey(for: region, environment: context.env) else {
-            throw MoonshotUsageError.missingCredentials
-        }
-        let usage = try await MoonshotUsageFetcher.fetchUsage(
-            apiKey: apiKey,
-            region: region,
-            session: self.transport)
-        return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
-    }
-
-    private func region(_ context: ProviderFetchContext) -> MoonshotRegion {
+    private static func region(_ context: ProviderFetchContext) -> MoonshotRegion {
         context.settings?.moonshot?.region ?? MoonshotSettingsReader.region(environment: context.env)
     }
 }

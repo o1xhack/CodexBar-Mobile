@@ -16,8 +16,16 @@ cp "$ROOT_DIR/.agents/skills/codexbar-git-workflow/SKILL.md" \
   "$fixture/.agents/skills/codexbar-git-workflow/SKILL.md"
 cp "$ROOT_DIR/.github/workflows/pr-fast.yml" "$fixture/.github/workflows/pr-fast.yml"
 cp "$ROOT_DIR/.github/workflows/ci.yml" "$fixture/.github/workflows/ci.yml"
+cp "$ROOT_DIR/.github/workflows/omarchy.yml" "$fixture/.github/workflows/omarchy.yml"
 
 CI_POLICY_ROOT="$fixture" "$ROOT_DIR/Scripts/check_ci_policy.sh" >/dev/null
+
+sed -i.bak 's/branches: \[main, mobile-dev\]/branches: [main]/' "$fixture/.github/workflows/omarchy.yml"
+if CI_POLICY_ROOT="$fixture" "$ROOT_DIR/Scripts/check_ci_policy.sh" >/dev/null 2>&1; then
+  printf 'expected CI policy to reject missing mobile-dev desktop trigger\n' >&2
+  exit 1
+fi
+mv "$fixture/.github/workflows/omarchy.yml.bak" "$fixture/.github/workflows/omarchy.yml"
 
 expect_rejected() {
   local name="$1"

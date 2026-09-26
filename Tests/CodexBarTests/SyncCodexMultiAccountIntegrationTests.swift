@@ -167,6 +167,49 @@ struct SyncCodexMultiAccountIntegrationTests {
     // MARK: - Active source = .liveSystem
 
     @Test
+    func `co-resident inactive Codex account reaches iPhone without a menu switch`() async throws {
+        let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice-new")
+        let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob-new")
+        let (settings, store, mock, coordinator) = try self.setupCoordinator(
+            suite: "Codex-CoResident-Sync",
+            managedAccounts: [alice, bob])
+        settings.codexActiveSource = .managedAccount(id: alice.id)
+        store._setSnapshotForTesting(
+            self.makeCodexUsageSnapshot(for: alice, usedPercent: 12),
+            provider: .codex)
+        await coordinator.pushCurrentSnapshot()
+        coordinator.startObserving()
+        defer { coordinator.stopObserving() }
+        let bobVisible = CodexVisibleAccount(
+            id: bob.id.uuidString,
+            email: bob.email,
+            storedAccountID: bob.id,
+            selectionSource: .managedAccount(id: bob.id),
+            isActive: false,
+            isLive: false,
+            canReauthenticate: true,
+            canRemove: true)
+        store.codexAccountSnapshots = [CodexAccountUsageSnapshot(
+            account: bobVisible,
+            snapshot: self.makeCodexUsageSnapshot(for: bob, usedPercent: 76),
+            error: nil,
+            sourceLabel: nil)]
+
+        for _ in 0..<40 {
+            let synced = mock.lastSnapshot?.providers.contains {
+                $0.providerID == "codex" && $0.accountEmail == bob.email
+            } ?? false
+            if synced { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+
+        let codex = mock.lastSnapshot?.providers.filter { $0.providerID == "codex" } ?? []
+        #expect(codex.count == 2)
+        #expect(Set(codex.compactMap(\.accountEmail)) == ["alice@example.com", "bob@example.com"])
+        #expect(Set(codex.compactMap(\.primary?.usedPercent)) == [12, 76])
+    }
+
+    @Test
     func `R5 A2: liveSystem active source does NOT trigger multi-account expansion`() async throws {
         let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice")
         let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob")

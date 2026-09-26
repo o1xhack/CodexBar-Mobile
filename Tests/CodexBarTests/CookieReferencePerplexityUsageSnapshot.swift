@@ -1,0 +1,160 @@
+import Foundation
+@testable import CodexBarCore
+
+public struct CookieReferencePerplexityUsageSnapshot: Sendable {
+    public let recurringTotal: Double
+    public let recurringUsed: Double
+    public let promoTotal: Double
+    public let promoUsed: Double
+    public let purchasedTotal: Double
+    public let purchasedUsed: Double
+    public let balanceCents: Double
+    public let totalUsageCents: Double
+    public let renewalDate: Date
+    public let promoExpiration: Date?
+    public let updatedAt: Date
+
+    public init(response: PerplexityCreditsResponse, now: Date) {
+        let recurring = response.creditGrants.filter { $0.type == "recurring" }
+        let promotional = response.creditGrants.filter {
+            $0.type == "promotional" && ($0.expiresAtTs ?? .infinity) > now.timeIntervalSince1970
+        }
+        let purchased = response.creditGrants.filter { $0.type == "purchased" }
+
+        // All timestamps from the Perplexity API are Unix seconds (verified Feb 2026).
+        let recurringSum = max(0, recurring.reduce(0.0) { $0 + $1.amountCents })
+        let promoSum = max(0, promotional.reduce(0.0) { $0 + $1.amountCents })
+        // Purchased credits may appear in the top-level field, in the credit_grants
+        // array (type == "purchased"), or both. Take whichever is larger to avoid
+        // double-counting while still catching either source.
+        let purchasedFromGrants = max(0, purchased.reduce(0.0) { $0 + $1.amountCents })
+        let purchasedFromField = max(0, response.currentPeriodPurchasedCents)
+        let purchasedSum = max(purchasedFromGrants, purchasedFromField)
+
+        // Waterfall attribution: recurring → purchased → promotional
+        var remaining = response.totalUsageCents
+        let usedFromRecurring = min(remaining, recurringSum); remaining -= usedFromRecurring
+        let usedFromPurchased = min(remaining, purchasedSum); remaining -= usedFromPurchased
+        let usedFromPromo = min(remaining, promoSum)
+
+        self.recurringTotal = recurringSum
+        self.recurringUsed = usedFromRecurring
+        self.promoTotal = promoSum
+        self.promoUsed = usedFromPromo
+        self.purchasedTotal = purchasedSum
+        self.purchasedUsed = usedFromPurchased
+        self.balanceCents = response.balanceCents
+        self.totalUsageCents = response.totalUsageCents
+        self.renewalDate = Date(timeIntervalSince1970: response.renewalDateTs)
+        self.promoExpiration = promotional
+            .compactMap { $0.expiresAtTs.map { Date(timeIntervalSince1970: $0) } }
+            .min()
+        self.updatedAt = now
+    }
+
+    /// Infer plan name from recurring credit allotment.
+    /// Free = 0, Pro = small pool (~500–1000), Max = 10,000+.
+    public var planName: String? {
+        if self.recurringTotal <= 0 { return nil }
+        if self.recurringTotal < 5000 { return "Pro" }
+        return "Max"
+    }
+
+    /// Pinned to POSIX English so `MMM` cannot resolve through `Locale.current`: the surrounding label is
+    /// hardcoded English and the bundled plugin formats the same value with `toLocaleDateString("en-US", …)`.
+    /// Internal rather than private so a test can assert the pin survives.
+    static let promoExpiryFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "MMM d"
+        return fmt
+    }()
+}
+
+extension CookieReferencePerplexityUsageSnapshot {
+    public func toUsageSnapshot() -> UsageSnapshot {
+        // Primary: recurring (monthly) credits
+        let hasFallbackCredits = self.promoTotal > 0 || self.purchasedTotal > 0
+        let primaryWindow: RateWindow? = {
+            if self.recurringTotal > 0 {
+                let primaryPercent = min(100, max(0, self.recurringUsed / self.recurringTotal * 100))
+                return RateWindow(
+                    usedPercent: primaryPercent,
+                    windowMinutes: nil,
+                    resetsAt: self.renewalDate,
+                    resetDescription: Self.creditDescription(
+                        used: self.recurringUsed, total: self.recurringTotal, unit: "credits"))
+            }
+            if hasFallbackCredits {
+                // When recurring is absent but bonus/purchased credits remain, omit the fake 0/0 primary lane
+                // so automatic menu-bar rendering can fall through to the usable pool.
+                return nil
+            }
+            return RateWindow(
+                usedPercent: 100,
+                windowMinutes: nil,
+                resetsAt: self.renewalDate,
+                resetDescription: "0/0 credits")
+        }()
+
+        // Secondary: promotional bonus credits — always shown.
+        // usedPercent=100 when promoTotal==0 so the bar renders empty rather than full.
+        let promoPercent = self.promoTotal > 0
+            ? min(100, max(0, self.promoUsed / self.promoTotal * 100))
+            : 100.0
+        var promoDesc = Self.creditDescription(used: self.promoUsed, total: self.promoTotal, unit: "bonus")
+        if let expiry = promoExpiration, let description = promoDesc {
+            promoDesc = "\(description) \u{00b7} exp. \(Self.promoExpiryFormatter.string(from: expiry))"
+        }
+        let secondary = RateWindow(
+            usedPercent: promoPercent,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: promoDesc)
+
+        // Tertiary: on-demand purchased credits — always shown.
+        // usedPercent=100 when purchasedTotal==0 so the bar renders empty rather than full.
+        let purchasedPercent = self.purchasedTotal > 0
+            ? min(100, max(0, self.purchasedUsed / self.purchasedTotal * 100))
+            : 100.0
+        let tertiary = RateWindow(
+            usedPercent: purchasedPercent,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: Self.creditDescription(
+                used: self.purchasedUsed, total: self.purchasedTotal, unit: "credits"))
+
+        let identity = ProviderIdentitySnapshot(
+            providerID: .perplexity,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: planName)
+
+        return UsageSnapshot(
+            primary: primaryWindow,
+            secondary: secondary,
+            tertiary: tertiary,
+            providerCost: nil,
+            // Pass the rich structured snapshot through to iOS via the
+            // escape-hatch pattern (mirrors zaiUsage / minimaxUsage /
+            // openRouterUsage). SyncCoordinator maps it to
+            // `SyncPerplexityCreditSummary` on the wire so iOS 1.3.0 can
+            // render the 3-segment credit card (Mac 0.20.3+ / iOS 1.3.0+).
+            updatedAt: self.updatedAt,
+            identity: identity)
+    }
+
+    private static func creditDescription(used: Double, total: Double, unit: String) -> String? {
+        guard used.isFinite, total.isFinite else { return nil }
+        let roundedUsed = used.rounded()
+        let truncatedTotal = total.rounded(.towardZero)
+        let normalizedUsed: Double = roundedUsed == 0 ? 0 : roundedUsed
+        let normalizedTotal: Double = truncatedTotal == 0 ? 0 : truncatedTotal
+        let counts = String(
+            format: "%.0f/%.0f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            normalizedUsed,
+            normalizedTotal)
+        return "\(counts) \(unit)"
+    }
+}

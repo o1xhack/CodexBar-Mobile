@@ -14,8 +14,12 @@ The Xiaomi MiMo provider tracks your current balance from the Xiaomi MiMo consol
 
 - **Balance display**: Shows total balance plus paid and granted components when MiMo returns them.
 - **Token plan usage**: Shows current token-plan credits while retaining balance as a second metric.
+- **Menu bar layouts**: Balance shows the headline amount without the paid/granted breakdown. Auto % shows balance without a token plan and keeps the percentage when a plan is present.
 - **Cookie-based auth**: Uses browser cookies or a pasted `Cookie:` header.
 - **Near-real-time updates**: Balance usually reflects within a few minutes.
+
+CLI text and cards retain token-plan credit counts beside the real period-end reset. Without a reported date,
+counts remain details rather than appearing as a reset clock. This does not change plan pacing or local fallback.
 
 ## Setup
 

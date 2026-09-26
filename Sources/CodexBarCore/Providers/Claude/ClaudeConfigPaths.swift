@@ -16,6 +16,52 @@ public enum ClaudeConfigPaths {
         return self.defaultConfigRoot(environment: environment, workingDirectory: workingDirectory)
     }
 
+    /// Local cost sources only; account credentials and cswap's private metadata are never read.
+    public static func costProjectsRoots(
+        environment: [String: String],
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        fileManager: FileManager = .default,
+        workingDirectory: URL? = nil) -> [URL]
+    {
+        var pathEnvironment = environment
+        if pathEnvironment["HOME"]?.isEmpty ?? true {
+            pathEnvironment["HOME"] = homeDirectory.path
+        }
+        let ownerHome = self.homeDirectory(environment: pathEnvironment, workingDirectory: workingDirectory)
+        let configRoot = self.configRoot(environment: pathEnvironment, workingDirectory: workingDirectory)
+        var roots = [configRoot.appendingPathComponent("projects", isDirectory: true)]
+        if environment[self.configDirectoryEnvironmentKey]?.isEmpty ?? true {
+            roots.insert(ownerHome.appendingPathComponent(".config/claude/projects", isDirectory: true), at: 0)
+            roots.append(contentsOf: ClaudeDesktopProjectsLocator.roots(
+                homeDirectory: ownerHome, fileManager: fileManager))
+        }
+
+        let legacy = ownerHome.appendingPathComponent(".claude-swap-backup/sessions", isDirectory: true)
+        #if os(Linux)
+        let xdg = environment["XDG_DATA_HOME"].flatMap { $0.hasPrefix("/") ? URL(fileURLWithPath: $0) : nil }
+            ?? ownerHome.appendingPathComponent(".local/share", isDirectory: true)
+        let swapRoots = [legacy, xdg.appendingPathComponent("claude-swap/sessions", isDirectory: true)]
+        #else
+        let swapRoots = [legacy]
+        #endif
+        // cswap run stores profiles one level below sessions; shared-history projects may be symlinks.
+        for root in swapRoots {
+            let slots = (try? fileManager.contentsOfDirectory(
+                at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+            for slot in slots.sorted(by: { $0.path < $1.path }) {
+                let parts = slot.lastPathComponent.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
+                guard parts.count == 2, let number = Int(parts[0]), number > 0 else { continue }
+                let projects = slot.appendingPathComponent("projects", isDirectory: true)
+                var isDirectory: ObjCBool = false
+                if fileManager.fileExists(atPath: projects.path, isDirectory: &isDirectory), isDirectory.boolValue {
+                    roots.append(projects)
+                }
+            }
+        }
+        var seen: Set<String> = []
+        return roots.map(\.standardizedFileURL).filter { seen.insert($0.resolvingSymlinksInPath().path).inserted }
+    }
+
     public static func accountConfigURL(
         environment: [String: String],
         workingDirectory: URL? = nil) -> URL
