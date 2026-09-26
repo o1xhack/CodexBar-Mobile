@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Unit tests for the Phase G grouping primitive that collapses
@@ -93,7 +92,7 @@ struct ProviderAccountGroupTests {
         ]
         let groups = snaps.groupedByProvider()
         #expect(groups.map(\.providerID) == ["codex", "openai", "claude"])
-        #expect(groups[0].accounts.count == 2)  // codex alice + bob
+        #expect(groups[0].accounts.count == 2) // codex alice + bob
         #expect(groups[0].hasMultipleAccounts == true)
         #expect(groups[1].accounts.count == 1)
         #expect(groups[1].hasMultipleAccounts == false)
@@ -148,8 +147,10 @@ struct ProviderAccountGroupTests {
                 Self.snapshot(providerID: "x", providerName: "X"),
                 Self.snapshot(providerID: "x", providerName: "X"),
             ])
-        #expect(group.tabLabel(forIndex: 0) == "Account 1")
-        #expect(group.tabLabel(forIndex: 1) == "Account 2")
+        #expect(group.tabLabel(forIndex: 0) == String.localizedStringWithFormat(
+            String(localized: "Account %lld"), 1))
+        #expect(group.tabLabel(forIndex: 1) == String.localizedStringWithFormat(
+            String(localized: "Account %lld"), 2))
     }
 
     @Test("tabLabel handles out-of-bounds gracefully")

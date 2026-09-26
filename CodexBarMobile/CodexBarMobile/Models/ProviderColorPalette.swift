@@ -18,30 +18,36 @@ enum ProviderColorPalette {
         if let tint = provider.providerIconTintHex,
            let color = self.color(fromHex: tint)
         {
-            return self.readable(color)
+            return self.readable(color, adjustsLightMode: true)
         }
         return self.color(for: provider.providerID)
     }
 
-    /// Minimum WCAG relative luminance a tint may have in dark mode — about
-    /// 4:1 contrast against the dark card background (#1C1C1E). Near-black
+    /// Minimum WCAG relative luminance a tint may have in dark mode — more
+    /// than 4.5:1 contrast against the dark card background (#1C1C1E). Near-black
     /// and deep brand colors (Grok #000000/#1A1A1A, xAI, Zed, Windsurf navy)
     /// otherwise render as unreadable text and bars on dark cards.
-    static let minimumDarkModeLuminance: CGFloat = 0.2
+    static let minimumDarkModeLuminance: CGFloat = 0.24
 
-    /// Wraps a tint so dark mode lifts it toward white until it reaches
-    /// `minimumDarkModeLuminance`; light mode keeps the brand color as-is.
-    static func readable(_ color: Color) -> Color {
+    /// A Mac-supplied near-white icon tint can disappear on a light card.
+    /// This ceiling gives at least 4.5:1 contrast against white while the
+    /// built-in palette keeps its existing Light Mode brand colors.
+    static let maximumSyncedLightModeLuminance: CGFloat = 0.18
+
+    /// Dark Mode lifts deep tints. Mac-supplied hex colors also darken when
+    /// necessary in Light Mode; built-in brand colors retain their light value.
+    static func readable(_ color: Color, adjustsLightMode: Bool = false) -> Color {
         let base = UIColor(color)
         return Color(UIColor { traits in
             let resolved = base.resolvedColor(with: traits)
-            return traits.userInterfaceStyle == .dark ? self.lifted(resolved) : resolved
+            if traits.userInterfaceStyle == .dark { return self.lifted(resolved) }
+            return adjustsLightMode ? self.darkened(resolved) : resolved
         })
     }
 
     static func lifted(_ color: UIColor) -> UIColor {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
         let blended = { (t: CGFloat) in (r + (1 - r) * t, g + (1 - g) * t, b + (1 - b) * t) }
         let luminanceAt = { (t: CGFloat) in
             let (br, bg, bb) = blended(t)
@@ -57,6 +63,21 @@ enum ProviderColorPalette {
         }
         let (lr, lg, lb) = blended(high)
         return UIColor(red: lr, green: lg, blue: lb, alpha: a)
+    }
+
+    static func darkened(_ color: UIColor) -> UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
+        let luminanceAt = { (t: CGFloat) in
+            self.relativeLuminance(red: r * (1 - t), green: g * (1 - t), blue: b * (1 - t))
+        }
+        guard luminanceAt(0) > self.maximumSyncedLightModeLuminance else { return color }
+        var low: CGFloat = 0, high: CGFloat = 1
+        for _ in 0..<20 {
+            let mid = (low + high) / 2
+            if luminanceAt(mid) > self.maximumSyncedLightModeLuminance { low = mid } else { high = mid }
+        }
+        return UIColor(red: r * (1 - high), green: g * (1 - high), blue: b * (1 - high), alpha: a)
     }
 
     /// WCAG 2 relative luminance of sRGB components.

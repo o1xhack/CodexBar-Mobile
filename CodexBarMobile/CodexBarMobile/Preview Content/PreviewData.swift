@@ -189,6 +189,23 @@ enum PreviewData {
                 tokenBase: 24500,
                 modelMix: [("gpt-4.1", 0.58), ("gpt-4o", 0.42)])))
 
+    /// Realistic Mac-synced black icon tint for Dark Mode contrast checks.
+    static let grokProvider = ProviderUsageSnapshot(
+        providerID: "grok",
+        providerName: "Grok",
+        primary: SyncRateWindow(
+            usedPercent: 22,
+            windowMinutes: 300,
+            resetsAt: Date().addingTimeInterval(3600 * 2),
+            resetDescription: nil),
+        secondary: nil,
+        accountEmail: nil,
+        loginMethod: "Premium",
+        statusMessage: nil,
+        isError: false,
+        lastUpdated: Date().addingTimeInterval(-120),
+        providerIconTintHex: "#000000")
+
     // MARK: - iOS 1.7.0 / v0.26 preview providers
 
     static let kiroProvider = ProviderUsageSnapshot(
@@ -389,7 +406,7 @@ enum PreviewData {
 
     static let sampleSnapshot = SyncedUsageSnapshot(
         providers: [
-            claudeProvider, cursorProvider, openRouterProvider, chatGPTProvider,
+            claudeProvider, cursorProvider, openRouterProvider, chatGPTProvider, grokProvider,
             kiroProvider, bedrockProvider, moonshotProvider, zaiProvider,
             openAIDashboardProvider, antigravityMultiAccountProvider,
         ],
