@@ -188,7 +188,7 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   launch overwrote the synthetic projection with an error state, so
   configuration-to-render propagation remains to be verified with a normally
   signed build and a stable projection.
-- The iPad Pro 13-inch iOS 26.5 simulator showed the extra-large comparison
+- The iPad Pro 13-inch iOS 27.0 simulator showed the extra-large comparison
   in the system gallery and accepted it on SpringBoard. Its ad-hoc build
   could not load the synthetic App Group data and displayed the localized
   read-error state. A separate offscreen extra-large render with the same
