@@ -411,3 +411,29 @@ intensity and text treatment differed.
   `WidgetScreenshots/ios-220-neutral-empty-small-iphone-air.png` and
   `WidgetScreenshots/ios-220-neutral-empty-large-medium-iphone-air.png` under
   `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/`.
+
+## 2026-09-26 TestFlight submission
+
+- Uploaded iOS 2.2.0 (214) from source commit
+  `78bf2e4cd092a2d649beea65117f5bb6a18053c5` on
+  `feature/ios-220-widget-redesign`. Xcode archive and App Store Connect
+  upload succeeded; App Store Connect build
+  `31a610b1-936c-4d44-9533-08d01c06e1fc` reached `VALID` at
+  `2026-09-26T13:07:24-07:00`.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260926-130321/CodexBarMobile.xcarchive`.
+  The archived app reports 2.2.0 (214); its main executable SHA-256 is
+  `03d58b4f92c9edb8793f717a6fd3786d56acd7e0d9fd83269d12af8b162347f4`.
+  App and widget extension archive signatures include the same App Group and
+  CloudKit `Production` environment. The compiled 120-pixel app icon has no
+  alpha channel. The CloudKit schema diff against the latest published tag
+  found no new fields or record types, so no Production schema deploy is needed.
+- The focused iOS simulator suite passed 36 test cases with zero failures,
+  covering widget render families, snapshot building, and activity projection.
+  The upload preflight passed repository lint (2,683 Swift files, zero
+  violations), four-language iOS localization (363 source keys), and the iOS
+  upload contract. Signed physical iPhone QA from the preceding visual pass
+  covers the small, medium, and large widgets. Extra-large was verified on an
+  iPad simulator; no signed physical iPad check was available for this beta.
+- This TestFlight upload did not push the task branch, open or merge a PR, or
+  publish an App Store release. Public release remains a separate gate.

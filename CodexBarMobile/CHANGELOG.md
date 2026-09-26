@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.2.0 (214)] — In development
+## [2.2.0 (214)] — TestFlight 2026-09-26
 
 ### Added
 - Configurable Token Activity Home Screen widgets for small, medium, large, and iPad extra-large sizes. Single-source widgets show All or one available provider; comparison widgets let each instance select two sources.
