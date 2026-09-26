@@ -1,6 +1,6 @@
 # Provider tint contrast in iOS
 
-Status: in-progress
+Status: done
 
 ## Context
 
