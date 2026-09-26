@@ -100,24 +100,22 @@ struct CodexBarWidgetView: View {
     private var mediumModeContent: some View {
         switch entry.configuration.mode {
         case .overview:
-            metricStrip
+            heroMetric(
+                value: percentText(entry.snapshot.maxUsagePercent),
+                label: String(localized: "Usage"),
+                systemImage: "gauge.with.dots.needle.67percent",
+                progress: entry.snapshot.maxUsagePercent)
             providerRows(providers: displayProviders, limit: 1, metric: .usage)
         case .providerFocus:
             providerHero(focusedProvider)
         case .todayCost:
             todayCostHero
-            providerRows(
-                providers: todayCostProviders,
-                limit: 2,
-                metric: .todayCost,
-                emptyMessage: String(localized: "No spend today"))
         case .syncHealth:
             heroMetric(
                 value: syncValue,
                 label: relativeSyncText,
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
-            syncHealthRows(limit: 2, includeLastSync: false)
         }
     }
 
@@ -134,43 +132,32 @@ struct CodexBarWidgetView: View {
     private var largeModeContent: some View {
         switch entry.configuration.mode {
         case .overview:
-            metricStrip
-            divider
+            heroMetric(
+                value: percentText(entry.snapshot.maxUsagePercent),
+                label: String(localized: "Usage"),
+                systemImage: "gauge.with.dots.needle.67percent",
+                progress: entry.snapshot.maxUsagePercent)
             providerRows(
                 providers: displayProviders,
-                limit: 3,
+                limit: 2,
                 metric: .usage,
                 rowMinHeight: spacing.largeProviderRowMinHeight)
-            divider
-            syncSummaryStrip
         case .providerFocus:
             providerHero(focusedProvider)
-            divider
             providerRows(
                 providers: secondaryFocusProviders,
-                limit: 3,
+                limit: 2,
                 metric: .usage,
                 rowMinHeight: spacing.largeProviderRowMinHeight)
-            divider
-            syncSummaryStrip
         case .todayCost:
             todayCostHero
-            divider
-            providerRows(
-                providers: todayCostProviders,
-                limit: 3,
-                metric: .todayCost,
-                rowMinHeight: spacing.largeProviderRowMinHeight,
-                emptyMessage: String(localized: "No spend today"))
-            divider
-            syncSummaryStrip
+            labeledValue(String(localized: "30 Days"), costText(entry.snapshot.thirtyDayCostUSD))
         case .syncHealth:
             heroMetric(
                 value: syncValue,
                 label: relativeSyncText,
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
-            divider
             syncHealthRows(limit: entry.snapshot.errorCount > 0 ? 3 : 2, includeLastSync: false)
         }
     }
@@ -180,53 +167,38 @@ struct CodexBarWidgetView: View {
             switch entry.configuration.mode {
             case .overview:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
-                    VStack(alignment: .leading, spacing: spacing.section) {
-                        metricStrip
-                        divider
-                        syncHealthRows(limit: 4)
-                    }
-                    verticalDivider(height: 170)
-                    providerRows(providers: displayProviders, limit: 4, metric: .usage)
+                    heroMetric(
+                        value: percentText(entry.snapshot.maxUsagePercent),
+                        label: String(localized: "Usage"),
+                        systemImage: "gauge.with.dots.needle.67percent",
+                        progress: entry.snapshot.maxUsagePercent)
+                    providerRows(providers: displayProviders, limit: 3, metric: .usage)
                 }
             case .providerFocus:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
-                    VStack(alignment: .leading, spacing: spacing.section) {
-                        providerHero(focusedProvider)
-                        divider
-                        syncSummaryStrip
-                    }
-                    verticalDivider(height: 170)
-                    providerRows(providers: secondaryFocusProviders, limit: 4, metric: .usage)
+                    providerHero(focusedProvider)
+                    providerRows(providers: secondaryFocusProviders, limit: 3, metric: .usage)
                 }
             case .todayCost:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
                     VStack(alignment: .leading, spacing: spacing.section) {
                         todayCostHero
-                        divider
                         labeledValue(String(localized: "Tokens"), tokensText(entry.snapshot.todayTokens))
-                        divider
-                        syncHealthRows(limit: 3)
                     }
-                    verticalDivider(height: 170)
                     providerRows(
                         providers: todayCostProviders,
-                        limit: 4,
+                        limit: 3,
                         metric: .todayCost,
                         emptyMessage: String(localized: "No spend today"))
                 }
             case .syncHealth:
                 HStack(alignment: .top, spacing: spacing.extraLargeColumn) {
-                    VStack(alignment: .leading, spacing: spacing.section) {
-                        heroMetric(
-                            value: syncValue,
-                            label: relativeSyncText,
-                            systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
-                            progress: nil)
-                        divider
-                        syncHealthRows(limit: 3, includeLastSync: false)
-                    }
-                    verticalDivider(height: 170)
-                    providerRows(providers: displayProviders, limit: 4, metric: .usage)
+                    heroMetric(
+                        value: syncValue,
+                        label: relativeSyncText,
+                        systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
+                        progress: nil)
+                    syncHealthRows(limit: 3, includeLastSync: false)
                 }
             }
             loadedFooterLine
@@ -699,18 +671,7 @@ struct CodexBarWidgetView: View {
     }
 
     private var shouldShowLoadedFooterLine: Bool {
-        switch (entry.configuration.mode, family) {
-        case (.syncHealth, _),
-             (.overview, .systemLarge),
-             (.overview, .systemExtraLarge),
-             (.todayCost, .systemLarge),
-             (.todayCost, .systemExtraLarge),
-             (.providerFocus, .systemLarge),
-             (.providerFocus, .systemExtraLarge):
-            false
-        default:
-            true
-        }
+        entry.snapshot.isStale && entry.configuration.mode != .syncHealth
     }
 
     private var spacing: CodexBarWidgetSpacing {

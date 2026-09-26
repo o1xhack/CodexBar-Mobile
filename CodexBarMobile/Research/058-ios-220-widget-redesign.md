@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `draft` (design proposed; implementation awaits user confirmation under `AGENTS.md`)
+Status: `in-progress` (user approved implementation on 2026-09-25)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -162,3 +162,42 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
 - Source version, tests, simulator findings, physical-device findings, signing
   status, and remaining release gaps are recorded before handoff. Push, merge,
   TestFlight upload, and public release remain separately authorized actions.
+
+## 2026-09-25 implementation and QA record
+
+- Version 2.2.0 (214) now contains the two heatmap widget kinds, App Intent
+  source choices, a versioned App Group projection, a pinned app-sandbox
+  SwiftData URL, and simplified status layouts. The widget computes no ledger
+  history itself. Failed refreshes retain the previous published history and
+  label it as an error.
+- `ios220-widget-focused7.xcresult`: five XCTest render cases and nine Swift
+  Testing cases across projection and SwiftData storage passed. The render
+  matrix covers four families, light/dark, full-color/accented, and loaded,
+  syncing, empty, and error states. Exported images were inspected; the
+  extra-large comparison was vertically centered after review. The final
+  `Scripts/lint.sh lint` run passed with zero violations; all four languages
+  are complete and all 363 source keys are present.
+- On the iOS 26.5 `CodexBar Compact QA` simulator, SpringBoard placed and
+  rendered the small widget from synthetic 365-day data in the simulator App
+  Group container. The edit picker exposed All, Claude Code, and Codex.
+  Selecting Claude Code remained visible when the edit sheet was reopened.
+  Large comparison also loaded as All + Claude Code. Its two independent
+  picker fields were visible, and changing the second to Codex remained
+  visible when reopening the edit sheet. The displayed timelines still showed
+  their previous selections immediately after editing. Subsequent test app
+  launch overwrote the synthetic projection with an error state, so
+  configuration-to-render propagation remains to be verified with a normally
+  signed build and a stable projection.
+- The iPad Pro 13-inch iOS 26.5 simulator showed the extra-large comparison
+  in the system gallery and accepted it on SpringBoard. Its ad-hoc build
+  could not load the synthetic App Group data and displayed the localized
+  read-error state. A separate offscreen extra-large render with the same
+  SwiftUI view showed both selected panels without clipping. Medium loaded
+  layout was also checked offscreen, but not placed on SpringBoard.
+- A manually ad-hoc-signed app with App Group entitlements could be installed
+  but the system rejected its widget extension at launch with
+  `OS_REASON_CODESIGNING` / restricted entitlements. A normal simulator build
+  launched the extension and rendered the synthetic shared-container fixture;
+  this does not prove a valid development/distribution profile or physical
+  device App Group access. Production signing and real-device verification
+  remain release gates. The connected iPhone was not modified for this QA run.

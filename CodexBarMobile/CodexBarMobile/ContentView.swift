@@ -59,6 +59,7 @@ struct ContentView: View {
     /// Today/history freshness state.
     @State private var costReferenceDate = Date()
     @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var widgetUsesLedger = MobileSettingsDefaults.cwlEnabled
     @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
 
     init(usageData: SyncedUsageData, previewTab: MobileRootTab? = nil) {
@@ -94,6 +95,12 @@ struct ContentView: View {
         CostLedgerRefreshClock.restartKey(
             sourceTimeZoneIdentifiers: self.costSourceTimeZoneIdentifiers,
             readerTimeZoneIdentifier: self.readerTimeZoneIdentifier)
+    }
+
+    private var widgetActivityRefreshKey: String {
+        "\(self.usageData.publicationRevision)|\(self.widgetUsesLedger)|" +
+            "\(TokenActivity.dayKey(self.costReferenceDate, calendar: .current))|" +
+            "\(self.readerTimeZoneIdentifier)|\(self.usageData.syncStatus)"
     }
 
     var body: some View {
@@ -157,6 +164,15 @@ struct ContentView: View {
         }
         .task(id: self.costClockRestartKey) {
             await self.keepCostReferenceDateCurrent()
+        }
+        .task(id: self.widgetActivityRefreshKey) {
+            guard !self.isLayoutPreview, !self.isDemoMode else { return }
+            await WidgetActivityPublisher.refresh(
+                snapshot: self.usageData.snapshot,
+                sourceSnapshots: self.usageData.deviceSnapshots,
+                syncStatus: self.usageData.syncStatus,
+                useLedger: self.widgetUsesLedger,
+                referenceDate: self.costReferenceDate)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             self.readerTimeZoneIdentifier = TimeZone.current.identifier
@@ -242,6 +258,9 @@ struct ContentView: View {
         guard url.scheme?.lowercased() == "codexbar" else { return }
 
         switch url.host?.lowercased() {
+        case "token-activity":
+            self.onboardingSeenVersion = self.currentVersion
+            self.selectedTab = .cost
         case "widgets", "widget-settings":
             self.onboardingSeenVersion = self.currentVersion
             self.selectedTab = .settings
@@ -4312,7 +4331,15 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.1.0", status: String(localized: "Latest"),
+            version: "2.2.0", status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
+            sections: [.init(title: String(localized: "What's New"), items: [
+                String(localized: "Choose All, Claude Code, Codex, or another available source for a small or medium Token Activity widget."),
+                String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
+                String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
+            ])]),
+        ReleaseNotesVersion(
+            version: "2.1.0", status: "",
             summary: String(localized: "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."),
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),

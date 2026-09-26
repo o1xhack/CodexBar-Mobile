@@ -62,6 +62,12 @@ struct ModelContainerFactoryTests {
         let url = ModelContainerFactory.defaultStoreURL()
         let parent = url.deletingLastPathComponent()
         #expect(FileManager.default.fileExists(atPath: parent.path))
+        let appSupport = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false)
+        #expect(url == appSupport.appendingPathComponent("CodexBar/CodexBarStore.sqlite"))
     }
     @Test("Open failure preserves the database and both SQLite sidecars")
     func failedOpenPreservesFiles() throws {

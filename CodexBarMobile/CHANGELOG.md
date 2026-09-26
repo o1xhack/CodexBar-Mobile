@@ -2,6 +2,15 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (214)] — In development
+
+### Added
+- Configurable Token Activity Home Screen widgets for small, medium, large, and iPad extra-large sizes. Single-source widgets show All or one available provider; comparison widgets let each instance select two sources.
+- A read-only App Group projection of the app's resolved daily-token history, including confirmed zero, unknown, and partial lower-bound days. Keep the existing SwiftData ledger at its app-sandbox path on upgrade.
+
+### Changed
+- Simplify the existing status widget to prioritize its selected metric and closely related context instead of filling larger sizes with unrelated dashboard rows.
+
 ## [2.1.0 (213)] — Submitted for App Review 2026-09-25
 
 ### Fixed
