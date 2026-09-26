@@ -2,12 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.1.0 (213)] — Unreleased
+## [2.1.0 (213)] — Submitted for App Review 2026-09-25
 
 ### Fixed
 - Keep near-black provider accents readable in Dark Mode across Usage, details, and charts. Mac-synced near-white icon tints also remain readable on light cards; built-in Light Mode brand colors are unchanged.
 
-## [2.1.0 (212)] — Submitted for App Review 2026-09-25
+## [2.1.0 (212)] — Review withdrawn 2026-09-25; replaced by build 213
 
 ### Added
 - Display new Mac 0.66 provider quota, balance, spending, and detail data through the existing optional sync payload, including Bifrost, Helmcode, Nous Portal, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass. Localize bundled plugin detail labels in all four iOS languages while leaving user-defined labels unchanged.

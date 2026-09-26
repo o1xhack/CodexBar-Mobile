@@ -1,6 +1,7 @@
 # PR #140 provider tint contrast — test evidence
 
-Status: local validation complete; PR review pending. Date: 2026-09-25.
+Status: iOS 2.1.0 (213) submitted for App Review; physical fleet QA remains
+substituted. Date: 2026-09-25.
 
 ## Scope and results
 
@@ -60,3 +61,35 @@ invalid, and absent tints are covered by tests; Grok black is rendered in both
 appearances. The compatibility documentation gate is complete with 16
 substituted cases; physical multi-device convergence remains unverified and
 must not be described as a real-device pass.
+
+## PR, archive, and App Review closeout
+
+- Original PR #140 was closed as superseded by [PR #148](https://github.com/o1xhack/CodexBar-Mobile/pull/148),
+  retaining its original commit. PR #148 head
+  `3bb8db17b977ff000acd8322b311fe281de1b606` passed PR Fast Checks and
+  current-head Codex review in one round with zero unresolved threads;
+  `Scripts/check_pr_review_gate.sh 148` passed. It merged into `mobile-dev` as
+  `2245a477d72923e7e5e5225501c3533d97116c3b`.
+- The merged `CodexBarMobile/` tree matches the reviewed PR head exactly.
+  `xcodegen generate` left the project file unchanged. The Release archive at
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/ios-2.1.0-213.xcarchive`
+  succeeded from that merge commit. Main app bundle is `2.1.0 (213)` with
+  Production CloudKit entitlement. Archive evidence ZIP SHA-256 is
+  `4fc3cc2f1e92a9fcbcaea88aca7dc2f558d0d24405cb70cffe644bdd5c081a56`;
+  archived app executable SHA-256 is
+  `c67a0c5f893809df63c50ad83df899129706785ac1604875e6f119a6ca849316`.
+- The 1024×1024 source icon has no alpha; the 120×120 archived icon has no
+  alpha and was visually checked. Apple CDN `iconAssetToken` for build 213
+  rendered the same icon in Aside.
+- The prior App Store version `2.1.0 (212)` review submission
+  `3c13ee85-54b1-4286-902a-e07a8595c928` was canceled; version state became
+  `DEVELOPER_REJECTED`. Xcode export/upload of build 213 succeeded. ASC build
+  `4eedcbff-c0bd-47c4-9143-c3879319be5b` processed to `VALID` with
+  pre-release version `2.1.0`; no processing errors or warnings.
+- App Store version `a5595745-157f-4f77-b179-4e094e384308` is now bound to
+  build 213. Four `whatsNew` localizations (en-US, zh-Hans, zh-Hant, ja) were
+  updated and read back. Review submission
+  `5f1edeaa-d256-4cee-9ac2-b114caadc917` was submitted at
+  `2026-09-26T03:57:41.907Z`; both submission and version read back as
+  `WAITING_FOR_REVIEW`, with `MANUAL` release. This is not App Review approval
+  or public availability. Physical four-device Production QA is still absent.
