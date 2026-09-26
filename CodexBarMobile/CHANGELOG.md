@@ -10,6 +10,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 ### Changed
 - Simplify the existing status widget to prioritize its selected metric and closely related context instead of filling larger sizes with unrelated dashboard rows.
+- Rework Token Activity widgets around full-width contribution grids: medium shows 26 weeks (182 day positions), large stacks two 18-week sources without a divider, and iPad extra-large stacks two 38-week sources. Use the same provider tint palette as the app, compact source labels, and system-managed clear/tinted widget backgrounds.
 
 ## [2.1.0 (213)] — Submitted for App Review 2026-09-25
 

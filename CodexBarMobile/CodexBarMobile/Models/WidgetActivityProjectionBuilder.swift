@@ -63,6 +63,11 @@ enum WidgetActivityProjectionBuilder {
                 isLowerBound: total?.isLowerBound ?? false,
                 intensity: total?.value.map(scale.intensity) ?? 0)
         }
-        return WidgetActivitySource(id: id, name: name, days: days)
+        return WidgetActivitySource(
+            id: id,
+            name: name,
+            days: days,
+            tintHex: id == WidgetActivityProjection.allSourceID
+                ? nil : series.first?.provider.providerIconTintHex)
     }
 }

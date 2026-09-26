@@ -32,6 +32,14 @@ struct WidgetActivitySource: Codable, Equatable, Identifiable, Sendable {
     let id: String
     let name: String
     let days: [WidgetActivityDay]
+    let tintHex: String?
+
+    init(id: String, name: String, days: [WidgetActivityDay], tintHex: String? = nil) {
+        self.id = id
+        self.name = name
+        self.days = days
+        self.tintHex = tintHex
+    }
 }
 
 struct WidgetActivityProjection: Codable, Equatable, Sendable {

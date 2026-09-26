@@ -22,6 +22,7 @@ struct CodexBarTokenActivitySingleWidget: Widget {
         .configurationDisplayName("Token Activity")
         .description("See daily token activity for one source.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -37,6 +38,7 @@ struct CodexBarTokenActivityComparisonWidget: Widget {
         .configurationDisplayName("Token Activity Comparison")
         .description("Compare daily token activity from two sources.")
         .supportedFamilies([.systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
     }
 }
 

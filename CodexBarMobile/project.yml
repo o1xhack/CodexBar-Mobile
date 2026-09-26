@@ -72,6 +72,7 @@ targets:
       - path: CodexBarWidgetShared
         excludes:
           - "**/.DS_Store"
+      - path: CodexBarMobile/Models/ProviderColorPalette.swift
       # AppIntent display names and WidgetKit UI strings resolve in the
       # extension bundle, so compile the main localization catalog into
       # the widget target as its source of truth.

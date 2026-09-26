@@ -143,27 +143,36 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
 
     func testTokenActivityLoadedLayoutsAreAvailableForVisualReview() {
         let projection = WidgetActivityProjection.preview(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let appearances: [(name: String, scheme: ColorScheme, mode: WidgetRenderingMode)] = [
+            ("light", .light, .fullColor),
+            ("dark", .dark, .fullColor),
+            ("tinted", .dark, .accented),
+        ]
         for family in self.families {
-            let entry = WidgetActivityEntry(
-                date: projection.generatedAt,
-                sourceIDs: family.family == .systemSmall || family.family == .systemMedium
-                    ? ["claude"] : ["all", "codex"],
-                projection: projection)
-            let view = ZStack {
-                Color.white
-                WidgetActivityView(entry: entry, previewFamily: family.family)
+            for appearance in appearances {
+                let entry = WidgetActivityEntry(
+                    date: projection.generatedAt,
+                    sourceIDs: family.family == .systemSmall || family.family == .systemMedium
+                        ? ["claude"] : ["all", "codex"],
+                    projection: projection)
+                let view = ZStack {
+                    appearance.scheme == .dark ? Color.black : Color.white
+                    WidgetActivityView(entry: entry, previewFamily: family.family)
+                        .environment(\.colorScheme, appearance.scheme)
+                        .environment(\.widgetRenderingMode, appearance.mode)
+                }
+                .frame(width: family.size.width, height: family.size.height)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                guard let image = renderer.uiImage else {
+                    XCTFail("Could not render \(family.family)/\(appearance.name)")
+                    continue
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "Token Activity \(family.family) \(appearance.name)"
+                attachment.lifetime = .keepAlways
+                self.add(attachment)
             }
-            .frame(width: family.size.width, height: family.size.height)
-            let renderer = ImageRenderer(content: view)
-            renderer.scale = 2
-            guard let image = renderer.uiImage else {
-                XCTFail("Could not render \(family.family)")
-                continue
-            }
-            let attachment = XCTAttachment(image: image)
-            attachment.name = "Token Activity \(family.family)"
-            attachment.lifetime = .keepAlways
-            self.add(attachment)
         }
     }
 

@@ -7,7 +7,7 @@ import Testing
 struct WidgetActivityProjectionTests {
     private let now = Date(timeIntervalSince1970: 1_790_294_400)
 
-    private func provider(_ id: String, name: String) -> ProviderUsageSnapshot {
+    private func provider(_ id: String, name: String, tintHex: String? = nil) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -17,7 +17,8 @@ struct WidgetActivityProjectionTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: self.now)
+            lastUpdated: self.now,
+            providerIconTintHex: tintHex)
     }
 
     @Test func `Projection keeps known zero unknown and partial totals identical to Token Activity`() throws {
@@ -70,6 +71,19 @@ struct WidgetActivityProjectionTests {
         #expect(restored == projection)
         #expect(restored.source(id: "codex") != nil)
         #expect(restored.source(id: "claude") != nil)
+    }
+
+    @Test func `Widget source keeps the same provider tint as the app`() throws {
+        let series = TokenActivitySeries(
+            provider: self.provider("sample", name: "Sample", tintHex: "#3366CC"),
+            days: [])
+        let projection = WidgetActivityProjectionBuilder.make(
+            series: [series], latestSyncAt: self.now, now: self.now)
+        #expect(projection.source(id: "sample")?.tintHex == "#3366CC")
+        #expect(projection.source(id: "all")?.tintHex == nil)
+        let decoded = try JSONDecoder().decode(
+            WidgetActivityProjection.self, from: JSONEncoder().encode(projection))
+        #expect(decoded.source(id: "sample")?.tintHex == "#3366CC")
     }
 
     @Test @MainActor func `Refresh error keeps last known heatmap without inventing new days`() {

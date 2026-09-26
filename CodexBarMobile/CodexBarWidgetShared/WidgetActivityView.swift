@@ -3,6 +3,7 @@ import WidgetKit
 
 struct WidgetActivityView: View {
     @Environment(\.widgetFamily) private var environmentFamily
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     let entry: WidgetActivityEntry
     var previewFamily: WidgetFamily?
@@ -10,6 +11,12 @@ struct WidgetActivityView: View {
     private var family: WidgetFamily { self.previewFamily ?? self.environmentFamily }
     private var isComparison: Bool {
         self.family == .systemLarge || self.family == .systemExtraLarge
+    }
+    private var activityStatus: String? {
+        if self.entry.projection.state == .error { return String(localized: "Sync Error") }
+        if self.entry.projection.state == .syncing { return String(localized: "Syncing") }
+        if self.entry.projection.isStale { return String(localized: "Stale") }
+        return nil
     }
 
     var body: some View {
@@ -42,160 +49,96 @@ struct WidgetActivityView: View {
 
     @ViewBuilder
     private var loadedView: some View {
-        if self.isComparison {
-            if self.family == .systemExtraLarge {
-                GeometryReader { geometry in
-                    let panelWidth = (geometry.size.width - 61) / 2
-                    let cellSize = min(14, max(7, floor((panelWidth - 57) / 20)))
-                    HStack(alignment: .center, spacing: 20) {
-                        self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: 20, cellSize: cellSize)
-                        Rectangle().fill(.primary.opacity(0.10)).frame(width: 1, height: 150)
-                        self.secondPanel(weeks: 20, cellSize: cellSize)
+        GeometryReader { geometry in
+            let inset: CGFloat = 11
+            let width = max(0, geometry.size.width - inset * 2)
+            let weeks = WidgetActivityLayout.weeks(for: self.family)
+            Group {
+                if self.isComparison {
+                    VStack(alignment: .leading, spacing: self.family == .systemLarge ? 8 : 6) {
+                        self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: weeks, width: width)
+                        self.secondPanel(weeks: weeks, width: width)
                     }
-                    .padding(20)
-                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else {
+                    self.panel(
+                        for: self.entry.sourceIDs.first ?? "all",
+                        weeks: weeks,
+                        width: width,
+                        compact: self.family == .systemSmall)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: 12)
-                    Rectangle().fill(.primary.opacity(0.10)).frame(height: 1)
-                    self.secondPanel(weeks: 12)
-                }
-                .padding(17)
             }
-        } else {
-            let weeks = self.family == .systemSmall ? 5 : 12
-            if self.family == .systemSmall {
-                self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: weeks)
-                    .padding(13)
-            } else {
-                self.mediumPanel(for: self.entry.sourceIDs.first ?? "all", weeks: weeks)
-                    .padding(17)
-            }
+            .padding(.horizontal, inset)
+            .padding(.vertical, self.family == .systemExtraLarge ? 9 : 11)
         }
     }
 
     @ViewBuilder
-    private func mediumPanel(for id: String, weeks: Int) -> some View {
-        if let source = self.entry.projection.source(id: id) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(id == WidgetActivityProjection.allSourceID ? String(localized: "All") : source.name)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(2)
-                    Text(self.summary(for: source, weeks: weeks))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(self.dateRange(for: weeks))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if self.entry.projection.isStale {
-                        Text(String(localized: "Stale"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    if self.entry.projection.state == .error {
-                        Text(String(localized: "Sync Error"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    if self.entry.projection.state == .syncing {
-                        Text(String(localized: "Syncing"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(maxWidth: 88, alignment: .leading)
-                WidgetActivityGrid(source: source, weeks: weeks, referenceDate: self.entry.date, cellSize: 13)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        } else {
-            self.stateView(String(localized: "Source unavailable"))
-        }
-    }
-
-    @ViewBuilder
-    private func secondPanel(weeks: Int, cellSize: CGFloat? = nil) -> some View {
+    private func secondPanel(weeks: Int, width: CGFloat) -> some View {
         let first = self.entry.sourceIDs.first ?? "all"
         let second = self.entry.sourceIDs.dropFirst().first ?? "all"
         if first == second {
-            self.stateView(String(localized: "Choose a different source"))
+            self.panelMessage(String(localized: "Choose a different source"))
         } else {
-            self.panel(for: second, weeks: weeks, cellSize: cellSize)
+            self.panel(for: second, weeks: weeks, width: width)
         }
     }
 
     @ViewBuilder
-    private func panel(for id: String, weeks: Int, cellSize: CGFloat? = nil) -> some View {
+    private func panel(for id: String, weeks: Int, width: CGFloat, compact: Bool = false) -> some View {
         if let source = self.entry.projection.source(id: id) {
-            VStack(alignment: .leading, spacing: self.family == .systemSmall ? 8 : 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
+            let cellSize = WidgetActivityLayout.cellSize(width: width, weeks: weeks, compact: compact)
+            let color = ProviderColorPalette.color(for: id, tintHex: source.tintHex)
+            VStack(alignment: .leading, spacing: compact ? 7 : 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(id == WidgetActivityProjection.allSourceID ? String(localized: "All") : source.name)
-                        .font(self.family == .systemSmall ? .subheadline.weight(.semibold) : .headline)
+                        .font(compact ? .subheadline.weight(.semibold) : .headline)
+                        .foregroundStyle(self.renderingMode == .accented ? .primary : color)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     Spacer(minLength: 0)
-                    if self.entry.projection.isStale {
-                        Text(String(localized: "Stale"))
+                    if !compact {
+                        Text(self.activityStatus ?? self.summary(for: source, weeks: weeks))
                             .font(.caption2)
+                            .monospacedDigit()
                             .foregroundStyle(.secondary)
-                    }
-                    if self.entry.projection.state == .error {
-                        Text(String(localized: "Sync Error"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    if self.entry.projection.state == .syncing {
-                        Text(String(localized: "Syncing"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
                 WidgetActivityGrid(
                     source: source,
                     weeks: weeks,
                     referenceDate: self.entry.date,
-                    cellSize: cellSize ?? (self.family == .systemSmall ? 14 : 11),
-                    compact: self.family == .systemSmall)
-                    .frame(maxWidth: .infinity)
-                HStack(spacing: 4) {
-                    Text(self.summary(for: source, weeks: weeks))
+                    cellSize: cellSize,
+                    color: color,
+                    compact: compact)
+                    .frame(width: width, alignment: .leading)
+                if compact {
+                    Text(self.activityStatus ?? self.summary(for: source, weeks: weeks))
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
-                    if self.family != .systemSmall {
-                        Spacer(minLength: 0)
-                        Text(self.dateRange(for: weeks))
-                            .lineLimit(1)
-                    }
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(width: width, alignment: .leading)
         } else {
-            self.stateView(String(localized: "Source unavailable"))
+            self.panelMessage(String(localized: "Source unavailable"))
         }
+    }
+
+    private func panelMessage(_ message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     private func summary(for source: WidgetActivitySource, weeks: Int) -> String {
         let active = WidgetActivityWindow.activeDayCount(
             source: source, weeks: weeks, referenceDate: self.entry.date)
         return "\(active) " + String(localized: "Active Days")
-    }
-
-    private func dateRange(for weeks: Int) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        let today = calendar.startOfDay(for: self.entry.date)
-        guard let firstWeek = WidgetActivityWindow.startDate(
-            weeks: weeks, referenceDate: self.entry.date, calendar: calendar)
-        else { return "" }
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.setLocalizedDateFormatFromTemplate("MMM")
-        let firstMonth = formatter.string(from: firstWeek)
-        let lastMonth = formatter.string(from: today)
-        return firstMonth == lastMonth ? firstMonth : firstMonth + "–" + lastMonth
     }
 
     private func stateView(_ message: String) -> some View {
@@ -220,6 +163,7 @@ private struct WidgetActivityGrid: View {
     let weeks: Int
     let referenceDate: Date
     let cellSize: CGFloat
+    let color: Color
     var compact = false
 
     private var cells: [(key: String, day: WidgetActivityDay?, isFuture: Bool)] {
@@ -247,8 +191,9 @@ private struct WidgetActivityGrid: View {
 
     var body: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.fixed(self.cellSize), spacing: 3), count: self.compact ? 7 : self.weeks),
-            spacing: 3)
+            columns: Array(repeating: GridItem(.fixed(self.cellSize), spacing: WidgetActivityLayout.cellSpacing), count: self.compact ? 7 : self.weeks),
+            alignment: .leading,
+            spacing: WidgetActivityLayout.cellSpacing)
         {
             ForEach(Array(self.cells.enumerated()), id: \.offset) { _, cell in
                 self.cell(cell.day, isFuture: cell.isFuture)
@@ -265,19 +210,19 @@ private struct WidgetActivityGrid: View {
         let fill: Color = if tokens == nil {
             .clear
         } else if tokens == 0 {
-            .secondary.opacity(0.11)
+            .secondary.opacity(0.15)
         } else if self.renderingMode == .accented {
             .primary.opacity(0.24 + (day?.intensity ?? 0) * 0.72)
         } else {
-            .accentColor.opacity(0.24 + (day?.intensity ?? 0) * 0.72)
+            self.color.opacity(0.24 + (day?.intensity ?? 0) * 0.72)
         }
         return RoundedRectangle(cornerRadius: 2)
             .fill(fill)
             .overlay {
                 RoundedRectangle(cornerRadius: 2)
                     .strokeBorder(
-                        Color.secondary.opacity(unknown ? 0.45 : 0),
-                        style: StrokeStyle(lineWidth: 1, dash: unknown ? [2] : []))
+                        Color.secondary.opacity(unknown ? 0.22 : 0),
+                        lineWidth: 0.6)
             }
             .frame(width: self.cellSize, height: self.cellSize)
             .opacity(isFuture ? 0 : 1)
@@ -290,6 +235,25 @@ private struct WidgetActivityGrid: View {
         }
         let prefix = day?.isLowerBound == true ? "≥" : ""
         return key + ", " + prefix + tokens.formatted() + " " + String(localized: "Tokens")
+    }
+}
+
+enum WidgetActivityLayout {
+    static let cellSpacing: CGFloat = 2
+
+    static func weeks(for family: WidgetFamily) -> Int {
+        switch family {
+        case .systemSmall: 5
+        case .systemMedium: 27
+        case .systemLarge: 18
+        case .systemExtraLarge: 38
+        default: 27
+        }
+    }
+
+    static func cellSize(width: CGFloat, weeks: Int, compact: Bool) -> CGFloat {
+        let columns = compact ? 7 : weeks
+        return max(4, (width - CGFloat(columns - 1) * self.cellSpacing) / CGFloat(columns))
     }
 }
 

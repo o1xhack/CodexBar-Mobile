@@ -124,6 +124,7 @@
 		8D9EAF1CF4C21CFA6C416EED /* CostHistoryWorker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80570CA31B7AF7745AD383C5 /* CostHistoryWorker.swift */; };
 		8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */; };
 		904B033A9AC463824D9A910D /* SyncQuotaWarningConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */; };
+		905ADC7606341C62FC1D9032 /* ProviderColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637E4394D6D0E0F76AFD654A /* ProviderColorPalette.swift */; };
 		90C9167325DF5561725CA16A /* MultiAccountTabRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */; };
 		90D08BDB0023F9AC882235B1 /* ProviderAccountLinkage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */; };
 		923EAFD177F69D9DB697A002 /* CodexBarWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E024B1E38E5CEBF63EDB05E3 /* CodexBarWidgetIntent.swift */; };
@@ -1295,6 +1296,7 @@
 				E026DACE186A54F8CC5B22FE /* CodexBarWidgetView.swift in Sources */,
 				728CF23CFF13DD0CA289EE7F /* CodexBarWidgets.swift in Sources */,
 				2BB9F05F0803DC295D55C93C /* DeviceSnapshotResolver.swift in Sources */,
+				905ADC7606341C62FC1D9032 /* ProviderColorPalette.swift in Sources */,
 				57C973F513DAC5CC5E587DDE /* ProviderSnapshotMerger.swift in Sources */,
 				51B959DA09C7567CA39D8118 /* WidgetActivityIntent.swift in Sources */,
 				55DA4BB195EF540E5EC8FDAB /* WidgetActivityProjection.swift in Sources */,

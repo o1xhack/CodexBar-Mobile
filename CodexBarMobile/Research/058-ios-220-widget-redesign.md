@@ -345,3 +345,43 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   remain a separate release task; the Developer Portal currently has no
   distribution certificate for the widget profile. No push, PR, TestFlight
   upload, or public release was performed in this development task.
+
+## 2026-09-26 visual revision after Home Screen review
+
+The first signed-device screenshots exposed a layout mistake: medium spent most
+of its width on a narrow text column, while large used 12-week grids with wide
+left margins and a decorative rule between sources. The blue default tint also
+ignored the app's Codex/Claude provider colors. The user rejected that visual
+hierarchy and asked for a denser, GitHub-like contribution calendar that fits
+Apple's current widget appearance.
+
+- [GitHub's contribution calendar](https://docs.github.com/en/account-and-profile/concepts/contributions-on-your-profile)
+  makes the day grid the primary visual. The revised medium widget uses 27 full
+  Monday-aligned weeks, or 189 day positions. Even when the current week has
+  six future days, 183 past dates remain visible. At the narrow 338-point render
+  size, 11-point side margins and 2-point cell gaps leave approximately 9.8-point
+  square cells. This is a six-month calendar without horizontal scrolling.
+- The large widget now stacks two full-width 18-week grids (126 day positions
+  each), with neither a side column nor a dividing rule. Extra-large stacks two
+  full-width 38-week grids (266 positions each) on iPad. Small remains a five-
+  week compact grid. Source name leads each panel; active-day count is secondary.
+- The widget extension compiles the app's `ProviderColorPalette` source. The
+  published projection carries an optional synced icon tint for each provider,
+  so built-in and Mac-supplied provider colors match the app; All remains blue.
+  Unknown dates use a restrained outline, confirmed zero a neutral fill, and
+  positive days a quartile-scaled provider color. Stale/sync/error replaces the
+  secondary count only when it changes the meaning of a displayed history.
+- [Apple's widget margins guidance](https://developer.apple.com/design/human-interface-guidelines/widgets)
+  permits 11-point margins for graphics. The heatmap configurations disable
+  WidgetKit's default content margins and supply 11 points themselves. The
+  system owns the removable widget background and [Liquid Glass/tinted
+  rendering](https://developer.apple.com/documentation/widgetkit/optimizing-your-widget-for-accented-rendering-mode-and-liquid-glass);
+  the content uses accent groups rather than another custom blur layer.
+- The iOS 26.5 compact simulator's focused render/projection run passed eight
+  tests with 12 light, dark, and accented family images exported for inspection.
+  The signed Debug build was installed on the paired iPhone Air without clearing
+  app data. Its Home Screen showed the revised small Claude widget, plus a
+  second page with the full-width medium Codex grid and the large Codex +
+  Claude comparison. The latter had aligned left edges and no dividing rule.
+  The physical Home Screen capture is at
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/WidgetScreenshots/ios-220-large-medium-iphone-air.png`.
