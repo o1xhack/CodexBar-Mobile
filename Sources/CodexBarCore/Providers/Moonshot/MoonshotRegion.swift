@@ -4,8 +4,6 @@ public enum MoonshotRegion: String, CaseIterable, Sendable {
     case international
     case china
 
-    private static let balancePath = "v1/users/me/balance"
-
     public var displayName: String {
         switch self {
         case .international:
@@ -22,10 +20,6 @@ public enum MoonshotRegion: String, CaseIterable, Sendable {
         case .china:
             "https://api.moonshot.cn"
         }
-    }
-
-    public var balanceURL: URL {
-        URL(string: self.apiBaseURLString)!.appendingPathComponent(Self.balancePath)
     }
 
     public var consoleURL: URL {

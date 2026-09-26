@@ -1,15 +1,29 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 struct AiAndProviderTests {
     @Test
-    func `single log page maps to summed spend in the org billing currency`() async throws {
+    func `descriptor uses the bundled plugin without an opt-in flag`() async throws {
+        let context = Self.context(environment: ["AIAND_API_KEY": "fixture-key"])
+        let strategies = await AiAndProviderDescriptor.descriptor.fetchPlan.pipeline.resolveStrategies(context)
+        #expect(strategies.count == 1)
+        let strategy = try #require(strategies.first)
+        #expect(strategy is ScriptFetchStrategy)
+        #expect(strategy.id == "aiand.js")
+        #expect(await strategy.isAvailable(context))
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `single log page maps to summed spend in the org billing currency`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             #expect(request.httpMethod == "GET")
+            #expect(request.timeoutInterval == 15)
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-key")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             #expect(url.absoluteString == "https://api.aiand.com/logs?range=30days&limit=100")
@@ -21,16 +35,17 @@ struct AiAndProviderTests {
             return Self.response(url: url, body: Self.finalPageFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage(
+        let usage = try await Self.fetch(
+            engine: engine,
             "fixture-key",
             transport: transport,
             now: now)
-        let snapshot = usage.toUsageSnapshot()
+        let snapshot = usage
 
         // "7.02344000" + "1.10000000"; the null-cost row is skipped.
-        #expect(usage.last30DaysSpend?.amount == Decimal(string: "8.12344"))
-        #expect(usage.last30DaysSpend?.currencyCode == "JPY")
-        #expect(usage.isComplete)
+        #expect(usage.providerCost?.used == 8.12344)
+        #expect(usage.providerCost?.currencyCode == "JPY")
+        #expect(usage.dataConfidence == .exact)
         #expect(snapshot.primary == nil)
         #expect(snapshot.secondary == nil)
         #expect(snapshot.tertiary == nil)
@@ -43,21 +58,21 @@ struct AiAndProviderTests {
         #expect(snapshot.updatedAt == now)
     }
 
-    @Test
-    func `pagination sends both cursors and sums across pages`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `pagination sends both cursors and sums across pages`(engine: ProviderPluginEngineKind) async throws {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             let query = url.query ?? ""
             if query.contains("after=") {
                 #expect(url.absoluteString ==
                     "https://api.aiand.com/logs?range=30days&limit=100" +
-                    "&after=2026-07-17%2010:24:30.094374%2B00&after_id=912bf992-0000-4000-8000-000000000002")
+                    "&after=2026-07-17%2010%3A24%3A30.094374%2B00&after_id=912bf992-0000-4000-8000-000000000002")
                 return Self.response(url: url, body: Self.finalPageFixture)
             }
             return Self.response(url: url, body: Self.firstPageFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
 
         let requests = await transport.requests()
         #expect(requests.count == 2)
@@ -65,35 +80,36 @@ struct AiAndProviderTests {
         #expect(secondQuery.contains("after="))
         #expect(secondQuery.contains("after_id=912bf992-0000-4000-8000-000000000002"))
         // Page 1: "12.00000000" + "0.50000000"; page 2: "7.02344000" + "1.10000000".
-        #expect(usage.last30DaysSpend?.amount == Decimal(string: "20.62344"))
-        #expect(usage.last30DaysSpend?.currencyCode == "JPY")
-        #expect(usage.isComplete)
+        #expect(usage.providerCost?.used == 20.62344)
+        #expect(usage.providerCost?.currencyCode == "JPY")
+        #expect(usage.dataConfidence == .exact)
     }
 
-    @Test
-    func `hitting the page cap marks the spend partial`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `hitting the page cap marks the spend partial`(engine: ProviderPluginEngineKind) async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.firstPageFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage(
+        let usage = try await Self.fetch(
+            engine: engine,
             "fixture-key",
             transport: transport,
             now: now)
-        let snapshot = usage.toUsageSnapshot()
+        let snapshot = usage
 
         let requests = await transport.requests()
-        #expect(requests.count == AiAndUsageFetcher.maxPages)
-        #expect(!usage.isComplete)
-        #expect(usage.last30DaysSpend?.amount == Decimal(string: "125.0"))
+        #expect(requests.count == 10)
+        #expect(usage.dataConfidence == .estimated)
+        #expect(usage.providerCost?.used == 125.0)
         #expect(snapshot.providerCost?.period == "Last 30 days (partial)")
         #expect(snapshot.dataConfidence == .estimated)
     }
 
-    @Test
-    func `missing pagination cursor marks the spend partial`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `missing pagination cursor marks the spend partial`(engine: ProviderPluginEngineKind) async throws {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: #"""
@@ -106,80 +122,86 @@ struct AiAndProviderTests {
             """#)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
-        let snapshot = usage.toUsageSnapshot()
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
+        let snapshot = usage
 
         #expect(await transport.requests().count == 1)
-        #expect(!usage.isComplete)
+        #expect(usage.dataConfidence == .estimated)
         #expect(snapshot.providerCost?.period == "Last 30 days (partial)")
         #expect(snapshot.dataConfidence == .estimated)
     }
 
-    @Test
-    func `mixed currencies keep the newest row's currency and skip the rest`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `mixed currencies keep the newest row's currency and skip the rest`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.mixedCurrencyFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
 
         // The newest row is JPY, so the USD row is not added to the total.
-        #expect(usage.last30DaysSpend?.currencyCode == "JPY")
-        #expect(usage.last30DaysSpend?.amount == Decimal(string: "9.5"))
+        #expect(usage.providerCost?.currencyCode == "JPY")
+        #expect(usage.providerCost?.used == 9.5)
     }
 
-    @Test
-    func `empty window omits the cost snapshot instead of guessing a currency`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `empty window omits the cost snapshot instead of guessing a currency`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: #"{"data": [], "has_more": false}"#)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
-        let snapshot = usage.toUsageSnapshot()
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
+        let snapshot = usage
 
         // The billing currency is only observable from log rows; with none, report
         // no cost at all rather than a zero in a guessed currency.
-        #expect(usage.last30DaysSpend == nil)
-        #expect(usage.isComplete)
+        #expect(usage.providerCost == nil)
+        #expect(usage.dataConfidence == .exact)
         #expect(snapshot.providerCost == nil)
     }
 
-    @Test
-    func `rows without a currency are skipped and alone yield no cost snapshot`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `rows without a currency are skipped and alone yield no cost snapshot`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.missingCurrencyFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
 
-        #expect(usage.last30DaysSpend == nil)
-        #expect(usage.toUsageSnapshot().providerCost == nil)
+        #expect(usage.providerCost == nil)
+        #expect(usage.providerCost == nil)
     }
 
-    @Test
-    func `decimal money strings sum exactly`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `decimal money strings sum exactly`(engine: ProviderPluginEngineKind) async throws {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.decimalFixture)
         }
 
-        let usage = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
 
         // 0.1 + 0.1 + 0.1 must be exactly 0.3 — Double summation would drift.
-        #expect(usage.last30DaysSpend?.amount == Decimal(string: "0.3"))
+        #expect(usage.providerCost?.used == 0.3)
     }
 
-    @Test
-    func `credential is only sent as a bearer header`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `credential is only sent as a bearer header`(engine: ProviderPluginEngineKind) async throws {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.finalPageFixture)
         }
 
-        _ = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+        _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
 
         let request = try #require(await transport.requests().first)
         let url = try #require(request.url)
@@ -187,73 +209,62 @@ struct AiAndProviderTests {
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-key")
     }
 
-    @Test
-    func `invalid api key maps to an actionable error`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `invalid api key maps to an actionable error`(engine: ProviderPluginEngineKind) async {
         let transport = Self.errorTransport(statusCode: 401, code: "invalid_api_key")
 
         await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("wrong-key", transport: transport)
+            _ = try await Self.fetch(engine: engine, "wrong-key", transport: transport)
         } throws: { error in
-            error as? AiAndUsageError == .authenticationRejected
+            (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
         }
-        #expect(AiAndUsageError.authenticationRejected.errorDescription?.contains("console.aiand.com") == true)
     }
 
-    @Test
-    func `insufficient credits maps to an actionable error`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `insufficient credits maps to an actionable error`(engine: ProviderPluginEngineKind) async {
         let transport = Self.errorTransport(statusCode: 402, code: "insufficient_credits")
 
         await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+            _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
         } throws: { error in
-            error as? AiAndUsageError == .insufficientCredits
+            (error as? ProviderFetchClassifiedError)?.kind == .apiFailure && error.localizedDescription
+                .contains("credits")
         }
-        #expect(AiAndUsageError.insufficientCredits.errorDescription?.contains("credits") == true)
     }
 
-    @Test
-    func `rate limit is surfaced politely`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `rate limit is surfaced politely`(engine: ProviderPluginEngineKind) async {
         let transport = Self.errorTransport(statusCode: 429, code: "rate_limit_exceeded")
 
         await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+            _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
         } throws: { error in
-            error as? AiAndUsageError == .rateLimited
+            (error as? ProviderFetchClassifiedError)?.kind == .rateLimited
         }
     }
 
-    @Test
-    func `unexpected status is reported with its code`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `unexpected status is reported with its code`(engine: ProviderPluginEngineKind) async {
         let transport = Self.errorTransport(statusCode: 500, code: "internal_error")
 
         await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+            _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
         } throws: { error in
-            error as? AiAndUsageError == .apiError(500)
+            (error as? ProviderFetchClassifiedError)?.kind == .apiFailure && error.localizedDescription.contains("500")
         }
     }
 
-    @Test
-    func `missing or whitespace credential fails clearly`() async {
-        await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("   ")
-        } throws: { error in
-            error as? AiAndUsageError == .notConfigured
-        }
-    }
-
-    @Test
-    func `malformed logs payload fails parsing`() async {
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `malformed logs payload fails parsing`(engine: ProviderPluginEngineKind) async {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: #"{"object":"list"}"#)
         }
 
         await #expect {
-            _ = try await AiAndUsageFetcher.fetchUsage("fixture-key", transport: transport)
+            _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
         } throws: { error in
-            guard case .parseFailed = error as? AiAndUsageError else { return false }
-            return true
+            (error as? ProviderFetchClassifiedError)?.kind == .parseFailure
         }
     }
 
@@ -290,28 +301,28 @@ struct AiAndProviderTests {
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
         #expect(descriptor.cli.aliases == ["ai&", "ai-and"])
 
-        let implementation = try #require(ProviderImplementationRegistry.implementation(for: .aiand))
+        let implementation = try #require(ProviderCatalog.implementation(for: .aiand))
         #expect(implementation is AiAndProviderImplementation)
     }
 
-    @Test @MainActor
-    func `menu card renders spend through the generic API-spend path`() async throws {
+    @Test(arguments: BundledPluginTestSupport.engines) @MainActor
+    func `menu card renders spend through the generic API-spend path`(engine: ProviderPluginEngineKind) async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: Self.finalPageFixture)
         }
-        let usage = try await AiAndUsageFetcher.fetchUsage(
+        let usage = try await Self.fetch(
+            engine: engine,
             "fixture-key",
             transport: transport,
             now: now)
         let model = UsageMenuCardView.Model.make(.init(
             provider: .aiand,
             metadata: AiAndProviderDescriptor.descriptor.metadata,
-            snapshot: usage.toUsageSnapshot(),
+            snapshot: usage,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -340,7 +351,7 @@ struct AiAndProviderTests {
       "data": [
         {
           "id": "cdd2b25d-0000-4000-8000-000000000001",
-          "model": "zai-org/glm-5.2",
+          "model": "fixture-model",
           "api_key": "masked",
           "status_code": 200,
           "ttft_ms": 1449,
@@ -354,7 +365,7 @@ struct AiAndProviderTests {
         },
         {
           "id": "cdd2b25d-0000-4000-8000-000000000002",
-          "model": "zai-org/glm-5.2",
+          "model": "fixture-model",
           "api_key": "masked",
           "status_code": 200,
           "ttft_ms": 512,
@@ -368,7 +379,7 @@ struct AiAndProviderTests {
         },
         {
           "id": "cdd2b25d-0000-4000-8000-000000000003",
-          "model": "zai-org/glm-5.2",
+          "model": "fixture-model",
           "api_key": "masked",
           "status_code": 500,
           "ttft_ms": 0,
@@ -392,7 +403,7 @@ struct AiAndProviderTests {
       "data": [
         {
           "id": "912bf992-0000-4000-8000-000000000001",
-          "model": "zai-org/glm-5.2",
+          "model": "fixture-model",
           "api_key": "masked",
           "status_code": 200,
           "ttft_ms": 800,
@@ -406,7 +417,7 @@ struct AiAndProviderTests {
         },
         {
           "id": "912bf992-0000-4000-8000-000000000002",
-          "model": "zai-org/glm-5.2",
+          "model": "fixture-model",
           "api_key": "masked",
           "status_code": 200,
           "ttft_ms": 300,
@@ -481,6 +492,80 @@ struct AiAndProviderTests {
       "next_after_id": null
     }
     """#
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `signed and exponent decimal strings retain exact USD totals`(engine: ProviderPluginEngineKind) async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            return Self.response(url: url, body: #"""
+            {"data":[{"cost":"1e-1","currency":" usd "},{"cost":".2","currency":"USD"},
+            {"cost":"1.000000000000000000000000000000000000000000000","currency":"usd"},
+            {"cost":"-1","currency":"usd"},{"cost":"-.0","currency":"usd"}],"has_more":false}
+            """#)
+        }
+        let usage = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
+        #expect(usage.providerCost?.used == 0.3)
+        #expect(usage.providerCost?.currencyCode == "USD")
+        #expect(usage.dataConfidence == .exact)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `malformed typed fields fail rather than silently changing totals`(engine: ProviderPluginEngineKind) async {
+        for body in [
+            #"{"data":[{"cost":1,"currency":"usd"}]}"#,
+            #"{"data":[{"cost":"1","currency":1}]}"#,
+            #"{"data":[],"has_more":"false"}"#,
+            #"{"data":[],"next_after_id":1}"#,
+            #"{"data":[null]}"#,
+            "not JSON",
+        ] {
+            let transport = ProviderHTTPTransportStub { request in
+                try Self.response(url: #require(request.url), body: body)
+            }
+            await #expect {
+                _ = try await Self.fetch(engine: engine, "fixture-key", transport: transport)
+            } throws: { ($0 as? ProviderFetchClassifiedError)?.kind == .parseFailure }
+        }
+    }
+
+    @Test
+    func `missing credentials fail before transport`() async {
+        let context = Self.context(environment: [:])
+        let transport = ProviderHTTPTransportStub { _ in throw ProviderPluginError.script("unexpected request") }
+        let strategy = AiAndProviderDescriptor.scriptStrategy(transport: transport)
+        #expect(await strategy.isAvailable(context) == false)
+        await #expect {
+            _ = try await strategy.fetch(context)
+        } throws: { ($0 as? ProviderFetchClassifiedError)?.kind == .missingCredential }
+        #expect(await transport.requests().isEmpty)
+    }
+
+    private static func context(environment: [String: String]) -> ProviderFetchContext {
+        let browser = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .api,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: environment,
+            settings: nil,
+            fetcher: UsageFetcher(environment: [:]),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: [:]),
+            browserDetection: browser)
+    }
+
+    private static func fetch(
+        engine: ProviderPluginEngineKind,
+        _ credential: String,
+        transport: any ProviderHTTPTransport,
+        now: Date = Date()) async throws -> UsageSnapshot
+    {
+        let token = AiAndSettingsReader.apiKey(environment: ["AIAND_API_KEY": credential]) ?? ""
+        let runtime = try BundledPluginTestSupport.runtime("aiand", engine: engine, transport: transport)
+        return try await runtime.fetchUsage(secrets: ["AIAND_API_KEY": token], now: now)
+    }
 
     private static func errorTransport(statusCode: Int, code: String) -> ProviderHTTPTransportStub {
         ProviderHTTPTransportStub { request in

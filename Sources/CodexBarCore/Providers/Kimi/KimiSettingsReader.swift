@@ -5,28 +5,24 @@ public enum KimiSettingsReader {
     public static let codeAPIBaseURLEnvironmentKey = "KIMI_CODE_BASE_URL"
     public static let codeHomeEnvironmentKey = "KIMI_CODE_HOME"
     public static let codeOAuthHostEnvironmentKeys = ["KIMI_CODE_OAUTH_HOST", "KIMI_OAUTH_HOST"]
-    public static let defaultCodeAPIBaseURL = URL(string: "https://api.kimi.com")!
+    public static let defaultCodeAPIBaseURL = KimiRegion.china.apiBaseURL
     private static let codePlatform = "kimi_code_cli"
 
     public static func authToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         let raw = environment["KIMI_AUTH_TOKEN"] ?? environment["kimi_auth_token"]
-        return self.cleaned(raw)
+        return SettingsValue.cleaned(raw)
     }
 
     public static func apiKey(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        for key in self.apiKeyEnvironmentKeys {
-            if let value = self.cleaned(environment[key]) {
-                return value
-            }
-        }
-        return nil
+        SettingsValue.cleaned(environment[self.apiKeyEnvironmentKeys[0]])
     }
 
     public static func codeAPIBaseURL(
+        region: KimiRegion = .china,
         environment: [String: String] = ProcessInfo.processInfo.environment) throws -> URL
     {
-        guard let raw = self.cleaned(environment[self.codeAPIBaseURLEnvironmentKey]) else {
-            return self.defaultCodeAPIBaseURL
+        guard let raw = SettingsValue.cleaned(environment[self.codeAPIBaseURLEnvironmentKey]) else {
+            return region.apiBaseURL
         }
 
         guard URL(string: raw)?.scheme != nil,
@@ -38,11 +34,11 @@ public enum KimiSettingsReader {
     }
 
     public static func kimiCodeAccessToken(
+        region: KimiRegion = .china,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()) -> String?
     {
-        guard !self.hasCodeEndpointOverride(environment: environment),
-              let credential = self.kimiCodeCredential(environment: environment)
+        guard let credential = self.kimiCodeCredential(region: region, environment: environment)
         else {
             return nil
         }
@@ -52,14 +48,15 @@ public enum KimiSettingsReader {
     }
 
     public static func hasKimiCodeCredential(
+        region: KimiRegion = .china,
         environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool
     {
-        guard !self.hasCodeEndpointOverride(environment: environment),
-              let credential = self.kimiCodeCredential(environment: environment)
+        guard let credential = self.kimiCodeCredential(region: region, environment: environment)
         else {
             return false
         }
-        return self.cleaned(credential.accessToken) != nil || self.cleaned(credential.refreshToken) != nil
+        return SettingsValue.cleaned(credential.accessToken) != nil || SettingsValue
+            .cleaned(credential.refreshToken) != nil
     }
 
     static func kimiCodeIdentityHeaders(environment: [String: String]) -> [String: String] {
@@ -81,11 +78,16 @@ public enum KimiSettingsReader {
     }
 
     private static func hasCodeEndpointOverride(environment: [String: String]) -> Bool {
-        if self.cleaned(environment[self.codeAPIBaseURLEnvironmentKey]) != nil { return true }
-        return self.codeOAuthHostEnvironmentKeys.contains { self.cleaned(environment[$0]) != nil }
+        if SettingsValue.cleaned(environment[self.codeAPIBaseURLEnvironmentKey]) != nil { return true }
+        return self.codeOAuthHostEnvironmentKeys.contains { SettingsValue.cleaned(environment[$0]) != nil }
     }
 
-    private static func kimiCodeCredential(environment: [String: String]) -> KimiCodeOAuthCredential? {
+    private static func kimiCodeCredential(
+        region: KimiRegion,
+        environment: [String: String]) -> KimiCodeOAuthCredential?
+    {
+        // The CLI file has no issuing-host metadata; keep its historical China-only scope.
+        guard region == .china, !self.hasCodeEndpointOverride(environment: environment) else { return nil }
         let url = self.kimiCodeHomeURL(environment: environment)
             .appendingPathComponent("credentials", isDirectory: true)
             .appendingPathComponent("kimi-code.json")
@@ -102,7 +104,7 @@ public enum KimiSettingsReader {
         let home = self.kimiCodeHomeURL(environment: environment)
         let url = home
             .appendingPathComponent("device_id", isDirectory: false)
-        if let existing = self.cleaned(try? String(contentsOf: url, encoding: .utf8)) {
+        if let existing = SettingsValue.cleaned(try? String(contentsOf: url, encoding: .utf8)) {
             return existing
         }
 
@@ -121,7 +123,7 @@ public enum KimiSettingsReader {
     }
 
     private static func kimiCodeHomeURL(environment: [String: String]) -> URL {
-        if let override = self.cleaned(environment[self.codeHomeEnvironmentKey]) {
+        if let override = SettingsValue.cleaned(environment[self.codeHomeEnvironmentKey]) {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
         return FileManager.default.homeDirectoryForCurrentUser
@@ -155,21 +157,6 @@ public enum KimiSettingsReader {
         #else
         "unknown"
         #endif
-    }
-
-    private static func cleaned(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-            return nil
-        }
-
-        if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-            (value.hasPrefix("'") && value.hasSuffix("'"))
-        {
-            value = String(value.dropFirst().dropLast())
-        }
-
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : value
     }
 }
 

@@ -4,8 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { localeCatalog, localeMessages } from "../docs/site-locales.mjs";
+import { checkSocialCard } from "./social-card.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+checkSocialCard(repoRoot);
 const indexHtml = fs.readFileSync(path.join(repoRoot, "docs/index.html"), "utf8");
 const providerSource = fs.readFileSync(path.join(repoRoot, "Sources/CodexBarCore/Providers/Providers.swift"), "utf8");
 const providerEnumBody = providerSource.match(/public enum UsageProvider:[^{]+\{([\s\S]*?)\n\}/)?.[1];
@@ -91,7 +93,8 @@ for (const locale of localeCatalog) {
   assertEqual(Object.keys(messages).sort(), englishKeys, `${locale.code} message keys`);
 
   for (const key of ["meta.description", "meta.ogDescription", "providers.title"]) {
-    const counts = [...messages[key].matchAll(/\d+/g)].map(Number);
+    // Provider names such as v0 can precede the provider count in translated metadata.
+    const counts = [...messages[key].matchAll(/\b\d+\b/g)].map(Number);
     assertEqual(counts[0], providerCount, `${locale.code}.${key} provider count`);
   }
 
@@ -120,7 +123,30 @@ for (const code of catalogCodes) {
 }
 
 const providerCards = [...indexHtml.matchAll(/<li class="provider-card"([^>]*)>([\s\S]*?)<\/li>/g)];
+const listedProviderIDs = [];
 for (const [, attrs, body] of providerCards) {
+  const providerID = attrs.match(/data-provider="([^"]+)"/)?.[1];
+  if (providerID) {
+    listedProviderIDs.push(providerID);
+    assert(!attrs.includes("hidden"), `registered provider ${providerID} must be visible`);
+    const documentationPath = body.match(
+      /href="https:\/\/github\.com\/steipete\/CodexBar\/blob\/main\/(docs\/[^"#]+\.md)"/,
+    )?.[1];
+    assert(documentationPath, `${providerID} must link to its provider documentation`);
+    assert(
+      !["docs/provider.md", "docs/providers.md"].includes(documentationPath),
+      `${providerID} must link to its own setup guide`,
+    );
+    assert(
+      fs.existsSync(path.join(repoRoot, documentationPath)),
+      `missing provider documentation ${documentationPath}`,
+    );
+  } else {
+    assert(
+      body.includes('data-i18n="providers.yourProvider"'),
+      "provider cards must identify their registered provider",
+    );
+  }
   if (!attrs.includes("hidden")) {
     assert(body.includes('class="provider-card-link"'), "provider cards must link to provider documentation");
     assert(body.includes('class="provider-logo'), "provider cards must use logo assets");
@@ -129,8 +155,11 @@ for (const [, attrs, body] of providerCards) {
     }
   }
 }
+assertEqual([...listedProviderIDs].sort(), [...providerIDs].sort(), "website provider coverage");
 
-console.log(`app/site locales OK: ${catalogCodes.length} locales, ${englishKeys.length} site messages`);
+console.log(
+  `app/site locales OK: ${catalogCodes.length} locales, ${englishKeys.length} site messages, ${providerCount} provider cards`,
+);
 
 function tokens(value) {
   return [...value.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]).sort();

@@ -4,11 +4,13 @@ import Testing
 @testable import CodexBar
 
 struct MenuCardDeepSeekTests {
-    private static func sampleDeepSeekSummary(now: Date = Date()) -> DeepSeekUsageSummary {
+    private static func sampleDeepSeekSummary(
+        now: Date = Date(), todayCost: Double = 0.0123, hasDailyPoints: Bool = true) -> DeepSeekUsageSummary
+    {
         DeepSeekUsageSummary(
             todayTokens: 123,
             currentMonthTokens: 456,
-            todayCost: 0.0123,
+            todayCost: todayCost,
             currentMonthCost: 0.0456,
             requestCount: 7,
             currentMonthRequestCount: 8,
@@ -18,10 +20,12 @@ struct MenuCardDeepSeekTests {
                 DeepSeekCategoryBreakdown(category: .promptCacheMissToken, tokens: 20, cost: 0.002),
                 DeepSeekCategoryBreakdown(category: .responseToken, tokens: 30, cost: 0.003),
             ],
-            daily: [
+            daily: hasDailyPoints ? [
                 DeepSeekDailyUsage(date: "2026-05-26", totalTokens: 456, cost: 0.0456, requestCount: 8),
-            ],
+            ] : [],
             currency: "CNY",
+            modelCosts: [DeepSeekModelCost(model: "deepseek-chat", cost: 0.0456)],
+            period: .last30Days,
             updatedAt: now)
     }
 
@@ -40,6 +44,23 @@ struct MenuCardDeepSeekTests {
             detailedUsageState: detailedUsageState,
             updatedAt: now)
             .toUsageSnapshot()
+    }
+
+    @Test
+    func `usage rows retain fractional cent precision`() {
+        let snapshot = Self.makeSnapshot(
+            now: Date(), usageSummary: Self.sampleDeepSeekSummary(todayCost: 0.0049))
+        #expect(snapshot.details.flatMap(\.rows).first { $0.label == "Today" }?.value == "¥0.0049 · 123 tokens")
+    }
+
+    @Test(arguments: [false, true])
+    func `model spend uses usage currency and survives missing daily data`(hasDailyPoints: Bool) throws {
+        let snapshot = Self.makeSnapshot(
+            now: Date(), usageSummary: Self.sampleDeepSeekSummary(hasDailyPoints: hasDailyPoints))
+        let spend = try #require(snapshot.details.first { $0.title == "Spend" })
+        #expect(spend.rows.map(\.label) == ["deepseek-chat"])
+        #expect(spend.rows.map(\.value) == ["¥0.0456"])
+        #expect((spend.chart != nil) == hasDailyPoints)
     }
 
     @Test
@@ -68,7 +89,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -101,7 +121,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -116,6 +135,7 @@ struct MenuCardDeepSeekTests {
             now: now))
 
         #expect(model.inlineUsageDashboard == nil)
+        #expect(model.providerDetails.isEmpty)
         #expect(model.usageNotes.isEmpty)
     }
 
@@ -131,7 +151,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -148,8 +167,12 @@ struct MenuCardDeepSeekTests {
         let details = try #require(model.providerDetails.first)
         #expect(details.chart?.title == "Daily tokens")
         #expect(details.chart?.points.map(\.value) == [456])
+        #expect(details.title == "Usage")
         #expect(details.rows.first { $0.label == "Today" }?.value == "¥0.0123 · 123 tokens")
-        #expect(details.rows.first { $0.label == "This month" }?.value == "¥0.0456 · 456 tokens")
+        #expect(details.rows.first { $0.label == "Last 30 days" }?.value == "¥0.0456 · 456 tokens")
+        let spend = try #require(model.providerDetails.first { $0.title == "Spend" })
+        #expect(spend.rows.map(\.label) == ["deepseek-chat"])
+        #expect(spend.rows.map(\.value) == ["¥0.0456"])
     }
 
     @Test
@@ -165,7 +188,6 @@ struct MenuCardDeepSeekTests {
                 snapshot: snapshot,
                 credits: nil,
                 creditsError: nil,
-                dashboard: nil,
                 dashboardError: nil,
                 tokenSnapshot: nil,
                 tokenError: nil,
@@ -181,21 +203,21 @@ struct MenuCardDeepSeekTests {
         }
 
         let details = try #require(model.providerDetails.first)
-        #expect(details.title == "用量明细")
+        #expect(details.title == "用量")
         #expect(details.rows.map(\.label) == [
             "今日",
-            "本月",
+            "近 30 天",
             "请求",
             "最常用模型",
-            "缓存命中输入",
-            "缓存未命中输入",
-            "输出",
         ])
         #expect(details.rows[0].value == "¥0.0123 · 123 token 用量")
         #expect(details.rows[1].value == "¥0.0456 · 456 token 用量")
         #expect(details.rows[3].value == "deepseek-chat")
         #expect(details.chart?.title == "每日 token")
         #expect(details.chart?.unit == "token")
+        let spend = try #require(model.providerDetails.first { $0.title == "花费" })
+        #expect(spend.rows.map(\.label) == ["deepseek-chat"])
+        #expect(spend.rows.map(\.value) == ["¥0.0456"])
     }
 
     @Test
@@ -211,7 +233,6 @@ struct MenuCardDeepSeekTests {
                 snapshot: snapshot,
                 credits: nil,
                 creditsError: nil,
-                dashboard: nil,
                 dashboardError: nil,
                 tokenSnapshot: nil,
                 tokenError: nil,
@@ -256,7 +277,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -286,7 +306,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -319,7 +338,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -358,7 +376,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -388,7 +405,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -418,7 +434,6 @@ struct MenuCardDeepSeekTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -433,6 +448,7 @@ struct MenuCardDeepSeekTests {
             now: now))
 
         #expect(model.inlineUsageDashboard == nil)
+        #expect(model.providerDetails.isEmpty)
         #expect(model.usageNotes.isEmpty)
     }
 }

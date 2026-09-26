@@ -1,5 +1,5 @@
 ---
-summary: "Zed provider data source: editor Keychain session and Zed cloud API."
+summary: "Zed provider data sources: editor login and opt-in browser billing."
 read_when:
   - Debugging Zed usage fetch
   - Updating Zed Keychain or cloud API handling
@@ -9,8 +9,28 @@ read_when:
 # Zed provider
 
 CodexBar monitors Zed plan status, billing cycle dates, edit-prediction quota, and overdue invoices via Zed's cloud API.
+Optional browser billing adds token spend, its spending limit, and remaining budget.
 
 ## Data source
+
+**Browser billing (opt-in)** — in Zed provider settings, change **Cookie source** from **Off** to **Auto** to import a
+Chrome session, or **Manual** to paste a Cookie request header. Sign in to `zed.dev` in Chrome first; signing in only
+inside the editor does not create this browser session. CodexBar requests:
+
+```text
+GET https://cloud.zed.dev/frontend/billing/usage
+Cookie: zed.session=...
+```
+
+The bundled JavaScript plugin maps `current_usage.token_spend.spend_in_cents` and `limit_in_cents` to USD, with the
+response's plan and edit-prediction usage. A missing limit remains unknown. Browser billing uses only that browser
+account; it does not combine its spend with editor identity or custom-server data. Expired sessions and response-format
+changes produce a clear error instead of fabricated totals. This is an undocumented frontend contract, based on the
+[endpoint evidence in #3172](https://github.com/steipete/CodexBar/issues/3172).
+
+**Off** keeps the editor source below. The CLI uses that source by default; an explicit `--source api` always selects it.
+For manual browser billing, configure `cookieSource: "manual"` and `cookieHeader` for Zed in the CLI config, then select
+`--source web`. Automatic browser import requires macOS. Explicit web mode never falls back to editor credentials.
 
 **Local probe (Keychain + cloud API)** — reads the same credentials Zed stores after GitHub sign-in, then calls:
 
@@ -70,7 +90,9 @@ Per [LLM Providers](https://zed.dev/docs/ai/llm-providers.html) and [External Ag
 
 ## Key files
 
-- `Sources/CodexBarCore/Providers/Zed/ZedStatusProbe.swift` - Keychain read, cloud API, snapshot mapping
-- `Sources/CodexBarCore/Providers/Zed/ZedProviderDescriptor.swift` - provider metadata and local fetch strategy
-- `Sources/CodexBar/Providers/Zed/ZedProviderImplementation.swift` - app registration
+- `Sources/CodexBarCore/Resources/Plugins/zed.js` - HTTP requests and snapshot mapping for both sources
+- `Sources/CodexBarCore/Providers/Zed/ZedStatusProbe.swift` - editor settings and Keychain credential bridge
+- `Sources/CodexBarCore/Providers/Zed/ZedProviderDescriptor.swift` - provider metadata and source selection
+- `Sources/CodexBar/Providers/Zed/ZedProviderImplementation.swift` - app registration and cookie settings
 - `Tests/CodexBarTests/ZedStatusProbeTests.swift` - cloud API and routing tests
+- `Tests/CodexBarTests/ZedPluginTests.swift` - synthetic billing and editor fixtures on both plugin engines

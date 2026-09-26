@@ -8,6 +8,7 @@ public enum OpenCodeGoUsageError: LocalizedError {
     case networkError(String)
     case apiError(String)
     case parseFailed(String)
+    case noSubscription
 
     public var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ public enum OpenCodeGoUsageError: LocalizedError {
             "OpenCode Go API error: \(message)"
         case let .parseFailed(message):
             "OpenCode Go parse error: \(message)"
+        case .noSubscription:
+            "No OpenCode Go subscription or supported prepaid balance is available."
         }
     }
 }
@@ -31,6 +34,14 @@ public struct OpenCodeGoUsageFetcher: Sendable {
     private static let usageAPIURL = URL(string: "https://opencode.ai/zen/go/v1/usage")!
     private static let workspacesServerID = "def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f"
     private static let billingServerID = "c83b78a614689c38ebee981f9b39a8b377716db85c1fd7dbab604adc02d3313d"
+    /// Cookie-authenticated Console workspace list, fetched without a workspace header.
+    static let consoleWorkspacesURL = URL(string: "https://opencode.ai/console/api/orgs")!
+    /// Go subscription meters for the workspace named by `consoleWorkspaceHeaderField`.
+    static let consoleGoStatusURL = URL(string: "https://opencode.ai/console/api/go/status")!
+    /// Prepaid balance for the selected Console workspace.
+    static let consoleBillingStatusURL = URL(string: "https://opencode.ai/console/api/billing/status")!
+    /// The console answers HTTP 400 when this header is missing.
+    static let consoleWorkspaceHeaderField = "x-org-id"
 
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
@@ -70,43 +81,6 @@ public struct OpenCodeGoUsageFetcher: Sendable {
         let session: URLSession
     }
 
-    private static let percentKeys = [
-        "usagePercent",
-        "usedPercent",
-        "percentUsed",
-        "percent",
-        "usage_percent",
-        "used_percent",
-        "utilization",
-        "utilizationPercent",
-        "utilization_percent",
-        "usage",
-    ]
-    private static let resetInKeys = [
-        "resetInSec",
-        "resetInSeconds",
-        "resetSeconds",
-        "reset_sec",
-        "reset_in_sec",
-        "resetsInSec",
-        "resetsInSeconds",
-        "resetIn",
-        "resetSec",
-    ]
-    private static let resetAtKeys = [
-        "resetAt",
-        "resetsAt",
-        "reset_at",
-        "resets_at",
-        "nextReset",
-        "next_reset",
-        "renewAt",
-        "renew_at",
-    ]
-    private static let renewAtKeys = [
-        "renewAt",
-        "renew_at",
-    ]
     private static let redirectGuardDelegate = RedirectGuardDelegate()
     private static let redirectGuardSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -144,7 +118,7 @@ public struct OpenCodeGoUsageFetcher: Sendable {
             timeout: timeout,
             session: session)
         let subscriptionTask = Task {
-            try await self.fetchUsagePage(
+            try await self.fetchSubscriptionPayload(
                 workspaceID: workspaceID,
                 cookieHeader: requestCookieHeader,
                 timeout: timeout,
@@ -229,7 +203,7 @@ public struct OpenCodeGoUsageFetcher: Sendable {
                 throw OpenCodeGoUsageError.invalidCredentials
             }
             let body = String(data: response.data, encoding: .utf8) ?? ""
-            if let message = self.extractServerErrorMessage(from: body) {
+            if let message = OpenCodeWebParsing.extractServerErrorMessage(from: body) {
                 throw OpenCodeGoUsageError.apiError("HTTP \(response.statusCode): \(message)")
             }
             throw OpenCodeGoUsageError.apiError("HTTP \(response.statusCode)")
@@ -246,9 +220,12 @@ public struct OpenCodeGoUsageFetcher: Sendable {
         request: ZenBalanceRequest,
         now: Date) async throws -> OpenCodeGoUsageSnapshot
     {
-        guard case let .parseFailed(message) = error,
-              message.contains("Missing usage fields")
-        else {
+        switch error {
+        case .noSubscription:
+            break
+        case let .parseFailed(message) where message.contains("Missing usage fields"):
+            break
+        default:
             throw error
         }
         let task = task ?? Task {
@@ -303,9 +280,11 @@ public struct OpenCodeGoUsageFetcher: Sendable {
         return true
     }
 
+    /// Opens the console route. The legacy `/workspace/<id>/go` page redirects migrated workspaces
+    /// to the console login screen, so it is no longer a usable destination.
     public static func dashboardURL(workspaceID raw: String?) -> URL {
         guard let workspaceID = self.normalizeWorkspaceID(raw),
-              let url = URL(string: "\(self.baseURL.absoluteString)/workspace/\(workspaceID)/go")
+              let url = URL(string: "\(self.baseURL.absoluteString)/console/\(workspaceID)/go")
         else {
             return self.authURL
         }
@@ -340,6 +319,18 @@ extension OpenCodeGoUsageFetcher {
         timeout: TimeInterval,
         session: URLSession) async throws -> String
     {
+        try await OpenCodeGoLegacyFallback.fetch(cookieHeader: cookieHeader) {
+            try await self.fetchConsoleWorkspaceID(cookieHeader: cookieHeader, timeout: timeout, session: session)
+        } legacy: {
+            try await self.fetchLegacyWorkspaceID(cookieHeader: cookieHeader, timeout: timeout, session: session)
+        }
+    }
+
+    private static func fetchLegacyWorkspaceID(
+        cookieHeader: String,
+        timeout: TimeInterval,
+        session: URLSession) async throws -> String
+    {
         let text = try await self.fetchServerText(
             request: ServerRequest(
                 serverID: self.workspacesServerID,
@@ -352,9 +343,9 @@ extension OpenCodeGoUsageFetcher {
         if self.looksSignedOut(text: text) {
             throw OpenCodeGoUsageError.invalidCredentials
         }
-        var ids = self.parseWorkspaceIDs(text: text)
+        var ids = OpenCodeWebParsing.parseWorkspaceIDs(text: text)
         if ids.isEmpty {
-            ids = self.parseWorkspaceIDsFromJSON(text: text)
+            ids = OpenCodeWebParsing.parseWorkspaceIDsFromJSON(text: text)
         }
         if ids.isEmpty {
             Self.log.error("OpenCode Go workspace ids missing after GET; retrying with POST.")
@@ -370,9 +361,9 @@ extension OpenCodeGoUsageFetcher {
             if self.looksSignedOut(text: fallback) {
                 throw OpenCodeGoUsageError.invalidCredentials
             }
-            ids = self.parseWorkspaceIDs(text: fallback)
+            ids = OpenCodeWebParsing.parseWorkspaceIDs(text: fallback)
             if ids.isEmpty {
-                ids = self.parseWorkspaceIDsFromJSON(text: fallback)
+                ids = OpenCodeWebParsing.parseWorkspaceIDsFromJSON(text: fallback)
             }
             if ids.isEmpty {
                 throw OpenCodeGoUsageError.parseFailed("Missing workspace id.")
@@ -382,68 +373,29 @@ extension OpenCodeGoUsageFetcher {
         return ids[0]
     }
 
-    static func normalizeWorkspaceID(_ raw: String?) -> String? {
-        guard let raw else { return nil }
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("wrk_"), trimmed.count > 4 {
-            return trimmed
-        }
-        if let url = URL(string: trimmed) {
-            let parts = url.pathComponents
-            if let index = parts.firstIndex(of: "workspace"),
-               parts.count > index + 1
-            {
-                let candidate = parts[index + 1]
-                if candidate.hasPrefix("wrk_"), candidate.count > 4 {
-                    return candidate
-                }
-            }
-        }
-        if let match = trimmed.range(of: #"wrk_[A-Za-z0-9]+"#, options: .regularExpression) {
-            return String(trimmed[match])
-        }
-        return nil
-    }
-
-    static func parseWorkspaceIDs(text: String) -> [String] {
-        let pattern = #"id\s*:\s*\"(wrk_[^\"]+)\""#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-        return regex.matches(in: text, options: [], range: nsrange).compactMap { match in
-            guard let range = Range(match.range(at: 1), in: text) else { return nil }
-            return String(text[range])
-        }
-    }
-
-    private static func parseWorkspaceIDsFromJSON(text: String) -> [String] {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [])
-        else {
-            return []
-        }
-        var results: [String] = []
-        self.collectWorkspaceIDs(object: object, out: &results)
-        return results
-    }
-
-    private static func collectWorkspaceIDs(object: Any, out: inout [String]) {
-        if let dict = object as? [String: Any] {
-            for (_, value) in dict {
-                self.collectWorkspaceIDs(object: value, out: &out)
-            }
-            return
-        }
-        if let array = object as? [Any] {
-            for value in array {
-                self.collectWorkspaceIDs(object: value, out: &out)
-            }
-            return
-        }
-        if let string = object as? String,
-           string.hasPrefix("wrk_"),
-           !out.contains(string)
-        {
-            out.append(string)
+    /// Reads the Go subscription payload, preferring the console API.
+    ///
+    /// Migrated workspaces redirect `opencode.ai/workspace/<id>/go` to the console login route and
+    /// answer with an empty SPA shell, so the scraped payload no longer exists. Workspaces that have
+    /// not migrated yet still serve the legacy page, which stays as the fallback.
+    private static func fetchSubscriptionPayload(
+        workspaceID: String,
+        cookieHeader: String,
+        timeout: TimeInterval,
+        session: URLSession) async throws -> String
+    {
+        try await OpenCodeGoLegacyFallback.fetch(cookieHeader: cookieHeader) {
+            try await self.fetchConsoleGoStatus(
+                workspaceID: workspaceID,
+                cookieHeader: cookieHeader,
+                timeout: timeout,
+                session: session)
+        } legacy: {
+            try await self.fetchUsagePage(
+                workspaceID: workspaceID,
+                cookieHeader: cookieHeader,
+                timeout: timeout,
+                session: session)
         }
     }
 
@@ -463,7 +415,7 @@ extension OpenCodeGoUsageFetcher {
             throw OpenCodeGoUsageError.invalidCredentials
         }
         guard self.parseSubscriptionJSON(text: text, now: Date()) != nil ||
-            self.extractDouble(
+            OpenCodeWebParsing.extractDouble(
                 pattern: #"rollingUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
                 text: text) != nil
         else {
@@ -471,6 +423,155 @@ extension OpenCodeGoUsageFetcher {
             throw OpenCodeGoUsageError.parseFailed("Missing usage fields.")
         }
         return text
+    }
+
+    // MARK: - Console API
+
+    private static func fetchConsoleWorkspaceID(
+        cookieHeader: String,
+        timeout: TimeInterval,
+        session: URLSession) async throws -> String
+    {
+        let text = try await self.fetchConsoleText(
+            url: self.consoleWorkspacesURL,
+            workspaceID: nil,
+            cookieHeader: cookieHeader,
+            timeout: timeout,
+            session: session)
+        guard let workspaceID = self.parseConsoleWorkspaceIDs(text: text).first else {
+            throw OpenCodeGoUsageError.parseFailed("Missing workspace id.")
+        }
+        return workspaceID
+    }
+
+    private static func fetchConsoleGoStatus(
+        workspaceID: String,
+        cookieHeader: String,
+        timeout: TimeInterval,
+        session: URLSession) async throws -> String
+    {
+        let text = try await self.fetchConsoleText(
+            url: self.consoleGoStatusURL,
+            workspaceID: workspaceID,
+            cookieHeader: cookieHeader,
+            timeout: timeout,
+            session: session)
+        if let data = text.data(using: .utf8),
+           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+           object is NSNull || (object as? [String: Any])?["access"] is NSNull
+        {
+            throw OpenCodeGoUsageError.noSubscription
+        }
+        guard self.parseConsoleGoStatus(text: text, now: Date()) != nil else {
+            Self.log.error("OpenCode Go console status payload missing usage fields.")
+            throw OpenCodeGoUsageError.parseFailed("Invalid Console usage payload.")
+        }
+        return text
+    }
+
+    /// Console responses are JSON and report a signed-out session as HTTP 401, so unlike the legacy
+    /// pages they must not be classified by body text.
+    static func fetchConsoleText(
+        url: URL,
+        workspaceID: String?,
+        cookieHeader: String,
+        timeout: TimeInterval,
+        session: URLSession) async throws -> String
+    {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = timeout
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let workspaceID {
+            request.setValue(workspaceID, forHTTPHeaderField: self.consoleWorkspaceHeaderField)
+        }
+
+        let httpResponse = try await session.response(for: request)
+        guard httpResponse.statusCode == 200 else {
+            let bodyText = String(data: httpResponse.data, encoding: .utf8) ?? ""
+            if httpResponse.statusCode == 401 {
+                throw OpenCodeGoUsageError.invalidCredentials
+            }
+            if let message = OpenCodeWebParsing.extractServerErrorMessage(from: bodyText) {
+                throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+            }
+            throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode)")
+        }
+        guard let text = String(data: httpResponse.data, encoding: .utf8) else {
+            throw OpenCodeGoUsageError.parseFailed("Response was not UTF-8.")
+        }
+        return text
+    }
+
+    static func parseConsoleWorkspaceIDs(text: String) -> [String] {
+        guard let data = text.data(using: .utf8),
+              let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        else {
+            return []
+        }
+        return rows.compactMap { $0["id"] as? String }.filter { self.isConsoleWorkspaceID($0) }
+    }
+
+    private static func isConsoleWorkspaceID(_ value: String) -> Bool {
+        value.range(of: #"^(?:wrk_|org_)[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil
+    }
+
+    static func normalizeWorkspaceID(_ raw: String?) -> String? {
+        if let legacy = OpenCodeWebParsing.normalizeWorkspaceID(raw) { return legacy }
+        guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        if self.isConsoleWorkspaceID(raw) { return raw }
+        guard let url = URL(string: raw), url.scheme == "https", url.host == "opencode.ai",
+              let index = url.pathComponents.firstIndex(of: "console"),
+              url.pathComponents.count > index + 1
+        else { return nil }
+        let candidate = url.pathComponents[index + 1]
+        return self.isConsoleWorkspaceID(candidate) ? candidate : nil
+    }
+
+    /// Converts the console's micro-cent meters into the percentage windows the snapshot models.
+    /// The month meter carries no reset timestamp, so the billing period end stands in for it.
+    static func parseConsoleGoStatus(text: String, now: Date) -> OpenCodeGoUsageSnapshot? {
+        guard let data = text.data(using: .utf8),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let access = root["access"] as? [String: Any],
+              let meters = access["meters"] as? [String: Any],
+              let rolling = meters["fiveHour"] as? [String: Any]
+        else {
+            return nil
+        }
+
+        let renewsAt = OpenCodeWebParsing.dateValue(from: access["endsAt"])
+        var monthly = meters["month"] as? [String: Any]
+        if monthly?["resetsAt"] == nil || monthly?["resetsAt"] is NSNull, let endsAt = access["endsAt"] {
+            monthly?["resetsAt"] = endsAt
+        }
+
+        guard let snapshot = self.buildSnapshot(
+            rolling: rolling,
+            weekly: meters["week"] as? [String: Any],
+            monthly: monthly,
+            now: now,
+            renewsAt: renewsAt)
+        else { return nil }
+
+        func resetInterval(_ meter: [String: Any]?) -> Int? {
+            OpenCodeWebParsing.dateValue(from: meter?["resetsAt"]).flatMap { OpenCodeWebParsing.resetInterval(
+                from: $0,
+                now: now) }
+        }
+        return OpenCodeGoUsageSnapshot(
+            hasWeeklyUsage: snapshot.hasWeeklyUsage,
+            hasMonthlyUsage: snapshot.hasMonthlyUsage,
+            rollingUsagePercent: snapshot.rollingUsagePercent,
+            weeklyUsagePercent: snapshot.weeklyUsagePercent,
+            monthlyUsagePercent: snapshot.monthlyUsagePercent,
+            rollingResetInSec: resetInterval(rolling),
+            weeklyResetInSec: resetInterval(meters["week"] as? [String: Any]),
+            monthlyResetInSec: resetInterval(monthly),
+            renewsAt: renewsAt,
+            updatedAt: now)
     }
 
     static func parseAPIUsage(text: String, now: Date) throws -> OpenCodeGoUsageSnapshot {
@@ -481,8 +582,12 @@ extension OpenCodeGoUsageFetcher {
         else {
             throw OpenCodeGoUsageError.parseFailed("Missing usage fields.")
         }
-        let renewsAt = self.dateValue(from: self.value(from: usage, keys: self.renewAtKeys))
-            ?? self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys))
+        let renewsAt = OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
+            from: usage,
+            keys: OpenCodeWebParsing.renewAtKeys))
+            ?? OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
+                from: dict,
+                keys: OpenCodeWebParsing.renewAtKeys))
         guard let snapshot = self.buildSnapshot(
             rolling: rolling,
             weekly: usage["weekly"] as? [String: Any],
@@ -501,28 +606,28 @@ extension OpenCodeGoUsageFetcher {
             return snapshot
         }
 
-        guard let rollingPercent = self.extractDouble(
+        guard let rollingPercent = OpenCodeWebParsing.extractDouble(
             pattern: #"rollingUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
             text: text),
-            let rollingReset = self.extractInt(
+            let rollingReset = OpenCodeWebParsing.extractInt(
                 pattern: #"rollingUsage[^}]*?resetInSec\s*:\s*([0-9]+)"#,
                 text: text)
         else {
             throw OpenCodeGoUsageError.parseFailed("Missing usage fields.")
         }
 
-        let weeklyPercent = self.extractDouble(
+        let weeklyPercent = OpenCodeWebParsing.extractDouble(
             pattern: #"weeklyUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
             text: text)
-        let weeklyReset = self.extractInt(
+        let weeklyReset = OpenCodeWebParsing.extractInt(
             pattern: #"weeklyUsage[^}]*?resetInSec\s*:\s*([0-9]+)"#,
             text: text)
         let hasWeeklyUsage = weeklyPercent != nil && weeklyReset != nil
 
-        let monthlyPercent = self.extractDouble(
+        let monthlyPercent = OpenCodeWebParsing.extractDouble(
             pattern: #"monthlyUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
             text: text)
-        let monthlyReset = self.extractInt(
+        let monthlyReset = OpenCodeWebParsing.extractInt(
             pattern: #"monthlyUsage[^}]*?resetInSec\s*:\s*([0-9]+)"#,
             text: text)
 
@@ -546,7 +651,14 @@ extension OpenCodeGoUsageFetcher {
             return nil
         }
 
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys))
+        // The console reports micro-cent meters, which the generic window parser cannot key on.
+        if let snapshot = self.parseConsoleGoStatus(text: text, now: now) {
+            return snapshot
+        }
+
+        let renewsAt = OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
+            from: dict,
+            keys: OpenCodeWebParsing.renewAtKeys))
         if let snapshot = self.parseUsageDictionary(dict, now: now, inheritedRenewsAt: renewsAt) {
             return snapshot
         }
@@ -568,7 +680,9 @@ extension OpenCodeGoUsageFetcher {
         now: Date,
         inheritedRenewsAt: Date?) -> OpenCodeGoUsageSnapshot?
     {
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
+        let renewsAt = OpenCodeWebParsing
+            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: OpenCodeWebParsing.renewAtKeys)) ??
+            inheritedRenewsAt
         if let usage = dict["usage"] as? [String: Any],
            let snapshot = self.parseUsageDictionary(usage, now: now, inheritedRenewsAt: renewsAt)
         {
@@ -595,7 +709,9 @@ extension OpenCodeGoUsageFetcher {
         inheritedRenewsAt: Date?) -> OpenCodeGoUsageSnapshot?
     {
         if depth > 3 { return nil }
-        let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
+        let renewsAt = OpenCodeWebParsing
+            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: OpenCodeWebParsing.renewAtKeys)) ??
+            inheritedRenewsAt
         var rolling: [String: Any]?
         var weekly: [String: Any]?
         var monthly: [String: Any]?
@@ -642,7 +758,7 @@ extension OpenCodeGoUsageFetcher {
         now: Date,
         inheritedRenewsAt: Date? = nil) -> OpenCodeGoUsageSnapshot?
     {
-        let candidates = self.collectWindowCandidates(object: object, now: now)
+        let candidates = OpenCodeWebParsing.collectWindowCandidates(object: object) { self.parseWindow($0, now: now) }
         guard !candidates.isEmpty else { return nil }
 
         let rollingCandidates = candidates.filter { candidate in
@@ -661,16 +777,16 @@ extension OpenCodeGoUsageFetcher {
         }
 
         let nonRollingIDs = Set((weeklyCandidates + monthlyCandidates).map(\.id))
-        let rolling = self.pickCandidate(
+        let rolling = OpenCodeWebParsing.pickCandidate(
             preferred: rollingCandidates,
             fallback: candidates.filter { !nonRollingIDs.contains($0.id) },
             pickShorter: true)
-        let weekly = self.pickCandidate(
+        let weekly = OpenCodeWebParsing.pickCandidate(
             from: weeklyCandidates.filter { candidate in
                 candidate.id != rolling?.id
             },
             pickShorter: false)
-        let monthly = self.pickCandidate(
+        let monthly = OpenCodeWebParsing.pickCandidate(
             from: monthlyCandidates.filter { candidate in
                 candidate.id != rolling?.id && candidate.id != weekly?.id
             },
@@ -678,7 +794,9 @@ extension OpenCodeGoUsageFetcher {
 
         guard let rolling else { return nil }
 
-        let renewsAt = self.dateValue(from: self.value(from: object as? [String: Any] ?? [:], keys: self.renewAtKeys))
+        let renewsAt = OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
+            from: object as? [String: Any] ?? [:],
+            keys: OpenCodeWebParsing.renewAtKeys))
             ?? inheritedRenewsAt
         return OpenCodeGoUsageSnapshot(
             hasWeeklyUsage: weekly != nil,
@@ -691,78 +809,6 @@ extension OpenCodeGoUsageFetcher {
             monthlyResetInSec: monthly?.resetInSec ?? 0,
             renewsAt: renewsAt,
             updatedAt: now)
-    }
-
-    private struct WindowCandidate {
-        let id: UUID
-        let percent: Double
-        let resetInSec: Int
-        let pathLower: String
-    }
-
-    private static func collectWindowCandidates(object: Any, now: Date) -> [WindowCandidate] {
-        var candidates: [WindowCandidate] = []
-        self.collectWindowCandidates(object: object, now: now, path: [], out: &candidates)
-        return candidates
-    }
-
-    private static func collectWindowCandidates(
-        object: Any,
-        now: Date,
-        path: [String],
-        out: inout [WindowCandidate])
-    {
-        if let dict = object as? [String: Any] {
-            if let window = self.parseWindow(dict, now: now) {
-                let pathLower = path.joined(separator: ".").lowercased()
-                out.append(WindowCandidate(
-                    id: UUID(),
-                    percent: window.percent,
-                    resetInSec: window.resetInSec,
-                    pathLower: pathLower))
-            }
-            for (key, value) in dict {
-                self.collectWindowCandidates(object: value, now: now, path: path + [key], out: &out)
-            }
-            return
-        }
-
-        if let array = object as? [Any] {
-            for (index, value) in array.enumerated() {
-                self.collectWindowCandidates(
-                    object: value,
-                    now: now,
-                    path: path + ["[\(index)]"],
-                    out: &out)
-            }
-        }
-    }
-
-    private static func pickCandidate(
-        preferred: [WindowCandidate],
-        fallback: [WindowCandidate],
-        pickShorter: Bool,
-        excluding excluded: UUID? = nil) -> WindowCandidate?
-    {
-        let filteredPreferred = preferred.filter { $0.id != excluded }
-        if let picked = self.pickCandidate(from: filteredPreferred, pickShorter: pickShorter) {
-            return picked
-        }
-        let filteredFallback = fallback.filter { $0.id != excluded }
-        return self.pickCandidate(from: filteredFallback, pickShorter: pickShorter)
-    }
-
-    private static func pickCandidate(from candidates: [WindowCandidate], pickShorter: Bool) -> WindowCandidate? {
-        guard !candidates.isEmpty else { return nil }
-        let comparator: (WindowCandidate, WindowCandidate) -> Bool = { lhs, rhs in
-            if pickShorter {
-                if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
-                return lhs.resetInSec < rhs.resetInSec
-            }
-            if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
-            return lhs.resetInSec > rhs.resetInSec
-        }
-        return candidates.min(by: comparator)
     }
 
     private static func firstDict(from dict: [String: Any], keys: [String]) -> [String: Any]? {
@@ -822,34 +868,15 @@ extension OpenCodeGoUsageFetcher {
         now: Date,
         directPercentEncoding: DirectPercentEncoding = .fractionOrPercent) -> (percent: Double, resetInSec: Int)?
     {
-        var percent: Double?
-
-        for key in self.percentKeys {
-            if let value = self.doubleValue(from: dict[key]) {
-                percent = value
-                break
-            }
-        }
+        var percent = OpenCodeWebParsing.doubleValue(from: dict, keys: OpenCodeWebParsing.percentKeys)
         // Dashboard JSON may use fractions. API fields and computed used/limit percentages already use 0...100.
         let percentIsDirect = percent != nil
 
         if percent == nil {
-            let usedKeys = ["used", "usage", "consumed", "count", "usedTokens"]
-            let limitKeys = ["limit", "total", "quota", "max", "cap", "tokenLimit"]
-            var used: Double?
-            for key in usedKeys {
-                if let value = self.doubleValue(from: dict[key]) {
-                    used = value
-                    break
-                }
-            }
-            var limit: Double?
-            for key in limitKeys {
-                if let value = self.doubleValue(from: dict[key]) {
-                    limit = value
-                    break
-                }
-            }
+            let usedKeys = ["used", "usage", "consumed", "count", "usedTokens", "usedMicroCents"]
+            let limitKeys = ["limit", "total", "quota", "max", "cap", "tokenLimit", "limitMicroCents"]
+            let used = OpenCodeWebParsing.doubleValue(from: dict, keys: usedKeys)
+            let limit = OpenCodeWebParsing.doubleValue(from: dict, keys: limitKeys)
             if let used, let limit, limit > 0 {
                 percent = (used / limit) * 100
             }
@@ -861,18 +888,12 @@ extension OpenCodeGoUsageFetcher {
         }
         resolvedPercent = max(0, min(100, resolvedPercent))
 
-        var resetInSec: Int?
-        for key in self.resetInKeys {
-            if let value = self.intValue(from: dict[key]) {
-                resetInSec = value
-                break
-            }
-        }
+        var resetInSec = OpenCodeWebParsing.intValue(from: dict, keys: OpenCodeWebParsing.resetInKeys)
 
         if resetInSec == nil {
-            for key in self.resetAtKeys {
-                if let resetAt = self.dateValue(from: dict[key]),
-                   let interval = self.resetInterval(from: resetAt, now: now)
+            for key in OpenCodeWebParsing.resetAtKeys {
+                if let resetAt = OpenCodeWebParsing.dateValue(from: dict[key]),
+                   let interval = OpenCodeWebParsing.resetInterval(from: resetAt, now: now)
                 {
                     resetInSec = interval
                     break
@@ -925,7 +946,7 @@ extension OpenCodeGoUsageFetcher {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 throw OpenCodeGoUsageError.invalidCredentials
             }
-            if let message = self.extractServerErrorMessage(from: bodyText) {
+            if let message = OpenCodeWebParsing.extractServerErrorMessage(from: bodyText) {
                 throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode): \(message)")
             }
             throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode)")
@@ -961,7 +982,7 @@ extension OpenCodeGoUsageFetcher {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 throw OpenCodeGoUsageError.invalidCredentials
             }
-            if let message = self.extractServerErrorMessage(from: bodyText) {
+            if let message = OpenCodeWebParsing.extractServerErrorMessage(from: bodyText) {
                 throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode): \(message)")
             }
             throw OpenCodeGoUsageError.apiError("HTTP \(httpResponse.statusCode)")
@@ -987,124 +1008,6 @@ extension OpenCodeGoUsageFetcher {
     }
 
     static func looksSignedOut(text: String) -> Bool {
-        let lower = text.lowercased()
-        return lower.contains("login") ||
-            lower.contains("sign in") ||
-            lower.contains("auth/authorize") ||
-            lower.contains("not associated with an account") ||
-            lower.contains("actor of type \"public\"")
-    }
-
-    private static func extractServerErrorMessage(from text: String) -> String? {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [])
-        else {
-            if let match = text.range(of: #"(?i)<title>([^<]+)</title>"#, options: .regularExpression) {
-                return String(text[match].dropFirst(7).dropLast(8)).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            return nil
-        }
-
-        guard let dict = object as? [String: Any] else { return nil }
-        if let message = dict["message"] as? String, !message.isEmpty {
-            return message
-        }
-        if let error = dict["error"] as? String, !error.isEmpty {
-            return error
-        }
-        if let detail = dict["detail"] as? String, !detail.isEmpty {
-            return detail
-        }
-        return nil
-    }
-
-    private static func extractDouble(pattern: String, text: String) -> Double? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
-        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, options: [], range: nsrange),
-              let range = Range(match.range(at: 1), in: text)
-        else {
-            return nil
-        }
-        return Double(text[range])
-    }
-
-    private static func extractInt(pattern: String, text: String) -> Int? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
-        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, options: [], range: nsrange),
-              let range = Range(match.range(at: 1), in: text)
-        else {
-            return nil
-        }
-        return Int(text[range])
-    }
-
-    private static func doubleValue(from value: Any?) -> Double? {
-        let number: Double? = switch value {
-        case let number as Double:
-            number
-        case let number as NSNumber:
-            number.doubleValue
-        case let string as String:
-            Double(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        default:
-            nil
-        }
-        guard let number, number.isFinite else { return nil }
-        return number
-    }
-
-    private static func intValue(from value: Any?) -> Int? {
-        switch value {
-        case let number as Int:
-            number
-        case let number as NSNumber:
-            number.intValue
-        case let string as String:
-            Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        default:
-            nil
-        }
-    }
-
-    private static func value(from dict: [String: Any], keys: [String]) -> Any? {
-        for key in keys {
-            if let value = dict[key] {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private static func dateValue(from value: Any?) -> Date? {
-        guard let value else { return nil }
-        if let number = self.doubleValue(from: value) {
-            if number > 1_000_000_000_000 {
-                return Date(timeIntervalSince1970: number / 1000)
-            }
-            if number > 1_000_000_000 {
-                return Date(timeIntervalSince1970: number)
-            }
-        }
-        if let string = value as? String {
-            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return self.dateValue(from: number)
-            }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let parsed = formatter.date(from: string) {
-                return parsed
-            }
-        }
-        return nil
-    }
-
-    private static func resetInterval(from resetAt: Date, now: Date) -> Int? {
-        let interval = resetAt.timeIntervalSince(now)
-        guard interval.isFinite else { return nil }
-        if interval <= 0 { return 0 }
-        guard interval < Double(Int.max) else { return nil }
-        return Int(interval)
+        OpenCodeWebParsing.looksSignedOut(text: text)
     }
 }

@@ -47,43 +47,44 @@ public enum ChutesProviderDescriptor {
                 primaryBindingQuotaLanes: [.secondary],
                 menuCard: ProviderMenuCardPresentation(
                     showsPrimaryBalanceDescription: true,
+                    showsSecondaryBalanceDescription: true,
                     hidesPrimaryResetWithoutDate: true),
                 menu: ProviderMenuDescriptorPresentation(
                     primaryDescriptionIsDetail: { _ in true },
                     secondaryDescriptionMode: .detailWhenResetDatePresent)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [ChutesAPIFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "chutes",
                 aliases: ["chutes.ai"],
                 versionDetector: nil))
     }
-}
 
-struct ChutesAPIFetchStrategy: ProviderFetchStrategy {
-    let id: String = "chutes.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        ChutesSettingsReader.apiKey(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = ChutesSettingsReader.apiKey(environment: context.env) else {
-            throw ChutesSettingsError.missingToken
-        }
-
-        let usage = try await ChutesUsageFetcher.fetchUsage(
-            apiKey: apiKey,
-            environment: context.env)
-
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    static func scriptStrategy(
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "chutes.js",
+            provider: .chutes,
+            bundledPlugin: "chutes",
+            secretKey: ChutesSettingsReader.apiKeyEnvironmentKey,
+            sourceLabel: "api",
+            transport: transport,
+            validateContext: { context in
+                guard ChutesSettingsReader.apiKey(environment: context.env) != nil else {
+                    throw ProviderFetchClassifiedError(
+                        kind: .missingCredential,
+                        message: ChutesSettingsError.missingToken.localizedDescription)
+                }
+                try ChutesSettingsReader.validateEndpointOverrides(environment: context.env)
+            },
+            resolveValues: { context in
+                guard let token = ChutesSettingsReader.apiKey(environment: context.env) else { return nil }
+                return .init(
+                    settings: ["BASE_URL": ChutesSettingsReader.apiURL(environment: context.env).absoluteString],
+                    secrets: [ChutesSettingsReader.apiKeyEnvironmentKey: token])
+            },
+            isEnabled: { _ in true })
     }
 }

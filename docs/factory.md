@@ -125,6 +125,8 @@ Endpoints:
   - `workos:refresh-token` (required)
   - `workos:access-token` (optional)
   - Organization ID parsed from JWT when available.
+- Firefox localStorage is not supported. Firefox cookie import cannot recover a WorkOS refresh token stored only in
+  localStorage; use a Factory API key or a supported browser session in that case.
 
 ## Session storage
 - File: `~/Library/Application Support/CodexBar/factory-session.json`

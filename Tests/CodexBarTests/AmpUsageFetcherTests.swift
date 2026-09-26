@@ -227,17 +227,18 @@ struct AmpUsageFetcherTests {
     }
 
     private func makeFetcher(recorder: AmpSessionFinishRecorder) -> AmpUsageFetcher {
-        AmpUsageFetcher(
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            makeURLSession: { delegate in
+        var fetcher = AmpUsageFetcher(browserDetection: BrowserDetection(cacheTTL: 0))
+        fetcher.sessionFactory = ProviderHTTPSessionFactory(
+            makeSession: { delegate in
                 let configuration = URLSessionConfiguration.ephemeral
                 configuration.protocolClasses = [AmpStubURLProtocol.self]
                 return URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
             },
-            finishURLSession: { session in
+            finishSession: { session in
                 recorder.record(session)
                 session.finishTasksAndInvalidate()
             })
+        return fetcher
     }
 
     private static func makeResponse(

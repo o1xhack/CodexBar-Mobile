@@ -648,7 +648,7 @@ struct DebugPane: View {
         let attempts = self.store.fetchAttempts(for: provider)
         guard !attempts.isEmpty else { return L("no_fetch_attempts") }
         return attempts.map { attempt in
-            let kind = Self.fetchKindLabel(attempt.kind)
+            let kind = ProviderDiagnosticFetchAttempt.kindLabel(attempt.kind)
             var line = "\(attempt.strategyID) (\(kind))"
             line += attempt.wasAvailable ? " available" : " unavailable"
             if let error = attempt.errorDescription, !error.isEmpty {

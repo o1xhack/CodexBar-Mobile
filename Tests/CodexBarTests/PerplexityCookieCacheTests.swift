@@ -180,7 +180,6 @@ struct PerplexityCookieCacheTests {
             cookieHeader: "\(Self.testCookieName)=cached-token",
             sourceLabel: "web")
 
-        let strategy = PerplexityWebFetchStrategy()
         let settings = ProviderSettingsSnapshot.make(
             perplexity: ProviderSettingsSnapshot.PerplexityProviderSettings(
                 cookieSource: .off,
@@ -198,6 +197,7 @@ struct PerplexityCookieCacheTests {
             claudeFetcher: StubClaudeFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0))
 
-        #expect(await strategy.isAvailable(context) == false)
+        let strategies = await PerplexityProviderDescriptor.descriptor.fetchPlan.pipeline.resolveStrategies(context)
+        #expect(await strategies[0].isAvailable(context) == false)
     }
 }

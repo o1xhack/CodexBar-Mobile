@@ -74,12 +74,6 @@ extension UsageMenuCardView.Model {
             presentation.detailLeft = detail
         case .detail:
             presentation.detailText = detail
-        case .detailBySecondaryPresence:
-            if input.snapshot?.secondary != nil {
-                presentation.detailRight = detail
-            } else {
-                presentation.detailText = detail
-            }
         case .standard:
             break
         }
@@ -126,9 +120,6 @@ extension UsageMenuCardView.Model {
             presentation.resetText = primary.resetDescription
         }
         if policy.hidesPrimaryResetWithoutDate, primary.resetsAt == nil {
-            presentation.resetText = nil
-        }
-        if policy.hidesPrimaryResetWithoutSecondary, input.snapshot?.secondary == nil {
             presentation.resetText = nil
         }
     }
@@ -348,6 +339,7 @@ extension UsageMenuCardView.Model {
             self.providerDetails.isEmpty &&
             self.openAIAPIUsage == nil &&
             self.inlineUsageDashboard == nil &&
+            self.limitResetCredits == nil &&
             self.creditsRemaining == nil &&
             self.providerCost == nil &&
             self.tokenUsage == nil &&
@@ -360,8 +352,12 @@ extension UsageMenuCardView.Model {
             !self.providerDetails.isEmpty ||
             self.openAIAPIUsage != nil ||
             self.inlineUsageDashboard != nil ||
-            self.codexResetCredits != nil ||
+            self.limitResetCredits != nil ||
             self.placeholder != nil
+    }
+
+    func showsOverviewSupplementalContent(compact: Bool) -> Bool {
+        !compact || self.metrics.isEmpty
     }
 
     var creditsOnlyInlineUsageDashboard: Bool {
@@ -371,14 +367,14 @@ extension UsageMenuCardView.Model {
             self.usageNotes.isEmpty &&
             self.providerDetails.isEmpty &&
             self.openAIAPIUsage == nil &&
-            self.codexResetCredits == nil &&
+            self.limitResetCredits == nil &&
             self.placeholder == nil
     }
 
     var usesStackedDetailLayout: Bool {
         !self.metrics.isEmpty ||
             self.creditsText != nil ||
-            self.codexResetCredits != nil ||
+            self.limitResetCredits != nil ||
             self.providerCost != nil ||
             self.tokenUsage != nil
     }
@@ -409,13 +405,14 @@ extension UsageMenuCardView.Model {
               self.usageNotes == candidate.usageNotes,
               self.providerDetails == candidate.providerDetails,
               (self.openAIAPIUsage == nil) == (candidate.openAIAPIUsage == nil),
+              self.creditsShowProgress == candidate.creditsShowProgress,
               Self.hasCompatibleCreditsLayout(
                   currentText: self.creditsText,
                   currentRemaining: self.creditsRemaining,
                   candidateText: candidate.creditsText,
                   candidateRemaining: candidate.creditsRemaining),
               self.creditsHintText == candidate.creditsHintText,
-              Self.hasCompatibleCodexResetCreditsLayout(self.codexResetCredits, candidate.codexResetCredits),
+              Self.hasCompatibleLimitResetCreditsLayout(self.limitResetCredits, candidate.limitResetCredits),
               self.placeholder == candidate.placeholder,
               Self.hasCompatibleDashboardLayout(self.inlineUsageDashboard, candidate.inlineUsageDashboard),
               Self.hasCompatibleProviderCostLayout(self.providerCost, candidate.providerCost),
@@ -428,9 +425,9 @@ extension UsageMenuCardView.Model {
         return zip(self.metrics, candidate.metrics).allSatisfy(Self.hasCompatibleMetricLayout)
     }
 
-    private static func hasCompatibleCodexResetCreditsLayout(
-        _ current: CodexResetCreditsPresentation?,
-        _ candidate: CodexResetCreditsPresentation?) -> Bool
+    private static func hasCompatibleLimitResetCreditsLayout(
+        _ current: LimitResetCreditsPresentation?,
+        _ candidate: LimitResetCreditsPresentation?) -> Bool
     {
         // The hosted section has a fixed shape; its count and expiry strings can update in place.
         (current == nil) == (candidate == nil)
@@ -479,12 +476,16 @@ extension UsageMenuCardView.Model {
             current.valueStyle == candidate.valueStyle &&
                 current.kpis.count == candidate.kpis.count &&
                 current.points.count == candidate.points.count &&
+                current.quotaWindows.count == candidate.quotaWindows.count &&
                 current.detailLines.count == candidate.detailLines.count &&
                 zip(current.kpis, candidate.kpis).allSatisfy {
                     $0.title == $1.title && $0.emphasis == $1.emphasis
                 } &&
                 zip(current.points, candidate.points).allSatisfy {
                     $0.id == $1.id && $0.label == $1.label
+                } &&
+                zip(current.quotaWindows, candidate.quotaWindows).allSatisfy {
+                    $0.title == $1.title && $0.range == $1.range && $0.note == $1.note
                 }
         default:
             false
@@ -539,6 +540,7 @@ extension UsageMenuCardView.Model {
         input: Input,
         snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
     {
+        let presentation = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation
         if input.provider == .factory, snapshot.tertiary != nil {
             return (L("5-hour"), L("Weekly"), L("Monthly"), true)
         }
@@ -558,8 +560,6 @@ extension UsageMenuCardView.Model {
         // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
         let primaryLabel = if input.provider == .cursor, snapshot.detailRow(label: "Request quota") != nil {
             "Requests"
-        } else if input.provider == .crof {
-            CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
         } else if input.provider == .grok {
             GrokProviderDescriptor.displayLabel(window: snapshot.primary, now: input.now) ?? input.metadata.sessionLabel
         } else if input.provider == .doubao {
@@ -573,7 +573,7 @@ extension UsageMenuCardView.Model {
         } else if input.provider == .ollama {
             OllamaProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else {
-            input.metadata.sessionLabel
+            presentation.rateWindowLabels(metadata: input.metadata, snapshot: snapshot, now: input.now).primary
         }
         let secondaryLabel = if input.provider == .amp {
             AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? input.metadata.weeklyLabel
@@ -731,7 +731,7 @@ extension UsageMenuCardView.Model {
 
     static func poeBalanceDetailText(input: Input) -> String? {
         guard input.provider == .poe else { return nil }
-        return StatusItemController.menuBarBalanceDisplayText(provider: input.provider, snapshot: input.snapshot)
+        return MenuBarLayoutBalanceResolver.balance(provider: input.provider, snapshot: input.snapshot)
     }
 
     private static func hasLocalCodexTokenUsage(_ input: Input) -> Bool {
@@ -918,6 +918,7 @@ extension UsageMenuCardView.Model {
         percentStyle: PercentStyle) -> [Metric]
     {
         guard let extraRateWindows = snapshot.extraRateWindows else { return [] }
+        let menuCard = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.menuCard
         // Codex additional limits (e.g. Codex Spark) are optional extra usage and follow the
         // "optional credits and extra usage" setting. Other providers' extra windows (Antigravity
         // per-model quotas, Factory core windows, etc.) are core data and must always render.
@@ -946,10 +947,11 @@ extension UsageMenuCardView.Model {
             let resolvedResetText = Self.extraRateWindowResetText(
                 namedWindow: namedWindow,
                 input: input)
-            let resetText = input.provider == .sub2api && namedWindow.window.resetsAt == nil
+            let usesResetDetail = menuCard.extraRateWindowShowsResetDescriptionAsDetail(namedWindow)
+            let resetText = usesResetDetail && namedWindow.window.resetsAt == nil
                 ? nil
                 : resolvedResetText
-            let detailText: String? = if input.provider == .sub2api {
+            let detailText: String? = if usesResetDetail {
                 namedWindow.window.resetDescription
             } else {
                 nil
@@ -1078,10 +1080,13 @@ extension UsageMenuCardView.Model {
         window: RateWindow,
         input: Input) -> PaceDetail?
     {
-        if provider == .claude, window.windowMinutes != 10080 {
+        // Provider-specific by design: extra-window pacing covers Codex, Claude, Antigravity, and Cursor 7-day extras.
+        if provider == .claude || provider == .cursor, window.windowMinutes != 10080 {
             return nil
         }
-        guard provider == .codex || provider == .claude || provider == .antigravity else { return nil }
+        guard provider == .codex || provider == .claude || provider == .antigravity || provider == .cursor else {
+            return nil
+        }
         switch window.windowMinutes {
         case 300:
             return self.sessionPaceDetail(

@@ -98,7 +98,9 @@ UsageSnapshot (daily/weekly quota %)
 
 ## Browser session extraction
 
-- **Browsers scanned**: Chrome, Edge, Brave, Arc, Vivaldi, Chromium, and compatible Chromium forks.
+- **Browsers scanned**: Chrome first, then the shared Chromium browser catalog, including Edge, Brave, Arc, Vivaldi,
+  Dia, ChatGPT Atlas, Chromium, Helium, Yandex, Comet, and supported preview channels. Browsers without profile data
+  are skipped; Safari and Firefox localStorage are not supported.
 - **Local storage path**: `~/Library/Application Support/<Browser>/<Profile>/Local Storage/leveldb/`
 - **Origins**: `https://app.devin.ai`, then legacy `https://windsurf.com`
 - Values from different structured origins are never combined. A partial app-origin bundle cannot contaminate a

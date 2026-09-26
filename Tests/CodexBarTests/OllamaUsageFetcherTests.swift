@@ -56,17 +56,18 @@ struct OllamaUsageFetcherTests {
             string: "https://example.com/user_management/authorize?client_id=test")))
     }
 
-    @Test
-    func `manual mode without valid header throws no session cookie`() {
+    @Test(arguments: [nil, "", "   ", "\n\t"] as [String?])
+    func `empty manual cookie explains how to configure a header or automatic cookies`(header: String?) {
         do {
             _ = try OllamaUsageFetcher.resolveManualCookieHeader(
-                override: nil,
+                override: header,
                 manualCookieMode: true)
-            Issue.record("Expected OllamaUsageError.noSessionCookie")
-        } catch OllamaUsageError.noSessionCookie {
-            // expected
+            Issue.record("Expected empty manual cookie error")
         } catch {
-            Issue.record("Expected OllamaUsageError.noSessionCookie, got \(error)")
+            #expect(error.localizedDescription.contains("Manual"))
+            #expect(error.localizedDescription.contains("Auto"))
+            #expect(error.localizedDescription.contains("https://ollama.com/settings"))
+            #expect(error.localizedDescription != OllamaUsageError.noSessionCookie.localizedDescription)
         }
     }
 
@@ -564,8 +565,8 @@ struct OllamaUsageFetcherTests {
             cookies: [Self.makeCookie(name: "__Secure-next-auth.session-token", value: "auth")],
             sourceLabel: "Profile B")
 
-        let selected = try OllamaCookieImporter.selectSessionInfo(from: [first, second])
-        #expect(selected.sourceLabel == "Profile B")
+        let selected = try OllamaCookieImporter.selectSessionInfos(from: [first, second])
+        #expect(selected.first?.sourceLabel == "Profile B")
     }
 
     @Test
@@ -580,7 +581,7 @@ struct OllamaUsageFetcherTests {
         ]
 
         do {
-            _ = try OllamaCookieImporter.selectSessionInfo(from: candidates)
+            _ = try OllamaCookieImporter.selectSessionInfos(from: candidates)
             Issue.record("Expected OllamaUsageError.noSessionCookie")
         } catch OllamaUsageError.noSessionCookie {
             // expected
@@ -595,8 +596,8 @@ struct OllamaUsageFetcherTests {
             cookies: [Self.makeCookie(name: "next-auth.session-token.0", value: "chunk0")],
             sourceLabel: "Profile C")
 
-        let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
-        #expect(selected.sourceLabel == "Profile C")
+        let selected = try OllamaCookieImporter.selectSessionInfos(from: [candidate])
+        #expect(selected.first?.sourceLabel == "Profile C")
     }
 
     @Test
@@ -605,8 +606,8 @@ struct OllamaUsageFetcherTests {
             cookies: [Self.makeCookie(name: "__Secure-session", value: "auth")],
             sourceLabel: "Profile D")
 
-        let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
-        #expect(selected.sourceLabel == "Profile D")
+        let selected = try OllamaCookieImporter.selectSessionInfos(from: [candidate])
+        #expect(selected.first?.sourceLabel == "Profile D")
     }
 
     @Test
@@ -615,8 +616,8 @@ struct OllamaUsageFetcherTests {
             cookies: [Self.makeCookie(name: "wos-session", value: "auth")],
             sourceLabel: "WorkOS Profile")
 
-        let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
-        #expect(selected.sourceLabel == "WorkOS Profile")
+        let selected = try OllamaCookieImporter.selectSessionInfos(from: [candidate])
+        #expect(selected.first?.sourceLabel == "WorkOS Profile")
     }
 
     @Test
@@ -649,7 +650,7 @@ struct OllamaUsageFetcherTests {
         ]
 
         do {
-            _ = try OllamaCookieImporter.selectSessionInfoWithFallback(
+            _ = try OllamaCookieImporter.selectSessionInfosWithFallback(
                 preferredCandidates: preferred,
                 allowFallbackBrowsers: false,
                 loadFallbackCandidates: { fallback })
@@ -674,11 +675,11 @@ struct OllamaUsageFetcherTests {
                 sourceLabel: "Safari Profile"),
         ]
 
-        let selected = try OllamaCookieImporter.selectSessionInfoWithFallback(
+        let selected = try OllamaCookieImporter.selectSessionInfosWithFallback(
             preferredCandidates: preferred,
             allowFallbackBrowsers: true,
             loadFallbackCandidates: { fallback })
-        #expect(selected.sourceLabel == "Safari Profile")
+        #expect(selected.first?.sourceLabel == "Safari Profile")
     }
 
     @Test
@@ -689,11 +690,11 @@ struct OllamaUsageFetcherTests {
                 sourceLabel: "Comet Profile"),
         ]
 
-        let selected = try OllamaCookieImporter.selectSessionInfoWithFallback(
+        let selected = try OllamaCookieImporter.selectSessionInfosWithFallback(
             preferredCandidates: [],
             allowFallbackBrowsers: true,
             loadFallbackCandidates: { fallback })
-        #expect(selected.sourceLabel == "Comet Profile")
+        #expect(selected.first?.sourceLabel == "Comet Profile")
     }
 
     private static func makeCookie(

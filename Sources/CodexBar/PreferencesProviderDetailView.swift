@@ -74,6 +74,18 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
         L(UsageMenuCardView.popupMetricTitle(provider: provider, metric: metric))
     }
 
+    static func versionText(provider: UsageProvider, store: UsageStore) -> String? {
+        let context = ProviderPresentationContext(
+            provider: provider,
+            settings: store.settings,
+            store: store,
+            metadata: store.metadata(for: provider))
+        let presentation = ProviderCatalog.implementation(for: provider)?.presentation(context: context)
+            ?? ProviderPresentation(detailLine: ProviderPresentation.standardDetailLine)
+        guard presentation.showsVersionInSettings else { return nil }
+        return store.version(for: provider) ?? L("not detected")
+    }
+
     static func metricInlinePresentation(
         _ metric: UsageMenuCardView.Model.Metric) -> ProviderMetricInlinePresentation
     {
@@ -127,6 +139,7 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
                     provider: self.provider,
                     store: self.store,
                     isEnabled: self.isEnabled,
+                    versionText: Self.versionText(provider: self.provider, store: self.store),
                     model: self.model)
             }
 
@@ -261,7 +274,7 @@ struct ProviderUsageItemVisibilitySettingsView: View {
 }
 
 @MainActor
-private struct ProviderDetailHeaderRow: View {
+struct ProviderDetailHeaderRow: View {
     let provider: UsageProvider
     @Bindable var store: UsageStore
     @Binding var isEnabled: Bool
@@ -334,15 +347,18 @@ private struct ProviderDetailBrandIcon: View {
 }
 
 @MainActor
-private struct ProviderDetailInfoRows: View {
+struct ProviderDetailInfoRows: View {
     let provider: UsageProvider
     @Bindable var store: UsageStore
     let isEnabled: Bool
+    let versionText: String?
     let model: UsageMenuCardView.Model
 
     var body: some View {
         ProviderDetailInfoRow(label: L("Source"), value: self.store.sourceLabel(for: self.provider))
-        ProviderDetailInfoRow(label: L("Version"), value: self.store.version(for: self.provider) ?? L("not detected"))
+        if let versionText {
+            ProviderDetailInfoRow(label: L("Version"), value: versionText)
+        }
         ProviderDetailInfoRow(label: L("Updated"), value: self.updatedText)
 
         if let status = self.store.status(for: self.provider) {
@@ -417,6 +433,36 @@ struct ProviderMetricsInlineView: View {
         let value: String
     }
 
+    struct ContentState: Equatable {
+        let hasMetrics: Bool
+        let hasUsageNotes: Bool
+        let hasProviderCost: Bool
+        let hasInfoRows: Bool
+        let hasTokenUsage: Bool
+        let hasResetCredits: Bool
+        let hasProviderDetails: Bool
+
+        init(model: UsageMenuCardView.Model, infoRows: [InfoRow]) {
+            self.hasMetrics = !model.metrics.isEmpty
+            self.hasUsageNotes = !model.usageNotes.isEmpty
+            self.hasProviderCost = model.providerCost?.showsInProviderDetails == true
+            self.hasInfoRows = !infoRows.isEmpty
+            self.hasTokenUsage = model.tokenUsage != nil
+            self.hasResetCredits = model.limitResetCredits != nil
+            self.hasProviderDetails = !model.providerDetails.isEmpty
+        }
+
+        var showsPlaceholder: Bool {
+            !self.hasMetrics &&
+                !self.hasUsageNotes &&
+                !self.hasProviderCost &&
+                !self.hasInfoRows &&
+                !self.hasTokenUsage &&
+                !self.hasResetCredits &&
+                !self.hasProviderDetails
+        }
+    }
+
     static func infoRows(
         for model: UsageMenuCardView.Model,
         openAIWebDiagnostic: String?) -> [InfoRow]
@@ -432,14 +478,10 @@ struct ProviderMetricsInlineView: View {
     }
 
     var body: some View {
-        let hasMetrics = !self.model.metrics.isEmpty
-        let hasUsageNotes = !self.model.usageNotes.isEmpty
         let infoRows = Self.infoRows(for: self.model, openAIWebDiagnostic: self.openAIWebDiagnostic)
-        let hasProviderCost = self.model.providerCost?.showsInProviderDetails == true
-        let hasTokenUsage = self.model.tokenUsage != nil
-        let hasResetCredits = self.model.codexResetCredits != nil
+        let contentState = ContentState(model: self.model, infoRows: infoRows)
 
-        if !hasMetrics, !hasUsageNotes, !hasProviderCost, infoRows.isEmpty, !hasTokenUsage, !hasResetCredits {
+        if contentState.showsPlaceholder {
             Text(self.placeholderText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -451,7 +493,7 @@ struct ProviderMetricsInlineView: View {
                     progressColor: self.model.progressColor)
             }
 
-            if hasUsageNotes {
+            if contentState.hasUsageNotes {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(Array(self.model.usageNotes.enumerated()), id: \.offset) { _, note in
                         Text(note)
@@ -467,8 +509,8 @@ struct ProviderMetricsInlineView: View {
                 ProviderDetailInfoRow(label: row.label, value: row.value)
             }
 
-            if let resetCredits = self.model.codexResetCredits {
-                ProviderCodexResetCreditsInlineRow(presentation: resetCredits)
+            if let resetCredits = self.model.limitResetCredits {
+                ProviderLimitResetCreditsInlineRow(presentation: resetCredits)
             }
 
             if let providerCost = self.model.providerCost, providerCost.showsInProviderDetails {
@@ -479,7 +521,7 @@ struct ProviderMetricsInlineView: View {
 
             if let tokenUsage = self.model.tokenUsage {
                 ProviderMetricInlineTextRow(
-                    title: L("Cost"),
+                    title: UsageMenuCardView.Model.tokenUsageHeader(provider: self.model.provider),
                     value: tokenUsage.sessionLine)
                 ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
                 if ProviderDescriptorRegistry.descriptor(for: self.model.provider).tokenCost.showsHintInProviderDetails,
@@ -488,6 +530,12 @@ struct ProviderMetricsInlineView: View {
                 {
                     ProviderMetricInlineTextRow(title: "", value: hint)
                 }
+            }
+
+            if contentState.hasProviderDetails {
+                ProviderDetailSectionsContent(
+                    sections: self.model.providerDetails,
+                    chartColor: self.model.progressColor)
             }
         }
     }
@@ -578,8 +626,8 @@ private struct ProviderMetricInlineRow: View {
     }
 }
 
-private struct ProviderCodexResetCreditsInlineRow: View {
-    let presentation: CodexResetCreditsPresentation
+private struct ProviderLimitResetCreditsInlineRow: View {
+    let presentation: LimitResetCreditsPresentation
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

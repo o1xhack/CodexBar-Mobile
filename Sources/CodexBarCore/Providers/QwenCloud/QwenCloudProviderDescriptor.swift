@@ -65,6 +65,13 @@ public enum QwenCloudProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Qwen Cloud cost summary is not supported." }),
             presentation: ProviderUsagePresentation(
+                rateWindowLabeler: { metadata, snapshot, _ in
+                    ProviderRateWindowLabels(
+                        primary: snapshot.primary?.windowMinutes == 30 * 24 * 60 ? "Monthly" : metadata.sessionLabel,
+                        secondary: metadata.weeklyLabel,
+                        tertiary: metadata.opusLabel ?? "Sonnet",
+                        showsTertiary: metadata.supportsOpus)
+                },
                 primaryBindingQuotaLanes: [.secondary]),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],

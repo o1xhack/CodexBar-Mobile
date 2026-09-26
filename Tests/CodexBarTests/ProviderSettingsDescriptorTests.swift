@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 import Testing
@@ -7,6 +8,98 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
+    @Test(arguments: [UsageProvider.atlascloud, .vercel])
+    func `balance providers keep API keys in their own config`(provider: UsageProvider) throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-\(provider.rawValue)")
+        let implementation: any ProviderImplementation = provider == .atlascloud
+            ? AtlasCloudProviderImplementation() : VercelProviderImplementation()
+        let fields = implementation.settingsFields(context: fixture.settingsContext(provider: provider))
+        #expect(fields.map(\.id) == ["\(provider.rawValue)-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: provider)?.apiKey == "fixture-key")
+    }
+
+    @Test
+    func `DevPass exposes a regular API key stored in provider config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devpass")
+        let fields = DevPassProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .devpass))
+        #expect(fields.map(\.id) == ["devpass-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: .devpass)?.apiKey == "fixture-key")
+    }
+
+    @Test
+    func `Zed browser billing is opt in and manual cookies stay in Zed settings`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-zed")
+        let implementation = ZedProviderImplementation()
+        let context = fixture.settingsContext(provider: .zed)
+        let picker = try #require(implementation.settingsPickers(context: context).first)
+        let field = try #require(implementation.settingsFields(context: context).first)
+        #expect(picker.binding.wrappedValue == "off")
+        #expect(field.isVisible?() == false)
+        let snapshotContext = ProviderSettingsSnapshotContext(settings: fixture.settings, tokenOverride: nil)
+        let defaultContribution = try #require(implementation.settingsSnapshot(context: snapshotContext))
+        let defaults = ProviderSettingsSnapshot(contributions: [defaultContribution])
+        #expect(defaults[ZedProviderSettingsKey.self]?.cookieSource == .off)
+        picker.binding.wrappedValue = "manual"
+        field.binding.wrappedValue = "zed.session=fixture-session"
+        #expect(field.isVisible?() == true)
+        let manualContribution = try #require(implementation.settingsSnapshot(context: snapshotContext))
+        let manual = ProviderSettingsSnapshot(contributions: [manualContribution])
+        #expect(manual[ZedProviderSettingsKey.self]?.cookieSource == .manual)
+        #expect(manual[ZedProviderSettingsKey.self]?.manualCookieHeader == "zed.session=fixture-session")
+    }
+
+    @Test
+    func `OpenCode Go can add API accounts while automatic cookies are selected`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-opencodego-accounts")
+        fixture.settings.opencodegoCookieSource = .auto
+        let support = try #require(TokenAccountSupportCatalog.support(for: .opencodego))
+        #expect(OpenCodeGoProviderImplementation().tokenAccountsVisibility(
+            context: fixture.settingsContext(provider: .opencodego), support: support))
+        #expect(support.subtitle.contains("API keys"))
+    }
+
+    @Test
+    func `Hyper exposes session controls and an independent API key`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-hyper")
+        let context = fixture.settingsContext(provider: .hyper)
+        let implementation = HyperProviderImplementation()
+        let fields = implementation.settingsFields(context: context)
+        let picker = try #require(implementation.settingsPickers(context: context).first)
+        #expect(fields.map(\.id) == ["hyper-cookie", "hyper-api-key"])
+        #expect(fields.map(\.kind) == [.secure, .secure])
+        #expect(picker.options.map(\.id) == ["auto", "manual", "off"])
+        picker.binding.wrappedValue = "manual"
+        #expect(fields[0].isVisible?() == true)
+        fields[0].binding.wrappedValue = "session=fixture"
+        fields[1].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: .hyper)?.cookieHeader == "session=fixture")
+        #expect(fixture.settings.providerConfig(for: .hyper)?.apiKey == "fixture-key")
+        picker.binding.wrappedValue = "off"
+        #expect(fields[0].isVisible?() == false)
+        let contribution = try #require(implementation.settingsSnapshot(context: .init(
+            settings: fixture.settings, tokenOverride: nil)))
+        let snapshot = ProviderSettingsSnapshot(contributions: [contribution])
+        #expect(snapshot[HyperProviderSettingsKey.self]?.cookieSource == .off)
+    }
+
+    @Test
+    func `bifrost exposes only a virtual key and a configured gateway URL`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bifrost")
+        let fields = BifrostProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .bifrost))
+        #expect(fields.map(\.id) == ["bifrost-api-key", "bifrost-base-url"])
+        #expect(fields.map(\.kind) == [.secure, .plain])
+        fields[0].binding.wrappedValue = "fixture-virtual-key"
+        fields[1].binding.wrappedValue = "https://bifrost.example.com"
+        #expect(fixture.settings.providerConfig(for: .bifrost)?.apiKey == "fixture-virtual-key")
+        #expect(fixture.settings.providerConfig(for: .bifrost)?.enterpriseHost == "https://bifrost.example.com")
+    }
+
     @Test
     func `bedrock discloses monitoring charges before credentials in either authentication mode`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bedrock-charges")
@@ -206,12 +299,68 @@ struct ProviderSettingsDescriptorTests {
 
         fixture.settings.ollamaCookieSource = .manual
         #expect(action.isVisible?() == false)
-        #expect(picker.trailingText?() == nil)
+        #expect(picker.trailingText?() == "No cookie header pasted.")
 
         fixture.settings.ollamaCookieSource = .auto
         fixture.settings.ollamaUsageDataSource = .api
         #expect(action.isVisible?() == false)
         #expect(picker.trailingText?() == nil)
+    }
+
+    @Test
+    func `llmman exposes an optional key and a base URL stored in provider config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-llmman")
+        let fields = LLMManProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .llmman))
+        #expect(fields.map(\.id) == ["llmman-api-key", "llmman-base-url"])
+        #expect(fields.map(\.kind) == [.secure, .plain])
+        #expect(fields[1].actions.map(\.id) == ["llmman-open-web-ui"])
+        fields[0].binding.wrappedValue = "fixture-key"
+        fields[1].binding.wrappedValue = "192.168.1.10:17434"
+        #expect(fixture.settings.providerConfig(for: .llmman)?.apiKey == "fixture-key")
+        #expect(fixture.settings.providerConfig(for: .llmman)?.enterpriseHost == "192.168.1.10:17434")
+    }
+
+    @Test
+    func `empty Ollama manual cookies offer an explicit automatic recovery action`() async throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-ollama-manual-empty")
+        let picker = try #require(OllamaProviderImplementation()
+            .settingsPickers(context: fixture.settingsContext(provider: .ollama))
+            .first { $0.id == "ollama-cookie-source" })
+        let action = try #require(picker.trailingActions.first { $0.id == "ollama-use-auto-cookie" })
+        #expect(action.title == "Use automatic cookies")
+        #expect(action.isVisible?() == false)
+
+        fixture.settings.ollamaCookieSource = .manual
+        fixture.settings.ollamaCookieHeader = " \n\t"
+        #expect(picker.trailingText?() == "No cookie header pasted.")
+        #expect(action.isVisible?() == true)
+        #expect(fixture.settings.ollamaCookieSource == .manual)
+
+        fixture.settings.ollamaUsageDataSource = .api
+        #expect(action.isVisible?() == false)
+        #expect(picker.trailingText?() == nil)
+        fixture.settings.ollamaUsageDataSource = .web
+        fixture.settings.debugDisableKeychainAccess = true
+        #expect(action.isVisible?() == false)
+        fixture.settings.debugDisableKeychainAccess = false
+
+        fixture.settings.ollamaCookieHeader = "wos-session=fixture"
+        #expect(action.isVisible?() == false)
+        #expect(picker.trailingText?() == nil)
+        fixture.settings.ollamaCookieHeader = ""
+        fixture.settings.addTokenAccount(provider: .ollama, label: "Fixture", token: "wos-session=fixture")
+        #expect(action.isVisible?() == false)
+        #expect(picker.trailingText?() == nil)
+        let account = try #require(fixture.settings.tokenAccounts(for: .ollama).first)
+        fixture.settings.removeTokenAccount(provider: .ollama, accountID: account.id)
+        #expect(action.isVisible?() == true)
+
+        await action.perform()
+        #expect(fixture.settings.ollamaCookieSource == .auto)
+        #expect(fixture.settings.ollamaUsageDataSource == .web)
+        #expect(fixture.settings.ollamaCookieHeader.isEmpty)
+        #expect(action.isVisible?() == false)
     }
 
     @Test
@@ -328,7 +477,48 @@ struct ProviderSettingsDescriptorTests {
 
         #expect(usagePicker.options.map(\.title) == ["Auto", "Google OAuth", "Local API / agy CLI"])
         #expect(usagePicker.subtitle ==
-            "Auto tries Antigravity app, agy CLI, then IDE; OAuth follows for selected or signed-in accounts.")
+            "Auto skips agy reports without account identity for selected or injected Google accounts. " +
+            "Try Local API / agy CLI to use the local app or agy's signed-in account, which may differ.")
+        if let directory = ProcessInfo.processInfo.environment["CODEXBAR_ANTIGRAVITY_GUIDANCE_PROOF_DIR"] {
+            let previous = ProviderSettingsPickerDescriptor(
+                id: usagePicker.id,
+                title: usagePicker.title,
+                subtitle: "Auto tries Antigravity app, agy CLI, then IDE; " +
+                    "OAuth follows for selected or signed-in accounts.",
+                binding: usagePicker.binding,
+                options: usagePicker.options,
+                isVisible: nil,
+                onChange: nil)
+            try self.captureAntigravitySourcePicker(previous, directory: directory + "/before")
+            try self.captureAntigravitySourcePicker(usagePicker, directory: directory + "/after")
+        }
+    }
+
+    private func captureAntigravitySourcePicker(
+        _ picker: ProviderSettingsPickerDescriptor,
+        directory: String) throws
+    {
+        let environment = ProcessInfo.processInfo.environment
+        precondition(environment["CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS"] == "1")
+        precondition(environment[CodexCredentialFileAccess.isolationEnvironmentKey] == "1")
+        precondition(environment["CODEXBAR_TEST_SESSION_FILE_ISOLATION"] == "1")
+        precondition(environment["CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS"] != "1")
+        let output = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        let view = NSHostingView(rootView:
+            Form {
+                Section("Antigravity · synthetic settings") {
+                    ProviderSettingsPickerRowView(picker: picker)
+                }
+            }.formStyle(.grouped).frame(width: 740, height: 210))
+        view.frame = NSRect(x: 0, y: 0, width: 740, height: 210)
+        view.layoutSubtreeIfNeeded()
+        let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try #require(bitmap.representation(using: .png, properties: [:]))
+            .write(to: output.appendingPathComponent("source-picker.png"))
+        try picker.subtitle.write(
+            to: output.appendingPathComponent("source-picker.txt"), atomically: true, encoding: .utf8)
     }
 
     @Test
@@ -536,6 +726,23 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `venice exposes usage source picker routing to web`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-venice")
+        let context = fixture.settingsContext(provider: .venice)
+
+        let implementation = VeniceProviderImplementation()
+        let pickers = implementation.settingsPickers(context: context)
+        #expect(pickers.contains(where: { $0.id == "venice-usage-source" }))
+
+        let modeContext = ProviderSourceModeContext(provider: .venice, settings: fixture.settings)
+        #expect(implementation.sourceMode(context: modeContext) == .auto)
+        fixture.settings.veniceUsageDataSource = .web
+        #expect(implementation.sourceMode(context: modeContext) == .web)
+        fixture.settings.veniceUsageDataSource = .api
+        #expect(implementation.sourceMode(context: modeContext) == .api)
+    }
+
+    @Test
     func `copilot budget secondary picker appears before cookie picker`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-budget-pickers")
         fixture.settings.copilotBudgetExtrasEnabled = true
@@ -576,6 +783,39 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `copilot seat credit entitlement field writes through to the settings snapshot`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-seat-entitlement")
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let fields = CopilotProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "copilot-seat-credit-entitlement" })
+        field.binding.wrappedValue = "3000"
+
+        #expect(fixture.settings.copilotSeatCreditEntitlementRaw == "3000")
+        #expect(fixture.settings.copilotSettingsSnapshot(tokenOverride: nil).seatCreditEntitlement == 3000)
+    }
+
+    @Test
+    func `copilot seat credit entitlement field writes to the selected account`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-copilot-seat-account")
+        fixture.settings.copilotSeatCreditEntitlementRaw = "3000"
+        fixture.settings.addTokenAccount(provider: .copilot, label: "Work", token: "token-1")
+        let context = fixture.settingsContext(provider: .copilot)
+
+        let fields = CopilotProviderImplementation().settingsFields(context: context)
+        let field = try #require(fields.first { $0.id == "copilot-seat-credit-entitlement" })
+        // The field surfaces the global fallback until the account sets its own value.
+        #expect(field.binding.wrappedValue == "3000")
+
+        field.binding.wrappedValue = "1500"
+
+        let account = try #require(fixture.settings.selectedTokenAccount(for: .copilot))
+        #expect(account.seatCreditEntitlement == "1500")
+        #expect(fixture.settings.copilotSeatCreditEntitlementRaw == "3000")
+        #expect(fixture.settings.copilotSettingsSnapshot(tokenOverride: nil).seatCreditEntitlement == 1500)
+    }
+
+    @Test
     func `kimi exposes usage source picker plus api and cookie fields`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-kimi")
         let context = fixture.settingsContext(provider: .kimi)
@@ -587,8 +827,9 @@ struct ProviderSettingsDescriptorTests {
         let usagePicker = try #require(pickers.first(where: { $0.id == "kimi-usage-source" }))
         #expect(usagePicker.options.map(\.id) == ["auto", "api", "web"])
         #expect(usagePicker.subtitle ==
-            "Kimi Code subscription usage from api.kimi.com. Auto tries your configured API key, then a signed-in " +
-            "Kimi Code CLI credential, then web cookies. China Open Platform balance is a separate provider.")
+            "Kimi Code subscription usage for the selected region. Auto tries your configured API key, " +
+            "then a signed-in Kimi Code CLI credential, then web cookies. " +
+            "China Open Platform balance is a separate provider.")
         #expect(usagePicker.placement == .connection)
         #expect(usagePicker.trailingText?() == nil)
         fixture.store.lastSourceLabels[.kimi] = "Kimi Code CLI"
@@ -669,6 +910,16 @@ extension ProviderSettingsDescriptorTests {
             .detailLine(context)
 
         #expect(detailLine == "web")
+    }
+
+    @Test
+    func `devin automatic auth explains Chromium browser support`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-browsers")
+        fixture.settings.devinCookieSource = .auto
+        let picker = try #require(DevinProviderImplementation()
+            .settingsPickers(context: fixture.settingsContext(provider: .devin)).first)
+
+        #expect(picker.subtitle == "Automatically imports the app.devin.ai session from Chromium browsers.")
     }
 }
 
@@ -1213,6 +1464,45 @@ extension ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `provider settings shows unlimited OpenRouter spend details instead of placeholder`() throws {
+        let usage = OpenRouterUsageSnapshot(
+            totalCredits: 50,
+            totalUsage: 20,
+            balance: 30,
+            usedPercent: 40,
+            keyDataFetched: true,
+            keyLimit: nil,
+            keyUsageDaily: 1.25,
+            keyUsageWeekly: 7.5,
+            keyUsageMonthly: 18.75,
+            updatedAt: OpenRouterLimitTestSupport.now)
+        let model = try OpenRouterLimitTestSupport.model(usage.toUsageSnapshot())
+        let content = ProviderMetricsInlineView.ContentState(model: model, infoRows: [])
+
+        #expect(model.metrics.isEmpty)
+        #expect(model.providerDetails.flatMap(\.rows).contains { $0.label == "This month" })
+        #expect(!content.showsPlaceholder)
+
+        let meteredModel = try OpenRouterLimitTestSupport.model(OpenRouterUsageSnapshot(
+            totalCredits: 50,
+            totalUsage: 20,
+            balance: 30,
+            usedPercent: 40,
+            keyDataFetched: true,
+            keyLimit: 25,
+            keyUsage: 10,
+            updatedAt: OpenRouterLimitTestSupport.now).toUsageSnapshot())
+        #expect(!meteredModel.metrics.isEmpty)
+        #expect(!ProviderMetricsInlineView.ContentState(model: meteredModel, infoRows: []).showsPlaceholder)
+
+        let emptyModel = try OpenRouterLimitTestSupport.model(UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: OpenRouterLimitTestSupport.now))
+        #expect(ProviderMetricsInlineView.ContentState(model: emptyModel, infoRows: []).showsPlaceholder)
+    }
+
+    @Test
     func `deepseek hides profile picker when only one validated profile remains`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepseek-single-profile")
         fixture.store.snapshots[.deepseek] = UsageSnapshot(
@@ -1265,16 +1555,6 @@ extension ProviderSettingsDescriptorTests {
                 provider: provider,
                 settings: settings,
                 store: store,
-                boolBinding: { keyPath in
-                    Binding(
-                        get: { settings[keyPath: keyPath] },
-                        set: { settings[keyPath: keyPath] = $0 })
-                },
-                stringBinding: { keyPath in
-                    Binding(
-                        get: { settings[keyPath: keyPath] },
-                        set: { settings[keyPath: keyPath] = $0 })
-                },
                 statusText: { id in state.statusByID[id] },
                 setStatusText: { id, text in
                     if let text {

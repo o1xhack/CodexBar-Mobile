@@ -30,6 +30,7 @@ extension SettingsStore {
         _ = self.providerChangelogLinksEnabled
         _ = self.menuBarShowsBrandIconWithPercent
         _ = self.menuBarHidesCritters
+        _ = self.menuBarColorPace
         _ = self.menuBarHighContrastOnInactiveDisplays
         _ = self.menuBarShowsHighestUsage
         _ = self.menuBarDisplayMode
@@ -37,6 +38,7 @@ extension SettingsStore {
         _ = self.kiroMenuBarDisplayMode
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
+        _ = self.accountWidgetsEnabled
         _ = self.menuBarMetricPreferencesRaw
         _ = self.menuBarLayout
         _ = self.menuBarLayoutOverrides
@@ -74,6 +76,7 @@ extension SettingsStore {
         _ = self.agentSessionsEnabled
         _ = self.agentSessionLabelStyle
         _ = self.agentSessionsManualHosts
+        _ = self.agentSessionsHideUnreachableHosts
         _ = self.iCloudSyncEnabled
         _ = self.macFleetSyncEnabled
         _ = self.macFleetSyncSnapshotsEnabled
@@ -98,7 +101,11 @@ extension SettingsStore {
         _ = self.zoomMateCookieSource
         _ = self.ollamaCookieSource
         _ = self.mergeIcons
+        _ = self.mergedOverviewLayout
         _ = self.switcherShowsIcons
+        _ = self.mergeIconsStacked
+        _ = self.mergeIconStackedTopProviderRaw
+        _ = self.mergeIconStackedBottomProviderRaw
         _ = self.mergedOverviewSelectedProviders
         _ = self.zaiAPIToken
         _ = self[providerConfig: .synthetic, field: .apiKey]

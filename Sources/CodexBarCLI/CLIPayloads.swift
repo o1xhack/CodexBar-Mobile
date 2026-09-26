@@ -1,8 +1,5 @@
 import CodexBarCore
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 
 struct ProviderPayload: Encodable {
     let provider: String
@@ -12,6 +9,7 @@ struct ProviderPayload: Encodable {
     let source: String
     let status: ProviderStatusPayload?
     let usage: UsageSnapshot?
+    let rateWindowLabels: ProviderWindowLabelsPayload?
     let credits: CreditsSnapshot?
     let antigravityPlanInfo: AntigravityPlanInfoSummary?
     let openaiDashboard: OpenAIDashboardSnapshot?
@@ -26,6 +24,7 @@ struct ProviderPayload: Encodable {
         case source
         case status
         case usage
+        case rateWindowLabels
         case credits
         case antigravityPlanInfo
         case openaiDashboard
@@ -49,19 +48,20 @@ struct ProviderPayload: Encodable {
         diagnostic: String? = nil,
         pace: ProviderPacePayload? = nil)
     {
-        self.provider = provider.rawValue
-        self.account = account
-        self.cacheAccountKey = cacheAccountKey
-        self.version = version
-        self.source = source
-        self.status = status
-        self.usage = usage
-        self.credits = credits
-        self.antigravityPlanInfo = antigravityPlanInfo
-        self.openaiDashboard = openaiDashboard
-        self.diagnostic = diagnostic
-        self.error = error
-        self.pace = pace
+        self.init(
+            providerID: provider.rawValue,
+            account: account,
+            cacheAccountKey: cacheAccountKey,
+            version: version,
+            source: source,
+            status: status,
+            usage: usage,
+            credits: credits,
+            antigravityPlanInfo: antigravityPlanInfo,
+            openaiDashboard: openaiDashboard,
+            error: error,
+            diagnostic: diagnostic,
+            pace: pace)
     }
 
     init(
@@ -86,6 +86,7 @@ struct ProviderPayload: Encodable {
         self.source = source
         self.status = status
         self.usage = usage
+        self.rateWindowLabels = Self.makeRateWindowLabels(providerID: providerID, usage: usage)
         self.credits = credits
         self.antigravityPlanInfo = antigravityPlanInfo
         self.openaiDashboard = openaiDashboard
@@ -93,6 +94,26 @@ struct ProviderPayload: Encodable {
         self.error = error
         self.pace = pace
     }
+
+    private static func makeRateWindowLabels(
+        providerID: String,
+        usage: UsageSnapshot?) -> ProviderWindowLabelsPayload?
+    {
+        guard let usage, let provider = UsageProvider(rawValue: providerID),
+              usage.primary != nil || usage.secondary != nil || usage.tertiary != nil else { return nil }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let labels = descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: usage)
+        return ProviderWindowLabelsPayload(
+            primary: usage.primary == nil ? nil : labels.primary,
+            secondary: usage.secondary == nil ? nil : labels.secondary,
+            tertiary: usage.tertiary == nil ? nil : labels.tertiary)
+    }
+}
+
+struct ProviderWindowLabelsPayload: Encodable, Equatable {
+    let primary: String?
+    let secondary: String?
+    let tertiary: String?
 }
 
 struct ProviderPacePayload: Encodable {
@@ -119,76 +140,21 @@ struct ProviderStatusPayload: Encodable {
     let updatedAt: Date?
     let url: String
 
-    enum ProviderStatusIndicator: String, Encodable {
-        case none
-        case minor
-        case major
-        case critical
-        case maintenance
-        case unknown
-
-        var label: String {
-            switch self {
-            case .none: "Operational"
-            case .minor: "Partial outage"
-            case .major: "Major outage"
-            case .critical: "Critical issue"
-            case .maintenance: "Maintenance"
-            case .unknown: "Status unknown"
-            }
-        }
-    }
-
     var descriptionSuffix: String {
         guard let description, !description.isEmpty else { return "" }
         return " – \(description)"
     }
 }
 
-enum StatusFetcher {
-    static func fetch(from baseURL: URL) async throws -> ProviderStatusPayload {
-        let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
-        var request = URLRequest(url: apiURL)
-        request.timeoutInterval = 10
-
-        let (data, _) = try await URLSession.shared.data(for: request)
-
-        struct Response: Decodable {
-            struct Status: Decodable {
-                let indicator: String
-                let description: String?
-            }
-
-            struct Page: Decodable {
-                let updatedAt: Date?
-
-                private enum CodingKeys: String, CodingKey {
-                    case updatedAt = "updated_at"
-                }
-            }
-
-            let page: Page?
-            let status: Status
+extension ProviderStatusIndicator {
+    var cliLabel: String {
+        switch self {
+        case .none: "Operational"
+        case .minor: "Partial outage"
+        case .major: "Major outage"
+        case .critical: "Critical issue"
+        case .maintenance: "Maintenance"
+        case .unknown: "Status unknown"
         }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let raw = try container.decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: raw) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: raw) { return date }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601 date")
-        }
-
-        let response = try decoder.decode(Response.self, from: data)
-        let indicator = ProviderStatusPayload.ProviderStatusIndicator(rawValue: response.status.indicator) ?? .unknown
-        return ProviderStatusPayload(
-            indicator: indicator,
-            description: response.status.description,
-            updatedAt: response.page?.updatedAt,
-            url: baseURL.absoluteString)
     }
 }

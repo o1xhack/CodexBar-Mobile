@@ -4,13 +4,12 @@ import Foundation
 import SweetCookieKit
 
 public enum KimiCookieImporter {
-    public static func desktopAuthToken() -> String? {
-        KimiDesktopAuthToken.load()
+    public static func desktopAuthToken(region: KimiRegion = .china) -> String? {
+        KimiDesktopAuthToken.load(region: region)
     }
 
     private static let log = CodexBarLog.logger(LogCategories.provider(.kimi, scope: "cookie"))
     private static let cookieClient = BrowserCookieClient()
-    private static let cookieDomains = ["www.kimi.com", "kimi.com"]
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.kimi]?.browserCookieOrder ?? Browser.defaultImportOrder
 
@@ -29,6 +28,7 @@ public enum KimiCookieImporter {
     }
 
     public static func importSessions(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
@@ -36,7 +36,7 @@ public enum KimiCookieImporter {
         let candidates = self.cookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in candidates {
             do {
-                let perSource = try self.importSessions(from: browserSource, logger: logger)
+                let perSource = try self.importSessions(from: browserSource, region: region, logger: logger)
                 sessions.append(contentsOf: perSource)
             } catch {
                 BrowserCookieAccessGate.recordIfNeeded(error)
@@ -54,44 +54,55 @@ public enum KimiCookieImporter {
 
     public static func importSessions(
         from browserSource: Browser,
+        region: KimiRegion = .china,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
-        let query = BrowserCookieQuery(domains: self.cookieDomains)
+        let query = BrowserCookieQuery(domains: region.cookieDomains, domainMatch: .exact)
         let log: (String) -> Void = { msg in self.emit(msg, logger: logger) }
         let sources = try Self.cookieClient.codexBarRecords(
             matching: query,
             in: browserSource,
             logger: log)
 
-        var sessions: [SessionInfo] = []
-        let grouped = Dictionary(grouping: sources, by: { $0.store.profile.id })
-        let sortedGroups = grouped.values.sorted { lhs, rhs in
-            self.mergedLabel(for: lhs) < self.mergedLabel(for: rhs)
+        return BrowserCookieProfiles.merge(sources).compactMap { profile in
+            let cookies = BrowserCookieClient.makeHTTPCookies(profile.records, origin: query.origin)
+            guard cookies.contains(where: { $0.name == "kimi-auth" }) else { return nil }
+            log("Found kimi-auth cookie in \(profile.label)")
+            return SessionInfo(cookies: cookies, sourceLabel: profile.label)
         }
+    }
 
-        for group in sortedGroups where !group.isEmpty {
-            let label = self.mergedLabel(for: group)
-            let mergedRecords = self.mergeRecords(group)
-            guard !mergedRecords.isEmpty else { continue }
-            let httpCookies = BrowserCookieClient.makeHTTPCookies(mergedRecords, origin: query.origin)
-            guard !httpCookies.isEmpty else { continue }
-
-            // Only include sessions that have the kimi-auth cookie
-            guard httpCookies.contains(where: { $0.name == "kimi-auth" }) else {
-                continue
+    static func localStorageTokens(
+        region: KimiRegion,
+        browserDetection: BrowserDetection = BrowserDetection(),
+        localStorage: BrowserLocalStorageAPI = .live,
+        now: Date = Date()) -> [String]
+    {
+        var seen = Set<String>()
+        return localStorage.profiles(
+            for: region.webBaseURL.absoluteString,
+            browsers: ChromiumLocalStorageDiscovery.defaultBrowsers,
+            using: browserDetection,
+            logger: { Self.log.debug($0) })
+            .flatMap(\.entries).compactMap { entry in
+                guard entry.key == "access_token" else { return nil }
+                let token = (try? JSONDecoder().decode(String.self, from: Data(entry.value.utf8)))
+                    ?? entry.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard token.split(separator: ".", omittingEmptySubsequences: false).count == 3,
+                      token.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "-_.".contains($0)) }),
+                      let expiry = UsageFetcher.parseJWT(token)?["exp"] as? Double,
+                      expiry.isFinite, expiry > now.timeIntervalSince1970,
+                      seen.insert(token).inserted else { return nil }
+                return token
             }
-
-            log("Found kimi-auth cookie in \(label)")
-            sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: label))
-        }
-        return sessions
     }
 
     public static func importSession(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) throws -> SessionInfo
     {
-        let sessions = try self.importSessions(browserDetection: browserDetection, logger: logger)
+        let sessions = try self.importSessions(region: region, browserDetection: browserDetection, logger: logger)
         guard let first = sessions.first else {
             throw KimiCookieImportError.noCookies
         }
@@ -99,79 +110,20 @@ public enum KimiCookieImporter {
     }
 
     public static func hasSession(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) -> Bool
     {
         do {
-            return try !self.importSessions(browserDetection: browserDetection, logger: logger).isEmpty
+            return try !self.importSessions(region: region, browserDetection: browserDetection, logger: logger).isEmpty
         } catch {
             return false
         }
     }
 
-    private static func cookieNames(from cookies: [HTTPCookie]) -> String {
-        let names = Set(cookies.map { "\($0.name)@\($0.domain)" }).sorted()
-        return names.joined(separator: ", ")
-    }
-
     private static func emit(_ message: String, logger: ((String) -> Void)?) {
         logger?("[kimi-cookie] \(message)")
         self.log.debug(message)
-    }
-
-    private static func mergedLabel(for sources: [BrowserCookieStoreRecords]) -> String {
-        guard let base = sources.map(\.label).min() else {
-            return "Unknown"
-        }
-        if base.hasSuffix(" (Network)") {
-            return String(base.dropLast(" (Network)".count))
-        }
-        return base
-    }
-
-    private static func mergeRecords(_ sources: [BrowserCookieStoreRecords]) -> [BrowserCookieRecord] {
-        let sortedSources = sources.sorted { lhs, rhs in
-            self.storePriority(lhs.store.kind) < self.storePriority(rhs.store.kind)
-        }
-        var mergedByKey: [String: BrowserCookieRecord] = [:]
-        for source in sortedSources {
-            for record in source.records {
-                let key = self.recordKey(record)
-                if let existing = mergedByKey[key] {
-                    if self.shouldReplace(existing: existing, candidate: record) {
-                        mergedByKey[key] = record
-                    }
-                } else {
-                    mergedByKey[key] = record
-                }
-            }
-        }
-        return Array(mergedByKey.values)
-    }
-
-    private static func storePriority(_ kind: BrowserCookieStoreKind) -> Int {
-        switch kind {
-        case .network: 0
-        case .primary: 1
-        case .safari: 2
-        }
-    }
-
-    private static func recordKey(_ record: BrowserCookieRecord) -> String {
-        "\(record.name)|\(record.domain)|\(record.path)"
-    }
-
-    private static func shouldReplace(existing: BrowserCookieRecord, candidate: BrowserCookieRecord) -> Bool {
-        switch (existing.expires, candidate.expires) {
-        case let (lhs?, rhs?):
-            rhs > lhs
-        case (nil, .some):
-            true
-        case (.some, nil):
-            false
-        case (nil, nil):
-            false
-        }
     }
 }
 

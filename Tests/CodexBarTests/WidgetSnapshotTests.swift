@@ -5,13 +5,43 @@ import Testing
 
 struct WidgetSnapshotTests {
     @Test
-    func `Codex widget labels disclose API estimates`() {
+    func `widget token fallback keeps positive totals and rejects overflow`() {
+        for (tokens, expected) in [
+            ([Int?](), Int?.none),
+            ([nil, 0], nil),
+            ([12, nil, 30], 42),
+            ([Int.max, 1, -1], nil),
+            ([-1], nil),
+        ] {
+            let snapshot = CostUsageTokenSnapshot(
+                sessionTokens: nil,
+                sessionCostUSD: nil,
+                last30DaysTokens: nil,
+                last30DaysCostUSD: nil,
+                daily: tokens.enumerated().map { index, total in
+                    .init(
+                        date: "2026-09-\(index + 1)",
+                        inputTokens: nil,
+                        outputTokens: nil,
+                        totalTokens: total,
+                        costUSD: nil,
+                        modelsUsed: nil,
+                        modelBreakdowns: nil)
+                },
+                updatedAt: Date(timeIntervalSince1970: 0))
+            #expect(UsageStore.widgetTokenUsageSummary(from: snapshot, provider: .claude)?.last30DaysTokens == expected)
+        }
+    }
+
+    @Test(arguments: [1, 30], [nil, "Custom"] as [String?])
+    func `Codex widget labels disclose API estimates`(historyDays: Int, historyLabel: String?) {
         let snapshot = CostUsageTokenSnapshot(
             sessionTokens: 1200,
             sessionCostUSD: 1.25,
             last30DaysTokens: 9000,
             last30DaysCostUSD: 9.99,
-            historyDays: 30,
+            historyDays: historyDays,
+            historyLabel: historyLabel,
             daily: [],
             updatedAt: Date(timeIntervalSince1970: 0))
 
@@ -19,9 +49,15 @@ struct WidgetSnapshotTests {
         let claude = UsageStore.widgetTokenUsageSummary(from: snapshot, provider: .claude)
 
         #expect(codex?.sessionLabel == "Today API est. · not billed")
-        #expect(codex?.last30DaysLabel == "30d API est. · not billed")
+        let period = historyLabel ?? (historyDays == 1 ? "Today" : "30d")
+        #expect(codex?.last30DaysLabel == "\(period) API est. · not billed")
         #expect(claude?.sessionLabel == "Today")
-        #expect(claude?.last30DaysLabel == "30d")
+        #expect(claude?.last30DaysLabel == period)
+        for provider in [UsageProvider.bedrock, .mistral] {
+            let summary = UsageStore.widgetTokenUsageSummary(from: snapshot, provider: provider)
+            #expect(summary?.sessionLabel == "Latest billing day")
+            #expect(summary?.last30DaysLabel == period)
+        }
     }
 
     @Test

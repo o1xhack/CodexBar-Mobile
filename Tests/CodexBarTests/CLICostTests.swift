@@ -4,6 +4,7 @@ import Foundation
 import Testing
 @testable import CodexBarCLI
 
+// swiftlint:disable:next type_body_length
 struct CLICostTests {
     @Test
     func `cost json shortcut does not enable json logs`() throws {
@@ -84,10 +85,34 @@ struct CLICostTests {
             groupBy: .project,
             format: .text,
             includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .codex,
+            selectedProviders: [.codex, .pi],
+            groupBy: .none,
+            format: .text,
+            includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .codex,
+            selectedProviders: [.codex, .pi],
+            groupBy: .none,
+            format: .json,
+            includePiSessions: true))
         #expect(CodexBarCLI.costIncludePiSessions(
             provider: .claude,
             groupBy: .session,
             format: .text,
+            includePiSessions: true))
+        #expect(!CodexBarCLI.costIncludePiSessions(
+            provider: .claude,
+            selectedProviders: [.claude, .pi],
+            groupBy: .none,
+            format: .json,
+            includePiSessions: true))
+        #expect(CodexBarCLI.costIncludePiSessions(
+            provider: .claude,
+            selectedProviders: [.claude],
+            groupBy: .none,
+            format: .json,
             includePiSessions: true))
     }
 

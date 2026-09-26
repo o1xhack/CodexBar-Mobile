@@ -29,6 +29,27 @@ final class CloudSyncState {
     var status = SyncStatus()
     var fleetDevices: [String: DeviceSyncPayload] = [:]
     var fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:]
+    var removeDeviceHandler: ((String) async -> Void)?
+    @ObservationIgnored private var removingDevices: Set<String> = []
+
+    func requestDeviceRemoval(_ deviceID: String) async {
+        guard self.removingDevices.insert(deviceID).inserted else { return }
+        defer { self.removingDevices.remove(deviceID) }
+        await self.removeDeviceHandler?(deviceID)
+    }
+
+    func recordNames(removing deviceID: String, currentDeviceID: String) -> [String] {
+        guard deviceID != currentDeviceID else { return [] }
+        return self.fleetDevices.filter { $0.value.deviceID == deviceID }.map(\.key) +
+            self.fleetSnapshots.filter { $0.value.deviceID == deviceID }.map(\.key)
+    }
+
+    func removeRecords(_ names: [String]) {
+        for name in names {
+            self.fleetDevices.removeValue(forKey: name)
+            self.fleetSnapshots.removeValue(forKey: name)
+        }
+    }
 }
 
 struct CloudSyncQuotaRetryState: Equatable, Sendable {
@@ -74,6 +95,12 @@ final class CloudSyncDelegateEventQueue: Sendable {
 
     func enqueue(_ operation: @escaping Operation) {
         self.continuation.yield(operation)
+    }
+
+    func drain() async {
+        await withCheckedContinuation { continuation in
+            self.enqueue { continuation.resume() }
+        }
     }
 }
 
@@ -1911,6 +1938,30 @@ extension CloudSyncEngine {
         }
     }
 
+    func removeDevice(_ deviceID: String) async {
+        guard self.enabled, let engine = self.engine else { return }
+        do {
+            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
+            await self.delegateEventQueue.drain()
+            let names = await MainActor.run {
+                self.state.status.needsAppUpdate ? [] : self.state.recordNames(
+                    removing: deviceID, currentDeviceID: self.settings.macFleetSyncDeviceID)
+            }
+            guard self.engine === engine, !names.isEmpty else { return }
+            let result = try await engine.database.modifyRecords(
+                saving: [], deleting: names.map { self.recordID(named: $0) }, atomically: true)
+            for deletion in result.deleteResults.values {
+                try deletion.get()
+            }
+            guard self.engine === engine else { return }
+            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
+            await self.delegateEventQueue.drain()
+        } catch {
+            guard self.engine === engine else { return }
+            await self.record(error: error)
+        }
+    }
+
     private func removeDeletedRecordsFromCaches(_ recordNames: some Sequence<String>) async {
         let recordNames = Array(recordNames)
         for recordName in recordNames {
@@ -1930,6 +1981,13 @@ extension CloudSyncEngine {
                 self.state.fleetSnapshots.removeValue(forKey: recordName)
             }
         }
+    }
+
+    /// Keep the upstream device-removal test seam while applying the fork's
+    /// fuller cache cleanup, including snapshot migration metadata.
+    func applyDeletedRecords(_ names: [String]) async {
+        await self.removeDeletedRecordsFromCaches(names)
+        self.persistEnvelope()
     }
 
     private func applySnapshotConfigurationDeletionIntents(

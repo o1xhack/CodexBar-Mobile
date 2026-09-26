@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.1.0 (212)] — Submitted for App Review 2026-09-25
+
+### Added
+- Display new Mac 0.66 provider quota, balance, spending, and detail data through the existing optional sync payload, including Bifrost, Helmcode, Nous Portal, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass. Localize bundled plugin detail labels in all four iOS languages while leaving user-defined labels unchanged.
+- Register append-only quota transition subscriptions for eight new quota-bearing providers; keep previous provider zones stable.
+- Add realistic preview snapshots for all 16 providers introduced since the Mac 0.58 baseline.
+
+### Changed
+- Pair with Mac 0.66.0.1, released with upstream v0.59.0–v0.66.0 in one version; preserve old-client decoding and existing CloudKit Production record types.
+
 ## [2.0.0 (211)] — Unreleased
 
 ### Added

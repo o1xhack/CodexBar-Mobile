@@ -141,8 +141,8 @@
         --ink: #fff;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 7px 9px;
+        gap: 7px;
+        padding: 7px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
         background: rgba(19, 20, 24, 0.72);
@@ -152,8 +152,8 @@
         box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
       }
       .chip {
-        width: 34px;
-        height: 34px;
+        width: 30px;
+        height: 30px;
         border-radius: 8px;
         display: grid;
         place-items: center;
@@ -166,6 +166,13 @@
         box-shadow:
           inset 0 1px 0 rgba(255, 255, 255, 0.22),
           inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+      }
+      .chip-logo {
+        width: 22px;
+        height: 22px;
+        background: var(--ink);
+        -webkit-mask: var(--icon) center / contain no-repeat;
+        mask: var(--icon) center / contain no-repeat;
       }
       .name {
         font-size: 13px;
@@ -199,7 +206,7 @@
 
       <div>
         <h1>Every AI coding limit, <span class="grad">in your menu&nbsp;bar.</span></h1>
-        <p class="sub"><strong>69 providers</strong><span class="dot">·</span>usage windows, credits, resets<span class="dot">·</span>one status item each, or merged.</p>
+        <p class="sub"><strong>84 providers</strong><span class="dot">·</span>usage windows, credits, resets<span class="dot">·</span>one status item each, or merged.</p>
       </div>
 
       <ul class="grid">
@@ -230,12 +237,14 @@
         <li><div class="tile" style="--brand:#EAEAE6;--ink:#0a0a0c"><div class="chip">E</div><div class="name">ElevenLabs</div></div></li>
         <li><div class="tile" style="--brand:#6467F2"><div class="chip">O</div><div class="name">OpenRouter</div></div></li>
 
-        <li><div class="tile" style="--brand:#20B2AA"><div class="chip">P</div><div class="name">Perplexity</div></div></li>
-        <li><div class="tile" style="--brand:#38BDF8"><div class="chip">A</div><div class="name">Abacus AI</div></div></li>
-        <li><div class="tile" style="--brand:#FF500F"><div class="chip">M</div><div class="name">Mistral</div></div></li>
-        <li><div class="tile" style="--brand:#527DF0"><div class="chip">D</div><div class="name">DeepSeek</div></div></li>
-        <li><div class="tile" style="--brand:#44C800;--ink:#0a0a0c"><div class="chip">C</div><div class="name">Codebuff</div></div></li>
-        <li><div class="tile" style="--brand:#4C89F0"><div class="chip">LL</div><div class="name">LiteLLM</div></div></li>
+        <li><div class="tile" style="--brand:#5975F5"><div class="chip" style="--icon:url('./logos/atlascloud.svg')"><span class="chip-logo"></span></div><div class="name">Atlas Cloud</div></div></li>
+        <li><div class="tile" style="--brand:#33C09E"><div class="chip" style="--icon:url('./logos/bifrost.svg')"><span class="chip-logo"></span></div><div class="name">Bifrost</div></div></li>
+        <li><div class="tile" style="--brand:#FFFFFF;--ink:#0a0a0c"><div class="chip" style="--icon:url('./logos/vercel.svg')"><span class="chip-logo"></span></div><div class="name">Vercel AI Gateway</div></div></li>
+        <li><div class="tile" style="--brand:#4934E1"><div class="chip" style="--icon:url('./logos/helmcode.svg')"><span class="chip-logo"></span></div><div class="name">Helmcode</div></div></li>
+        <li><div class="tile" style="--brand:#111111"><div class="chip" style="--icon:url('./logos/v0.svg')"><span class="chip-logo"></span></div><div class="name">v0</div></div></li>
+        <li><div class="tile" style="--brand:#111111"><div class="chip" style="--icon:url('./logos/typesafe.svg')"><span class="chip-logo"></span></div><div class="name">TypeSafe</div></div></li>
+        <li><div class="tile" style="--brand:#FF60FF;--ink:#0a0a0c"><div class="chip">◆</div><div class="name">Hyper</div></div></li>
+        <li><div class="tile" style="--brand:#179287"><div class="chip" style="--icon:url('./logos/gitkraken.svg')"><span class="chip-logo"></span></div><div class="name">GitKraken AI</div></div></li>
       </ul>
     </div>
   </body>

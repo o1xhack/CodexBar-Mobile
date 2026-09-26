@@ -10,6 +10,7 @@ struct ZenMuxProviderTests {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             #expect(request.httpMethod == "GET")
+            #expect(request.timeoutInterval == 15)
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer management-key")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             #expect(url.scheme == "https")
@@ -33,12 +34,12 @@ struct ZenMuxProviderTests {
             }
         }
 
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: true,
             transport: transport,
             now: now)
-        let usage = result.usage.toUsageSnapshot(paygBalanceUSD: result.paygBalanceUSD)
+        let usage = result
 
         #expect(abs((usage.primary?.usedPercent ?? 0) - 7.15) < 0.0001)
         #expect(usage.primary?.windowMinutes == 300)
@@ -52,7 +53,7 @@ struct ZenMuxProviderTests {
         #expect(usage.providerCost?.used == 482.74)
         #expect(usage.providerCost?.currencyCode == "USD")
         #expect(usage.providerCost?.period == "ZenMux PAYG balance")
-        #expect(result.paygBalanceUSD == 482.74)
+        #expect(result.providerCost?.used == 482.74)
     }
 
     @Test
@@ -65,13 +66,13 @@ struct ZenMuxProviderTests {
             return Self.response(url: url, body: body)
         }
 
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: false,
             transport: transport)
 
-        #expect(result.usage.toUsageSnapshot().loginMethod(for: .zenmux) == "Ultra plan · Monitored")
-        #expect(result.paygBalanceUSD == nil)
+        #expect(result.loginMethod(for: .zenmux) == "Ultra plan · Monitored")
+        #expect(result.providerCost?.used == nil)
     }
 
     @Test
@@ -84,13 +85,13 @@ struct ZenMuxProviderTests {
             return Self.response(url: url, body: #"{"error":"unavailable"}"#, statusCode: 500)
         }
 
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: true,
             transport: transport)
 
-        #expect(abs((result.usage.toUsageSnapshot().primary?.usedPercent ?? 0) - 7.15) < 0.0001)
-        #expect(result.paygBalanceUSD == nil)
+        #expect(abs((result.primary?.usedPercent ?? 0) - 7.15) < 0.0001)
+        #expect(result.providerCost?.used == nil)
     }
 
     @Test
@@ -104,12 +105,12 @@ struct ZenMuxProviderTests {
         }
 
         await #expect {
-            _ = try await ZenMuxUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 "management-key",
                 includePaygBalance: true,
                 transport: transport)
         } throws: { error in
-            error as? ZenMuxUsageError == .authenticationRejected
+            (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
         }
     }
 
@@ -124,7 +125,7 @@ struct ZenMuxProviderTests {
         }
 
         await #expect {
-            _ = try await ZenMuxUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 "management-key",
                 includePaygBalance: true,
                 transport: transport)
@@ -134,26 +135,18 @@ struct ZenMuxProviderTests {
     }
 
     @Test
-    func `missing and invalid credentials fail clearly`() async {
-        await #expect {
-            _ = try await ZenMuxUsageFetcher.fetchUsage(
-                "  ",
-                includePaygBalance: false)
-        } throws: { error in
-            error as? ZenMuxUsageError == .notConfigured
-        }
-
+    func `invalid Management credentials fail clearly`() async {
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             return Self.response(url: url, body: #"{"error":"unauthorized"}"#, statusCode: 403)
         }
         await #expect {
-            _ = try await ZenMuxUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 "wrong-key",
                 includePaygBalance: false,
                 transport: transport)
         } throws: { error in
-            error as? ZenMuxUsageError == .authenticationRejected
+            (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
         }
     }
 
@@ -165,12 +158,12 @@ struct ZenMuxProviderTests {
         }
 
         await #expect {
-            _ = try await ZenMuxUsageFetcher.fetchUsage(
+            _ = try await Self.fetchUsage(
                 "management-key",
                 includePaygBalance: false,
                 transport: transport)
         } throws: { error in
-            guard case .parseFailed = error as? ZenMuxUsageError else { return false }
+            guard (error as? ProviderFetchClassifiedError)?.kind == .parseFailure else { return false }
             return true
         }
     }
@@ -187,13 +180,13 @@ struct ZenMuxProviderTests {
                 body: url.path.hasSuffix("/payg/balance") ? nonUSDBalance : Self.subscriptionFixture)
         }
 
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: true,
             transport: transport)
 
-        #expect(result.paygBalanceUSD == nil)
-        #expect(abs((result.usage.toUsageSnapshot().primary?.usedPercent ?? 0) - 7.15) < 0.0001)
+        #expect(result.providerCost?.used == nil)
+        #expect(abs((result.primary?.usedPercent ?? 0) - 7.15) < 0.0001)
     }
 
     @Test
@@ -208,13 +201,13 @@ struct ZenMuxProviderTests {
                 body: url.path.hasSuffix("/payg/balance") ? overdueBalance : Self.subscriptionFixture)
         }
 
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: true,
             transport: transport)
-        let snapshot = result.usage.toUsageSnapshot(paygBalanceUSD: result.paygBalanceUSD)
+        let snapshot = result
 
-        #expect(result.paygBalanceUSD == -12.34)
+        #expect(result.providerCost?.used == -12.34)
         #expect(snapshot.providerCost?.used == -12.34)
     }
 
@@ -234,7 +227,7 @@ struct ZenMuxProviderTests {
         #expect(!descriptor.metadata.supportsCredits)
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
 
-        let implementation = try #require(ProviderImplementationRegistry.implementation(for: .zenmux))
+        let implementation = try #require(ProviderCatalog.implementation(for: .zenmux))
         #expect(implementation is ZenMuxProviderImplementation)
     }
 
@@ -252,19 +245,18 @@ struct ZenMuxProviderTests {
                 url: url,
                 body: url.path.hasSuffix("/payg/balance") ? Self.balanceFixture : Self.subscriptionFixture)
         }
-        let result = try await ZenMuxUsageFetcher.fetchUsage(
+        let result = try await Self.fetchUsage(
             "management-key",
             includePaygBalance: true,
             transport: transport,
             now: now)
-        let snapshot = result.usage.toUsageSnapshot(paygBalanceUSD: result.paygBalanceUSD)
+        let snapshot = result
         let model = UsageMenuCardView.Model.make(.init(
             provider: .zenmux,
             metadata: ZenMuxProviderDescriptor.descriptor.metadata,
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -289,6 +281,19 @@ struct ZenMuxProviderTests {
         #expect(model.creditsText == nil)
         #expect(model.providerCost?.title == "Pay-as-you-go")
         #expect(model.providerCost?.spendLine == "Balance: $482.74")
+    }
+
+    private static func fetchUsage(
+        _ credential: String,
+        includePaygBalance: Bool,
+        transport: any ProviderHTTPTransport,
+        now: Date = Date()) async throws -> UsageSnapshot
+    {
+        try await ProviderPluginRuntime(bundledPlugin: "zenmux", transport: transport)
+            .fetchUsage(
+                settings: ["INCLUDE_PAYG": includePaygBalance ? "1" : "0"],
+                secrets: ["ZENMUX_MANAGEMENT_API_KEY": credential],
+                now: now)
     }
 
     private static let subscriptionFixture = #"""

@@ -19,7 +19,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 70 after the v0.49 catch-up")
+    @Test("Total count is 78 after the v0.66 catch-up")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -39,10 +39,10 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 70)
+        #expect(QuotaProviderList.providers.count == 78)
     }
 
-    @Test("Subscription zone count is 210 (70 providers × 3 states)")
+    @Test("Subscription zone count is 234 (78 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -65,7 +65,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 210)
+        #expect(QuotaProviderList.providers.count * 3 == 234)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -152,7 +152,7 @@ struct QuotaProviderListTests {
         //  - iOS 1.17.0 appended 4 v0.38/v0.39 providers (positions [53..56]).
         //  - iOS 1.19.0 appended 8 v0.42-v0.45 providers (positions [57..64]).
         //  - iOS 1.21.0 appended IBM Bob after the v0.46/v0.47 tail.
-        let tail = providers.suffix(30).map(\.id)
+        let tail = providers.dropLast(8).suffix(30).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "devin",
@@ -313,15 +313,15 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 70/210 numbers match the actual list")
+    @Test("Cause: catalog 78/234 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 70)
-        #expect(QuotaProviderList.providers.count * 3 == 210)
+        #expect(QuotaProviderList.providers.count == 78)
+        #expect(QuotaProviderList.providers.count * 3 == 234)
     }
 
     @Test("IBM Bob is appended for v0.49 monthly quota pushes")
     func ibmBobPresent() {
-        let bob = QuotaProviderList.providers.last
+        let bob = QuotaProviderList.providers.first { $0.id == "ibmbob" }
         #expect(bob?.id == "ibmbob")
         #expect(bob?.displayName == "IBM Bob")
         #expect(!QuotaProviderList.providers.contains(where: { $0.id == "fireworks" }))

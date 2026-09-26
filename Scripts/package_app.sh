@@ -202,9 +202,9 @@ for ARCH in "${ARCH_LIST[@]}"; do
   stage_build_products "$ARCH"
 done
 
-# Build the app bundle in /tmp to avoid Dropbox adding resource forks during signing
-APP_FINAL="$ROOT/CodexBar.app"
-APP="/tmp/codexbar-build-$$/CodexBar.app"
+# Build the app bundle outside cloud-synced roots to avoid resource forks during signing.
+APP_FINAL="${CODEXBAR_APP_FINAL_PATH:-$ROOT/CodexBar.app}"
+APP="${CODEXBAR_PACKAGE_STAGE_ROOT:-/tmp}/codexbar-build-$$/CodexBar.app"
 STAGED_APP_PATH="${CODEXBAR_STAGED_APP_PATH:-}"
 INSTALL_APP_PATH="${CODEXBAR_INSTALL_PATH:-}"
 rm -rf "$APP_FINAL" "$(dirname "$APP")"
@@ -449,7 +449,10 @@ build_widget_extension() {
 
   ensure_widget_extension_project
 
-  local derived_dir="$ROOT/.build/xcode-widget-extension-${LOWER_CONF}"
+  # Local release runs set CODEXBAR_RELEASE_STAGE_BASE to the SSD BuildScratch.
+  # Keep the repo-local default for portable CI and ordinary developer builds.
+  local derived_dir
+  derived_dir=$(codexbar_widget_derived_data_dir "$ROOT" "$LOWER_CONF")
   local project_dir="$ROOT/WidgetExtension/CodexBarWidgetExtension.xcodeproj"
   local build_log="$derived_dir/xcodebuild.log"
   local timeout_seconds="${CODEXBAR_WIDGET_EXTENSION_TIMEOUT_SECONDS:-900}"
@@ -732,7 +735,7 @@ if [[ -n "$INSTALL_APP_PATH" ]]; then
   echo "Installed $INSTALL_APP_PATH"
 fi
 
-# Move the signed app bundle from /tmp back to the project directory
+# Copy the packaged bundle to the selected output path.
 copy_app_bundle "$APP" "$APP_FINAL"
 rm -rf "$(dirname "$APP")"
 APP="$APP_FINAL"

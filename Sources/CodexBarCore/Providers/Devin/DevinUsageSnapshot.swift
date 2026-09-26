@@ -3,20 +3,33 @@ import Foundation
 
 public enum DevinUsageError: LocalizedError, Sendable {
     case noSession
+    case browserStorageUnreadable
     case missingOrganization
     case invalidCredentials
     case apiError(String)
     case parseFailed(String)
 
+    private static let manualAuthHelp =
+        "Manual auth: Settings → Providers → Devin → Auth source → Manual (app), " +
+        "or cookieSource=manual in your CLI config (default ~/.config/codexbar/config.json). " +
+        "Setup: https://github.com/steipete/CodexBar/blob/main/docs/devin.md#manual-auth"
+
     public var errorDescription: String? {
         switch self {
         case .noSession:
-            "No Devin browser session found. Please log in to app.devin.ai or paste a Bearer token."
+            "No Devin session found. Sign in to app.devin.ai in a supported Chromium browser on macOS, " +
+                "then open Usage & Limits. " +
+                Self.manualAuthHelp
+        case .browserStorageUnreadable:
+            "Could not read Chromium local storage for Devin. Reopen your browser and try again. " + Self.manualAuthHelp
         case .missingOrganization:
-            "No Devin organization was found. Open an app.devin.ai/org/... page " +
-                "or set the organization in Devin settings."
+            "No Devin organization was found. For automatic auth, open the organization's Usage page " +
+                "in your browser. " +
+                "For manual auth, set Organization to the internal org-... or org_... ID from a successful quota " +
+                "request's x-cog-org-id header."
         case .invalidCredentials:
-            "Devin session token is invalid or expired."
+            "Devin rejected the session token (invalid or expired). Sign in again or replace the token. " +
+                Self.manualAuthHelp
         case let .apiError(message):
             "Devin API error: \(message)"
         case let .parseFailed(message):
@@ -103,9 +116,15 @@ public enum DevinUsageParser {
     }
 
     public static func parse(_ object: Any, organization: String?, now: Date = Date()) throws -> DevinUsageSnapshot {
-        let current = (object as? [String: Any]).map(self.currentQuotaWindows)
-        let daily = current?.daily ?? self.findWindow(in: object, matching: self.isDailyKey)
-        let weekly = current?.weekly ?? self.findWindow(in: object, matching: self.isWeeklyKey)
+        let dictionary = object as? [String: Any]
+        let hideDaily = (dictionary?["hide_daily_quota"] as? NSNumber)
+            .map { CFGetTypeID($0) == CFBooleanGetTypeID() && $0.boolValue } ?? false
+        let daily = hideDaily ? nil : self.currentQuotaWindow(
+            percent: dictionary?["daily_percentage"],
+            resetsAt: dictionary?["daily_reset_at"]) ?? self.findWindow(in: object, matching: self.isDailyKey)
+        let weekly = self.currentQuotaWindow(
+            percent: dictionary?["weekly_percentage"],
+            resetsAt: dictionary?["weekly_reset_at"]) ?? self.findWindow(in: object, matching: self.isWeeklyKey)
         guard daily != nil || weekly != nil else {
             throw DevinUsageError.parseFailed("Missing Devin quota windows.")
         }
@@ -129,18 +148,6 @@ public enum DevinUsageParser {
     private static func nonnegativeFiniteDouble(_ value: Any?) -> Double? {
         guard let value = self.double(value), value.isFinite, value >= 0 else { return nil }
         return value
-    }
-
-    private static func currentQuotaWindows(_ dictionary: [String: Any])
-        -> (daily: DevinQuotaWindow?, weekly: DevinQuotaWindow?)
-    {
-        let daily = self.currentQuotaWindow(
-            percent: dictionary["daily_percentage"],
-            resetsAt: dictionary["daily_reset_at"])
-        let weekly = self.currentQuotaWindow(
-            percent: dictionary["weekly_percentage"],
-            resetsAt: dictionary["weekly_reset_at"])
-        return (daily, weekly)
     }
 
     private static func currentQuotaWindow(percent: Any?, resetsAt: Any?) -> DevinQuotaWindow? {

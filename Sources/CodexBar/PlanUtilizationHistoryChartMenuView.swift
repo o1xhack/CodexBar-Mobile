@@ -88,7 +88,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
         self.modelsBySeriesID = Dictionary(uniqueKeysWithValues: visibleSeries.map {
             ($0.id, Self.makeModel(history: $0.history, provider: provider, referenceDate: referenceDate))
         })
-        self.emptyModel = Self.emptyModel(provider: provider)
+        self.emptyModel = Self.makeModel(history: nil, provider: provider, referenceDate: referenceDate)
         self.width = width
     }
 
@@ -185,11 +185,14 @@ struct PlanUtilizationHistoryChartMenuView: View {
         snapshot: UsageSnapshot?) -> [VisibleSeries]
     {
         let metadata = ProviderDescriptorRegistry.metadata[provider]
-        let allowedNames = self.visibleSeriesNames(provider: provider, snapshot: snapshot)
+        // Provider-specific by design: Antigravity pool observations have no session/weekly cadence.
+        let usesObservations = provider == .antigravity && UsageStore.antigravityHistoryUsesObservations(
+            snapshot: snapshot, histories: histories)
+        let allowedNames = usesObservations ? nil : self.visibleSeriesNames(provider: provider, snapshot: snapshot)
         var historiesBySelection: [SeriesSelection: PlanUtilizationSeriesHistory] = [:]
         for history in histories {
             guard !history.entries.isEmpty else { continue }
-            guard history.windowMinutes > 0 else { continue }
+            guard history.hasSupportedCadence, history.name.isQuotaObservation == usesObservations else { continue }
             let effectiveName = Self.effectiveSeriesName(provider: provider, history: history)
             guard allowedNames?.contains(effectiveName) ?? true else { continue }
 
@@ -238,6 +241,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
         provider: UsageProvider,
         history: PlanUtilizationSeriesHistory) -> PlanUtilizationSeriesName
     {
+        if history.name.isQuotaObservation { return history.name }
         let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation
         let normalized = presentation.normalizePlanUtilizationSeries(
             self.providerSeries(history.name),
@@ -293,11 +297,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
         provider: UsageProvider,
         referenceDate: Date) -> Model
     {
-        guard let history else {
-            return self.emptyModel(provider: provider)
-        }
-
-        var points = self.seriesPoints(history: history, referenceDate: referenceDate)
+        var points = history.map { self.seriesPoints(history: $0, referenceDate: referenceDate) } ?? []
         if points.count > Layout.maxPoints {
             points = Array(points.suffix(Layout.maxPoints))
         }
@@ -319,24 +319,10 @@ struct PlanUtilizationHistoryChartMenuView: View {
 
         return Model(
             points: points,
-            axisIndexes: self.axisIndexes(points: points, windowMinutes: history.windowMinutes),
+            axisIndexes: self.axisIndexes(points: points, windowMinutes: history?.windowMinutes ?? 0),
             xDomain: self.xDomain(points: points),
             pointsByID: pointsByID,
             pointsByIndex: pointsByIndex,
-            barColor: barColor,
-            trackColor: trackColor)
-    }
-
-    private nonisolated static func emptyModel(provider: UsageProvider) -> Model {
-        let color = ProviderAccentPalette.color(for: provider)
-        let barColor = Color(red: color.red, green: color.green, blue: color.blue)
-        let trackColor = MenuHighlightStyle.progressTrack(false)
-        return Model(
-            points: [],
-            axisIndexes: [],
-            xDomain: nil,
-            pointsByID: [:],
-            pointsByIndex: [:],
             barColor: barColor,
             trackColor: trackColor)
     }
@@ -345,6 +331,14 @@ struct PlanUtilizationHistoryChartMenuView: View {
         history: PlanUtilizationSeriesHistory,
         referenceDate: Date) -> [Point]
     {
+        if history.windowMinutes == 0, history.name.isQuotaObservation {
+            // These are actual capture times, not inferred reset cycles. Never manufacture gaps.
+            let entries = Dictionary(grouping: history.entries, by: \.capturedAt)
+            return entries.keys.sorted().compactMap { date in
+                guard let entry = entries[date]?.last else { return nil }
+                return Point(id: date, index: 0, date: date, usedPercent: entry.usedPercent, isObserved: true)
+            }
+        }
         guard history.windowMinutes > 0 else { return [] }
         let windowInterval = Double(history.windowMinutes) * 60
         let resetBoundaryLattice = self.resetBoundaryLattice(
@@ -626,6 +620,10 @@ struct PlanUtilizationHistoryChartMenuView: View {
         windowMinutes: Int) -> String
     {
         switch name {
+        case .antigravityGemini:
+            metadata?.sessionLabel ?? "Gemini"
+        case .antigravityClaudeGPT:
+            metadata?.weeklyLabel ?? "Claude + GPT"
         case .session:
             localizedSessionQuotaLabel(metadata?.sessionLabel ?? "Session", windowMinutes: windowMinutes)
         case .weekly:
@@ -648,9 +646,9 @@ struct PlanUtilizationHistoryChartMenuView: View {
 
     private nonisolated static func seriesSortOrder(_ name: PlanUtilizationSeriesName) -> Int {
         switch name {
-        case .session:
+        case .session, .antigravityGemini:
             0
-        case .weekly:
+        case .weekly, .antigravityClaudeGPT:
             1
         case .monthly:
             2

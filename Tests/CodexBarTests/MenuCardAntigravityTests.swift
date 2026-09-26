@@ -24,7 +24,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -71,7 +70,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -91,12 +89,12 @@ struct MenuCardAntigravityTests {
         #expect(model.metrics[0].percentLabel == "95% left")
     }
 
-    @Test
-    func `legacy antigravity family row renders session pace without mutating duration`() throws {
+    @Test(arguments: [false, true])
+    func `antigravity family row forecasts only an explicit session duration`(hasDuration: Bool) throws {
         let now = Date(timeIntervalSince1970: 0)
         let window = RateWindow(
             usedPercent: 80,
-            windowMinutes: nil,
+            windowMinutes: hasDuration ? 300 : nil,
             resetsAt: now.addingTimeInterval(2 * 3600),
             resetDescription: nil)
         let snapshot = UsageSnapshot(
@@ -117,7 +115,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -131,11 +128,11 @@ struct MenuCardAntigravityTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(snapshot.primary?.windowMinutes == nil)
-        #expect(model.metrics.map(\.detailLeftText) == ["20% in deficit"])
-        #expect(model.metrics.map(\.detailRightText) == ["Projected empty in 45m"])
-        #expect(model.metrics[0].pacePercent == 40)
-        #expect(model.metrics[0].paceOnTop == false)
+        #expect(snapshot.primary?.windowMinutes == (hasDuration ? 300 : nil))
+        #expect(model.metrics[0].percent == 20)
+        #expect(model.metrics.map(\.detailLeftText) == [hasDuration ? "20% in deficit" : nil])
+        #expect(model.metrics.map(\.detailRightText) == [hasDuration ? "Projected empty in 45m" : nil])
+        #expect(model.metrics[0].pacePercent == (hasDuration ? 40 : nil))
     }
 
     @Test
@@ -174,7 +171,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -235,7 +231,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -291,7 +286,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -375,7 +369,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -450,7 +443,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -503,7 +495,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -734,7 +725,6 @@ struct MenuCardAntigravityTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,

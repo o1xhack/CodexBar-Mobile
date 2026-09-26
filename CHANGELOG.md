@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.66.0.1 — 2026-09-25
+
+### Added
+- One Mac release train for every official upstream release from v0.59.0 through v0.66.0, including new providers, plugin migration, quota and cost improvements, Mac fleet device removal, reliability and security fixes.
+- iPhone and iPad companion 2.1.0 preparation: append quota alerts for eight new quota-bearing providers, preview all 16 new provider IDs, and retain plugin detail rows for Perplexity, ElevenLabs, and LLM Proxy through the existing sync payload.
+
+### Changed
+- Advance the Mac fork to build 156.1 and Sparkle version 156.1.2.1.0 while preserving Production CloudKit, existing Mobile sync, fork CI and release scripts, and previous CloudKit zone identifiers.
+
+### Fixed
+- Preserve fork parser cache invalidation and multi-Mac snapshot cleanup when accepting upstream parser and fleet sync changes.
+
 ## 0.58.0.1 — 2026-09-10
 
 ### Added

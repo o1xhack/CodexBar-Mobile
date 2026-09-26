@@ -47,20 +47,20 @@ struct SpendDashboardModelTests {
             canRemove: true)
 
         let persian = CodexBarLocalizationOverride.$appLanguage.withValue("fa") {
-            SpendDashboardSource.codexRequest(
+            SpendDashboardSource.codexSource(
                 account: account,
                 homePath: home.path,
                 providerName: "Codex",
                 index: 1,
-                count: 2)?.displayName
+                count: 2).displayName
         }
         let arabic = CodexBarLocalizationOverride.$appLanguage.withValue("ar") {
-            SpendDashboardSource.codexRequest(
+            SpendDashboardSource.codexSource(
                 account: account,
                 homePath: home.path,
                 providerName: "Codex",
                 index: 1,
-                count: 2)?.displayName
+                count: 2).displayName
         }
 
         #expect(persian == "Codex · #۲")
@@ -84,8 +84,8 @@ struct SpendDashboardModelTests {
             .opencodego,
             .openrouter,
             .xai,
-            // Antigravity joined via the tokscale-compatible local usage readers.
-            .antigravity,
+            // Antigravity and Muse provide local token history without monetary values.
+            .antigravity, .muse, .pi,
         ])
     }
 
@@ -798,12 +798,12 @@ struct SpendDashboardModelTests {
             isLive: false,
             canReauthenticate: true,
             canRemove: true)
-        let request = try #require(SpendDashboardSource.codexRequest(
+        let request = try #require(SpendDashboardSource.codexSource(
             account: account,
             homePath: home.path,
             providerName: "Codex",
             index: 1,
-            count: 2))
+            count: 2).request)
 
         #expect(request.source == .managedAccount(id: id))
         #expect(request.homePath == home.path)
@@ -813,18 +813,18 @@ struct SpendDashboardModelTests {
         #expect(request.cacheIdentity.count == 64)
         #expect(SpendDashboardSource.scanDays == SpendDashboardSource.activityDays)
         #expect(SpendDashboardSource.scanDays == 365)
-        #expect(SpendDashboardSource.codexRequest(
+        #expect(SpendDashboardSource.codexSource(
             account: account,
             homePath: "relative/path",
             providerName: "Codex",
             index: 0,
-            count: 1) == nil)
-        #expect(SpendDashboardSource.codexRequest(
+            count: 1).request == nil)
+        #expect(SpendDashboardSource.codexSource(
             account: account,
             homePath: home.appendingPathComponent("missing", isDirectory: true).path,
             providerName: "Codex",
             index: 0,
-            count: 1) == nil)
+            count: 1).request == nil)
 
         let changed = CodexVisibleAccount(
             id: account.id,
@@ -836,30 +836,30 @@ struct SpendDashboardModelTests {
             isLive: account.isLive,
             canReauthenticate: account.canReauthenticate,
             canRemove: account.canRemove)
-        let changedRequest = try #require(SpendDashboardSource.codexRequest(
+        let changedRequest = try #require(SpendDashboardSource.codexSource(
             account: changed,
             homePath: request.homePath,
             providerName: "Codex",
             index: 1,
-            count: 2))
+            count: 2).request)
         #expect(changedRequest.cacheIdentity != request.cacheIdentity)
-        let rebucketedRequest = try #require(SpendDashboardSource.codexRequest(
+        let rebucketedRequest = try #require(SpendDashboardSource.codexSource(
             account: account,
             homePath: request.homePath,
             providerName: "Codex",
             index: 1,
             count: 2,
-            bucketTimeZoneIdentifier: "Pacific/Kiritimati"))
+            bucketTimeZoneIdentifier: "Pacific/Kiritimati").request)
         #expect(rebucketedRequest.cacheIdentity != request.cacheIdentity)
 
         let authData = Data("{\"tokens\":\"synthetic\"}".utf8)
         try authData.write(to: CodexAuthFingerprint.authFileURL(homePath: home.path))
-        let exact = try #require(SpendDashboardSource.codexRequest(
+        let exact = try #require(SpendDashboardSource.codexSource(
             account: account,
             homePath: home.path,
             providerName: "Codex",
             index: 0,
-            count: 1))
+            count: 1).request)
         #expect(exact.authFingerprint == CodexAuthFingerprint.fingerprint(data: authData))
         #expect(exact.authFileWasReadable)
         #expect(exact.cacheIdentity != request.cacheIdentity)

@@ -50,48 +50,36 @@ struct BrowserLocalStorageAPI: Sendable {
         }
     }
 
-    private static func loadProfiles(
+    static func loadProfiles(
         origin: String,
         root: URL,
         browserID: String,
         labelPrefix: String,
         logger: @escaping @Sendable (String) -> Void) -> [Profile]
     {
-        guard let directories = try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles])
-        else { return [] }
-
         let profileNames = Self.chromeProfileNames(root: root)
-        return directories.compactMap { directory in
-            guard !Task.isCancelled,
-                  let isDirectory = try? directory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory,
-                  isDirectory
-            else { return nil }
-            let name = directory.lastPathComponent
-            guard name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-") else {
-                return nil
-            }
-            let levelDB = directory.appendingPathComponent("Local Storage").appendingPathComponent("leveldb")
-            guard FileManager.default.fileExists(atPath: levelDB.path) else { return nil }
+        return ChromiumLocalStorageDiscovery.profileCandidates(root: root, labelPrefix: labelPrefix)
+            .compactMap { candidate in
+                guard !Task.isCancelled else { return nil }
+                let levelDB = candidate.url
+                let name = levelDB.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent
 
-            let id = "\(browserID):\(name)"
-            logger("Checking \(id)")
-            let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
-                for: origin,
-                in: levelDB,
-                logger: logger)
-                .map { Entry(key: $0.key, value: $0.value) }
-            let displayName = profileNames[name]?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let label = if let displayName, !displayName.isEmpty, displayName != name {
-                "\(labelPrefix) — \(displayName)"
-            } else {
-                "\(labelPrefix) \(name)"
+                let id = "\(browserID):\(name)"
+                logger("Checking \(id)")
+                let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
+                    for: origin,
+                    in: levelDB,
+                    logger: logger)
+                    .map { Entry(key: $0.key, value: $0.value) }
+                let displayName = profileNames[name]?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let label = if let displayName, !displayName.isEmpty, displayName != name {
+                    "\(labelPrefix) — \(displayName)"
+                } else {
+                    "\(labelPrefix) \(name)"
+                }
+                return Profile(id: id, label: label, entries: entries)
             }
-            return Profile(id: id, label: label, entries: entries)
-        }
-        .sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+            .sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
     }
 
     private static func chromeProfileNames(root: URL) -> [String: String] {

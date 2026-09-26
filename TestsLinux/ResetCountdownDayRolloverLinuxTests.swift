@@ -40,14 +40,6 @@ struct ResetCountdownDayRolloverLinuxTests {
     }
 
     @Test
-    func `Zed cycle at exactly 24h rolls over to a day`() {
-        // Was "Cycle ends in 24h 0m".
-        #expect(
-            ZedUsageSnapshot.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Cycle ends in 1d 0h")
-    }
-
-    @Test
     func `JetBrains reset at exactly 24h rolls over to a day`() {
         #expect(
             JetBrainsStatusSnapshot.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)

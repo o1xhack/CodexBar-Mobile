@@ -469,14 +469,19 @@ struct CursorUsageEventsFetcher: Sendable {
         since: Date?,
         until: Date?) async throws -> CursorUsageEventsPage
     {
-        let request = try self.makeRequest(
-            path: "/api/dashboard/get-filtered-usage-events",
-            cookieHeader: cookieHeader,
-            body: FilteredUsageRequest(
-                page: page,
-                pageSize: self.pageSize,
-                startDate: Self.millisString(since),
-                endDate: Self.millisString(until)))
+        var request = URLRequest(url: self.baseURL.appendingPathComponent("/api/dashboard/get-filtered-usage-events"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = self.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        // Cursor enforces CSRF on these POST endpoints: a matching Origin is required.
+        request.setValue(self.originHeader, forHTTPHeaderField: "Origin")
+        request.httpBody = try JSONEncoder().encode(FilteredUsageRequest(
+            page: page,
+            pageSize: self.pageSize,
+            startDate: Self.millisString(since),
+            endDate: Self.millisString(until)))
         let (data, response) = try await self.transport.data(for: request)
         try Self.validate(response)
         return try JSONDecoder().decode(CursorUsageEventsPage.self, from: data)
@@ -491,19 +496,6 @@ struct CursorUsageEventsFetcher: Sendable {
         let endDate: String?
     }
 
-    private func makeRequest(path: String, cookieHeader: String, body: some Encodable) throws -> URLRequest {
-        var request = URLRequest(url: self.baseURL.appendingPathComponent(path))
-        request.httpMethod = "POST"
-        request.timeoutInterval = self.timeout
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        // Cursor enforces CSRF on these POST endpoints: a matching Origin is required.
-        request.setValue(self.originHeader, forHTTPHeaderField: "Origin")
-        request.httpBody = try JSONEncoder().encode(body)
-        return request
-    }
-
     private var originHeader: String {
         guard let scheme = self.baseURL.scheme, let host = self.baseURL.host else {
             return "https://cursor.com"
@@ -515,11 +507,11 @@ struct CursorUsageEventsFetcher: Sendable {
         guard let http = response as? HTTPURLResponse else {
             throw CursorStatusProbeError.networkError("Invalid response")
         }
-        if http.statusCode == 401 {
-            throw CursorStatusProbeError.notLoggedIn
-        }
-        guard http.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("HTTP \(http.statusCode)")
+        switch http.statusCode {
+        case 200: return
+        case 401: throw CursorStatusProbeError.notLoggedIn
+        case 403: throw CursorStatusProbeError.costRequestForbidden
+        default: throw CursorStatusProbeError.networkError("HTTP \(http.statusCode)")
         }
     }
 

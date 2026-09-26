@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBarCLI
+@testable import CodexBarCore
 
 // swiftlint:disable:next type_body_length
 struct CLISnapshotTests {
@@ -372,51 +372,6 @@ struct CLISnapshotTests {
     }
 
     @Test
-    func `renders crof dollar balance as detail not reset`() {
-        let meta = ProviderDescriptorRegistry.descriptor(for: .crof).metadata
-        let snap = CrofTestSnapshots.credits(9.9999, updatedAt: Date(timeIntervalSince1970: 0))
-
-        let output = CLIRenderer.renderText(
-            provider: .crof,
-            snapshot: snap,
-            credits: nil,
-            context: RenderContext(
-                header: "Crof",
-                status: nil,
-                useColor: false,
-                resetStyle: .countdown))
-
-        #expect(output.contains("\(meta.sessionLabel): 100% left"))
-        #expect(output.contains("$9.99"))
-        #expect(!output.contains("Resets $9.99"))
-        #expect(!output.contains("requests left"))
-    }
-
-    @Test
-    func `renders crof request quota when returned`() {
-        let snap = CrofTestSnapshots.requestQuota(
-            credits: 9.9999,
-            plan: 1000,
-            remaining: 998,
-            updatedAt: Date(timeIntervalSince1970: 0))
-
-        let output = CLIRenderer.renderText(
-            provider: .crof,
-            snapshot: snap,
-            credits: nil,
-            context: RenderContext(
-                header: "Crof",
-                status: nil,
-                useColor: false,
-                resetStyle: .countdown))
-
-        #expect(output.contains("Requests: 99% left"))
-        #expect(output.contains("998 requests left"))
-        #expect(output.contains("Credits: 100% left"))
-        #expect(output.contains("$9.99"))
-    }
-
-    @Test
     func `renders qoder reset and credit total separately`() {
         let meta = ProviderDescriptorRegistry.descriptor(for: .qoder).metadata
         let now = Date(timeIntervalSince1970: 0)
@@ -779,31 +734,21 @@ struct CLISnapshotTests {
         #expect(primary.summary == "13% in reserve | Expected 43% used | Lasts until reset")
     }
 
-    @Test
-    func `descriptor monthly CLI pace uses the calendar cycle`() throws {
+    @Test(arguments: [
+        "Amp Example Subscription: 60% other usage and 90% orb usage remaining - resets upon renewal in 14 days",
+        "Amp Example Tier: agent usage $12 of $20 remaining - " +
+            "period 2026-02-01 to 2026-03-01, resets upon renewal in 14 days",
+    ])
+    func `amp monthly CLI pace uses the reported billing cycle`(output: String) throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
-        let resetsAt = try #require(calendar.date(from: DateComponents(
-            calendar: calendar,
-            timeZone: calendar.timeZone,
-            year: 2026,
-            month: 3,
-            day: 1)))
         let now = try #require(calendar.date(from: DateComponents(
             calendar: calendar,
             timeZone: calendar.timeZone,
             year: 2026,
             month: 2,
             day: 15)))
-        let snapshot = UsageSnapshot(
-            primary: .init(
-                usedPercent: 40,
-                windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
-                resetsAt: resetsAt,
-                resetDescription: "monthly"),
-            secondary: nil,
-            tertiary: nil,
-            updatedAt: now)
+        let snapshot = try AmpUsageParser.parse(displayText: output, now: now).toUsageSnapshot()
 
         let pace = try #require(CLIRenderer.providerPacePayload(provider: .amp, snapshot: snapshot, now: now))
         #expect(pace.primary?.expectedUsedPercent == 50)

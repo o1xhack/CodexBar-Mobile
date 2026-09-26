@@ -3,10 +3,18 @@ import Foundation
 public struct QoderProviderSettings: ProviderCookieSettings {
     public let cookieSource: ProviderCookieSource
     public let manualCookieHeader: String?
+    public let manualCookieOrigin: String?
 
     public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
+        self.init(cookieSource: cookieSource, manualCookieHeader: manualCookieHeader, manualCookieOrigin: nil)
+    }
+
+    public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?, manualCookieOrigin: String?) {
         self.cookieSource = cookieSource
-        self.manualCookieHeader = manualCookieHeader
+        let site = QoderCookieRouting.site(forManualCookieHeader: manualCookieHeader)
+        // Invalid captures never become origin-less credentials in the generic broker.
+        self.manualCookieHeader = site == nil ? nil : manualCookieHeader
+        self.manualCookieOrigin = manualCookieOrigin ?? site?.webOrigin
     }
 }
 

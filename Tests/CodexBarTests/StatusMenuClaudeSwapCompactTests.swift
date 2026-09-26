@@ -17,6 +17,7 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         StatusItemController.setMenuRefreshEnabledForTesting(false)
         let settings = testSettingsStore(
             suiteName: "StatusMenuClaudeSwapCompactTests",
+            userDefaults: InMemoryUserDefaults(),
             tokenAccountStore: InMemoryTokenAccountStore())
         settings.providerDetectionCompleted = true
         settings.statusChecksEnabled = false
@@ -252,7 +253,7 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         XCTAssertEqual(ids, ["menuCard-0", "menuCard-1", "menuCard-2"])
     }
 
-    func test_menuCloseResetsExpansionState() {
+    func test_menuClosePreservesExpandedCardsAndResetsHealthyTail() {
         let accounts = self.sixAccounts()
         let (controller, _) = self.makeController(accounts: accounts)
         defer { controller.releaseStatusItemsForTesting() }
@@ -263,7 +264,13 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         controller.menuWillOpen(menu)
         controller.menuDidClose(menu)
 
-        XCTAssertTrue(controller.compactAccountExpandedIDs.isEmpty)
+        XCTAssertEqual(controller.compactAccountExpandedIDs, [accounts[4].id])
         XCTAssertTrue(controller.compactAccountExpandedHealthyTailProviders.isEmpty)
+
+        controller.menuWillOpen(menu)
+        let ids = self.representedIDs(in: menu)
+        XCTAssertTrue(ids.contains("claudeSwapCard-\(accounts[4].id.opaqueID)"))
+        XCTAssertFalse(ids.contains("claudeSwapCompact-\(accounts[4].id.opaqueID)"))
+        controller.menuDidClose(menu)
     }
 }

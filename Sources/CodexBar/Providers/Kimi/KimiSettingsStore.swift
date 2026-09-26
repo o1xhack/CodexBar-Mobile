@@ -2,6 +2,11 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var kimiRegion: KimiRegion {
+        get { self.providerConfig(for: .kimi)?.sanitizedRegion.flatMap(KimiRegion.init(rawValue:)) ?? .china }
+        set { self.updateProviderConfig(provider: .kimi) { $0.region = newValue.rawValue } }
+    }
+
     var kimiUsageDataSource: ProviderSourceMode {
         get { self.configSnapshot.providerConfig(for: .kimi)?.source ?? .auto }
         set {
@@ -19,45 +24,17 @@ extension SettingsStore {
     }
 
     var kimiAPIKey: String {
-        get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedAPIKey ?? "" }
-        set {
-            self.updateProviderConfig(provider: .kimi) { entry in
-                entry.apiKey = self.normalizedConfigValue(newValue)
-            }
-            self.logSecretUpdate(provider: .kimi, field: "apiKey", value: newValue)
-        }
+        get { self[providerConfig: .kimi, field: .apiKey] }
+        set { self[providerConfig: .kimi, field: .apiKey] = newValue }
     }
 
     var kimiManualCookieHeader: String {
-        get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedCookieHeader ?? "" }
-        set {
-            self.updateProviderConfig(provider: .kimi) { entry in
-                entry.cookieHeader = self.normalizedConfigValue(newValue)
-            }
-            self.logSecretUpdate(provider: .kimi, field: "cookieHeader", value: newValue)
-        }
+        get { self[providerConfig: .kimi, field: .cookieHeader] }
+        set { self[providerConfig: .kimi, field: .cookieHeader] = newValue }
     }
 
     var kimiCookieSource: ProviderCookieSource {
         get { self.resolvedCookieSource(provider: .kimi, fallback: .auto) }
-        set {
-            self.updateProviderConfig(provider: .kimi) { entry in
-                entry.cookieSource = newValue
-            }
-            self.logProviderModeChange(provider: .kimi, field: "cookieSource", value: newValue.rawValue)
-        }
-    }
-
-    func ensureKimiAuthTokenLoaded() {}
-}
-
-extension SettingsStore {
-    func kimiSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.KimiProviderSettings {
-        self.ensureKimiAuthTokenLoaded()
-        return self.resolvedCookieSettings(
-            provider: .kimi,
-            configuredSource: self.kimiCookieSource,
-            configuredHeader: self.kimiManualCookieHeader,
-            tokenOverride: tokenOverride)
+        set { self.setCookieSource(newValue, provider: .kimi) }
     }
 }

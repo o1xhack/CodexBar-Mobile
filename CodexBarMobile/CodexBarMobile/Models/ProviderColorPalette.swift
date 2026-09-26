@@ -357,6 +357,25 @@ enum ProviderColorPalette {
             return Color(red: 0.10, green: 0.34, blue: 0.72)
         }
 
+        // iOS 2.1.0 — fallback tints for v0.59-v0.66 providers when an old
+        // Mac snapshot lacks the optional providerIconTintHex field.
+        // Exact IDs avoid collisions such as v0 versus other names.
+        let newProviderTints: [String: String] = [
+            "bifrost": "4F67C9", "helmcode": "268E9C",
+            "nous": "7254AD", "muse": "D46182",
+            "coderabbit": "E27C3F", "replicate": "4973A8",
+            "huggingface": "EAB54B", "pi": "7B67B8",
+            "v0": "212B39", "typesafe": "438C75",
+            "hyper": "B65A8A", "gitkraken": "3C79B9",
+            "devpass": "58A17C", "atlascloud": "658BC2",
+            "vercel": "30343A", "llmman": "667A93",
+        ]
+        if let hex = newProviderTints[normalized],
+           let color = self.color(fromHex: hex)
+        {
+            return color
+        }
+
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {
             // Moonshot / Kimi API — deep indigo (#3C4FE0). Distinct

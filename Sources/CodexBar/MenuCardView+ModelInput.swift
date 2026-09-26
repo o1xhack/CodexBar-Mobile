@@ -9,13 +9,15 @@ extension UsageMenuCardView.Model {
         let codexProjection: CodexConsumerProjection?
         let credits: CreditsSnapshot?
         let creditsError: String?
-        let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
         let tokenSnapshot: CostUsageTokenSnapshot?
         let tokenError: String?
         let account: AccountInfo
         let accountIsAuthoritative: Bool
-        let planOverride: String?
+        let accountPrivacyOrdinal: PersonalInfoRedactor.AccountOrdinal?
+        let planOverride: PlanOverride
+        let planEmphasis: PlanEmphasis
+        let lastKnownUsageCapturedAt: Date?
         let isRefreshing: Bool
         let lastError: String?
         let limitsAvailability: UsageLimitsAvailability?
@@ -48,6 +50,7 @@ extension UsageMenuCardView.Model {
         let preferredCurrencyCode: String
         let costUsageBucketCalendar: Calendar
         let now: Date
+        let observedWeeklyResets: [CostUsageQuotaResetObservation]
 
         init(
             provider: UsageProvider,
@@ -56,13 +59,15 @@ extension UsageMenuCardView.Model {
             codexProjection: CodexConsumerProjection? = nil,
             credits: CreditsSnapshot?,
             creditsError: String?,
-            dashboard: OpenAIDashboardSnapshot?,
             dashboardError: String?,
             tokenSnapshot: CostUsageTokenSnapshot?,
             tokenError: String?,
             account: AccountInfo,
             accountIsAuthoritative: Bool = false,
-            planOverride: String? = nil,
+            accountPrivacyOrdinal: PersonalInfoRedactor.AccountOrdinal? = nil,
+            planOverride: PlanOverride = .automatic,
+            planEmphasis: PlanEmphasis = .none,
+            lastKnownUsageCapturedAt: Date? = nil,
             isRefreshing: Bool,
             lastError: String?,
             limitsAvailability: UsageLimitsAvailability? = nil,
@@ -92,7 +97,8 @@ extension UsageMenuCardView.Model {
             usesLiveSubtitle: Bool = false,
             preferredCurrencyCode: String = "auto",
             costUsageBucketCalendar: Calendar = .current,
-            now: Date)
+            now: Date,
+            observedWeeklyResets: [CostUsageQuotaResetObservation] = [])
         {
             self.provider = provider
             self.metadata = metadata
@@ -100,13 +106,15 @@ extension UsageMenuCardView.Model {
             self.codexProjection = codexProjection
             self.credits = credits
             self.creditsError = creditsError
-            self.dashboard = dashboard
             self.dashboardError = dashboardError
             self.tokenSnapshot = tokenSnapshot
             self.tokenError = tokenError
             self.account = account
             self.accountIsAuthoritative = accountIsAuthoritative
+            self.accountPrivacyOrdinal = accountPrivacyOrdinal
             self.planOverride = planOverride
+            self.planEmphasis = planEmphasis
+            self.lastKnownUsageCapturedAt = lastKnownUsageCapturedAt
             self.isRefreshing = isRefreshing
             self.lastError = lastError
             self.limitsAvailability = limitsAvailability
@@ -137,6 +145,7 @@ extension UsageMenuCardView.Model {
             self.preferredCurrencyCode = preferredCurrencyCode
             self.costUsageBucketCalendar = costUsageBucketCalendar
             self.now = now
+            self.observedWeeklyResets = observedWeeklyResets
         }
     }
 }

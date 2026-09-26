@@ -30,23 +30,23 @@ public struct DoubaoSettingsReader: Sendable {
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
-        self.firstValue(in: environment, keys: self.apiKeyEnvironmentKeys)
+        SettingsValue.first(in: environment, keys: self.apiKeyEnvironmentKeys)
     }
 
     public static func accessKeyID(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
-        self.firstValue(in: environment, keys: self.accessKeyIDEnvironmentKeys)
+        SettingsValue.first(in: environment, keys: self.accessKeyIDEnvironmentKeys)
     }
 
     public static func secretAccessKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
-        self.firstValue(in: environment, keys: self.secretAccessKeyEnvironmentKeys)
+        SettingsValue.first(in: environment, keys: self.secretAccessKeyEnvironmentKeys)
     }
 
     public static func region(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
-        self.firstValue(in: environment, keys: self.regionEnvironmentKeys) ?? self.defaultRegion
+        SettingsValue.first(in: environment, keys: self.regionEnvironmentKeys) ?? self.defaultRegion
     }
 
     public static func codingPlanCredentials(
@@ -61,26 +61,5 @@ public struct DoubaoSettingsReader: Sendable {
             accessKeyID: accessKeyID,
             secretAccessKey: secretAccessKey,
             region: self.region(environment: environment))
-    }
-
-    private static func firstValue(in environment: [String: String], keys: [String]) -> String? {
-        for key in keys {
-            guard let cleaned = self.cleaned(environment[key]) else { continue }
-            return cleaned
-        }
-        return nil
-    }
-
-    static func cleaned(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-            return nil
-        }
-        if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-            (value.hasPrefix("'") && value.hasSuffix("'"))
-        {
-            value = String(value.dropFirst().dropLast())
-        }
-        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : value
     }
 }
