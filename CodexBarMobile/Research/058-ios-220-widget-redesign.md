@@ -303,3 +303,14 @@ Mac's current sync window. It is unsuitable for the requested consistency bar.
   second selection rendered independently. A signed-device run must verify
   that full path; do not count cached first-widget pixels as fresh timeline
   success for the second widget.
+- The device-signed extension artifact contains the new configuration intents,
+  source entities, and queries in `Metadata.appintents`. The main app artifact
+  does not contain those new intent definitions because their source file is
+  extension-only; the simulator's serialized App Intent descriptor names the
+  main app bundle. This is a plausible registration mismatch, but the observed
+  XPC interruption and unsigned simulator leave causality unproven. Apple
+  documents [shared intent code across app and extension targets](https://developer.apple.com/documentation/appintents/app-extension)
+  and [execution target selection](https://developer.apple.com/documentation/appintents/intentexecutiontargets);
+  it does not establish that duplicating these widget
+  configuration types would fix this particular runtime error. Preserve the
+  signed-device test as the decisive gate before changing intent ownership.
