@@ -616,3 +616,27 @@ at bottom right. The screenshot is
 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/widget-layout-217-claude-three-days-edit.png`.
 The app and widget are still build 216 locally at this point; this is not
 owner-device evidence or a new TestFlight upload.
+
+### Build 217 TestFlight upload
+
+- Final build-217 focused tests passed: 31 Swift Testing cases and six XCTest
+  render cases. Repository lint passed with zero violations, and the updated
+  release note has all four translations. The corrected iPhone SpringBoard
+  screenshot above proves the three-day column visually with synthetic data.
+- Archived and uploaded 2.2.0 (217) from source commit
+  `fc8534b130ea1a062dca0efe0af0b3052df486f9` on
+  `feature/ios-220-widget-redesign`. Main app and widget extension both
+  report build 217 and CloudKit `Production`; this layout-only change needs
+  no Production schema deploy.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260927-111655/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `bf7854e07da0e617e8c67dc5ec6ff090883e0152ee094628c36856ba6e50e937`.
+- App Store Connect build `3d750a1b-93df-49a6-8ed6-a7570a5d357b`
+  reached `VALID`; `uploadedDate=2026-09-27T11:21:02-07:00`.
+  The task branch remains local; this beta upload did not merge or publish
+  the app.
+- Owner-device layout QA and the separate Codex tap report remain open.
+  The iOS 27 simulator Usage demo Codex card opens its detail; neither that
+  result nor the synthetic widget picker proves the reported owner-device
+  path works. The exact failing entry point is still needed.
