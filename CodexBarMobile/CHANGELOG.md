@@ -2,6 +2,13 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (216)] — TestFlight layout refinement
+
+### Changed
+- Increase spacing between daily Token Activity cells in the app and Home Screen widgets.
+- Make small-widget cells smaller and arrange the most recent 35 days in reading order, ending with today at the bottom right.
+- Balance the content in medium, large, and iPad extra-large heatmap widgets with matching 16-point edges. Medium displays 24 weeks to keep its cells legible with the wider spacing.
+
 ## [2.2.0 (215)] — TestFlight repair
 
 ### Fixed

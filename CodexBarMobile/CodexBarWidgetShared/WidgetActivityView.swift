@@ -53,47 +53,57 @@ struct WidgetActivityView: View {
 
     private var loadedView: some View {
         GeometryReader { geometry in
-            let inset: CGFloat = 11
+            let inset: CGFloat = 16
             let width = max(0, geometry.size.width - inset * 2)
+            let height = max(0, geometry.size.height - inset * 2)
+            let panelGap: CGFloat = self.family == .systemExtraLarge ? 6 : 8
+            let panelHeight = self.isComparison ? max(0, (height - panelGap) / 2) : height
             let weeks = WidgetActivityLayout.weeks(for: self.family)
             Group {
                 if self.isComparison {
-                    VStack(alignment: .leading, spacing: self.family == .systemLarge ? 8 : 6) {
-                        self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: weeks, width: width)
-                        self.secondPanel(weeks: weeks, width: width)
+                    VStack(alignment: .leading, spacing: panelGap) {
+                        self.panel(for: self.entry.sourceIDs.first ?? "all", weeks: weeks, width: width, height: panelHeight)
+                        self.secondPanel(weeks: weeks, width: width, height: panelHeight)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
                     self.panel(
                         for: self.entry.sourceIDs.first ?? "all",
                         weeks: weeks,
                         width: width,
+                        height: panelHeight,
                         compact: self.family == .systemSmall)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
             }
+            .frame(width: width, height: height, alignment: .center)
             .padding(.horizontal, inset)
-            .padding(.vertical, self.family == .systemExtraLarge ? 9 : 11)
+            .padding(.vertical, inset)
         }
     }
 
     @ViewBuilder
-    private func secondPanel(weeks: Int, width: CGFloat) -> some View {
+    private func secondPanel(weeks: Int, width: CGFloat, height: CGFloat) -> some View {
         let first = self.entry.sourceIDs.first ?? "all"
         let second = self.entry.sourceIDs.dropFirst().first ?? "all"
         if first == second {
             self.panelMessage(String(localized: "Choose a different source"))
         } else {
-            self.panel(for: second, weeks: weeks, width: width)
+            self.panel(for: second, weeks: weeks, width: width, height: height)
         }
     }
 
     @ViewBuilder
-    private func panel(for id: String, weeks: Int, width: CGFloat, compact: Bool = false) -> some View {
+    private func panel(for id: String, weeks: Int, width: CGFloat, height: CGFloat, compact: Bool = false) -> some View {
         if let source = self.entry.projection.source(id: id) {
-            let cellSize = WidgetActivityLayout.cellSize(width: width, weeks: weeks, compact: compact)
+            let columnSpacing = WidgetActivityLayout.columnSpacing(for: self.family)
+            let cellSize = WidgetActivityLayout.cellSize(
+                width: width, weeks: weeks, compact: compact, spacing: columnSpacing)
+            let columns = compact ? 7 : weeks
+            let gridWidth = CGFloat(columns) * cellSize + CGFloat(columns - 1) * columnSpacing
+            let titleGap: CGFloat = self.family == .systemExtraLarge ? 4 : 6
+            let rowSpacing = WidgetActivityLayout.rowSpacing(
+                family: self.family, cellSize: cellSize, panelHeight: height, titleGap: titleGap)
             let color = ProviderColorPalette.color(for: id, tintHex: source.tintHex)
-            VStack(alignment: .leading, spacing: compact ? 7 : 5) {
+            VStack(alignment: .leading, spacing: titleGap) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(id == WidgetActivityProjection.allSourceID ? String(localized: "All") : source.name)
                         .font(.subheadline.weight(.semibold))
@@ -113,11 +123,14 @@ struct WidgetActivityView: View {
                     weeks: weeks,
                     referenceDate: self.entry.date,
                     cellSize: cellSize,
+                    columnSpacing: columnSpacing,
+                    rowSpacing: rowSpacing,
                     color: color,
                     compact: compact)
-                    .frame(width: width, alignment: .leading)
+                    .frame(width: gridWidth, alignment: .leading)
             }
-            .frame(width: width, alignment: .leading)
+            .frame(width: gridWidth, height: height, alignment: .center)
+            .frame(width: width, height: height, alignment: .center)
         } else {
             self.panelMessage(String(localized: "Source unavailable"))
         }
@@ -152,6 +165,8 @@ private struct WidgetActivityGrid: View {
     let weeks: Int
     let referenceDate: Date
     let cellSize: CGFloat
+    let columnSpacing: CGFloat
+    let rowSpacing: CGFloat
     let color: Color
     var compact = false
 
@@ -163,15 +178,16 @@ private struct WidgetActivityGrid: View {
             weeks: self.weeks, referenceDate: self.referenceDate, calendar: calendar)
         else { return [] }
         let byKey = Dictionary(uniqueKeysWithValues: self.source.days.map { ($0.key, $0) })
-        let positions: [(Int, Int)] = if self.compact {
-            (0..<self.weeks).flatMap { week in (0..<7).map { (week, $0) } }
+        let dates: [Date] = if self.compact {
+            WidgetActivityWindow.compactDates(weeks: self.weeks, referenceDate: self.referenceDate, calendar: calendar)
         } else {
-            (0..<7).flatMap { weekday in (0..<self.weeks).map { ($0, weekday) } }
-        }
-        return positions.compactMap { week, weekday -> (key: String, day: WidgetActivityDay?, isFuture: Bool)? in
-            guard let date = calendar.date(byAdding: .day, value: week * 7 + weekday, to: firstWeek) else {
-                return nil
+            (0..<7).flatMap { weekday in
+                (0..<self.weeks).compactMap { week in
+                    calendar.date(byAdding: .day, value: week * 7 + weekday, to: firstWeek)
+                }
             }
+        }
+        return dates.map { date -> (key: String, day: WidgetActivityDay?, isFuture: Bool) in
             let components = calendar.dateComponents([.year, .month, .day], from: date)
             let key = String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
             return (key, byKey[key], date > today)
@@ -181,10 +197,10 @@ private struct WidgetActivityGrid: View {
     var body: some View {
         LazyVGrid(
             columns: Array(
-                repeating: GridItem(.fixed(self.cellSize), spacing: WidgetActivityLayout.cellSpacing),
+                repeating: GridItem(.fixed(self.cellSize), spacing: self.columnSpacing),
                 count: self.compact ? 7 : self.weeks),
             alignment: .leading,
-            spacing: WidgetActivityLayout.cellSpacing)
+            spacing: self.rowSpacing)
         {
             ForEach(Array(self.cells.enumerated()), id: \.offset) { _, cell in
                 self.cell(cell.day, isFuture: cell.isFuture)
@@ -223,25 +239,43 @@ private struct WidgetActivityGrid: View {
 }
 
 enum WidgetActivityLayout {
-    static let cellSpacing: CGFloat = 2
+    static func columnSpacing(for family: WidgetFamily) -> CGFloat {
+        family == .systemSmall ? 5 : 4.5
+    }
 
     static func weeks(for family: WidgetFamily) -> Int {
         switch family {
         case .systemSmall: 5
-        case .systemMedium: 27
+        case .systemMedium: 24
         case .systemLarge: 18
         case .systemExtraLarge: 38
         default: 27
         }
     }
 
-    static func cellSize(width: CGFloat, weeks: Int, compact: Bool) -> CGFloat {
+    static func cellSize(width: CGFloat, weeks: Int, compact: Bool, spacing: CGFloat) -> CGFloat {
         let columns = compact ? 7 : weeks
-        return max(4, (width - CGFloat(columns - 1) * self.cellSpacing) / CGFloat(columns))
+        let available = (width - CGFloat(columns - 1) * spacing) / CGFloat(columns)
+        return max(4, compact ? min(14, available) : available)
+    }
+
+    static func rowSpacing(family: WidgetFamily, cellSize: CGFloat, panelHeight: CGFloat, titleGap: CGFloat) -> CGFloat {
+        if family == .systemSmall { return 5 }
+        let titleHeight: CGFloat = 20
+        let needed = (panelHeight - titleHeight - titleGap - 7 * cellSize) / 6
+        return min(7.5, max(4.5, needed))
     }
 }
 
 enum WidgetActivityWindow {
+    static func compactDates(weeks: Int, referenceDate: Date, calendar: Calendar) -> [Date] {
+        guard weeks > 0 else { return [] }
+        let today = calendar.startOfDay(for: referenceDate)
+        let count = weeks * 7
+        guard let first = calendar.date(byAdding: .day, value: 1 - count, to: today) else { return [] }
+        return (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: first) }
+    }
+
     static func startDate(weeks: Int, referenceDate: Date, calendar baseCalendar: Calendar) -> Date? {
         guard weeks > 0 else { return nil }
         var calendar = baseCalendar

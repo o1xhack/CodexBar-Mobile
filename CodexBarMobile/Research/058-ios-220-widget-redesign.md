@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `done` (2.2.0 (215) widget repair implemented and simulator QA completed)
+Status: `in-progress` (post-215 spacing and small-widget ordering refinement)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -515,3 +515,50 @@ configuration reached its timeline provider.
   CloudKit history and source choice appear on the home screen. The simulator
   verification above covers synthetic App Group projection and WidgetKit
   configuration, not real account sync.
+
+## 2026-09-27 owner layout feedback and refinement
+
+The owner installed build 215 and reported that the core widget behavior looks
+mostly correct. All heatmap cells feel too tightly packed. The small widget's
+cells are too large, and its date order runs sideways rather than ending with
+today in the bottom-right corner. Medium and large widgets have too much empty
+space above the source name and below the grid, while their horizontal margins
+are narrow. This is owner feedback on the installed build, not a new physical
+device QA result collected by the agent.
+
+Implementation approach:
+
+- Keep the calendar-week order in medium, large, and extra-large widgets. Give
+  them one consistent inset on every edge, and use the available panel height
+  to increase row spacing while keeping the title near the rounded top edge.
+- Render the small widget as 35 consecutive days in five rows of seven. The
+  oldest date starts at top-left and today is bottom-right. Cap its square size
+  and center its title/grid block within the same horizontal boundaries.
+- Increase spacing in the in-app Token Activity heatmap as well, because the
+  owner described every heatmap as too dense. Preserve the existing source
+  colors and distinguish unknown days from recorded zero days.
+- Verify date ordering with a non-Sunday reference day and visually inspect
+  all four production widget sizes after the change.
+
+### Build 216 local verification
+
+- The small widget now places 35 consecutive dates in a seven-column grid.
+  A Wednesday reference-date test confirms the final cell is today, rather
+  than relying on the reference date falling on a Sunday.
+- The iOS 27 iPhone Air SpringBoard rendered a small Codex widget after its
+  source was changed in the actual system edit sheet. Its five rows have
+  smaller cells and 5-point gaps; the latest day is at bottom right. The same
+  simulator rendered a medium Codex widget and a large Codex + Claude Code
+  comparison with balanced 16-point card insets and wider cell spacing.
+- The iPad Pro 13-inch iPadOS 27 SpringBoard rendered the extra-large
+  comparison with the same inset and wider gaps. Evidence images in
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/` are
+  `widget-layout-216-small-codex-final.png`,
+  `widget-layout-216-large-medium-final.png`, and
+  `widget-layout-216-ipad-final.png`. All displayed day values came from a
+  synthetic App Group projection, not the owner's CloudKit account.
+- Focused `WidgetActivityProjectionTests`, `CodexBarWidgetRenderMatrixTests`,
+  and `WidgetSnapshotBuilderTests` passed: 31 Swift Testing cases and six
+  XCTest render cases. The owner independently reported that build 215 was
+  installed and its basic widget behavior looked correct, then supplied the
+  layout refinements above. Build 216 still needs owner-device visual QA.
