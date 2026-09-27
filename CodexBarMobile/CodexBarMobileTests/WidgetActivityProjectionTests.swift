@@ -86,7 +86,7 @@ struct WidgetActivityProjectionTests {
         #expect(decoded.source(id: "sample")?.tintHex == "#3366CC")
     }
 
-    @Test @MainActor func `Refresh error keeps last known heatmap without inventing new days`() {
+    @Test @MainActor func `Refresh error and syncing keep the last known heatmap`() {
         let previous = WidgetActivityProjection.preview(now: self.now)
         let failed = WidgetActivityPublisher.statePreservingHistory(
             .error,
@@ -96,6 +96,15 @@ struct WidgetActivityProjectionTests {
         #expect(failed.state == .error)
         #expect(failed.sources == previous.sources)
         #expect(failed.latestSyncAt == previous.latestSyncAt)
+
+        let syncing = WidgetActivityPublisher.statePreservingHistory(
+            .syncing,
+            previous: previous,
+            latestSyncAt: nil,
+            now: self.now.addingTimeInterval(180))
+        #expect(syncing.state == .syncing)
+        #expect(syncing.sources == previous.sources)
+        #expect(syncing.latestSyncAt == previous.latestSyncAt)
     }
 
     @Test func `Projection retains ledger history beyond the current sync blob`() throws {

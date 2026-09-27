@@ -2,8 +2,8 @@ import Foundation
 import WidgetKit
 
 enum WidgetActivityKind {
-    static let single = "CodexBarTokenActivitySingle"
-    static let comparison = "CodexBarTokenActivityComparison"
+    static let single = "CodexBarTokenActivitySingleV2"
+    static let comparison = "CodexBarTokenActivityComparisonV2"
 }
 
 struct WidgetActivityEntry: TimelineEntry {

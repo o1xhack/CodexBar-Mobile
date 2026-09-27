@@ -1,0 +1,13 @@
+/* Widget edit labels from WidgetActivity.intentdefinition. */
+"CBWsourceTitle" = "Token 資料來源";
+"CBWunknown" = "未知";
+"CBWall" = "全部";
+"CBWclaude" = "Claude Code";
+"CBWcodex" = "Codex";
+"CBWsingleTitle" = "Token 活動";
+"CBWsingleDescription" = "選擇要顯示的 Token 歷史記錄。";
+"CBWsingleParam1" = "資料來源";
+"CBWcompareTitle" = "Token 活動比較";
+"CBWcompareDescription" = "選擇兩份 Token 歷史記錄進行比較。";
+"CBWcompareParam1" = "第一個資料來源";
+"CBWcompareParam2" = "第二個資料來源";

@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `done` (implementation and signed iPhone SpringBoard QA completed on 2026-09-25)
+Status: `done` (2.2.0 (215) widget repair implemented and simulator QA completed)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -437,3 +437,59 @@ intensity and text treatment differed.
   iPad simulator; no signed physical iPad check was available for this beta.
 - This TestFlight upload did not push the task branch, open or merge a PR, or
   publish an App Store release. Public release remains a separate gate.
+
+## 2026-09-26 repair after TestFlight feedback
+
+The owner reported that build 214's Token Activity widgets showed no data and
+that long-press source selection did not work. The sparse visual design also had
+an unaligned blue source dot. Treat the earlier signed-device screenshots as
+visual evidence only; they did not prove the distributed binary's selected
+configuration reached its timeline provider.
+
+- On a clean iOS 26.5 simulator, the 214 `AppEntity` picker saved `codex` in
+  SpringBoard while the timeline still received `all`. Several App Intent
+  variants reproduced that mismatch. A fixed SiriKit intent definition and
+  `IntentTimelineProvider` produced a three-choice menu on a clean iOS 27.0
+  iPhone Air simulator, matching the owner's phone OS. Selecting Codex changed
+  the medium widget's actual home-screen title and synthetic App Group heatmap;
+  changing the first source of a large widget showed Codex above Claude Code,
+  each with a distinct pattern and app palette color. The extension log also
+  recorded the selected enum value in `getTimeline`.
+- The system edit controls were still English in an existing simulator
+  installation after adding localized intent resources. A clean install with
+  the intent definition under `Base.lproj` and companion strings for English,
+  Simplified Chinese, Traditional Chinese, and Japanese displayed `数据源` and
+  `全部` in the Chinese edit sheet. The existing cached edit sheet was not valid
+  evidence of the new localization.
+- An upgrade experiment placed a 214 App Intent heatmap widget, then installed
+  the repaired build using the same widget kind. The old widget kept a cached
+  image and its edit sheet said `无法加载` because the serialized configuration
+  formats differ. The replacement uses V2 widget kinds; users must remove the
+  old Token Activity widgets and add them again. The 2.2.0 release notes state
+  that action explicitly.
+- The blue source dot was removed. The main app now writes current synced days
+  to its App Group projection before reading the longer ledger and preserves
+  the previous projection during a `syncing` phase. Simulator heatmaps use a
+  synthetic projection, so real owner-account CloudKit-to-widget loading still
+  needs beta validation.
+
+### Build 215 verification
+
+- On an iOS 27.0 iPhone Air simulator, a freshly added V2 medium widget was
+  edited from All to Codex. The home-screen title and cells changed to the
+  Codex source; see `ios27-v2-codex-final.png` in the BuildScratch evidence.
+- On the same simulator, a V2 large widget exposed separate first and second
+  source controls. Selecting Codex and Claude Code rendered distinct magenta
+  and orange histories on the home screen; see `ios27-v2-compare-final.png`.
+- On an iPadOS 27.0 iPad Pro 13-inch simulator, a V2 extra-large widget exposed
+  the same independent controls. Selecting Codex and Claude Code changed both
+  live histories; see `ipad-xl-codex-final.png`. All of these histories were
+  synthetic App Group data, not the owner's CloudKit data.
+- The focused `WidgetSnapshotBuilderTests`, `WidgetActivityProjectionTests`,
+  and `CodexBarWidgetRenderMatrixTests` passed. `swift build`, repository lint,
+  and four-language catalog audit passed. The full Mac `swift test` process
+  crashed under broad parallel execution with failures in unrelated Mac suites;
+  this is a recorded beta validation gap, not evidence that those suites pass.
+- CloudKit Production entitlements remain set on the iOS app and widget
+  extension. This repair changed no CloudKit record type or schema field, so
+  the Production schema needs no deploy for build 215.

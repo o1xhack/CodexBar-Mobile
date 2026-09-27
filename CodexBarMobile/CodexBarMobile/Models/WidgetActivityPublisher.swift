@@ -15,8 +15,24 @@ enum WidgetActivityPublisher {
     async {
         let projection: WidgetActivityProjection
         if let snapshot {
+            let providers = MockProviderDetector.filteredProviders(from: snapshot)
+            // Make the current synced days available before the longer ledger
+            // read. SwiftUI can cancel this task during a sync publication;
+            // without this first write a newly installed widget has no file.
+            if (try? WidgetActivityStore.read())?.sources.isEmpty != false {
+                let currentSeries = TokenActivity.series(
+                    providers: providers,
+                    rollups: nil,
+                    referenceDate: referenceDate)
+                let current = WidgetActivityProjectionBuilder.make(
+                    series: currentSeries,
+                    latestSyncAt: snapshot.syncTimestamp,
+                    now: referenceDate)
+                if !current.sources.isEmpty {
+                    Self.publish(current)
+                }
+            }
             do {
-                let providers = MockProviderDetector.filteredProviders(from: snapshot)
                 let series: [TokenActivitySeries] = if useLedger {
                     try await CostHistoryWorker.shared.tokenActivity(
                         providers: providers,
@@ -57,7 +73,7 @@ enum WidgetActivityPublisher {
             case .error, .incompatibleData: .error
             case .synced, .noData: .noData
             }
-            projection = state == .error
+            projection = state == .error || state == .syncing
                 ? Self.statePreservingHistory(
                     state,
                     previous: try? WidgetActivityStore.read(),
@@ -66,6 +82,10 @@ enum WidgetActivityPublisher {
                 : Self.state(state, latestSyncAt: nil, now: referenceDate)
         }
 
+        Self.publish(projection)
+    }
+
+    private static func publish(_ projection: WidgetActivityProjection) {
         do {
             try WidgetActivityStore.write(projection)
             WidgetCenter.shared.reloadTimelines(ofKind: WidgetActivityKind.single)

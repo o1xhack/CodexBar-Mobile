@@ -1,20 +1,21 @@
+import Intents
 import WidgetKit
 import SwiftUI
 
 @main
 struct CodexBarWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        CodexBarStatusWidget()
         CodexBarTokenActivitySingleWidget()
         CodexBarTokenActivityComparisonWidget()
+        CodexBarStatusWidget()
     }
 }
 
 struct CodexBarTokenActivitySingleWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(
+        IntentConfiguration(
             kind: WidgetActivityKind.single,
-            intent: WidgetActivitySingleIntent.self,
+            intent: SelectTokenActivityIntent.self,
             provider: WidgetActivitySingleProvider()
         ) { entry in
             WidgetActivityView(entry: entry)
@@ -28,9 +29,9 @@ struct CodexBarTokenActivitySingleWidget: Widget {
 
 struct CodexBarTokenActivityComparisonWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(
+        IntentConfiguration(
             kind: WidgetActivityKind.comparison,
-            intent: WidgetActivityComparisonIntent.self,
+            intent: CompareTokenActivityIntent.self,
             provider: WidgetActivityComparisonProvider()
         ) { entry in
             WidgetActivityView(entry: entry)

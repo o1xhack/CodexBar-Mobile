@@ -2,6 +2,13 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (215)] — TestFlight repair
+
+### Fixed
+- Make Token Activity source choices reach the widget timeline on iOS 27. Small and medium widgets select one source; large and extra-large widgets select two independently. Existing 214 heatmap widgets need to be removed and added again because the system configuration format changed.
+- Publish current synced token days before a longer history read and retain the last heatmap while sync is in progress, so a cancelled refresh does not leave a new widget empty.
+- Put the heatmap widgets first in the gallery, remove the decorative source dot, and localize the system edit controls in all four app languages.
+
 ## [2.2.0 (214)] — TestFlight 2026-09-26
 
 ### Added

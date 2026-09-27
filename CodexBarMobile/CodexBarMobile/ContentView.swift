@@ -4341,8 +4341,9 @@ private enum MobileReleaseNotesCatalog {
             version: "2.2.0", status: String(localized: "Latest"),
             summary: String(localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
             sections: [.init(title: String(localized: "What's New"), items: [
-                String(localized: "Choose All, Claude Code, Codex, or another available source for a small or medium Token Activity widget."),
+                String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
                 String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
+                String(localized: "After updating, remove and add your Token Activity widgets again to enable source selection."),
                 String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
             ])]),
         ReleaseNotesVersion(

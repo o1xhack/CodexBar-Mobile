@@ -30,7 +30,7 @@ struct WidgetActivityView: View {
                 self.loadedView
             case .syncing:
                 if self.entry.projection.sources.isEmpty {
-                    self.stateView(String(localized: "Preparing token history…"))
+                    self.stateView(String(localized: "Open CodexBar to refresh token history."))
                 } else {
                     self.loadedView
                 }
@@ -95,14 +95,6 @@ struct WidgetActivityView: View {
             let color = ProviderColorPalette.color(for: id, tintHex: source.tintHex)
             VStack(alignment: .leading, spacing: compact ? 7 : 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Circle()
-                        .fill(self.renderingMode == .accented ? Color.primary : color)
-                        .frame(width: 6, height: 6)
-                        .alignmentGuide(.firstTextBaseline) { dimensions in
-                            dimensions[VerticalAlignment.center]
-                        }
-                        .widgetAccentable()
-                        .accessibilityHidden(true)
                     Text(id == WidgetActivityProjection.allSourceID ? String(localized: "All") : source.name)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)

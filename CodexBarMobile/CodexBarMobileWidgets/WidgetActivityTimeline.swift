@@ -1,7 +1,19 @@
 import Foundation
+import Intents
+import OSLog
 import WidgetKit
 
+private let widgetActivityLogger = Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "activity")
+
 enum WidgetActivityTimeline {
+    static func sourceID(_ choice: TokenActivitySource) -> String {
+        switch choice {
+        case .claude: "claude"
+        case .codex: "codex"
+        default: WidgetActivityProjection.allSourceID
+        }
+    }
+
     static func entry(sourceIDs: [String], preview: Bool) -> WidgetActivityEntry {
         let now = Date()
         let projection: WidgetActivityProjection
@@ -23,40 +35,46 @@ enum WidgetActivityTimeline {
     }
 }
 
-struct WidgetActivitySingleProvider: AppIntentTimelineProvider {
+struct WidgetActivitySingleProvider: IntentTimelineProvider {
     func placeholder(in _: Context) -> WidgetActivityEntry {
-        WidgetActivityTimeline.entry(sourceIDs: [WidgetActivitySourceEntity.all.id], preview: true)
+        WidgetActivityTimeline.entry(sourceIDs: [WidgetActivityProjection.allSourceID], preview: true)
     }
 
-    func snapshot(for configuration: WidgetActivitySingleIntent, in context: Context) async -> WidgetActivityEntry {
-        WidgetActivityTimeline.entry(
-            sourceIDs: [configuration.source?.id ?? WidgetActivityProjection.allSourceID],
-            preview: context.isPreview)
+    func getSnapshot(for configuration: SelectTokenActivityIntent, in context: Context, completion: @escaping (WidgetActivityEntry) -> Void) {
+        #if DEBUG
+        widgetActivityLogger.notice("single snapshot source: \(String(describing: configuration.source), privacy: .public)")
+        #endif
+        completion(WidgetActivityTimeline.entry(
+            sourceIDs: [WidgetActivityTimeline.sourceID(configuration.source)],
+            preview: context.isPreview))
     }
 
-    func timeline(for configuration: WidgetActivitySingleIntent, in _: Context) async -> Timeline<WidgetActivityEntry> {
-        WidgetActivityTimeline.timeline(sourceIDs: [configuration.source?.id ?? WidgetActivityProjection.allSourceID])
+    func getTimeline(for configuration: SelectTokenActivityIntent, in _: Context, completion: @escaping (Timeline<WidgetActivityEntry>) -> Void) {
+        #if DEBUG
+        widgetActivityLogger.notice("single timeline source: \(String(describing: configuration.source), privacy: .public)")
+        #endif
+        completion(WidgetActivityTimeline.timeline(sourceIDs: [WidgetActivityTimeline.sourceID(configuration.source)]))
     }
 }
 
-struct WidgetActivityComparisonProvider: AppIntentTimelineProvider {
+struct WidgetActivityComparisonProvider: IntentTimelineProvider {
     func placeholder(in _: Context) -> WidgetActivityEntry {
-        WidgetActivityTimeline.entry(sourceIDs: [WidgetActivitySourceEntity.all.id, "codex"], preview: true)
+        WidgetActivityTimeline.entry(sourceIDs: [WidgetActivityProjection.allSourceID, "claude"], preview: true)
     }
 
-    func snapshot(for configuration: WidgetActivityComparisonIntent, in context: Context) async -> WidgetActivityEntry {
-        WidgetActivityTimeline.entry(
+    func getSnapshot(for configuration: CompareTokenActivityIntent, in context: Context, completion: @escaping (WidgetActivityEntry) -> Void) {
+        completion(WidgetActivityTimeline.entry(
             sourceIDs: [
-                configuration.firstSource?.id ?? WidgetActivityProjection.allSourceID,
-                configuration.secondSource?.id ?? WidgetActivitySourceQuery.firstProvider()?.id ?? WidgetActivityProjection.allSourceID,
+                WidgetActivityTimeline.sourceID(configuration.firstSource),
+                WidgetActivityTimeline.sourceID(configuration.secondSource),
             ],
-            preview: context.isPreview)
+            preview: context.isPreview))
     }
 
-    func timeline(for configuration: WidgetActivityComparisonIntent, in _: Context) async -> Timeline<WidgetActivityEntry> {
-        WidgetActivityTimeline.timeline(sourceIDs: [
-            configuration.firstSource?.id ?? WidgetActivityProjection.allSourceID,
-            configuration.secondSource?.id ?? WidgetActivitySourceQuery.firstProvider()?.id ?? WidgetActivityProjection.allSourceID,
-        ])
+    func getTimeline(for configuration: CompareTokenActivityIntent, in _: Context, completion: @escaping (Timeline<WidgetActivityEntry>) -> Void) {
+        completion(WidgetActivityTimeline.timeline(sourceIDs: [
+            WidgetActivityTimeline.sourceID(configuration.firstSource),
+            WidgetActivityTimeline.sourceID(configuration.secondSource),
+        ]))
     }
 }
