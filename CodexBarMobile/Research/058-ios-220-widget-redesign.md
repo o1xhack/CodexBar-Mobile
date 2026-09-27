@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `in-progress` (post-215 spacing and small-widget ordering refinement)
+Status: `done` (build 216 beta uploaded; owner-device visual QA remains)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -562,3 +562,27 @@ Implementation approach:
   XCTest render cases. The owner independently reported that build 215 was
   installed and its basic widget behavior looked correct, then supplied the
   layout refinements above. Build 216 still needs owner-device visual QA.
+
+### Build 216 TestFlight upload
+
+- Repository lint and four-language source/catalog audit passed with zero
+  violations. CloudKit Production entitlements and the matching App Group
+  are present in the archived main app and widget extension. The 215-to-216
+  diff changes no CloudKit record type, field, query, index, or subscription;
+  no Production schema deploy is required.
+- Archived and uploaded iOS 2.2.0 (216) from source commit
+  `7d2cd31bcd098223e4958ef1f4b8525c558b02c8` on
+  `feature/ios-220-widget-redesign`. Both the app and widget extension in the
+  archive report build 216. Xcode cloud signing and upload succeeded.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260927-102430/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `a77a20d3443b2ffd8e3c1a68eda6b0db710c53772d8315459978fedcc37ddf45`.
+- App Store Connect build `36954fdc-847e-456f-ae73-7eca0fe63510`
+  reached `VALID`; `uploadedDate=2026-09-27T10:28:14-07:00`.
+  The task branch was not pushed, and this beta upload did not create or
+  merge a PR or publish an App Store release.
+- Owner-device validation remains: install build 216, inspect small/medium/
+  large heatmaps and the chosen sources on real synced data, and confirm the
+  same spacing in the app's Token Activity view. Simulator screenshots prove
+  layout and configuration with synthetic day values only.
