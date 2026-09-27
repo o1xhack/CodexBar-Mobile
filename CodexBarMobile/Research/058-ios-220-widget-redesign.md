@@ -636,7 +636,58 @@ owner-device evidence or a new TestFlight upload.
   reached `VALID`; `uploadedDate=2026-09-27T11:21:02-07:00`.
   The task branch remains local; this beta upload did not merge or publish
   the app.
-- Owner-device layout QA and the separate Codex tap report remain open.
-  The iOS 27 simulator Usage demo Codex card opens its detail; neither that
-  result nor the synthetic widget picker proves the reported owner-device
-  path works. The exact failing entry point is still needed.
+- At the time of upload, owner-device layout QA and the Codex tap report
+  remained open. The latter was clarified and exercised in the follow-up
+  below.
+
+## 2026-09-27 owner clarification and build 218
+
+The owner clarified that both issues concern the **small Home Screen widget**.
+The edit-sheet complaint is specifically the source value on the back of the
+widget: touching it sometimes closes the choice menu without giving a usable
+chance to pick All, Claude Code, or Codex. The earlier Usage-card diagnosis
+does not apply.
+
+The build-217 screenshot shows a roughly 29-point horizontal inset versus
+17–19 points above and below the visible content. This came from fixing cell
+size to the available height and then centering a narrower seven-column grid.
+The small layout now uses nine columns and seven rows (63 days): the cell size
+comes from the card width after a 16-point inset on each side, while the row
+gap fills the available height after the title. A small-only title glyph offset
+accounts for its font's invisible top leading. The medium, large, and extra-
+large layouts are unchanged. The date-order test now covers the 63-day window
+and still pins today, yesterday, and the day before in the rightmost column.
+
+The iOS 27 simulator's native edit sheet showed the three SiriKit source
+choices. A fast second tap at the source button's coordinates landed on the
+menu's first row, selected All, and dismissed the menu. The paired iPhone Air's
+iPhone Mirroring showed the same edit path: a single tap opened all three
+choices; selecting Codex updated the real Home Screen widget and selecting
+Claude Code afterward restored its prior state. Tapping the original button
+position again while the menu was open selected All and closed it. This is a
+concrete accidental-selection path. WidgetKit constructs the edit UI from the
+intent definition; the app cannot set its popover hit region. Build 218 changes
+the edit-sheet description to explicitly say to tap the current source once,
+then choose from the list. It does not claim to replace the system menu.
+
+The phone inspected through Mirroring had a development-installed 2.2.0 build
+whose bundle build number was 214; its widget code and cached state cannot be
+used as proof of the uploaded 217 artifact. The build-218 visual change still
+requires a new SpringBoard render, archive validation, and owner beta QA.
+
+### Build 218 local verification
+
+- The focused projection, widget render, and snapshot-builder test run passed
+  (`widget-218-final.xcresult`); repository lint passed with zero violations,
+  and the changed strings have all four required translations.
+- An iOS 27 iPhone Air SpringBoard rendered build 218's nine-column small
+  Codex widget with the title and grid visually aligned to the same inset on
+  every side. The synthetic seven active days occupy the rightmost column,
+  newest at bottom right. Screenshot:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/widget-small-218-after-select-settled.png`.
+- The native long-press Edit Widget sheet showed the new one-tap guidance and
+  offered All, Claude Code, and Codex. Selecting Codex rendered that source.
+  One separate simulator widget retained a cached no-data timeline when switched
+  to Claude Code despite the synthetic projection containing three days; this
+  is not evidence that the build 218 owner-device data path is validated.
+  Physical beta validation must check both source choices with real data.

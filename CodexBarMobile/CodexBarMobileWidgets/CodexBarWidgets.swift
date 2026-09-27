@@ -21,7 +21,7 @@ struct CodexBarTokenActivitySingleWidget: Widget {
             WidgetActivityView(entry: entry)
         }
         .configurationDisplayName("Token Activity")
-        .description("See daily token activity for one source.")
+        .description("Tap the current source once, then choose All, Claude Code, or Codex.")
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }

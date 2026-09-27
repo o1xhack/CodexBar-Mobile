@@ -2,6 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (218)] — Small-widget margins and source picker guidance
+
+### Changed
+- Fill the small Token Activity widget with 63 days in a 9×7 grid, keeping the title, grid, and outer widget edges evenly inset without changing medium or large layouts.
+- Explain the one-tap source picker interaction in the widget edit sheet. The system-generated picker remains owned by iOS.
+
 ## [2.2.0 (217)] — TestFlight small-widget direction repair
 
 ### Fixed

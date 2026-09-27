@@ -94,7 +94,13 @@ struct WidgetActivityView: View {
     @ViewBuilder
     private func panel(for id: String, weeks: Int, width: CGFloat, height: CGFloat, compact: Bool = false) -> some View {
         if let source = self.entry.projection.source(id: id) {
-            let titleGap: CGFloat = self.family == .systemExtraLarge ? 4 : 6
+            let titleGap: CGFloat = if compact {
+                2
+            } else if self.family == .systemExtraLarge {
+                4
+            } else {
+                6
+            }
             let columnSpacing = WidgetActivityLayout.columnSpacing(for: self.family)
             let cellSize = WidgetActivityLayout.cellSize(
                 width: width, height: height, weeks: weeks, compact: compact,
@@ -118,6 +124,7 @@ struct WidgetActivityView: View {
                             .lineLimit(1)
                     }
                 }
+                .offset(y: compact ? -4 : 0)
                 WidgetActivityGrid(
                     source: source,
                     weeks: weeks,
@@ -245,7 +252,7 @@ enum WidgetActivityLayout {
 
     static func weeks(for family: WidgetFamily) -> Int {
         switch family {
-        case .systemSmall: 7
+        case .systemSmall: 9
         case .systemMedium: 24
         case .systemLarge: 18
         case .systemExtraLarge: 38
@@ -258,15 +265,13 @@ enum WidgetActivityLayout {
     {
         let availableWidth = (width - CGFloat(weeks - 1) * spacing) / CGFloat(weeks)
         guard compact else { return max(4, availableWidth) }
-        let titleHeight: CGFloat = 20
-        let availableHeight = (height - titleHeight - titleGap - 6 * 5) / 7
-        return max(4, min(14, availableWidth, availableHeight))
+        return max(4, min(14, availableWidth))
     }
 
     static func rowSpacing(family: WidgetFamily, cellSize: CGFloat, panelHeight: CGFloat, titleGap: CGFloat) -> CGFloat {
-        if family == .systemSmall { return 5 }
         let titleHeight: CGFloat = 20
         let needed = (panelHeight - titleHeight - titleGap - 7 * cellSize) / 6
+        if family == .systemSmall { return max(5, needed) }
         return min(7.5, max(4.5, needed))
     }
 }
