@@ -752,3 +752,26 @@ and subscription utilization; share cards also aggregate a provider tail.
 These previews will list at most two distinct tail labels in parentheses,
 with an ellipsis if more distinct labels remain. Existing counts and drill-
 down behavior stay available.
+
+### Build 219 TestFlight upload
+
+- Focused iOS tests passed for the projection/layout, widget rendering matrix,
+  collapsed-name preview, and `WidgetSnapshotBuilderTests`. Repository lint and
+  the four-language catalog audit passed. The simulator's SpringBoard source
+  picker was exercised; its cached no-data timeline and a subsequent simulator
+  boot/data-migration failure prevented a trustworthy placed-widget image of
+  build 219. The production-view images above show the geometry with synthetic
+  data. Owner-device TestFlight appearance and real-data checks remain open.
+- Uploaded 2.2.0 (219) from source commit
+  `4ba243668ac35d6998328af3c5d6850f158fed3f` on the local
+  `feature/ios-220-widget-redesign` branch. No push, PR, merge, or public
+  release was performed.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260927-164505/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `dae48fa150f212617ce9ee4371fbf721f83d087cafbd2ac0cd6813ea624275c6`.
+  Main app and widget extension both report build 219; the signed app uses
+  CloudKit `Production`. No CloudKit record schema change was introduced.
+- Xcode reported `ARCHIVE SUCCEEDED` and `EXPORT SUCCEEDED`. App Store Connect
+  build `6adacd85-c7f1-45ed-9e65-3ebadc1809cf` reached `VALID` with
+  `uploadedDate=2026-09-27T16:49:01-07:00`.
