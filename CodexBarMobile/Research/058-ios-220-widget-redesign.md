@@ -493,3 +493,25 @@ configuration reached its timeline provider.
 - CloudKit Production entitlements remain set on the iOS app and widget
   extension. This repair changed no CloudKit record type or schema field, so
   the Production schema needs no deploy for build 215.
+
+### Build 215 TestFlight upload
+
+- Archived and uploaded iOS 2.2.0 (215) from source commit
+  `f4b03083466851c3f794a0cfa7a40f131724b8d3` on
+  `feature/ios-220-widget-redesign`. Xcode archive and App Store Connect
+  export/upload succeeded. The archived main app and widget extension both
+  report build 215; their signatures include CloudKit `Production` and the
+  same `group.com.o1xhack.codexbar` App Group.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260926-230000/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `939514b6980dc5d4794c39ee7ad71f53a7fcad74fe1a204c6971b1ec8e5dbd7a`.
+- App Store Connect build `290b4d40-8552-4052-9189-f7d327937540`
+  reached `VALID`; `uploadedDate=2026-09-26T23:03:26-07:00`.
+  The source commit was not pushed, and this beta upload did not create or
+  merge a PR or publish an App Store release.
+- Remaining beta QA: install build 215 on the owner's phone, remove and re-add
+  old build-214 Token Activity widgets, then confirm the owner's real synced
+  CloudKit history and source choice appear on the home screen. The simulator
+  verification above covers synthetic App Group projection and WidgetKit
+  configuration, not real account sync.
