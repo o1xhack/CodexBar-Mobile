@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `done` (build 216 beta uploaded; owner-device visual QA remains)
+Status: `in-progress` (post-216 small-widget correction and Codex tap investigation)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -586,3 +586,33 @@ Implementation approach:
   large heatmaps and the chosen sources on real synced data, and confirm the
   same spacing in the app's Token Activity view. Simulator screenshots prove
   layout and configuration with synthetic day values only.
+
+## 2026-09-27 follow-up on small-widget direction
+
+The owner clarified that the small widget must fill recent days **upward**:
+today is the bottom-right cell, yesterday is immediately above it, and the
+day before that is one more cell above. Build 216 instead filled rows from
+left to right, so three recent days appeared along the bottom row. The five
+rows also left uneven top/bottom space in the small card. Medium and large
+were accepted visually and should retain their current layout.
+
+The small-widget correction uses seven rows and seven columns (49 days),
+ordered down each column before moving right. Its cell size is constrained by
+the available card height as well as width, so the title plus seven rows fit
+within the same 16-point vertical inset used by the larger widgets. A
+non-Sunday date test pins the last three days in the rightmost column.
+
+The owner also reports that tapping Codex inside CodexBar often fails. The
+specific entry point is being clarified separately; a simulator tap on the
+Usage tab's demo Codex card did open the Codex detail view, so that one
+synthetic path does not yet reproduce the reported failure.
+
+Local small-widget evidence: `widget-layout-217.xcresult` passed 31 Swift
+Testing cases and six XCTest render cases, including the upward date-order
+assertion. On an iOS 27 iPhone Air SpringBoard, editing a freshly placed
+small widget to Claude Code with only 2026-09-25, 26, and 27 present in a
+synthetic projection produced three cells in the rightmost column, ending
+at bottom right. The screenshot is
+`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/widget-layout-217-claude-three-days-edit.png`.
+The app and widget are still build 216 locally at this point; this is not
+owner-device evidence or a new TestFlight upload.

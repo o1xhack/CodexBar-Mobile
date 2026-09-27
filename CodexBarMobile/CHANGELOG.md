@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (217)] — TestFlight small-widget direction repair
+
+### Fixed
+- Fill the small Token Activity widget down seven-day columns, so the three most recent days rise directly above the bottom-right cell. Show 49 days in a balanced 7×7 grid without changing the accepted medium and large layouts.
+
 ## [2.2.0 (216)] — TestFlight layout refinement
 
 ### Changed

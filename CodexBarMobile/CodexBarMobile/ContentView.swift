@@ -4343,7 +4343,7 @@ private enum MobileReleaseNotesCatalog {
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
                 String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
-                String(localized: "Token Activity squares have more breathing room, and the small widget now ends with today at the bottom right."),
+                String(localized: "Token Activity squares have more breathing room, and recent days climb upward from the small widget's bottom-right corner."),
                 String(localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
                 String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
             ])]),

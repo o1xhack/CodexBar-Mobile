@@ -94,12 +94,12 @@ struct WidgetActivityView: View {
     @ViewBuilder
     private func panel(for id: String, weeks: Int, width: CGFloat, height: CGFloat, compact: Bool = false) -> some View {
         if let source = self.entry.projection.source(id: id) {
+            let titleGap: CGFloat = self.family == .systemExtraLarge ? 4 : 6
             let columnSpacing = WidgetActivityLayout.columnSpacing(for: self.family)
             let cellSize = WidgetActivityLayout.cellSize(
-                width: width, weeks: weeks, compact: compact, spacing: columnSpacing)
-            let columns = compact ? 7 : weeks
-            let gridWidth = CGFloat(columns) * cellSize + CGFloat(columns - 1) * columnSpacing
-            let titleGap: CGFloat = self.family == .systemExtraLarge ? 4 : 6
+                width: width, height: height, weeks: weeks, compact: compact,
+                spacing: columnSpacing, titleGap: titleGap)
+            let gridWidth = CGFloat(weeks) * cellSize + CGFloat(weeks - 1) * columnSpacing
             let rowSpacing = WidgetActivityLayout.rowSpacing(
                 family: self.family, cellSize: cellSize, panelHeight: height, titleGap: titleGap)
             let color = ProviderColorPalette.color(for: id, tintHex: source.tintHex)
@@ -198,7 +198,7 @@ private struct WidgetActivityGrid: View {
         LazyVGrid(
             columns: Array(
                 repeating: GridItem(.fixed(self.cellSize), spacing: self.columnSpacing),
-                count: self.compact ? 7 : self.weeks),
+                count: self.weeks),
             alignment: .leading,
             spacing: self.rowSpacing)
         {
@@ -245,7 +245,7 @@ enum WidgetActivityLayout {
 
     static func weeks(for family: WidgetFamily) -> Int {
         switch family {
-        case .systemSmall: 5
+        case .systemSmall: 7
         case .systemMedium: 24
         case .systemLarge: 18
         case .systemExtraLarge: 38
@@ -253,10 +253,14 @@ enum WidgetActivityLayout {
         }
     }
 
-    static func cellSize(width: CGFloat, weeks: Int, compact: Bool, spacing: CGFloat) -> CGFloat {
-        let columns = compact ? 7 : weeks
-        let available = (width - CGFloat(columns - 1) * spacing) / CGFloat(columns)
-        return max(4, compact ? min(14, available) : available)
+    static func cellSize(
+        width: CGFloat, height: CGFloat, weeks: Int, compact: Bool, spacing: CGFloat, titleGap: CGFloat) -> CGFloat
+    {
+        let availableWidth = (width - CGFloat(weeks - 1) * spacing) / CGFloat(weeks)
+        guard compact else { return max(4, availableWidth) }
+        let titleHeight: CGFloat = 20
+        let availableHeight = (height - titleHeight - titleGap - 6 * 5) / 7
+        return max(4, min(14, availableWidth, availableHeight))
     }
 
     static func rowSpacing(family: WidgetFamily, cellSize: CGFloat, panelHeight: CGFloat, titleGap: CGFloat) -> CGFloat {
@@ -273,7 +277,11 @@ enum WidgetActivityWindow {
         let today = calendar.startOfDay(for: referenceDate)
         let count = weeks * 7
         guard let first = calendar.date(byAdding: .day, value: 1 - count, to: today) else { return [] }
-        return (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: first) }
+        return (0..<7).flatMap { row in
+            (0..<weeks).compactMap { column in
+                calendar.date(byAdding: .day, value: column * 7 + row, to: first)
+            }
+        }
     }
 
     static func startDate(weeks: Int, referenceDate: Date, calendar baseCalendar: Calendar) -> Date? {

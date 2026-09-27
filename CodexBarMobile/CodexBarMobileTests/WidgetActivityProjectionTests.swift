@@ -144,15 +144,17 @@ struct WidgetActivityProjectionTests {
             source: source, weeks: 5, referenceDate: monday, calendar: calendar) == 2)
     }
 
-    @Test func `Small widget ends with today in the bottom-right cell on a weekday`() throws {
+    @Test func `Small widget fills recent days upward from the bottom-right cell`() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "GMT"))
         let wednesday = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 23)))
-        let dates = WidgetActivityWindow.compactDates(weeks: 5, referenceDate: wednesday, calendar: calendar)
+        let dates = WidgetActivityWindow.compactDates(weeks: 7, referenceDate: wednesday, calendar: calendar)
 
-        #expect(dates.count == 35)
-        #expect(dates.first == calendar.date(from: DateComponents(year: 2026, month: 8, day: 20)))
-        #expect(dates.dropFirst(28).first == calendar.date(from: DateComponents(year: 2026, month: 9, day: 17)))
+        #expect(dates.count == 49)
+        #expect(dates.first == calendar.date(from: DateComponents(year: 2026, month: 8, day: 6)))
+        #expect(dates[34] == calendar.date(from: DateComponents(year: 2026, month: 9, day: 21)))
+        #expect(dates[41] == calendar.date(from: DateComponents(year: 2026, month: 9, day: 22)))
+        #expect(dates[47] == calendar.date(from: DateComponents(year: 2026, month: 9, day: 16)))
         #expect(dates.last == wednesday)
     }
 }
