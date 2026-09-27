@@ -2,6 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (219)] — Heatmap density and collapsed-row context
+
+### Changed
+- Enlarge small and medium Token Activity cells and tighten their gaps. Small retains its 63-day vertical ordering; medium shows 20 weeks (140 days) with balanced 4.5-point row and column gaps. Large and extra-large layout is unchanged.
+- Label collapsed Others rows with up to two distinct hidden names in Cost breakdowns, budgets, subscription utilization, and provider share cards. Keep the existing count and full-list drill-down.
+
 ## [2.2.0 (218)] — Small-widget margins and source picker guidance
 
 ### Changed

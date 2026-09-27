@@ -104,7 +104,7 @@ struct ShareCardData {
         let othersShare = self.providers.dropFirst(5).reduce(0.0) { $0 + $1.share }
         let othersCost = self.providers.dropFirst(5).reduce(0.0) { $0 + $1.cost }
         let others = ProviderRow(
-            name: String(localized: "Others"),
+            name: OthersRowPreview.title(names: self.providers.dropFirst(5).map(\.name)),
             cost: othersCost,
             share: othersShare,
             color: .gray)

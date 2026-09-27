@@ -247,13 +247,13 @@ private struct WidgetActivityGrid: View {
 
 enum WidgetActivityLayout {
     static func columnSpacing(for family: WidgetFamily) -> CGFloat {
-        family == .systemSmall ? 5 : 4.5
+        family == .systemSmall ? 3.5 : 4.5
     }
 
     static func weeks(for family: WidgetFamily) -> Int {
         switch family {
         case .systemSmall: 9
-        case .systemMedium: 24
+        case .systemMedium: 20
         case .systemLarge: 18
         case .systemExtraLarge: 38
         default: 27
@@ -271,7 +271,7 @@ enum WidgetActivityLayout {
     static func rowSpacing(family: WidgetFamily, cellSize: CGFloat, panelHeight: CGFloat, titleGap: CGFloat) -> CGFloat {
         let titleHeight: CGFloat = 20
         let needed = (panelHeight - titleHeight - titleGap - 7 * cellSize) / 6
-        if family == .systemSmall { return max(5, needed) }
+        if family == .systemSmall { return min(4.5, max(4, needed)) }
         return min(7.5, max(4.5, needed))
     }
 }

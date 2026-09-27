@@ -153,6 +153,7 @@ struct UtilizationAggregateView: View {
                                     shares: m.providerShares)
                             } label: {
                                 self.othersUtilizationRow(
+                                    names: tailShares.map(\.name),
                                     count: tailShares.count,
                                     sharePercent: tailShareSum)
                             }
@@ -332,6 +333,7 @@ struct UtilizationAggregateView: View {
     /// suggest tappability. Caller wraps in a NavigationLink to
     /// FullProviderUtilizationListView.
     private func othersUtilizationRow(
+        names: [String],
         count: Int,
         sharePercent: Double) -> some View
     {
@@ -342,9 +344,10 @@ struct UtilizationAggregateView: View {
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Others")
+                    Text(OthersRowPreview.title(names: names))
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .lineLimit(2)
                     Text("+\(count) more")
                         .font(.caption)
                         .foregroundStyle(.secondary)

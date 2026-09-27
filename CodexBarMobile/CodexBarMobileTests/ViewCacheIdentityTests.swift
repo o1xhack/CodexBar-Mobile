@@ -180,9 +180,18 @@ struct ViewCacheIdentityTests {
         let display = data.displayProviders
         #expect(display.count == 6)
         #expect(display.prefix(5).map(\.name) == ["P0", "P1", "P2", "P3", "P4"])
-        #expect(display.last?.name == String(localized: "Others"))
+        #expect(display.last?.name == OthersRowPreview.title(names: ["P5"]))
         // The Others bucket aggregates only the tail beyond the top 5 (P5, cost 1).
         #expect(display.last?.cost == 1)
+    }
+
+    @Test("Others preview names only the first two distinct hidden items")
+    func othersPreview_capsNames() {
+        let title = OthersRowPreview.title(names: ["Codex", "Claude Code", "Codex", "Cursor"])
+        #expect(title.contains("Codex"))
+        #expect(title.contains("Claude Code"))
+        #expect(!title.contains("Cursor"))
+        #expect(title.contains("…"))
     }
 
     @Test("ShareCardData.displayProviders shows all when 5 or fewer providers (no 'Others')")

@@ -711,3 +711,44 @@ requires a new SpringBoard render, archive validation, and owner beta QA.
 - The paired owner phone was only inspected with an older development build
   (214). Build 218 still needs owner-device TestFlight verification of the
   small widget's real source data, appearance, and edit-sheet selection.
+
+## 2026-09-27 spacing and collapsed-row follow-up
+
+The owner reports that build 218's small and especially medium heatmaps have
+too much space between cells relative to cell size. At the render-test sizes,
+the medium widget used 24 columns in a 306-point content width: 8.44-point
+cells, 4.5-point column gaps, and the capped 7.5-point row gap. Extra-large
+used approximately 9.51-point cells and 4.5-point gaps in both directions.
+The medium's row gap was almost as tall as the cell, confirming the visual
+inconsistency. The small widget's 5-point column gap and height-filling row
+gap also inflated white space around its nine-column grid.
+
+The revised target keeps the same card inset and seven-row reading order. A
+20-column medium grid gives 140 days, approximately 11-point cells, and
+4.5-point gaps on both axes. This trades four weeks for much more legible
+cells. The nine-column small grid keeps 63 days, uses a 3.5-point column gap
+and caps row gaps at 4.5 points; its cells grow within the same content box.
+Large and extra-large layouts remain as previously accepted. Rendered
+light/dark/tinted images and the real SpringBoard grid must be inspected again.
+
+The focused build-219 projection, render-matrix, and collapsed-name tests
+passed on the iOS 27 iPhone Air simulator. Inspected production-view render
+attachments for all four families: the new medium grid's 20 columns fill its
+width with larger cells and approximately equal 4.5-point row/column gaps;
+the small grid retains 63-day order with smaller gaps; large and extra-large
+look unchanged. The images are in
+`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/widget-219-attachments/`.
+The iOS 27 SpringBoard edit sheet exposed the same three source choices after
+changing an installed small widget to medium; selecting Codex updated the edit
+control. That simulator widget retained its cached `noData` timeline after a
+synthetic App Group file was injected, so this Home Screen view does not prove
+the refreshed build-219 grid. The rendered production view above is the visual
+evidence for its spacing.
+
+The owner also asks that collapsed "Others" entries reveal the first few
+hidden names, for example Codex and Claude Code. The Cost dashboard has
+top-five-plus-Others sections for provider share, model/service mix, budgets,
+and subscription utilization; share cards also aggregate a provider tail.
+These previews will list at most two distinct tail labels in parentheses,
+with an ellipsis if more distinct labels remain. Existing counts and drill-
+down behavior stay available.

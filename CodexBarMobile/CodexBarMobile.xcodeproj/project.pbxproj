@@ -123,6 +123,7 @@
 		8CE323CC2D5E584C35DC3196 /* MockProviderDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */; };
 		8D9EAF1CF4C21CFA6C416EED /* CostHistoryWorker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80570CA31B7AF7745AD383C5 /* CostHistoryWorker.swift */; };
 		8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */; };
+		8F52CF1D2EE9F0957D7DC89A /* OthersRowPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D205E270B487CF13678ADBE6 /* OthersRowPreview.swift */; };
 		904B033A9AC463824D9A910D /* SyncQuotaWarningConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */; };
 		905ADC7606341C62FC1D9032 /* ProviderColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637E4394D6D0E0F76AFD654A /* ProviderColorPalette.swift */; };
 		90C9167325DF5561725CA16A /* MultiAccountTabRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */; };
@@ -462,6 +463,7 @@
 		D03B5D90026D623962989109 /* V026Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026Snapshots.swift; sourceTree = "<group>"; };
 		D0629321562B420C752FB0A8 /* CWLWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLWriterTests.swift; sourceTree = "<group>"; };
 		D094735B11258986C3F6032E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D205E270B487CF13678ADBE6 /* OthersRowPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OthersRowPreview.swift; sourceTree = "<group>"; };
 		D2E4EAED2E5EE71721D32253 /* AccountIdentityNormalizeContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityNormalizeContractTests.swift; sourceTree = "<group>"; };
 		D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CodexBarSync.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D797A59C0C527242716F6546 /* CodexBarWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarWidgetView.swift; sourceTree = "<group>"; };
@@ -819,6 +821,7 @@
 				82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */,
 				C64C2DA34FBFB5523DC71C9B /* MockProviderDetector.swift */,
 				5639281ED3BA765C9553C8B9 /* MultiAccountLinkageCandidate.swift */,
+				D205E270B487CF13678ADBE6 /* OthersRowPreview.swift */,
 				A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */,
 				637E4394D6D0E0F76AFD654A /* ProviderColorPalette.swift */,
 				FA73FB0C58DB34861BD5E35F /* ProviderUsageSnapshot+Identity.swift */,
@@ -1218,6 +1221,7 @@
 				D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */,
 				8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */,
 				F96A94C5A2AB38A1DB68555A /* OpenRouterStatsCard.swift in Sources */,
+				8F52CF1D2EE9F0957D7DC89A /* OthersRowPreview.swift in Sources */,
 				F032E24887BB6718E712FBE9 /* PerplexityCreditsCard.swift in Sources */,
 				D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */,
 				537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */,
@@ -1395,7 +1399,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1415,7 +1419,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1440,7 +1444,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1615,7 +1619,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1637,7 +1641,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1675,7 +1679,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1711,7 +1715,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1735,7 +1739,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 218;
+				CURRENT_PROJECT_VERSION = 219;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

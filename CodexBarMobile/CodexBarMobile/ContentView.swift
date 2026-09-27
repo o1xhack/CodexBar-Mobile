@@ -1453,6 +1453,7 @@ private struct CostDashboardView: View {
                             total: total)
                     } label: {
                         OthersBreakdownRowView(
+                            names: tail.map(\.label),
                             count: tail.count,
                             amountUSD: tailAmount,
                             total: total)
@@ -1473,7 +1474,7 @@ private struct CostDashboardView: View {
         let rows = self.insights.budgetRows
         let usesOthers = rows.count >= cap + 1
         let visible: [CostBudgetRow] = usesOthers ? Array(rows.prefix(cap)) : rows
-        let tailCount = usesOthers ? rows.count - cap : 0
+        let tail = usesOthers ? Array(rows.dropFirst(cap)) : []
 
         return VStack(alignment: .leading, spacing: 10) {
             Text("Budgets")
@@ -1492,7 +1493,9 @@ private struct CostDashboardView: View {
                     NavigationLink {
                         FullBudgetListView(rows: rows)
                     } label: {
-                        OthersBudgetRowView(count: tailCount)
+                        OthersBudgetRowView(
+                            names: tail.map { $0.provider.providerName },
+                            count: tail.count)
                     }
                     .buttonStyle(.plain)
                 }
@@ -2416,6 +2419,7 @@ private struct CostBreakdownRowView: View {
 /// full list. Visually mirrors `CostBreakdownRowView` with a muted grey dot
 /// and a trailing chevron to suggest tappability.
 private struct OthersBreakdownRowView: View {
+    let names: [String]
     let count: Int
     let amountUSD: Double
     let total: Double
@@ -2428,9 +2432,10 @@ private struct OthersBreakdownRowView: View {
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Others")
+                    Text(OthersRowPreview.title(names: self.names))
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .lineLimit(2)
                     Text("+\(self.count) more")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -2513,13 +2518,15 @@ private struct BudgetRowView: View {
 /// meaningful — just the count and a chevron. Tappable via the parent
 /// NavigationLink → FullBudgetListView.
 private struct OthersBudgetRowView: View {
+    let names: [String]
     let count: Int
 
     var body: some View {
         HStack {
-            Text("Others")
+            Text(OthersRowPreview.title(names: self.names))
                 .font(.subheadline)
                 .fontWeight(.semibold)
+                .lineLimit(2)
             Spacer()
             Text("+\(self.count) more")
                 .font(.caption)
@@ -4343,9 +4350,10 @@ private enum MobileReleaseNotesCatalog {
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
                 String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
-                String(localized: "The small widget shows 63 days with even margins, and recent days climb upward from the bottom-right corner."),
+                String(localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
                 String(localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
                 String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
+                String(localized: "Collapsed Others rows show the first hidden names so you can see what they include."),
             ])]),
         ReleaseNotesVersion(
             version: "2.1.0", status: "",

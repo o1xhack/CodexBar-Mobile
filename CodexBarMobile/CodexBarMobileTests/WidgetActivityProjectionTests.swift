@@ -1,6 +1,7 @@
 import CodexBarSync
 import Foundation
 import Testing
+import WidgetKit
 @testable import CodexBarMobile
 
 @Suite("Widget Token Activity projection")
@@ -156,5 +157,19 @@ struct WidgetActivityProjectionTests {
         #expect(dates[53] == calendar.date(from: DateComponents(year: 2026, month: 9, day: 22)))
         #expect(dates[61] == calendar.date(from: DateComponents(year: 2026, month: 9, day: 16)))
         #expect(dates.last == wednesday)
+    }
+
+    @Test func `Medium widget cells and gaps fit evenly across both axes`() {
+        let weeks = WidgetActivityLayout.weeks(for: .systemMedium)
+        let gap = WidgetActivityLayout.columnSpacing(for: .systemMedium)
+        let cell = WidgetActivityLayout.cellSize(
+            width: 306, height: 130, weeks: weeks, compact: false,
+            spacing: gap, titleGap: 6)
+        let rowGap = WidgetActivityLayout.rowSpacing(
+            family: .systemMedium, cellSize: cell, panelHeight: 130, titleGap: 6)
+
+        #expect(weeks == 20)
+        #expect(cell > 11)
+        #expect(abs(rowGap - gap) < 0.1)
     }
 }
