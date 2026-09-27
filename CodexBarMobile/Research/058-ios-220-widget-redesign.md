@@ -691,3 +691,23 @@ requires a new SpringBoard render, archive validation, and owner beta QA.
   to Claude Code despite the synthetic projection containing three days; this
   is not evidence that the build 218 owner-device data path is validated.
   Physical beta validation must check both source choices with real data.
+
+### Build 218 TestFlight upload
+
+- Uploaded 2.2.0 (218) from source commit
+  `1760f0e4a8a4980398054b071afd6347dbf88e02` on the local
+  `feature/ios-220-widget-redesign` branch. No push, PR, merge, or public
+  release was performed.
+- Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260927-120220/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `bae7152b166e430e1520e0c2614092d58946660c06a07deb68a22ef7b809fa30`.
+  Both the main app and widget extension are build 218. The signed app uses
+  CloudKit `Production`. This widget layout/text update introduces no CloudKit
+  record schema change and needs no Production schema deploy.
+- Xcode reported `ARCHIVE SUCCEEDED` and `EXPORT SUCCEEDED`. App Store Connect
+  build `6f0bf3a4-68b6-4ae3-a282-a56c78f3cd06` reached `VALID` with
+  `uploadedDate=2026-09-27T12:05:46-07:00`.
+- The paired owner phone was only inspected with an older development build
+  (214). Build 218 still needs owner-device TestFlight verification of the
+  small widget's real source data, appearance, and edit-sheet selection.
