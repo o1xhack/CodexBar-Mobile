@@ -4353,6 +4353,7 @@ private enum MobileReleaseNotesCatalog {
                 String(localized: "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."),
                 String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
                 String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
+                String(localized: "Token Activity widgets now match the app's daily history, even when your system uses another calendar."),
                 String(localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
                 String(localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
                 String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),

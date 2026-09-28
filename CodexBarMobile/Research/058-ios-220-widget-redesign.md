@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `done` (PR #152; clean CR, build 221 uploaded and bound to 2.2.0)
+Status: `in-progress` (PR #152 third CR finding fixed; build 222 pending re-review and upload)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -830,3 +830,10 @@ down behavior stay available.
   this exact build has not yet been rechecked on the owner's physical iPhone.
   Earlier signed-device widget verification belongs to build 214 and should
   not be treated as build-221 evidence.
+- A third Codex review on PR #152 found that the projection inherited a
+  non-Gregorian system calendar while synced `dayKey` values use Gregorian
+  dates. The projection now builds a Gregorian reader calendar with the
+  supplied calendar's time zone, and a Buddhist-calendar regression test checks
+  that current-day history remains visible. Build 221 predates this fix; all
+  app and extension targets are advanced together to 2.2.0 (222), pending a
+  clean review and replacement upload.

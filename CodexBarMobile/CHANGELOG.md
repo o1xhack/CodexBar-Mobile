@@ -2,13 +2,14 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.2.0 (221)] — Update notes on app version changes
+## [2.2.0 (222)] — Update notes and widget calendar compatibility
 
 ### Changed
 - Show the latest release notes once after each app version update, with a Setup button that opens the existing Setup Guide. Keep the full Setup Guide out of the automatic launch flow and use a concise sync empty state until Mac data arrives.
 
 ### Fixed
 - Dismiss the first-launch release notes when starting the demo preview from Setup Guide.
+- Build Token Activity widget day keys with the Gregorian reader calendar and local time zone, so a non-Gregorian system calendar does not hide existing history.
 
 ## [2.2.0 (219)] — Heatmap density and collapsed-row context
 

@@ -19,12 +19,13 @@ enum WidgetActivityProjectionBuilder {
         }
 
         let providerIDs = Set(series.map { $0.provider.providerID }).sorted()
+        let readerCalendar = Self.readerCalendar(from: calendar)
         let all = Self.source(
             id: WidgetActivityProjection.allSourceID,
             name: "All",
             series: series,
             now: now,
-            calendar: calendar)
+            calendar: readerCalendar)
         let providers = providerIDs.compactMap { providerID -> WidgetActivitySource? in
             let matching = series.filter { $0.provider.providerID == providerID }
             guard let provider = matching.first else { return nil }
@@ -33,7 +34,7 @@ enum WidgetActivityProjectionBuilder {
                 name: providerID == "claude" ? "Claude Code" : provider.provider.providerName,
                 series: matching,
                 now: now,
-                calendar: calendar)
+                calendar: readerCalendar)
         }
         return WidgetActivityProjection(
             version: WidgetActivityProjection.schemaVersion,
@@ -41,6 +42,12 @@ enum WidgetActivityProjectionBuilder {
             generatedAt: now,
             latestSyncAt: latestSyncAt,
             sources: [all] + providers)
+    }
+
+    private static func readerCalendar(from calendar: Calendar) -> Calendar {
+        var readerCalendar = Calendar(identifier: .gregorian)
+        readerCalendar.timeZone = calendar.timeZone
+        return readerCalendar
     }
 
     private static func source(

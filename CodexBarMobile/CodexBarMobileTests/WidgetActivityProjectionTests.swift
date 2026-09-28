@@ -62,6 +62,27 @@ struct WidgetActivityProjectionTests {
         #expect(projection.source(id: "codex")?.days.first { $0.key == twoDaysAgo }?.tokens == nil)
     }
 
+    @Test func `Projection uses Gregorian day keys when the system calendar is non-Gregorian`() throws {
+        var buddhistCalendar = Calendar(identifier: .buddhist)
+        buddhistCalendar.timeZone = try #require(TimeZone(identifier: "GMT"))
+        var gregorianCalendar = Calendar(identifier: .gregorian)
+        gregorianCalendar.timeZone = buddhistCalendar.timeZone
+
+        let today = TokenActivity.dayKey(self.now, calendar: gregorianCalendar)
+        #expect(TokenActivity.dayKey(self.now, calendar: buddhistCalendar) != today)
+        let series = TokenActivitySeries(
+            provider: self.provider("codex", name: "Codex"),
+            days: [SyncDailyPoint(dayKey: today, costUSD: 0, totalTokens: 123, tokenCountIsKnown: true)])
+
+        let projection = WidgetActivityProjectionBuilder.make(
+            series: [series], latestSyncAt: self.now, now: self.now, calendar: buddhistCalendar)
+        let source = try #require(projection.source(id: "codex"))
+
+        #expect(source.days.count == 365)
+        #expect(source.days.last?.key == today)
+        #expect(source.days.last?.tokens == 123)
+    }
+
     @Test func `Projection file round trip preserves source selection and day meaning`() throws {
         let projection = WidgetActivityProjection.preview(now: self.now)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
