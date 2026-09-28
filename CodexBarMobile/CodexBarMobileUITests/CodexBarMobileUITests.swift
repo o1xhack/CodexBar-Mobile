@@ -6,6 +6,39 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testVersionUpdateShowsReleaseNotesAndSetupGuideOnDemand() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "UI_TEST_PREVIEW_DATA",
+            "UI_TEST_RESET_DEFAULTS",
+            "-AppleLanguages",
+            "(en)",
+            "-AppleLocale",
+            "en_US",
+        ]
+        app.launch()
+
+        let setup = app.buttons["release-notes-setup"]
+        XCTAssertTrue(setup.waitForExistence(timeout: 8))
+        XCTAssertEqual(setup.label, "Setup")
+        XCTAssertTrue(app.navigationBars["Release Notes"].exists)
+        self.captureScreen(app, name: "2.2 update notes on launch")
+        setup.tap()
+        XCTAssertTrue(app.navigationBars["Setup Guide"].waitForExistence(timeout: 5))
+        self.captureScreen(app, name: "Setup Guide opened from update notes")
+        app.buttons["setup-guide-done"].tap()
+        XCTAssertTrue(app.buttons["release-notes-done"].waitForExistence(timeout: 5))
+        app.buttons["release-notes-done"].tap()
+        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 8))
+
+        app.terminate()
+        app.launchArguments = ["UI_TEST_PREVIEW_DATA", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertFalse(setup.waitForExistence(timeout: 2), "Release notes should appear only once per app version.")
+        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testPhoneNavigationSafeAreaAndRotation() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -493,6 +526,14 @@ final class CodexBarMobileUITests: XCTestCase {
             "en_US",
         ]
         return app
+    }
+
+    @MainActor
+    private func captureScreen(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        self.add(attachment)
     }
 
     @MainActor

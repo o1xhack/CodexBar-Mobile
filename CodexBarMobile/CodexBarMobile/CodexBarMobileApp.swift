@@ -29,10 +29,11 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.usagePercentDisplayMode)
             defaults.removeObject(forKey: MobileSettingsKeys.showRemainingUsage)
             defaults.removeObject(forKey: "onboardingSeenVersion")
+            defaults.removeObject(forKey: "releaseNotesSeenVersion")
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {
-            UserDefaults.standard.set(currentVersion, forKey: "onboardingSeenVersion")
+            UserDefaults.standard.set(currentVersion, forKey: "releaseNotesSeenVersion")
         }
 
         if arguments.contains("UI_TEST_PREVIEW_DATA") || MobileTestLaunch.isUnitTestHost {

@@ -61,7 +61,7 @@ struct ContentView: View {
     @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var widgetUsesLedger = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var widgetHistoryClearedAt: Double = 0
-    @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
+    @AppStorage("releaseNotesSeenVersion") private var releaseNotesSeenVersion = ""
 
     init(usageData: SyncedUsageData, previewTab: MobileRootTab? = nil) {
         self.usageData = usageData
@@ -83,8 +83,8 @@ struct ContentView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
-    private var shouldShowOnboarding: Bool {
-        !self.isLayoutPreview && self.onboardingSeenVersion != self.currentVersion
+    private var shouldShowReleaseNotes: Bool {
+        !self.isLayoutPreview && self.releaseNotesSeenVersion != self.currentVersion
     }
 
     private var costSourceTimeZoneIdentifiers: Set<String> {
@@ -189,15 +189,15 @@ struct ContentView: View {
             self.handleDeepLink(url)
         }
         .fullScreenCover(isPresented: .init(
-            get: { self.shouldShowOnboarding },
-            set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
+            get: { self.shouldShowReleaseNotes },
+            set: { if !$0 { self.releaseNotesSeenVersion = self.currentVersion } }))
         {
-            OnboardingSheet(onDismiss: {
-                self.onboardingSeenVersion = self.currentVersion
-            }, onDemo: {
-                self.onboardingSeenVersion = self.currentVersion
-                self.isDemoMode = true
-            })
+            NavigationStack {
+                ReleaseNotesView(
+                    showsHistory: false,
+                    onDone: { self.releaseNotesSeenVersion = self.currentVersion },
+                    onDemo: { self.isDemoMode = true })
+            }
         }
         .sheet(isPresented: self.$isWidgetSettingsPresented) {
                 NavigationStack {
@@ -266,10 +266,10 @@ struct ContentView: View {
 
         switch url.host?.lowercased() {
         case "token-activity":
-            self.onboardingSeenVersion = self.currentVersion
+            self.releaseNotesSeenVersion = self.currentVersion
             self.selectedTab = .cost
         case "widgets", "widget-settings":
-            self.onboardingSeenVersion = self.currentVersion
+            self.releaseNotesSeenVersion = self.currentVersion
             self.selectedTab = .settings
             self.isWidgetSettingsPresented = true
         default:
@@ -278,19 +278,22 @@ struct ContentView: View {
     }
 }
 
-private struct OnboardingSheet: View {
+private struct SetupGuideSheet: View {
     let onDismiss: () -> Void
-    let onDemo: () -> Void
+    var onDemo: (() -> Void)? = nil
 
     var body: some View {
         NavigationStack {
             OnboardingView(onDemo: self.onDemo)
+                .navigationTitle("Setup Guide")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Done") {
                             self.onDismiss()
                         }
                         .fontWeight(.semibold)
+                        .accessibilityIdentifier("setup-guide-done")
                     }
                 }
         }
@@ -349,7 +352,10 @@ private struct UsageTab: View {
                             })
                     }
                 } else {
-                    OnboardingView(onDemo: { self.isDemoMode = true })
+                    EmptyStateView(
+                        title: "Waiting for Mac Sync",
+                        message: "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.",
+                        onDemo: { self.isDemoMode = true })
                 }
             }
             .navigationTitle(self.isDemoMode ? String(localized: "CodexBar (Demo)") : String(localized: "CodexBar"))
@@ -986,7 +992,10 @@ private struct CostTab: View {
                             systemImage: "dollarsign.gauge.chart.lefthalf.righthalf")
                     }
                 } else {
-                    OnboardingView(onDemo: { self.isDemoMode = true })
+                    EmptyStateView(
+                        title: "Waiting for Mac Sync",
+                        message: "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.",
+                        onDemo: { self.isDemoMode = true })
                 }
             }
             .safeAreaInset(edge: .top) {
@@ -2799,17 +2808,7 @@ private struct SettingsTab: View {
             .contentMargins(.top, 12, for: .scrollContent)
             .navigationTitle("Setting")
             .sheet(isPresented: self.$showingSetupGuide) {
-                NavigationStack {
-                    OnboardingView()
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Done") {
-                                    self.showingSetupGuide = false
-                                }
-                                .fontWeight(.semibold)
-                            }
-                        }
-                }
+                SetupGuideSheet(onDismiss: { self.showingSetupGuide = false })
             }
         } detail: {
             NavigationStack {
@@ -4348,6 +4347,7 @@ private enum MobileReleaseNotesCatalog {
             version: "2.2.0", status: String(localized: "Latest"),
             summary: String(localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
             sections: [.init(title: String(localized: "What's New"), items: [
+                String(localized: "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."),
                 String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
                 String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
                 String(localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
@@ -5129,6 +5129,10 @@ private enum MobileReleaseNotesCatalog {
 
 private struct ReleaseNotesView: View {
     private let versions = MobileReleaseNotesCatalog.versions
+    var showsHistory = true
+    var onDone: (() -> Void)? = nil
+    var onDemo: (() -> Void)? = nil
+    @State private var showingSetupGuide = false
 
     private var latestVersion: ReleaseNotesVersion? {
         self.versions.first
@@ -5146,35 +5150,67 @@ private struct ReleaseNotesView: View {
                 }
             }
 
-            Section("History") {
-                if self.historicalVersions.isEmpty {
-                    Text("Older iOS release notes will appear here as new versions ship.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(Array(self.historicalVersions)) { version in
-                        DisclosureGroup {
-                            ReleaseNotesContent(version: version)
-                                .padding(.top, 8)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Text("\(String(localized: "Version")) \(version.version)")
-                                        .fontWeight(.semibold)
-                                    ReleaseNotesBadge(title: version.status)
-                                }
+            if self.showsHistory {
+                Section("History") {
+                    if self.historicalVersions.isEmpty {
+                        Text("Older iOS release notes will appear here as new versions ship.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(Array(self.historicalVersions)) { version in
+                            DisclosureGroup {
+                                ReleaseNotesContent(version: version)
+                                    .padding(.top, 8)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 8) {
+                                        Text("\(String(localized: "Version")) \(version.version)")
+                                            .fontWeight(.semibold)
+                                        ReleaseNotesBadge(title: version.status)
+                                    }
 
-                                Text(version.summary)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    Text(version.summary)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
                         }
                     }
                 }
             }
         }
         .navigationTitle("Release Notes")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    self.showingSetupGuide = true
+                } label: {
+                    Text("Setup")
+                }
+                .accessibilityIdentifier("release-notes-setup")
+            }
+            if let onDone = self.onDone {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: onDone)
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("release-notes-done")
+                }
+            }
+        }
+        .sheet(isPresented: self.$showingSetupGuide) {
+            SetupGuideSheet(
+                onDismiss: { self.showingSetupGuide = false },
+                onDemo: self.setupGuideDemoAction)
+        }
+    }
+
+    private var setupGuideDemoAction: (() -> Void)? {
+        guard let onDemo = self.onDemo else { return nil }
+        return {
+            self.showingSetupGuide = false
+            onDemo()
+        }
     }
 }
 

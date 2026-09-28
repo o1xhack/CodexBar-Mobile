@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (220)] — Update notes on app version changes
+
+### Changed
+- Show the latest release notes once after each app version update, with a Setup button that opens the existing Setup Guide. Keep the full Setup Guide out of the automatic launch flow and use a concise sync empty state until Mac data arrives.
+
 ## [2.2.0 (219)] — Heatmap density and collapsed-row context
 
 ### Changed
