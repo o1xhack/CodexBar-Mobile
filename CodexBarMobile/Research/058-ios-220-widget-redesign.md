@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `in-progress` (PR #152 CR fix; build 221 awaiting review and upload)
+Status: `done` (PR #152; clean CR, build 221 uploaded and bound to 2.2.0)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -805,19 +805,28 @@ down behavior stay available.
   `Production`. The release-note and Setup changes do not change CloudKit
   schema.
 - App Store Connect build `47fd6bbb-268f-417a-a5d7-0ca5bc3a207e` (version
-  220) reached `VALID`, uploaded at `2026-09-28T10:58:44-07:00`. App Store
-  version `35be3819-d4d8-40f0-a1de-2ac0cd11aeca` is `PREPARE_FOR_SUBMISSION`
-  with manual release, has this build bound, and has matching `whatsNew` text
-  for `en-US`, `zh-Hans`, `zh-Hant`, and `ja`. It has not been submitted for
-  App Review or released.
-- Build 220's new first-launch notes and Setup path have Simulator UI-test
-  evidence; this exact build has not yet been rechecked on the owner's physical
-  iPhone. Earlier signed-device widget verification belongs to build 214 and
-  should not be treated as build-220 evidence.
+  220) reached `VALID` and was initially bound to App Store version
+  `35be3819-d4d8-40f0-a1de-2ac0cd11aeca`. It predates the CR fix below and is
+  no longer the selected candidate.
 - The first Codex review on PR #152 found that starting Demo from Setup Guide
   left the first-launch notes cover active. The callback now records the
   current marketing version before entering Demo, and
   `testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes` passes on
-  the iOS 27 iPhone 18 Pro Simulator. Build 220 predates this fix; project
-  targets are now advanced together to 2.2.0 (221), which will replace the
-  App Store version's build binding after the current head passes review.
+  the iOS 27 iPhone 18 Pro Simulator. A second Codex review found no major
+  issues; the P2 thread was replied to and resolved, and the PR review gate
+  passed with zero unresolved threads on head
+  `b5e27d5d1c34782b5134e615d7e135e895317f14`.
+- Build 221 was archived from that reviewed source at
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260928-114542/CodexBarMobile.xcarchive`.
+  The main executable SHA-256 is
+  `de3b38b67305a8e9bd8b4ddbe124f770ab28271bd85351dca422531591911e11`;
+  codesign verification passed and CloudKit is `Production`. App Store Connect
+  build `8862da8a-6fb0-4b9d-acd7-d72df535c4fb` (version 221) reached `VALID`,
+  uploaded at `2026-09-28T11:49:23-07:00`, and is now bound to the 2.2.0 App
+  Store version. The version remains `PREPARE_FOR_SUBMISSION` with manual
+  release and matching `whatsNew` text for `en-US`, `zh-Hans`, `zh-Hant`, and
+  `ja`; it has not been submitted for App Review or released.
+- Build 221's release-notes and Setup paths have Simulator UI-test evidence;
+  this exact build has not yet been rechecked on the owner's physical iPhone.
+  Earlier signed-device widget verification belongs to build 214 and should
+  not be treated as build-221 evidence.
