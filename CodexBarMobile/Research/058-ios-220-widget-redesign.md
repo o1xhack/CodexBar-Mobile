@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `in-progress` (post-216 small-widget correction and Codex tap investigation)
+Status: `done` (2.2.0 (220) uploaded; App Store version record prepared)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -775,3 +775,42 @@ down behavior stay available.
 - Xcode reported `ARCHIVE SUCCEEDED` and `EXPORT SUCCEEDED`. App Store Connect
   build `6adacd85-c7f1-45ed-9e65-3ebadc1809cf` reached `VALID` with
   `uploadedDate=2026-09-27T16:49:01-07:00`.
+
+## 2026-09-28 release candidate 2.2.0 (220)
+
+- Source commit: `1201f9a89fb4d2f1f1485190ebcbd746dd940b53` on
+  `feature/ios-220-widget-redesign`. The app now presents the current release
+  notes once after a marketing-version change, keeps a visible Setup button at
+  the top, and opens Setup Guide only when requested. The empty sync state no
+  longer defaults to the full guide. Full release-note history remains in
+  Settings.
+- The focused UI test
+  `testVersionUpdateShowsReleaseNotesAndSetupGuideOnDemand` passed twice on
+  Simulator: fresh install showed the 2.2.0 notes, Setup opened the guide,
+  dismissing the notes recorded the version, and relaunch did not show them a
+  second time. The second result bundle is
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/ios-220-release-notes-ui-2.xcresult`.
+  The launch-notes screenshot is
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/ios-220-release-notes-attachments-2/DB644F79-3ECF-4ED9-B79D-293F251750D2.png`.
+  The Setup Guide screenshot is
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/ios-220-release-notes-attachments-2/1E272333-AF2A-4124-A550-11DF72CDD516.png`.
+- `bash Scripts/lint.sh lint` passed across 2,683 files with zero violations;
+  the four-language catalog has all 368 source keys translated. The app,
+  widget, and push-extension archive targets report version 2.2.0, build 220.
+- Xcode archive and cloud-signing upload succeeded. Archive:
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260928-105507/CodexBarMobile.xcarchive`.
+  Archived main executable SHA-256:
+  `4b41b6ce5fe6d44da39308431737a1bed808d5b001a2ca5e3a76e75a8c3fb271`.
+  `codesign --verify --deep --strict` passed; the signed app uses CloudKit
+  `Production`. The release-note and Setup changes do not change CloudKit
+  schema.
+- App Store Connect build `47fd6bbb-268f-417a-a5d7-0ca5bc3a207e` (version
+  220) reached `VALID`, uploaded at `2026-09-28T10:58:44-07:00`. App Store
+  version `35be3819-d4d8-40f0-a1de-2ac0cd11aeca` is `PREPARE_FOR_SUBMISSION`
+  with manual release, has this build bound, and has matching `whatsNew` text
+  for `en-US`, `zh-Hans`, `zh-Hant`, and `ja`. It has not been submitted for
+  App Review or released.
+- Build 220's new first-launch notes and Setup path have Simulator UI-test
+  evidence; this exact build has not yet been rechecked on the owner's physical
+  iPhone. Earlier signed-device widget verification belongs to build 214 and
+  should not be treated as build-220 evidence.
