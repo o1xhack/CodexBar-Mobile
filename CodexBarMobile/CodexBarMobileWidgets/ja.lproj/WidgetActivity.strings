@@ -1,0 +1,13 @@
+/* Widget edit labels from WidgetActivity.intentdefinition. */
+"CBWsourceTitle" = "トークンのデータソース";
+"CBWunknown" = "不明";
+"CBWall" = "すべて";
+"CBWclaude" = "Claude Code";
+"CBWcodex" = "Codex";
+"CBWsingleTitle" = "トークンアクティビティ";
+"CBWsingleDescription" = "表示するトークン履歴を選択します。";
+"CBWsingleParam1" = "ソース";
+"CBWcompareTitle" = "トークンアクティビティの比較";
+"CBWcompareDescription" = "比較する2つのトークン履歴を選択します。";
+"CBWcompareParam1" = "1つ目のデータソース";
+"CBWcompareParam2" = "2つ目のデータソース";

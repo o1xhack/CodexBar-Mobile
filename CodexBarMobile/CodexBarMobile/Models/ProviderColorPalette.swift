@@ -15,12 +15,14 @@ import SwiftUI
 /// spaces defensively so passing a display name still works, but prefer ID.
 enum ProviderColorPalette {
     static func color(for provider: ProviderUsageSnapshot) -> Color {
-        if let tint = provider.providerIconTintHex,
-           let color = self.color(fromHex: tint)
-        {
+        self.color(for: provider.providerID, tintHex: provider.providerIconTintHex)
+    }
+
+    static func color(for providerIdentifier: String, tintHex: String?) -> Color {
+        if let tintHex, let color = self.color(fromHex: tintHex) {
             return self.readable(color, adjustsLightMode: true)
         }
-        return self.color(for: provider.providerID)
+        return self.color(for: providerIdentifier)
     }
 
     /// Minimum WCAG relative luminance a tint may have in dark mode — more

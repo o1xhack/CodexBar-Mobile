@@ -241,7 +241,7 @@ private struct TokenActivityGrid: View {
     @Binding var selectedDay: String?
     @ScaledMetric(relativeTo: .caption2) private var calendarLabelHeight: CGFloat = 16
     private var gridHeight: CGFloat {
-        110 + 2 * self.calendarLabelHeight
+        120 + 2 * self.calendarLabelHeight
     }
 
     private var calendar: Calendar {
@@ -262,7 +262,7 @@ private struct TokenActivityGrid: View {
         let points = TokenActivity.dailyTotals(self.series)
         let scale = TokenActivityColorScale(values: points.values.compactMap(\.value))
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 3) {
+            HStack(spacing: 4) {
                 ForEach(Array(stride(from: 0, to: gridDates.count, by: 7)), id: \.self) { index in
                     let date = gridDates[index]
                     Text(self.calendar.component(.day, from: date) <= 7 ? date
@@ -271,7 +271,7 @@ private struct TokenActivityGrid: View {
                             width: 12, alignment: index >= gridDates.count - 21 ? .trailing : .leading)
                 }
             }
-            LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 3), count: 7), spacing: 3) {
+            LazyHGrid(rows: Array(repeating: GridItem(.fixed(12), spacing: 4), count: 7), spacing: 4) {
                 ForEach(gridDates, id: \.self) { date in
                     let key = TokenActivity.dayKey(date, calendar: self.calendar)
                     self.cell(key: key, date: date, total: points[key], scale: scale)

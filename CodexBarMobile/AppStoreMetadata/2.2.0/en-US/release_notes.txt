@@ -1,0 +1,1 @@
+Token Activity heatmaps now fit every widget size. Choose All, Claude Code, or Codex on small and medium widgets, and compare two sources on larger widgets. Cells are easier to read, and missing history stays distinct from zero. After updating, CodexBar opens these release notes; tap Setup at the top to open the Setup Guide.

@@ -59,7 +59,9 @@ struct ContentView: View {
     /// Today/history freshness state.
     @State private var costReferenceDate = Date()
     @State private var readerTimeZoneIdentifier = TimeZone.current.identifier
-    @AppStorage("onboardingSeenVersion") private var onboardingSeenVersion = ""
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var widgetUsesLedger = MobileSettingsDefaults.cwlEnabled
+    @AppStorage(MobileSettingsKeys.cwlBlobSeedClearedAt) private var widgetHistoryClearedAt: Double = 0
+    @AppStorage("releaseNotesSeenVersion") private var releaseNotesSeenVersion = ""
 
     init(usageData: SyncedUsageData, previewTab: MobileRootTab? = nil) {
         self.usageData = usageData
@@ -81,8 +83,8 @@ struct ContentView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
-    private var shouldShowOnboarding: Bool {
-        !self.isLayoutPreview && self.onboardingSeenVersion != self.currentVersion
+    private var shouldShowReleaseNotes: Bool {
+        !self.isLayoutPreview && self.releaseNotesSeenVersion != self.currentVersion
     }
 
     private var costSourceTimeZoneIdentifiers: Set<String> {
@@ -94,6 +96,18 @@ struct ContentView: View {
         CostLedgerRefreshClock.restartKey(
             sourceTimeZoneIdentifiers: self.costSourceTimeZoneIdentifiers,
             readerTimeZoneIdentifier: self.readerTimeZoneIdentifier)
+    }
+
+    private var widgetActivityRefreshKey: String {
+        let providers = self.usageData.snapshot.map { MockProviderDetector.filteredProviders(from: $0) } ?? []
+        let dayRevision = TokenActivity.dayRevision(
+            providers: providers,
+            snapshots: self.usageData.deviceSnapshots,
+            referenceDate: self.costReferenceDate)
+        return "\(self.usageData.publicationRevision)|\(self.widgetUsesLedger)|" +
+            "\(self.widgetHistoryClearedAt)|\(TokenActivity.sourceRevision(self.usageData.deviceSnapshots))|" +
+            "\(dayRevision)|" +
+            "\(self.readerTimeZoneIdentifier)|\(self.usageData.syncStatus)"
     }
 
     var body: some View {
@@ -158,6 +172,15 @@ struct ContentView: View {
         .task(id: self.costClockRestartKey) {
             await self.keepCostReferenceDateCurrent()
         }
+        .task(id: self.widgetActivityRefreshKey) {
+            guard !self.isLayoutPreview, !self.isDemoMode else { return }
+            await WidgetActivityPublisher.refresh(
+                snapshot: self.usageData.snapshot,
+                sourceSnapshots: self.usageData.deviceSnapshots,
+                syncStatus: self.usageData.syncStatus,
+                useLedger: self.widgetUsesLedger,
+                referenceDate: self.costReferenceDate)
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             self.readerTimeZoneIdentifier = TimeZone.current.identifier
             self.costReferenceDate = Date()
@@ -166,15 +189,18 @@ struct ContentView: View {
             self.handleDeepLink(url)
         }
         .fullScreenCover(isPresented: .init(
-            get: { self.shouldShowOnboarding },
-            set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
+            get: { self.shouldShowReleaseNotes },
+            set: { if !$0 { self.releaseNotesSeenVersion = self.currentVersion } }))
         {
-            OnboardingSheet(onDismiss: {
-                self.onboardingSeenVersion = self.currentVersion
-            }, onDemo: {
-                self.onboardingSeenVersion = self.currentVersion
-                self.isDemoMode = true
-            })
+            NavigationStack {
+                ReleaseNotesView(
+                    showsHistory: false,
+                    onDone: { self.releaseNotesSeenVersion = self.currentVersion },
+                    onDemo: {
+                        self.releaseNotesSeenVersion = self.currentVersion
+                        self.isDemoMode = true
+                    })
+            }
         }
         .sheet(isPresented: self.$isWidgetSettingsPresented) {
                 NavigationStack {
@@ -242,8 +268,11 @@ struct ContentView: View {
         guard url.scheme?.lowercased() == "codexbar" else { return }
 
         switch url.host?.lowercased() {
+        case "token-activity":
+            self.releaseNotesSeenVersion = self.currentVersion
+            self.selectedTab = .cost
         case "widgets", "widget-settings":
-            self.onboardingSeenVersion = self.currentVersion
+            self.releaseNotesSeenVersion = self.currentVersion
             self.selectedTab = .settings
             self.isWidgetSettingsPresented = true
         default:
@@ -252,19 +281,22 @@ struct ContentView: View {
     }
 }
 
-private struct OnboardingSheet: View {
+private struct SetupGuideSheet: View {
     let onDismiss: () -> Void
-    let onDemo: () -> Void
+    var onDemo: (() -> Void)? = nil
 
     var body: some View {
         NavigationStack {
             OnboardingView(onDemo: self.onDemo)
+                .navigationTitle("Setup Guide")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Done") {
                             self.onDismiss()
                         }
                         .fontWeight(.semibold)
+                        .accessibilityIdentifier("setup-guide-done")
                     }
                 }
         }
@@ -323,7 +355,10 @@ private struct UsageTab: View {
                             })
                     }
                 } else {
-                    OnboardingView(onDemo: { self.isDemoMode = true })
+                    EmptyStateView(
+                        title: "Waiting for Mac Sync",
+                        message: "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.",
+                        onDemo: { self.isDemoMode = true })
                 }
             }
             .navigationTitle(self.isDemoMode ? String(localized: "CodexBar (Demo)") : String(localized: "CodexBar"))
@@ -960,7 +995,10 @@ private struct CostTab: View {
                             systemImage: "dollarsign.gauge.chart.lefthalf.righthalf")
                     }
                 } else {
-                    OnboardingView(onDemo: { self.isDemoMode = true })
+                    EmptyStateView(
+                        title: "Waiting for Mac Sync",
+                        message: "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.",
+                        onDemo: { self.isDemoMode = true })
                 }
             }
             .safeAreaInset(edge: .top) {
@@ -1427,6 +1465,7 @@ private struct CostDashboardView: View {
                             total: total)
                     } label: {
                         OthersBreakdownRowView(
+                            names: tail.map(\.label),
                             count: tail.count,
                             amountUSD: tailAmount,
                             total: total)
@@ -1447,7 +1486,7 @@ private struct CostDashboardView: View {
         let rows = self.insights.budgetRows
         let usesOthers = rows.count >= cap + 1
         let visible: [CostBudgetRow] = usesOthers ? Array(rows.prefix(cap)) : rows
-        let tailCount = usesOthers ? rows.count - cap : 0
+        let tail = usesOthers ? Array(rows.dropFirst(cap)) : []
 
         return VStack(alignment: .leading, spacing: 10) {
             Text("Budgets")
@@ -1466,7 +1505,9 @@ private struct CostDashboardView: View {
                     NavigationLink {
                         FullBudgetListView(rows: rows)
                     } label: {
-                        OthersBudgetRowView(count: tailCount)
+                        OthersBudgetRowView(
+                            names: tail.map { $0.provider.providerName },
+                            count: tail.count)
                     }
                     .buttonStyle(.plain)
                 }
@@ -2390,6 +2431,7 @@ private struct CostBreakdownRowView: View {
 /// full list. Visually mirrors `CostBreakdownRowView` with a muted grey dot
 /// and a trailing chevron to suggest tappability.
 private struct OthersBreakdownRowView: View {
+    let names: [String]
     let count: Int
     let amountUSD: Double
     let total: Double
@@ -2402,9 +2444,10 @@ private struct OthersBreakdownRowView: View {
                     .frame(width: 10, height: 10)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Others")
+                    Text(OthersRowPreview.title(names: self.names))
                         .font(.subheadline)
                         .fontWeight(.semibold)
+                        .lineLimit(2)
                     Text("+\(self.count) more")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -2487,13 +2530,15 @@ private struct BudgetRowView: View {
 /// meaningful — just the count and a chevron. Tappable via the parent
 /// NavigationLink → FullBudgetListView.
 private struct OthersBudgetRowView: View {
+    let names: [String]
     let count: Int
 
     var body: some View {
         HStack {
-            Text("Others")
+            Text(OthersRowPreview.title(names: self.names))
                 .font(.subheadline)
                 .fontWeight(.semibold)
+                .lineLimit(2)
             Spacer()
             Text("+\(self.count) more")
                 .font(.caption)
@@ -2766,17 +2811,7 @@ private struct SettingsTab: View {
             .contentMargins(.top, 12, for: .scrollContent)
             .navigationTitle("Setting")
             .sheet(isPresented: self.$showingSetupGuide) {
-                NavigationStack {
-                    OnboardingView()
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Done") {
-                                    self.showingSetupGuide = false
-                                }
-                                .fontWeight(.semibold)
-                            }
-                        }
-                }
+                SetupGuideSheet(onDismiss: { self.showingSetupGuide = false })
             }
         } detail: {
             NavigationStack {
@@ -4312,7 +4347,20 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.1.0", status: String(localized: "Latest"),
+            version: "2.2.0", status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
+            sections: [.init(title: String(localized: "What's New"), items: [
+                String(localized: "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."),
+                String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
+                String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
+                String(localized: "Token Activity widgets now match the app's daily history, even when your system uses another calendar."),
+                String(localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
+                String(localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
+                String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
+                String(localized: "Collapsed Others rows show the first hidden names so you can see what they include."),
+            ])]),
+        ReleaseNotesVersion(
+            version: "2.1.0", status: "",
             summary: String(localized: "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."),
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),
@@ -5085,6 +5133,10 @@ private enum MobileReleaseNotesCatalog {
 
 private struct ReleaseNotesView: View {
     private let versions = MobileReleaseNotesCatalog.versions
+    var showsHistory = true
+    var onDone: (() -> Void)? = nil
+    var onDemo: (() -> Void)? = nil
+    @State private var showingSetupGuide = false
 
     private var latestVersion: ReleaseNotesVersion? {
         self.versions.first
@@ -5102,35 +5154,67 @@ private struct ReleaseNotesView: View {
                 }
             }
 
-            Section("History") {
-                if self.historicalVersions.isEmpty {
-                    Text("Older iOS release notes will appear here as new versions ship.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(Array(self.historicalVersions)) { version in
-                        DisclosureGroup {
-                            ReleaseNotesContent(version: version)
-                                .padding(.top, 8)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Text("\(String(localized: "Version")) \(version.version)")
-                                        .fontWeight(.semibold)
-                                    ReleaseNotesBadge(title: version.status)
-                                }
+            if self.showsHistory {
+                Section("History") {
+                    if self.historicalVersions.isEmpty {
+                        Text("Older iOS release notes will appear here as new versions ship.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(Array(self.historicalVersions)) { version in
+                            DisclosureGroup {
+                                ReleaseNotesContent(version: version)
+                                    .padding(.top, 8)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 8) {
+                                        Text("\(String(localized: "Version")) \(version.version)")
+                                            .fontWeight(.semibold)
+                                        ReleaseNotesBadge(title: version.status)
+                                    }
 
-                                Text(version.summary)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    Text(version.summary)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
                         }
                     }
                 }
             }
         }
         .navigationTitle("Release Notes")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    self.showingSetupGuide = true
+                } label: {
+                    Text("Setup")
+                }
+                .accessibilityIdentifier("release-notes-setup")
+            }
+            if let onDone = self.onDone {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: onDone)
+                        .fontWeight(.semibold)
+                        .accessibilityIdentifier("release-notes-done")
+                }
+            }
+        }
+        .sheet(isPresented: self.$showingSetupGuide) {
+            SetupGuideSheet(
+                onDismiss: { self.showingSetupGuide = false },
+                onDemo: self.setupGuideDemoAction)
+        }
+    }
+
+    private var setupGuideDemoAction: (() -> Void)? {
+        guard let onDemo = self.onDemo else { return nil }
+        return {
+            self.showingSetupGuide = false
+            onDemo()
+        }
     }
 }
 

@@ -4,18 +4,14 @@ import SwiftData
 /// Builds and caches the app-wide `ModelContainer`.
 ///
 /// P2a behavior:
-/// - Store path prefers the App Group container
-///   (`group.com.o1xhack.codexbar`), falling back to the app sandbox
-///   Application Support directory when the entitlement is absent. This makes
-///   the factory work in unit tests + simulator without any provisioning change,
-///   while the shipping app (which has the App Group entitlement) still lands
-///   in the shared container ready for an App Extension to read.
+/// - The store stays in the app sandbox even if an App Group entitlement is
+///   added. Switching URLs would hide pre-2.2 local history on upgrade.
+///   Widget extensions consume a separate read-only projection in App Group.
 /// - Persistent history is not a disposable CloudKit cache: it can outlive
 ///   the producer's current sync window. Opening failures preserve every file
 ///   and use explicitly reported temporary storage until the next launch.
 enum ModelContainerFactory {
-    /// App Group identifier shared with the menu bar counterpart. See
-    /// `Scripts/package_app.sh:142` on the Mac side.
+    /// Shared projection group; the SwiftData store does not move here.
     static let appGroupID = "group.com.o1xhack.codexbar"
 
     /// Default SQLite filename inside whichever container we land on.
@@ -92,26 +88,19 @@ enum ModelContainerFactory {
         }
     }
 
-    /// Default on-disk location. Prefers the App Group container; falls back
-    /// to the app's Application Support directory.
+    /// Default on-disk location. Keep the pre-2.2 app-sandbox URL on upgrades.
     static func defaultStoreURL() -> URL {
         let fm = FileManager.default
-        let base: URL = {
-            if let group = fm.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupID) {
-                return group
-            }
-            let appSupport: URL
-            do {
-                appSupport = try fm.url(
-                    for: .applicationSupportDirectory,
-                    in: .userDomainMask,
-                    appropriateFor: nil,
-                    create: true)
-            } catch {
-                appSupport = URL(fileURLWithPath: NSTemporaryDirectory())
-            }
-            return appSupport
-        }()
+        let base: URL
+        do {
+            base = try fm.url(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: true)
+        } catch {
+            base = URL(fileURLWithPath: NSTemporaryDirectory())
+        }
         let dir = base.appendingPathComponent("CodexBar", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(Self.storeFilename, isDirectory: false)

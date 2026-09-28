@@ -1,0 +1,13 @@
+/* Widget edit labels from WidgetActivity.intentdefinition. */
+"CBWsourceTitle" = "Token Source";
+"CBWunknown" = "Unknown";
+"CBWall" = "All";
+"CBWclaude" = "Claude Code";
+"CBWcodex" = "Codex";
+"CBWsingleTitle" = "Token Activity";
+"CBWsingleDescription" = "Choose the token history to show.";
+"CBWsingleParam1" = "Source";
+"CBWcompareTitle" = "Token Activity Comparison";
+"CBWcompareDescription" = "Choose two token histories to compare.";
+"CBWcompareParam1" = "First Source";
+"CBWcompareParam2" = "Second Source";

@@ -1,0 +1,35 @@
+/* (No Comment) */
+"CBWall" = "全部";
+
+/* (No Comment) */
+"CBWclaude" = "Claude Code";
+
+/* (No Comment) */
+"CBWcodex" = "Codex";
+
+/* (No Comment) */
+"CBWcompareDescription" = "选择两份 Token 历史记录进行对比。";
+
+/* (No Comment) */
+"CBWcompareParam1" = "第一个数据源";
+
+/* (No Comment) */
+"CBWcompareParam2" = "第二个数据源";
+
+/* (No Comment) */
+"CBWcompareTitle" = "Token 活动对比";
+
+/* (No Comment) */
+"CBWsingleDescription" = "选择要显示的 Token 历史记录。";
+
+/* (No Comment) */
+"CBWsingleParam1" = "数据源";
+
+/* (No Comment) */
+"CBWsingleTitle" = "Token 活动";
+
+/* (No Comment) */
+"CBWsourceTitle" = "Token 数据源";
+
+/* (No Comment) */
+"CBWunknown" = "未知";

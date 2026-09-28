@@ -36,10 +36,19 @@ echo "==> Pre-flight lint (Swift + i18n)..."
 "$ROOT/Scripts/lint.sh" lint
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-ARCHIVE_PATH="/tmp/CodexBarMobile-$STAMP.xcarchive"
-# `.plist` suffix after the mktemp X's makes the template literal on
-# macOS (BSD mktemp only substitutes trailing X's) — drop the suffix.
-OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX)
+SCRATCH_ROOT=/Volumes/StudioSSD/Developer/BuildScratch
+EXPECTED_VOLUME_UUID=9D5FE511-B66C-4765-BB8F-61E5ACB3969D
+ACTUAL_VOLUME_UUID=$(diskutil info -plist /Volumes/StudioSSD | plutil -extract VolumeUUID raw -o - -)
+if [[ "$ACTUAL_VOLUME_UUID" != "$EXPECTED_VOLUME_UUID" || ! -w "$SCRATCH_ROOT" ]]; then
+  echo "StudioSSD build scratch is unavailable or the volume UUID changed" >&2
+  exit 1
+fi
+SCRATCH_DIR="$SCRATCH_ROOT/CodexBar/TestFlight-$STAMP"
+mkdir -p "$SCRATCH_DIR"
+ARCHIVE_PATH="$SCRATCH_DIR/CodexBarMobile.xcarchive"
+EXPORT_PATH="$SCRATCH_DIR/Export"
+# BSD mktemp substitutes only trailing X's; keep the extension off the template.
+OPTIONS_PLIST=$(mktemp "$SCRATCH_DIR/cbm-export-options.XXXXXX")
 
 cat > "$OPTIONS_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -81,6 +90,7 @@ echo "==> Signing + uploading to App Store Connect (cloud signing via Xcode sess
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
   -exportOptionsPlist "$OPTIONS_PLIST" \
+  -exportPath "$EXPORT_PATH" \
   -allowProvisioningUpdates \
   -packageAuthorizationProvider netrc \
   | tail -30

@@ -106,6 +106,101 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    func testTokenActivityFamiliesAndStatesRenderInHomeScreenAppearances() {
+        let projection = WidgetActivityProjection.preview(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let states: [WidgetActivityProjection] = [
+            projection,
+            .state(.syncing),
+            .state(.noData),
+            .state(.error),
+        ]
+        for state in states {
+            for family in families {
+                for scheme in colorSchemes {
+                    for mode in renderingModes {
+                        let entry = WidgetActivityEntry(
+                            date: projection.generatedAt,
+                            sourceIDs: family.family == .systemSmall || family.family == .systemMedium
+                                ? ["claude"] : ["all", "codex"],
+                            projection: state)
+                        let view = ZStack {
+                            scheme == .dark ? Color.black : Color.white
+                            WidgetActivityView(entry: entry, previewFamily: family.family)
+                                .environment(\.colorScheme, scheme)
+                                .environment(\.widgetRenderingMode, mode)
+                        }
+                        .frame(width: family.size.width, height: family.size.height)
+                        let renderer = ImageRenderer(content: view)
+                        renderer.scale = 2
+                        self.assertVisibleImage(
+                            renderer.uiImage,
+                            context: "activity/\(state.state)/\(family.family)/\(scheme)/\(mode)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testTokenActivityLoadedLayoutsAreAvailableForVisualReview() {
+        let projection = WidgetActivityProjection.preview(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let appearances: [(name: String, scheme: ColorScheme, mode: WidgetRenderingMode)] = [
+            ("light", .light, .fullColor),
+            ("dark", .dark, .fullColor),
+            ("tinted", .dark, .accented),
+        ]
+        for family in self.families {
+            for appearance in appearances {
+                let entry = WidgetActivityEntry(
+                    date: projection.generatedAt,
+                    sourceIDs: family.family == .systemSmall || family.family == .systemMedium
+                        ? ["claude"] : ["all", "codex"],
+                    projection: projection)
+                let view = ZStack {
+                    appearance.scheme == .dark ? Color.black : Color.white
+                    WidgetActivityView(entry: entry, previewFamily: family.family)
+                        .environment(\.colorScheme, appearance.scheme)
+                        .environment(\.widgetRenderingMode, appearance.mode)
+                }
+                .frame(width: family.size.width, height: family.size.height)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                guard let image = renderer.uiImage else {
+                    XCTFail("Could not render \(family.family)/\(appearance.name)")
+                    continue
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "Token Activity \(family.family) \(appearance.name)"
+                attachment.lifetime = .keepAlways
+                self.add(attachment)
+            }
+        }
+    }
+
+    func testTokenActivityUnavailableAndDuplicateSourcesRenderClearly() {
+        let projection = WidgetActivityProjection.preview(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let cases: [(name: String, family: WidgetFamily, ids: [String])] = [
+            ("removed single", .systemSmall, ["removed-provider"]),
+            ("removed comparison", .systemLarge, ["all", "removed-provider"]),
+            ("duplicate comparison", .systemLarge, ["codex", "codex"]),
+            ("removed extra large", .systemExtraLarge, ["all", "removed-provider"]),
+        ]
+        for item in cases {
+            guard let size = self.families.first(where: { $0.family == item.family })?.size else {
+                XCTFail("Missing render size for \(item.name)")
+                continue
+            }
+            let entry = WidgetActivityEntry(date: projection.generatedAt, sourceIDs: item.ids, projection: projection)
+            let view = ZStack {
+                Color.white
+                WidgetActivityView(entry: entry, previewFamily: item.family)
+            }
+            .frame(width: size.width, height: size.height)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            self.assertVisibleImage(renderer.uiImage, context: item.name)
+        }
+    }
+
     func testLoadedFooterLineIsAlwaysCentered() throws {
         let sourceURL = Self.sourceFileURL(
             forRelative: "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetView.swift")

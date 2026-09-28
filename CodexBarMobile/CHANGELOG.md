@@ -2,6 +2,56 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.2.0 (222)] — Update notes and widget calendar compatibility
+
+### Changed
+- Show the latest release notes once after each app version update, with a Setup button that opens the existing Setup Guide. Keep the full Setup Guide out of the automatic launch flow and use a concise sync empty state until Mac data arrives.
+
+### Fixed
+- Dismiss the first-launch release notes when starting the demo preview from Setup Guide.
+- Build Token Activity widget day keys with the Gregorian reader calendar and local time zone, so a non-Gregorian system calendar does not hide existing history.
+
+## [2.2.0 (219)] — Heatmap density and collapsed-row context
+
+### Changed
+- Enlarge small and medium Token Activity cells and tighten their gaps. Small retains its 63-day vertical ordering; medium shows 20 weeks (140 days) with balanced 4.5-point row and column gaps. Large and extra-large layout is unchanged.
+- Label collapsed Others rows with up to two distinct hidden names in Cost breakdowns, budgets, subscription utilization, and provider share cards. Keep the existing count and full-list drill-down.
+
+## [2.2.0 (218)] — Small-widget margins and source picker guidance
+
+### Changed
+- Fill the small Token Activity widget with 63 days in a 9×7 grid, keeping the title, grid, and outer widget edges evenly inset without changing medium or large layouts.
+- Explain the one-tap source picker interaction in the widget edit sheet. The system-generated picker remains owned by iOS.
+
+## [2.2.0 (217)] — TestFlight small-widget direction repair
+
+### Fixed
+- Fill the small Token Activity widget down seven-day columns, so the three most recent days rise directly above the bottom-right cell. Show 49 days in a balanced 7×7 grid without changing the accepted medium and large layouts.
+
+## [2.2.0 (216)] — TestFlight layout refinement
+
+### Changed
+- Increase spacing between daily Token Activity cells in the app and Home Screen widgets.
+- Make small-widget cells smaller and arrange the most recent 35 days in reading order, ending with today at the bottom right.
+- Balance the content in medium, large, and iPad extra-large heatmap widgets with matching 16-point edges. Medium displays 24 weeks to keep its cells legible with the wider spacing.
+
+## [2.2.0 (215)] — TestFlight repair
+
+### Fixed
+- Make Token Activity source choices reach the widget timeline on iOS 27. Small and medium widgets select one source; large and extra-large widgets select two independently. Existing 214 heatmap widgets need to be removed and added again because the system configuration format changed.
+- Publish current synced token days before a longer history read and retain the last heatmap while sync is in progress, so a cancelled refresh does not leave a new widget empty.
+- Put the heatmap widgets first in the gallery, remove the decorative source dot, and localize the system edit controls in all four app languages.
+
+## [2.2.0 (214)] — TestFlight 2026-09-26
+
+### Added
+- Configurable Token Activity Home Screen widgets for small, medium, large, and iPad extra-large sizes. Single-source widgets show All or one available provider; comparison widgets let each instance select two sources.
+- A read-only App Group projection of the app's resolved daily-token history, including confirmed zero, unknown, and partial lower-bound days. Keep the existing SwiftData ledger at its app-sandbox path on upgrade.
+
+### Changed
+- Simplify the existing status widget to prioritize its selected metric and closely related context instead of filling larger sizes with unrelated dashboard rows.
+- Rework Token Activity widgets around full-width contribution grids: medium shows 27 weeks (189 day positions), large stacks two 18-week sources without a divider, and iPad extra-large stacks two 38-week sources. Match the app's provider colors and heatmap intensity, use quiet neutral cells for unavailable days, and keep only a source label with a small color marker above each grid. WidgetKit manages clear and tinted backgrounds.
+
 ## [2.1.0 (213)] — Submitted for App Review 2026-09-25
 
 ### Fixed
