@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `in-progress` (PR #152 third CR finding fixed; build 222 pending re-review and upload)
+Status: `done` (PR #152 clean CR; build 222 `VALID` and bound to 2.2.0; physical-device QA pending)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -813,7 +813,7 @@ down behavior stay available.
   current marketing version before entering Demo, and
   `testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes` passes on
   the iOS 27 iPhone 18 Pro Simulator. A second Codex review found no major
-  issues; the P2 thread was replied to and resolved, and the PR review gate
+  issues; its P2 thread was replied to and resolved, and the review gate
   passed with zero unresolved threads on head
   `b5e27d5d1c34782b5134e615d7e135e895317f14`.
 - Build 221 was archived from that reviewed source at
@@ -822,18 +822,29 @@ down behavior stay available.
   `de3b38b67305a8e9bd8b4ddbe124f770ab28271bd85351dca422531591911e11`;
   codesign verification passed and CloudKit is `Production`. App Store Connect
   build `8862da8a-6fb0-4b9d-acd7-d72df535c4fb` (version 221) reached `VALID`,
-  uploaded at `2026-09-28T11:49:23-07:00`, and is now bound to the 2.2.0 App
-  Store version. The version remains `PREPARE_FOR_SUBMISSION` with manual
+  uploaded at `2026-09-28T11:49:23-07:00`, and was initially bound to the 2.2.0
+  App Store version. It predates the calendar fix below and is no longer the
+  selected candidate.
+- A third Codex review found that a non-Gregorian system calendar generated
+  different widget day keys from synced history. Commit
+  `4c9fc33f92ad49742680e7d1713b91e128c0b19b` normalizes the projection to a
+  Gregorian calendar while preserving the device time zone. The Buddhist
+  calendar regression test passes; a fourth Codex review found no major issues,
+  the finding thread is resolved, and PR Fast Checks and the review gate pass
+  with zero unresolved threads.
+- Build 222 was archived from source commit
+  `4c9fc33f92ad49742680e7d1713b91e128c0b19b` at
+  `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20260928-122205/CodexBarMobile.xcarchive`.
+  The main executable SHA-256 is
+  `1de9b746c8a5f32b916b26dbb3247dc74d59fca0e11c03c0d7c8eab4715f96cc`;
+  codesign verification passed and CloudKit is `Production`. App Store Connect
+  build `0098f7d9-ac77-4ae2-95bb-7115b7bb208b` (version 222) reached `VALID`,
+  uploaded at `2026-09-28T12:25:39-07:00`, and is bound to the 2.2.0 App Store
+  version. The version remains `PREPARE_FOR_SUBMISSION` with manual
   release and matching `whatsNew` text for `en-US`, `zh-Hans`, `zh-Hant`, and
   `ja`; it has not been submitted for App Review or released.
-- Build 221's release-notes and Setup paths have Simulator UI-test evidence;
-  this exact build has not yet been rechecked on the owner's physical iPhone.
-  Earlier signed-device widget verification belongs to build 214 and should
-  not be treated as build-221 evidence.
-- A third Codex review on PR #152 found that the projection inherited a
-  non-Gregorian system calendar while synced `dayKey` values use Gregorian
-  dates. The projection now builds a Gregorian reader calendar with the
-  supplied calendar's time zone, and a Buddhist-calendar regression test checks
-  that current-day history remains visible. Build 221 predates this fix; all
-  app and extension targets are advanced together to 2.2.0 (222), pending a
-  clean review and replacement upload.
+- The 9 `WidgetActivityProjectionTests` and 24 `WidgetSnapshotBuilderTests`
+  pass on the iOS 27 iPhone 18 Pro Simulator. Build 222 has not yet been
+  rechecked on the owner's physical iPhone. Earlier signed-device widget
+  verification belongs to build 214 and should not be treated as build-222
+  evidence.
