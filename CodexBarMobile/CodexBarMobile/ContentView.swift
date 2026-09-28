@@ -196,7 +196,10 @@ struct ContentView: View {
                 ReleaseNotesView(
                     showsHistory: false,
                     onDone: { self.releaseNotesSeenVersion = self.currentVersion },
-                    onDemo: { self.isDemoMode = true })
+                    onDemo: {
+                        self.releaseNotesSeenVersion = self.currentVersion
+                        self.isDemoMode = true
+                    })
             }
         }
         .sheet(isPresented: self.$isWidgetSettingsPresented) {

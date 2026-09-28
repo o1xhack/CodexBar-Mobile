@@ -1,6 +1,6 @@
 # 058 — iOS 2.2.0 Widget Redesign and Token Activity Heatmaps
 
-Status: `done` (2.2.0 (220) uploaded; App Store version record prepared)
+Status: `in-progress` (PR #152 CR fix; build 221 awaiting review and upload)
 Date: 2026-09-25
 Branch: `feature/ios-220-widget-redesign`
 
@@ -814,3 +814,10 @@ down behavior stay available.
   evidence; this exact build has not yet been rechecked on the owner's physical
   iPhone. Earlier signed-device widget verification belongs to build 214 and
   should not be treated as build-220 evidence.
+- The first Codex review on PR #152 found that starting Demo from Setup Guide
+  left the first-launch notes cover active. The callback now records the
+  current marketing version before entering Demo, and
+  `testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes` passes on
+  the iOS 27 iPhone 18 Pro Simulator. Build 220 predates this fix; project
+  targets are now advanced together to 2.2.0 (221), which will replace the
+  App Store version's build binding after the current head passes review.

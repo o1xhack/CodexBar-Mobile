@@ -39,6 +39,33 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "UI_TEST_PREVIEW_DATA",
+            "UI_TEST_RESET_DEFAULTS",
+            "-AppleLanguages",
+            "(en)",
+            "-AppleLocale",
+            "en_US",
+        ]
+        app.launch()
+
+        let setup = app.buttons["release-notes-setup"]
+        XCTAssertTrue(setup.waitForExistence(timeout: 8))
+        setup.tap()
+
+        let demoPreview = app.buttons["Preview with Demo Data"]
+        XCTAssertTrue(app.navigationBars["Setup Guide"].waitForExistence(timeout: 5))
+        XCTAssertTrue(demoPreview.waitForExistence(timeout: 5))
+        demoPreview.tap()
+
+        XCTAssertTrue(app.navigationBars["CodexBar (Demo)"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Exit Demo"].exists)
+        XCTAssertFalse(app.buttons["release-notes-done"].exists)
+    }
+
+    @MainActor
     func testPhoneNavigationSafeAreaAndRotation() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
