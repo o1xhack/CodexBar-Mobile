@@ -848,3 +848,14 @@ down behavior stay available.
   rechecked on the owner's physical iPhone. Earlier signed-device widget
   verification belongs to build 214 and should not be treated as build-222
   evidence.
+
+## 2026-09-28 App Review submission
+
+This is the post-submission ASC snapshot. The earlier pre-submission snapshot above
+is retained as a historical record.
+
+- Submitted App Store version 2.2.0 through the App Store Connect review-submissions workflow at `2026-09-28T20:15:00.704Z` (`13:15:00 PDT`). Review submission `028dfee3-a7dd-411f-b660-75a23e0285c7` is `WAITING_FOR_REVIEW`; its sole review item is `READY_FOR_REVIEW` and links to App Store version `35be3819-d4d8-40f0-a1de-2ac0cd11aeca`.
+- Version and submission independently read back as `WAITING_FOR_REVIEW`. The version remains `MANUAL`; this is not approval or public availability.
+- Selected build 222 (`0098f7d9-ac77-4ae2-95bb-7115b7bb208b`) remains `VALID`, unexpired, and bound to version 2.2.0. Its archived source commit, archive path, executable SHA-256, Production CloudKit entitlement, and four localized What's New values are recorded in the pre-submission section above.
+- The App Store Connect version has populated What's New text for `en-US`, `zh-Hans`, `zh-Hant`, and `ja`. No other active review submission exists for this app.
+- Physical iPhone QA for build 222 remains pending; earlier device evidence from build 214 does not validate this candidate.
