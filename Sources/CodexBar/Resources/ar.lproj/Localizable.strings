@@ -1707,3 +1707,13 @@
 "antigravity_cost_estimate_hint" = "الاستخدام المحلي × أسعار واجهة البرمجة العامة · ليست رسوم أو أرصدة Antigravity";
 "antigravity_quota_window_note" = "تكلفة النافذة تشمل كل النماذج · النافذة المعروضة هي الفئة الأكثر تقييدًا";
 "antigravity_no_priced_token_history" = "لا يتوفر سجل رموز Antigravity مُسعّر.";
+
+/* Aixy quota warning labels */
+"Organization" = "مؤسسة";
+"Project" = "مشروع";
+"User" = "مستخدم";
+"Key" = "مفتاح";
+"Lifetime" = "مدى الحياة";
+"Shared" = "مشترك";
+"Hard" = "صارم";
+"Monitor" = "مراقبة";

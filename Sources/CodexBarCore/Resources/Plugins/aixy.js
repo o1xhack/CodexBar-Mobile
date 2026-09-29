@@ -1,24 +1,3 @@
-function _optionalChain(ops) {
-  let lastAccessLHS = undefined;
-  let value = ops[0];
-  let i = 1;
-  while (i < ops.length) {
-    const op = ops[i];
-    const fn = ops[i + 1];
-    i += 2;
-    if ((op === "optionalAccess" || op === "optionalCall") && value == null) {
-      return undefined;
-    }
-    if (op === "access" || op === "optionalAccess") {
-      lastAccessLHS = value;
-      value = fn(value);
-    } else if (op === "call" || op === "optionalCall") {
-      value = fn((...args) => value.call(lastAccessLHS, ...args));
-      lastAccessLHS = undefined;
-    }
-  }
-  return value;
-}
 defineProvider({
   id: "aixy",
   name: "Aixy",
@@ -165,6 +144,7 @@ defineProvider({
           window: {
             usedPercent: known ? ctx.pct(used, limit) : 0,
             windowMinutes: minutes !== undefined && Number.isSafeInteger(minutes) && minutes > 0 ? minutes : undefined,
+            period: interval,
             resetsAt,
             resetDescription: `${title} · ${known ? `${ctx.format.usd(remaining)} remaining` : "Unavailable"}`,
           },
@@ -240,8 +220,8 @@ defineProvider({
       details.push({ title: "Last 7 days · this key", rows: [{ label: "Usage", value: "Unavailable" }] });
     }
     return {
-      primary: _optionalChain([selected, "access", (_) => _[0], "optionalAccess", (_2) => _2.window]),
-      secondary: _optionalChain([selected, "access", (_3) => _3[1], "optionalAccess", (_4) => _4.window]),
+      primary: selected[0] ? { ...selected[0].window, id: selected[0].id, label: selected[0].title } : undefined,
+      secondary: selected[1] ? { ...selected[1].window, id: selected[1].id, label: selected[1].title } : undefined,
       extraWindows: budgets
         .filter((budget) => !selected.includes(budget))
         .map((budget) => ({

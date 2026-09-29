@@ -98,7 +98,9 @@ struct CredentialNotificationTests {
         settings.statusChecksEnabled = false
         settings.addTokenAccount(provider: .deepseek, label: "First", token: "fixture-first")
         settings.addTokenAccount(provider: .deepseek, label: "Second", token: "fixture-second")
+        enableTestProviders([.deepseek], settings: settings)
         let store = Self.store(settings)
+        store._test_credentialNotificationPost = { _, completion in completion(true) }
         let accounts = settings.tokenAccounts(for: .deepseek)
         #expect(accounts.count == 2)
         for index in [0, 1, 0] {
@@ -116,7 +118,7 @@ struct CredentialNotificationTests {
                     account: accounts[index],
                     fallbackSnapshot: nil)
             } else {
-                store._test_providerFetchOutcomeOverride = { _ in outcome }
+                store._test_tokenAccountFetchOutcomeOverride = { _, _ in outcome }
                 await store.refreshProvider(.deepseek, allowDisabled: true)
             }
         }

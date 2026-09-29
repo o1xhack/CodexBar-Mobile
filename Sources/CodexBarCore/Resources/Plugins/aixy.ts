@@ -144,6 +144,7 @@ defineProvider({
           window: {
             usedPercent: known ? ctx.pct(used!, limit) : 0,
             windowMinutes: minutes !== undefined && Number.isSafeInteger(minutes) && minutes > 0 ? minutes : undefined,
+            period: interval as "daily" | "weekly" | "monthly" | "lifetime",
             resetsAt,
             resetDescription: `${title} · ${known ? `${ctx.format.usd(remaining!)} remaining` : "Unavailable"}`,
           },
@@ -219,8 +220,8 @@ defineProvider({
       details.push({ title: "Last 7 days · this key", rows: [{ label: "Usage", value: "Unavailable" }] });
     }
     return {
-      primary: selected[0]?.window,
-      secondary: selected[1]?.window,
+      primary: selected[0] ? { ...selected[0].window, id: selected[0].id, label: selected[0].title } : undefined,
+      secondary: selected[1] ? { ...selected[1].window, id: selected[1].id, label: selected[1].title } : undefined,
       extraWindows: budgets
         .filter((budget) => !selected.includes(budget))
         .map((budget) => ({

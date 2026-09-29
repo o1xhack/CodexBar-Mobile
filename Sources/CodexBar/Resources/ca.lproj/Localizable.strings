@@ -1706,3 +1706,13 @@
 "weekly_limit_confetti_subtitle" = "Mostreu confeti a pantalla completa quan es reinicia l'ús setmanal.";
 "weekly_limit_confetti_title" = "Confeti del límit setmanal";
 "∞ Unlimited" = "∞ Il·limitat";
+
+/* Aixy quota warning labels */
+"Organization" = "Organització";
+"Project" = "Projecte";
+"User" = "Usuari";
+"Key" = "Clau";
+"Lifetime" = "De per vida";
+"Shared" = "Compartit";
+"Hard" = "Estricte";
+"Monitor" = "Supervisió";

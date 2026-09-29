@@ -98,8 +98,8 @@ public struct GrokUsageSnapshot: Sendable {
             tertiary: nil,
             costUsage: self.localSummary?.toCostUsageTokenSnapshot(
                 historyDays: GrokLocalSessionScanner.defaultLookbackDays),
-            grokUsage: self,
             details: details,
+            grokUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }

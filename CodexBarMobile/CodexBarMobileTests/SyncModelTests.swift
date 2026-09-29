@@ -11,8 +11,11 @@ struct SyncModelTests {
             providerID: "claude",
             providerName: "Claude",
             primary: SyncRateWindow(
+                id: "aixy-33333333-3333-4333-8333-333333333333",
+                label: "Project · Monthly · Shared · Hard",
                 usedPercent: 42.5,
                 windowMinutes: 300,
+                period: .monthly,
                 resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
                 resetDescription: "Resets in 2h 30m"),
             secondary: SyncRateWindow(
@@ -38,6 +41,9 @@ struct SyncModelTests {
         #expect(decoded.providerName == "Claude")
         #expect(decoded.primary?.usedPercent == 42.5)
         #expect(decoded.primary?.windowMinutes == 300)
+        #expect(decoded.primary?.id == "aixy-33333333-3333-4333-8333-333333333333")
+        #expect(decoded.primary?.label == "Project · Monthly · Shared · Hard")
+        #expect(decoded.primary?.period == .monthly)
         #expect(decoded.primary?.remainingPercent == 57.5)
         #expect(decoded.secondary?.usedPercent == 15.0)
         #expect(decoded.accountEmail == "user@example.com")
@@ -153,6 +159,7 @@ struct SyncModelTests {
 
         #expect(decoded.providerID == "claude")
         #expect(decoded.primary?.usedPercent == 42.5)
+        #expect(decoded.primary?.period == nil)
         #expect(decoded.costSummary == nil)
         #expect(decoded.budget == nil)
         #expect(decoded.subscriptionExpiresAt == nil)

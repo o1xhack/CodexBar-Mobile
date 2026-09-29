@@ -715,7 +715,7 @@ final class SyncCoordinator {
         return confidence.rawValue
     }
 
-    private static func syncRateWindow(
+    static func syncRateWindow(
         id: String?,
         label: String?,
         window: RateWindow,
@@ -727,6 +727,7 @@ final class SyncCoordinator {
             usedPercent: window.usedPercent,
             usageKnown: usageKnown,
             windowMinutes: window.windowMinutes,
+            period: window.period.flatMap { SyncRateWindowPeriod(rawValue: $0.rawValue) },
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
             nextRegenPercent: window.nextRegenPercent,
@@ -926,6 +927,7 @@ final class SyncCoordinator {
             : nil
         let bucketTimeZoneIdentifier = tokenSnapshot.bucketTimeZoneIdentifier ?? "UTC"
         let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? .gmt
+        let bucketCalendar = CostUsageBucketTimeZone.calendar(identifier: bucketTimeZoneIdentifier)
         let sourceDayKey = tokenSnapshot.windowEndDayKey
             ?? Self.producerDayKey(tokenSnapshot.updatedAt, timeZone: bucketTimeZone)
 
@@ -936,7 +938,12 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot.last30DaysTokens,
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
-            historyDays: tokenSnapshot.historyDays,
+            // Legacy iOS builds use historyDays as their only period label.
+            // For all-time summaries, publish the observed span instead of the
+            // all-time scan sentinel so older clients do not render hundreds
+            // of thousands of days.
+            historyDays: tokenSnapshot.displayHistoryDays(calendar: bucketCalendar),
+            reportingPeriod: (tokenSnapshot.reportingPeriod ?? .rolling(days: tokenSnapshot.historyDays)).rawValue,
             sessionRequests: tokenSnapshot.sessionRequests,
             last30DaysRequests: tokenSnapshot.last30DaysRequests,
             currencyCode: tokenSnapshot.currencyCode,
@@ -985,7 +992,7 @@ final class SyncCoordinator {
             } else {
                 metadata?.sessionLabel
             }
-            let window = Self.syncRateWindow(id: "primary", label: label, window: p)
+            let window = Self.syncRateWindow(id: p.id ?? "primary", label: p.label ?? label, window: p)
             rateWindows.append(window)
             semanticWindows.primary = window
         }
@@ -995,7 +1002,7 @@ final class SyncCoordinator {
                     window: s,
                     fallback: metadata?.weeklyLabel ?? "Usage")
                 : metadata?.weeklyLabel
-            let window = Self.syncRateWindow(id: "secondary", label: label, window: s)
+            let window = Self.syncRateWindow(id: s.id ?? "secondary", label: s.label ?? label, window: s)
             rateWindows.append(window)
             semanticWindows.secondary = window
         }
@@ -2255,6 +2262,7 @@ final class SyncCoordinator {
             tokenBucketTimeZoneIdentifier
         }
         let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? fallbackBucketTimeZone
+        let bucketCalendar = CostUsageBucketTimeZone.calendar(identifier: bucketTimeZoneIdentifier)
         let sourceDayKey = costSourceUpdatedAt.map { Self.producerDayKey($0, timeZone: bucketTimeZone) }
         let sessionDayKey = tokenSnapshot.map { Self.producerDayKey($0.updatedAt, timeZone: bucketTimeZone) }
         let sessionCostIsKnown: Bool? = if publishesSessionFallback,
@@ -2283,7 +2291,13 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
-            historyDays: tokenSnapshot?.historyDays,
+            // Keep the legacy day-count label useful to older iOS readers when
+            // the selected period is all-time; current readers use the
+            // explicit reportingPeriod below.
+            historyDays: tokenSnapshot.map { $0.displayHistoryDays(calendar: bucketCalendar) },
+            reportingPeriod: tokenSnapshot.map {
+                ($0.reportingPeriod ?? .rolling(days: $0.historyDays)).rawValue
+            },
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
             currencyCode: tokenSnapshot?.currencyCode,
@@ -2412,6 +2426,7 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: projected.historyDays,
+            reportingPeriod: CostReportingPeriod.monthToDate.rawValue,
             sessionRequests: nil,
             last30DaysRequests: projected.last30DaysRequests,
             currencyCode: projected.currencyCode,

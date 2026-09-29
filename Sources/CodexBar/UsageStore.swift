@@ -135,6 +135,25 @@ extension UsageStore {
         }
         return nil
     }
+
+    var tokenFetchTTL: TimeInterval? {
+        Self.tokenFetchTTL(
+            for: self.settings.refreshFrequency,
+            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
+    }
+
+    static func tokenFetchTTL(
+        for frequency: RefreshFrequency,
+        lowPowerModeEnabled: Bool = false) -> TimeInterval?
+    {
+        let interval = frequency.usesAdaptivePolicy
+            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
+            : frequency.seconds
+        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
+        return BackgroundWorkPowerPolicy.automaticInterval(
+            widgetSafeInterval,
+            lowPowerModeEnabled: lowPowerModeEnabled)
+    }
 }
 
 @MainActor
@@ -284,6 +303,8 @@ final class UsageStore {
     @ObservationIgnored var _test_providerFetchOutcomeOverride: (@MainActor (
         UsageProvider) async -> ProviderFetchOutcome)?
     #if DEBUG
+    @ObservationIgnored var _test_tokenAccountFetchOutcomeOverride: (@MainActor (
+        UsageProvider, ProviderTokenAccount) async -> ProviderFetchOutcome)?
     @ObservationIgnored var _test_codexAccountScopedRefreshDidComplete: (@MainActor () -> Void)?
     @ObservationIgnored var _test_codexPlanHistoryBackfillWillRecord: (@MainActor () -> Void)?
     @ObservationIgnored var _test_cursorCostCredentialFingerprintOverride: (() -> String?)?
@@ -499,25 +520,6 @@ final class UsageStore {
     /// Energy/WidgetKit floor for expensive local-history scans and their additional snapshot publications.
     /// Faster provider refreshes still update quota/status normally, but reuse token-cost history within this TTL.
     static let minimumTokenFetchTTL: TimeInterval = 15 * 60
-
-    var tokenFetchTTL: TimeInterval? {
-        Self.tokenFetchTTL(
-            for: self.settings.refreshFrequency,
-            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
-    }
-
-    static func tokenFetchTTL(
-        for frequency: RefreshFrequency,
-        lowPowerModeEnabled: Bool = false) -> TimeInterval?
-    {
-        let interval = frequency.usesAdaptivePolicy
-            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
-            : frequency.seconds
-        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
-        return BackgroundWorkPowerPolicy.automaticInterval(
-            widgetSafeInterval,
-            lowPowerModeEnabled: lowPowerModeEnabled)
-    }
 
     @ObservationIgnored let tokenFetchTimeout: TimeInterval = 10 * 60
     @ObservationIgnored let startupBehavior: StartupBehavior
@@ -1075,10 +1077,8 @@ extension UsageStore {
             onScreenAlertEnabled: self.settings.quotaWarningOnScreenAlertEnabled)
         if self.settings.notificationPushToiOSEnabled {
             self.quotaTransitionWriter.writeQuotaWarning(
-                provider: provider,
-                window: event.window,
-                threshold: event.threshold,
-                accountDisplayName: event.accountDisplayName)
+                event: event,
+                provider: provider)
         }
     }
 

@@ -243,6 +243,76 @@ struct SyncQuotaWarningConfigTests {
         #expect(result.enabled == false)
     }
 
+    @Test("period metadata routes xKiro daily windows to session controls")
+    func dailyPeriodUsesSessionControls() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "xkiro",
+            providerName: "xKiro",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(
+                sessionThresholds: [75],
+                sessionEnabled: false,
+                weeklyThresholds: [35],
+                weeklyEnabled: true))
+
+        let result = snapshot.quotaWarning(forWindowIndex: 0, period: .daily)
+
+        #expect(result.thresholds == [75])
+        #expect(result.enabled == false)
+    }
+
+    @Test("Aixy budget periods route promoted and named windows to matching controls")
+    func aixyPeriodsUseMatchingControls() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "aixy",
+            providerName: "Aixy",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(
+                sessionThresholds: [75],
+                weeklyThresholds: [35]))
+
+        let daily = snapshot.quotaWarning(forWindowIndex: 0, windowID: "aixy-daily", period: .daily)
+        let monthly = snapshot.quotaWarning(forWindowIndex: 1, windowID: "aixy-monthly", period: .monthly)
+        let lifetime = snapshot.quotaWarning(forWindowIndex: 2, windowID: "aixy-lifetime", period: .lifetime)
+
+        #expect(daily.thresholds == [75])
+        #expect(monthly.thresholds == [35])
+        #expect(lifetime.thresholds == [35])
+        #expect(daily.enabled && monthly.enabled && lifetime.enabled)
+    }
+
+    @Test("unsupported extra period keeps markers disabled")
+    func unsupportedExtraPeriodRemainsDisabled() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: SyncQuotaWarningConfig(sessionThresholds: [50]))
+
+        let result = snapshot.quotaWarning(forWindowIndex: 2, windowID: "extra", period: .daily)
+
+        #expect(result.thresholds == nil)
+        #expect(result.enabled == false)
+    }
+
     @Test("nil quotaWarnings falls back to Mac defaults — never empty render")
     func windowHelperNilFallback() {
         let snapshot = ProviderUsageSnapshot(

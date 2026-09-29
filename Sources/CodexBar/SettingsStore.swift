@@ -540,7 +540,8 @@ extension SettingsStore {
         let macFleetSyncEnabled = userDefaults.object(forKey: "macFleetSyncEnabled") as? Bool ?? false
         let macFleetSyncIncludeSecrets = userDefaults.object(forKey: "macFleetSyncIncludeSecrets") as? Bool ?? true
         let macFleetSyncSnapshotsEnabled = userDefaults.object(forKey: "macFleetSyncSnapshotsEnabled") as? Bool ?? true
-        let macFleetSyncShowFleetAccounts = userDefaults.object(forKey: "macFleetSyncShowFleetAccounts") as? Bool ?? true
+        let macFleetSyncShowFleetAccounts = userDefaults
+            .object(forKey: "macFleetSyncShowFleetAccounts") as? Bool ?? true
         // Share one physical Mac identity across the Mac fleet and iPhone sync channels.
         let sharedDeviceIDKey = "com.codexbar.sync.deviceID"
         let macFleetSyncDeviceID = userDefaults.string(forKey: sharedDeviceIDKey) ?? UUID().uuidString.lowercased()
@@ -597,6 +598,8 @@ extension SettingsStore {
             kiroMenuBarDisplayModeRaw: userDefaults.string(forKey: "kiroMenuBarDisplayMode")
                 ?? KiroMenuBarDisplayMode.automatic.rawValue,
             historicalTrackingEnabled: userDefaults.object(forKey: "historicalTrackingEnabled") as? Bool ?? false,
+            iCloudSyncEnabled: iCloudSyncEnabled,
+            notificationPushToiOSEnabled: notificationPushToiOSEnabled,
             multiAccountMenuLayoutRaw: multiAccountMenuLayoutRaw,
             accountWidgetsEnabled: userDefaults.bool(forKey: "accountWidgetsEnabled"),
             menuBarMetricPreferencesRaw: resolvedPreferences,
@@ -684,8 +687,6 @@ extension SettingsStore {
             agentSessionsHideUnreachableHosts: userDefaults.object(
                 forKey: "agentSessionsHideUnreachableHosts") as? Bool ?? false,
             preferredCurrencyCode: userDefaults.string(forKey: "preferredCurrencyCode") ?? "USD",
-            iCloudSyncEnabled: iCloudSyncEnabled,
-            notificationPushToiOSEnabled: notificationPushToiOSEnabled,
             macFleetSyncEnabled: macFleetSyncEnabled,
             macFleetSyncIncludeSecrets: macFleetSyncIncludeSecrets,
             macFleetSyncSnapshotsEnabled: macFleetSyncSnapshotsEnabled,
@@ -1026,6 +1027,10 @@ extension SettingsStore {
 
     func providerConfigRevision(forInstanceID instanceID: ProviderInstanceID) -> UInt64 {
         self.providerConfigRevisions[instanceID, default: 0]
+    }
+
+    func providerInstanceConfigRevision(for instanceID: ProviderInstanceID) -> UInt64 {
+        self.providerConfigRevision(forInstanceID: instanceID)
     }
 
     func orderedProviders() -> [ProviderInstanceID] {

@@ -1,6 +1,6 @@
 # v0.67.0–v0.68.0 单版本上游同步
 
-Status: `ready`
+Status: `in-progress`
 Date: 2026-09-28
 
 ## 基线、范围与分支
@@ -48,10 +48,10 @@ Date: 2026-09-28
 ## 关键风险与证据边界
 
 - 上游范围跨度不大但源代码重构面很广：插件声明/运行时、provider specs、Usage & Spend、widgets 和安全文件写入都有变更；冲突解决必须对照 fork-owned seams，不可用整文件 ours/theirs 粗略覆盖。
-- iOS 有 provider 通用 ID、`rateWindows`、`providerAmount`、`costSummary` 与 generic `details` wire；但 xKiro、Raycast、Aixy 及 Grok/LiteLLM/Claude Admin 等新增展示仍需逐项从 Mac `SyncCoordinator` 到 iOS view/Localization 验证。
-- 若给新增 provider 增加 quota push subscription 并因此引入新的 CloudKit zone，按 `docs/cloudkit-deploy-audit.md` 评估为 deploy gate；没有独立 Production deploy 授权时只能准备、审计并暂停该操作。
+- iOS 复用 provider 通用 ID、`rateWindows`、`providerAmount`、`costSummary` 与 generic `details` wire；xKiro、Raycast、Aixy 及 Grok/LiteLLM/Claude Admin 展示已按 Mac `SyncCoordinator` → iOS model/view/localization 审计，并由定向 iOS 测试覆盖。兼容矩阵结果及替代验证边界记录在 `03-testing.md`。
+- quota warning 沿用已有 `QuotaTransition` record type、已部署字段与 subscription predicate；每用户 private-zone / zone-subscription 实例属于运行时数据，不是 Dashboard schema。本轮对照 CloudKit 代码结论为 `NO_DEPLOY`；没有读取或写入 Production。
 - 双 Mac × 双 iPhone 的真实 Production 环境矩阵若无法获得设备和 owner-account 状态，16 组合必须逐行标 `substituted`，使用隔离 fixtures / Simulator / code audit，并写明真实设备与 silent push 残余风险。
-- Mac 发布凭证、GitHub draft 操作、CloudKit Production deploy、TestFlight upload、tag push、PR merge 和 live release 都是独立边界。所有无需这些边界的代码、文档、构建、测试和 review 先完成。
+- 代码、文档、双架构 Mac 构建、iOS Release 构建、测试、lint、CloudKit schema audit 和独立 review 已在当前分支完成。当前只剩签名/公证和创建无 tag 的 GitHub draft 所需的 release 凭证授权；不进行 CloudKit deploy、TestFlight upload、tag push、PR merge 或 live release。
 
 ## 文档索引
 

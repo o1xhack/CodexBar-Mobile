@@ -3,8 +3,33 @@ import Foundation
 import Testing
 @testable import CodexBarMobile
 
-@Suite("iOS 2.1 bundled plugin presentation")
+@Suite("Bundled plugin presentation")
 struct V066ProviderPresentationTests {
+    @Test
+    func `Aixy fixed detail labels localize while dynamic plugin content stays verbatim`() {
+        let expectations: [(locale: String, title: String, key: String, project: String, observed: String)] = [
+            ("en", "Aixy key", "Key", "Project", "Observed"),
+            ("zh-Hans", "Aixy 密钥", "密钥", "项目", "观测时间"),
+            ("zh-Hant", "Aixy 金鑰", "金鑰", "專案", "觀測時間"),
+            ("ja", "Aixy キー", "キー", "プロジェクト", "観測日時"),
+        ]
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderDetailLocalization.localized(
+                "Aixy key", providerID: "aixy", locale: locale) == expectation.title)
+            #expect(ProviderDetailLocalization.localized(
+                "Key", providerID: "aixy", locale: locale) == expectation.key)
+            #expect(ProviderDetailLocalization.localized(
+                "Project", providerID: "aixy", locale: locale) == expectation.project)
+            #expect(ProviderDetailLocalization.localized(
+                "Observed", providerID: "aixy", locale: locale) == expectation.observed)
+            #expect(ProviderDetailLocalization.localized(
+                "customer project", providerID: "aixy", locale: locale) == "customer project")
+            #expect(ProviderDetailLocalization.localized(
+                "Key", providerID: "custom-plugin", locale: locale) == "Key")
+        }
+    }
+
     @Test
     func `new provider detail labels localize without changing custom labels`() {
         let expectations: [(locale: String, credits: String, characters: String, subscription: String)] = [

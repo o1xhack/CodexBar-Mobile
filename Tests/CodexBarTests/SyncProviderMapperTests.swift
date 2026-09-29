@@ -53,6 +53,28 @@ struct SyncProviderMapperTests {
         #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: nil) == "Additional")
     }
 
+    @Test
+    func `promoted rate windows preserve provider identity label and calendar period on the wire`() {
+        let window = RateWindow(
+            usedPercent: 35,
+            windowMinutes: 43200,
+            resetsAt: Self.now,
+            resetDescription: nil,
+            period: .monthly,
+            id: "aixy-budget-123",
+            label: "Project · Monthly · Shared · Hard")
+
+        let mapped = SyncCoordinator.syncRateWindow(
+            id: window.id,
+            label: window.label,
+            window: window)
+
+        #expect(mapped.id == "aixy-budget-123")
+        #expect(mapped.label == "Project · Monthly · Shared · Hard")
+        #expect(mapped.period == .monthly)
+        #expect(mapped.usedPercent == 35)
+    }
+
     @Test(arguments: [UsageProvider.neuralwatt, .zenmux])
     func `zero-limit balances use amount lane`(_ provider: UsageProvider) throws {
         let cost = ProviderCostSnapshot(
@@ -325,6 +347,24 @@ struct SyncProviderMapperTests {
         #expect(identities == [
             "cursor:email:same@example.com",
             "cursor:record:token-a",
+        ])
+    }
+
+    @Test
+    func `mapper keeps Aixy server key identity ahead of local token record key`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: UsageProvider.aixy.instanceID,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "API key",
+            accountID: "key-123")
+        let identities = SyncCoordinator.syncAccountIdentities(
+            provider: .aixy,
+            identity: identity,
+            accountRecordKey: "token-a")
+        #expect(identities == [
+            "aixy:key:key-123",
+            "aixy:record:token-a",
         ])
     }
 

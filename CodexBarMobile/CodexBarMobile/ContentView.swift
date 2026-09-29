@@ -283,7 +283,7 @@ struct ContentView: View {
 
 private struct SetupGuideSheet: View {
     let onDismiss: () -> Void
-    var onDemo: (() -> Void)? = nil
+    var onDemo: (() -> Void)?
 
     var body: some View {
         NavigationStack {
@@ -777,7 +777,8 @@ enum CostTabInsightsResolver {
         localHistoryClearedAt: Date?,
         ledgerWindowDays: Int? = nil) -> CostDashboardInsights?
     {
-        let insights = if isLedgerEnabled, !isDemoMode {
+        let usesLocalLedger = isLedgerEnabled && !isDemoMode && (ledgerWindowDays.map { $0 > 0 } ?? true)
+        let insights = if usesLocalLedger {
             if let aggregation = ledgerAggregation {
                 if aggregation.hasDisplayData {
                     CostDashboardInsights.fromLedger(
@@ -829,10 +830,11 @@ enum CostDiagnosticsReportResolver {
         cwlWindowDays: Int,
         localHistoryClearedAt: Date?) -> CostDiagnosticsReport?
     {
+        let usesLocalLedger = cwlEnabled && cwlWindowDays > 0
         guard let insights = CostTabInsightsResolver.make(
             snapshot: snapshot,
             ledgerAggregation: ledgerAggregation,
-            isLedgerEnabled: cwlEnabled,
+            isLedgerEnabled: usesLocalLedger,
             isDemoMode: false,
             localHistoryClearedAt: localHistoryClearedAt,
             ledgerWindowDays: cwlWindowDays)
@@ -840,7 +842,7 @@ enum CostDiagnosticsReportResolver {
             return nil
         }
 
-        let reportsLocalLedger = cwlEnabled && (
+        let reportsLocalLedger = usesLocalLedger && (
             ledgerAggregation?.hasDisplayData == true || localHistoryClearedAt != nil)
 
         return CostDiagnosticsReport.make(
@@ -848,7 +850,7 @@ enum CostDiagnosticsReportResolver {
             snapshot: snapshot,
             rawDeviceSnapshots: rawDeviceSnapshots,
             activeDeviceSnapshots: activeDeviceSnapshots,
-            cwlEnabled: cwlEnabled,
+            cwlEnabled: usesLocalLedger,
             cwlWindowDays: cwlWindowDays,
             ledgerAvailable: reportsLocalLedger)
     }
@@ -863,7 +865,7 @@ enum CostDiagnosticsLedgerAggregationResolver {
         sourceSnapshots: [SyncedUsageSnapshot] = [],
         asOf: Date = Date()) -> CostLedgerAggregation?
     {
-        guard cwlEnabled else { return nil }
+        guard cwlEnabled, cwlWindowDays > 0 else { return nil }
         return try? CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
             windowDays: cwlWindowDays,
             in: modelContext,
@@ -880,9 +882,8 @@ private struct CostTab: View {
     @State private var completedHistory: CostHistoryPresentation?
     @State private var historyError: String?
 
-    // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
-    // in demo mode, the dashboard reads the ledger (re-windowed by
-    // `cwlWindowDays`) instead of the blob path.
+    // Cost Window Ledger dispatch. A zero-day window follows the synced Mac
+    // reporting period; positive values re-window the local ledger.
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = MobileSettingsDefaults.cwlEnabled
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = MobileSettingsDefaults.cwlWindowDays
@@ -927,7 +928,7 @@ private struct CostTab: View {
     }
 
     private var shouldUseLedger: Bool {
-        self.cwlEnabled && !self.isDemoMode
+        self.cwlEnabled && self.cwlWindowDays > 0 && !self.isDemoMode
     }
 
     private var costSourceTimeZoneIdentifiers: Set<String> {
@@ -943,7 +944,7 @@ private struct CostTab: View {
 
     private var ledgerRefreshSignature: String {
         CostLedgerRefreshSignature.make(
-            isEnabled: true,
+            isEnabled: self.shouldUseLedger,
             windowDays: self.cwlWindowDays,
             activeDeviceIDs: self.activeDeviceIDsForLedger,
             snapshots: self.usageData.deviceSnapshots,
@@ -961,7 +962,7 @@ private struct CostTab: View {
                 snapshot: snapshot,
                 sourceSnapshots: self.usageData.deviceSnapshots,
                 activeDeviceIDs: self.activeDeviceIDsForLedger,
-                windowDays: self.cwlWindowDays,
+                windowDays: max(1, self.cwlWindowDays),
                 useLedger: self.shouldUseLedger,
                 isDemoMode: self.isDemoMode,
                 clearTombstone: CostLedgerService.blobSeedClearTombstoneDate()))
@@ -1187,7 +1188,11 @@ private struct CostDashboardView: View {
                 .font(.headline)
                 .padding(.top, 4)
 
-            if self.insights.hasIncompleteCostData {
+            if !self.insights.hasComparableHistoryTotals {
+                Text("Cost windows differ, so history totals are unavailable.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else if self.insights.hasIncompleteCostData {
                 Text("Historical cost coverage is incomplete.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -1196,13 +1201,12 @@ private struct CostDashboardView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 CostMetricCard(
                     // Reflect the Mac's configurable 1–365 day window (gap F).
-                    title: self.insights.historyDays.flatMap {
-                        $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
-                    } ?? "30 Days",
+                    title: "30 Days",
+                    localizedTitleOverride: self.insights.historyDisplayTitle,
                     value: self.insights.total30DayCostIsKnown
                         ? Self.formatUSD(self.insights.total30DayCost)
                         : "—",
-                    subtitle: self.insights.total30DayTokens > 0 ? Self
+                    subtitle: self.insights.hasComparableHistoryTotals && self.insights.total30DayTokens > 0 ? Self
                         .formatTokens(self.insights.total30DayTokens) : nil,
                     tintColor: .orange)
 
@@ -1506,7 +1510,7 @@ private struct CostDashboardView: View {
                         FullBudgetListView(rows: rows)
                     } label: {
                         OthersBudgetRowView(
-                            names: tail.map { $0.provider.providerName },
+                            names: tail.map(\.provider.providerName),
                             count: tail.count)
                     }
                     .buttonStyle(.plain)
@@ -1729,7 +1733,7 @@ struct CostDashboardInsights: Sendable {
     }
 
     var total30DayCostIsKnown: Bool {
-        self.providerRows.contains(where: \.thirtyDayCostIsKnown)
+        self.hasComparableHistoryTotals && self.providerRows.contains(where: \.thirtyDayCostIsKnown)
     }
 
     var totalTodayCostIsKnown: Bool {
@@ -1779,11 +1783,13 @@ struct CostDashboardInsights: Sendable {
     }
 
     var total30DayTokens: Int {
-        SyncCounterMath.saturatingSum(self.providerRows.map { max(0, $0.thirtyDayTokens) })
+        guard self.hasComparableHistoryTotals else { return 0 }
+        return SyncCounterMath.saturatingSum(self.providerRows.map { max(0, $0.thirtyDayTokens) })
     }
 
     var spendProviderRows: [ProviderRow] {
-        self.providerRows.filter { $0.thirtyDayCostIsKnown && $0.thirtyDayCost > 0 }
+        guard self.hasComparableHistoryTotals else { return [] }
+        return self.providerRows.filter { $0.thirtyDayCostIsKnown && $0.thirtyDayCost > 0 }
     }
 
     var costDailyPoints: [DailyPoint] {
@@ -1797,6 +1803,28 @@ struct CostDashboardInsights: Sendable {
     var historyDays: Int? {
         if let cwlWindowDays = self.cwlWindowDays { return cwlWindowDays }
         return self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
+    }
+
+    var hasComparableHistoryTotals: Bool {
+        guard self.cwlWindowDays == nil else { return true }
+        let summaries = self.providerRows.compactMap(\.provider.costSummary)
+        guard !summaries.isEmpty, summaries.count == self.providerRows.count else { return true }
+        guard summaries.allSatisfy({ $0.historyWindowIsComparable != false }) else { return false }
+        let periods = Set(summaries.map { summary in
+            summary.reportingPeriod ?? "rolling:\(max(1, min(summary.historyDays ?? 30, 365)))"
+        })
+        return periods.count == 1
+    }
+
+    var historyDisplayTitle: String {
+        guard self.hasComparableHistoryTotals else { return String(localized: "Mixed cost windows") }
+        if let cwlWindowDays = self.cwlWindowDays {
+            return SyncCostSummary.localizedRollingPeriodTitle(cwlWindowDays)
+        }
+        if let summary = self.providerRows.compactMap(\.provider.costSummary).first {
+            return summary.reportingPeriodDisplayTitle
+        }
+        return SyncCostSummary.localizedRollingPeriodTitle(self.historyDays ?? 30)
     }
 
     var topProvider: ProviderRow? {
@@ -2002,7 +2030,9 @@ struct CostDashboardInsights: Sendable {
             let totals = Self.ledgerDisplayTotals(
                 rollup: rollup,
                 provider: provider,
-                windowDays: aggregation.windowDays)
+                windowDays: aggregation.windowDays,
+                now: now,
+                calendar: calendar)
             let providerDailyPoints = rollup.dailyPoints.compactMap(Self.dailyPoint)
             for point in rollup.dailyPoints {
                 dailyTotals[point.dayKey, default: .init()].ingest(point)
@@ -2051,7 +2081,9 @@ struct CostDashboardInsights: Sendable {
             let totals = Self.ledgerDisplayTotals(
                 rollup: emptyRollup,
                 provider: provider,
-                windowDays: aggregation.windowDays)
+                windowDays: aggregation.windowDays,
+                now: now,
+                calendar: calendar)
             let todayTotals = costSummary.todayTotals(now: now)
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
@@ -2067,12 +2099,22 @@ struct CostDashboardInsights: Sendable {
             let fallbackDailyCost = availableFallbackPoints.isEmpty
                 ? nil
                 : availableFallbackPoints.reduce(0) { $0 + $1.costUSD }
+            let fallbackDailyCoverageIsComplete = Self.dailyPointsCoverSelectedWindow(
+                fallbackSyncPoints,
+                summary: costSummary,
+                windowDays: aggregation.windowDays,
+                now: now,
+                calendar: calendar,
+                pointsUseReaderCalendar: false)
             let fallbackDailyTokens = SyncCounterMath.saturatingSum(fallbackSyncPoints.map { max(0, $0.totalTokens) })
             let resolvedCost = max(totals.costUSD, max(fallbackDailyCost ?? 0, todayCost))
-            let resolvedCostIsKnown = totals.costIsKnown || fallbackDailyCost != nil || resolvedTodayCost != nil
+            let resolvedCostIsKnown = totals.costIsKnown || fallbackDailyCoverageIsComplete
             let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
             guard resolvedCostIsKnown || resolvedTodayCost != nil ||
                 resolvedTokens > 0 ||
+                costSummary.last30DaysCostUSD != nil ||
+                costSummary.last30DaysTokens != nil ||
+                !costSummary.daily.isEmpty ||
                 costSummary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 continue
@@ -2151,13 +2193,20 @@ struct CostDashboardInsights: Sendable {
             cwlWindowDays: aggregation.windowDays)
     }
 
-    private static func ledgerDisplayTotals(
+    static func ledgerDisplayTotals(
         rollup: CostLedgerProviderRollup,
         provider: ProviderUsageSnapshot,
-        windowDays: Int) -> (costUSD: Double, tokens: Int, costIsKnown: Bool)
+        windowDays: Int,
+        now: Date = Date(),
+        calendar: Calendar = .current) -> (costUSD: Double, tokens: Int, costIsKnown: Bool)
     {
-        let ledgerCostIsKnown = rollup.dailyPoints.contains { $0.costIsKnown != false }
-            || rollup.totalCostUSD != 0
+        let ledgerCostIsKnown = Self.dailyPointsCoverSelectedWindow(
+            rollup.dailyPoints,
+            summary: provider.costSummary,
+            windowDays: windowDays,
+            now: now,
+            calendar: calendar,
+            pointsUseReaderCalendar: true)
         guard let summary = provider.costSummary else {
             return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
         }
@@ -2165,25 +2214,73 @@ struct CostDashboardInsights: Sendable {
         var costUSD = rollup.totalCostUSD
         var tokens = rollup.totalTokens
         var costIsKnown = ledgerCostIsKnown
-        let summaryWindowDays = max(1, min(summary.historyDays ?? 30, 365))
 
-        if summaryWindowDays == windowDays {
-            if let summaryCost = summary.last30DaysCostUSD {
-                costUSD = summaryCost
-                costIsKnown = true
-            }
-            tokens = summary.last30DaysTokens ?? tokens
-        } else if summaryWindowDays < windowDays {
-            if let summaryCost = summary.last30DaysCostUSD {
-                costUSD = max(costUSD, summaryCost)
-                costIsKnown = true
-            }
-            if let summaryTokens = summary.last30DaysTokens {
-                tokens = max(tokens, summaryTokens)
+        // The legacy last30 fields can only stand in for this selected range
+        // when their semantics are unambiguous. `historyDays` is coverage
+        // metadata, not a reporting-period identifier: in particular, a
+        // month-to-date summary with 28 days of history is not rolling:30.
+        let selectedRollingPeriod = "rolling:\(windowDays)"
+        let hasMatchingModernPeriod = summary.reportingPeriod == selectedRollingPeriod
+        let hasMatchingLegacyPeriod = summary.reportingPeriod == nil
+            && (summary.historyDays == windowDays || (windowDays == 30 && summary.historyDays == nil))
+        guard summary.historyWindowIsComparable != false,
+              summary.historyCoverageIsEstablished != false,
+              !summary.hasIncompleteHistoricalCostCoverage(at: now),
+              !summary.hasInvalidBucketTimeZoneIdentifier,
+              summary.coverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
+              hasMatchingModernPeriod || hasMatchingLegacyPeriod
+        else {
+            return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
+        }
+
+        if let summaryCost = summary.last30DaysCostUSD {
+            costUSD = summaryCost
+            costIsKnown = true
+        }
+        tokens = summary.last30DaysTokens ?? tokens
+
+        return (costUSD, tokens, costIsKnown)
+    }
+
+    private static func dailyPointsCoverSelectedWindow(
+        _ points: [SyncDailyPoint],
+        summary: SyncCostSummary?,
+        windowDays: Int,
+        now: Date,
+        calendar: Calendar,
+        pointsUseReaderCalendar: Bool) -> Bool
+    {
+        guard windowDays > 0 else { return false }
+        if let summary {
+            guard summary.historyCoverageIsEstablished != false,
+                  summary.historyWindowIsComparable != false,
+                  !summary.hasIncompleteHistoricalCostCoverage(at: now),
+                  !summary.hasInvalidBucketTimeZoneIdentifier,
+                  summary.coverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
+            else {
+                return false
             }
         }
 
-        return (costUSD, tokens, costIsKnown)
+        let today = calendar.startOfDay(for: now)
+        let formatter = Self.dayKeyFormatter(calendar: calendar)
+        let knownOffsets = Set(points.compactMap { point -> Int? in
+            guard point.costIsKnown != false else { return nil }
+            let offset: Int? = if !pointsUseReaderCalendar, let summary {
+                summary.costDayOffset(for: point.dayKey, from: now)
+            } else if let date = formatter.date(from: point.dayKey) {
+                calendar.dateComponents(
+                    [.day],
+                    from: today,
+                    to: calendar.startOfDay(for: date)).day
+            } else {
+                nil
+            }
+            guard let offset, offset >= -(windowDays - 1), offset <= 0 else { return nil }
+            return offset
+        })
+        let requiredOffsets = Set((0..<windowDays).map { -$0 })
+        return requiredOffsets.isSubset(of: knownOffsets)
     }
 
     private static func breakdownRows(
@@ -2491,9 +2588,9 @@ private struct FullBreakdownListView: View {
         }
         .navigationTitle(Text(self.title))
         #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
-            .background(Color(.systemGroupedBackground))
+        .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -2567,9 +2664,9 @@ private struct FullBudgetListView: View {
         }
         .navigationTitle(Text("Budgets"))
         #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
         #endif
-            .background(Color(.systemGroupedBackground))
+        .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -4004,7 +4101,8 @@ private struct CostDiagnosticsView: View {
 
     private var report: CostDiagnosticsReport? {
         guard let snapshot = self.usageData.snapshot else { return nil }
-        let aggregation = self.cwlEnabled && self.cachedLedgerSignature == self.ledgerRefreshSignature
+        let usesLocalLedger = self.cwlEnabled && self.cwlWindowDays > 0
+        let aggregation = usesLocalLedger && self.cachedLedgerSignature == self.ledgerRefreshSignature
             ? self.cachedLedgerAggregation
             : nil
 
@@ -4013,7 +4111,7 @@ private struct CostDiagnosticsView: View {
             ledgerAggregation: aggregation,
             rawDeviceSnapshots: self.usageData.rawDeviceSnapshots,
             activeDeviceSnapshots: self.usageData.deviceSnapshots,
-            cwlEnabled: self.cwlEnabled,
+            cwlEnabled: usesLocalLedger,
             cwlWindowDays: self.cwlWindowDays,
             localHistoryClearedAt: CostLedgerService.blobSeedClearTombstoneDate())
     }
@@ -4035,7 +4133,7 @@ private struct CostDiagnosticsView: View {
 
     private var ledgerRefreshSignature: String {
         CostLedgerRefreshSignature.make(
-            isEnabled: self.cwlEnabled,
+            isEnabled: self.cwlEnabled && self.cwlWindowDays > 0,
             windowDays: self.cwlWindowDays,
             activeDeviceIDs: self.activeDeviceIDsForLedger,
             snapshots: self.usageData.deviceSnapshots,
@@ -4045,13 +4143,13 @@ private struct CostDiagnosticsView: View {
 
     @MainActor
     private func refreshLedgerAggregation(for signature: String) async {
-        guard self.cwlEnabled else {
+        guard self.cwlEnabled, self.cwlWindowDays > 0 else {
             self.cachedLedgerSignature = signature
             self.cachedLedgerAggregation = nil
             return
         }
         let aggregation = try? await CostHistoryWorker.shared.aggregate(
-            windowDays: self.cwlWindowDays,
+            windowDays: max(1, self.cwlWindowDays),
             activeDeviceIDs: self.activeDeviceIDsForLedger,
             sourceSnapshots: self.usageData.deviceSnapshots)
         guard !Task.isCancelled, signature == self.ledgerRefreshSignature else { return }
@@ -4347,30 +4445,60 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.2.0", status: String(localized: "Latest"),
-            summary: String(localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
+            version: "2.3.0", status: String(localized: "Latest"),
+            summary: String(
+                localized: "CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows."),
+            sections: [
+                .init(title: String(localized: "What's New"), items: [
+                    String(
+                        localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals."),
+                    String(
+                        localized: "See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac."),
+                    String(
+                        localized: "Get richer LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse usage details from Mac."),
+                ]),
+                .init(title: String(localized: "Required Mac version"), items: [
+                    String(
+                        localized: "Update CodexBar on Mac to 0.68.0.1 or later for all new provider and cost-window data."),
+                ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "2.2.0", status: "",
+            summary: String(
+                localized: "CodexBar 2.2 brings simpler Home Screen widgets and daily Token Activity at a glance."),
             sections: [.init(title: String(localized: "What's New"), items: [
-                String(localized: "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."),
+                String(
+                    localized: "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."),
                 String(localized: "Choose All, Claude Code, or Codex for a small or medium Token Activity widget."),
-                String(localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
-                String(localized: "Token Activity widgets now match the app's daily history, even when your system uses another calendar."),
-                String(localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
-                String(localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
-                String(localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
-                String(localized: "Collapsed Others rows show the first hidden names so you can see what they include."),
+                String(
+                    localized: "Compare two chosen token histories in large and extra-large widgets, with missing days clearly different from zero."),
+                String(
+                    localized: "Token Activity widgets now match the app's daily history, even when your system uses another calendar."),
+                String(
+                    localized: "Small and medium Token Activity widgets have larger squares and tighter spacing; small still shows 63 days ending at the bottom-right corner."),
+                String(
+                    localized: "If an older Token Activity widget has no source choices, remove it and add it again."),
+                String(
+                    localized: "Existing widgets now focus on the information you selected, with less clutter and clearer layouts."),
+                String(
+                    localized: "Collapsed Others rows show the first hidden names so you can see what they include."),
             ])]),
         ReleaseNotesVersion(
             version: "2.1.0", status: "",
-            summary: String(localized: "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."),
+            summary: String(
+                localized: "CodexBar 2.1 keeps iPhone and iPad in step with Mac 0.66, including new provider quotas and spending details."),
             sections: [.init(title: String(localized: "What's New"), items: [
-                String(localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),
-                String(localized: "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."),
+                String(
+                    localized: "See localized quota and usage details for new services including Bifrost, Muse Code, Hugging Face, v0, GitKraken AI, and DevPass."),
+                String(
+                    localized: "Get quota alerts for eight new services. Existing alerts and saved history stay available across Mac and iPhone versions."),
                 String(
                     localized: "Provider colors stay readable in Dark Mode, and light colors synced from Mac stay visible on light cards."),
             ])]),
         ReleaseNotesVersion(
             version: "2.0.0", status: "",
-            summary: String(localized: "CodexBar 2.0 supports iOS 27 and iPadOS 27 with a rebuilt data architecture for much faster history, sync, and navigation."),
+            summary: String(
+                localized: "CodexBar 2.0 supports iOS 27 and iPadOS 27 with a rebuilt data architecture for much faster history, sync, and navigation."),
             sections: [.init(title: String(localized: "What's New"), items: [
                 String(
                     localized: "Enjoy side-by-side views on iPad and a familiar single column on iPhone. Both keep bottom tabs and preserve navigation when you search and rotate."),
@@ -5134,8 +5262,8 @@ private enum MobileReleaseNotesCatalog {
 private struct ReleaseNotesView: View {
     private let versions = MobileReleaseNotesCatalog.versions
     var showsHistory = true
-    var onDone: (() -> Void)? = nil
-    var onDemo: (() -> Void)? = nil
+    var onDone: (() -> Void)?
+    var onDemo: (() -> Void)?
     @State private var showingSetupGuide = false
 
     private var latestVersion: ReleaseNotesVersion? {
@@ -5410,11 +5538,16 @@ private struct CostSettingsView: View {
                             "On keeps synced daily cost points on this iPhone for the selected window. It still requires Mac sync and never reads Mac logs directly.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        Text(
+                            "Match Mac follows the period selected on your Mac; day options use a rolling window on this iPhone.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
                 if self.cwlEnabled {
                     Picker("History window", selection: self.$cwlWindowDays) {
+                        Text("Match Mac").tag(0)
                         Text("7 Days").tag(7)
                         Text("30 Days").tag(30)
                         Text("90 Days").tag(90)

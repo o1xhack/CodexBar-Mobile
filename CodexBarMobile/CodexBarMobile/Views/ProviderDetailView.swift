@@ -499,13 +499,18 @@ struct ProviderDetailView: View {
         if !windows.isEmpty {
             VStack(spacing: 12) {
                 ForEach(Array(windows.enumerated()), id: \.offset) { index, window in
-                    let warning = self.provider.quotaWarning(forWindowIndex: index)
+                    let warning = self.provider.quotaWarning(
+                        forWindowIndex: index,
+                        windowID: window.id,
+                        period: window.period)
                     UsageCardView(
                         label: ProviderWindowLabel.localized(
                             window.label,
                             fallback: self.defaultLabel(at: index),
-                            providerID: self.provider.providerID),
+                            providerID: self.provider.providerID,
+                            period: window.period),
                         window: window,
+                        providerID: self.provider.providerID,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "provider-detail-percent-\(self.provider.providerID)-\(index)",
                         quotaWarningThresholds: warning.thresholds,
@@ -521,6 +526,7 @@ struct ProviderDetailView: View {
         let hasVisibleCoverage = (cost.coverage?.total ?? 0) > 0
         return cost.sessionCostUSD != nil ||
             cost.last30DaysCostUSD != nil ||
+            cost.historyWindowIsComparable == false ||
             Self.shouldRenderProviderReportedCost(cost) ||
             hasVisibleCoverage ||
             cost.historyCoverageIsEstablished == false ||
@@ -533,6 +539,11 @@ struct ProviderDetailView: View {
 
     static func shouldRenderTodayCost(_ today: SyncCostSummary.TodayTotals) -> Bool {
         today.displayCostUSD != nil
+    }
+
+    static func historyCostToDisplay(_ cost: SyncCostSummary) -> Double? {
+        guard cost.historyWindowIsComparable != false else { return nil }
+        return cost.last30DaysCostUSD
     }
 
     static func shouldRenderProviderReportedCost(_ cost: SyncCostSummary) -> Bool {
@@ -572,13 +583,16 @@ struct ProviderDetailView: View {
                         isEstimated: today.isEstimated == true,
                         isLowerBound: today.isLowerBound)
                 }
-                if let monthCost = cost.last30DaysCostUSD {
+                if cost.historyWindowIsComparable == false {
+                    Text("Cost windows differ, so history totals are unavailable.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else if let monthCost = Self.historyCostToDisplay(cost) {
                     CostMetricCard(
                         // Reflect the Mac's configurable 1–365 day window (gap F)
                         // instead of a hardcoded "30 Days"; nil/30 → "30 Days".
-                        title: cost.historyDays.flatMap {
-                            $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
-                        } ?? "30 Days",
+                        title: "30 Days",
+                        localizedTitleOverride: cost.reportingPeriodDisplayTitle,
                         value: CostFormatting.cost(monthCost, currencyCode: cost.currencyCode),
                         subtitle: Self.costSubtitle(
                             tokens: cost.last30DaysTokens,
@@ -840,7 +854,13 @@ struct ProviderDetailView: View {
     }
 
     private func defaultLabel(at index: Int) -> String {
-        switch index {
+        if self.provider.providerID == "xkiro", index == 0 {
+            return String(localized: "Daily free tokens")
+        }
+        if self.provider.providerID == "aixy" {
+            return String(localized: index == 0 ? "Budget" : "Secondary budget")
+        }
+        return switch index {
         case 0: String(localized: "Session")
         case 1: String(localized: "Weekly")
         default: "\(String(localized: "Limit")) \(index + 1)"

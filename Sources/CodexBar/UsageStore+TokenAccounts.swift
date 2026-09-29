@@ -782,6 +782,20 @@ extension UsageStore {
                 return (index, account, descriptor, context)
             }
 
+        #if DEBUG
+        if let override = self._test_tokenAccountFetchOutcomeOverride {
+            var results: [TokenAccountFetchResult] = []
+            results.reserveCapacity(requests.count)
+            for request in requests {
+                await results.append(TokenAccountFetchResult(
+                    index: request.index,
+                    account: request.account,
+                    outcome: override(provider, request.account)))
+            }
+            return results
+        }
+        #endif
+
         if let delay = TokenAccountSupportCatalog.support(for: provider)?
             .minimumDelayBetweenAccountRefreshes
         {

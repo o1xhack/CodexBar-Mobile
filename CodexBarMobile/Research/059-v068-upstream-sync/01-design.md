@@ -8,7 +8,7 @@ Date: 2026-09-28
 1. 仅在 `upstream-sync/v0.68.0-mobile.2.3.0` 上工作；起点为最新 `origin/mobile-dev` `91501264c1607f603240376208a094f94c8000ba`。
 2. 从 `v0.66.0` 直接 merge `v0.68.0` 一次，保留 release 范围中的完整上游历史，不逐个 release 创建用户可见版本。
 3. 冲突逐文件/逐 hunk 检查。保留 fork `README.md` 字节内容、`docs/ci-policy.md` 的 PR Fast Checks / merge Final CI 策略、CloudKit Production entitlement 与 schema 边界、`Shared/` Mobile wire contract、version/release scripts、GitHub fork 目标和 iOS 工程。Mac 上游插件/provider、安全及性能实现尽可能原样保留。
-4. merge 后单独审阅上游 README 对安全、安装、provider 覆盖和故障排除的事实变化，只主动适配经证实适用于 fork 的内容；不直接接受 upstream README。appcast 发布 feed 不在 draft 阶段更新。
+4. merge 后单独审阅上游 README 对安全、安装、provider 覆盖和故障排除的事实变化，只主动适配经证实适用于 fork 的内容；不直接接受 upstream README。审计确认上游将 provider 总数从 84 更新到 87，并新增 Aixy、Raycast、xKiro；本轮只更新 fork README 的总数、social image cache token 和总览链接，保留 fork 安装/下载入口与其他本地叙述，并同步更新 `Scripts/check_fork_readme.sh` 的 reviewed hash。appcast 发布 feed 不在 draft 阶段更新。
 5. 按 `docs/versioning.md` 写入 0.68.0.1 / 159.1 / Mobile 2.3.0 / Sparkle 159.1.2.3.0；同一版本只做这一组变量，不另拆 0.67.0 用户 release。
 
 ## Mac→iOS 数据通道
@@ -34,7 +34,7 @@ Date: 2026-09-28
 
 - 候选版本：Mac `0.68.0.1` / `159.1`，Mobile `2.3.0`，Sparkle `159.1.2.3.0`，tag 基名 `v0.68.0.1-mobile.2.3.0`。
 - CloudKit audit 比较最后 published tag `v0.66.0.1-mobile.2.1.0` 到最终 branch diff，检查 `CloudConstants.swift`、zone/type/field/index/subscription、payload version 和 `UsageSnapshot` 中新增的 non-optional field。
-- 只新增既有 `DeviceProviderSnapshot.payload` 的 optional JSON key、沿用已部署的 type/zone/field/index，且不改 subscription predicate 时结论为 `NO_DEPLOY`。新 record type、需查询的新 field/index、zone 或 predicate subscription 变化依仓库审计文档进入 Production deploy gate；未获本轮单独确认不得 deploy。
+- 只新增既有 `DeviceProviderSnapshot.payload` 的 optional JSON key、沿用已部署的 type/field/index 和 subscription predicate 时结论为 `NO_DEPLOY`。新 record type、被查询/排序的新 field 或新 index、以及依赖这些新 schema 项的 subscription 才进入 Production deploy gate。private-database zone 与 subscription 实例本身是运行时数据，不是 Dashboard schema；本轮无 schema deploy。
 
 ## 测试与 review 计划
 

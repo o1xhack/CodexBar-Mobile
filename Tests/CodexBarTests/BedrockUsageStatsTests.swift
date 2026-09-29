@@ -5,7 +5,9 @@ import Testing
 @Suite(.serialized)
 struct BedrockUsageStatsTests {
     @Test(arguments: [true, false])
-    func `cost selection excludes the preceding UTC bucket`(utcMonthHasStarted: Bool) async throws {
+    func `Bedrock reporting windows follow UTC buckets across a local month rollover`(
+        utcMonthHasStarted: Bool) async throws
+    {
         let registered = URLProtocol.registerClass(BedrockStubURLProtocol.self)
         defer {
             if registered { URLProtocol.unregisterClass(BedrockStubURLProtocol.self) }
@@ -34,10 +36,10 @@ struct BedrockUsageStatsTests {
             ],
             now: now,
             historyDays: CostReportingPeriod.monthToDate.days(now: now, calendar: calendar))
-        #expect(snapshot.daily.map(\.date) == (utcMonthHasStarted ? ["2026-03-01"] : []))
-        #expect(snapshot.last30DaysCostUSD == (utcMonthHasStarted ? 7 : nil))
+        #expect(snapshot.daily.map(\.date) == (utcMonthHasStarted ? ["2026-03-01"] : ["2026-02-28"]))
+        #expect(snapshot.last30DaysCostUSD == (utcMonthHasStarted ? 7 : 99))
         #expect(snapshot.last30DaysTokens == nil)
-        #expect(snapshot.historyCoverageIsEstablished == utcMonthHasStarted)
+        #expect(snapshot.historyCoverageIsEstablished)
     }
 
     @Test

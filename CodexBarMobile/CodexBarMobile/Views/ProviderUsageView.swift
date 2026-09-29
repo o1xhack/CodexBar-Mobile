@@ -69,13 +69,18 @@ struct ProviderUsageView: View {
             // Usage metrics — dynamic count per provider
             VStack(spacing: 10) {
                 ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
-                    let warning = self.provider.quotaWarning(forWindowIndex: index)
+                    let warning = self.provider.quotaWarning(
+                        forWindowIndex: index,
+                        windowID: window.id,
+                        period: window.period)
                     UsageCardView(
                         label: ProviderWindowLabel.localized(
                             window.label,
                             fallback: self.defaultLabel(at: index),
-                            providerID: self.provider.providerID),
+                            providerID: self.provider.providerID,
+                            period: window.period),
                         window: window,
+                        providerID: self.provider.providerID,
                         tintColor: self.providerColor,
                         percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)",
                         quotaWarningThresholds: warning.thresholds,
@@ -358,11 +363,19 @@ struct ProviderUsageView: View {
                 let amount = "\(today.isLowerBound ? "≥" : "")\(Self.formatUSD($0))"
                 return "\(String(localized: "Today")): \(amount)"
             },
-            cost.completeHistoryCostUSD(at: now).map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
+            cost.completeHistoryCostUSD(at: now).map {
+                "\(cost.compactReportingPeriodLabel): \(Self.formatUSD($0))"
+            },
         ].compactMap { $0 }
     }
 
     private func defaultLabel(at index: Int) -> String {
+        if self.provider.providerID == "xkiro", index == 0 {
+            return String(localized: "Daily free tokens")
+        }
+        if self.provider.providerID == "aixy" {
+            return String(localized: index == 0 ? "Budget" : "Secondary budget")
+        }
         switch index {
         case 0: return String(localized: "Session")
         case 1: return String(localized: "Weekly")

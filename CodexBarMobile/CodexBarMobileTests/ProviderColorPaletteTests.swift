@@ -523,6 +523,26 @@ struct ProviderColorPaletteTests {
                     .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
         }
     }
+
+    @Test("v0.67 provider colors have explicit non-fallback tints")
+    func v067ProviderColorsAreExplicit() {
+        let fallback = UIColor(ProviderColorPalette.color(for: "unknown-provider"))
+        for id in ["xkiro", "raycast", "aixy"] {
+            #expect(
+                !UIColor(ProviderColorPalette.color(for: id)).isApproximately(fallback),
+                "\(id) must not use the generic fallback color")
+        }
+    }
+
+    @Test("v0.67 provider colors normalize display-name variants")
+    func v067ProviderColorNormalization() {
+        let pairs = [("xkiro", "xKiro"), ("raycast", "Raycast"), ("aixy", "Aixy")]
+        for (id, name) in pairs {
+            #expect(
+                UIColor(ProviderColorPalette.color(for: id))
+                    .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
+        }
+    }
 }
 
 @Suite("Provider color dark-mode contrast")

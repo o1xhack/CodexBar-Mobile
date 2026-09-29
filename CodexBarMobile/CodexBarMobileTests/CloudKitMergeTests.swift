@@ -8,6 +8,65 @@ struct CloudKitMergeTests {
     private let olderDate = Date(timeIntervalSince1970: 1_700_000_000)
     private let newerDate = Date(timeIntervalSince1970: 1_700_100_000)
 
+    private struct LegacyCostSummary: Codable, Equatable {
+        let last30DaysCostUSD: Double?
+        let daily: [SyncDailyPoint]
+        let historyDays: Int?
+    }
+
+    private struct LegacyCostPayload: Codable, Equatable {
+        let deviceID: String
+        let summary: LegacyCostSummary
+    }
+
+    private struct CurrentCostPayload: Codable, Equatable {
+        let deviceID: String
+        let summary: SyncCostSummary
+    }
+
+    private struct CoreCostProjection: Equatable {
+        let deviceID: String
+        let amount: Double?
+        let historyDays: Int?
+    }
+
+    private struct ReaderProjection: Equatable {
+        let core: CoreCostProjection
+        let reportingPeriod: String?
+    }
+
+    private struct LegacyMatrixSummary: Decodable {
+        let last30DaysCostUSD: Double?
+        let last30DaysTokens: Int?
+        let daily: [SyncDailyPoint]
+        let historyDays: Int?
+    }
+
+    private struct LegacyMatrixProvider: Decodable {
+        let providerID: String
+        let providerName: String
+        let accountEmail: String?
+        let lastUpdated: Date
+        let costSummary: LegacyMatrixSummary?
+    }
+
+    private struct LegacyMatrixSnapshot: Decodable {
+        let providers: [LegacyMatrixProvider]
+        let syncTimestamp: Date
+        let deviceName: String
+        let deviceID: String?
+        let appVersion: String?
+    }
+
+    private struct MatrixReadProjection: Equatable {
+        let providerIDs: [String]
+        let historyTitle: String
+        let hasComparableHistoryTotals: Bool
+        let totalCost: Double
+        let totalCostIsKnown: Bool
+        let widgetTodayCost: Double?
+    }
+
     private func makeProvider(
         id: String,
         name: String,
@@ -46,6 +105,248 @@ struct CloudKitMergeTests {
             deviceID: deviceID,
             appVersion: appVersion,
             providerPublicationTimestamps: providerPublicationTimestamps)
+    }
+
+    @Test
+    func `Old and new writers and readers preserve cost payloads in all 16 device combinations`() throws {
+        func encodedPayload(deviceID: String, newWriter: Bool) throws -> Data {
+            let period = deviceID == "mac-a" ? "all" : "month-to-date"
+            let historyDays = deviceID == "mac-a" ? 640 : 28
+            let summary = SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 12,
+                last30DaysTokens: nil,
+                daily: [],
+                historyDays: newWriter ? historyDays : 30,
+                reportingPeriod: newWriter ? period : nil)
+            let encoder = JSONEncoder()
+            if newWriter {
+                return try encoder.encode(CurrentCostPayload(deviceID: deviceID, summary: summary))
+            }
+            return try encoder.encode(LegacyCostPayload(
+                deviceID: deviceID,
+                summary: LegacyCostSummary(last30DaysCostUSD: 12, daily: [], historyDays: 30)))
+        }
+
+        func read(_ data: Data, newReader: Bool) throws -> ReaderProjection {
+            if newReader {
+                let payload = try JSONDecoder().decode(CurrentCostPayload.self, from: data)
+                return ReaderProjection(
+                    core: CoreCostProjection(
+                        deviceID: payload.deviceID,
+                        amount: payload.summary.last30DaysCostUSD,
+                        historyDays: payload.summary.historyDays),
+                    reportingPeriod: payload.summary.reportingPeriod)
+            }
+            let payload = try JSONDecoder().decode(LegacyCostPayload.self, from: data)
+            return ReaderProjection(
+                core: CoreCostProjection(
+                    deviceID: payload.deviceID,
+                    amount: payload.summary.last30DaysCostUSD,
+                    historyDays: payload.summary.historyDays),
+                reportingPeriod: nil)
+        }
+
+        // The low two bits choose Mac A/B; the high two choose iPhone A/B.
+        // Enumerating all masks covers all 2^4 version placements without
+        // connecting these fixtures to a live CloudKit account.
+        for combination in 0..<16 {
+            let macAIsNew = combination & 0b0001 != 0
+            let macBIsNew = combination & 0b0010 != 0
+            let iPhoneAIsNew = combination & 0b0100 != 0
+            let iPhoneBIsNew = combination & 0b1000 != 0
+            let records = try [
+                encodedPayload(deviceID: "mac-a", newWriter: macAIsNew),
+                encodedPayload(deviceID: "mac-b", newWriter: macBIsNew),
+            ]
+
+            let phoneA = try records.map { try read($0, newReader: iPhoneAIsNew) }
+            let phoneB = try records.map { try read($0, newReader: iPhoneBIsNew) }
+            #expect(phoneA.map { $0.core.deviceID } == ["mac-a", "mac-b"])
+            #expect(phoneA.map(\.core) == phoneB.map(\.core))
+
+            if !iPhoneAIsNew {
+                #expect(phoneA.allSatisfy { $0.reportingPeriod == nil })
+            } else {
+                #expect(phoneA.map(\.reportingPeriod) == [
+                    macAIsNew ? "all" : nil,
+                    macBIsNew ? "month-to-date" : nil,
+                ])
+            }
+            #expect(phoneA.map(\.core.historyDays) == [
+                macAIsNew ? 640 : 30,
+                macBIsNew ? 28 : 30,
+            ])
+        }
+    }
+
+    @Test(arguments: Array(0..<16))
+    func `v0.66 and v0.68 reporting periods survive the 2 Mac x 2 iPhone matrix`(mask: Int) throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
+        let dayKey = "2026-09-28"
+        // Match docs/ios-sync-compatibility-testing.md: bit 3 = Mac A,
+        // bit 2 = Mac B, bit 1 = iPhone A, bit 0 = iPhone B.
+        let macANew = mask & 0b1000 != 0
+        let macBNew = mask & 0b0100 != 0
+        let iPhoneANew = mask & 0b0010 != 0
+        let iPhoneBNew = mask & 0b0001 != 0
+
+        func writer(
+            deviceID: String,
+            providerID: String,
+            providerName: String,
+            cost: Double,
+            tokens: Int,
+            isNew: Bool) -> SyncedUsageSnapshot
+        {
+            let period = providerID == "codex" ? "all" : "month-to-date"
+            let historyDays = isNew ? (providerID == "codex" ? 640 : 28) : 30
+            let dailyPoint = SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: cost,
+                totalTokens: tokens,
+                costIsKnown: true)
+            let summary = SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: tokens,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: tokens,
+                daily: [dailyPoint],
+                historyDays: historyDays,
+                reportingPeriod: isNew ? period : nil,
+                sourceUpdatedAt: now,
+                sourceDayKey: dayKey,
+                sessionDayKey: dayKey,
+                bucketTimeZoneIdentifier: "UTC",
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: true)
+            let provider = ProviderUsageSnapshot(
+                providerID: providerID,
+                providerName: providerName,
+                primary: nil,
+                secondary: nil,
+                accountEmail: "matrix@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: summary)
+            return SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: deviceID == "matrix-mac-a" ? "Matrix Mac A" : "Matrix Mac B",
+                deviceID: deviceID,
+                appVersion: isNew ? "0.68.0.1" : "0.66.0.1",
+                mobileVersion: isNew ? "2.3.0" : "2.2.0")
+        }
+
+        let fixtures: [(snapshot: SyncedUsageSnapshot, isNew: Bool)] = [
+            (writer(
+                deviceID: "matrix-mac-a",
+                providerID: "codex",
+                providerName: "Codex",
+                cost: 7.37,
+                tokens: 7_000,
+                isNew: macANew), macANew),
+            (writer(
+                deviceID: "matrix-mac-b",
+                providerID: "claude",
+                providerName: "Claude",
+                cost: 193.58,
+                tokens: 193_000,
+                isNew: macBNew), macBNew),
+        ]
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let records = try fixtures.map { try encoder.encode($0.snapshot) }
+        let currentWriterSnapshots = try records.map {
+            try decoder.decode(SyncedUsageSnapshot.self, from: $0)
+        }
+
+        func readAsLegacyPhone(_ data: Data) throws -> SyncedUsageSnapshot {
+            let legacy = try decoder.decode(LegacyMatrixSnapshot.self, from: data)
+            let providers = legacy.providers.map { item -> ProviderUsageSnapshot in
+                let summary = item.costSummary.map {
+                    SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: $0.last30DaysCostUSD,
+                        last30DaysTokens: $0.last30DaysTokens,
+                        daily: $0.daily,
+                        historyDays: $0.historyDays)
+                }
+                return ProviderUsageSnapshot(
+                    providerID: item.providerID,
+                    providerName: item.providerName,
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: item.accountEmail,
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: item.lastUpdated,
+                    costSummary: summary)
+            }
+            return SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: legacy.syncTimestamp,
+                deviceName: legacy.deviceName,
+                deviceID: legacy.deviceID,
+                appVersion: legacy.appVersion)
+        }
+
+        func readPhone(isNew: Bool) throws -> MatrixReadProjection {
+            let snapshots: [SyncedUsageSnapshot]
+            if isNew {
+                var cache = SnapshotCache()
+                let newMacSnapshots = zip(currentWriterSnapshots, fixtures)
+                    .filter { $0.1.isNew }
+                    .map(\.0)
+                cache.replaceFromFullFetch(
+                    perProviderSnapshots: newMacSnapshots,
+                    legacySnapshots: currentWriterSnapshots)
+                snapshots = cache.buildDeviceSnapshots()
+            } else {
+                snapshots = try records.map(readAsLegacyPhone)
+            }
+
+            let merged = try #require(CloudSyncReader.mergeSnapshots(snapshots))
+            let insights = CostDashboardInsights(snapshot: merged, now: now)
+            let share = ShareCardData(insights: insights, period: .month, now: now)
+            let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: snapshots, now: now)
+            let expectedComparableWindows = !macANew && !macBNew
+
+            #expect(snapshots.count == 2)
+            #expect(merged.providers.map(\.providerID).sorted() == ["claude", "codex"])
+            #expect(insights.hasComparableHistoryTotals == expectedComparableWindows)
+            if expectedComparableWindows {
+                #expect(insights.historyDisplayTitle == "30 Days")
+                #expect(insights.spendProviderRows.count == 2)
+                #expect(share.totalCostIsKnown)
+                #expect(abs(share.totalCost - 200.95) < 0.0001)
+            } else {
+                #expect(insights.historyDisplayTitle == "Mixed cost windows")
+                #expect(insights.spendProviderRows.isEmpty)
+                #expect(!share.totalCostIsKnown)
+                #expect(share.totalCostDisplayValue == "—")
+            }
+            #expect(abs((widget.todayCostUSD ?? 0) - 200.95) < 0.0001)
+
+            return MatrixReadProjection(
+                providerIDs: merged.providers.map(\.providerID).sorted(),
+                historyTitle: insights.historyDisplayTitle,
+                hasComparableHistoryTotals: insights.hasComparableHistoryTotals,
+                totalCost: share.totalCost,
+                totalCostIsKnown: share.totalCostIsKnown,
+                widgetTodayCost: widget.todayCostUSD)
+        }
+
+        let phoneA = try readPhone(isNew: iPhoneANew)
+        let phoneB = try readPhone(isNew: iPhoneBNew)
+        if iPhoneANew == iPhoneBNew {
+            #expect(phoneA == phoneB)
+        }
     }
 
     // MARK: - Single device (degenerate case)
@@ -1749,6 +2050,83 @@ struct CloudKitMergeTests {
         #expect(cost.meteredCostUSD == nil)
         #expect(cost.coverage == nil)
         #expect(cost.tokenMix == nil)
+    }
+
+    @Test
+    func `local-cost merge marks different reporting periods incomplete even when day counts match`() throws {
+        let todayKey = SyncCostSummary.iso8601DayKey(for: Date())
+        func snapshot(name: String, id: String, period: String) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: 12,
+                        last30DaysTokens: 120,
+                        daily: [SyncDailyPoint(
+                            dayKey: todayKey,
+                            costUSD: 12,
+                            totalTokens: 120,
+                            costIsKnown: true)],
+                        historyDays: 30,
+                        reportingPeriod: period,
+                        historyCoverageIsEstablished: true)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "Rolling Mac", id: "uuid-rolling", period: "rolling:30"),
+            snapshot(name: "Month to date Mac", id: "uuid-mtd", period: "month-to-date"),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.reportingPeriod == nil)
+        #expect(cost.historyWindowIsComparable == false)
+        #expect(cost.completeHistoryCostUSD == nil)
+    }
+
+    @Test
+    func `local-cost merge accepts all-time writers with different history lengths`() throws {
+        let todayKey = SyncCostSummary.iso8601DayKey(for: Date())
+        func snapshot(name: String, id: String, days: Int, cost: Double) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: name, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "user@example.com",
+                    loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil,
+                        sessionTokens: nil,
+                        last30DaysCostUSD: cost,
+                        last30DaysTokens: 120,
+                        daily: [SyncDailyPoint(
+                            dayKey: todayKey,
+                            costUSD: cost,
+                            totalTokens: 120,
+                            costIsKnown: true)],
+                        historyDays: days,
+                        reportingPeriod: "all",
+                        historyCoverageIsEstablished: true)),
+            ])
+        }
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            snapshot(name: "New Mac", id: "uuid-new", days: 30, cost: 12),
+            snapshot(name: "Old Mac", id: "uuid-old", days: 180, cost: 24),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+
+        #expect(cost.reportingPeriod == "all")
+        #expect(cost.historyDays == 180)
+        #expect(cost.historyWindowIsComparable == true)
+        #expect(cost.last30DaysCostUSD == 36)
     }
 
     @Test

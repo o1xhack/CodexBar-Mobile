@@ -1702,3 +1702,13 @@
 "antigravity_cost_estimate_hint" = "Lokal användning × publika API-priser · inte Antigravity-avgifter eller krediter";
 "antigravity_quota_window_note" = "Fönsterkostnaden omfattar alla modeller · fönstret som visas är den mest begränsade familjen";
 "antigravity_no_priced_token_history" = "Ingen prissatt Antigravity-tokenhistorik tillgänglig.";
+
+/* Aixy quota warning labels */
+"Organization" = "Organisation";
+"Project" = "Projekt";
+"User" = "Användare";
+"Key" = "Nyckel";
+"Lifetime" = "Livstid";
+"Shared" = "Delad";
+"Hard" = "Hård";
+"Monitor" = "Övervakning";

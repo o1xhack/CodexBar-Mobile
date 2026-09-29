@@ -409,7 +409,7 @@ struct CloudSyncSettingsTests {
             persistence: persistence,
             initialConfiguration: fixture.store.configSnapshot,
             initialPreferences: fixture.store.syncedPreferences,
-            initialIncludeSecrets: fixture.store.iCloudSyncIncludeSecrets)
+            initialIncludeSecrets: fixture.store.macFleetSyncIncludeSecrets)
         var remote = fixture.store.syncedPreferences
         remote.hidePersonalInfo.toggle()
         let record = CKRecord(recordType: SyncRecordType.preferences.rawValue, recordID: CKRecord.ID(

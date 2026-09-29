@@ -19,6 +19,7 @@ struct XKiroPluginTests {
         let usage = try await Self.fetch(Self.fixture, engine: engine)
         #expect(abs((usage.primary?.usedPercent ?? -1) - 2.4807) < 0.00001)
         #expect(usage.primary?.windowMinutes == 1440)
+        #expect(usage.primary?.period == .daily)
         #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_790_294_400))
         #expect(usage.secondary == nil)
         #expect(usage.providerCost == nil)

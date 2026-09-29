@@ -16,8 +16,8 @@ import Foundation
 ///
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
-/// snapshots. The full catalog now has 99 snapshots: 94 using current
-/// provider IDs (84 distinct), three legacy-ID compatibility fixtures,
+/// snapshots. The full catalog now has 102 snapshots: 97 using current
+/// provider IDs (87 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
 /// the iOS app does not yet know about. All values and accounts remain
@@ -196,7 +196,7 @@ enum MockProviderInjector {
     /// the user has on the same provider.
     ///
     /// Originally extended to 27 providers in Mac 0.23.6; now covers
-    /// all 84 current `UsageProvider` IDs. Codex, Claude, and Perplexity
+    /// all current `UsageProvider` IDs. Codex, Claude, and Perplexity
     /// have rich multi-account or credit-breakdown fixtures. Other
     /// provider IDs use `simpleProviderProfiles`, including the new
     /// v0.59-v0.66 provider samples.
@@ -237,6 +237,8 @@ enum MockProviderInjector {
         "bifrost", "helmcode", "nous", "muse", "coderabbit",
         "replicate", "huggingface", "pi", "v0", "typesafe",
         "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
+        // Upstream v0.67.0 provider additions; keep in sync with simple profiles.
+        "xkiro", "raycast", "aixy",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -843,6 +845,38 @@ enum MockProviderInjector {
         let thirtyDayCostUSD: Double?
         /// Session-level spend (today). Nil if no cost.
         let sessionCostUSD: Double?
+        /// True when the provider describes spend as estimated rather than invoice-exact.
+        let costIsEstimated: Bool
+
+        init(
+            providerID: String,
+            providerName: String,
+            accountLocal: String,
+            loginMethod: String,
+            primaryUsage: Double?,
+            primaryLabel: String,
+            primaryWindowMinutes: Int,
+            primaryResetsInSeconds: TimeInterval,
+            primaryResetDescription: String,
+            secondary: SecondaryWindow?,
+            thirtyDayCostUSD: Double?,
+            sessionCostUSD: Double?,
+            costIsEstimated: Bool = false)
+        {
+            self.providerID = providerID
+            self.providerName = providerName
+            self.accountLocal = accountLocal
+            self.loginMethod = loginMethod
+            self.primaryUsage = primaryUsage
+            self.primaryLabel = primaryLabel
+            self.primaryWindowMinutes = primaryWindowMinutes
+            self.primaryResetsInSeconds = primaryResetsInSeconds
+            self.primaryResetDescription = primaryResetDescription
+            self.secondary = secondary
+            self.thirtyDayCostUSD = thirtyDayCostUSD
+            self.sessionCostUSD = sessionCostUSD
+            self.costIsEstimated = costIsEstimated
+        }
 
         struct SecondaryWindow {
             let label: String
@@ -1732,6 +1766,38 @@ enum MockProviderInjector {
             primaryResetDescription: "",
             secondary: nil,
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // iOS 2.3.0 / upstream v0.67.0 provider samples.
+        .init(
+            providerID: "xkiro", providerName: "xKiro",
+            accountLocal: "free", loginMethod: "API key",
+            primaryUsage: 36, primaryLabel: "Daily free tokens",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 12 * 3600,
+            primaryResetDescription: "in 12 hours",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "raycast", providerName: "Raycast",
+            accountLocal: "pro", loginMethod: "Pro",
+            primaryUsage: 42, primaryLabel: "Credits",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "aixy", providerName: "Aixy",
+            accountLocal: "workspace", loginMethod: "API key",
+            primaryUsage: 24, primaryLabel: "Budget",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "$24 / $100",
+            secondary: .init(
+                label: "Secondary budget", usedPercent: 18,
+                windowMinutes: 43200,
+                resetsInSeconds: 14 * 86400,
+                resetDescription: "$18 / $100"),
+            thirtyDayCostUSD: 24, sessionCostUSD: 2.4, costIsEstimated: true),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -2203,7 +2269,8 @@ enum MockProviderInjector {
                 sessionTokens: Int(sessionUSD * 50000),
                 thirtyDayUSD: trailing30,
                 thirtyDayTokens: Int(trailing30 * 50000),
-                dailyTotals: daily)
+                dailyTotals: daily,
+                isEstimated: profile.costIsEstimated)
         }
         let extras = Self.v026ExtrasFor(providerID: profile.providerID)
         let crossModelUsage = Self.v039CrossModelUsage(providerID: profile.providerID, now: now)

@@ -670,17 +670,25 @@ enum ProviderSnapshotMerger {
             summaries,
             dayBucketsAreCompatible: dayBucketsAreCompatible)
         let windowRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
-        // A missing historyDays is the legacy/default 30-day window. Normalize
-        // it before comparison so old+new 30-day writers remain compatible,
-        // while an explicit 7-day + 30-day fleet cannot certify completeness.
+        // A missing period is a legacy rolling window. Normalize it from the
+        // old day-count field so old and new rolling writers remain compatible.
         let normalizedHistoryDays = summaries.map { max(1, min($0.historyDays ?? 30, 365)) }
-        let historyWindowsAreCompatible = Set(normalizedHistoryDays).count == 1
-        // Preserve a fully legacy nil label, but when mixed windows disagree,
-        // report the widest normalized window instead of labelling a 30d + 7d
-        // subtotal as a complete 7-day amount.
-        let historyDays = historyWindowsAreCompatible
+        let normalizedReportingPeriods = zip(summaries, normalizedHistoryDays).map { summary, days in
+            summary.reportingPeriod ?? "rolling:\(days)"
+        }
+        let reportingPeriodsAreCompatible = Set(normalizedReportingPeriods).count == 1
+        let isAllTimeWindow = normalizedReportingPeriods.first == "all"
+        let historyWindowsAreCompatible = reportingPeriodsAreCompatible &&
+            (isAllTimeWindow || Set(normalizedHistoryDays).count == 1)
+        // Preserve a fully legacy nil label. When rolling windows disagree,
+        // report the widest normalized window; All Time writers can have
+        // different history lengths while still describing the same period.
+        let historyDays = Set(normalizedHistoryDays).count == 1
             ? summaries.compactMap(\.historyDays).max()
             : normalizedHistoryDays.max()
+        let reportingPeriod = reportingPeriodsAreCompatible
+            ? summaries.compactMap(\.reportingPeriod).first
+            : nil
         let historyTotalsAreComparable = historyWindowsAreCompatible && dayBucketsAreCompatible
         let currencies = Set(summaries.compactMap(\.currencyCode))
         let currencyCode = currencies.count == 1 ? currencies.first : nil
@@ -712,6 +720,7 @@ enum ProviderSnapshotMerger {
             daily: mergedDaily,
             isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: historyDays,
+            reportingPeriod: reportingPeriod,
             sessionRequests: sessionFallback.requests,
             last30DaysRequests: windowRequests > 0 ? windowRequests : nil,
             currencyCode: currencyCode,

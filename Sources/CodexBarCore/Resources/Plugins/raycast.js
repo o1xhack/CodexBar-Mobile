@@ -159,6 +159,7 @@ defineProvider({
       primary: meter
         ? {
             usedPercent: ctx.pct(Math.max(0, meter.total - meter.remaining), meter.total),
+            period: "monthly",
             resetsAt: renewal,
             resetDescription: `${amount(meter.remaining)} / ${amount(meter.total)} credits left`,
           }

@@ -9,7 +9,7 @@ struct CostDiagnosticsReportTests {
     private let now = Date()
 
     @Test("Report identifies local-cost and account-level provider rules")
-    func providerRulesUseCorrectMergeSemantics() throws {
+    func providerRulesUseCorrectMergeSemantics() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 self.provider(id: "codex", name: "Codex", cost: 4, tokens: 400),
@@ -36,8 +36,50 @@ struct CostDiagnosticsReportTests {
         #expect(report.windowDays == 30)
     }
 
+    @Test("Match Mac diagnostics report reads the Mac reporting period")
+    func matchMacReportsSyncedSnapshotSource() throws {
+        let provider = self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1200)
+        let cost = try #require(provider.costSummary)
+        let matchedProvider = ProviderUsageSnapshot(
+            providerID: provider.providerID,
+            providerName: provider.providerName,
+            primary: provider.primary,
+            secondary: provider.secondary,
+            accountEmail: provider.accountEmail,
+            loginMethod: provider.loginMethod,
+            statusMessage: provider.statusMessage,
+            isError: provider.isError,
+            lastUpdated: provider.lastUpdated,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: cost.sessionCostUSD,
+                sessionTokens: cost.sessionTokens,
+                last30DaysCostUSD: cost.last30DaysCostUSD,
+                last30DaysTokens: cost.last30DaysTokens,
+                daily: cost.daily,
+                historyDays: 365,
+                reportingPeriod: "all",
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [matchedProvider],
+            syncTimestamp: self.now,
+            deviceName: "Mac",
+            deviceID: "mac-A")
+
+        let report = try #require(CostDiagnosticsReportResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: nil,
+            rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot],
+            cwlEnabled: true,
+            cwlWindowDays: 0,
+            localHistoryClearedAt: self.now))
+
+        #expect(report.dataSource == .syncedSnapshots)
+        #expect(report.windowDays == 365)
+    }
+
     @Test("Report reconciles provider share and share cards against Overview")
-    func reconciliationPassesForConsistentCostData() throws {
+    func reconciliationPassesForConsistentCostData() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 self.provider(id: "codex", name: "Codex", cost: 4, tokens: 400),
@@ -68,7 +110,7 @@ struct CostDiagnosticsReportTests {
     }
 
     @Test("Report preserves unavailable and partial cost truth")
-    func reportPreservesCostAvailability() throws {
+    func reportPreservesCostAvailability() {
         let dayKey = SyncCostSummary.iso8601DayKey(for: self.now)
         let unavailableProvider = ProviderUsageSnapshot(
             providerID: "grok",
@@ -159,7 +201,7 @@ struct CostDiagnosticsReportTests {
     }
 
     @Test("Report provider rules keep unique row IDs for duplicate provider rows")
-    func providerRuleIDsStayUniqueForDuplicateProviderRows() throws {
+    func providerRuleIDsStayUniqueForDuplicateProviderRows() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 self.provider(id: "openai", name: "OpenAI", cost: 1, tokens: 100),
@@ -184,9 +226,9 @@ struct CostDiagnosticsReportTests {
     }
 
     @Test("Report does not compare 90-day overview against 30-day share card")
-    func shareCardCheckPassesForWiderLedgerWindow() throws {
-        let oldPoint = self.day(daysAgo: 45, cost: 70, tokens: 7_000)
-        let recentPoint = self.day(daysAgo: 3, cost: 30, tokens: 3_000)
+    func shareCardCheckPassesForWiderLedgerWindow() {
+        let oldPoint = self.day(daysAgo: 45, cost: 70, tokens: 7000)
+        let recentPoint = self.day(daysAgo: 3, cost: 30, tokens: 3000)
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -204,7 +246,7 @@ struct CostDiagnosticsReportTests {
                     provider: provider,
                     thirtyDayCost: 100,
                     todayCost: 0,
-                    thirtyDayTokens: 10_000,
+                    thirtyDayTokens: 10000,
                     todayTokens: 0,
                     dailyPoints: [oldPoint, recentPoint]),
             ],
@@ -233,7 +275,7 @@ struct CostDiagnosticsReportTests {
     }
 
     @Test("Report does not compare 7-day overview against 30-day share card")
-    func shareCardCheckPassesForShorterLedgerWindow() throws {
+    func shareCardCheckPassesForShorterLedgerWindow() {
         let summaryDays = (0..<30).map { day in
             self.syncDay(daysAgo: day, cost: 1, tokens: 100)
         }
@@ -254,7 +296,7 @@ struct CostDiagnosticsReportTests {
                 sessionCostUSD: nil,
                 sessionTokens: nil,
                 last30DaysCostUSD: 30,
-                last30DaysTokens: 3_000,
+                last30DaysTokens: 3000,
                 daily: summaryDays,
                 isEstimated: false,
                 historyDays: 30))
@@ -297,7 +339,7 @@ struct CostDiagnosticsReportTests {
     func diagnosticsReuseCostTabFallbackForEmptyLedger() throws {
         let snapshot = SyncedUsageSnapshot(
             providers: [
-                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1_200),
+                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1200),
             ],
             syncTimestamp: self.now,
             deviceName: "Mac",
@@ -317,10 +359,10 @@ struct CostDiagnosticsReportTests {
     }
 
     @Test("Snapshot diagnostics default missing history to 30 days")
-    func snapshotDiagnosticsDefaultMissingHistoryToThirtyDays() throws {
+    func snapshotDiagnosticsDefaultMissingHistoryToThirtyDays() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
-                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1_200, historyDays: nil),
+                self.provider(id: "codex", name: "Codex", cost: 12, tokens: 1200, historyDays: nil),
             ],
             syncTimestamp: self.now,
             deviceName: "Mac",

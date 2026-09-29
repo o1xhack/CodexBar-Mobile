@@ -1707,3 +1707,13 @@
 "antigravity_cost_estimate_hint" = "Local usage × public API prices · not Antigravity charges or credits";
 "antigravity_quota_window_note" = "Window cost covers all models · window shown is the most constrained family";
 "antigravity_no_priced_token_history" = "No priced Antigravity token history is available.";
+
+/* Aixy quota warning labels */
+"Organization" = "Organization";
+"Project" = "Project";
+"User" = "User";
+"Key" = "Key";
+"Lifetime" = "Lifetime";
+"Shared" = "Shared";
+"Hard" = "Hard";
+"Monitor" = "Monitor";

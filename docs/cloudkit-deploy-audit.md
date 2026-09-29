@@ -21,14 +21,16 @@ iCloud CloudKit 有两个 environment：**Development** 跟 **Production**。for
 | 新增 CKRecord type | 新 record class | ✅ 必须 |
 | 现有 record type 加新 field（**且参与查询/索引**） | 新字段被 NSPredicate 引用、被 sort key 用 | ✅ 必须 |
 | 现有 record type 新加 queryable / sortable / searchable index | `addIndex` 调用 | ✅ 必须 |
-| 新 CKRecordZone | 自定义 zone | ✅ 必须 |
-| 新 CKQuerySubscription / CKRecordZoneSubscription（针对**新** record type 或新 predicate field） | iOS 端订阅新 record | ✅ 必须 |
+| 新 CKRecordZone（用户私有数据库中的自定义 zone 实例） | 客户端调用 `saveRecordZone` / `CKModifyRecordZonesOperation` 创建 per-user zone | ❌ 不需要。zone 实例是运行时数据库数据，不是 Dashboard schema |
+| 新 CKRecord type、被查询/排序的新 field，或新 index | 新 record class / NSPredicate / sort key / `addIndex` | ✅ 必须 |
+| 新 CKQuerySubscription / CKRecordZoneSubscription（依赖**新** record type 或新 predicate field） | iOS 订阅尚未部署的 schema | ✅ 必须 |
 
 ## 什么情况**不需要** deploy
 
 | 改动 | 为什么 |
 |------|--------|
 | 改 payload `Data` 字段内部（zlib JSON 里加新 optional key） | CloudKit 不解析 payload bytes — 对它而言是 opaque blob |
+| 新增对现有 record type 的 per-user 自定义 zone / zone subscription | CloudKit private database 由 zone owner 创建运行时 zone；订阅仍使用已部署的 record type 和字段。见 [Apple `CKRecordZone` documentation](https://developer.apple.com/documentation/cloudkit/ckrecordzone) |
 | 推**更多**现有 record type 的 record（per-account 多账号 fan-out） | record type 不变，只是数量增加 |
 | Render 层改 / iOS UI 改 / 测试改 | 跟 CloudKit 完全无关 |
 | 文档 / appcast / version.env / 本地化文案 | 跟 CloudKit 完全无关 |
@@ -75,10 +77,12 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 | v0.49.2.1-mobile.1.21.0 | ❌ 不需要 | published v0.47 tag → candidate 的 `Shared/iCloud/CloudConstants.swift` 零 diff，`providerPayloadVersion` 保持 `1`；`details`、plugin branding、`usageKnown` 等新字段仅位于既有 `DeviceProviderSnapshot.payload` opaque blob。2026-08-11 Production export 仍为同一组 10 types，无新 type/field/index/zone/query/schema version。 |
 | v0.54.0.1-mobile.1.22.0 | ❌ 不需要 | 最后published `v0.52.0.1-mobile.1.21.0` → candidate 的`CloudConstants.swift`无schema diff，`providerPayloadVersion=1`；provenance、coverage、token mix、metered cost与history coverage都是既有`DeviceProviderSnapshot.payload`内的optional JSON。2026-08-22 Production export仍为同一组10 types，无新type/field/index/zone/query/subscription。 |
 | v0.56.0.1-mobile.1.23.0 | ❌ 不需要 | 最后published `v0.54.0.1-mobile.1.22.0` → candidate 的`CloudConstants.swift`无schema diff，`UsageSnapshot.swift`无新增非optional `public let`，`providerPayloadVersion=1`；Kiro、Cursor、Fireworks与Antigravity变化只进入既有`DeviceProviderSnapshot.payload` opaque JSON。2026-08-28 `cktool export-schema` Production回读仍为同一组10 types，无新type/field/index/zone/query/subscription。 |
-| v0.58.0.1-mobile.1.23.0 candidate | ❌ 不需要（代码审计） | published v0.56.0.1-mobile.1.23.0 → candidate：CloudConstants 无 diff；amount/budget observedAt、daily requestCount/tokenCountIsKnown 均是既有 opaque payload 内的 optional JSON，未改 record type/field/index/zone/query/subscription，providerPayloadVersion=1。本轮未调用 Production export 或 schema deploy。 |
+| v0.58.0.1-mobile.1.23.0 candidate | ❌ 不需要（代码审计） | published v0.56.0.1-mobile.1.23.0 → candidate：CloudConstants 无 diff；amount/budget observedAt、daily requestCount/tokenCountIsKnown 均是既有 opaque payload 内的 optional JSON，未改 record type/field/index/query/subscription，providerPayloadVersion=1。本轮未调用 Production export 或 schema deploy。 |
+| v0.68.0.1-mobile.2.3.0 candidate | ❌ 不需要（代码审计） | published v0.66.0.1-mobile.2.1.0 → candidate：CloudConstants 与 providerPayloadVersion 无 schema 变化；新增内容位于既有 `DeviceProviderSnapshot.payload` optional JSON；quota warning 沿用已部署 `QuotaTransition` type、fields 与 predicate。private-zone / zone-subscription 实例是运行时数据。本轮未读取或写入 Production。 |
 
 ## 注意事项
 
 - **`providerPayloadVersion` bump = 强制全量重写**。看到 commit 改它必须警惕：除了 CK deploy，还会触发用户首次启动新版后 CPU/网络 spike。Phase B 加 6 个 optional 字段时**故意不 bump** 就是为了避这个。
+- **新增用户私有数据库 custom zone 不等于新增 schema**。Apple 文档规定客户端可通过 CloudKit API 为该用户私有数据库保存自定义 zone；Dashboard 的 schema deploy 不创建每个用户的 zone。检查代码是否新增了 record type、字段/index 或依赖新 schema 的 subscription，再判断是否 deploy。
 - **零 schema change**只代表"不需要 deploy"，不代表"不会出问题"。Phase G 这种"推更多 record" 的改动可能让用户 iCloud 配额吃紧（如果 record 数量大涨）— 那是 quota 问题不是 schema 问题，但同样要测。
 - 这份 doc 的对照表必须跟 `docs/versioning.md` 一起读。版本 bump + schema deploy 是两个独立维度的决策。

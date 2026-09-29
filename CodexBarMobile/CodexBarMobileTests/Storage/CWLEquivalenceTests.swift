@@ -48,7 +48,8 @@ struct CWLEquivalenceTests {
         name: String,
         modelLabel: String,
         dailyCosts: [(daysAgo: Int, cost: Double, tokens: Int)],
-        lastUpdated: Date) -> ProviderUsageSnapshot
+        lastUpdated: Date,
+        reportingPeriod: String? = nil) -> ProviderUsageSnapshot
     {
         let daily = dailyCosts.map { entry in
             SyncDailyPoint(
@@ -75,7 +76,8 @@ struct CWLEquivalenceTests {
                 last30DaysCostUSD: nil, // force blob to reduce from daily[]
                 last30DaysTokens: nil,
                 daily: daily,
-                isEstimated: false))
+                isEstimated: false,
+                reportingPeriod: reportingPeriod))
     }
 
     @Test
@@ -278,7 +280,8 @@ struct CWLEquivalenceTests {
         let codex = self.provider(
             id: "codex", name: "Codex", modelLabel: "gpt-5",
             dailyCosts: [(0, 1.0, 100), (1, 2.0, 200)],
-            lastUpdated: now)
+            lastUpdated: now,
+            reportingPeriod: "all")
         let snapshot = SyncedUsageSnapshot(
             providers: [codex], syncTimestamp: now,
             deviceName: "Test Mac", deviceID: "test-device")
@@ -292,6 +295,7 @@ struct CWLEquivalenceTests {
             let insights = CostDashboardInsights.fromLedger(aggregation: agg, snapshot: snapshot)
             #expect(insights.cwlWindowDays == window)
             #expect(insights.historyDays == window, "CWL window \(window) must drive the headline")
+            #expect(insights.historyDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(window))
         }
 
         // Blob path carries no override → headline falls back to provider historyDays.
@@ -299,7 +303,253 @@ struct CWLEquivalenceTests {
     }
 
     @Test
-    func `CWL provider totals use snapshot summary as a floor for longer windows`() throws {
+    func `blob Overview follows a shared reporting period and suppresses mixed totals`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        func provider(
+            id: String,
+            period: String,
+            days: Int,
+            historyWindowIsComparable: Bool? = nil) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: id,
+                providerName: id,
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 12,
+                    last30DaysTokens: 120,
+                    daily: [],
+                    historyDays: days,
+                    reportingPeriod: period,
+                    historyWindowIsComparable: historyWindowIsComparable))
+        }
+        func insights(_ providers: [ProviderUsageSnapshot]) -> CostDashboardInsights {
+            CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: now,
+                deviceName: "Test Mac"))
+        }
+
+        let allTime = insights([
+            provider(id: "codex", period: "all", days: 120),
+            provider(id: "claude", period: "all", days: 365),
+        ])
+        #expect(allTime.hasComparableHistoryTotals)
+        #expect(allTime.historyDisplayTitle == "All")
+        #expect(allTime.total30DayCostIsKnown)
+
+        let mixed = insights([
+            provider(id: "codex", period: "rolling:30", days: 30),
+            provider(id: "claude", period: "month-to-date", days: 30),
+        ])
+        #expect(!mixed.hasComparableHistoryTotals)
+        #expect(mixed.historyDisplayTitle == "Mixed cost windows")
+        #expect(!mixed.total30DayCostIsKnown)
+        #expect(mixed.total30DayTokens == 0)
+        #expect(mixed.spendProviderRows.isEmpty)
+
+        let mixedMacs = insights([
+            provider(id: "codex", period: "all", days: 365, historyWindowIsComparable: false),
+        ])
+        #expect(!mixedMacs.hasComparableHistoryTotals)
+        #expect(!mixedMacs.total30DayCostIsKnown)
+    }
+
+    @Test
+    func `CWL summary totals require the selected reporting period`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let point = SyncDailyPoint(
+            dayKey: "2023-11-14",
+            costUSD: 7,
+            totalTokens: 70,
+            costIsKnown: true)
+        let rollup = CostLedgerProviderRollup(
+            providerID: "codex",
+            accountEmail: nil,
+            totalCostUSD: 7,
+            totalTokens: 70,
+            dailyPoints: [point],
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
+
+        func provider(
+            reportingPeriod: String?,
+            historyDays: Int?) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 12,
+                    last30DaysTokens: 120,
+                    daily: [],
+                    historyDays: historyDays,
+                    reportingPeriod: reportingPeriod))
+        }
+
+        let monthToDate = CostDashboardInsights.ledgerDisplayTotals(
+            rollup: rollup,
+            provider: provider(reportingPeriod: "month-to-date", historyDays: 28),
+            windowDays: 30)
+        #expect(monthToDate.costUSD == 7)
+        #expect(monthToDate.tokens == 70)
+        #expect(!monthToDate.costIsKnown)
+
+        let matchingRolling = CostDashboardInsights.ledgerDisplayTotals(
+            rollup: rollup,
+            provider: provider(reportingPeriod: "rolling:30", historyDays: 30),
+            windowDays: 30)
+        #expect(matchingRolling.costUSD == 12)
+        #expect(matchingRolling.tokens == 120)
+        #expect(matchingRolling.costIsKnown)
+
+        let legacyThirtyDay = CostDashboardInsights.ledgerDisplayTotals(
+            rollup: rollup,
+            provider: provider(reportingPeriod: nil, historyDays: 30),
+            windowDays: 30)
+        #expect(legacyThirtyDay.costUSD == 12)
+        #expect(legacyThirtyDay.tokens == 120)
+    }
+
+    @Test
+    func `CWL month-to-date daily fallback stays incomplete for a thirty-day window`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
+        let timeZone = try #require(TimeZone(identifier: "UTC"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let today = calendar.startOfDay(for: now)
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        let daily = (0..<28).map { offset in
+            let date = calendar.date(byAdding: .day, value: -offset, to: today)!
+            return SyncDailyPoint(
+                dayKey: formatter.string(from: date),
+                costUSD: 1,
+                totalTokens: 10,
+                costIsKnown: true)
+        }
+        let provider = ProviderUsageSnapshot(
+            providerID: "mistral",
+            providerName: "Mistral",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 28,
+                last30DaysTokens: 280,
+                daily: daily,
+                historyDays: 28,
+                reportingPeriod: "month-to-date",
+                sourceUpdatedAt: now,
+                sourceDayKey: formatter.string(from: today),
+                bucketTimeZoneIdentifier: timeZone.identifier,
+                historyCoverageIsEstablished: true))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mac",
+            deviceID: "mistral-month-to-date")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot,
+            now: now,
+            calendar: calendar)
+        let row = try #require(insights.providerRows.first)
+        #expect(row.thirtyDayCost == 28)
+        #expect(!row.thirtyDayCostIsKnown)
+        #expect(!insights.total30DayCostIsKnown)
+        #expect(insights.hasIncompleteCostData)
+    }
+
+    @Test
+    func `CWL ledger does not reuse an incomparable synced window total`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let now = Date()
+        let provider = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 37,
+                last30DaysTokens: 3_700,
+                daily: [SyncDailyPoint(
+                    dayKey: self.dayKey(daysAgo: 0),
+                    costUSD: 5,
+                    totalTokens: 500,
+                    costIsKnown: true)],
+                historyDays: 30,
+                reportingPeriod: "all",
+                historyWindowIsComparable: false))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Mixed-window Macs",
+            deviceID: "mixed-window")
+        try CostLedgerService.upsertFromSnapshot(provider, deviceID: "mixed-window", in: context)
+        try context.save()
+
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30,
+            in: context,
+            readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: snapshot,
+            now: now,
+            calendar: Calendar(identifier: .gregorian))
+
+        #expect(insights.total30DayCost == 5)
+        #expect(insights.providerRows.first?.thirtyDayCost == 5)
+    }
+
+    @Test
+    func `CWL provider totals do not reuse a shorter summary for longer windows`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
@@ -360,12 +610,13 @@ struct CWLEquivalenceTests {
         let row = try #require(insights.providerRows.first { $0.provider.providerID == "claude" })
         let summaryOnlyRow = try #require(insights.providerRows.first { $0.provider.providerID == "openai" })
 
-        #expect(abs(row.thirtyDayCost - 2638.98) < Self.tolerance)
-        #expect(row.thirtyDayTokens == 2_638_980)
+        #expect(abs(row.thirtyDayCost - 42.34) < Self.tolerance)
+        #expect(row.thirtyDayTokens == 42340)
         #expect(abs(row.todayCost - 1.49) < Self.tolerance)
-        #expect(abs(summaryOnlyRow.thirtyDayCost - 12.34) < Self.tolerance)
-        #expect(summaryOnlyRow.thirtyDayTokens == 12340)
-        #expect(abs(insights.total30DayCost - 2651.32) < Self.tolerance)
+        #expect(summaryOnlyRow.thirtyDayCost == 0)
+        #expect(summaryOnlyRow.thirtyDayTokens == 0)
+        #expect(!summaryOnlyRow.thirtyDayCostIsKnown)
+        #expect(abs(insights.total30DayCost - 42.34) < Self.tolerance)
     }
 
     @Test

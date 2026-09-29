@@ -12,15 +12,16 @@ struct SettingsPersistenceContractTests {
         settings.weeklyProgressWorkDays = 4
         settings.mergeIconStackedTopProviderRaw = "claude"
         settings.menuBarDisplayMode = .pace
-        settings.iCloudSyncDeviceID = "synthetic-device"
-        settings.iCloudSyncSnapshotsEnabled = false
+        settings.macFleetSyncDeviceID = "synthetic-device"
+        settings.macFleetSyncSnapshotsEnabled = false
 
         let reloaded = testSettingsStore(suiteName: #function, userDefaults: defaults)
         #expect(reloaded.weeklyProgressWorkDays == 4)
         #expect(reloaded.mergeIconStackedTopProviderRaw == "claude")
         #expect(reloaded.menuBarDisplayMode == .pace)
-        #expect(reloaded.iCloudSyncDeviceID == "synthetic-device")
-        #expect(!reloaded.iCloudSyncSnapshotsEnabled)
+        #expect(reloaded.macFleetSyncDeviceID == "synthetic-device")
+        #expect(!reloaded.macFleetSyncSnapshotsEnabled)
+        #expect(defaults.string(forKey: "com.codexbar.sync.deviceID") == "synthetic-device")
         #expect(defaults.string(forKey: "menuBarDisplayMode") == MenuBarDisplayMode.pace.rawValue)
         #expect(defaults.object(forKey: "menuBarDisplayModeRaw") == nil)
 

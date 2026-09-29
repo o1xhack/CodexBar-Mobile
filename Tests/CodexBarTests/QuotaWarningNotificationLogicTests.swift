@@ -62,6 +62,60 @@ struct QuotaWarningNotificationLogicTests {
     }
 
     @Test
+    func `quota warning event resolves calendar periods while preserving custom labels`() {
+        Self.withAppLanguage("en") {
+            let daily = QuotaWarningEvent(
+                window: .session,
+                threshold: 50,
+                currentRemaining: 45,
+                windowPeriod: .daily)
+            let monthly = QuotaWarningEvent(
+                window: .weekly,
+                threshold: 50,
+                currentRemaining: 45,
+                windowPeriod: .monthly)
+            let lifetime = QuotaWarningEvent(
+                window: .weekly,
+                threshold: 50,
+                currentRemaining: 45,
+                windowPeriod: .lifetime)
+            let custom = QuotaWarningEvent(
+                window: .weekly,
+                threshold: 50,
+                currentRemaining: 45,
+                windowPeriod: .monthly,
+                windowDisplayLabel: "Fable only")
+
+            #expect(daily.localizedWindowDisplayLabel == "Daily")
+            #expect(monthly.localizedWindowDisplayLabel == "Monthly")
+            #expect(lifetime.localizedWindowDisplayLabel == "Lifetime")
+            #expect(custom.localizedWindowDisplayLabel == "Fable only")
+
+            let copy = QuotaWarningNotificationLogic.notificationCopy(
+                providerName: "Raycast",
+                window: monthly.window,
+                threshold: monthly.threshold,
+                currentRemaining: monthly.currentRemaining,
+                windowDisplayLabel: monthly.localizedWindowDisplayLabel)
+            #expect(copy.title == "Raycast Monthly quota low")
+            #expect(copy.body == "45% left. Reached your 50% Monthly warning threshold.")
+        }
+    }
+
+    @Test
+    func `quota warning event localizes structured Aixy budget labels`() {
+        Self.withAppLanguage("zh-Hans") {
+            let event = QuotaWarningEvent(
+                window: .weekly,
+                threshold: 50,
+                currentRemaining: 45,
+                windowDisplayLabel: "Organization · Lifetime · Shared · Hard")
+
+            #expect(event.localizedWindowDisplayLabel == "组织 · 终身 · 共享 · 硬性")
+        }
+    }
+
+    @Test
     func `extra-window notification identifiers are independent`() {
         let fable = QuotaWarningEvent(
             window: .weekly,

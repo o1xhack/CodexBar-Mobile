@@ -1706,3 +1706,13 @@
 "weekly_limit_confetti_subtitle" = "Haftalık kullanım sıfırlandığında tam ekran konfeti oynat.";
 "weekly_limit_confetti_title" = "Haftalık limit konfetisi";
 "∞ Unlimited" = "∞ Sınırsız";
+
+/* Aixy quota warning labels */
+"Organization" = "Kuruluş";
+"Project" = "Proje";
+"User" = "Kullanıcı";
+"Key" = "Anahtar";
+"Lifetime" = "Ömür boyu";
+"Shared" = "Paylaşılan";
+"Hard" = "Kesin";
+"Monitor" = "İzleme";

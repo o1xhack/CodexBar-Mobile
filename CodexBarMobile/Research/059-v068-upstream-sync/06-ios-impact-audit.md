@@ -27,10 +27,16 @@ Status: `ready`（静态基线审计；最终结论在 implementation 后更新�
 
 - `UsageCardView` 通过 `ProviderWindowLabel.localized` 展示 window；`ProviderDetailLocalization` 仅翻译可确认的固定语义，模型名、用户名、scope、动态金额保持原样。
 - `ProviderColorPalette` 优先读 Mac 提供的安全 hex tint，并处理 Light/Dark contrast；新增 provider 要确认 ID 映射不会落入错误的 substring color。
-- `QuotaProviderList` 是 quota warning subscription / notification 的静态 append-only 列表，影响 zone/subscription ID。不能重排或改名。只有 Mac 真正可发 transition 且同意新增 zone 时才追加；schema audit 将按仓库文档判断是否触发单独 deploy 授权。
+- `QuotaProviderList` 是 quota warning subscription / notification 的静态 append-only 列表，影响 zone/subscription ID，不能重排或改名。每用户 private zone 和 subscription 实例属于运行时数据；只有新 record type、被查询/排序的新 field 或新 index 才触发 schema deploy。本轮沿用已部署的 transition type/fields/predicate，审计为 `NO_DEPLOY`。
 - `Localizable.xcstrings` 的新固定文本需要 en、zh-Hans、zh-Hant、ja 四项均为 `translated`。release notes 应只新建 2.3.0 block，不改写 2.2.0 审核材料。
-- CloudKit 使用现有 record type / zones / fields 时无需 Production schema deploy；若 quota push 新增 zone 或订阅，先按照 `docs/cloudkit-deploy-audit.md` 审计并记 `DEPLOY_REQUIRED` 或 `NO_DEPLOY`，未获 deploy 授权则不执行 Production 操作。
+- CloudKit 使用现有 record type / fields / predicate 时，即使为用户私有数据库创建 zone 或 subscription 实例，也无需 Production schema deploy；本轮未读取或写入 Production。
 
 ## 初步判断
 
 上游 0.67–0.68 没有要求为 iOS 创建一套 Mac credential provider。绝大部分 provider 额度、金额、details 可走现有 generic payload。最可能需要实际修改的是 provider 可见 tint / fixed details localization，以及可通知 provider 的 append-only list；任何新 wire 字段必须由真实 merged snapshot 缺口证明，不能仅为上游 Mac 代码结构重构而加 schema。
+
+## 实施后核实：Aixy identity
+
+- 上游插件 `Sources/CodexBarCore/Resources/Plugins/aixy.ts` 从响应中的 `root.key.id` 取服务器 key ID，并以 `ProviderIdentitySnapshot.accountID` 暴露；同步路径中的 first-party `.aixy` 不经过 non-first-party plugin mapper。
+- Aixy 用量按 API key 计量，故 Mac 发布 `aixy:key:<opaque-key-id>`，相同 key 可跨 Mac 合并，不同 key 即使属于同一 project 也保持分开。ID 保留大小写并做 NFC、trim、percent-encoding 与长度限制；不得用 workspace 标签、secret 或 email 推断身份。缺少 key ID 时不输出 Aixy identity，iOS 沿用 per-device legacy bucket。
+- 此方案只增加已有 `accountIdentities` optional 数组中的字符串；iOS 已对 identity 做 opaque string equality，不新增 payload key、CloudKit 字段或 schema。对应测试覆盖大小写敏感 ID、缺失 ID 与 mapper 保留 key identity。

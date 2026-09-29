@@ -91,6 +91,10 @@ extension ProviderDescriptor {
 | **Claude** | Anthropic OAuth `sub` claim (JWT) | primary email, Anthropic-side org ID when available | `["claude:oauth-sub:<sub>", "claude:email:<email>", "claude:org:<id>"]` |
 | **VertexAI** | GCP user-id / service-account-id | email, GCP project numeric ID | `["vertexai:user-id:<id>", "vertexai:project-num:<n>", "vertexai:email:<email>"]` |
 
+### Additive extension — Aixy (2026-09-28)
+
+Aixy usage is scoped to an API key. The upstream plugin extracts the server-issued key ID into `ProviderIdentitySnapshot.accountID`; the Mac sync bridge publishes it as `aixy:key:<key-id>`. Macs using the same key can merge, while separate keys stay separate even if they belong to the same project. The key ID is opaque and may be case-sensitive, so this scheme preserves its case while applying NFC normalization, trimming, percent-encoding, and the existing length cap. If the key ID is absent, the snapshot carries no Aixy identity and remains in the per-device legacy bucket. Do not infer Aixy identity from a workspace label, key secret, or email.
+
 If the primary identifier can't be obtained (network failure, partial signin), Mac writes whatever secondaries it has + omits primary — better than nil. The legacy bucket is reserved for *no identifiers at all*.
 
 ### 4.3 Other 24 providers
@@ -104,6 +108,8 @@ Default to nil. Their cost path doesn't go through local pricing, and their acco
 - Time-bounded values (JWT `exp`, session tokens): NEVER include
 - Empty/whitespace-only values: omit (don't write `"codex:email:"`)
 - Maximum identifier string length: 256 chars (truncate + log if exceeded; provider should fix at source)
+
+The Aixy key ID exception above is intentionally opaque: it preserves source case because the upstream-issued key identifier may be case-sensitive. Existing human/account identifiers continue to follow the lowercase rule. New case-sensitive opaque identifier schemes must document their normalization rule before publication.
 
 ### 4.2 Other 24 providers
 

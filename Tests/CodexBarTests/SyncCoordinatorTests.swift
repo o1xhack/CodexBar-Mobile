@@ -291,6 +291,56 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `all-time sync publishes a bounded legacy period span for older iOS readers`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-all-time-period")
+        settings.iCloudSyncEnabled = true
+        settings.costReportingPeriod = .allTime
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let updatedAt = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
+        let source = CostUsageTokenSnapshot(
+            sessionTokens: 10,
+            sessionCostUSD: 0.25,
+            last30DaysTokens: 20,
+            last30DaysCostUSD: 0.50,
+            historyDays: 800_000,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2025-01-01",
+                    inputTokens: 8,
+                    outputTokens: 2,
+                    totalTokens: 10,
+                    costUSD: 0.25,
+                    modelsUsed: ["gpt-5"],
+                    modelBreakdowns: []),
+                CostUsageDailyReport.Entry(
+                    date: "2026-09-28",
+                    inputTokens: 8,
+                    outputTokens: 2,
+                    totalTokens: 10,
+                    costUSD: 0.25,
+                    modelsUsed: ["gpt-5"],
+                    modelBreakdowns: []),
+            ],
+            updatedAt: updatedAt).reporting(.allTime)
+        let expectedLegacySpan = source.displayHistoryDays(calendar: settings.costUsageBucketCalendar)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(source, provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let cost = try #require(mock.lastSnapshot?.providers.first(where: { $0.providerID == "codex" })?.costSummary)
+        #expect(cost.reportingPeriod == "all")
+        #expect(cost.historyDays == expectedLegacySpan)
+        #expect(cost.historyDays ?? .max < 1000)
+    }
+
+    @Test
     func `sync metadata preserves every provider-windowed daily bucket`() {
         let snapshot = CostUsageTokenSnapshot(
             sessionTokens: nil,

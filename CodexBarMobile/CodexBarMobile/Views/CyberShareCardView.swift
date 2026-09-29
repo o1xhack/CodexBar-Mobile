@@ -126,10 +126,12 @@ private struct VibeShareCard: View {
                             Spacer()
                             Text(provider.cost, format: .currency(code: "USD"))
                                 .font(.subheadline.monospacedDigit())
-                            Text(provider.share, format: .percent.precision(.fractionLength(0)))
-                                .font(.caption.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(self.theme.secondary)
-                                .frame(width: 34, alignment: .trailing)
+                            if provider.shareIsKnown {
+                                Text(provider.share, format: .percent.precision(.fractionLength(0)))
+                                    .font(.caption.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(self.theme.secondary)
+                                    .frame(width: 34, alignment: .trailing)
+                            }
                         }
                     }
                 }

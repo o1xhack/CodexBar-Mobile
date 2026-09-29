@@ -115,6 +115,19 @@ enum ProviderColorPalette {
             .lowercased()
             .replacingOccurrences(of: " ", with: "")
 
+        // iOS 2.3.0 — upstream v0.67.0 provider additions. Keep these exact
+        // matches ahead of broader substring fallbacks so synced cards remain
+        // visually distinct when a Mac omits its optional icon tint.
+        if normalized.contains("xkiro") {
+            return Color(red: 0.32, green: 0.79, blue: 0.61)
+        }
+        if normalized.contains("raycast") {
+            return Color(red: 0.82, green: 0.24, blue: 0.24)
+        }
+        if normalized.contains("aixy") {
+            return Color(red: 0.07, green: 0.21, blue: 0.34)
+        }
+
         // Specific new providers from upstream v0.20 — these come first
         // because `opencodego.contains("opencode")` would otherwise grab the
         // more general rule below and collapse Go into Zen's blue.

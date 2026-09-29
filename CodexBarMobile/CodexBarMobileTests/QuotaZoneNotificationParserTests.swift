@@ -140,6 +140,66 @@ struct QuotaZoneNotificationParserTests {
         #expect(parsed?.threshold == 20)
     }
 
+    @Test("parseWarningRecordName preserves hashed named-window identity and display label")
+    func parseNamedWindowWarningRecord() {
+        let label = "Organization · Monthly · Shared · Hard"
+        let recordName = QuotaZoneNotificationParser.warningRecordName(
+            providerID: "aixy",
+            window: "monthly",
+            threshold: 50,
+            hourBucket: 477312,
+            identityHash: "0123456789abcdef01234567",
+            windowDisplayLabel: label)
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            recordName)
+        #expect(parsed?.providerID == "aixy")
+        #expect(parsed?.window == "monthly")
+        #expect(parsed?.threshold == 50)
+        #expect(parsed?.windowLabel == label)
+        let legacy = Self.parseWarningRecordNameWithV066Rules(recordName)
+        #expect(legacy?.window == "monthly")
+        #expect(legacy?.threshold == 50)
+    }
+
+    @Test("parseWarningRecordName reads existing post-hour identity suffixes")
+    func parsePreviouslyWrittenNamedWindowWarningRecord() {
+        let label = "Organization · Monthly · Shared · Hard"
+        let encoded = QuotaZoneNotificationParser.encodeWarningWindowLabel(label)!
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            "aixy-monthly-t50-477312-w0123456789abcdef01234567-l\(encoded)")
+        #expect(parsed?.providerID == "aixy")
+        #expect(parsed?.window == "monthly")
+        #expect(parsed?.threshold == 50)
+        #expect(parsed?.windowLabel == label)
+    }
+
+    private static func parseWarningRecordNameWithV066Rules(
+        _ recordName: String) -> (window: String, threshold: Int)?
+    {
+        let parts = recordName.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count >= 4,
+              let thresholdPart = parts.dropLast(1).last,
+              thresholdPart.hasPrefix("t"),
+              let threshold = Int(thresholdPart.dropFirst())
+        else { return nil }
+        return (String(parts[parts.count - 3]), threshold)
+    }
+
+    @Test("near-simultaneous warning records do not claim an exact trigger")
+    func warningRecordAmbiguity() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [now]))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, now.addingTimeInterval(0.4)],
+            latestTransitionAt: now.addingTimeInterval(0.4)))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, now.addingTimeInterval(0.5), now.addingTimeInterval(10)],
+            latestTransitionAt: now.addingTimeInterval(10)))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now.addingTimeInterval(10), now.addingTimeInterval(10.5)],
+            latestTransitionAt: now.addingTimeInterval(10.5)))
+    }
+
     @Test("parseWarningRecordName rejects malformed names")
     func parseWarningRecordMalformed() {
         #expect(QuotaZoneNotificationParser.parseWarningRecordName(

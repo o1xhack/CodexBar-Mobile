@@ -34,10 +34,14 @@ enum ProviderWindowLabel {
         case "Daily": "v045_window_daily"
         case "Weekly": "v045_window_weekly"
         case "Monthly": "v045_window_monthly"
+        case "Monthly Plan": "Monthly Plan"
         case "Monthly Bobcoins": "v049_window_monthly_bobcoins"
         case "Additional": "v045_window_additional"
         case "5 hour limit": "v045_window_5_hour_limit"
         case "Daily limit": "v045_window_daily_limit"
+        case "Daily free tokens": "Daily free tokens"
+        case "Budget": "Budget"
+        case "Secondary budget": "Secondary budget"
         case "7 day limit": "v045_window_7_day_limit"
         case "Designs": "v045_window_designs"
         case "Daily Routines": "v045_window_daily_routines"
@@ -51,8 +55,29 @@ enum ProviderWindowLabel {
         _ label: String?,
         fallback: String,
         providerID: String? = nil,
+        period: SyncRateWindowPeriod? = nil,
         locale: Locale = .current) -> String
     {
+        if providerID == "raycast", period == .monthly, label == nil || label == "Additional" {
+            return MobileLocalizedString.value("Monthly", defaultValue: "Monthly", locale: locale)
+        }
+        if providerID == "aixy",
+           let label,
+           let localized = ProviderDetailLocalization.localizedAixyBudgetLabel(label, locale: locale)
+        {
+            return localized
+        }
+        if providerID == "xkiro", period == .daily {
+            return MobileLocalizedString.value("Daily free tokens", defaultValue: "Daily free tokens", locale: locale)
+        }
+        if providerID == "aixy",
+           let label,
+           ["Budget", "Secondary budget"].contains(label),
+           let periodLabel = self.localizedPeriodLabel(period, locale: locale)
+        {
+            let base = MobileLocalizedString.value(label, defaultValue: label, locale: locale)
+            return "\(base) · \(periodLabel)"
+        }
         if providerID == "kiro", label == "Overage" {
             return MobileLocalizedString.value("Overage", defaultValue: "Overage", locale: locale)
         }
@@ -116,6 +141,8 @@ enum ProviderWindowLabel {
             return MobileLocalizedString.value("v045_window_weekly", defaultValue: "Weekly", locale: locale)
         case "v045_window_monthly":
             return MobileLocalizedString.value("v045_window_monthly", defaultValue: "Monthly", locale: locale)
+        case "Monthly Plan":
+            return MobileLocalizedString.value("Monthly Plan", defaultValue: "Monthly Plan", locale: locale)
         case "v049_window_monthly_bobcoins":
             return MobileLocalizedString.value(
                 "v049_window_monthly_bobcoins",
@@ -176,6 +203,19 @@ enum ProviderWindowLabel {
         guard let count = Int(countText), count > 0 else { return nil }
         guard (count == 1) == (suffix == singularSuffix) else { return nil }
         return count
+    }
+
+    private static func localizedPeriodLabel(_ period: SyncRateWindowPeriod?, locale: Locale) -> String? {
+        let key: String
+        switch period {
+        case .session: key = "Session"
+        case .daily: key = "Daily"
+        case .weekly: key = "Weekly"
+        case .monthly: key = "Monthly"
+        case .lifetime: key = "Lifetime"
+        case nil: return nil
+        }
+        return MobileLocalizedString.value(key, defaultValue: key, locale: locale)
     }
 }
 

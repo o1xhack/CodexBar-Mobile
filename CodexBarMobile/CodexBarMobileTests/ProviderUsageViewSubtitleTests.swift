@@ -204,4 +204,45 @@ struct ProviderUsageViewSubtitleTests {
         #expect(parts.first?.contains("≥") == true)
         #expect(parts.count == 1)
     }
+
+    @Test("Cost window labels follow the selected Mac reporting period")
+    func costWindowLabelsFollowReportingPeriod() {
+        func summary(_ period: String, days: Int) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 12,
+                last30DaysTokens: 120,
+                daily: [],
+                historyDays: days,
+                reportingPeriod: period)
+        }
+
+        let monthToDate = summary("month-to-date", days: 30)
+        let allTime = summary("all", days: 365)
+        let rolling = summary("rolling:7", days: 7)
+        let customRolling = summary("rolling:45", days: 45)
+
+        #expect(monthToDate.reportingPeriodDisplayTitle == "This month")
+        #expect(monthToDate.compactReportingPeriodLabel == "This month")
+        #expect(allTime.reportingPeriodDisplayTitle == "All")
+        #expect(allTime.compactReportingPeriodLabel == "All")
+        #expect(rolling.reportingPeriodDisplayTitle == "7 Days")
+        #expect(rolling.compactReportingPeriodLabel == "7 days")
+        #expect(customRolling.reportingPeriodDisplayTitle == "45 Days")
+        #expect(customRolling.compactReportingPeriodLabel == "45 days")
+    }
+
+    @Test("Legacy cost payloads keep the rolling 30-day label")
+    func legacyCostWindowLabelRemainsThirtyDays() {
+        let legacy = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 12,
+            last30DaysTokens: 120,
+            daily: [])
+
+        #expect(legacy.reportingPeriodDisplayTitle == "30 Days")
+        #expect(legacy.compactReportingPeriodLabel == "30d")
+    }
 }

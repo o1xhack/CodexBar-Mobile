@@ -1704,3 +1704,13 @@
 "antigravity_cost_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải phí hay tín dụng Antigravity";
 "antigravity_quota_window_note" = "Chi phí cửa sổ bao gồm mọi mô hình · cửa sổ hiển thị là nhóm bị giới hạn nhất";
 "antigravity_no_priced_token_history" = "Không có lịch sử token Antigravity được định giá.";
+
+/* Aixy quota warning labels */
+"Organization" = "Tổ chức";
+"Project" = "Dự án";
+"User" = "Người dùng";
+"Key" = "Khóa";
+"Lifetime" = "Trọn đời";
+"Shared" = "Dùng chung";
+"Hard" = "Cứng";
+"Monitor" = "Theo dõi";

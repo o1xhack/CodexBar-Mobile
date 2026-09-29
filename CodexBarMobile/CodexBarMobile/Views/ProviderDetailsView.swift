@@ -12,13 +12,13 @@ enum ProviderDetailLocalization {
     /// Only labels emitted by bundled providers are localized. Custom plugin
     /// authors own their wording, so an arbitrary label must round-trip exactly.
     private static let firstPartyProviderIDs: Set<String> = [
-        "aiand", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
+        "aiand", "aixy", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
         "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
         "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
         "huggingface", "hyper", "ibmbob", "kiro", "litellm", "llmman", "llmproxy",
         "mimo", "minimax", "moonshot", "muse", "nous", "openai", "openrouter",
-        "perplexity", "pi", "poe", "replicate", "sakana", "sub2api", "typesafe",
-        "v0", "vercel", "wayfinder", "xai", "zai", "zoommate",
+        "perplexity", "pi", "poe", "raycast", "replicate", "sakana", "sub2api", "typesafe",
+        "v0", "vercel", "wayfinder", "xai", "xkiro", "zai", "zoommate",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
@@ -27,6 +27,7 @@ enum ProviderDetailLocalization {
     private static let semanticLabels: Set<String> = [
         "30d cash", "30d credits", "30d spend", "30d tokens", "7d spend",
         "API credits", "API key", "API key budget", "API key limit", "API key remaining", "API key used",
+        "Aixy key", "Applicable budgets", "Daily allowance", "Daily reset", "Free tokens",
         "Account balance", "Active keys", "Actual cost", "Additional credits", "Agent hours", "All-time key usage",
         "API key (all time)", "Audio", "Available", "Avg decision",
         "Available balance", "Balance", "Billable usage", "Billing", "Billing history",
@@ -35,26 +36,29 @@ enum ProviderDetailLocalization {
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
         "Characters", "Context files", "Context used", "Cost items", "Credit", "Credit balance",
         "Credit history", "Credit quota", "Credits", "Credits left", "Credits total", "Credits used",
-        "Cycle remaining", "Cycle used", "Daemon",
+        "Cycle remaining", "Cycle used", "Daemon", "Daily", "Hard", "Lifetime",
         "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage", "DevPass credits",
         "Exhausted keys", "Extra usage", "Gateway", "GPU time remaining", "GPU time used",
         "Granted", "Gross inference usage", "Included inference amount", "Individual credits",
-        "Inference Providers", "Key spend", "Key spending limit",
+        "Inference Providers", "Key", "Key spend", "Key spending limit",
         "Hypercredits", "Kiro responses", "Last 30 days", "Last 30 days (partial)", "Lifetime spend",
-        "Loaded", "Loaded models", "Manage", "Models", "Monthly credit limit",
+        "Left", "Loaded", "Loaded models", "Manage", "Models", "Monthly credit limit",
         "Monthly grant", "Muse Code subscription", "On-demand balance", "Other models", "Output", "Overage",
         "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
-        "Period", "Period resets", "Personal", "Plan", "Points", "Prepaid balance", "Premium weekly",
-        "Professional voices", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
+        "Observed", "Organization", "Period", "Period resets", "Personal", "Plan", "Points", "Prepaid balance",
+        "Premium weekly",
+        "Professional voices", "Project", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
-        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window",
+        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Shared",
         "Rest of organization", "Reviews", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
         "Spend history", "Spending limit", "Spent", "Spent this month", "Stored", "Subscription",
         "Subscription credits", "Team credits", "Top-up credits",
-        "Total usable", "Total usage", "TTS characters", "This month", "This week",
+        "Team", "Total usable", "Total usage", "TTS characters", "This month", "This week",
         "Today", "Today cash", "Today spend", "Today tokens", "Token quota", "Tools",
-        "Tokens", "Top method", "Top model", "Total added", "Usage", "Usage billing", "Usage summary",
-        "Used", "v0 API", "Version", "Voice slots", "Weekly", "Weekly usage", "Your shared usage",
+        "Tokens", "Tokens remaining", "Tokens used today", "Top method", "Top model", "Total added", "Usage",
+        "Usage billing",
+        "Usage summary",
+        "Used", "User", "v0 API", "Version", "Voice slots", "Weekly", "Weekly usage", "Your shared usage",
         "ZeroGPU", "5 hours",
         "credits", "points", "tokens",
     ]
@@ -78,6 +82,11 @@ enum ProviderDetailLocalization {
         context: Context = .semantic,
         locale: Locale = .current) -> String
     {
+        if providerID == "aixy",
+           let budgetLabel = self.localizedAixyBudgetLabel(label, locale: locale)
+        {
+            return budgetLabel
+        }
         if providerID == "typesafe", case .rowLabel(sectionTitle: "Billing") = context,
            label.hasPrefix("Spent ("), label.hasSuffix(")")
         {
@@ -117,9 +126,28 @@ enum ProviderDetailLocalization {
         _ value: String,
         providerID: String,
         rowLabel: String? = nil,
+        sectionTitle: String? = nil,
         locale: Locale = .current) -> String
     {
         switch providerID {
+        case "aixy":
+            if rowLabel == nil,
+               let localized = self.localizedAixyResetDescription(value, locale: locale)
+            {
+                return localized
+            }
+            return self.localizedAixyBudgetValue(
+                value, rowLabel: rowLabel, sectionTitle: sectionTitle, locale: locale) ?? value
+        case "xkiro":
+            if ["No cap reported", "Unavailable"].contains(value) {
+                return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+            }
+        case "raycast":
+            if rowLabel == nil,
+               let localized = self.localizedRaycastCreditReset(value, locale: locale)
+            {
+                return localized
+            }
         case "openrouter":
             return self.localizedOpenRouterValue(value, locale: locale) ?? value
         case "zai":
@@ -166,6 +194,96 @@ enum ProviderDetailLocalization {
         }
 
         return value
+    }
+
+    static func localizedAixyBudgetLabel(_ value: String, locale: Locale = .current) -> String? {
+        let fragments = value.components(separatedBy: " · ")
+        guard fragments.count == 4,
+              ["Organization", "Project", "Team", "User", "Key"].contains(fragments[0]),
+              ["Daily", "Weekly", "Monthly", "Lifetime"].contains(fragments[1]),
+              ["Shared", "Personal"].contains(fragments[2]),
+              ["Hard", "Monitor"].contains(fragments[3])
+        else {
+            return nil
+        }
+        return fragments.map { self.localized($0, providerID: "aixy", locale: locale) }
+            .joined(separator: " · ")
+    }
+
+    private static func localizedAixyBudgetValue(
+        _ value: String,
+        rowLabel: String?,
+        sectionTitle: String?,
+        locale: Locale) -> String?
+    {
+        guard sectionTitle == "Applicable budgets",
+              self.localizedAixyBudgetLabel(rowLabel ?? "", locale: locale) != nil
+        else {
+            return nil
+        }
+        if value == "Unavailable" {
+            return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+        }
+        let remaining = value.components(separatedBy: " / ")
+        if remaining.count == 2, remaining[1].hasSuffix(" remaining") {
+            let limit = String(remaining[1].dropLast(" remaining".count))
+            guard self.isAixyAmount(remaining[0]), self.isAixyAmount(limit) else { return nil }
+            return self.localizedFormat("%@ / %@ remaining", arguments: [remaining[0], limit], locale: locale)
+        }
+        let fragments = value.components(separatedBy: " · ")
+        if fragments.count == 2,
+           fragments[0].hasSuffix(" spent"),
+           fragments[1].hasSuffix(" reserved")
+        {
+            let spent = String(fragments[0].dropLast(" spent".count))
+            let reserved = String(fragments[1].dropLast(" reserved".count))
+            guard self.isAixyAmount(spent), self.isAixyAmount(reserved) else { return nil }
+            return self.localizedFormat("%@ spent · %@ reserved", arguments: [spent, reserved], locale: locale)
+        }
+        if value.hasSuffix(" spent") {
+            let spent = String(value.dropLast(" spent".count))
+            guard self.isAixyAmount(spent) else { return nil }
+            return self.localizedFormat("%@ spent", arguments: [spent], locale: locale)
+        }
+        return nil
+    }
+
+    private static func localizedAixyResetDescription(_ value: String, locale: Locale) -> String? {
+        guard let separator = value.range(of: " · ", options: .backwards) else { return nil }
+        let label = String(value[..<separator.lowerBound])
+        let amount = String(value[separator.upperBound...])
+        guard let localizedLabel = self.localizedAixyBudgetLabel(label, locale: locale) else { return nil }
+        if amount == "Unavailable" {
+            return "\(localizedLabel) · " +
+                MobileLocalizedString.value(amount, defaultValue: amount, locale: locale)
+        }
+        guard amount.hasSuffix(" remaining") else { return nil }
+        let numericAmount = String(amount.dropLast(" remaining".count))
+        guard self.isAixyAmount(numericAmount) else { return nil }
+        let remaining = self.localizedFormat("%@ remaining", arguments: [numericAmount], locale: locale)
+        return "\(localizedLabel) · \(remaining)"
+    }
+
+    private static func isAixyAmount(_ value: String) -> Bool {
+        !value.isEmpty && value.contains(where: \.isNumber) &&
+            value.allSatisfy { $0.isNumber || "$€£¥,.- ".contains($0) }
+    }
+
+    private static func localizedRaycastCreditReset(_ value: String, locale: Locale) -> String? {
+        let parts = value.components(separatedBy: " / ")
+        guard parts.count == 2,
+              parts[1].hasSuffix(" credits left")
+        else {
+            return nil
+        }
+        let total = String(parts[1].dropLast(" credits left".count))
+        guard self.isAixyAmount(parts[0]), self.isAixyAmount(total) else { return nil }
+        return self.localizedFormat("%@ / %@ credits left", arguments: [parts[0], total], locale: locale)
+    }
+
+    private static func localizedFormat(_ key: String, arguments: [String], locale: Locale) -> String {
+        let format = MobileLocalizedString.value(key, defaultValue: key, locale: locale)
+        return String(format: format, locale: locale, arguments: arguments)
     }
 
     private static func localizedBundledPluginValue(
@@ -404,14 +522,16 @@ struct ProviderDetailsView: View {
                             Text(ProviderDetailLocalization.localizedValue(
                                 row.value,
                                 providerID: self.providerID,
-                                rowLabel: row.label))
+                                rowLabel: row.label,
+                                sectionTitle: section.title))
                                 .fontWeight(.semibold)
                                 .monospacedDigit()
                             if let secondaryValue = row.secondaryValue {
                                 Text(ProviderDetailLocalization.localizedValue(
                                     secondaryValue,
                                     providerID: self.providerID,
-                                    rowLabel: row.label))
+                                    rowLabel: row.label,
+                                    sectionTitle: section.title))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

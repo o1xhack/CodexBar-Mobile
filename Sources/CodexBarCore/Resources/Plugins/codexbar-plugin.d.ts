@@ -30,8 +30,13 @@ interface CodexBarSetting {
 }
 
 interface CodexBarRateWindow {
+  /** Stable identity and provider-authored label for a promoted named window. */
+  id?: string | null;
+  label?: string | null;
   usedPercent: number;
   windowMinutes?: number | null;
+  /** Calendar/quota period for budgets whose reset interval may be unknown. */
+  period?: "session" | "daily" | "weekly" | "monthly" | "lifetime" | null;
   resetsAt?: Date | string | null;
   resetDescription?: string | null;
   nextRegenPercent?: number | null;

@@ -149,13 +149,14 @@ final class NotificationService: UNNotificationServiceExtension {
             if parsed?.state == .warning {
                 let result = await Self.fetchLatestWarningInfoDiagnostic(in: zoneID)
                 switch result {
-                case let .success(providerName, window, threshold, accountEmail):
+                case let .success(providerName, window, threshold, accountEmail, windowLabel):
                     content.value.title = Self.formatTitle(
                         providerName: providerName,
                         accountEmail: accountEmail)
                     content.value.body = Self.formatWarningBody(
                         providerName: providerName,
                         window: window,
+                        windowLabel: windowLabel,
                         threshold: threshold,
                         accountEmail: accountEmail)
                     NSEInvocationLog.shared.recordEntry(
@@ -163,6 +164,15 @@ final class NotificationService: UNNotificationServiceExtension {
                         event: .ok,
                         zoneName: zoneID.zoneName,
                         detail: "rewrote body: provider=\(providerName) window=\(window) threshold=\(threshold) account=\(EmailRedaction.redact(accountEmail))")
+                case let .ambiguous(providerName, accountEmail):
+                    content.value.title = Self.formatTitle(
+                        providerName: providerName,
+                        accountEmail: accountEmail)
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .ok,
+                        zoneName: zoneID.zoneName,
+                        detail: "multiple warning records changed together; kept generic body")
                 case let .empty(reason):
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
@@ -207,7 +217,13 @@ final class NotificationService: UNNotificationServiceExtension {
     /// returning version, but for now we want the NSE log to record the
     /// exact CloudKit error message when fetch fails.
     enum WarningFetchResult {
-        case success(providerName: String, window: String, threshold: Int, accountEmail: String?)
+        case success(
+            providerName: String,
+            window: String,
+            threshold: Int,
+            accountEmail: String?,
+            windowLabel: String?)
+        case ambiguous(providerName: String, accountEmail: String?)
         case empty(reason: String)
         case error(message: String)
     }
@@ -229,11 +245,12 @@ final class NotificationService: UNNotificationServiceExtension {
         // when Mac had just written `claude weekly 10` at 18:13:32 — wrong
         // record returned by server-side sort.
         //
-        // Build 126 fix: pull up to 100 records unsorted, then pick the record
+        // Build 126 fix: fetch records in unsorted pages, then pick the record
         // with the newest `creationDate` (server-authoritative metadata that
-        // doesn't go through a secondary index). With per-hour recordName
-        // bucketing on the writer side, zones rarely accumulate beyond a few
-        // dozen records, so the over-fetch is cheap.
+        // doesn't go through a secondary index). Warning zones can grow beyond
+        // the first page because Aixy writes independent rows per budget and
+        // threshold; a fixed first-page limit could rewrite a new alert using
+        // an older budget's details.
         //
         // v0.27.0 build 65.2 adds `accountEmail` to `desiredKeys` — Mac
         // writes it when the triggering provider has a resolvable account
@@ -241,14 +258,24 @@ final class NotificationService: UNNotificationServiceExtension {
         // it absent so we treat nil as "no account scope" and fall back to
         // the existing non-scoped body template.
         do {
-            let (matchResults, _) = try await container.privateCloudDatabase.records(
+            let database = container.privateCloudDatabase
+            let (firstPage, firstCursor) = try await database.records(
                 matching: query,
                 inZoneWith: zoneID,
-                desiredKeys: ["providerName", "accountEmail"],
+                desiredKeys: ["providerName", "accountEmail", "transitionAt"],
                 resultsLimit: 100)
+            var records: [CKRecord] = []
+            records.reserveCapacity(firstPage.count)
+            records.append(contentsOf: firstPage.compactMap { try? $0.1.get() })
+            var cursor = firstCursor
+            while let currentCursor = cursor {
+                let (nextPage, nextCursor) = try await database.records(continuingMatchFrom: currentCursor)
+                records.reserveCapacity(records.count + nextPage.count)
+                records.append(contentsOf: nextPage.compactMap { try? $0.1.get() })
+                cursor = nextCursor
+            }
             var newest: CKRecord?
-            for (_, result) in matchResults {
-                guard case let .success(record) = result else { continue }
+            for record in records {
                 if let cur = newest {
                     let curDate = cur.creationDate ?? .distantPast
                     let newDate = record.creationDate ?? .distantPast
@@ -267,6 +294,13 @@ final class NotificationService: UNNotificationServiceExtension {
             }
             let accountEmail = (record["accountEmail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let normalizedAccount = (accountEmail?.isEmpty ?? true) ? nil : accountEmail
+            let transitionTimes = records.compactMap { $0["transitionAt"] as? Date }
+            if QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+                transitionTimes: transitionTimes,
+                latestTransitionAt: record["transitionAt"] as? Date)
+            {
+                return .ambiguous(providerName: providerName, accountEmail: normalizedAccount)
+            }
             guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
                 record.recordID.recordName)
             else {
@@ -274,13 +308,15 @@ final class NotificationService: UNNotificationServiceExtension {
                     providerName: providerName,
                     window: "",
                     threshold: 0,
-                    accountEmail: normalizedAccount)
+                    accountEmail: normalizedAccount,
+                    windowLabel: nil)
             }
             return .success(
                 providerName: providerName,
                 window: parsed.window,
                 threshold: parsed.threshold,
-                accountEmail: normalizedAccount)
+                accountEmail: normalizedAccount,
+                windowLabel: parsed.windowLabel)
         } catch {
             let ckErr = error as? CKError
             let ckCode = ckErr.map { "code=\($0.code.rawValue)" } ?? "type=\(type(of: error))"
@@ -370,7 +406,7 @@ final class NotificationService: UNNotificationServiceExtension {
     /// vs not having NSE enrichment at all.
     static func fetchLatestWarningInfo(
         in zoneID: CKRecordZone.ID
-    ) async -> (providerName: String, window: String, threshold: Int)? {
+    ) async -> (providerName: String, window: String, threshold: Int, windowLabel: String?)? {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
@@ -391,9 +427,9 @@ final class NotificationService: UNNotificationServiceExtension {
                 record.recordID.recordName)
             else {
                 // Unparseable recordName — preserve provider title at least.
-                return (providerName, "", 0)
+                return (providerName, "", 0, nil)
             }
-            return (providerName, parsed.window, parsed.threshold)
+            return (providerName, parsed.window, parsed.threshold, parsed.windowLabel)
         } catch {
             return nil
         }
@@ -413,13 +449,14 @@ final class NotificationService: UNNotificationServiceExtension {
     static func formatWarningBody(
         providerName: String,
         window: String,
+        windowLabel: String? = nil,
         threshold: Int,
         accountEmail _: String? = nil
     ) -> String {
-        let windowLabel = self.localizedWindowLabel(window)
+        let localizedWindow = self.localizedWindowLabel(window, displayLabel: windowLabel)
         let template = String(localized: "Push.QuotaWarning.detailBody")
         // %1$@ providerName · %2$@ windowLabel · %3$lld threshold
-        return String(format: template, providerName, windowLabel, threshold)
+        return String(format: template, providerName, localizedWindow, threshold)
     }
 
     /// Builds the push title (depleted / restored / warning). When Mac
@@ -441,11 +478,35 @@ final class NotificationService: UNNotificationServiceExtension {
         return String(format: template, providerName, accountEmail)
     }
 
-    private static func localizedWindowLabel(_ window: String) -> String {
+    private static func localizedWindowLabel(_ window: String, displayLabel: String? = nil) -> String {
+        if let displayLabel, !displayLabel.isEmpty {
+            if let aixyLabel = self.localizedAixyBudgetWindowLabel(displayLabel) {
+                return aixyLabel
+            }
+            let period = self.localizedWindowLabel(window)
+            return window.isEmpty ? displayLabel : "\(displayLabel) · \(period)"
+        }
         switch window {
         case "session": return String(localized: "Push.QuotaWarning.window.session")
         case "weekly":  return String(localized: "Push.QuotaWarning.window.weekly")
+        case "daily": return String(localized: "Push.QuotaWarning.window.daily")
+        case "monthly": return String(localized: "Push.QuotaWarning.window.monthly")
+        case "lifetime": return String(localized: "Push.QuotaWarning.window.lifetime")
         default:        return window
         }
+    }
+
+    private static func localizedAixyBudgetWindowLabel(_ label: String) -> String? {
+        let fragments = label.components(separatedBy: " · ")
+        guard fragments.count == 4,
+              ["Organization", "Project", "Team", "User", "Key"].contains(fragments[0]),
+              ["Daily", "Weekly", "Monthly", "Lifetime"].contains(fragments[1]),
+              ["Shared", "Personal"].contains(fragments[2]),
+              ["Hard", "Monitor"].contains(fragments[3])
+        else {
+            return nil
+        }
+        return fragments.map { Bundle.main.localizedString(forKey: $0, value: $0, table: nil) }
+            .joined(separator: " · ")
     }
 }

@@ -424,7 +424,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             ?? (requestedDays >= SpendDashboardSource.scanDays ? .allTime : .rolling(days: max(1, requestedDays)))
         let earliest = inputs.flatMap { input in
             input.snapshot.daily.compactMap {
-                Self.day($0.date, provider: input.provider, displayCalendar: calculationCalendar)
+                Self.day($0.date, input: input, displayCalendar: calculationCalendar)
             }
         }.min() ?? now
         let bounds = period.bounds(now: now, calendar: calculationCalendar, earliest: earliest)

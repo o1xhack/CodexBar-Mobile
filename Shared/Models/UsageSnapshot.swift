@@ -1,5 +1,13 @@
 import Foundation
 
+public enum SyncRateWindowPeriod: String, Codable, Sendable, Equatable {
+    case session
+    case daily
+    case weekly
+    case monthly
+    case lifetime
+}
+
 /// A single rate-limit window snapshot for iCloud sync.
 public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let id: String?
@@ -7,6 +15,9 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let usedPercent: Double
     public let usageKnown: Bool
     public let windowMinutes: Int?
+    /// Optional period semantics for quotas whose reset duration is not enough
+    /// to distinguish calendar budgets from session limits.
+    public let period: SyncRateWindowPeriod?
     public let resetsAt: Date?
     public let resetDescription: String?
     public let nextRegenPercent: Double?
@@ -22,6 +33,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         usedPercent: Double,
         usageKnown: Bool = true,
         windowMinutes: Int?,
+        period: SyncRateWindowPeriod? = nil,
         resetsAt: Date?,
         resetDescription: String?,
         nextRegenPercent: Double? = nil,
@@ -32,6 +44,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.usedPercent = usedPercent
         self.usageKnown = usageKnown
         self.windowMinutes = windowMinutes
+        self.period = period
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
         self.nextRegenPercent = nextRegenPercent
@@ -45,6 +58,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
         self.usageKnown = try container.decodeIfPresent(Bool.self, forKey: .usageKnown) ?? true
         self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
+        self.period = try container.decodeIfPresent(SyncRateWindowPeriod.self, forKey: .period)
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
         self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
@@ -274,6 +288,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// 7- or 365-day total (gap F). Optional — nil for pre-0.29 payloads; iOS
     /// treats nil as 30 (the historical default).
     public let historyDays: Int?
+    /// The producer's selected cost window (`rolling:<days>`, `month-to-date`,
+    /// or `all`). Optional so older Mac payloads keep the historical rolling
+    /// window interpretation. This lives inside the existing opaque payload.
+    public let reportingPeriod: String?
     /// iOS 1.10.0 / Mac 0.31.0 (025) — upstream #1163: request counts +
     /// currency for the shared cost cards. Optional; nil for pre-0.31
     /// payloads. iOS shows "N requests" + the right currency symbol.
@@ -330,6 +348,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         daily: [SyncDailyPoint],
         isEstimated: Bool? = nil,
         historyDays: Int? = nil,
+        reportingPeriod: String? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
         currencyCode: String? = nil,
@@ -352,6 +371,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.daily = daily
         self.isEstimated = isEstimated
         self.historyDays = historyDays
+        self.reportingPeriod = reportingPeriod
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode

@@ -54,7 +54,7 @@ final class PushSetupDiagnostic {
 
     /// Queries CloudKit for the actual subscription list from THIS app's perspective.
     ///
-    /// Since iOS 1.13.0 the app registers 159 quota push subscriptions (one per
+    /// Since iOS 2.3.0 the app registers 243 quota push subscriptions (one per
     /// `(provider, depleted/restored/warning)` pair) — printing them one by one
     /// drowns the real info. We group by subscription-ID pattern and show
     /// counts + a sample `alertBody` per group, so the output stays concise

@@ -1706,3 +1706,13 @@
 "antigravity_cost_estimate_hint" = "Lokalne użycie × publiczne ceny API · to nie opłaty ani kredyty Antigravity";
 "antigravity_quota_window_note" = "Koszt okna obejmuje wszystkie modele · pokazane okno to najbardziej ograniczona rodzina";
 "antigravity_no_priced_token_history" = "Brak wycenionej historii tokenów Antigravity.";
+
+/* Aixy quota warning labels */
+"Organization" = "Organizacja";
+"Project" = "Projekt";
+"User" = "Użytkownik";
+"Key" = "Klucz";
+"Lifetime" = "Dożywotni";
+"Shared" = "Współdzielony";
+"Hard" = "Twardy";
+"Monitor" = "Monitorowanie";

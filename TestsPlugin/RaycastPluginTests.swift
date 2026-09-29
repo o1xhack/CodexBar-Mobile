@@ -29,6 +29,7 @@ struct RaycastPluginTests {
         let snapshot = try await Self.fetch(Self.credits, engine: engine)
         #expect(snapshot.primary?.usedPercent == 75)
         #expect(snapshot.primary?.windowMinutes == nil)
+        #expect(snapshot.primary?.period == .monthly)
         #expect(snapshot.primary?.resetsAt == Self.date("2026-10-18T00:00:00.000Z"))
         #expect(snapshot.primary?.resetDescription == "125 / 500 credits left")
         #expect(snapshot.subscriptionRenewsAt == nil)

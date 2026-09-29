@@ -554,7 +554,7 @@ enum CostUsagePricing {
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
     /// Version 15: v0.58 merged scanners use one catalog snapshot for amount and estimate provenance.
-    static let parserLogicVersion = 16
+    static let parserLogicVersion = 17
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored

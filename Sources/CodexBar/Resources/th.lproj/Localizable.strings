@@ -1707,3 +1707,13 @@
 "antigravity_cost_estimate_hint" = "การใช้งานในเครื่อง × ราคา API สาธารณะ · ไม่ใช่ค่าบริการหรือเครดิตของ Antigravity";
 "antigravity_quota_window_note" = "ค่าใช้จ่ายของหน้าต่างครอบคลุมทุกโมเดล · หน้าต่างที่แสดงคือกลุ่มที่จำกัดมากที่สุด";
 "antigravity_no_priced_token_history" = "ไม่มีประวัติโทเคน Antigravity ที่คิดราคาไว้";
+
+/* Aixy quota warning labels */
+"Organization" = "องค์กร";
+"Project" = "โครงการ";
+"User" = "ผู้ใช้";
+"Key" = "คีย์";
+"Lifetime" = "ตลอดอายุการใช้งาน";
+"Shared" = "ใช้ร่วมกัน";
+"Hard" = "แบบกำหนดตายตัว";
+"Monitor" = "เฝ้าติดตาม";

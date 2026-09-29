@@ -160,6 +160,11 @@ public enum QuotaProviderList {
         Provider(id: "v0", displayName: "v0"),
         Provider(id: "gitkraken", displayName: "GitKraken AI"),
         Provider(id: "devpass", displayName: "DevPass"),
+        // iOS 2.3.0 / Mac v0.67.0 adds these quota-bearing providers.
+        // Append only so existing zone and subscription identifiers stay stable.
+        Provider(id: "xkiro", displayName: "xKiro"),
+        Provider(id: "raycast", displayName: "Raycast"),
+        Provider(id: "aixy", displayName: "Aixy"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

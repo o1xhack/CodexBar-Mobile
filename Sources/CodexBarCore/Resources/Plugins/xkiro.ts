@@ -57,6 +57,7 @@ defineProvider({
           ? {
               usedPercent: limit === 0 ? 100 : ctx.pct(used, limit),
               windowMinutes: 1440,
+              period: "daily",
               resetsAt: ctx.date.nextDailyReset("UTC", 0),
             }
           : undefined,

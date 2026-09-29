@@ -87,6 +87,9 @@ struct QuotaWarningEvent: Equatable {
     /// used to keep OS notification ids unique across sibling windows. `nil` for the primary
     /// session/weekly lanes.
     let windowID: String?
+    /// Period semantics from the provider payload, used to label calendar
+    /// budgets correctly in the iPhone warning push.
+    let windowPeriod: RateWindowPeriod?
     /// Human-facing window label to render instead of the generic session/weekly name
     /// (e.g. "Fable only", "Daily Routines"). `nil` falls back to the localized lane name.
     let windowDisplayLabel: String?
@@ -97,6 +100,7 @@ struct QuotaWarningEvent: Equatable {
         currentRemaining: Double,
         accountDisplayName: String? = nil,
         windowID: String? = nil,
+        windowPeriod: RateWindowPeriod? = nil,
         windowDisplayLabel: String? = nil)
     {
         self.window = window
@@ -104,7 +108,33 @@ struct QuotaWarningEvent: Equatable {
         self.currentRemaining = currentRemaining
         self.accountDisplayName = accountDisplayName
         self.windowID = windowID
+        self.windowPeriod = windowPeriod
         self.windowDisplayLabel = windowDisplayLabel
+    }
+
+    var localizedWindowDisplayLabel: String? {
+        if let windowDisplayLabel, !windowDisplayLabel.isEmpty {
+            return Self.localizedAixyBudgetLabel(windowDisplayLabel) ?? windowDisplayLabel
+        }
+        return switch self.windowPeriod {
+        case .daily: L("Daily")
+        case .monthly: L("Monthly")
+        case .lifetime: L("Lifetime")
+        case .session, .weekly, nil: nil
+        }
+    }
+
+    private static func localizedAixyBudgetLabel(_ value: String) -> String? {
+        let components = value.components(separatedBy: " · ")
+        guard components.count == 4,
+              ["Organization", "Project", "Team", "User", "Key"].contains(components[0]),
+              ["Daily", "Weekly", "Monthly", "Lifetime"].contains(components[1]),
+              ["Shared", "Personal"].contains(components[2]),
+              ["Hard", "Monitor"].contains(components[3])
+        else {
+            return nil
+        }
+        return components.map(L).joined(separator: " · ")
     }
 }
 
@@ -425,13 +455,16 @@ extension UsageStore {
         if let primary = snapshot.primary, Self.isSessionWindow(primary) {
             return (primary, .primary)
         }
-        if provider == .copilot, let secondary = snapshot.secondary {
+        if provider == .copilot, let secondary = snapshot.secondary, Self.isSessionWindow(secondary) {
             return (secondary, .copilotSecondaryFallback)
         }
         return nil
     }
 
     static func isSessionWindow(_ window: RateWindow) -> Bool {
+        if let period = window.period {
+            return period == .session
+        }
         guard let minutes = window.windowMinutes else { return true }
         return minutes <= 6 * 60
     }
@@ -558,7 +591,7 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
             threshold: threshold,
             currentRemaining: event.currentRemaining,
             accountDisplayName: event.accountDisplayName,
-            windowDisplayLabel: event.windowDisplayLabel)
+            windowDisplayLabel: event.localizedWindowDisplayLabel)
         let idPrefix = QuotaWarningNotificationLogic.notificationIDPrefix(provider: provider, event: event)
         self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
         if soundEnabled {

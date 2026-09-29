@@ -15,7 +15,10 @@ struct CostShareServiceTests {
         thirtyDayCost: Double? = nil,
         thirtyDayTokens: Int? = nil,
         historyDays: Int? = nil,
-        daily: [SyncDailyPoint] = []) -> ProviderUsageSnapshot
+        daily: [SyncDailyPoint] = [],
+        reportingPeriod: String? = nil,
+        historyCoverageIsEstablished: Bool? = nil,
+        historyWindowIsComparable: Bool? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -33,7 +36,10 @@ struct CostShareServiceTests {
                 last30DaysCostUSD: thirtyDayCost,
                 last30DaysTokens: thirtyDayTokens,
                 daily: daily,
-                historyDays: historyDays))
+                historyDays: historyDays,
+                reportingPeriod: reportingPeriod,
+                historyCoverageIsEstablished: historyCoverageIsEstablished,
+                historyWindowIsComparable: historyWindowIsComparable))
     }
 
     private func day(
@@ -146,6 +152,8 @@ struct CostShareServiceTests {
         #expect(abs((claudeShare?.cost ?? 0) - 10) < Self.tolerance)
         #expect(abs((codexShare?.share ?? 0) - 0.8) < Self.tolerance)
         #expect(abs((claudeShare?.share ?? 0) - 0.2) < Self.tolerance)
+        #expect(!weekly.totalCostIsKnown)
+        #expect(weekly.providers.allSatisfy { !$0.shareIsKnown })
     }
 
     @Test
@@ -459,14 +467,17 @@ struct CostShareServiceTests {
     }
 
     @Test
-    func `Share card 30-day period preserves summary-only provider costs`() {
+    func `Share card 30-day period preserves compatible legacy summary-only provider costs`() {
         let codex = CostDashboardInsights.ProviderRow(
             provider: self.provider(
                 id: "codex",
                 name: "Codex",
                 thirtyDayCost: 42,
                 thirtyDayTokens: 4200,
-                historyDays: 30),
+                historyDays: 30,
+                reportingPeriod: nil,
+                historyCoverageIsEstablished: nil,
+                historyWindowIsComparable: nil),
             thirtyDayCost: 42,
             todayCost: 0,
             thirtyDayTokens: 4200,
@@ -478,7 +489,10 @@ struct CostShareServiceTests {
                 name: "Claude",
                 thirtyDayCost: 8,
                 thirtyDayTokens: 800,
-                historyDays: 30),
+                historyDays: 30,
+                reportingPeriod: nil,
+                historyCoverageIsEstablished: nil,
+                historyWindowIsComparable: nil),
             thirtyDayCost: 8,
             todayCost: 0,
             thirtyDayTokens: 800,
@@ -496,6 +510,7 @@ struct CostShareServiceTests {
         let claudeShare = monthly.providers.first { $0.name == "Claude" }
 
         #expect(abs(monthly.totalCost - 50) < Self.tolerance)
+        #expect(monthly.totalCostIsKnown)
         #expect(monthly.totalTokens == 5000)
         #expect(monthly.providers.count == 2)
         #expect(abs((codexShare?.cost ?? 0) - 42) < Self.tolerance)
@@ -505,7 +520,7 @@ struct CostShareServiceTests {
     }
 
     @Test
-    func `Legacy summary-only 30-day spend keeps weekly subtotal qualified`() {
+    func `Legacy summary-only 30-day spend cannot be assigned to one week`() {
         let knownDay = self.day(daysAgo: 0, cost: 2, tokens: 200, costIsKnown: true)
         let known = CostDashboardInsights.ProviderRow(
             provider: self.provider(
@@ -546,7 +561,8 @@ struct CostShareServiceTests {
         let week = ShareCardData(insights: insights, period: .week)
 
         #expect(week.totalCost == 2)
-        #expect(week.totalCostIsKnown)
+        #expect(!week.totalCostIsKnown)
+        #expect(week.providers.allSatisfy { !$0.shareIsKnown })
         #expect(week.costCoverageIsIncomplete)
         #expect(!week.avgDailyCostIsKnown)
     }
@@ -732,7 +748,7 @@ struct CostShareServiceTests {
     }
 
     @Test
-    func `Weekly share totals use the same known provider contributions as provider shares`() {
+    func `Weekly lower-bound contributions do not claim complete totals or provider shares`() {
         let known = self.day(daysAgo: 0, cost: 2, tokens: 200, costIsKnown: true)
         let unavailable = self.day(daysAgo: 0, cost: 4, tokens: 400, costIsKnown: false)
         let knownProvider = CostDashboardInsights.ProviderRow(
@@ -764,16 +780,115 @@ struct CostShareServiceTests {
         let week = ShareCardData(insights: insights, period: .week)
 
         #expect(week.totalCost == 2)
-        #expect(week.totalCostIsKnown)
+        #expect(!week.totalCostIsKnown)
         #expect(week.providers.count == 1)
         #expect(week.providers.first?.name == "OpenAI")
         #expect(week.providers.first?.cost == 2)
         #expect(week.providers.first?.share == 1)
+        #expect(week.providers.first?.shareIsKnown == false)
         #expect(week.activeDays == 1)
         #expect(week.avgDailyCost == 2)
+        #expect(!week.avgDailyCostIsKnown)
         #expect(week.dailyBars.count == 1)
         #expect(week.dailyBars.first?.cost == 2)
         #expect(week.dailyBars.first?.costIsKnown == true)
+        #expect(week.costCoverageIsIncomplete)
+    }
+
+    @Test
+    func `Sparse known week is marked incomplete without a false provider share`() {
+        let today = self.day(daysAgo: 0, cost: 2, tokens: 200, costIsKnown: true)
+        let row = CostDashboardInsights.ProviderRow(
+            provider: self.provider(id: "openai", name: "OpenAI"),
+            thirtyDayCost: 2,
+            todayCost: 2,
+            thirtyDayTokens: 200,
+            todayTokens: 200,
+            dailyPoints: [today])
+        let insights = CostDashboardInsights(
+            providerRows: [row],
+            dailyPoints: [today],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [])
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 2)
+        #expect(!week.totalCostIsKnown)
+        #expect(week.costCoverageIsIncomplete)
+        #expect(week.providers.first?.shareIsKnown == false)
+    }
+
+    @Test
+    func `Exact seven dated provider rows prove a complete week`() {
+        let days = (0..<7).map { self.day(daysAgo: $0, cost: 2, tokens: 200, costIsKnown: true) }
+        let provider = ProviderUsageSnapshot(
+            providerID: "openai",
+            providerName: "OpenAI",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date())
+        let row = CostDashboardInsights.ProviderRow(
+            provider: provider,
+            thirtyDayCost: 14,
+            todayCost: 2,
+            thirtyDayTokens: 1400,
+            todayTokens: 200,
+            dailyPoints: days)
+        let insights = CostDashboardInsights(
+            providerRows: [row],
+            dailyPoints: days,
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [])
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 14)
+        #expect(week.totalCostIsKnown)
+        #expect(week.providers.first?.shareIsKnown == true)
+    }
+
+    @Test
+    func `known daily points cannot certify a provider while the producer scan is incomplete`() {
+        let daily = (0..<7).map { offset in
+            self.summaryDay(daysAgo: offset, cost: 2, tokens: 200, models: [])
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 200,
+            last30DaysCostUSD: 14,
+            last30DaysTokens: 1400,
+            daily: daily,
+            historyDays: 30,
+            reportingPeriod: "rolling:30",
+            historyCoverageIsEstablished: false)
+        let provider = ProviderUsageSnapshot(
+            providerID: "openai",
+            providerName: "OpenAI",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            costSummary: summary)
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: Date(),
+            deviceName: "Mac"))
+
+        let week = ShareCardData(insights: insights, period: .week)
+
+        #expect(week.totalCost == 14)
+        #expect(!week.totalCostIsKnown)
+        #expect(week.providers.allSatisfy { !$0.shareIsKnown })
         #expect(week.costCoverageIsIncomplete)
     }
 
