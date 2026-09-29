@@ -130,6 +130,7 @@ Fetch behavior:
 - Pages of 1000 events (up to 200 pages), with exact page-boundary overlap removed before aggregation. Reaching the safety cap or otherwise receiving fewer events than Cursor reports fails the refresh instead of publishing a partial total.
 - Empty query windows return `{}`; empty terminal pages omit the event array but retain `totalUsageEventsCount`. Both shapes were verified against populated pages from the same live session. The decoder accepts only these exact omitted-array shapes, preserves the query count, and rejects malformed arrays or ambiguous envelopes; a terminal `{}` contradicting an earlier positive count still fails.
 - The window start is snapped to the local day boundary so a 1-day window covers all of today and wider windows keep their full first day.
+- All-history requests clamp the lower bound to the Unix epoch for the dashboard API, preserving all Cursor history without sending the shared period model's pre-epoch sentinel. Rolling and month-to-date windows retain their selected cost-bucketing time zone.
 
 Two totals are reported from the same events:
 - **API-rate estimate**: reported `tokenUsage.totalCents`, with an API-list-price fallback only when the field is missing or null. Fallbacks use the existing cached models.dev catalog or bundled rates at the event date, preserve Cursor's disjoint input/cache counters, and do not read native Codex custom pricing or refresh prices over the network. Reported zero remains zero; malformed, negative, nonfinite, or otherwise invalid costs stay unpriced and fail the same-model sum closed. Unknown models remain unpriced. Reported, estimated, and unpriced request counts remain visible even when a rejected cost invalidates a model total.
@@ -191,3 +192,7 @@ fifty members. It requires consistent page-count metadata, full intermediate pag
 matching member. Missing completion metadata, duplicate matches, or unavailable, invalid, or incomplete responses
 preserve usage-summary behavior. Billing dates and extra/on-demand charges remain sourced from usage-summary;
 team response dates and other members' details are not retained. Caller cancellation still stops the fetch.
+
+## Cost reporting period
+
+The shared [cost reporting period](cost-reporting-periods.md) supports month-to-date in the pinned cost time zone. Cursor-metered spend and daily estimates use the same event window. Quota bars continue to follow Cursor’s billing-cycle start/end dates, which can fall mid-month.

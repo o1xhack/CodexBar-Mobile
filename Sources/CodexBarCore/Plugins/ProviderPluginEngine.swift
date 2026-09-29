@@ -11,6 +11,9 @@ struct ProviderPluginContextOptions: Sendable {
     static let production = Self(optionalRequestTimeoutSeconds: nil)
 
     let optionalRequestTimeoutSeconds: TimeInterval?
+    // Internal test control; public runtime initializers always use the production budget.
+    var optionalCollectionBudget: Duration = .milliseconds(200)
+    var storage: ProviderPluginStorage?
     var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
     var cookieSource: ProviderCookieSource = .auto
     var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
@@ -282,3 +285,26 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
     }
 }
 #endif
+
+final class ProviderPluginRedactionValues: @unchecked Sendable {
+    let transportErrors = ProviderPluginHTTPResponse.TransportErrors()
+    private let lock = NSLock()
+    private var values: Set<String>
+
+    init(_ values: some Sequence<String>) {
+        self.values = Set(values.filter { !$0.isEmpty })
+    }
+
+    func insert(_ value: String) {
+        guard !value.isEmpty else { return }
+        _ = self.lock.withLock { self.values.insert(value) }
+    }
+
+    func redact(_ message: String) -> String {
+        self.lock.withLock {
+            self.values.reduce(message) { partial, value in
+                partial.replacingOccurrences(of: value, with: "<redacted>")
+            }
+        }
+    }
+}

@@ -89,4 +89,4 @@ account has visible credit data.
 - `Sources/CodexBarCore/Resources/Plugins/perplexity.js`
 - `Sources/CodexBarCore/Plugins/ProviderPluginCookieBroker.swift`
 - `Sources/CodexBarCore/Providers/Perplexity/PerplexityCookieHeader.swift`
-- `Sources/CodexBar/Providers/Perplexity/PerplexityProviderImplementation.swift`
+- `Sources/CodexBar/Providers/Shared/PluginCookieProviderImplementation.swift`

@@ -494,6 +494,7 @@
 "cost_summary_style_inline_help" = "비용 요약을 기본 메뉴에 직접 표시합니다.";
 "cost_summary_style_submenu_help" = "대신 자세한 비용 하위 메뉴를 표시합니다.";
 "cost_summary_style_both_help" = "기본 메뉴 요약과 자세한 비용 하위 메뉴를 모두 표시합니다.";
+"Month to date" = "이번 달 누계";
 "cost_history_window_title" = "기록 범위";
 "cost_history_window_help" = "메뉴에 표시할 로컬 사용량 로그 일수를 설정합니다.";
 "cost_history_days_title" = "기록 범위: %d일";
@@ -928,6 +929,12 @@
 "Copied" = "복사됨";
 "Managed by Homebrew" = "Homebrew로 관리됨";
 "Copy update command" = "업데이트 명령 복사";
+"Update to %@" = "%@(으)로 업데이트";
+"CodexBar %@ is available" = "CodexBar %@ 사용 가능";
+"CodexBar is up to date" = "CodexBar가 최신 버전입니다";
+"Checking for updates…" = "업데이트 확인 중…";
+"Updating with Homebrew…" = "Homebrew로 업데이트 중…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 업데이트에 실패했습니다. 대신 터미널에서 이 명령을 실행할 수 있습니다:";
 "Copy error" = "오류 복사";
 "Copy path" = "경로 복사";
 "Extra usage spent" = "추가 사용 지출액";
@@ -1382,7 +1389,6 @@
 "menu_bar_layout_gap_tight" = "좁게";
 "menu_bar_layout_gap_regular" = "보통";
 "menu_bar_layout_vertical_adjustment" = "세로 조정";
-"menu_bar_layout_keyboard_hint" = "Delete 키로 선택한 토큰 제거";
 "menu_bar_layout_sample_account" = "계정";
 "menu_bar_layout_sample_runs_out" = "금요일 소진";
 "menu_bar_layout_token_icon" = "아이콘";

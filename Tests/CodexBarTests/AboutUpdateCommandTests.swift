@@ -6,7 +6,9 @@ import XCTest
 @MainActor
 final class AboutUpdateCommandTests: XCTestCase {
     func test_homebrewButtonCopiesOnlyCommandThroughDeferredWriter() throws {
-        let updater = DisabledUpdaterController.homebrew()
+        let updater = DisabledUpdaterController(
+            unavailableReason: L("Managed by Homebrew"),
+            manualUpdateCommand: .homebrew)
         let probe = AboutCopyTriggerProbe()
         defer {
             probe.press = nil

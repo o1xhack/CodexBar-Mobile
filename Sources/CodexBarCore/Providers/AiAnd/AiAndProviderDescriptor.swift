@@ -1,76 +1,42 @@
 import Foundation
 
 public enum AiAndProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-    private static let credentials = ProviderCredentialAdapter.apiKey(
-        environmentKey: AiAndSettingsReader.apiKeyEnvironmentKey,
-        resolve: AiAndSettingsReader.apiKey)
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .aiand,
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .aiand,
-                displayName: "ai&",
-                sessionLabel: "Spend",
-                weeklyLabel: "Spend",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show ai& usage",
-                cliName: "aiand",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                debugLogUnavailableMessage: "ai& debug log not yet implemented",
-                dashboardURL: "https://console.aiand.com",
-                statusPageURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .aiand),
-                iconResourceName: "ProviderIcon-aiand",
-                color: ProviderColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0xE25C2B),
-                    ProviderColor(hex: 0xF2A17E),
-                    ProviderColor(hex: 0x33231C),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "ai& spend is summed from the request logs API." }),
-            presentation: ProviderUsagePresentation(costPresenter: { snapshot in
-                let style: ProviderCostMenuCardStyle = (snapshot.providerCost?.limit ?? 1) <= 0
-                    ? .apiSpend
-                    : .generic
-                return ProviderCostPresentation(menuCardStyle: style)
-            }),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
-            cli: ProviderCLIConfig(
-                name: "aiand",
-                aliases: ["ai&", "ai-and"],
-                versionDetector: nil))
-    }
+    public static let descriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .aiand,
+        displayName: "ai&",
+        sessionLabel: "Spend",
+        weeklyLabel: "Spend",
+        debugLogUnavailableMessage: "ai& debug log not yet implemented",
+        dashboardURL: "https://console.aiand.com",
+        color: .init(red: 226 / 255, green: 92 / 255, blue: 43 / 255),
+        confetti: [0xE25C2B, 0xF2A17E, 0x33231C],
+        noDataMessage: "ai& spend is summed from the request logs API.",
+        environmentKey: "AIAND_API_KEY",
+        presentation: ProviderUsagePresentation(costPresenter: { snapshot in
+            let style: ProviderCostMenuCardStyle = (snapshot.providerCost?.limit ?? 1) <= 0 ? .apiSpend : .generic
+            return ProviderCostPresentation(menuCardStyle: style)
+        }),
+        aliases: ["ai&", "ai-and"],
+        validateContext: { context in
+            guard AiAndSettingsReader.apiKey(environment: context.env) != nil else {
+                throw ProviderFetchClassifiedError(
+                    kind: .missingCredential,
+                    message: "Missing ai& API key. Add one in Settings or set AIAND_API_KEY.")
+            }
+        },
+        apiKeyField: .init(
+            id: "aiand-api-key",
+            title: "API key",
+            subtitle: "Stored in CodexBar's config file. Create a key in the ai& console (shown once).",
+            placeholder: "sk-…",
+            action: ("aiand-open-console", "Open ai& Console", "https://console.aiand.com")),
+        showsAPIDetail: true,
+        availability: .configuredKey)
 
     static func scriptStrategy(
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy
     {
-        ScriptFetchStrategy(
-            id: "aiand.js",
-            provider: .aiand,
-            bundledPlugin: "aiand",
-            secretKey: AiAndSettingsReader.apiKeyEnvironmentKey,
-            sourceLabel: "api",
-            transport: transport,
-            validateContext: { context in
-                guard AiAndSettingsReader.apiKey(environment: context.env) != nil else {
-                    throw ProviderFetchClassifiedError(
-                        kind: .missingCredential,
-                        message: "Missing ai& API key. Add one in Settings or set AIAND_API_KEY.")
-                }
-            },
-            resolveSecret: AiAndSettingsReader.apiKey,
-            isEnabled: { _ in true })
+        self.spec.makeStrategy(transport: transport)
     }
 }

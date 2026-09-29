@@ -1023,6 +1023,10 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test(arguments: [
+        "1bd2d8ec2fd2dcf2",
+        "834522608c1b0457",
+        "8b9bc662426a8aab",
+        "9972dad7f7aeff21", // Before direct-fork baseline corrections.
         "03e43d1217789d16",
         "4dd9e5769818370a", // Before Linux Priority trace support.
         "50813ce2a3edfdc7", // Released in 0.63.0.
@@ -1065,6 +1069,7 @@ extension CostUsageStoreTests {
             "1bd2d8ec2fd2dcf2",
             "834522608c1b0457",
             "8b9bc662426a8aab",
+            "9972dad7f7aeff21",
             "4dd9e5769818370a",
             "03e43d1217789d16",
             "50813ce2a3edfdc7",
@@ -1475,6 +1480,26 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test
+    func `legacy previous report breakdown is conservatively estimated`() throws {
+        let json = Data(#"{"modelName":"gpt-5.5","costUSD":1.25,"totalTokens":100}"#.utf8)
+        let breakdown = try JSONDecoder().decode(CostUsageCodexPreviousReport.ModelBreakdown.self, from: json)
+
+        #expect(breakdown.isEstimated == nil)
+        #expect(breakdown.dailyReportValue.isEstimated == true)
+    }
+
+    @Test
+    func `current previous report persists exact pricing provenance`() throws {
+        let original = CostUsageCodexPreviousReport.ModelBreakdown(
+            CostUsageDailyReport.ModelBreakdown(modelName: "gpt-5.5", costUSD: 1.25))
+        let data = try JSONEncoder().encode(original)
+        let restored = try JSONDecoder().decode(CostUsageCodexPreviousReport.ModelBreakdown.self, from: data)
+
+        #expect(restored.isEstimated == false)
+        #expect(restored.dailyReportValue.isEstimated == nil)
+    }
+
+    @Test
     func `retention keeps inclusive window edges`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -1786,26 +1811,6 @@ extension CostUsageStoreTests {
 }
 
 extension CostUsageStoreTests {
-    @Test
-    func `legacy previous report breakdown is conservatively estimated`() throws {
-        let json = Data(#"{"modelName":"gpt-5.5","costUSD":1.25,"totalTokens":100}"#.utf8)
-        let breakdown = try JSONDecoder().decode(CostUsageCodexPreviousReport.ModelBreakdown.self, from: json)
-
-        #expect(breakdown.isEstimated == nil)
-        #expect(breakdown.dailyReportValue.isEstimated == true)
-    }
-
-    @Test
-    func `current previous report persists exact pricing provenance`() throws {
-        let original = CostUsageCodexPreviousReport.ModelBreakdown(
-            CostUsageDailyReport.ModelBreakdown(modelName: "gpt-5.5", costUSD: 1.25))
-        let data = try JSONEncoder().encode(original)
-        let restored = try JSONDecoder().decode(CostUsageCodexPreviousReport.ModelBreakdown.self, from: data)
-
-        #expect(restored.isEstimated == false)
-        #expect(restored.dailyReportValue.isEstimated == nil)
-    }
-
     @Test
     func `save preserves an existing previous report when protected data exceeds the byte cap`() async throws {
         let fixture = try StoreFixture()

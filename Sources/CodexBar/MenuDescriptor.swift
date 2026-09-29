@@ -94,10 +94,13 @@ struct MenuDescriptor {
         managedCodexAccountCoordinator: ManagedCodexAccountCoordinator? = nil,
         codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator? = nil,
         updateReady: Bool,
+        availableUpdateVersion: String? = nil,
+        isInstallingUpdate: Bool = false,
         canCheckForUpdates: Bool = false,
         versionText: String = AppVersion.shortVersion,
         includeContextualActions: Bool = true,
         codexWorkspacesMenuEnabled: Bool = false,
+        isKeepingAwake: Bool = false,
         agentSessionsEnabled: Bool = false,
         agentSessionLabelStyle: AgentSessionLabelStyle = .project,
         agentSessionsHideUnreachableHosts: Bool = false,
@@ -155,6 +158,9 @@ struct MenuDescriptor {
                 sections.append(actions)
             }
         }
+        if isKeepingAwake {
+            sections.append(Section(entries: [.text("Stay Awake: local agent session is live", .secondary)]))
+        }
         if agentSessionsEnabled {
             sections.append(Self.agentSessionsSection(
                 localSessions: localAgentSessions,
@@ -165,6 +171,8 @@ struct MenuDescriptor {
         }
         sections.append(Self.metaSection(
             updateReady: updateReady,
+            availableUpdateVersion: availableUpdateVersion,
+            isInstallingUpdate: isInstallingUpdate,
             canCheckForUpdates: canCheckForUpdates,
             versionText: versionText))
 
@@ -255,31 +263,13 @@ struct MenuDescriptor {
             let paceVisible = settings.paceVisible && ProviderDescriptorRegistry.descriptor(for: provider).pace
                 .allowsPace(dataConfidence: snap.dataConfidence)
             if let primary = snap.primary {
-                let primaryDetail = primary.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let primaryDescriptionIsDetail = presentation.menu.usesPrimaryDescriptionAsDetail(snapshot: snap)
-                let primaryWindow = if primaryDescriptionIsDetail {
-                    // Some providers use resetDescription for non-reset detail
-                    // (e.g., "Unlimited", "X/Y credits"). Avoid rendering it as a "Resets ..." line.
-                    RateWindow(
-                        usedPercent: primary.usedPercent,
-                        windowMinutes: primary.windowMinutes,
-                        resetsAt: primary.resetsAt,
-                        resetDescription: nil)
-                } else {
-                    primary
-                }
                 Self.appendRateWindow(
                     entries: &entries,
                     title: labels.primary,
-                    window: primaryWindow,
+                    window: primary,
                     resetStyle: resetStyle,
-                    showUsed: settings.usageBarsShowUsed)
-                if primaryDescriptionIsDetail,
-                   let primaryDetail,
-                   !primaryDetail.isEmpty
-                {
-                    entries.append(.text(primaryDetail, .secondary))
-                }
+                    showUsed: settings.usageBarsShowUsed,
+                    descriptionIsDetail: presentation.menu.usesPrimaryDescriptionAsDetail(snapshot: snap))
                 if paceVisible,
                    presentation.menu.showsPrimaryWeeklyPace,
                    let pace = store.weeklyPace(provider: provider, window: primary, dataConfidence: snap.dataConfidence)
@@ -346,7 +336,8 @@ struct MenuDescriptor {
                     title: extra.title,
                     window: extra.window,
                     resetStyle: resetStyle,
-                    showUsed: settings.usageBarsShowUsed)
+                    showUsed: settings.usageBarsShowUsed,
+                    descriptionIsDetail: presentation.menuCard.extraRateWindowShowsResetDescriptionAsDetail(extra))
             }
 
             Self.appendProviderUsageSummaries(
@@ -624,14 +615,20 @@ struct MenuDescriptor {
         return Section(entries: entries)
     }
 
-    private static func metaSection(
+    static func metaSection(
         updateReady: Bool,
+        availableUpdateVersion: String? = nil,
+        isInstallingUpdate: Bool = false,
         canCheckForUpdates: Bool = false,
         versionText: String = AppVersion.shortVersion) -> Section
     {
         var entries: [Entry] = []
         if updateReady {
             entries.append(.action(L("Update ready, restart now?"), .installUpdate))
+        } else if isInstallingUpdate {
+            entries.append(.text(L("Updating with Homebrew…"), .secondary))
+        } else if let availableUpdateVersion {
+            entries.append(.action(String(format: L("Update to %@"), availableUpdateVersion), .installUpdate))
         } else if canCheckForUpdates {
             entries.append(.action(L("Check for Updates…"), .checkForUpdates))
         }
@@ -773,15 +770,24 @@ struct MenuDescriptor {
         window: RateWindow,
         resetStyle: ResetTimeDisplayStyle,
         showUsed: Bool,
-        resetOverride: String? = nil)
+        resetOverride: String? = nil,
+        descriptionIsDetail: Bool = false)
     {
         let line = UsageFormatter
             .usageLine(remaining: window.remainingPercent, used: window.usedPercent, showUsed: showUsed)
         entries.append(.text("\(title): \(line)", .primary))
         if let resetOverride {
             entries.append(.text(resetOverride, .secondary))
-        } else if let reset = UsageFormatter.resetLine(for: window, style: resetStyle) {
+        } else if !descriptionIsDetail || window.resetsAt != nil,
+                  let reset = UsageFormatter.resetLine(for: window, style: resetStyle)
+        {
             entries.append(.text(reset, .secondary))
+        }
+        if descriptionIsDetail,
+           let detail = window.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !detail.isEmpty
+        {
+            entries.append(.text(detail, .secondary))
         }
     }
 }

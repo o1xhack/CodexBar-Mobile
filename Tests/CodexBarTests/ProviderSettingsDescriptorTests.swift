@@ -8,11 +8,21 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
+    @Test
+    func `xKiro keeps its API key in provider config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-xkiro")
+        let fields = try #require(ProviderCatalog.implementation(for: .xkiro))
+            .settingsFields(context: fixture.settingsContext(provider: .xkiro))
+        #expect(fields.map(\.id) == ["xkiro-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: .xkiro)?.apiKey == "fixture-key")
+    }
+
     @Test(arguments: [UsageProvider.atlascloud, .vercel])
     func `balance providers keep API keys in their own config`(provider: UsageProvider) throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-\(provider.rawValue)")
-        let implementation: any ProviderImplementation = provider == .atlascloud
-            ? AtlasCloudProviderImplementation() : VercelProviderImplementation()
+        let implementation = try #require(ProviderCatalog.implementation(for: provider))
         let fields = implementation.settingsFields(context: fixture.settingsContext(provider: provider))
         #expect(fields.map(\.id) == ["\(provider.rawValue)-api-key"])
         #expect(fields.map(\.kind) == [.secure])
@@ -23,7 +33,7 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `DevPass exposes a regular API key stored in provider config`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devpass")
-        let fields = DevPassProviderImplementation()
+        let fields = try #require(ProviderCatalog.implementation(for: .devpass))
             .settingsFields(context: fixture.settingsContext(provider: .devpass))
         #expect(fields.map(\.id) == ["devpass-api-key"])
         #expect(fields.map(\.kind) == [.secure])
@@ -67,7 +77,7 @@ struct ProviderSettingsDescriptorTests {
     func `Hyper exposes session controls and an independent API key`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-hyper")
         let context = fixture.settingsContext(provider: .hyper)
-        let implementation = HyperProviderImplementation()
+        let implementation = try #require(ProviderCatalog.implementation(for: .hyper))
         let fields = implementation.settingsFields(context: context)
         let picker = try #require(implementation.settingsPickers(context: context).first)
         #expect(fields.map(\.id) == ["hyper-cookie", "hyper-api-key"])
@@ -90,7 +100,7 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `bifrost exposes only a virtual key and a configured gateway URL`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bifrost")
-        let fields = BifrostProviderImplementation()
+        let fields = try (#require(ProviderCatalog.implementation(for: .bifrost)))
             .settingsFields(context: fixture.settingsContext(provider: .bifrost))
         #expect(fields.map(\.id) == ["bifrost-api-key", "bifrost-base-url"])
         #expect(fields.map(\.kind) == [.secure, .plain])
@@ -230,10 +240,17 @@ struct ProviderSettingsDescriptorTests {
         let context = fixture.settingsContext(provider: .openrouter)
 
         let fields = OpenRouterProviderImplementation().settingsFields(context: context)
+        let apiKey = try #require(fields.first(where: { $0.id == "openrouter-api-key" }))
         let managementKey = try #require(fields.first(where: { $0.id == "openrouter-management-api-key" }))
         managementKey.binding.wrappedValue = " fixture-management-key "
 
+        #expect(apiKey.title == "API key")
+        #expect(apiKey.subtitle == "Required. Enter a regular API key or a Management API key here. "
+            + "Management keys also enable account Activity on the official OpenRouter API.")
         #expect(managementKey.title == "Management API key")
+        #expect(managementKey.subtitle == "Optional additional key for account Activity. "
+            + "Only needed to use a separate Management API key "
+            + "from the one in the required API key field above.")
         #expect(managementKey.kind == .secure)
         #expect(managementKey.binding.wrappedValue == "fixture-management-key")
         #expect(fixture.settings.providerConfig(for: .openrouter)?.pluginSecrets?[
@@ -310,7 +327,7 @@ struct ProviderSettingsDescriptorTests {
     @Test
     func `llmman exposes an optional key and a base URL stored in provider config`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-llmman")
-        let fields = LLMManProviderImplementation()
+        let fields = try (#require(ProviderCatalog.implementation(for: .llmman)))
             .settingsFields(context: fixture.settingsContext(provider: .llmman))
         #expect(fields.map(\.id) == ["llmman-api-key", "llmman-base-url"])
         #expect(fields.map(\.kind) == [.secure, .plain])
@@ -726,6 +743,39 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `raycast manual cookie uses a single header field`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-raycast-cookie")
+        let context = fixture.settingsContext(provider: .raycast)
+        let implementation = try #require(ProviderCatalog.implementation(for: .raycast))
+        let pickers = implementation.settingsPickers(context: context)
+        #expect(pickers.contains(where: { $0.id == "raycast-cookie-source" }))
+        #expect(pickers.first?.options.contains(where: { $0.id == "off" }) == true)
+
+        fixture.settings.setCookieSource(.auto, provider: .raycast)
+        let automaticHeader = try #require(
+            implementation.settingsFields(context: context).first { $0.id == "raycast-cookie-header" })
+        #expect(automaticHeader.isVisible?() == false)
+
+        fixture.settings.setCookieSource(.manual, provider: .raycast)
+        let header = try #require(
+            implementation.settingsFields(context: context).first { $0.id == "raycast-cookie-header" })
+        #expect(header.isVisible?() ?? true)
+        #expect(header.title == "Cookie header")
+
+        let pane = ProvidersPane(settings: fixture.settings, store: fixture.store)
+        #expect(pane._test_tokenAccountDescriptor(for: .raycast) == nil)
+    }
+
+    @Test
+    func `aixy exposes key and optional gateway fields`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy")
+        let fields = try (#require(ProviderCatalog.implementation(for: .aixy)))
+            .settingsFields(context: fixture.settingsContext(provider: .aixy))
+        #expect(fields.map(\.id) == ["aixy-api-key", "aixy-base-url"])
+        #expect(fields.map(\.title) == ["API key", "Base URL"])
+    }
+
+    @Test
     func `venice exposes usage source picker routing to web`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-venice")
         let context = fixture.settingsContext(provider: .venice)
@@ -858,7 +908,7 @@ struct ProviderSettingsDescriptorTests {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepgram")
         let context = fixture.settingsContext(provider: .deepgram)
 
-        let implementation = DeepgramProviderImplementation()
+        let implementation = try #require(ProviderCatalog.implementation(for: .deepgram))
         let fields = implementation.settingsFields(context: context)
 
         #expect(fields.contains(where: { $0.id == "deepgram-api-key" }))
@@ -1519,12 +1569,54 @@ extension ProviderSettingsDescriptorTests {
 }
 
 extension ProviderSettingsDescriptorTests {
-    private func makeSettingsFixture(
+    @Test
+    func `render synthetic OpenRouter key guidance`() throws {
+        guard let directory = ProcessInfo.processInfo.environment["CODEXBAR_OPENROUTER_KEY_GUIDANCE_PROOF_DIR"] else {
+            return
+        }
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-openrouter-guidance")
+        let fields = OpenRouterProviderImplementation().settingsFields(
+            context: fixture.settingsContext(provider: .openrouter))
+        let previousSubtitles = [
+            "openrouter-api-key": "Stored in your CodexBar config. Shows spend for this key. "
+                + "Management keys also enable account Activity on the official OpenRouter API.",
+            "openrouter-management-api-key": "Optional account Activity key. "
+                + "Takes precedence over a management key in the API key field.",
+        ]
+        let output = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        for stage in ["before", "after"] {
+            let displayedFields = fields.map { field in
+                ProviderSettingsFieldDescriptor(
+                    id: field.id,
+                    title: field.title,
+                    subtitle: stage == "before" ? previousSubtitles[field.id] ?? field.subtitle : field.subtitle,
+                    kind: field.kind,
+                    placeholder: field.placeholder,
+                    binding: .constant(""),
+                    actions: [],
+                    isVisible: nil)
+            }
+            let hosting = NSHostingView(rootView: Form {
+                ForEach(displayedFields) { field in
+                    ProviderSettingsFieldRowView(field: field)
+                }
+            }
+            .formStyle(.grouped)
+            .frame(width: 580, height: 420)
+            .environment(\.locale, Locale(identifier: "en"))
+            .preferredColorScheme(.light))
+            hosting.appearance = NSAppearance(named: .aqua)
+            let png = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
+            try png.write(to: output.appendingPathComponent("openrouter-key-guidance-\(stage).png"))
+        }
+    }
+
+    func makeSettingsFixture(
         suite: String,
         environmentBase: [String: String] = [:]) throws -> ProviderSettingsFixture
     {
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        let defaults = InMemoryUserDefaults()
         let settings = SettingsStore(
             userDefaults: defaults,
             configStore: testConfigStore(suiteName: suite),
@@ -1538,7 +1630,7 @@ extension ProviderSettingsDescriptorTests {
         return ProviderSettingsFixture(settings: settings, store: store)
     }
 
-    private struct ProviderSettingsFixture {
+    struct ProviderSettingsFixture {
         let settings: SettingsStore
         let store: UsageStore
         private let state = ProviderSettingsContextState()

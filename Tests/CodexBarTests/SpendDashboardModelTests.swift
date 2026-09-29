@@ -91,15 +91,12 @@ struct SpendDashboardModelTests {
 
     @Test
     func `native currencies stay separate and rank only within their currency`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 Self.input(id: "usd-low", provider: .claude, currency: "usd", cost: 2),
                 Self.input(id: "eur", provider: .openai, currency: "EUR", cost: 100),
                 Self.input(id: "usd-high", provider: .codex, currency: "USD", cost: 8),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+            ])
 
         #expect(model.groups.map(\.currencyCode) == ["EUR", "USD"])
         let eur = try #require(model.groups.first)
@@ -128,21 +125,16 @@ struct SpendDashboardModelTests {
             ])
         let input = SpendDashboardModel.ProviderInput(provider: .claude, displayName: "Claude", snapshot: snapshot)
 
-        let sevenDays = SpendDashboardModel.build(
+        let sevenDays = Self.model(
             inputs: [input],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar)
+            requestedDays: 7)
         let group = try #require(sevenDays.groups.first)
         #expect(group.totalCost == 1)
         #expect(group.coveredDayCount == 7)
         #expect(group.providers.first?.coveredDayCount == 7)
 
-        let thirtyDays = SpendDashboardModel.build(
-            inputs: [input],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+        let thirtyDays = Self.model(
+            inputs: [input])
         #expect(thirtyDays.groups.first?.totalCost == 7)
         #expect(thirtyDays.groups.first?.coveredDayCount == 30)
 
@@ -160,40 +152,29 @@ struct SpendDashboardModelTests {
             provider: .claude,
             displayName: "Claude",
             snapshot: cumulativeSnapshot)
-        #expect(SpendDashboardModel.build(
+        #expect(Self.model(
+            inputs: [cumulativeInput]).groups.first?.totalCost == 7)
+        let allTime = Self.model(
             inputs: [cumulativeInput],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first?.totalCost == 7)
-        let allTime = SpendDashboardModel.build(
-            inputs: [cumulativeInput],
-            requestedDays: SpendDashboardSource.scanDays,
-            now: Self.now,
-            calendar: Self.calendar)
-        #expect(allTime.requestedDays == SpendDashboardSource.scanDays)
+            requestedDays: SpendDashboardSource.scanDays)
+        #expect(allTime.requestedDays == 41)
         #expect(allTime.groups.first?.totalCost == 15)
-        #expect(allTime.groups.first?.coveredDayCount == SpendDashboardSource.scanDays)
+        #expect(allTime.groups.first?.coveredDayCount == 41)
 
         let futureSnapshot = Self.snapshot(
             currency: "USD",
             entries: [Self.entry(day: "2026-07-16", cost: 1)],
             updatedAt: Date(timeIntervalSince1970: 1_900_000_000))
-        let futureModel = SpendDashboardModel.build(
-            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: futureSnapshot)],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+        let futureModel = Self.model(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: futureSnapshot)])
         #expect(futureModel.groups.first?.coveredDayCount == 0)
 
         let shortSnapshot = Self.snapshot(
             currency: "USD",
             entries: [Self.entry(day: "2026-07-16", cost: 1)],
             historyDays: 7)
-        let shortModel = SpendDashboardModel.build(
-            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: shortSnapshot)],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+        let shortModel = Self.model(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: shortSnapshot)])
         #expect(shortModel.groups.first?.coveredDayCount == 7)
     }
 
@@ -205,16 +186,11 @@ struct SpendDashboardModelTests {
             snapshot: Self.snapshot(
                 currency: "USD",
                 entries: [Self.entry(day: "2026-07-16", cost: 1)]))
-        let sevenDays = try #require(SpendDashboardModel.build(
+        let sevenDays = try #require(Self.model(
             inputs: [input],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-        let thirtyDays = try #require(SpendDashboardModel.build(
-            inputs: [input],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
+        let thirtyDays = try #require(Self.model(
+            inputs: [input]).groups.first)
         let anchor = Self.calendar.startOfDay(for: Self.now)
         let sevenDayStart = try #require(Self.calendar.date(byAdding: .day, value: -6, to: anchor))
         let thirtyDayStart = try #require(Self.calendar.date(byAdding: .day, value: -29, to: anchor))
@@ -245,11 +221,8 @@ struct SpendDashboardModelTests {
                 currency: "USD",
                 entries: [Self.entry(day: "2026-07-16", cost: 3)],
                 historyDays: 7))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [earlier, later],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+        let group = try #require(Self.model(
+            inputs: [earlier, later]).groups.first)
 
         #expect(group.coveredDayCount == 0)
         #expect(group.providers.allSatisfy { $0.coveredDayCount == 7 })
@@ -277,11 +250,8 @@ struct SpendDashboardModelTests {
                 currency: "USD",
                 entries: [Self.entry(day: "2026-07-16", cost: 3)],
                 historyDays: 7))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [earlier, later],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+        let group = try #require(Self.model(
+            inputs: [earlier, later]).groups.first)
 
         #expect(group.coveredDayCount == 3)
         #expect(group.providers.allSatisfy { $0.coveredDayCount == 7 })
@@ -300,11 +270,9 @@ struct SpendDashboardModelTests {
                 entries: [Self.entry(day: "2026-08-01", cost: 10)],
                 historyDays: 1,
                 updatedAt: Date(timeIntervalSince1970: 1_785_542_400))) // 2026-08-01 00:00:00 UTC
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [covered, uncovered],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.totalCost == 4)
         #expect(group.totalTokens == 10)
@@ -332,11 +300,9 @@ struct SpendDashboardModelTests {
                 entries: [Self.entry(day: "2026-08-01", cost: 10)],
                 historyDays: 1,
                 updatedAt: Date(timeIntervalSince1970: 1_785_542_400))) // 2026-08-01 00:00:00 UTC
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [uncovered],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.coveredDayCount == 0)
         #expect(group.totalCost == nil)
@@ -358,11 +324,9 @@ struct SpendDashboardModelTests {
                 entries: [Self.entry(day: "2026-08-01", cost: 10)],
                 historyDays: 1,
                 updatedAt: Date(timeIntervalSince1970: 1_785_542_400))) // 2026-08-01 00:00:00 UTC
-        let groups = SpendDashboardModel.build(
+        let groups = Self.model(
             inputs: [covered, uncovered],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups
+            requestedDays: 7).groups
         let eur = try #require(groups.first(where: { $0.currencyCode == "EUR" }))
         let usd = try #require(groups.first(where: { $0.currencyCode == "USD" }))
 
@@ -414,11 +378,9 @@ struct SpendDashboardModelTests {
             provider: .codex,
             displayName: "Codex",
             snapshot: Self.snapshot(currency: "USD", entries: [Self.entry(day: "2026-07-16", cost: 4)]))
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [second, first],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.dailyPoints.map(\.sourceID) == ["a", "b"])
         #expect(group.dailyPoints.map(\.cost) == [5, 4])
@@ -440,11 +402,8 @@ struct SpendDashboardModelTests {
             ]))
         let hugeA = Self.input(id: "huge-a", provider: .codex, currency: "USD", cost: .greatestFiniteMagnitude)
         let hugeB = Self.input(id: "huge-b", provider: .openai, currency: "USD", cost: .greatestFiniteMagnitude)
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [invalid, hugeA, hugeB],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+        let group = try #require(Self.model(
+            inputs: [invalid, hugeA, hugeB]).groups.first)
 
         #expect(group.providers.first(where: { $0.id == "invalid" })?.totalCost == nil)
         #expect(group.totalCost == nil)
@@ -459,11 +418,9 @@ struct SpendDashboardModelTests {
             Self.entry(day: "2026-07-16", cost: 4, tokens: 40),
             Self.entry(day: "not-a-day", cost: 2, tokens: 20),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.providers.first?.totalCost == nil)
         #expect(group.providers.first?.totalTokens == nil)
@@ -479,11 +436,9 @@ struct SpendDashboardModelTests {
         let snapshot = Self.snapshot(currency: "USD", entries: [
             Self.entry(day: "2026-02-30", cost: nil, tokens: nil, model: nil),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.providers.first?.totalCost == nil)
         #expect(group.providers.first?.totalTokens == nil)
@@ -506,11 +461,9 @@ struct SpendDashboardModelTests {
             Self.entry(day: "2026-07-16", cost: 3, tokens: 30),
             Self.entry(day: "2026-07-01", cost: 99, tokens: 990),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.providers.first?.totalCost == 3)
         #expect(group.providers.first?.totalTokens == 30)
@@ -557,11 +510,9 @@ struct SpendDashboardModelTests {
                     Self.entry(day: "2026-07-15", cost: .greatestFiniteMagnitude, tokens: .max),
                 ])),
         ]
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: inputs,
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.providers.allSatisfy { $0.totalCost == nil })
         #expect(group.providers.first(where: { $0.id == "nonfinite" })?.totalTokens == 2)
@@ -591,11 +542,9 @@ struct SpendDashboardModelTests {
                     .init(modelName: "overflow", costUSD: .greatestFiniteMagnitude, totalTokens: .max),
                 ]),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
@@ -607,11 +556,9 @@ struct SpendDashboardModelTests {
             Self.entry(day: "2026-07-16", cost: 4, tokens: 40, model: nil),
             Self.entry(day: "2026-07-15", cost: 2, tokens: 20),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
@@ -624,11 +571,9 @@ struct SpendDashboardModelTests {
             Self.entryWithBreakdowns(day: "2026-07-16", breakdowns: []),
             Self.entry(day: "2026-07-15", cost: 2, tokens: 20),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.modelHistoryCompleteness == .complete)
         #expect(group.models.map(\.modelName) == ["test-model"])
@@ -641,11 +586,9 @@ struct SpendDashboardModelTests {
             Self.entry(day: "2026-07-16", cost: nil, tokens: nil, model: nil),
             Self.entry(day: "2026-07-15", cost: 2, tokens: 20),
         ])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
@@ -669,16 +612,12 @@ struct SpendDashboardModelTests {
                 .init(modelName: " \n ", costUSD: 0, totalTokens: 0),
                 .init(modelName: "named", costUSD: 1, totalTokens: 10),
             ])])
-        let incompleteGroup = try #require(SpendDashboardModel.build(
+        let incompleteGroup = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: incomplete)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-        let completeGroup = try #require(SpendDashboardModel.build(
+            requestedDays: 7).groups.first)
+        let completeGroup = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: complete)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(incompleteGroup.modelHistoryCompleteness == .incomplete)
         #expect(incompleteGroup.models.isEmpty)
@@ -693,11 +632,9 @@ struct SpendDashboardModelTests {
             totalCost: 10,
             totalTokens: 100,
             breakdowns: [.init(modelName: "partial", costUSD: 4, totalTokens: 40)])])
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.isEmpty)
@@ -722,11 +659,9 @@ struct SpendDashboardModelTests {
                 Self.entry(day: "2026-07-16", cost: .greatestFiniteMagnitude),
             ]))
         let complete = Self.input(id: "complete", provider: .openai, currency: "USD", cost: 3)
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [missing, overflow, complete],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.dailyPoints.map(\.sourceID) == ["complete"])
         #expect(group.dailyPoints.map(\.cost) == [3])
@@ -744,11 +679,9 @@ struct SpendDashboardModelTests {
                 Self.entry(day: "2026-07-16", cost: 0, tokens: 0, model: nil),
             ]))
         let active = Self.input(id: "active", provider: .codex, currency: "USD", cost: 10)
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [inactive, active],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         let inactiveRow = try #require(group.providers.first(where: { $0.id == "inactive" }))
         #expect(inactiveRow.totalCost == 0)
@@ -766,11 +699,9 @@ struct SpendDashboardModelTests {
         let snapshot = Self.snapshot(
             currency: "CAD",
             entries: [Self.entry(day: "2026-07-16", cost: nil, tokens: 12)])
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar)
+            requestedDays: 7)
         let group = try #require(model.groups.first)
 
         #expect(group.totalCost == nil)
@@ -811,8 +742,8 @@ struct SpendDashboardModelTests {
         #expect(!request.authFileWasReadable)
         #expect(request.displayName == "Codex · #2")
         #expect(request.cacheIdentity.count == 64)
-        #expect(SpendDashboardSource.scanDays == SpendDashboardSource.activityDays)
-        #expect(SpendDashboardSource.scanDays == 365)
+        #expect(SpendDashboardSource.scanDays > SpendDashboardSource.activityDays)
+        #expect(SpendDashboardSource.activityDays == 365)
         #expect(SpendDashboardSource.codexSource(
             account: account,
             homePath: "relative/path",
@@ -878,11 +809,9 @@ extension SpendDashboardModelTests {
                     Self.entry(day: "2026-07-15", cost: 2, model: "gpt-5.2-codex"),
                     Self.entry(day: "2026-07-16", cost: 3, model: nil),
                 ]))
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.totalCost == 5)
         #expect(group.modelHistoryCompleteness == .incomplete)
@@ -908,11 +837,9 @@ extension SpendDashboardModelTests {
                             .init(modelName: "codex-auto-review", costUSD: nil, totalTokens: 60),
                         ]),
                 ]))
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.totalCost == 2)
         #expect(group.modelHistoryCompleteness == .incomplete)
@@ -937,11 +864,9 @@ extension SpendDashboardModelTests {
                             .init(modelName: "codex-auto-review", costUSD: nil, totalTokens: 100),
                         ]),
                 ]))
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.totalCost == 2)
         #expect(group.modelHistoryCompleteness == .incomplete)
@@ -966,11 +891,9 @@ extension SpendDashboardModelTests {
                             .init(modelName: "example-invalid-codex-model", costUSD: -1, totalTokens: 60),
                         ]),
                 ]))
-        let group = try #require(SpendDashboardModel.build(
+        let group = try #require(Self.model(
             inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+            requestedDays: 7).groups.first)
 
         #expect(group.totalCost == 2)
         #expect(group.modelHistoryCompleteness == .incomplete)
@@ -985,11 +908,8 @@ extension SpendDashboardModelTests {
                 Self.entry(day: "2026-07-16", cost: nil, tokens: 12, model: nil),
                 Self.entry(day: "2026-07-15", cost: nil, tokens: 8, model: nil),
             ])
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
+        let group = try #require(Self.model(
+            inputs: [.init(provider: .claude, displayName: "Claude", snapshot: snapshot)]).groups.first)
 
         #expect(group.coveredDayCount == 30)
         #expect(group.totalCost == nil)
@@ -1001,14 +921,11 @@ extension SpendDashboardModelTests {
 
     @Test
     func `full 30 day coverage keeps empty and known zero spend distinct from unavailable`() throws {
-        let unpriced = SpendDashboardModel.build(
+        let unpriced = Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: Self.snapshot(
                 currency: "USD",
-                entries: [Self.entry(day: "2026-07-16", cost: nil, tokens: 12, model: nil)]))],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
-        let empty = SpendDashboardModel.build(
+                entries: [Self.entry(day: "2026-07-16", cost: nil, tokens: 12, model: nil)]))])
+        let empty = Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: CostUsageTokenSnapshot(
                 sessionTokens: nil,
                 sessionCostUSD: nil,
@@ -1017,20 +934,14 @@ extension SpendDashboardModelTests {
                 currencyCode: "USD",
                 historyDays: 30,
                 daily: [],
-                updatedAt: Self.now))],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
-        let knownZero = SpendDashboardModel.build(
+                updatedAt: Self.now))])
+        let knownZero = Self.model(
             inputs: [.init(provider: .claude, displayName: "Claude", snapshot: Self.snapshot(
                 currency: "USD",
                 entries: [
                     Self.entry(day: "2026-07-16", cost: 0, tokens: 0, model: nil),
                     Self.entry(day: "2026-07-15", cost: 0, tokens: 0, model: nil),
-                ]))],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+                ]))])
 
         for model in [unpriced, empty, knownZero] {
             let group = try #require(model.groups.first)
@@ -1354,20 +1265,15 @@ extension SpendDashboardModelTests {
 extension SpendDashboardModelTests {
     @Test
     func `project rows aggregate windowed entries and rank by cost`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 SpendDashboardModel.ProviderInput(
                     id: "codex-a",
                     provider: .codex,
                     displayName: "Codex",
-                    snapshot: CostUsageTokenSnapshot(
-                        sessionTokens: nil,
-                        sessionCostUSD: nil,
-                        last30DaysTokens: nil,
-                        last30DaysCostUSD: nil,
-                        currencyCode: "USD",
-                        historyDays: 30,
-                        daily: [
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [
                             Self.entry(day: "2026-07-15", cost: 30),
                             Self.entry(day: "2026-07-16", cost: 10),
                         ],
@@ -1379,12 +1285,8 @@ extension SpendDashboardModelTests {
                             Self.project(name: "beta", days: [
                                 ("2026-07-16", 10),
                             ]),
-                        ],
-                        updatedAt: Self.now)),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+                        ])),
+            ])
 
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
@@ -1401,31 +1303,23 @@ extension SpendDashboardModelTests {
 
     @Test
     func `project rows exclude days outside the requested window`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 SpendDashboardModel.ProviderInput(
                     id: "codex-a",
                     provider: .codex,
                     displayName: "Codex",
-                    snapshot: CostUsageTokenSnapshot(
-                        sessionTokens: nil,
-                        sessionCostUSD: nil,
-                        last30DaysTokens: nil,
-                        last30DaysCostUSD: nil,
-                        currencyCode: "USD",
-                        historyDays: 30,
-                        daily: [Self.entry(day: "2026-07-15", cost: 3)],
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 3)],
                         projects: [
                             Self.project(name: "alpha", days: [
                                 ("2026-07-01", 100),
                                 ("2026-07-15", 3),
                             ]),
-                        ],
-                        updatedAt: Self.now)),
+                        ])),
             ],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar)
+            requestedDays: 7)
 
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 1)
@@ -1435,7 +1329,7 @@ extension SpendDashboardModelTests {
 
     @Test
     func `project rows stay attributed per source`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 SpendDashboardModel.ProviderInput(
                     id: "codex-a",
@@ -1455,10 +1349,7 @@ extension SpendDashboardModelTests {
                         currency: "USD",
                         entries: [Self.entry(day: "2026-07-15", cost: 7)],
                         projects: [Self.project(name: "shared", days: [("2026-07-15", 7)])])),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+            ])
 
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
@@ -1512,28 +1403,19 @@ extension SpendDashboardModelTests {
 
     @Test
     func `project rows drop projects without attributable window days`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 SpendDashboardModel.ProviderInput(
                     id: "codex-a",
                     provider: .codex,
                     displayName: "Codex",
-                    snapshot: CostUsageTokenSnapshot(
-                        sessionTokens: nil,
-                        sessionCostUSD: nil,
-                        last30DaysTokens: nil,
-                        last30DaysCostUSD: nil,
-                        currencyCode: "USD",
-                        historyDays: 30,
-                        daily: [Self.entry(day: "2026-07-15", cost: 1)],
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 1)],
                         projects: [
                             Self.project(name: "stale", days: [("2026-05-01", 50)]),
-                        ],
-                        updatedAt: Self.now)),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+                        ])),
+            ])
 
         let group = try #require(model.groups.first)
         #expect(group.projects.isEmpty)
@@ -1541,20 +1423,15 @@ extension SpendDashboardModelTests {
 
     @Test
     func `project rows report unknown aggregates as nil but keep known ones`() throws {
-        let model = SpendDashboardModel.build(
+        let model = Self.model(
             inputs: [
                 SpendDashboardModel.ProviderInput(
                     id: "codex-a",
                     provider: .codex,
                     displayName: "Codex",
-                    snapshot: CostUsageTokenSnapshot(
-                        sessionTokens: nil,
-                        sessionCostUSD: nil,
-                        last30DaysTokens: nil,
-                        last30DaysCostUSD: nil,
-                        currencyCode: "USD",
-                        historyDays: 30,
-                        daily: [Self.entry(day: "2026-07-15", cost: 9)],
+                    snapshot: Self.snapshot(
+                        currency: "USD",
+                        entries: [Self.entry(day: "2026-07-15", cost: 9)],
                         projects: [
                             Self.project(name: "unknown-cost", days: [
                                 ("2026-07-15", 4),
@@ -1564,12 +1441,8 @@ extension SpendDashboardModelTests {
                                 name: "unknown-tokens",
                                 days: [("2026-07-15", 4)],
                                 tokens: nil),
-                        ],
-                        updatedAt: Self.now)),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
+                        ])),
+            ])
 
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
@@ -1607,6 +1480,17 @@ extension SpendDashboardModelTests {
 }
 
 extension SpendDashboardModelTests {
+    private static func model(
+        inputs: [SpendDashboardModel.ProviderInput],
+        requestedDays: Int = 30) -> SpendDashboardModel
+    {
+        SpendDashboardModel.build(
+            inputs: inputs,
+            requestedDays: requestedDays,
+            now: self.now,
+            calendar: self.calendar)
+    }
+
     /// Shared fixture helpers for dashboard model tests.
     private static func input(
         id: String,

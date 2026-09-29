@@ -12,37 +12,21 @@ read_when:
 - `WidgetSnapshotStore` writes compact JSON snapshots to the app-group container.
 - Widgets read the snapshot and render usage/credits/history states.
 - Usage and Switcher tiles emphasize the most constrained general quota, preserve other allowances as detail rows, and show full provider names. Code-review and model-specific allowances do not replace a provider's general quota headline. Providers without quota bars keep credits or local-cost information useful.
-- WidgetKit owns the outer margins. Small, medium, and large tiles share the same rendering and quota-selection rules; overflow labels disclose omitted detail rows. Snapshot and reset dates remain live relative text between timeline updates.
-- Snapshot age labels use WidgetKit's native relative-date text to advance between timeline reloads, including on small widgets. Stale token-cost rows track their own saved timestamp once they lag quota data by more than ten minutes. Fetching new usage still depends on app refresh and WidgetKit accepting a timeline.
+- WidgetKit owns the outer margins. All sizes share rendering and quota-selection rules, with overflow labels for omitted rows. Native relative-date text keeps snapshot ages and resets current between timeline reloads. Token-cost rows show their own saved age when more than ten minutes behind quota data. New usage still requires an app refresh and an accepted WidgetKit timeline.
 - The app writes snapshots after the main refresh pipeline and token-usage refreshes; narrow single-provider refresh paths may wait for the next snapshot write.
-- Claude-swap refreshes and cleared adapter state also publish snapshots, even when account widgets are off. When
-  the adapter owns Claude account presentation, provider widgets follow its active slot and source measurement time.
-  Unavailable quota can retain only the same slot owner's saved measurement; a different or missing active account
-  cannot inherit ambient Claude quota or another slot's quota. Local cost history remains provider-wide.
+- Claude-swap refreshes and cleared adapter state publish snapshots even when account widgets are off. When Claude-swap owns account presentation, provider widgets follow its active slot and measurement time. Missing quota can retain only that slot owner's saved reading, never ambient or another slot's quota. Local cost remains provider-wide.
 - If every provider entry disappears during a failed refresh, the writer can retain its last queued entries while their providers remain enabled and preservation has not been invalidated. Measurement timestamps stay unchanged, so the widgets show the data's original age. Account invalidation keeps a queued publication retired until valid replacement usage is published. This fallback is limited to the current app session; it does not restore generic provider entries from disk across account changes or restarts. Claude keeps its existing ownership-checked preservation path.
-- Scheduled provider refreshes trigger regular token/cost refreshes; the token/cost TTL determines eligibility when
-  that refresh runs. Timer-driven local-history refreshes have a 15-minute minimum (30 minutes in low-power mode).
-  Manual disables the recurring refresh timer, not all scan activity: startup refreshes and pending Codex catch-up can
-  still scan local history. The floor limits repeated local-history work and extra WidgetKit reload
-  requests without changing provider usage/status freshness or the user-selected provider refresh cadence.
+- Scheduled provider refreshes trigger token/cost refreshes when their TTL permits, with a 15-minute local-history minimum (30 minutes in low-power mode). Manual disables the recurring timer; startup and pending Codex catch-up may still scan. These limits bound history work and WidgetKit reload requests without changing provider usage/status cadence.
 - Claude local cost/token history remains eligible for widget snapshots when its account does not expose numeric
   session or weekly quota data.
-- Claude Usage widgets can show each known model-scoped weekly quota after the normal Session, Weekly, and Opus rows.
-  This includes Fable when Claude exposes it. The rows are opt-in via **Preferences → Providers → Claude → Show
-  model-specific weekly usage in widgets**; the setting is off by default and does not affect fetching or other
-  CodexBar surfaces. Turning it off also removes scoped rows kept from an earlier snapshot, including while no fresh
-  Claude quota data is available.
+- **Preferences → Providers → Claude → Show model-specific weekly usage in widgets** adds every known scoped weekly quota (including Fable when available) after Session, Weekly, and Opus. It defaults off, affects no other surface or fetching, and removes even previously saved scoped rows when turned off without fresh data.
 - If no snapshot is available, widgets fall back to preview/empty data.
 
-Tests must opt into snapshot persistence with an in-memory save override or a test-owned snapshot URL.
-Neither opt-in reloads WidgetKit timelines. Production still awaits the file save before requesting a reload;
-the save/reload helper accepts an explicit test-mode decision and reload callback so tests can verify that ordering
-with temporary files and a fake callback, without changing process-wide test isolation. The per-store reload callback
-also lets persistence integration tests count reload attempts without calling WidgetKit.
+Persistence must finish before requesting a timeline reload. Tests opt in with an in-memory save override or test-owned snapshot URL; neither reloads WidgetKit. Use the helper's explicit test-mode decision and per-store reload callback to verify ordering without changing process-wide isolation or calling WidgetKit.
 
 ## Extension
 - `Sources/CodexBarWidget` contains timeline + views.
-- Usage, Switcher, History, and Metric widgets use WidgetKit's content margins; their views do not add a second outer inset.
+- Usage, Switcher, History, and Metric views must not add a second outer inset to WidgetKit's margins.
 - `WidgetExtension/CodexBarWidgetExtension.xcodeproj` builds those sources as the packaged macOS WidgetKit app extension.
 - Keep data shape in sync with `WidgetSnapshot` in the main app.
 
@@ -51,58 +35,33 @@ also lets persistence integration tests count reload attempts without calling Wi
 - **CodexBar Usage** (`CodexBarUsageWidget`): configurable provider usage widget, small/medium/large.
 - **CodexBar Account Usage** (`CodexBarAccountUsageWidget`): pins one saved account’s quota windows, small/medium/large.
 - **CodexBar History** (`CodexBarHistoryWidget`): configurable usage-history chart, medium/large.
-- **CodexBar Metric** (`CodexBarCompactWidget`): compact credits/today-cost/30-day-cost widget, small only.
-- **CodexBar Burn Down** (`CodexBarBurnDownWidget`): configurable session or weekly burn-down chart, medium only.
-- **CodexBar Burn Down (Combined)** (`CodexBarCombinedBurnDownWidget`): session and weekly burn-down charts, medium only.
+- **CodexBar Metric** (`CodexBarCompactWidget`): credits/today-cost/Cost widget, small only. **Cost** follows the app's [reporting period](cost-reporting-periods.md), including month-to-date and all available history; the period label travels with the snapshot.
+- **CodexBar Burn Down** (`CodexBarBurnDownWidget`): configurable quota burn-down chart, medium only.
+- **CodexBar Burn Down (Combined)** (`CodexBarCombinedBurnDownWidget`): two quota burn-down charts, medium only.
 
 Switcher widgets share one remembered provider selection, so switching one updates all Switcher widgets. To keep Claude and Codex visible side by side, add two **CodexBar Usage** widgets and configure each widget's **Provider** separately. Usage widgets read their own configured provider instead of the shared Switcher selection.
 
 ## Account selection
 
-Enable **Settings → Menu → Widgets → Keep accounts updated for widgets**, then add a **CodexBar Account Usage**
-widget and choose its **Provider** and **Account**. For example, two Account Usage widgets can pin different Claude
-accounts while a third widget displays Codex. The existing Usage widget sizes, bars and reset countdowns are reused.
-An Account Usage widget without an account shows setup instructions; it never follows the current account implicitly.
-Regular **CodexBar Usage** widgets continue following their configured provider as before.
+Enable **Settings → Menu → Widgets → Keep accounts updated for widgets**, add **CodexBar Account Usage**, and choose **Provider** and **Account**. Each widget pins its own account with the usual Usage sizes, bars, and reset countdowns. Without an account it shows setup instructions, never the current account implicitly. Regular **CodexBar Usage** follows its configured provider.
 
-The opt-in keeps saved token accounts and visible Codex accounts refreshing independently of the menu's segmented
-or stacked layout, using the existing six-account refresh bound. Claude-swap continues to own its own polling;
-its widget choices remain available when only one slot remains. Slot labels and an opaque ownership fingerprint
-keep a replacement account from inheriting an old pin without persisting the adapter's personal identity fields.
-**Hide personal info** replaces other account labels with ordinals without changing widget account identities.
+The opt-in refreshes saved token accounts and visible Codex accounts independently of menu layout, bounded to six accounts. Claude-swap owns its polling and remains selectable with one slot. Slot labels and opaque ownership fingerprints prevent replacements from inheriting pins without persisting the adapter's personal identity fields. **Hide personal info** replaces other account labels with ordinals without changing pin identities.
 
 Saved-token pins combine the source UUID with a verified returned owner and any explicit usage scope. Claude OAuth requests the account profile with the same token only when account widgets are enabled. A profile failure keeps the last verified quota at its original age while the credential scope matches; labels never establish ownership. The general usage identity stays unchanged for Cloud Sync and hook throttling. A private app cache stores the verified opaque pin, a one-way credential-scope guard, and quota-only data for offline restarts; it stores no account labels or credentials and is separate from the shared widget JSON. Opt-out, removal, authentication failure, and credential replacement retire the corresponding cached data.
 
-Codex pins combine managed account UUIDs with verified owners or normalized source/owner identities, not the menu's email-disambiguated
-row IDs. Adding or removing a same-email sibling does not change an existing pin. Profile homes remain distinct,
-and rotating credentials does not change a pin's identity.
+Codex pins combine managed account UUIDs with verified owners or normalized source/owner identities, independent of menu row labels. Same-email sibling changes and credential rotation leave pins stable; profile homes remain distinct.
 
-An explicitly selected account never falls back to another account if it is removed, unavailable, or belongs to a
-different provider. Transient refresh failures retain the matching account's last-good quota and its original
-measurement timestamp; authentication failures and owner changes do not borrow prior account data. Disabling the
-setting removes account choices and data from the shared snapshot; provider-only widgets keep working.
+Selected accounts never fall back to another account or provider. Transient failures retain that account's last-good quota at its original age; authentication failures and owner changes cannot borrow prior data. Disabling account refresh removes choices and data from the shared snapshot while provider-only widgets keep working.
 
-Pinned account snapshots currently include quota windows only. Provider-level local cost scans, credits, and history
-are not copied into account widgets because their ownership is not necessarily the selected account.
-Usage, History, Metric, Switcher, and Burn Down widgets retain their existing provider-only configuration.
+Account snapshots contain quota windows only: provider-level cost, credits, and history may have different owners. Usage, History, Metric, Switcher, and Burn Down remain provider-only.
 
 ### Upgrade and rollback compatibility
 
-The existing widget kinds, `ProviderSelectionIntent`, and provider timeline behavior are unchanged. Account selection
-uses a new `CodexBarAccountUsageWidget` kind and a separate `AccountUsageSelectionIntent`; no parameters are added to
-persisted configurations of existing widgets. The new intent has no default account. Enabling background account
-refresh is a separate opt-in, off by default.
+`CodexBarAccountUsageWidget` uses `AccountUsageSelectionIntent` with no default account. It adds no parameters to existing kinds or `ProviderSelectionIntent` and does not change provider timelines. Background account refresh is a separate opt-in, off by default.
 
-The shared JSON format is additive: older snapshots omit `accounts`, and the new reader accepts
-them. Older readers ignore those fields in new snapshots. A rollback can rewrite the provider snapshot without
-account data; a feature widget reading that rewritten snapshot shows unavailable rather than another account’s quota.
-The old app does not provide the new Account Usage widget kind; rollback support applies to the existing provider widgets.
-`WidgetSnapshotCompatibilityTests` covers fixed legacy wire data and an older reader/writer, while
-`WidgetAccountCompatibilityTests` covers account removal, replacement, identity changes, and refresh failures.
+The JSON `accounts` field is optional for new readers and ignored by old readers. A rollback may rewrite snapshots without it; Account Usage then shows unavailable, never another account's quota. Old apps do not provide the Account Usage kind, so rollback support covers provider widgets only.
 
-Installed WidgetKit behavior still needs native verification; JSON tests and unchanged intent definitions alone
-do not prove the operating system’s upgrade and rollback behavior. In an isolated macOS environment, use baseline and feature bundles with the same bundle
-identifiers, signing team, and app group:
+JSON compatibility does not prove installed WidgetKit upgrade/rollback behavior. Verify in an isolated Mac with old/new signed bundles sharing bundle identifiers, signing team, and app group:
 
 1. Install the baseline and add provider-only Usage and History widgets with a non-default provider.
 2. Upgrade in place without removing the widgets. Confirm the provider selection, quota, and history remain intact.
@@ -124,7 +83,26 @@ the key is uncapped. The Metric widget's **Credits left** choice shows the same 
 
 Providers without a `ProviderChoice` case can still be present in the app snapshot, but they are not selectable from the widget configuration UI yet.
 
-Burn-down widgets currently support Codex and Claude. Their dedicated configuration intents keep existing Usage and History widget configurations unchanged.
+Burn-down provider choices are filtered from the enabled providers in the latest saved snapshot. A quota
+qualifies when it has a finite usage percentage, a positive `windowMinutes`, a reset date, and is not a
+synthetic placeholder. The compile-time AppIntent catalog covers all built-in providers; providers that
+only report balances, unknown durations, or unknown resets do not appear. Refresh CodexBar before
+configuring a newly enabled provider. Custom plugin instance IDs are not part of the AppEnum catalog.
+
+For **Burn Down**, select **Provider**, then **Usage window**. The choices use the snapshot's quota names:
+Devin offers **Daily** and **Weekly**; Cursor offers **Total**, **Cursor**, and **Third Party** when those
+billing-cycle quotas are present. Each chart uses that quota's actual duration and reset, including
+Cursor's billing cycle. The choice stays pinned to its quota slot: missing data shows the empty state,
+never another quota. Provider titles in the snapshot take precedence over descriptor defaults.
+
+**Burn Down (Combined)** shows the first two quota lanes with their own names and durations, such as
+Devin's **Daily & Weekly** or Cursor's **Total & Cursor**. A missing lane shows **No data** under its own
+name. The single widget also offers the third quota when available. Combined requires a compatible first or
+second quota; a provider with only a compatible third quota appears in the single widget picker.
+
+Saved Codex/Claude intents retain their types, raw values, defaults, and exact **Session (5-hour)** / **Weekly (7-day)** meanings. Combined keeps those lanes and weekly-cap behavior; quota-slot choices and Combined use actual durations when different. Additive cases require no widget reconfiguration and preserve snapshot/empty-data handling and the 5–30-minute timeline schedule. This does not prevent Homebrew removing widget placements (#3627).
+
+Include a non-default Claude/Weekly widget in native upgrade verification, then check Devin/Cursor choices in the editor. Synthetic renders prove layout only, not installed WidgetKit behavior.
 
 ## Visibility troubleshooting (macOS 14+)
 When widgets do not appear in the gallery at all, the issue is almost always

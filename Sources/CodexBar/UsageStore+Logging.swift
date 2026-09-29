@@ -17,6 +17,7 @@ extension UsageStore {
             "augmentCookieSource": self.settings.augmentCookieSource.rawValue,
             "ampCookieSource": self.settings.ampCookieSource.rawValue,
             "t3ChatCookieSource": self.settings.t3ChatCookieSource.rawValue,
+            "museCookieSource": self.settings.museCookieSource.rawValue,
             "ollamaCookieSource": self.settings.ollamaCookieSource.rawValue,
             "openAIWebAccess": self.settings.openAIWebAccessEnabled ? "1" : "0",
             "openAIWebBatterySaver": self.settings.openAIWebBatterySaverEnabled ? "1" : "0",

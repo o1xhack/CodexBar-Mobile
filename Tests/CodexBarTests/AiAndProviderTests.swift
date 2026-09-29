@@ -302,7 +302,7 @@ struct AiAndProviderTests {
         #expect(descriptor.cli.aliases == ["ai&", "ai-and"])
 
         let implementation = try #require(ProviderCatalog.implementation(for: .aiand))
-        #expect(implementation is AiAndProviderImplementation)
+        #expect(implementation.id == .aiand)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines) @MainActor

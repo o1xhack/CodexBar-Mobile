@@ -499,6 +499,7 @@
 "cost_summary_style_inline_help" = "Показывает сводку затрат прямо в главном меню.";
 "cost_summary_style_submenu_help" = "Вместо этого отображается подробное подменю «Стоимость».";
 "cost_summary_style_both_help" = "Показывает как сводку главного меню, так и подробное подменю «Стоимость».";
+"Month to date" = "С начала месяца";
 "cost_history_window_title" = "Окно истории";
 "cost_history_window_help" = "Задаёт, за сколько дней показывать локальные журналы использования в меню.";
 "cost_history_days_title" = "Окно истории: %d дней";
@@ -961,6 +962,12 @@
 "Copied" = "Скопировано";
 "Managed by Homebrew" = "Управляется через Homebrew";
 "Copy update command" = "Скопировать команду обновления";
+"Update to %@" = "Обновить до %@";
+"CodexBar %@ is available" = "Доступна версия CodexBar %@";
+"CodexBar is up to date" = "CodexBar обновлён";
+"Checking for updates…" = "Проверка обновлений…";
+"Updating with Homebrew…" = "Обновление через Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Не удалось обновить через Homebrew. Вместо этого можно выполнить эту команду в Терминале:";
 "Copy error" = "Ошибка копирования";
 "Copy path" = "Копировать путь";
 "Extra usage spent" = "Потрачено доп. использования";
@@ -1414,7 +1421,6 @@
 "menu_bar_layout_gap_tight" = "Узкий";
 "menu_bar_layout_gap_regular" = "Обычный";
 "menu_bar_layout_vertical_adjustment" = "Вертикальная настройка";
-"menu_bar_layout_keyboard_hint" = "Delete удаляет выбранный элемент";
 "menu_bar_layout_sample_account" = "аккаунт";
 "menu_bar_layout_sample_runs_out" = "закончится пт.";
 "menu_bar_layout_token_icon" = "Значок";

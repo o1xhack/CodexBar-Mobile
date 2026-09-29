@@ -3,48 +3,65 @@
   "use strict";
 
   const httpRejection = (reject) => (failure) => reject(Object.assign(new Error(failure.message), failure));
+  const get = (url, opts, wantsJSON) =>
+    new Promise((resolve, reject) =>
+      host.http(String(url), opts || {}, "GET", wantsJSON, resolve, httpRejection(reject)),
+    );
 
   ctx.http = Object.freeze({
     getJSON(url, opts) {
-      return new Promise((resolve, reject) =>
-        host.http(String(url), opts || {}, "GET", true, resolve, httpRejection(reject)),
-      );
+      return get(url, opts, true);
     },
     get(url, opts) {
-      return new Promise((resolve, reject) =>
-        host.http(String(url), opts || {}, "GET", false, resolve, httpRejection(reject)),
-      );
+      return get(url, opts, false);
+    },
+    getWithOptional(url, optional, opts) {
+      try {
+        const request =
+          typeof optional === "string"
+            ? { url: optional, method: "GET", options: opts || {} }
+            : { url: optional.url, method: optional.method, options: postOptions(optional) };
+        return get(url, { ...opts, optionalRequest: request }, false);
+      } catch (error) {
+        return Promise.reject(error);
+      }
     },
     post(url, opts) {
-      return jsonPost(url, opts, false);
+      return post(url, opts, false);
     },
     postJSON(url, opts) {
-      return jsonPost(url, opts, true);
+      return post(url, opts, true);
     },
   });
 
-  function jsonPost(url, opts, wantsJSON) {
-    if (!opts || typeof opts !== "object" || !("body" in opts)) {
-      return Promise.reject(new TypeError("postJSON requires a body"));
+  function postOptions(opts) {
+    if (!opts || typeof opts !== "object") throw new TypeError("POST requires options");
+    const hostOptions = {};
+    if ("form" in opts) {
+      if (
+        "body" in opts ||
+        !opts.form ||
+        typeof opts.form !== "object" ||
+        Array.isArray(opts.form) ||
+        Object.values(opts.form).some((value) => typeof value !== "string")
+      ) {
+        throw new TypeError("POST form requires a string-to-string map and no JSON body");
+      }
+      hostOptions.form = opts.form;
+    } else {
+      if (!("body" in opts)) throw new TypeError("postJSON requires a body");
+      hostOptions.bodyJSON = JSON.stringify(opts.body);
+      if (hostOptions.bodyJSON === undefined) throw new TypeError("postJSON body is not JSON-serializable");
     }
-    let bodyJSON;
-    try {
-      bodyJSON = JSON.stringify(opts.body);
-    } catch (error) {
-      return Promise.reject(new TypeError(`postJSON body is not JSON-serializable: ${error.message}`));
+    for (const key of ["headers", "timeoutSeconds", "retryPolicy", "openRouterManagementAuth"]) {
+      if (opts[key] !== undefined) hostOptions[key] = opts[key];
     }
-    if (bodyJSON === undefined) {
-      return Promise.reject(new TypeError("postJSON body is not JSON-serializable"));
-    }
-    const hostOptions = { bodyJSON };
-    if (opts.headers !== undefined) hostOptions.headers = opts.headers;
-    if (opts.timeoutSeconds !== undefined) hostOptions.timeoutSeconds = opts.timeoutSeconds;
-    if (opts.retryPolicy !== undefined) hostOptions.retryPolicy = opts.retryPolicy;
-    if (opts.openRouterManagementAuth !== undefined) {
-      hostOptions.openRouterManagementAuth = opts.openRouterManagementAuth;
-    }
+    return hostOptions;
+  }
+
+  function post(url, opts, wantsJSON) {
     return new Promise((resolve, reject) =>
-      host.http(String(url), hostOptions, "POST", wantsJSON, resolve, httpRejection(reject)),
+      host.http(String(url), postOptions(opts), "POST", wantsJSON, resolve, httpRejection(reject)),
     );
   }
 
@@ -54,6 +71,18 @@
     },
     getSecret(key) {
       return host.settingGet(String(key), true);
+    },
+  });
+
+  ctx.storage = Object.freeze({
+    get(key) {
+      return host.storage("get", key, undefined);
+    },
+    set(key, value) {
+      host.storage("set", key, value);
+    },
+    remove(key) {
+      host.storage("remove", key, undefined);
     },
   });
 
@@ -247,6 +276,17 @@
         throw new TypeError("reset hour must be an integer from 0 through 23");
       }
       return new Date(host.nextDailyReset(String(timeZone), resetHour));
+    },
+    addMonths(date, months, timeZone) {
+      if (
+        !(date instanceof Date) ||
+        !Number.isFinite(date.getTime()) ||
+        !Number.isInteger(months) ||
+        typeof timeZone !== "string"
+      ) {
+        throw new TypeError("addMonths requires a valid Date, integer month offset, and IANA time zone");
+      }
+      return new Date(host.addMonths(date.getTime(), months, timeZone));
     },
   });
 

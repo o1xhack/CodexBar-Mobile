@@ -237,6 +237,78 @@ struct ProviderPluginCookieBrokerTests {
         #endif
     }
 
+    #if os(macOS)
+    @Test(arguments: [false, true])
+    func `exact host cookie wins over parent without accepting sibling or lookalike hosts`(reversed: Bool) throws {
+        let rows = [
+            (".example.test", "parent"),
+            ("www.example.test", "host"),
+            ("backend.example.test", "sibling"),
+            ("www.example.test.evil.test", "lookalike"),
+        ]
+        let cookies = try rows.map { domain, value in
+            try #require(HTTPCookie(properties: [
+                .domain: domain, .path: "/", .name: "session", .value: value, .secure: true,
+            ]))
+        }
+        let selected = ProviderPluginCookieBroker.cookiesForRequest(
+            reversed ? Array(cookies.reversed()) : cookies, domain: "www.example.test")
+        #expect(selected.map(\.value) == ["host"])
+        let parent = ProviderPluginCookieBroker.cookiesForRequest(cookies, domain: "example.test")
+        #expect(parent.map(\.value) == ["parent"])
+    }
+    #endif
+
+    @Test
+    func `browser batches advance only after earlier candidates are consumed`() throws {
+        try self.isolated { () throws in
+            let batches = BatchCalls()
+            let broker = ProviderPluginCookieBroker(
+                provider: .abacus,
+                domains: ["apps.abacus.ai"],
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                batches: { _, batch in
+                    batches.append(batch)
+                    return switch batch {
+                    case 0: [("session=chrome", "Chrome")]
+                    case 1: [("session=chrome", "Duplicate"), ("session=firefox", "Firefox")]
+                    default: nil
+                    }
+                })
+            let chrome = try #require(try broker.nextSession(domain: "apps.abacus.ai"))
+            #expect(chrome.header == "session=chrome")
+            #expect(batches.values == [0])
+            broker.rejectCookie(domain: "apps.abacus.ai", id: chrome.id)
+            #expect(try broker.nextSession(domain: "apps.abacus.ai")?.header == "session=firefox")
+            #expect(batches.values == [0, 1])
+            #expect(try broker.nextSession(domain: "apps.abacus.ai") == nil)
+            #expect(try broker.nextSession(domain: "apps.abacus.ai") == nil)
+            #expect(batches.values == [0, 1, 2])
+        }
+    }
+
+    @Test
+    func `empty first browser batch still reaches later browsers`() throws {
+        try self.isolated { () throws in
+            let broker = ProviderPluginCookieBroker(
+                provider: .abacus,
+                domains: ["apps.abacus.ai"],
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                batches: { _, batch in batch == 0 ? [] : batch == 1 ? [("session=fresh", "Fixture")] : nil })
+            #expect(try broker.nextSession(domain: "apps.abacus.ai")?.header == "session=fresh")
+        }
+    }
+
+    private final class BatchCalls: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storage: [Int] = []
+        var values: [Int] {
+            self.lock.withLock { self.storage }
+        }
+
+        func append(_ value: Int) { self.lock.withLock { self.storage.append(value) } }
+    }
+
     private func broker(
         source: ProviderCookieSource = .auto,
         importer: @escaping ProviderPluginCookieBroker.Importer = { [("session=\($0)", "Fixture")] })

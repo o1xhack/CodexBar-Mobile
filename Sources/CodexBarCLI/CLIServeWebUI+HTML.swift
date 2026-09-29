@@ -125,6 +125,11 @@ extension CLIServeWebUI {
           font-size: 12px;
         }
 
+        .display-preferences {
+          justify-content: flex-start;
+          margin-bottom: 16px;
+        }
+
         .badge {
           display: none;
           padding: 3px 8px;
@@ -142,11 +147,13 @@ extension CLIServeWebUI {
         }
 
         button,
-        input {
+        input,
+        select {
           font: inherit;
         }
 
-        button {
+        button,
+        select {
           border: 1px solid var(--line);
           border-radius: 8px;
           background: var(--surface);
@@ -160,7 +167,8 @@ extension CLIServeWebUI {
         }
 
         button:focus-visible,
-        input:focus-visible {
+        input:focus-visible,
+        select:focus-visible {
           outline: 2px solid #49a3b0;
           outline-offset: 2px;
         }
@@ -586,6 +594,15 @@ extension CLIServeWebUI {
           </div>
         </header>
 
+        <div class="meta display-preferences">
+          <label for="usage-display">Usage display</label>
+          <select id="usage-display">
+            <option value="server">Follow server</option>
+            <option value="used">Used</option>
+            <option value="remaining">Remaining</option>
+          </select>
+        </div>
+
         <section id="auth" class="notice" aria-labelledby="auth-title">
           <h2 id="auth-title">This server requires a dashboard token</h2>
           <p>Enter the bearer token configured for this CodexBar server.</p>
@@ -610,9 +627,11 @@ extension CLIServeWebUI {
 
         const tokenKey = "codexbar.dashboardToken";
         const snapshotKey = "codexbar.lastSnapshot";
+        const usageDisplayKey = "codexbar.dashboard.usageDisplay";
         const providerIconURLs = __PROVIDER_ICON_URLS__;
         const state = {
           snapshot: null,
+          usageDisplay: storedUsageDisplay(),
           timer: null,
           fetching: false,
           fillPromise: null,
@@ -634,8 +653,31 @@ extension CLIServeWebUI {
           stale: document.getElementById("stale"),
           token: document.getElementById("token"),
           tokenForm: document.getElementById("token-form"),
+          usageDisplay: document.getElementById("usage-display"),
           version: document.getElementById("version")
         };
+
+        function storedUsageDisplay() {
+          try {
+            const value = localStorage.getItem(usageDisplayKey);
+            return value === "used" || value === "remaining" ? value : "server";
+          } catch (_) {
+            return "server";
+          }
+        }
+
+        function changeUsageDisplay() {
+          const value = elements.usageDisplay.value;
+          state.usageDisplay = value === "used" || value === "remaining" ? value : "server";
+          elements.usageDisplay.value = state.usageDisplay;
+          try {
+            if (state.usageDisplay === "server") localStorage.removeItem(usageDisplayKey);
+            else localStorage.setItem(usageDisplayKey, state.usageDisplay);
+          } catch (_) {
+            // The selection still applies for this page when storage is unavailable or full.
+          }
+          if (state.snapshot) renderProviders(state.snapshot);
+        }
 
         function storedToken() {
           try {
@@ -774,7 +816,9 @@ extension CLIServeWebUI {
         function renderWindow(window) {
           const item = node("div", "window");
           const head = node("div", "window-head");
-          const showUsed = Boolean(state.snapshot && state.snapshot.host && state.snapshot.host.usageBarsShowUsed);
+          const showUsed = state.usageDisplay === "server"
+            ? Boolean(state.snapshot && state.snapshot.host && state.snapshot.host.usageBarsShowUsed)
+            : state.usageDisplay === "used";
           const pct = showUsed
             ? window.usedPercent
             : (window.remainingPercent ?? (100 - finiteNumber(window.usedPercent)));
@@ -1030,6 +1074,11 @@ extension CLIServeWebUI {
           elements.error.classList.remove("visible");
           elements.signOut.classList.toggle("visible", Boolean(storedToken()));
 
+          renderProviders(snapshot);
+          updateFreshness();
+        }
+
+        function renderProviders(snapshot) {
           const providers = Array.isArray(snapshot.providers) ? [...snapshot.providers] : [];
           providers.sort((left, right) => {
             return finiteNumber(left.display?.sortKey) - finiteNumber(right.display?.sortKey);
@@ -1063,7 +1112,6 @@ extension CLIServeWebUI {
           }
           if (!sections.length) sections.push(node("div", "empty", "No providers are configured."));
           elements.providers.replaceChildren(...sections);
-          updateFreshness();
         }
 
         function showTokenForm() {
@@ -1259,6 +1307,9 @@ extension CLIServeWebUI {
             scheduleRefresh();
           }
         }
+
+        elements.usageDisplay.value = state.usageDisplay;
+        elements.usageDisplay.addEventListener("change", changeUsageDisplay);
 
         elements.tokenForm.addEventListener("submit", event => {
           event.preventDefault();

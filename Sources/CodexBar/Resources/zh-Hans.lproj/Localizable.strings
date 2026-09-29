@@ -506,6 +506,7 @@
 "cost_summary_style_inline_help" = "直接在主菜单中显示费用摘要。";
 "cost_summary_style_submenu_help" = "改为显示详细的费用子菜单。";
 "cost_summary_style_both_help" = "同时显示主菜单摘要和详细的费用子菜单。";
+"Month to date" = "本月至今";
 "cost_history_window_title" = "历史窗口";
 "cost_history_window_help" = "设置菜单中显示多少天的本地使用日志。";
 "cost_history_days_title" = "历史窗口：%d 天";
@@ -928,6 +929,12 @@
 "Copied" = "已复制";
 "Managed by Homebrew" = "由 Homebrew 管理";
 "Copy update command" = "复制更新命令";
+"Update to %@" = "更新到 %@";
+"CodexBar %@ is available" = "CodexBar %@ 已推出";
+"CodexBar is up to date" = "CodexBar 已是最新版本";
+"Checking for updates…" = "正在检查更新…";
+"Updating with Homebrew…" = "正在通过 Homebrew 更新…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Homebrew 更新失败。你也可以在终端中运行此命令：";
 "Copy error" = "复制错误";
 "Copy path" = "复制路径";
 "Extra usage spent" = "额外用量支出";
@@ -1416,7 +1423,6 @@
 "menu_bar_layout_gap_tight" = "紧凑";
 "menu_bar_layout_gap_regular" = "常规";
 "menu_bar_layout_vertical_adjustment" = "垂直调整";
-"menu_bar_layout_keyboard_hint" = "Delete 键会移除所选项目";
 "menu_bar_layout_sample_account" = "帐户";
 "menu_bar_layout_sample_runs_out" = "周五用尽";
 "menu_bar_layout_token_icon" = "图标";

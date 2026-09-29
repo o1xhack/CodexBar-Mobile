@@ -61,17 +61,9 @@ Usage source picker:
   preview, and Overview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
 
 ### Optional external OAuth sources (off by default)
-- **External Codex OAuth sources** is a provider setting that must be enabled explicitly before CodexBar reads
-  another application's OAuth file. It is off by default because this is a cross-application credential boundary.
-- Without an explicit `$CODEX_HOME`, native Codex auth wins first, followed by legacy `~/.config/codex/auth.json`,
-  then OpenCode's `~/.local/share/opencode/auth.json` (or the equivalent `XDG_DATA_HOME` path).
-- An explicit `$CODEX_HOME` remains isolated; it never borrows credentials from those external locations.
-- External fallbacks accept OAuth token structures only; API-key entries are ignored. Usage probes never refresh or
-  publish OAuth token material into a shared `auth.json` without a cross-writer publication contract. Stale native
-  credentials can delegate to the CLI recovery path, while stale external credentials fail closed in every mode.
-  Automatic mode also suppresses unscoped CLI fallback whenever a managed workspace is selected. Explicit
-  managed-account workspace selection is stored in CodexBar's private managed-account metadata; it never edits the
-  source `auth.json` or publishes an `account_id` change back to another application's credential file.
+- Enable **External Codex OAuth sources** to allow reads of another application's OAuth file. This cross-application credential access defaults off.
+- Without `$CODEX_HOME`, precedence is native Codex auth → legacy `~/.config/codex/auth.json` → OpenCode's `~/.local/share/opencode/auth.json` (or equivalent `XDG_DATA_HOME`). An explicit `$CODEX_HOME` stays isolated.
+- External sources accept OAuth tokens only, ignoring API-key entries. Usage probes cannot refresh or publish tokens to shared `auth.json` without a cross-writer publication contract. Stale native credentials may delegate to CLI recovery; stale external credentials fail closed in every mode. Managed workspace selection suppresses unscoped Auto CLI fallback and stays in private CodexBar metadata, never rewriting source `auth.json` or `account_id`.
 - **Reauthenticate** follows the credential source shown by the account row: System rows use the existing system Codex login flow even when the same account is also saved; managed rows renew their private managed home. Credentials are not copied between those homes. A queued action is discarded if the row's source or workspace changes.
 - If native credentials need renewal, use **Reauthenticate** for the affected account in Settings → Providers → Codex.
   For CLI recovery, run `codex login` with that account's existing `CODEX_HOME` and select the intended workspace.
@@ -81,6 +73,7 @@ Usage source picker:
   refresh is running discards the old workspace's result.
 - System Account promotion fails closed when a managed selection differs from the auth file's default workspace.
   CodexBar keeps that selection managed rather than silently promoting the default or rewriting Codex-owned auth.
+- System Account promotion restarts an already-running managed daemon with `codex app-server daemon restart` and the destination home's `CODEX_HOME`. It verifies PID, process command, and resolved home-scoped control socket, including symlinked homes and sockets in Codex's protected directory outside the home. Dangling links still require the CLI's running-daemon probe. Homes without a running daemon are untouched. If verification/restart is unsupported or fails, the account remains switched with a manual-restart note in menu/settings. Restart can interrupt active server work; it runs no login flow.
 - In the segmented layout, selecting an account refreshes its card while the menu stays open. Delayed results stay
   scoped to that selection. An open chart submenu or highlighted menu command can defer the update until the submenu
   closes or the highlight clears.
@@ -95,6 +88,8 @@ Usage source picker:
 - CodexBar reads identity from the configured home, exposes it in the Codex account switcher, and scopes
   remote Codex fetches with `CODEX_HOME`.
 - Profile homes are not copied, reauthenticated, or removed by CodexBar.
+- Selecting a profile-home usage card does not promote credentials or restart its daemon. Daemon refresh belongs to
+  System Account promotion and targets only the home whose auth file was replaced.
 
 Example:
 
@@ -121,23 +116,15 @@ Hide Personal Info applies to the System Account submenu as well as the switcher
 and stable account numbers distinguish rows while usable workspace labels remain visible.
 
 ### OpenAI web dashboard (optional, off by default)
-- Subscription renewal or expiration dates load after the app publishes dashboard usage. CodexBar first tries the subscription API, then captures only the date and renewal flag from ChatGPT's own billing request in the same account-scoped web session, within an eight-second budget.
-- Billing capture is best-effort: unavailable or malformed responses retain previously fetched dates, while a valid empty response clears them. Cancelled, replaced, disabled, or account-mismatched refreshes cannot attach dates. The CLI web source waits only within its remaining fetch deadline.
-- Enable it in Preferences -> Providers -> Codex -> OpenAI web extras.
-- It exists for dashboard-only extras such as code review remaining, usage breakdown, and credits history.
-- It is intentionally opt-in because it loads `chatgpt.com` in a hidden WebView and can materially increase battery or network usage.
-- OpenAI web battery saver is a separate toggle. When enabled, routine background/settings-driven refreshes are reduced, but explicit manual refreshes still run.
-- OpenAI web battery saver currently defaults to off.
+- Enable **Preferences → Providers → Codex → OpenAI web extras** for code review remaining, usage breakdown, and credits history. It loads `chatgpt.com` in a hidden WebView and can materially increase battery/network usage.
+- **OpenAI web battery saver** defaults off. It reduces background/settings-driven refreshes while preserving explicit manual refreshes.
+- Renewal/expiration dates load after dashboard usage: the subscription API is tried first, then ChatGPT's billing request in the same account-scoped session supplies only the date and renewal flag, within eight seconds. Unavailable/malformed responses retain prior dates; valid empty responses clear them. Cancelled, replaced, disabled, or account-mismatched refreshes cannot attach dates. CLI web capture stays within its remaining fetch deadline.
 - Preferences → Providers → Codex → OpenAI cookies (Automatic or Manual).
-- URL: `https://chatgpt.com/codex/settings/usage`.
+- URL: `https://chatgpt.com/codex/cloud/settings/analytics#usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
-- Each WebView acquisition keeps ownership across asynchronous page preparation. Explicit store eviction invalidates
-  that store's pending preparations, so stale success, failure, or timeout retry cannot displace a replacement view.
-  Evict-all invalidates all pending preparations; ordinary lease release does not invalidate concurrent temporary views.
-- Leases retain their cleanup owner independently of the cache and release only once. Validated pages still support
-  the brief reuse handoff; other releases schedule the existing deferred WebKit cleanup, including temporary views.
+- WebView acquisitions retain ownership during page preparation. Store eviction invalidates its pending preparations; evict-all invalidates all. Stale success/failure/timeout retries cannot displace replacements. Ordinary lease release leaves concurrent temporary views valid. Leases retain their cleanup owner independently of the cache and release once: validated pages allow brief reuse; other releases schedule deferred cleanup, including temporary views.
 - Cookie import (Automatic mode, when WebKit store has no matching session or login required):
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
@@ -255,6 +242,11 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
     checkpoints until each file is refreshed.
   - Native Codex logs parse `event_msg` token_count entries and `turn_context` model markers; when both are present,
     `turn_context` is authoritative for the model bucket.
+  - Direct forks preserve the inherited origin of cumulative counters when resolving parent snapshots, including
+    intermediate sessions that are empty at the child's fork time. Repeated inherited snapshots contribute no
+    new usage; descendants count only their deltas. Ancestry remains a cache dependency, so ancestor changes
+    revalidate descendants even if the intermediate session records its first token event after the fork.
+    Parser revision 5 repairs existing files through bounded reparsing without discarding compatible stored history.
   - A subagent's `subagent_history_start_ordinal` is authoritative: earlier records are inherited context, even if
     they contain delivery markers or the file ends before child-owned history arrives. Later appends count only
     the child's own deltas. Older per-file parser revisions refresh through the normal scan budget while stored
@@ -344,6 +336,7 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Menu cost catch-up discards an overlapping refresh queued before a no-progress or error pause, preventing an immediate retry. A later normal or manual refresh can still start a fresh attempt; successful completion still honors queued refreshes for newly discovered history.
 - Automatic Codex catch-up scheduling in both usage and Spend Dashboard honors the app’s 30-minute Low Power Mode minimum after each pass. Explicit acceleration remains immediate, and physical low-power/thermal pauses retain their own retry policy. The setting applies when the next delay is computed; an already pending sleep is not replanned.
 - Automatic catch-up reports thermal pressure when serious heat and Low Power Mode coexist. Both constraints keep the existing 60-second pause before rechecking resource state.
+- Automatic catch-up duty-cycle delays use time spent in that scan, including publication, excluding waits on the shared account/provider queue. Power, thermal, scan-budget, and complete-history publication rules still apply.
 - A catch-up worker that loses its account or settings scope clears its abandoned Refreshing activity on exit. Legitimate pauses remain visible, and an older worker cannot clear a replacement worker's activity.
 - Cache-wide migration reseeding keeps paths already waiting ahead of new revisits. Repeated pricing or priority-turn changes therefore cannot keep the same completed files ahead of the stale tail in each 512-candidate pass. Initial seeding still honors newest-first preference, and publication waits for exact inventory validation. Native Codex stores from published parser fingerprint `4969a789db679c93` adopt the new generation without rebuilding rows, checkpoints, or retained reports; Pi/OMP retains its existing one-time reparse on a parser-hash change.
 - When a warm cost refresh reaches its time limit, it saves the remaining file work and completed discovery. Compatible shorter/wider history requests resume that work across the retained scan range; publication still waits for exact inventory validation.
@@ -358,6 +351,22 @@ the local result and returns a nonzero exit code. See [CLI host reporting](cli.m
 - Parent-session discovery also resumes within those limits after the requesting fork files leave both scan roots.
   Stale pending path associations are reconciled in the existing cache; surviving forks with missing parents still
   retain their unresolved usage instead of being counted as complete.
+
+### Usage & Spend session rows
+
+Codex session rows show the local thread title when available, with the project, model, and last-activity date
+beneath it. Untitled sessions use a shortened session ID. Titles come from `session_index.jsonl`, with the local
+thread database as a fallback; relative `CODEX_SQLITE_HOME` paths resolve against each rollout's original working
+directory, even when its project is grouped under a different canonical repository path.
+
+Rows rank by cost descending, with unpriced sessions last. Ties use tokens descending, activity time descending,
+and source-qualified session ID ascending. The panel initially shows eight rows and can expand to the top 50.
+Dates use the dashboard's cost-bucketing time zone. Naming and ranking leave daily totals, the ledger, and existing
+per-session costs unchanged; an unpriced session remains unpriced.
+
+**Hide personal information** replaces titles with shortened session IDs and removes project names and paths,
+including from tooltips. Models, dates, tokens, costs, and ranks remain visible. Turning it off restores the names;
+this is display masking and does not remove metadata from local history or sanitize exports.
 
 ### Usage & Spend account rows
 
@@ -377,7 +386,3 @@ dashboard labels its values as local estimates and keeps currencies separate.
   `Sources/CodexBarCore/PiSessionCostScanner.swift`,
   `Sources/CodexBarCore/PiSessionCostCache.swift`,
   `Sources/CodexBarCore/Vendored/CostUsage/*`
-
-Automatic local-history catch-up bases its duty-cycle delay on time spent executing its own scan, including cache
-publication. Time waiting behind another account or provider on the shared scan queue does not increase that delay.
-The existing power, thermal, scan-budget, and complete-history publication rules still apply.

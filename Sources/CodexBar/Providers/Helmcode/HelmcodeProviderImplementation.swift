@@ -16,18 +16,7 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        [
-            ProviderCookieSourceUI.picker(
-                id: "helmcode-cookie-source",
-                context: context,
-                source: \.helmcodeCookieSource,
-                allowsOff: true,
-                subtitles: {
-                    .init(
-                        auto: "Imports Chrome sessions for Helmcode Cloud or NaN Builders; Cloud is preferred.",
-                        manual: "Paste a Cookie header and select its tenant below.",
-                        off: "Helmcode dashboard cookies are disabled.")
-                }),
+        PluginCookieProviderImplementation(spec: HelmcodeProviderDescriptor.spec).settingsPickers(context: context) + [
             ProviderSettingsPickerDescriptor(
                 id: "helmcode-manual-tenant",
                 title: "Manual cookie tenant",
@@ -44,15 +33,7 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [ProviderSettingsFieldDescriptor(
-            id: "helmcode-cookie",
-            title: "Cookie header",
-            subtitle: "Copy the Cookie request header from your tenant's dashboard. cURL captures are not supported.",
-            kind: .secure,
-            placeholder: "Cookie: …",
-            binding: context.binding(\.helmcodeCookieHeader),
-            actions: [],
-            isVisible: { context.settings.helmcodeCookieSource == .manual })]
+        PluginCookieProviderImplementation(spec: HelmcodeProviderDescriptor.spec).settingsFields(context: context)
     }
 }
 

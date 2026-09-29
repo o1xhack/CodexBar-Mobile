@@ -1,52 +1,41 @@
 import Foundation
 
 public enum T3ChatProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .t3chat,
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .t3chat,
+        displayName: "T3 Chat",
+        sessionLabel: "Base",
+        weeklyLabel: "Overage",
+        sharePlanLabels: ["free": "Free", "pro": "Pro", "team": "Team"],
+        debugLogUnavailableMessage: "T3 Chat debug log not yet implemented",
+        debugPane: ProviderDebugPaneCapabilities(errorSimulationOrder: 6),
+        dashboardURL: "https://t3.chat/settings/customization",
+        subscriptionDashboardURL: "https://t3.chat/settings/subscription",
+        color: .init(red: 245 / 255, green: 102 / 255, blue: 71 / 255),
+        confetti: [0x970B72, 0xE6229C, 0xFEA0F6],
+        noDataMessage: "T3 Chat cost summary is not supported.",
+        aliases: ["t3-chat", "t3"],
+        webSource: .init(
             settingsSection: .init(T3ChatProviderSettingsKey.self, cookieSettings: T3ChatProviderSettings.self),
-            metadata: ProviderMetadata(
-                id: .t3chat,
-                displayName: "T3 Chat",
-                sessionLabel: "Base",
-                weeklyLabel: "Overage",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show T3 Chat usage",
-                cliName: "t3chat",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                sharePlanLabels: ["free": "Free", "pro": "Pro", "team": "Team"],
-                debugLogUnavailableMessage: "T3 Chat debug log not yet implemented",
-                debugPane: ProviderDebugPaneCapabilities(errorSimulationOrder: 6),
-                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
-                dashboardURL: "https://t3.chat/settings/customization",
-                subscriptionDashboardURL: "https://t3.chat/settings/subscription",
-                statusPageURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .t3chat),
-                iconResourceName: "ProviderIcon-t3chat",
-                color: ProviderColor(red: 245 / 255, green: 102 / 255, blue: 71 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0x970B72),
-                    ProviderColor(hex: 0xE6229C),
-                    ProviderColor(hex: 0xFEA0F6),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "T3 Chat cost summary is not supported." }),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "t3chat",
-                aliases: ["t3-chat", "t3"],
-                versionDetector: nil))
-    }
+            browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
+            timeout: .web(minimum: 20, maximum: 90, padding: 5, nonFinite: nil),
+            resolveValues: Self.pluginValues,
+            field: .init(
+                id: "t3chat-cookie",
+                title: "T3 Chat cookie",
+                subtitle: "Paste a Cookie header or full cURL capture from T3 Chat settings.",
+                placeholder: "Cookie: ...",
+                action: (
+                    id: "t3chat-open-settings",
+                    title: "Open T3 Chat Settings",
+                    url: "https://t3.chat/settings/customization")),
+            picker: .init(
+                id: "t3chat-cookie-source",
+                allowsOff: false,
+                auto: .localized("Automatically imports browser cookies."),
+                manual: .localized("Paste a Cookie header or cURL capture from %@.", argument: "T3 Chat settings"),
+                off: .localized("Paste a Cookie header or cURL capture from %@.", argument: "T3 Chat settings"))))
 
     private static let forwardedManualHeaders = [
         "accept": "Accept",
@@ -79,21 +68,5 @@ public enum T3ChatProviderDescriptor {
         return .init(
             settings: ["TIMEOUT_SECONDS": String(min(90, max(1, context.webTimeout)))],
             secrets: ["MANUAL_COOKIE": cookie ?? "", "CAPTURED_HEADERS": encodedHeaders])
-    }
-
-    private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .web],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { context in
-                [ScriptFetchStrategy(
-                    id: "t3chat.js",
-                    provider: .t3chat,
-                    bundledPlugin: "t3chat",
-                    sourceLabel: "web",
-                    kind: .web,
-                    timeout: max(20, min(90, context.webTimeout) + 5),
-                    resolveValues: Self.pluginValues,
-                    isEnabled: { _ in true })]
-            }))
     }
 }

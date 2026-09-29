@@ -1,110 +1,48 @@
 import Foundation
 
 public enum DeepgramProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-    private static let credentials = ProviderCredentialAdapter(
-        supportsAPIKeyOverride: true,
-        environmentProjections: [
-            .apiKey(DeepgramSettingsReader.apiKeyEnvironmentKey),
-            .workspaceID(DeepgramSettingsReader.projectIDEnvironmentKey),
-        ],
-        tokenResolver: { kind, environment, _ in
-            let value: String? = switch kind {
-            case .primary: DeepgramSettingsReader.apiKey(environment: environment)
-            case .projectID: DeepgramSettingsReader.projectID(environment: environment)
-            case .secondary: nil
-            }
-            guard let value else { return nil }
-            return ProviderTokenResolution(token: value, source: .environment)
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .deepgram,
+        displayName: "Deepgram",
+        sessionLabel: "Requests",
+        weeklyLabel: "Usage",
+        creditsHint: "Usage summary from Deepgram API",
+        debugLogUnavailableMessage: "Deepgram debug log not yet implemented",
+        dashboardURL: "https://console.deepgram.com/project/",
+        statusLinkURL: "https://status.deepgram.com",
+        color: ProviderColor(
+            red: 100 / 255,
+            green: 103 / 255,
+            blue: 242 / 255),
+        confetti: [0x13EF95, 0x149AFB, 0x1A1A1F],
+        widgetColor: ProviderColor(red: 10 / 255, green: 18 / 255, blue: 27 / 255),
+        noDataMessage: "Deepgram cost summary is not yet supported.",
+        environmentKey: DeepgramSettingsReader.apiKeyEnvironmentKey,
+        config: ProviderConfigCapabilities(workspaceIDValidationOrder: 5),
+        aliases: ["dg"],
+        scriptSettings: { context in
+            [DeepgramSettingsReader.apiURLEnvironmentKey:
+                DeepgramSettingsReader.apiURL(environment: context.env).absoluteString]
         },
-        authDetector: { environment, _ in
-            DeepgramSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
-        })
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .deepgram,
-            credentials: self.credentials,
-            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 5),
-            metadata: ProviderMetadata(
-                id: .deepgram,
-                displayName: "Deepgram",
-                sessionLabel: "Requests",
-                weeklyLabel: "Usage",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "Usage summary from Deepgram API",
-                toggleTitle: "Show Deepgram usage",
-                cliName: "deepgram",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                debugLogUnavailableMessage: "Deepgram debug log not yet implemented",
-                browserCookieOrder: nil,
-                dashboardURL: "https://console.deepgram.com/project/",
-                statusPageURL: nil,
-                statusLinkURL: "https://status.deepgram.com"),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .deepgram),
-                iconResourceName: "ProviderIcon-deepgram",
-                color: ProviderColor(
-                    red: 100 / 255,
-                    green: 103 / 255,
-                    blue: 242 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0x13EF95),
-                    ProviderColor(hex: 0x149AFB),
-                    ProviderColor(hex: 0x1A1A1F),
-                ],
-                widgetColor: ProviderColor(red: 10 / 255, green: 18 / 255, blue: 27 / 255)),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: {
-                    "Deepgram cost summary is not yet supported."
-                }),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "deepgram",
-                aliases: ["dg"],
-                versionDetector: nil))
-    }
-
-    private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                [ScriptFetchStrategy(
-                    id: "deepgram.js",
-                    provider: .deepgram,
-                    bundledPlugin: "deepgram",
-                    secretKey: DeepgramSettingsReader.apiKeyEnvironmentKey,
-                    sourceLabel: "api",
-                    validateContext: { context in
-                        try DeepgramSettingsReader.validateEndpointOverride(environment: context.env)
-                    },
-                    resolveValues: { context in
-                        guard let key = self.credentials.resolveToken(
-                            environment: context.env)?.token
-                        else { return nil }
-                        var settings = [
-                            DeepgramSettingsReader.apiURLEnvironmentKey:
-                                DeepgramSettingsReader.apiURL(environment: context.env).absoluteString,
-                        ]
-                        if let project = self.credentials.resolveToken(
-                            kind: .projectID,
-                            environment: context.env)?.token
-                        {
-                            settings[DeepgramSettingsReader.projectIDEnvironmentKey] = project
-                        }
-                        return ScriptFetchStrategy.Values(
-                            settings: settings,
-                            secrets: [DeepgramSettingsReader.apiKeyEnvironmentKey: key])
-                    },
-                    isEnabled: { _ in true })]
-            }))
-    }
+        validateContext: { context in
+            try DeepgramSettingsReader.validateEndpointOverride(environment: context.env)
+        },
+        apiKeyField: .init(
+            id: "deepgram-api-key",
+            title: "API key",
+            subtitle: "Stored in ~/.codexbar/config.json. Get your key from console.deepgram.com.",
+            placeholder: "dg_..."),
+        workspaceField: .init(
+            environmentKey: DeepgramSettingsReader.projectIDEnvironmentKey,
+            field: .init(
+                id: "deepgram-project-id",
+                title: "Project ID",
+                subtitle: "Optional. Leave blank to discover and aggregate projects visible to the API key.",
+                placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"),
+            resolvesProjectID: true),
+        showsAPIDetail: true,
+        availability: .configuredKey)
 }
 
 /// Errors related to Deepgram settings

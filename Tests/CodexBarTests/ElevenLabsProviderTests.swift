@@ -11,7 +11,7 @@ struct ElevenLabsProviderTests {
             #expect(strategies.map(\.id) == ["elevenlabs.js"])
             let strategy = try #require(strategies.first)
             #expect(await strategy.isAvailable(context))
-            #expect(ElevenLabsProviderDescriptor.scriptValues(environment: context.env)?
+            #expect(ElevenLabsProviderDescriptor.spec.scriptValues(context)?
                 .secrets["ELEVENLABS_API_KEY"] == "xi-test")
         }
     }
@@ -25,7 +25,7 @@ struct ElevenLabsProviderTests {
     ])
     func `endpoint construction preserves native override paths`(base: String, expected: String) throws {
         let environment = ["ELEVENLABS_API_KEY": "xi-test", "ELEVENLABS_API_URL": base]
-        let values = try #require(ElevenLabsProviderDescriptor.scriptValues(environment: environment))
+        let values = try #require(ElevenLabsProviderDescriptor.spec.scriptValues(Self.context(environment)))
         #expect(values.settings["BASE_URL"] == expected)
     }
 
@@ -55,9 +55,9 @@ struct ElevenLabsProviderTests {
 
     @Test
     func `primary key still wins over alias`() throws {
-        let values = try #require(ElevenLabsProviderDescriptor.scriptValues(environment: [
+        let values = try #require(ElevenLabsProviderDescriptor.spec.scriptValues(Self.context([
             "ELEVENLABS_API_KEY": "primary", "XI_API_KEY": "alias",
-        ]))
+        ])))
         #expect(values.secrets["ELEVENLABS_API_KEY"] == "primary")
         #expect(values.settings["BASE_URL"] == "https://api.elevenlabs.io/v1/user/subscription")
     }

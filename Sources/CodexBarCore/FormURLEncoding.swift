@@ -14,7 +14,7 @@ enum FormURLEncoding {
         return Data(pairs.utf8)
     }
 
-    private static func encode(_ value: String) -> String {
+    static func encode(_ value: String) -> String {
         var allowed = CharacterSet.urlQueryAllowed
         allowed.remove(charactersIn: "+&=")
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value

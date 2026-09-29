@@ -7,6 +7,24 @@ import Testing
 
 extension ProviderPluginRuntimeTests {
     @Test(arguments: Self.labelValidationEngines)
+    func `negative big integers wrap at limb boundaries`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        for (const width of [64, 128, 192]) {
+          const modulus = 1n << BigInt(width);
+          for (const value of [-1n, -2n, -modulus]) {
+            const expected = (value + modulus) % modulus;
+            if (BigInt.asUintN(width, value) !== expected) {
+              throw new Error(`Incorrect unsigned wrapping at ${width} bits`);
+            }
+          }
+        }
+        return { primary: { usedPercent: 7 } };
+        """), engine: engine)
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture"])
+        #expect(snapshot.primary?.usedPercent == 7)
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
     func `cookie availability is policy only and Off blocks resolution`(engine: ProviderPluginEngineKind) async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(
             capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,
@@ -844,18 +862,36 @@ struct ProviderPluginRuntimeTests {
             Issue.record("Unexpected error: \(error)")
         }
     }
+}
+
+extension ProviderPluginRuntimeTests {
+    @Test
+    func `QuickJS watchdog reports a timeout without the runtime timer`() async throws {
+        let engine = try Self.quickJSEngine(
+            source: Self.plugin(fetchBody: "while (true) {}"),
+            workerStackSizeBytes: QuickJSRuntimeLimits.nativeStackSizeBytes,
+            timeout: 5)
+
+        await #expect(throws: ProviderPluginError.timedOut) {
+            _ = try await Self.fetchUsage(engine: engine)
+        }
+    }
 
     @Test
     func `hung script times out and next fetch uses a fresh context`() async throws {
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
-            if (ctx.settings.getSecret("TEST_KEY") === "hang") while (true) {}
-            return { primary: { usedPercent: 7 } };
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              while (true) {}
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
             """),
-            timeout: 5)
+            timeout: 5,
+            engine: .quickJS)
         let start = Date()
 
-        await #expect(throws: ProviderPluginError.self) {
+        await #expect(throws: ProviderPluginError.timedOut) {
             _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
         }
         // This ceiling only proves the watchdog interrupted the infinite loop instead of hanging
@@ -865,6 +901,54 @@ struct ProviderPluginRuntimeTests {
         let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
         #expect(recovered.primary?.usedPercent == 7)
     }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `cancelled fetch discards its context before recovery`(engine: ProviderPluginEngineKind) async throws {
+        let (starts, signalStart) = AsyncStream<Void>.makeStream()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              await ctx.http.getJSON("https://api.example.test/slow");
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
+            """),
+            transport: ProviderHTTPTransportHandler { _ in
+                signalStart.yield()
+                try await Task.sleep(for: .seconds(60))
+                throw URLError(.cancelled)
+            },
+            engine: engine)
+        let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"]) }
+        var iterator = starts.makeAsyncIterator()
+        await iterator.next()
+        fetch.cancel()
+        await #expect(throws: CancellationError.self) { try await fetch.value }
+
+        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
+        #expect(recovered.primary?.usedPercent == 7)
+    }
+
+    #if canImport(JavaScriptCore)
+    @Test
+    func `JSC pending script times out and next fetch uses a fresh context`() async throws {
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              await new Promise(() => {});
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
+            """),
+            timeout: 5,
+            engine: .javaScriptCore)
+        await #expect(throws: ProviderPluginError.timedOut) {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
+        }
+        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
+        #expect(recovered.primary?.usedPercent == 7)
+    }
+    #endif
 
     private static func plugin(
         id: String = "synthetic",
@@ -891,7 +975,8 @@ struct ProviderPluginRuntimeTests {
 
     private static func quickJSEngine(
         source: String,
-        workerStackSizeBytes: Int) throws -> QuickJSProviderPluginEngine
+        workerStackSizeBytes: Int,
+        timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout) throws -> QuickJSProviderPluginEngine
     {
         let bundle = try #require(CodexBarCoreResources.bundle)
         let preludeURL = try #require(bundle.url(
@@ -902,7 +987,7 @@ struct ProviderPluginRuntimeTests {
             source: source,
             preludeSource: preludeSource,
             transport: ProviderHTTPTransportHandler { _ in throw URLError(.unsupportedURL) },
-            timeout: ProviderPluginRuntime.defaultTimeout,
+            timeout: timeout,
             responseSizeLimit: ProviderPluginRuntime.maximumResponseBytes,
             enforcesUserResponsePolicy: false,
             allowsDynamicID: false,

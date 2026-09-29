@@ -35,11 +35,6 @@ struct CursorUsageEventsPage: Decodable, Sendable {
         }
     }
 
-    init(totalUsageEventsCount: Int?, usageEventsDisplay: [CursorUsageEvent]) {
-        self.totalUsageEventsCount = totalUsageEventsCount
-        self.usageEventsDisplay = usageEventsDisplay
-    }
-
     init(from decoder: Decoder) throws {
         // Empty queries omit both fields; empty terminal pages retain the query's total count.
         // Inspect every key so error envelopes cannot masquerade as confirmed empty usage.
@@ -480,7 +475,9 @@ struct CursorUsageEventsFetcher: Sendable {
         request.httpBody = try JSONEncoder().encode(FilteredUsageRequest(
             page: page,
             pageSize: self.pageSize,
-            startDate: Self.millisString(since),
+            // All-history scans use Date.distantPast locally. Cursor rejects that negative
+            // timestamp with HTTP 500; the Unix epoch still includes all Cursor usage.
+            startDate: Self.millisString(since.map { max($0, Date(timeIntervalSince1970: 0)) }),
             endDate: Self.millisString(until)))
         let (data, response) = try await self.transport.data(for: request)
         try Self.validate(response)

@@ -1,92 +1,73 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public enum SakanaProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor(credentials: Self.credentials)
+    public static let spec = PluginProviderSpec(
+        id: .sakana,
+        displayName: "Sakana AI",
+        shortDisplayName: "Sakana",
+        sessionLabel: "5-hour",
+        weeklyLabel: "Weekly",
+        sharePlanLabels: [
+            "standard": "Standard",
+            "standard $20/mo": "Standard",
+            "pro": "Pro",
+            "enterprise": "Enterprise",
+        ],
+        debugLogUnavailableMessage: "Sakana AI debug log not yet implemented",
+        dashboardURL: "https://console.sakana.ai/billing",
+        color: .init(red: 0.16, green: 0.46, blue: 0.86),
+        confetti: [0xE10600, 0x0D0D0D, 0xFFFFFF],
+        widgetColor: .init(red: 41 / 255, green: 117 / 255, blue: 219 / 255),
+        noDataMessage: "Sakana AI cost summary is not supported.",
+        presentation: ProviderUsagePresentation(
+            optionalDetails: ProviderOptionalDetailsPresentation(hidesAllWithoutOptionalUsage: true)),
+        aliases: ["sakana-ai"],
+        webSource: .init(
+            settingsSection: nil,
+            timeout: .web(minimum: 20, maximum: 90, padding: 1, nonFinite: 15),
+            transport: Self.transport,
+            browserSupportExemption: { sourceMode, environment, _ in
+                guard sourceMode == .auto || sourceMode == .web else { return false }
+                return environment.map { SakanaSettingsReader.cookieHeader(environment: $0) != nil } == true
+            },
+            resolveValues: Self.scriptValues,
+            field: .init(
+                id: "sakana-cookie",
+                title: "Cookie header",
+                subtitle: "Stored in ~/.codexbar/config.json. Copy the Sakana AI console Cookie request header.",
+                placeholder: "Cookie: ...",
+                action: (
+                    id: "sakana-open-dashboard",
+                    title: "Open Sakana AI Console",
+                    url: "https://console.sakana.ai/billing")),
+            detailLine: "web",
+            availability: { SakanaSettingsReader.cookieHeader(environment: $0) != nil }))
+
     private static let credentials = ProviderCredentialAdapter(environmentProjections: [
         .cookieHeader(SakanaSettingsReader.cookieHeaderKey),
     ])
+    private static let transport: ProviderHTTPClient = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        return ProviderHTTPClient(session: ProviderHTTPClient.redirectGuardedSession(configuration: configuration))
+    }()
 
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .sakana,
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .sakana,
-                displayName: "Sakana AI",
-                shortDisplayName: "Sakana",
-                sessionLabel: "5-hour",
-                weeklyLabel: "Weekly",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show Sakana AI usage",
-                cliName: "sakana",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                sharePlanLabels: [
-                    "standard": "Standard",
-                    "standard $20/mo": "Standard",
-                    "pro": "Pro",
-                    "enterprise": "Enterprise",
-                ],
-                debugLogUnavailableMessage: "Sakana AI debug log not yet implemented",
-                browserCookieOrder: nil,
-                dashboardURL: "https://console.sakana.ai/billing",
-                statusPageURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .sakana),
-                iconResourceName: "ProviderIcon-sakana",
-                color: ProviderColor(red: 0.16, green: 0.46, blue: 0.86),
-                confettiPalette: [
-                    ProviderColor(hex: 0xE10600),
-                    ProviderColor(hex: 0x0D0D0D),
-                    ProviderColor(hex: 0xFFFFFF),
-                ],
-                widgetColor: ProviderColor(red: 41 / 255, green: 117 / 255, blue: 219 / 255)),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Sakana AI cost summary is not supported." }),
-            presentation: ProviderUsagePresentation(
-                optionalDetails: ProviderOptionalDetailsPresentation(hidesAllWithoutOptionalUsage: true)),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .web],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                    [SakanaWebFetchStrategy()]
-                })),
-            cli: ProviderCLIConfig(
-                name: "sakana",
-                aliases: ["sakana-ai"],
-                versionDetector: nil,
-                browserSupportExemption: { sourceMode, environment, _ in
-                    guard sourceMode == .auto || sourceMode == .web else { return false }
-                    return environment.map { SakanaSettingsReader.cookieHeader(environment: $0) != nil } == true
-                }))
-    }
-}
-
-struct SakanaWebFetchStrategy: ProviderFetchStrategy {
-    let id: String = "sakana.web"
-    let kind: ProviderFetchKind = .web
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        SakanaSettingsReader.cookieHeader(environment: context.env) != nil
+    static func scriptValues(_ context: ProviderFetchContext) -> ScriptFetchStrategy.Values? {
+        guard let cookie = SakanaSettingsReader.cookieHeader(environment: context.env) else { return nil }
+        return .init(
+            settings: [
+                "OPTIONAL_USAGE": String(context.includeOptionalUsage),
+                "TIMEOUT": String(Self.requestTimeout(context)),
+            ],
+            secrets: [SakanaSettingsReader.cookieHeaderKey: cookie])
     }
 
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let cookieHeader = SakanaSettingsReader.cookieHeader(environment: context.env) else {
-            throw SakanaUsageError.missingCookie
-        }
-        let usage = try await SakanaUsageFetcher.fetchUsage(
-            cookieHeader: cookieHeader,
-            timeout: context.webTimeout,
-            includeOptionalUsage: context.includeOptionalUsage)
-        return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "web")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    private static func requestTimeout(_ context: ProviderFetchContext) -> TimeInterval {
+        context.webTimeout.isFinite ? min(90, max(1, context.webTimeout)) : 15
     }
 }

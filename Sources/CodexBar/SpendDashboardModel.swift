@@ -328,9 +328,13 @@ struct SpendDashboardModel: Equatable, Sendable {
 
     struct SessionRow: Identifiable, Equatable, Sendable {
         let id: String
+        var rank: Int
+        let sessionID: String
         let sourceID: String
         let provider: UsageProvider
-        let displayName: String
+        let title: String?
+        let projectName: String?
+        let projectPath: String?
         let lastActivity: Date
         let totalTokens: Int?
         let totalCost: Double?
@@ -376,7 +380,8 @@ struct SpendDashboardModel: Equatable, Sendable {
 
     static func build(
         inputs: [ProviderInput],
-        requestedDays: Int,
+        requestedDays: Int = 30,
+        reportingPeriod: CostReportingPeriod? = nil,
         now: Date,
         calendar: Calendar = .current,
         preferredCurrencyCode: String = "auto",
@@ -384,7 +389,6 @@ struct SpendDashboardModel: Equatable, Sendable {
         hideNativeCodexWhenOpenCodexPresent: Bool = false,
         selectedDay: Date? = nil) -> Self
     {
-        let days = max(1, min(SpendDashboardSource.scanDays, requestedDays))
         let calculationCalendar = Self.gregorianCalendar(timeZone: calendar.timeZone)
         let availableSources = inputs
             .map { SourceFilterItem(id: $0.id, displayName: $0.displayName) }
@@ -416,7 +420,15 @@ struct SpendDashboardModel: Equatable, Sendable {
                 input: input,
                 costMultiplier: conversion ?? 1)
         }
-        let bounds = Self.bounds(days: days, now: now, calendar: calculationCalendar)
+        let period = reportingPeriod
+            ?? (requestedDays >= SpendDashboardSource.scanDays ? .allTime : .rolling(days: max(1, requestedDays)))
+        let earliest = inputs.flatMap { input in
+            input.snapshot.daily.compactMap {
+                Self.day($0.date, provider: input.provider, displayCalendar: calculationCalendar)
+            }
+        }.min() ?? now
+        let bounds = period.bounds(now: now, calendar: calculationCalendar, earliest: earliest)
+        let days = period.days(now: now, calendar: calculationCalendar, earliest: earliest)
         let groups = Dictionary(grouping: classifiedInputs, by: { $0.currencyCode })
             .map { currencyCode, inputs in
                 Self.buildCurrencyGroup(
@@ -1241,9 +1253,7 @@ struct SpendDashboardModel: Equatable, Sendable {
     }
 
     private static func bounds(days: Int, now: Date, calendar: Calendar) -> ClosedRange<Date> {
-        let end = calendar.startOfDay(for: now)
-        let start = calendar.date(byAdding: .day, value: -(days - 1), to: end) ?? end
-        return calendar.startOfDay(for: start)...end
+        CostReportingPeriod.rolling(days: days).bounds(now: now, calendar: calendar)
     }
 
     private static let utcCalendar: Calendar = {
@@ -1460,22 +1470,47 @@ struct SpendDashboardModel: Equatable, Sendable {
                 }?.modelName
                 return SessionRow(
                     id: "\(summary.input.id):\(session.sessionID)",
+                    rank: 0,
+                    sessionID: session.sessionID,
                     sourceID: summary.input.id,
                     provider: summary.input.provider,
-                    displayName: summary.input.displayName,
+                    title: session.title,
+                    projectName: session.projectName,
+                    projectPath: session.projectPath,
                     lastActivity: session.lastActivity,
                     totalTokens: session.totalTokens,
                     totalCost: session.costUSD.map { $0 * summary.costMultiplier },
                     modelName: modelName)
             }
         }
-        .sorted { lhs, rhs in
-            if lhs.lastActivity != rhs.lastActivity {
-                return lhs.lastActivity > rhs.lastActivity
-            }
-            return lhs.id < rhs.id
+        .sorted(by: Self.sessionOrder)
+        return rows.prefix(Self.sessionRowLimit).enumerated().map { rank, row in
+            var ranked = row
+            ranked.rank = rank + 1
+            return ranked
         }
-        return Array(rows.prefix(12))
+    }
+
+    static let sessionRowLimit = 50
+
+    /// Most expensive first, like Projects. Unpriced sessions follow priced ones.
+    private static func sessionOrder(_ lhs: SessionRow, _ rhs: SessionRow) -> Bool {
+        switch (lhs.totalCost, rhs.totalCost) {
+        case let (left?, right?) where left != right: return left > right
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: break
+        }
+        switch (lhs.totalTokens, rhs.totalTokens) {
+        case let (left?, right?) where left != right: return left > right
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: break
+        }
+        if lhs.lastActivity != rhs.lastActivity {
+            return lhs.lastActivity > rhs.lastActivity
+        }
+        return lhs.id < rhs.id
     }
 
     private static func hourlyPoints(

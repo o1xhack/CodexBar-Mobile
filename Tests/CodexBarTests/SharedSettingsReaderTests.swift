@@ -64,7 +64,7 @@ struct SharedSettingsReaderTests {
         #expect(MiniMaxSettingsReader.rejectedEndpointOverrideKey(environment: minimax)
             == MiniMaxSettingsReader.remainsURLKey)
         let proxy = [LLMProxySettingsReader.baseURLEnvironmentKey: "http://public.example"]
-        #expect(LLMProxySettingsReader.hasBaseURLOverride(environment: proxy))
+        #expect(LLMProxyProviderDescriptor.spec.endpoint?.isAvailable(environment: proxy) == true)
         #expect(LLMProxySettingsReader.baseURL(environment: proxy) == nil)
     }
 }

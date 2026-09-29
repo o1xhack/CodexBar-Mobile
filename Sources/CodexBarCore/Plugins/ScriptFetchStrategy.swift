@@ -9,6 +9,8 @@ public enum ProviderPluginPrototype {
 }
 
 public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendable {
+    public typealias CookieImport = @Sendable (ProviderFetchContext, String, Int) throws
+        -> [(header: String, source: String)]?
     public typealias SecretResolver = @Sendable ([String: String]) -> String?
     public struct Values: Sendable {
         public let settings: [String: String]
@@ -27,6 +29,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
     public let id: String
     public let kind: ProviderFetchKind
 
+    private let cookieImport: CookieImport?
     private let provider: UsageProvider
     private let bundledPlugin: String
     private let sourceLabel: String
@@ -58,6 +61,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
         self.sourceLabel = sourceLabel
         self.kind = kind
         self.secretKey = secretKey
+        self.cookieImport = nil
         self.transport = transport
         self.timeout = timeout
         self.validateContext = validateContext
@@ -78,6 +82,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
         validateContext: @escaping ContextValidator = { _ in },
+        cookieImport: CookieImport? = nil,
         resolveValues: @escaping ValuesResolver,
         isEnabled: @escaping EnabledResolver = { ProviderPluginPrototype.isEnabled(environment: $0) })
     {
@@ -90,6 +95,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
         self.transport = transport
         self.timeout = timeout
         self.validateContext = validateContext
+        self.cookieImport = cookieImport
         self.resolveValues = resolveValues
         self.isEnabled = isEnabled
     }
@@ -116,8 +122,13 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             throw ProviderPluginError.invalidManifest(
                 "bundled plugin id '\(runtime.manifest.id.rawValue)' does not match '\(self.provider.rawValue)'")
         }
+        let importer: ProviderPluginCookieBroker.BatchImporter? = if let importCookies = self.cookieImport {
+            { domain, batch in try importCookies(context, domain, batch) }
+        } else {
+            nil
+        }
         let cookies = ProviderPluginCookieBroker(
-            provider: self.provider, domains: runtime.manifest.cookieDomains, context: context)
+            provider: self.provider, domains: runtime.manifest.cookieDomains, context: context, importer: importer)
         let result = try await runtime.fetchResult(
             settings: values.settings,
             secrets: values.secrets,

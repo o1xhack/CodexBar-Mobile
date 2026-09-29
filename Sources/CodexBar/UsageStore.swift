@@ -85,6 +85,7 @@ extension UsageStore {
                 self.invalidateProviderAvailabilityCache()
                 self.probeLogs = [:]
                 guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
+                self.retireDisabledCredentialNotifications()
                 self.startTimer()
                 self.updateProviderRuntimes()
                 let enabledNow = Set(self.settings.enabledProvidersOrdered(
@@ -343,6 +344,7 @@ final class UsageStore {
     @ObservationIgnored var widgetSnapshotPersistTask: Task<Void, Never>?
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
     @ObservationIgnored var lastQueuedWidgetSnapshotIsPreservable = false
+    @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
     @ObservationIgnored let widgetTimelineReloader: @MainActor () -> Void
     @ObservationIgnored var widgetUsagePreservationBlockedProviders: Set<ProviderInstanceID> = []
@@ -462,6 +464,13 @@ final class UsageStore {
     @ObservationIgnored var quotaLowHookUsage: [QuotaWarningStateKey: Double] = [:]
     @ObservationIgnored var quotaLowHookConfigRevision: Int?
     @ObservationIgnored var predictivePaceWarningNotifiedKeys: Set<PredictivePaceWarningStateKey> = []
+    #if DEBUG
+    @ObservationIgnored var _test_credentialNotificationPost: ((String, @escaping @MainActor (Bool) -> Void) -> Void)?
+    @ObservationIgnored var _test_credentialNotificationRemove: ((String) -> Void)?
+    #endif
+    @ObservationIgnored var claudeCredentialNotificationScopes: [String: String] = [:]
+    @ObservationIgnored var credentialNotificationsStopped = false
+    @ObservationIgnored var credentialNotificationEpisodes: [CredentialNotificationKey: UUID] = [:]
     @ObservationIgnored var lastPermissionPromptNotificationAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [ProviderInstanceID: String] = [:]
@@ -1538,7 +1547,9 @@ extension UsageStore {
         guard !self.tokenRefreshInFlight.contains(provider.instanceID) else { return }
 
         let now = Date()
-        let historyDays = self.settings.costUsageHistoryDays
+        let historyDays = self.settings.costReportingPeriod.days(
+            now: now,
+            calendar: self.settings.costUsageBucketCalendar)
         // Cursor cost reuses the status cookie policy: a Manual source forwards the manual header so
         // cost and status share the same session; other sources fall back to auto resolution.
         guard case let .proceed(cursorCookieHeaderOverride) = self.prepareCursorCostCookie(for: provider) else {

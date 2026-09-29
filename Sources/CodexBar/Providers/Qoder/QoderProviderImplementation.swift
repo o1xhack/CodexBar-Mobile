@@ -3,6 +3,26 @@ import Foundation
 
 struct QoderProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .qoder
+    private var plugin: PluginCookieProviderImplementation {
+        PluginCookieProviderImplementation(
+            spec: QoderProviderDescriptor.spec,
+            fieldActions: { context in
+                [.openURL(
+                    id: "qoder-open-usage",
+                    title: "Open Qoder Usage",
+                    url: Self.usageDashboardURL(settings: context.settings))]
+            },
+            trailingText: {
+                let entries = [nil, "qoder.com", "qoder.com.cn"].compactMap { domain in
+                    CookieHeaderCache.loadForDisplay(provider: .qoder, scope: domain.map {
+                        .providerVariant($0)
+                    })
+                }
+                return entries.max(by: { $0.storedAt < $1.storedAt }).map {
+                    ProviderCookieSourceUI.cachedTrailingText(entry: $0)
+                }
+            })
+    }
 
     @MainActor
     static func usageDashboardURL(settings: SettingsStore) -> URL {
@@ -13,62 +33,21 @@ struct QoderProviderImplementation: ProviderImplementation {
 
     @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
-        guard support.requiresManualCookieSource else { return true }
-        if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
-        return context.settings.qoderCookieSource == .manual
+        self.plugin.tokenAccountsVisibility(context: context, support: support)
     }
 
     @MainActor
     func applyTokenAccountCookieSource(settings: SettingsStore) {
-        if settings.qoderCookieSource != .manual {
-            settings.qoderCookieSource = .manual
-        }
+        self.plugin.applyTokenAccountCookieSource(settings: settings)
     }
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        [
-            ProviderCookieSourceUI.picker(
-                id: "qoder-cookie-source",
-                context: context,
-                source: \.qoderCookieSource,
-                allowsOff: false,
-                subtitles: {
-                    .init(
-                        auto: L("Automatic imports browser cookies."),
-                        manual: L("Paste a Cookie header or cURL capture from %@.", "Qoder usage"),
-                        off: L("%@ cookies are disabled.", "Qoder"))
-                },
-                trailingText: {
-                    let entries = [nil, "qoder.com", "qoder.com.cn"].compactMap { domain in
-                        CookieHeaderCache.loadForDisplay(provider: .qoder, scope: domain.map {
-                            .providerVariant($0)
-                        })
-                    }
-                    return entries.max(by: { $0.storedAt < $1.storedAt }).map {
-                        ProviderCookieSourceUI.cachedTrailingText(entry: $0)
-                    }
-                }),
-        ]
+        self.plugin.settingsPickers(context: context)
     }
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "qoder-cookie",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: \u{2026}\n\nor paste a cURL capture from the Qoder usage page",
-                binding: context.binding(\.qoderCookieHeader),
-                actions: [
-                    ProviderSettingsActionDescriptor.openURL(
-                        id: "qoder-open-usage",
-                        title: "Open Qoder Usage",
-                        url: Self.usageDashboardURL(settings: context.settings)),
-                ],
-                isVisible: { context.settings.qoderCookieSource == .manual }),
-        ]
+        self.plugin.settingsFields(context: context)
     }
 }

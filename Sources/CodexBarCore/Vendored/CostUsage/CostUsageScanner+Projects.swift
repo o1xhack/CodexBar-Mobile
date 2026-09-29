@@ -29,6 +29,7 @@ extension CostUsageScanner {
             ?? modelsDevCatalogLoader(modelsDevCacheRoot)
             ?? ModelsDevCatalog(providers: [:])
         let pricingResolver = CostUsagePricing.CodexResolver(catalog: resolvedModelsDevCatalog)
+        let projectPathResolver = CodexCanonicalProjectPathResolver()
         var latestFileBySessionID: [String: (path: String, usage: CostUsageFileUsage)] = [:]
 
         for (filePath, usage) in cache.files {
@@ -66,7 +67,10 @@ extension CostUsageScanner {
 
             let summary = report.summary
             let requestCounts = report.data.compactMap(\.requestCount)
-            return CostUsageSessionBreakdown(
+            let resolvedProjectPath = file.usage.canonicalProjectPath
+                ?? projectPathResolver.canonicalProjectPath(for: file.usage.projectPath)
+            let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
+            var session = CostUsageSessionBreakdown(
                 sessionID: sessionID,
                 lastActivity: Date(timeIntervalSince1970: TimeInterval(file.usage.mtimeUnixMs) / 1000),
                 inputTokens: summary?.totalInputTokens,
@@ -75,7 +79,12 @@ extension CostUsageScanner {
                 totalTokens: summary?.totalTokens,
                 requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
                 costUSD: summary?.totalCostUSD,
-                modelBreakdowns: Self.codexProjectModelBreakdowns(from: report.data) ?? [])
+                modelBreakdowns: Self.codexProjectModelBreakdowns(from: report.data) ?? [],
+                projectPath: projectPath,
+                projectName: projectPath.map { Self.codexProjectName(path: $0) },
+                title: file.usage.codexSession?.title)
+            session.workingDirectory = file.usage.projectPath
+            return session
         }
         .sorted { lhs, rhs in
             if lhs.lastActivity != rhs.lastActivity {

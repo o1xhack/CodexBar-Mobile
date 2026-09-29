@@ -26,7 +26,9 @@ final class AboutUpdateCommandProofTests: XCTestCase {
         scene: (suffix: String, width: CGFloat, scheme: ColorScheme, language: String)) throws
     {
         try CodexBarLocalizationOverride.$appLanguage.withValue(scene.language) {
-            let updater = DisabledUpdaterController.homebrew()
+            let updater = DisabledUpdaterController(
+                unavailableReason: L("Managed by Homebrew"),
+                manualUpdateCommand: .homebrew)
             let reason = try XCTUnwrap(updater.unavailableReason)
             let view = Form {
                 Section {

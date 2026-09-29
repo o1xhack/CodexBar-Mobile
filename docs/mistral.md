@@ -23,6 +23,9 @@ page does not expose a Vibe allowance.
 Manual cookies must include an `ory_session_*` cookie. A `csrftoken` cookie enables fallback Vibe requests that
 require the `X-CSRFTOKEN` header.
 
+On Linux, browser import is unavailable, so the CLI reads Mistral only in Manual mode: set the provider's
+`cookieSource` to `manual` and its `cookieHeader` to the pasted header in `~/.config/codexbar/config.json`.
+
 Automatic import tries Chrome, Firefox (including Developer Edition), then Safari. Safari requires Full Disk Access.
 Other Chromium browsers remain available through Manual mode. Automatic import reads only unexpired cookies from
 the documented Mistral domains.
@@ -47,8 +50,9 @@ For the console request, CodexBar forwards only the `csrftoken` and `ory_session
 
 - **Included API** shows the subscription allowance's used percentage, used / total / remaining amount, and reset time.
 - The optional **Monthly Plan** window shows the separate Vibe Code allowance with the same details.
-- API spend is computed locally from the billing usage response's token counts and pricing table; it remains separate
-  from the included allowance and any pay-as-you-go spend.
+- API spend is computed from billed units (`value_paid`, falling back to `value`) and the pricing table. Token totals
+  and daily buckets use consumed units (`value`, falling back to `value_paid`), so plan-covered usage still counts.
+- Token totals include API completions, Le Chat, and Vibe Code completions from the billing usage response.
 - Daily usage buckets feed the inline usage dashboard.
 - The provider card can show credit balance when the credits endpoint returns it.
 - Allowance amounts derive from Mistral's reported percentage and allowance size, independently of billed API spend. Zero or malformed allowances are omitted without discarding a valid sibling allowance.
@@ -59,11 +63,28 @@ For the console request, CodexBar forwards only the `csrftoken` and `ory_session
 - Final input, cached, and output totals allow signed adjustments in any lane while rejecting totals outside the
   supported integer range.
 
+## Widgets
+
+Usage widgets follow Mistral's menu bar metric preference:
+
+- **Automatic** and **Included API** show only the API allowance, preserving the existing default.
+- **Monthly Plan** shows only the Vibe allowance, falling back to Included API when the plan is missing or unknown.
+
+Automatic still shows API spend in the menu bar. Changing the metric updates widget rows from the existing snapshot,
+without another request. After a failed refresh, widgets reselect from the last published usage snapshot and keep its
+original measurement time, including across repeated metric changes. This in-memory source is cleared when provider
+or account ownership is invalidated. Burn Down eligibility still requires a known window duration and reset.
+
 ## CLI Usage
 
 ```bash
 codexbar usage --provider mistral --verbose
 ```
+
+Text output includes both Included API and the optional Monthly Plan, each with its percentage, reset date when
+available, and used / total / remaining amounts. Amounts are shown as detail, never as a reset time. This uses the
+existing snapshot; no additional requests are made. JSON output is unchanged: the Monthly Plan remains in
+`extraRateWindows` with the ID `mistral-monthly-plan`.
 
 ## Troubleshooting
 

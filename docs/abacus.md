@@ -33,14 +33,29 @@ The Abacus AI provider tracks ChatLLM/RouteLLM compute credit usage via browser 
 
 ## How it works
 
+The bundled `abacus.ts` plugin owns requests, parsing, and snapshot projection on QuickJS and JavaScriptCore.
 Two API endpoints are fetched concurrently using browser session cookies:
 
 - `GET https://apps.abacus.ai/api/_getOrganizationComputePoints` — returns `totalComputePoints` and `computePointsLeft` (values are in credit units, no conversion needed).
 - `POST https://apps.abacus.ai/api/_getBillingInfo` — returns `nextBillingDate` (ISO 8601) and `currentTier` (plan name).
 
-Cookie domains: `abacus.ai`, `apps.abacus.ai`. Session cookies are validated before use (anonymous/marketing-only cookie sets are skipped). Valid cookies are cached in Keychain and reused until the session expires.
+The credits GET is required and uses the configured web timeout (normally 60 seconds), bounded to the host's
+1–90-second request range. At most five cookie candidates (including the cache) are tried per refresh. The total
+plugin deadline is `min(90 seconds, credits timeout × 5 + min(credits timeout, 5 seconds))`; it bounds both engines
+without changing other providers' runtime deadlines. Each candidate gets its own credits deadline within that total:
+the hard 90-second cap can end a refresh before all candidates run when earlier requests are slow. The billing POST is optional;
+its request timeout and collection budget are the smaller of the credits timeout and five seconds. The collection
+budget starts with the credits request. Billing errors or timeouts retain
+credits with the 30-day fallback window and no guessed plan/reset. Unfinished billing work is cancelled when collection ends.
 
-When a billing reset is available, the window spans the preceding calendar month. Without a reset date, the window
+The existing native cookie importer retains `abacus.ai` and `apps.abacus.ai` cookie discovery and session validation
+(anonymous/marketing-only cookie sets are skipped). The shared broker first tries the cached session, then Chrome;
+other browsers are imported only after Chrome candidates are exhausted. Requests send the session only to the declared
+`https://apps.abacus.ai` origin. Manual mode is exclusive. Auth/parse failures reject stale imported sessions and continue
+to later candidates; network failures continue without evicting the cached session.
+
+When a billing reset is available, the window spans the preceding Gregorian calendar month in the host time zone,
+using Foundation month-end clamping and DST arithmetic through `ctx.date.addMonths`. Without a reset date, the window
 retains its 30-day fallback; pace estimates require a real reset date.
 
 ## Menu-bar percentage

@@ -478,6 +478,7 @@
 "cost_summary_style_inline_help" = "Amosa o resumo de custos directamente no menú principal.";
 "cost_summary_style_submenu_help" = "Amosa no seu lugar o submenú Custo detallado.";
 "cost_summary_style_both_help" = "Amosa o resumo do menú principal e o submenú Custo detallado.";
+"Month to date" = "Mes ata hoxe";
 "cost_history_window_title" = "Xanela do historial";
 "cost_history_window_help" = "Define cantos días de rexistros de uso locais aparecen no menú.";
 "cost_history_days_title" = "Xanela de historial: %d días";
@@ -812,6 +813,12 @@
 "Copied" = "Copiado";
 "Managed by Homebrew" = "Xestionado por Homebrew";
 "Copy update command" = "Copiar o comando de actualización";
+"Update to %@" = "Actualizar a %@";
+"CodexBar %@ is available" = "CodexBar %@ está dispoñible";
+"CodexBar is up to date" = "CodexBar está actualizado";
+"Checking for updates…" = "Buscando actualizacións…";
+"Updating with Homebrew…" = "Actualizando con Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Fallou a actualización con Homebrew. Podes executar este comando no Terminal:";
 "Copy error" = "Erro ao copiar";
 "Copy path" = "Copiar camiño";
 "Extra usage spent" = "Uso extra gastado";
@@ -1412,7 +1419,6 @@
 "menu_bar_layout_gap_tight" = "Estreita";
 "menu_bar_layout_gap_regular" = "Normal";
 "menu_bar_layout_vertical_adjustment" = "Axuste vertical";
-"menu_bar_layout_keyboard_hint" = "Suprimir retira a ficha seleccionada";
 "menu_bar_layout_sample_account" = "conta";
 "menu_bar_layout_sample_runs_out" = "esgótase ven.";
 "menu_bar_layout_token_icon" = "Icona";

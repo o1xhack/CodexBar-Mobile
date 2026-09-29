@@ -42,32 +42,7 @@ struct AboutPane: View {
                     .listRowBackground(Color.clear)
             }
 
-            Section {
-                if self.updater.isAvailable {
-                    Toggle(L("check_updates_auto"), isOn: self.$autoUpdateEnabled)
-
-                    Picker(selection: self.updateChannelBinding) {
-                        ForEach(UpdateChannel.allCases) { channel in
-                            Text(channel.displayName).tag(channel)
-                        }
-                    } label: {
-                        SettingsRowLabel(L("update_channel"), subtitle: self.updateChannel.description)
-                    }
-                }
-
-                LabeledContent(String(format: L("version_format"), AppVersion.displayString)) {
-                    if self.updater.isAvailable {
-                        Button(L("check_for_updates")) { self.updater.checkForUpdates(nil) }
-                    }
-                }
-                if !self.updater.isAvailable {
-                    AboutUpdatesUnavailableView(
-                        reason: self.updater.unavailableReason ?? L("updates_unavailable"),
-                        command: self.updater.manualUpdateCommand)
-                }
-            } header: {
-                Text(L("section_updates"))
-            }
+            self.updatesSection
 
             Section {
                 AboutLinkRow(
@@ -98,6 +73,44 @@ struct AboutPane: View {
         .onChange(of: self.autoUpdateEnabled) { _, newValue in
             self.updater.automaticallyChecksForUpdates = newValue
             self.updater.automaticallyDownloadsUpdates = newValue
+        }
+    }
+
+    private var homebrewUpdater: HomebrewUpdaterController? {
+        self.updater as? HomebrewUpdaterController
+    }
+
+    private var updatesSection: some View {
+        Section {
+            if self.updater.isAvailable || self.homebrewUpdater != nil {
+                Toggle(L("check_updates_auto"), isOn: self.$autoUpdateEnabled)
+            }
+            if self.updater.isAvailable {
+                Picker(selection: self.updateChannelBinding) {
+                    ForEach(UpdateChannel.allCases) { channel in
+                        Text(channel.displayName).tag(channel)
+                    }
+                } label: {
+                    SettingsRowLabel(L("update_channel"), subtitle: self.updateChannel.description)
+                }
+            }
+
+            LabeledContent(String(format: L("version_format"), AppVersion.displayString)) {
+                if self.updater.isAvailable || self.homebrewUpdater != nil {
+                    Button(L("check_for_updates")) { self.updater.checkForUpdates(nil) }
+                        .disabled(self.homebrewUpdater?.phase == .checking || self.homebrewUpdater?
+                            .phase == .installing)
+                }
+            }
+            if let homebrewUpdater = self.homebrewUpdater {
+                AboutHomebrewUpdateStatusView(updater: homebrewUpdater)
+            } else if !self.updater.isAvailable {
+                AboutUpdatesUnavailableView(
+                    reason: self.updater.unavailableReason ?? L("updates_unavailable"),
+                    command: self.updater.manualUpdateCommand)
+            }
+        } header: {
+            Text(L("section_updates"))
         }
     }
 
@@ -166,6 +179,42 @@ struct AboutPane: View {
     private func openProjectHome() {
         guard let url = URL(string: "https://github.com/o1xhack/CodexBar-Mobile") else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+@MainActor
+struct AboutHomebrewUpdateStatusView: View {
+    let updater: HomebrewUpdaterController
+
+    var body: some View {
+        switch self.updater.phase {
+        case .idle:
+            EmptyView()
+        case .checking:
+            Self.progressRow(L("Checking for updates…"))
+        case .upToDate:
+            Label(L("CodexBar is up to date"), systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.secondary)
+        case let .available(version):
+            LabeledContent(String(format: L("CodexBar %@ is available"), version)) {
+                Button(String(format: L("Update to %@"), version)) { self.updater.installUpdate() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("about-homebrew-install-update")
+            }
+        case .installing:
+            Self.progressRow(L("Updating with Homebrew…"))
+        case let .failed(message):
+            AboutUpdatesUnavailableView(
+                reason: L("Homebrew update failed. You can run this command in Terminal instead:") + "\n" + message,
+                command: .homebrew)
+        }
+    }
+
+    private static func progressRow(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text(title).foregroundStyle(.secondary)
+        }
     }
 }
 

@@ -14,7 +14,7 @@ struct SettingsSidebarView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 SettingsSidebarSearchField(searchText: self.$searchText)
-                SettingsSidebarSortToggle(isOn: self.sortAlphabeticallyBinding)
+                SettingsSidebarSortToggle(isOn: self.$settings.providersSortedAlphabetically)
             }
             .padding(.horizontal, 8)
             .padding(.top, 16)
@@ -91,12 +91,6 @@ struct SettingsSidebarView: View {
             })
     }
 
-    private var sortAlphabeticallyBinding: Binding<Bool> {
-        Binding(
-            get: { self.settings.providersSortedAlphabetically },
-            set: { self.settings.providersSortedAlphabetically = $0 })
-    }
-
     private var orderedProviders: [UsageProvider] {
         guard self.settings.providersSortedAlphabetically else {
             return self.settings.orderedProviders().compactMap(\.firstPartyProvider)
@@ -169,14 +163,27 @@ private struct SettingsSidebarAboutRow: View {
 }
 
 @MainActor
-private struct SettingsSidebarProviderRow: View {
+struct SettingsSidebarProviderRow: View {
     let provider: UsageProvider
     @Bindable var store: UsageStore
     @Binding var isEnabled: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            SettingsSidebarBrandIcon(provider: self.provider, isEnabled: self.isEnabled)
+            Group {
+                if let brand = ProviderBrandIcon.image(for: self.provider) {
+                    Image(nsImage: brand)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Image(systemName: "circle.dotted")
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            .frame(width: 16, height: 16)
+            .foregroundStyle(self.isEnabled ? .primary : .secondary)
+            .accessibilityHidden(true)
 
             Text(self.store.metadata(for: self.provider).displayName)
                 .foregroundStyle(self.isEnabled ? .primary : .secondary)
@@ -189,7 +196,11 @@ private struct SettingsSidebarProviderRow: View {
             }
 
             if self.isEnabled, self.store.statusChecksEnabled {
-                SettingsSidebarStatusDot(indicator: self.store.statusIndicator(for: self.provider))
+                Circle()
+                    .fill(Self.statusColor(for: self.store.status(for: self.provider)?.indicator))
+                    .frame(width: 6, height: 6)
+                    .help(Self.statusDescription(for: self.store.status(for: self.provider)?.indicator))
+                    .accessibilityHidden(true)
             }
         }
         .opacity(self.isEnabled ? 1 : 0.62)
@@ -202,52 +213,35 @@ private struct SettingsSidebarProviderRow: View {
     }
 
     private var accessibilityLabel: String {
-        let name = self.store.metadata(for: self.provider).displayName
-        return self.isEnabled ? name : "\(name) — \(L("Disabled"))"
-    }
-}
-
-@MainActor
-private struct SettingsSidebarBrandIcon: View {
-    let provider: UsageProvider
-    let isEnabled: Bool
-
-    var body: some View {
-        Group {
-            if let brand = ProviderBrandIcon.image(for: self.provider) {
-                Image(nsImage: brand)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(systemName: "circle.dotted")
-                    .resizable()
-                    .scaledToFit()
-            }
-        }
-        .frame(width: 16, height: 16)
-        .foregroundStyle(self.isEnabled ? .primary : .secondary)
-        .accessibilityHidden(true)
-    }
-}
-
-private struct SettingsSidebarStatusDot: View {
-    let indicator: ProviderStatusIndicator
-
-    var body: some View {
-        Circle()
-            .fill(self.statusColor)
-            .frame(width: 6, height: 6)
-            .accessibilityHidden(true)
+        Self.accessibilityLabel(
+            name: self.store.metadata(for: self.provider).displayName,
+            isEnabled: self.isEnabled,
+            statusChecksEnabled: self.store.statusChecksEnabled,
+            indicator: self.store.status(for: self.provider)?.indicator)
     }
 
-    private var statusColor: Color {
-        switch self.indicator {
+    nonisolated static func accessibilityLabel(
+        name: String,
+        isEnabled: Bool,
+        statusChecksEnabled: Bool,
+        indicator: ProviderStatusIndicator?) -> String
+    {
+        guard isEnabled else { return "\(name) — \(L("Disabled"))" }
+        guard statusChecksEnabled else { return name }
+        return "\(name) — \(self.statusDescription(for: indicator))"
+    }
+
+    nonisolated static func statusDescription(for indicator: ProviderStatusIndicator?) -> String {
+        L("Provider service status: %@", (indicator ?? .unknown).label)
+    }
+
+    nonisolated static func statusColor(for indicator: ProviderStatusIndicator?) -> Color {
+        switch indicator ?? .unknown {
         case .none: .green
         case .minor: .yellow
         case .major: .orange
         case .critical: .red
-        case .maintenance: .gray
-        case .unknown: .gray
+        case .maintenance, .unknown: .gray
         }
     }
 }

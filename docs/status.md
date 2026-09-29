@@ -18,6 +18,9 @@ read_when:
 - App and CLI share Core's status-feed decoder and transport-injected fetcher. The app requests component summaries and Workspace
   incidents; CLI `--status` retains its lightweight Statuspage request and existing JSON fields.
 - Menu shows incident summary + freshness; icon overlays indicator.
+- Settings sidebar dots describe provider service health in their hover tooltip and the provider row’s accessibility label.
+  Unknown or unfetched status is gray. This state is independent of quota refreshes and local cost scans, so a service
+  incident can remain visible while usage refreshes succeed.
 - Cached provider tabs retain their own status components and website links, including on the first switch after opening the merged menu; providers without a curated component submenu keep a plain website link.
 
 ## Workspace incidents

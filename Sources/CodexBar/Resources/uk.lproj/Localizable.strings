@@ -498,6 +498,7 @@
 "cost_summary_style_inline_help" = "Показує підсумок витрат безпосередньо в головному меню.";
 "cost_summary_style_submenu_help" = "Натомість показує детальне підменю Вартість.";
 "cost_summary_style_both_help" = "Показує підсумок у головному меню та детальне підменю Вартість.";
+"Month to date" = "Від початку місяця";
 "cost_history_window_title" = "Вікно історії";
 "cost_history_window_help" = "Визначає, скільки днів локальних журналів використання показувати в меню.";
 "cost_history_days_title" = "Вікно історії: %d днів";
@@ -959,6 +960,12 @@
 "Copied" = "Скопійовано";
 "Managed by Homebrew" = "Керується через Homebrew";
 "Copy update command" = "Скопіювати команду оновлення";
+"Update to %@" = "Оновити до %@";
+"CodexBar %@ is available" = "Доступна версія CodexBar %@";
+"CodexBar is up to date" = "CodexBar оновлено";
+"Checking for updates…" = "Перевірка оновлень…";
+"Updating with Homebrew…" = "Оновлення через Homebrew…";
+"Homebrew update failed. You can run this command in Terminal instead:" = "Не вдалося оновити через Homebrew. Натомість можна виконати цю команду в Терміналі:";
 "Copy error" = "Помилка копіювання";
 "Copy path" = "Копіювати шлях";
 "Extra usage spent" = "Витрачено додаткове використання";
@@ -1412,7 +1419,6 @@
 "menu_bar_layout_gap_tight" = "Вузький";
 "menu_bar_layout_gap_regular" = "Звичайний";
 "menu_bar_layout_vertical_adjustment" = "Вертикальне налаштування";
-"menu_bar_layout_keyboard_hint" = "Delete видаляє вибраний елемент";
 "menu_bar_layout_sample_account" = "обліковий запис";
 "menu_bar_layout_sample_runs_out" = "закінчиться пт.";
 "menu_bar_layout_token_icon" = "Значок";
