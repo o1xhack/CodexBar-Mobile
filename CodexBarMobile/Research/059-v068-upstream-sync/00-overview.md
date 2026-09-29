@@ -21,7 +21,7 @@ Date: 2026-09-28
 
 前一轮 [PR #144](https://github.com/o1xhack/CodexBar-Mobile/pull/144) 已将 v0.59.0–v0.66.0 合并为一个 train；[PR #147](https://github.com/o1xhack/CodexBar-Mobile/pull/147) 记录 Mac 0.66.0.1 正式发布和 iOS 2.1.0 review 处理。此前关闭的 issue #143 对应 v0.65.0，已由该单版本 train 覆盖。当前不是重开旧 release 范围。
 
-最新 iOS 状态以 Research 058 与 PR #153 记录为准：iOS 2.2.0 build 222 已于 2026-09-28 送交 App Review，状态 `WAITING_FOR_REVIEW` / `MANUAL`。本轮会开发下一版 iOS 2.3.0，候选 build 223，避免改变已送审 build 222 的二进制来源。`version.env` 里的 `MOBILE_VERSION=2.1.0` 是上一版正式 Mac release 的配套值，不是本轮目标。
+最新 iOS 状态：用户于 2026-09-29 确认 iOS 2.2.0 已发布；此前 Research 058 / PR #153 中 `WAITING_FOR_REVIEW` 是旧状态，本轮没有独立查询 App Store Connect。用户确认将本轮 Mac release 的 `MOBILE_VERSION` 设为 `2.3.0`，并计划随后上传 iOS 2.3.0；候选 iOS build 为 223。此次只完成 iOS 本地构建与测试，不上传 TestFlight。
 
 ## 版本候选
 
@@ -51,7 +51,7 @@ Date: 2026-09-28
 - iOS 复用 provider 通用 ID、`rateWindows`、`providerAmount`、`costSummary` 与 generic `details` wire；xKiro、Raycast、Aixy 及 Grok/LiteLLM/Claude Admin 展示已按 Mac `SyncCoordinator` → iOS model/view/localization 审计，并由定向 iOS 测试覆盖。兼容矩阵结果及替代验证边界记录在 `03-testing.md`。
 - quota warning 沿用已有 `QuotaTransition` record type、已部署字段与 subscription predicate；每用户 private-zone / zone-subscription 实例属于运行时数据，不是 Dashboard schema。本轮对照 CloudKit 代码结论为 `NO_DEPLOY`；没有读取或写入 Production。
 - 双 Mac × 双 iPhone 的真实 Production 环境矩阵若无法获得设备和 owner-account 状态，16 组合必须逐行标 `substituted`，使用隔离 fixtures / Simulator / code audit，并写明真实设备与 silent push 残余风险。
-- 代码、文档、双架构 Mac 构建、iOS Release 构建、测试、lint、CloudKit schema audit 和独立 review 已在当前分支完成。当前只剩签名/公证和创建无 tag 的 GitHub draft 所需的 release 凭证授权；不进行 CloudKit deploy、TestFlight upload、tag push、PR merge 或 live release。
+- 用户已明确授权 Mac release 和对应 issue 的关闭；仍须先满足 PR 当前 head review / CI gate，之后按仓库 release checklist 合并并完成 Mac 签名、公证、draft 和 live release。TestFlight upload 与 CloudKit schema deploy 不在授权范围内。
 
 ## 文档索引
 

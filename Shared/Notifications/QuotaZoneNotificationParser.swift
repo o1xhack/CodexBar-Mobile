@@ -7,6 +7,18 @@ import Foundation
 /// provider data — and unit-testable independent of the extension target.
 public enum QuotaZoneNotificationParser {
 
+    /// Hard cap for warning-zone reads in the notification service extension.
+    /// A saturated legacy zone falls back to its generic alert instead of
+    /// paging without limit or guessing which account/window changed.
+    public static let warningRecordScanLimit = 500
+
+    public static func warningRecordScanReachedLimit(
+        recordsExamined: Int,
+        hasContinuationCursor: Bool) -> Bool
+    {
+        recordsExamined >= Self.warningRecordScanLimit && hasContinuationCursor
+    }
+
     /// Quota states the parser recognizes — must stay in lockstep with the
     /// states `QuotaTransitionSubscriptions` registers and the `state`
     /// strings Mac writes in `QuotaTransition` records.

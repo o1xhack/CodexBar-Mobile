@@ -541,6 +541,76 @@ struct SyncModelTests {
         #expect(decoded.daily.first?.costUSD == 4.56)
     }
 
+    @Test("Additive period summaries keep only legacy-compatible rolling history")
+    func additiveCostPeriodLegacyCompatibility() throws {
+        let daily = [SyncDailyPoint(dayKey: "2026-09-28", costUSD: 8, totalTokens: 80)]
+        let rolling = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 80,
+            daily: daily,
+            historyDays: 30,
+            reportingPeriod: "rolling:30",
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 8,
+                tokens: 80,
+                daily: daily,
+                historyDays: 30))
+        #expect(rolling.last30DaysCostUSD == 8)
+        #expect(rolling.daily == daily)
+        #expect(rolling.reportingPeriodCostUSD == 8)
+
+        let allTime = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 800,
+            last30DaysTokens: 8000,
+            daily: daily,
+            historyDays: 640,
+            reportingPeriod: "all",
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 800,
+                tokens: 8000,
+                daily: daily,
+                historyDays: 640,
+                historyWindowIsComparable: true))
+        #expect(allTime.last30DaysCostUSD == 800)
+        #expect(allTime.last30DaysTokens == 8000)
+        #expect(allTime.daily == daily)
+        #expect(allTime.historyDays == 640)
+        #expect(allTime.reportingPeriodCostUSD == 800)
+        #expect(allTime.reportingPeriodHistoryDays == 640)
+        #expect(allTime.historyWindowIsComparable == nil)
+        #expect(allTime.reportingPeriodHistoryWindowIsComparable == true)
+        #expect(allTime.historyCoverageIsEstablished == nil)
+
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(allTime)
+        let wire = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let legacyDaily = wire["daily"] as? [[String: Any]]
+        #expect(wire["last30DaysCostUSD"] == nil)
+        #expect(wire["last30DaysTokens"] == nil)
+        #expect(legacyDaily?.isEmpty == true)
+        #expect(wire["historyDays"] == nil)
+        #expect(wire["historyWindowIsComparable"] as? Bool == false)
+        #expect(wire["reportingPeriod"] as? String == "all")
+        #expect(wire["reportingPeriodSummary"] != nil)
+
+        let roundTrip = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: encoded)
+        #expect(roundTrip.last30DaysCostUSD == nil)
+        #expect(roundTrip.reportingPeriodCostUSD == 800)
+        #expect(roundTrip.reportingPeriodHistoryWindowIsComparable == true)
+    }
+
+    @Test("SyncRateWindow ignores an unknown future period while retaining the quota")
+    func syncRateWindowUnknownPeriod() throws {
+        let data = Data(#"{"usedPercent":42.5,"windowMinutes":300,"period":"quarterly"}"#.utf8)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(SyncRateWindow.self, from: data)
+        #expect(decoded.usedPercent == 42.5)
+        #expect(decoded.windowMinutes == 300)
+        #expect(decoded.period == nil)
+    }
+
     @Test("SyncPerplexityCreditSummary tolerates unknown future fields")
     func syncPerplexityCreditsTolerantOfFutureFields() throws {
         let original = SyncPerplexityCreditSummary(

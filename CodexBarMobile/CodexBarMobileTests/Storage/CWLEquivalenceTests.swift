@@ -343,7 +343,7 @@ struct CWLEquivalenceTests {
             provider(id: "claude", period: "all", days: 365),
         ])
         #expect(allTime.hasComparableHistoryTotals)
-        #expect(allTime.historyDisplayTitle == "All")
+        #expect(allTime.historyDisplayTitle == String(localized: "All"))
         #expect(allTime.total30DayCostIsKnown)
 
         let mixed = insights([
@@ -351,7 +351,7 @@ struct CWLEquivalenceTests {
             provider(id: "claude", period: "month-to-date", days: 30),
         ])
         #expect(!mixed.hasComparableHistoryTotals)
-        #expect(mixed.historyDisplayTitle == "Mixed cost windows")
+        #expect(mixed.historyDisplayTitle == String(localized: "Mixed cost windows"))
         #expect(!mixed.total30DayCostIsKnown)
         #expect(mixed.total30DayTokens == 0)
         #expect(mixed.spendProviderRows.isEmpty)

@@ -223,14 +223,14 @@ struct ProviderUsageViewSubtitleTests {
         let rolling = summary("rolling:7", days: 7)
         let customRolling = summary("rolling:45", days: 45)
 
-        #expect(monthToDate.reportingPeriodDisplayTitle == "This month")
-        #expect(monthToDate.compactReportingPeriodLabel == "This month")
-        #expect(allTime.reportingPeriodDisplayTitle == "All")
-        #expect(allTime.compactReportingPeriodLabel == "All")
-        #expect(rolling.reportingPeriodDisplayTitle == "7 Days")
-        #expect(rolling.compactReportingPeriodLabel == "7 days")
-        #expect(customRolling.reportingPeriodDisplayTitle == "45 Days")
-        #expect(customRolling.compactReportingPeriodLabel == "45 days")
+        #expect(monthToDate.reportingPeriodDisplayTitle == String(localized: "This month"))
+        #expect(monthToDate.compactReportingPeriodLabel == String(localized: "This month"))
+        #expect(allTime.reportingPeriodDisplayTitle == String(localized: "All"))
+        #expect(allTime.compactReportingPeriodLabel == String(localized: "All"))
+        #expect(rolling.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(7))
+        #expect(rolling.compactReportingPeriodLabel.contains("7"))
+        #expect(customRolling.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(45))
+        #expect(customRolling.compactReportingPeriodLabel.contains("45"))
     }
 
     @Test("Legacy cost payloads keep the rolling 30-day label")
@@ -242,7 +242,7 @@ struct ProviderUsageViewSubtitleTests {
             last30DaysTokens: 120,
             daily: [])
 
-        #expect(legacy.reportingPeriodDisplayTitle == "30 Days")
-        #expect(legacy.compactReportingPeriodLabel == "30d")
+        #expect(legacy.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(30))
+        #expect(legacy.compactReportingPeriodLabel.contains("30"))
     }
 }

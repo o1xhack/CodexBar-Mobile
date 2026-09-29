@@ -265,14 +265,30 @@ final class NotificationService: UNNotificationServiceExtension {
                 desiredKeys: ["providerName", "accountEmail", "transitionAt"],
                 resultsLimit: 100)
             var records: [CKRecord] = []
+            var recordsExamined = firstPage.count
             records.reserveCapacity(firstPage.count)
             records.append(contentsOf: firstPage.compactMap { try? $0.1.get() })
             var cursor = firstCursor
             while let currentCursor = cursor {
                 let (nextPage, nextCursor) = try await database.records(continuingMatchFrom: currentCursor)
-                records.reserveCapacity(records.count + nextPage.count)
-                records.append(contentsOf: nextPage.compactMap { try? $0.1.get() })
+                recordsExamined += nextPage.count
+                let nextRecords = nextPage.compactMap { try? $0.1.get() }
+                let remainingCapacity = max(0, QuotaZoneNotificationParser.warningRecordScanLimit - records.count)
+                records.reserveCapacity(records.count + min(nextRecords.count, remainingCapacity))
+                records.append(contentsOf: nextRecords.prefix(remainingCapacity))
                 cursor = nextCursor
+                if QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+                    recordsExamined: recordsExamined,
+                    hasContinuationCursor: cursor != nil)
+                {
+                    // A saturated warning zone cannot be scanned completely
+                    // inside the extension's execution window. Keep the
+                    // provider-level push, omit account/window details, and
+                    // never infer that the newest record was in these pages.
+                    let providerName = records.compactMap { $0["providerName"] as? String }
+                        .first(where: { !$0.isEmpty }) ?? "Usage"
+                    return .ambiguous(providerName: providerName, accountEmail: nil)
+                }
             }
             var newest: CKRecord?
             for record in records {

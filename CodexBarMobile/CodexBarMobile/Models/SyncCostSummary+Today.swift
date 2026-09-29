@@ -27,7 +27,7 @@ extension SyncCostSummary {
         if self.reportingPeriod == "month-to-date" { return String(localized: "This month") }
         if self.reportingPeriod == "all" { return String(localized: "All") }
 
-        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.historyDays ?? 30
+        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.reportingPeriodHistoryDays ?? 30
         return Self.localizedRollingPeriodTitle(days)
     }
 
@@ -36,7 +36,7 @@ extension SyncCostSummary {
         if self.reportingPeriod == "month-to-date" { return String(localized: "This month") }
         if self.reportingPeriod == "all" { return String(localized: "All") }
 
-        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.historyDays ?? 30
+        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.reportingPeriodHistoryDays ?? 30
         if days == 1 { return String(localized: "Today") }
         if days == 30 { return String(localized: "30d") }
         return Self.localizedDayCount(days)
@@ -109,10 +109,10 @@ extension SyncCostSummary {
         // undated session fallback is not independently qualified, so it keeps
         // the aggregate coverage guard used by older payloads.
         let todayCalendarIsInvalid = self.hasInvalidBucketTimeZoneIdentifier
-        let historyScanIsIncomplete = self.historyCoverageIsEstablished == false
+        let historyScanIsIncomplete = self.reportingPeriodHistoryCoverageIsEstablished == false
         let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
-            self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
-        if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
+            self.reportingPeriodCoverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
+        if let todayPoint = self.reportingPeriodDaily.first(where: { $0.dayKey == todayKey }) {
             let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : todayPoint.costIsKnown
             return TodayTotals(
                 costUSD: todayPoint.costUSD,

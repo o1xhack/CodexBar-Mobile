@@ -1776,7 +1776,7 @@ struct CostDashboardInsights: Sendable {
                 $0.dailyPoints.contains(where: { $0.costIsKnown == false }) ||
                 $0.provider.costSummary?
                 .hasIncompleteHistoricalCostCoverage(at: self.referenceDate) == true ||
-                ($0.provider.costSummary?.coverage.map {
+                ($0.provider.costSummary?.reportingPeriodCoverage.map {
                     $0.unpriced > 0 || $0.unmetered > 0
                 } ?? false)
         }
@@ -1802,16 +1802,16 @@ struct CostDashboardInsights: Sendable {
     /// (gap F) across providers. nil → caller defaults to 30.
     var historyDays: Int? {
         if let cwlWindowDays = self.cwlWindowDays { return cwlWindowDays }
-        return self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
+        return self.providerRows.compactMap { $0.provider.costSummary?.reportingPeriodHistoryDays }.max()
     }
 
     var hasComparableHistoryTotals: Bool {
         guard self.cwlWindowDays == nil else { return true }
         let summaries = self.providerRows.compactMap(\.provider.costSummary)
         guard !summaries.isEmpty, summaries.count == self.providerRows.count else { return true }
-        guard summaries.allSatisfy({ $0.historyWindowIsComparable != false }) else { return false }
+        guard summaries.allSatisfy({ $0.reportingPeriodHistoryWindowIsComparable != false }) else { return false }
         let periods = Set(summaries.map { summary in
-            summary.reportingPeriod ?? "rolling:\(max(1, min(summary.historyDays ?? 30, 365)))"
+            summary.reportingPeriod ?? "rolling:\(max(1, min(summary.reportingPeriodHistoryDays ?? 30, 365)))"
         })
         return periods.count == 1
     }
@@ -1869,24 +1869,24 @@ struct CostDashboardInsights: Sendable {
 
             guard let costSummary = provider.costSummary else { continue }
 
-            let availableDailyCosts = costSummary.daily.filter { $0.costIsKnown != false }
+            let availableDailyCosts = costSummary.reportingPeriodDaily.filter { $0.costIsKnown != false }
             let fallbackThirtyDayCost = availableDailyCosts.isEmpty
                 ? nil
                 : availableDailyCosts.reduce(0) { $0 + $1.costUSD }
-            let resolvedThirtyDayCost = costSummary.last30DaysCostUSD ?? fallbackThirtyDayCost
+            let resolvedThirtyDayCost = costSummary.reportingPeriodCostUSD ?? fallbackThirtyDayCost
             let thirtyDayCost = resolvedThirtyDayCost ?? 0
-            let thirtyDayTokens = costSummary.last30DaysTokens
-                ?? SyncCounterMath.saturatingSum(costSummary.daily.map { max(0, $0.totalTokens) })
+            let thirtyDayTokens = costSummary.reportingPeriodTokens
+                ?? SyncCounterMath.saturatingSum(costSummary.reportingPeriodDaily.map { max(0, $0.totalTokens) })
 
             let todayTotals = costSummary.todayTotals(now: now)
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let providerDailyPoints = costSummary.daily.compactMap(Self.dailyPoint)
+            let providerDailyPoints = costSummary.reportingPeriodDaily.compactMap(Self.dailyPoint)
 
             guard resolvedThirtyDayCost != nil || resolvedTodayCost != nil ||
                 thirtyDayTokens > 0 || todayTokens > 0 ||
-                costSummary.daily.contains(where: { TokenActivity.knownTokens($0) != nil }) ||
+                costSummary.reportingPeriodDaily.contains(where: { TokenActivity.knownTokens($0) != nil }) ||
                 costSummary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 continue
@@ -1904,7 +1904,7 @@ struct CostDashboardInsights: Sendable {
                     todayTokens: todayTokens,
                     dailyPoints: providerDailyPoints))
 
-            for point in costSummary.daily {
+            for point in costSummary.reportingPeriodDaily {
                 guard let identity = Self.displayDayIdentity(
                     for: point.dayKey,
                     summary: costSummary,
@@ -2088,7 +2088,7 @@ struct CostDashboardInsights: Sendable {
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let fallbackSyncPoints = costSummary.daily.filter {
+            let fallbackSyncPoints = costSummary.reportingPeriodDaily.filter {
                 guard let offset = costSummary.costDayOffset(for: $0.dayKey, from: now) else {
                     return false
                 }
@@ -2112,9 +2112,9 @@ struct CostDashboardInsights: Sendable {
             let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
             guard resolvedCostIsKnown || resolvedTodayCost != nil ||
                 resolvedTokens > 0 ||
-                costSummary.last30DaysCostUSD != nil ||
-                costSummary.last30DaysTokens != nil ||
-                !costSummary.daily.isEmpty ||
+                costSummary.reportingPeriodCostUSD != nil ||
+                costSummary.reportingPeriodTokens != nil ||
+                !costSummary.reportingPeriodDaily.isEmpty ||
                 costSummary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 continue
@@ -2222,22 +2222,23 @@ struct CostDashboardInsights: Sendable {
         let selectedRollingPeriod = "rolling:\(windowDays)"
         let hasMatchingModernPeriod = summary.reportingPeriod == selectedRollingPeriod
         let hasMatchingLegacyPeriod = summary.reportingPeriod == nil
-            && (summary.historyDays == windowDays || (windowDays == 30 && summary.historyDays == nil))
-        guard summary.historyWindowIsComparable != false,
-              summary.historyCoverageIsEstablished != false,
+            && (summary.reportingPeriodHistoryDays == windowDays ||
+                (windowDays == 30 && summary.reportingPeriodHistoryDays == nil))
+        guard summary.reportingPeriodHistoryWindowIsComparable != false,
+              summary.reportingPeriodHistoryCoverageIsEstablished != false,
               !summary.hasIncompleteHistoricalCostCoverage(at: now),
               !summary.hasInvalidBucketTimeZoneIdentifier,
-              summary.coverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
+              summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
               hasMatchingModernPeriod || hasMatchingLegacyPeriod
         else {
             return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
         }
 
-        if let summaryCost = summary.last30DaysCostUSD {
+        if let summaryCost = summary.reportingPeriodCostUSD {
             costUSD = summaryCost
             costIsKnown = true
         }
-        tokens = summary.last30DaysTokens ?? tokens
+        tokens = summary.reportingPeriodTokens ?? tokens
 
         return (costUSD, tokens, costIsKnown)
     }
@@ -2252,11 +2253,11 @@ struct CostDashboardInsights: Sendable {
     {
         guard windowDays > 0 else { return false }
         if let summary {
-            guard summary.historyCoverageIsEstablished != false,
-                  summary.historyWindowIsComparable != false,
+            guard summary.reportingPeriodHistoryCoverageIsEstablished != false,
+                  summary.reportingPeriodHistoryWindowIsComparable != false,
                   !summary.hasIncompleteHistoricalCostCoverage(at: now),
                   !summary.hasInvalidBucketTimeZoneIdentifier,
-                  summary.coverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
+                  summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
             else {
                 return false
             }
@@ -3651,17 +3652,18 @@ private struct RawProviderRow: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     if let cost = self.provider.costSummary {
-                        // 30-day cost is what iPhone Cost dashboard
-                        // aggregates — show it inline so multi-device sync
-                        // bugs are visible at a glance instead of needing
-                        // a tap into detail.
-                        Text(String(
-                            format: String(
-                                localized: "$%.2f / 30d",
-                                comment: "Raw Sync Data row trailing label — 30-day cost"),
-                            cost.last30DaysCostUSD ?? 0))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if let amount = cost.reportingPeriodCostUSD {
+                            Text(String(format: "$%.2f", amount))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(cost.compactReportingPeriodLabel)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        } else {
+                            Text("—")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Text(String(
                             format: String(
                                 localized: "$%.2f / today",
@@ -3711,15 +3713,15 @@ private struct RawProviderDetailView: View {
                 Section("Cost Summary") {
                     LabeledContent("Session", value: self.formatCost(cost.sessionCostUSD))
                     LabeledContent("Session Tokens", value: self.formatTokens(cost.sessionTokens))
-                    LabeledContent("30 Days", value: self.formatCost(cost.last30DaysCostUSD))
-                    LabeledContent("30 Days Tokens", value: self.formatTokens(cost.last30DaysTokens))
+                    LabeledContent(cost.reportingPeriodDisplayTitle, value: self.formatCost(cost.reportingPeriodCostUSD))
+                    LabeledContent("History Tokens", value: self.formatTokens(cost.reportingPeriodTokens))
                 }
             }
 
             self.rateWindowsSection
 
-            if let cost = self.provider.costSummary, !cost.daily.isEmpty {
-                self.dailyCostSection(cost.daily)
+            if let cost = self.provider.costSummary, !cost.reportingPeriodDaily.isEmpty {
+                self.dailyCostSection(cost.reportingPeriodDaily)
             }
         }
         .navigationTitle(self.provider.providerName)

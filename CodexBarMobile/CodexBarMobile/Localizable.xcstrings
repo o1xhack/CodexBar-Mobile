@@ -5429,6 +5429,15 @@
         }
       }
     },
+    "History Tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "History Tokens" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "履歴トークン数" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史 Token 数" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "歷史 Token 數" } }
+      }
+    },
     "Important": {
       "comment": "Release-notes section title for must-read items.",
       "localizations": {

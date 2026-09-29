@@ -342,7 +342,7 @@ struct ProviderDetailView: View {
                     if self.provider.providerID == "codex" {
                         CodexServiceMixView(summary: cost)
                     }
-                    let availableDaily = Self.availableCostPoints(cost.daily)
+                    let availableDaily = Self.availableCostPoints(cost.reportingPeriodDaily)
                     if !availableDaily.isEmpty {
                         self.dailyChartSection(availableDaily, currencyCode: cost.currencyCode)
                     }
@@ -523,14 +523,14 @@ struct ProviderDetailView: View {
     // MARK: - Cost Summary
 
     static func shouldRenderCostSummary(_ cost: SyncCostSummary) -> Bool {
-        let hasVisibleCoverage = (cost.coverage?.total ?? 0) > 0
+        let hasVisibleCoverage = (cost.reportingPeriodCoverage?.total ?? 0) > 0
         return cost.sessionCostUSD != nil ||
-            cost.last30DaysCostUSD != nil ||
-            cost.historyWindowIsComparable == false ||
+            cost.reportingPeriodCostUSD != nil ||
+            cost.reportingPeriodHistoryWindowIsComparable == false ||
             Self.shouldRenderProviderReportedCost(cost) ||
             hasVisibleCoverage ||
-            cost.historyCoverageIsEstablished == false ||
-            cost.tokenMix?.hasAnyValue == true
+            cost.reportingPeriodHistoryCoverageIsEstablished == false ||
+            cost.reportingPeriodTokenMix?.hasAnyValue == true
     }
 
     static func availableCostPoints(_ daily: [SyncDailyPoint]) -> [SyncDailyPoint] {
@@ -542,13 +542,13 @@ struct ProviderDetailView: View {
     }
 
     static func historyCostToDisplay(_ cost: SyncCostSummary) -> Double? {
-        guard cost.historyWindowIsComparable != false else { return nil }
-        return cost.last30DaysCostUSD
+        guard cost.reportingPeriodHistoryWindowIsComparable != false else { return nil }
+        return cost.reportingPeriodCostUSD
     }
 
     static func shouldRenderProviderReportedCost(_ cost: SyncCostSummary) -> Bool {
-        guard let meteredCost = cost.meteredCostUSD else { return false }
-        guard let displayedCost = cost.last30DaysCostUSD else { return true }
+        guard let meteredCost = cost.reportingPeriodMeteredCostUSD else { return false }
+        guard let displayedCost = cost.reportingPeriodCostUSD else { return true }
         return abs(meteredCost - displayedCost) >= 0.005
     }
 
@@ -583,7 +583,7 @@ struct ProviderDetailView: View {
                         isEstimated: today.isEstimated == true,
                         isLowerBound: today.isLowerBound)
                 }
-                if cost.historyWindowIsComparable == false {
+                if cost.reportingPeriodHistoryWindowIsComparable == false {
                     Text("Cost windows differ, so history totals are unavailable.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -595,14 +595,14 @@ struct ProviderDetailView: View {
                         localizedTitleOverride: cost.reportingPeriodDisplayTitle,
                         value: CostFormatting.cost(monthCost, currencyCode: cost.currencyCode),
                         subtitle: Self.costSubtitle(
-                            tokens: cost.last30DaysTokens,
-                            requests: cost.last30DaysRequests),
+                            tokens: cost.reportingPeriodTokens,
+                            requests: cost.reportingPeriodRequests),
                         tintColor: self.providerColor,
-                        isEstimated: cost.isEstimated == true)
+                        isEstimated: cost.reportingPeriodIsEstimated == true)
                 }
             }
 
-            if today.isEstimated == true || cost.isEstimated == true {
+            if today.isEstimated == true || cost.reportingPeriodIsEstimated == true {
                 Text("* Estimated cost · auto-corrects after Mac upgrades to the latest pricing table")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -611,7 +611,7 @@ struct ProviderDetailView: View {
 
             self.costTruthDetails(cost)
 
-            if let tokenMix = cost.tokenMix, tokenMix.hasAnyValue {
+            if let tokenMix = cost.reportingPeriodTokenMix, tokenMix.hasAnyValue {
                 self.tokenMixSection(tokenMix)
             }
         }
@@ -620,7 +620,7 @@ struct ProviderDetailView: View {
     @ViewBuilder
     private func costTruthDetails(_ cost: SyncCostSummary) -> some View {
         if Self.shouldRenderProviderReportedCost(cost),
-           let meteredCost = cost.meteredCostUSD
+           let meteredCost = cost.reportingPeriodMeteredCostUSD
         {
             LabeledContent(
                 "Provider reported",
@@ -629,7 +629,7 @@ struct ProviderDetailView: View {
                 .foregroundStyle(.secondary)
         }
 
-        if let coverage = cost.coverage, coverage.total > 0 {
+        if let coverage = cost.reportingPeriodCoverage, coverage.total > 0 {
             Text(String(
                 format: String(localized: "Cost coverage: %lld of %lld usage rows priced or estimated."),
                 Int64(coverage.pricedOrEstimated),
@@ -644,7 +644,7 @@ struct ProviderDetailView: View {
                 .foregroundStyle(.secondary)
         }
 
-        switch cost.costProvenance {
+        switch cost.reportingPeriodCostProvenance {
         case .listPriceEstimate:
             Text("List-price equivalent — not a billing receipt.")
                 .font(.caption2)

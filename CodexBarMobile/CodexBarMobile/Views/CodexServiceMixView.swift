@@ -5,7 +5,7 @@ struct CodexServiceMixView: View {
     let summary: SyncCostSummary
     private var rows: [(String, Double)] {
         var values: [String: Double] = [:]
-        for day in self.summary.daily where day.costIsKnown != false {
+        for day in self.summary.reportingPeriodDaily where day.costIsKnown != false {
             for entry in day.serviceBreakdowns where entry.costUSD.isFinite && entry.costUSD > 0 {
                 values[entry.label, default: 0] += entry.costUSD
             }

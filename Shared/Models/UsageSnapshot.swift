@@ -58,7 +58,8 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
         self.usageKnown = try container.decodeIfPresent(Bool.self, forKey: .usageKnown) ?? true
         self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
-        self.period = try container.decodeIfPresent(SyncRateWindowPeriod.self, forKey: .period)
+        let rawPeriod = try container.decodeIfPresent(String.self, forKey: .period)
+        self.period = rawPeriod.flatMap(SyncRateWindowPeriod.init(rawValue:))
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
         self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
@@ -271,6 +272,57 @@ public struct SyncCostTokenMix: Codable, Sendable, Equatable {
     }
 }
 
+/// Current reporting-period history carried alongside the legacy rolling
+/// fields. Older iOS releases ignore this additive object; the encoded legacy
+/// cost fields remain empty for non-rolling periods so they cannot add an
+/// all-time total to a month-to-date total as if the windows matched.
+public struct SyncCostPeriodSummary: Codable, Sendable, Equatable {
+    public let costUSD: Double?
+    public let tokens: Int?
+    public let requests: Int?
+    public let daily: [SyncDailyPoint]
+    public let historyDays: Int?
+    public let isEstimated: Bool?
+    public let meteredCostUSD: Double?
+    public let costProvenance: SyncCostProvenance?
+    public let coverage: SyncCostCoverage?
+    public let tokenMix: SyncCostTokenMix?
+    public let historyCoverageIsEstablished: Bool?
+    /// Whether multiple source summaries were shown to describe comparable
+    /// windows. This remains separate from the legacy compatibility marker on
+    /// `SyncCostSummary`, which old iOS readers use to warn about fields they
+    /// cannot interpret.
+    public let historyWindowIsComparable: Bool?
+
+    public init(
+        costUSD: Double?,
+        tokens: Int?,
+        requests: Int? = nil,
+        daily: [SyncDailyPoint],
+        historyDays: Int?,
+        isEstimated: Bool? = nil,
+        meteredCostUSD: Double? = nil,
+        costProvenance: SyncCostProvenance? = nil,
+        coverage: SyncCostCoverage? = nil,
+        tokenMix: SyncCostTokenMix? = nil,
+        historyCoverageIsEstablished: Bool? = nil,
+        historyWindowIsComparable: Bool? = nil)
+    {
+        self.costUSD = costUSD
+        self.tokens = tokens
+        self.requests = requests
+        self.daily = daily
+        self.historyDays = historyDays
+        self.isEstimated = isEstimated
+        self.meteredCostUSD = meteredCostUSD
+        self.costProvenance = costProvenance
+        self.coverage = coverage
+        self.tokenMix = tokenMix
+        self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.historyWindowIsComparable = historyWindowIsComparable
+    }
+}
+
 /// Aggregated cost/token summary for iCloud sync.
 public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let sessionCostUSD: Double?
@@ -339,6 +391,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// current-day row look incomplete. Single writers and older payloads use
     /// nil because no cross-writer comparison was performed.
     public let historyWindowIsComparable: Bool?
+    /// Modern period-specific data for iOS releases that understand All and
+    /// Month-to-date windows. Encoded legacy fields stay empty for these
+    /// periods, while the in-memory Mac summary retains its complete values.
+    public let reportingPeriodSummary: SyncCostPeriodSummary?
 
     public init(
         sessionCostUSD: Double?,
@@ -362,10 +418,13 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         bucketTimeZoneIdentifier: String? = nil,
         sessionCostIsKnown: Bool? = nil,
         historyCoverageIsEstablished: Bool? = nil,
-        historyWindowIsComparable: Bool? = nil)
+        historyWindowIsComparable: Bool? = nil,
+        reportingPeriodSummary: SyncCostPeriodSummary? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
+        // Keep the full summary available to Mac views and local logic. The
+        // encoder projects non-rolling periods into a legacy-safe wire shape.
         self.last30DaysCostUSD = last30DaysCostUSD
         self.last30DaysTokens = last30DaysTokens
         self.daily = daily
@@ -384,8 +443,166 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.sessionDayKey = sessionDayKey
         self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
         self.sessionCostIsKnown = sessionCostIsKnown
+        // Keep scan status intact for old readers: it can qualify Today as a
+        // lower bound even when the legacy rolling-history fields are hidden.
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
         self.historyWindowIsComparable = historyWindowIsComparable
+        self.reportingPeriodSummary = reportingPeriodSummary
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sessionCostUSD
+        case sessionTokens
+        case last30DaysCostUSD
+        case last30DaysTokens
+        case daily
+        case isEstimated
+        case historyDays
+        case reportingPeriod
+        case sessionRequests
+        case last30DaysRequests
+        case currencyCode
+        case meteredCostUSD
+        case costProvenance
+        case coverage
+        case tokenMix
+        case sourceUpdatedAt
+        case sourceDayKey
+        case sessionDayKey
+        case bucketTimeZoneIdentifier
+        case sessionCostIsKnown
+        case historyCoverageIsEstablished
+        case historyWindowIsComparable
+        case reportingPeriodSummary
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        let suppressLegacyHistory = self.reportingPeriodSummary != nil &&
+            !Self.hasLegacyRollingHistoryShape(self.reportingPeriod)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(self.sessionCostUSD, forKey: .sessionCostUSD)
+        try container.encodeIfPresent(self.sessionTokens, forKey: .sessionTokens)
+        try container.encodeIfPresent(
+            suppressLegacyHistory ? nil : self.last30DaysCostUSD,
+            forKey: .last30DaysCostUSD)
+        try container.encodeIfPresent(
+            suppressLegacyHistory ? nil : self.last30DaysTokens,
+            forKey: .last30DaysTokens)
+        try container.encode(suppressLegacyHistory ? [] : self.daily, forKey: .daily)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.isEstimated, forKey: .isEstimated)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.historyDays, forKey: .historyDays)
+        try container.encodeIfPresent(self.reportingPeriod, forKey: .reportingPeriod)
+        try container.encodeIfPresent(self.sessionRequests, forKey: .sessionRequests)
+        try container.encodeIfPresent(
+            suppressLegacyHistory ? nil : self.last30DaysRequests,
+            forKey: .last30DaysRequests)
+        try container.encodeIfPresent(self.currencyCode, forKey: .currencyCode)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.meteredCostUSD, forKey: .meteredCostUSD)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.costProvenance, forKey: .costProvenance)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.coverage, forKey: .coverage)
+        try container.encodeIfPresent(suppressLegacyHistory ? nil : self.tokenMix, forKey: .tokenMix)
+        try container.encodeIfPresent(self.sourceUpdatedAt, forKey: .sourceUpdatedAt)
+        try container.encodeIfPresent(self.sourceDayKey, forKey: .sourceDayKey)
+        try container.encodeIfPresent(self.sessionDayKey, forKey: .sessionDayKey)
+        try container.encodeIfPresent(self.bucketTimeZoneIdentifier, forKey: .bucketTimeZoneIdentifier)
+        try container.encodeIfPresent(self.sessionCostIsKnown, forKey: .sessionCostIsKnown)
+        try container.encodeIfPresent(self.historyCoverageIsEstablished, forKey: .historyCoverageIsEstablished)
+        try container.encodeIfPresent(
+            suppressLegacyHistory ? false : self.historyWindowIsComparable,
+            forKey: .historyWindowIsComparable)
+        try container.encodeIfPresent(self.reportingPeriodSummary, forKey: .reportingPeriodSummary)
+    }
+
+    private static func hasLegacyRollingHistoryShape(_ reportingPeriod: String?) -> Bool {
+        guard let reportingPeriod, reportingPeriod.hasPrefix("rolling:"),
+              let days = Int(reportingPeriod.dropFirst("rolling:".count))
+        else {
+            return false
+        }
+        return (1...365).contains(days)
+    }
+
+    /// Current reporting-window value. On 2.3+ this prefers the explicit
+    /// period summary; legacy rolling writers continue to use the old fields.
+    public var reportingPeriodCostUSD: Double? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.last30DaysCostUSD
+        }
+        return reportingPeriodSummary.costUSD
+    }
+
+    public var reportingPeriodTokens: Int? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.last30DaysTokens
+        }
+        return reportingPeriodSummary.tokens
+    }
+
+    public var reportingPeriodRequests: Int? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.last30DaysRequests
+        }
+        return reportingPeriodSummary.requests
+    }
+
+    public var reportingPeriodDaily: [SyncDailyPoint] {
+        self.reportingPeriodSummary?.daily ?? self.daily
+    }
+
+    public var reportingPeriodHistoryDays: Int? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.historyDays
+        }
+        return reportingPeriodSummary.historyDays
+    }
+
+    public var reportingPeriodIsEstimated: Bool? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.isEstimated
+        }
+        return reportingPeriodSummary.isEstimated
+    }
+
+    public var reportingPeriodMeteredCostUSD: Double? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.meteredCostUSD
+        }
+        return reportingPeriodSummary.meteredCostUSD
+    }
+
+    public var reportingPeriodCostProvenance: SyncCostProvenance? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.costProvenance
+        }
+        return reportingPeriodSummary.costProvenance
+    }
+
+    public var reportingPeriodCoverage: SyncCostCoverage? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.coverage
+        }
+        return reportingPeriodSummary.coverage
+    }
+
+    public var reportingPeriodTokenMix: SyncCostTokenMix? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.tokenMix
+        }
+        return reportingPeriodSummary.tokenMix
+    }
+
+    public var reportingPeriodHistoryCoverageIsEstablished: Bool? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.historyCoverageIsEstablished
+        }
+        return reportingPeriodSummary.historyCoverageIsEstablished
+    }
+
+    public var reportingPeriodHistoryWindowIsComparable: Bool? {
+        guard let reportingPeriodSummary = self.reportingPeriodSummary else {
+            return self.historyWindowIsComparable
+        }
+        return reportingPeriodSummary.historyWindowIsComparable
     }
 
     /// True when a modern writer explicitly reports that the history-window
@@ -400,15 +617,15 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// keeps Today and history freshness on the same producer calendar day.
     public func hasIncompleteHistoricalCostCoverage(at referenceDate: Date) -> Bool {
         let currentDayKey = self.costDayKey(for: referenceDate)
-        return self.historyCoverageIsEstablished == false ||
-            self.historyWindowIsComparable == false ||
+        return self.reportingPeriodHistoryCoverageIsEstablished == false ||
+            self.reportingPeriodHistoryWindowIsComparable == false ||
             self.hasInvalidBucketTimeZoneIdentifier ||
             self.sourceDayKey.map { $0 != currentDayKey } == true ||
             (self.sourceDayKey == nil && self.sourceUpdatedAt.map {
                 self.costDayKey(for: $0) != currentDayKey
             } == true) ||
-            self.daily.contains(where: { $0.costIsKnown == false }) ||
-            (self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } ?? false)
+            self.reportingPeriodDaily.contains(where: { $0.costIsKnown == false }) ||
+            (self.reportingPeriodCoverage.map { $0.unpriced > 0 || $0.unmetered > 0 } ?? false)
     }
 
     /// Compact surfaces have no room for a coverage qualifier, so they must
@@ -420,7 +637,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// Reference-date form paired with
     /// `hasIncompleteHistoricalCostCoverage(at:)`.
     public func completeHistoryCostUSD(at referenceDate: Date) -> Double? {
-        self.hasIncompleteHistoricalCostCoverage(at: referenceDate) ? nil : self.last30DaysCostUSD
+        self.hasIncompleteHistoricalCostCoverage(at: referenceDate) ? nil : self.reportingPeriodCostUSD
     }
 
     /// Formats a timestamp in the producer's configured cost-bucket calendar.

@@ -7,7 +7,7 @@ struct SyncedDailyActivityView: View {
     @State private var showsAll = false
 
     private var sortedDays: [SyncDailyPoint] {
-        self.summary.daily.sorted { $0.dayKey > $1.dayKey }
+        self.summary.reportingPeriodDaily.sorted { $0.dayKey > $1.dayKey }
     }
 
     private var visibleDays: [SyncDailyPoint] {

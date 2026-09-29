@@ -582,7 +582,7 @@ enum ProviderSnapshotMerger {
         var dailyByKey: [String: DailyCostAccumulator] = [:]
 
         for summary in summaries {
-            for point in summary.daily {
+            for point in summary.reportingPeriodDaily {
                 dailyByKey[point.dayKey, default: .init(dayKey: point.dayKey)].ingest(point)
             }
         }
@@ -596,7 +596,7 @@ enum ProviderSnapshotMerger {
         let mergedDayKeys = Array(dailyByKey.keys)
         for source in sources {
             let summary = source.summary
-            let reportedDayKeys = Set(summary.daily.map(\.dayKey))
+            let reportedDayKeys = Set(summary.reportingPeriodDaily.map(\.dayKey))
             // `SyncedUsageSnapshot.syncTimestamp` is the actual publication
             // time. The provider usage timestamp is refreshed independently
             // and can be older than cost, so it is not a valid window anchor.
@@ -611,7 +611,7 @@ enum ProviderSnapshotMerger {
                 summary.costDayKey(for: source.snapshotPublishedAt),
                 sourceAnchorKey)
             let coverageStartKey = Self.logicalDayKey(
-                byAdding: -(max(1, min(summary.historyDays ?? 30, 365)) - 1),
+                byAdding: -(max(1, min(summary.reportingPeriodHistoryDays ?? 30, 365)) - 1),
                 to: sourceAnchorKey) ?? sourceAnchorKey
             let sessionDayKey = summary.sessionDayKey
                 ?? summary.sourceDayKey
@@ -636,7 +636,7 @@ enum ProviderSnapshotMerger {
                         tokenCountIsKnown: summary.sessionTokens != nil))
                     continue
                 }
-                let scanIsIncomplete = summary.historyCoverageIsEstablished == false
+                let scanIsIncomplete = summary.reportingPeriodHistoryCoverageIsEstablished == false
                 let costSourceIsOlder = sessionDayKey.map { dayKey > $0 } ?? false
                 if scanIsIncomplete || costSourceIsOlder {
                     dailyByKey[dayKey]?.ingestMissingIncompleteContribution()
@@ -655,13 +655,15 @@ enum ProviderSnapshotMerger {
         let fallbackDailyTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
 
         let windowCosts = summaries.compactMap { summary -> Double? in
-            if let cost = summary.last30DaysCostUSD { return cost }
-            let availableDaily = summary.daily.filter { $0.costIsKnown != false }
+            if let cost = summary.reportingPeriodCostUSD { return cost }
+            let availableDaily = summary.reportingPeriodDaily.filter { $0.costIsKnown != false }
             return availableDaily.isEmpty ? nil : availableDaily.reduce(0) { $0 + $1.costUSD }
         }
         let windowTokens = summaries.compactMap { summary -> Int? in
-            if let tokens = summary.last30DaysTokens { return tokens }
-            return summary.daily.isEmpty ? nil : summary.daily.reduce(0) { $0 + $1.totalTokens }
+            if let tokens = summary.reportingPeriodTokens { return tokens }
+            return summary.reportingPeriodDaily.isEmpty
+                ? nil
+                : summary.reportingPeriodDaily.reduce(0) { $0 + $1.totalTokens }
         }
         let totalCost = windowCosts.isEmpty ? fallbackDailyCost : windowCosts.reduce(0, +)
         let totalTokens = windowTokens.isEmpty ? fallbackDailyTokens : windowTokens.reduce(0, +)
@@ -669,10 +671,12 @@ enum ProviderSnapshotMerger {
         let sessionFallback = Self.mergedSessionFallback(
             summaries,
             dayBucketsAreCompatible: dayBucketsAreCompatible)
-        let windowRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
+        let windowRequests = summaries.compactMap(\.reportingPeriodRequests).reduce(0, +)
         // A missing period is a legacy rolling window. Normalize it from the
         // old day-count field so old and new rolling writers remain compatible.
-        let normalizedHistoryDays = summaries.map { max(1, min($0.historyDays ?? 30, 365)) }
+        let normalizedHistoryDays = summaries.map {
+            max(1, min($0.reportingPeriodHistoryDays ?? 30, 365))
+        }
         let normalizedReportingPeriods = zip(summaries, normalizedHistoryDays).map { summary, days in
             summary.reportingPeriod ?? "rolling:\(days)"
         }
@@ -684,7 +688,7 @@ enum ProviderSnapshotMerger {
         // report the widest normalized window; All Time writers can have
         // different history lengths while still describing the same period.
         let historyDays = Set(normalizedHistoryDays).count == 1
-            ? summaries.compactMap(\.historyDays).max()
+            ? summaries.compactMap(\.reportingPeriodHistoryDays).max()
             : normalizedHistoryDays.max()
         let reportingPeriod = reportingPeriodsAreCompatible
             ? summaries.compactMap(\.reportingPeriod).first
@@ -692,14 +696,14 @@ enum ProviderSnapshotMerger {
         let historyTotalsAreComparable = historyWindowsAreCompatible && dayBucketsAreCompatible
         let currencies = Set(summaries.compactMap(\.currencyCode))
         let currencyCode = currencies.count == 1 ? currencies.first : nil
-        let hasCompleteProvenance = summaries.allSatisfy { $0.costProvenance != nil }
-        let meteredCosts = summaries.compactMap(\.meteredCostUSD)
+        let hasCompleteProvenance = summaries.allSatisfy { $0.reportingPeriodCostProvenance != nil }
+        let meteredCosts = summaries.compactMap(\.reportingPeriodMeteredCostUSD)
         let hasCompleteMeteredCost = meteredCosts.count == summaries.count
         let historyCoverageIsEstablished: Bool? = if !dayBucketsAreCompatible || summaries.contains(where: {
-            $0.historyCoverageIsEstablished == false
+            $0.reportingPeriodHistoryCoverageIsEstablished == false
         }) {
             false
-        } else if summaries.allSatisfy({ $0.historyCoverageIsEstablished == true }) {
+        } else if summaries.allSatisfy({ $0.reportingPeriodHistoryCoverageIsEstablished == true }) {
             true
         } else {
             nil
@@ -712,13 +716,36 @@ enum ProviderSnapshotMerger {
         let sourceDayKey = summaries.compactMap { summary in
             summary.sourceDayKey ?? summary.sourceUpdatedAt.map(summary.costDayKey)
         }.min()
+        let reportingPeriodSummary: SyncCostPeriodSummary? = if summaries.contains(where: {
+            $0.reportingPeriodSummary != nil
+        }) {
+            SyncCostPeriodSummary(
+                costUSD: historyTotalsAreComparable ? totalCost : nil,
+                tokens: historyTotalsAreComparable ? totalTokens : nil,
+                requests: historyTotalsAreComparable && windowRequests > 0 ? windowRequests : nil,
+                daily: mergedDaily,
+                historyDays: historyDays,
+                isEstimated: summaries.contains(where: { $0.reportingPeriodIsEstimated == true })
+                    ? true
+                    : nil,
+                meteredCostUSD: !historyTotalsAreComparable || !hasCompleteProvenance || !hasCompleteMeteredCost
+                    ? nil
+                    : meteredCosts.reduce(0, +),
+                costProvenance: Self.mergedCostProvenance(summaries),
+                coverage: historyTotalsAreComparable ? Self.mergedCostCoverage(summaries) : nil,
+                tokenMix: historyTotalsAreComparable ? Self.mergedCostTokenMix(summaries) : nil,
+                historyCoverageIsEstablished: historyCoverageIsEstablished,
+                historyWindowIsComparable: historyTotalsAreComparable)
+        } else {
+            nil
+        }
         return SyncCostSummary(
             sessionCostUSD: sessionFallback.costUSD,
             sessionTokens: sessionFallback.tokens,
             last30DaysCostUSD: totalCost,
             last30DaysTokens: windowTokens.isEmpty && mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
-            isEstimated: summaries.contains(where: { $0.isEstimated == true }) ? true : nil,
+            isEstimated: summaries.contains(where: { $0.reportingPeriodIsEstimated == true }) ? true : nil,
             historyDays: historyDays,
             reportingPeriod: reportingPeriod,
             sessionRequests: sessionFallback.requests,
@@ -736,7 +763,8 @@ enum ProviderSnapshotMerger {
             bucketTimeZoneIdentifier: mergedBucketTimeZoneIdentifier,
             sessionCostIsKnown: sessionFallback.costIsKnown,
             historyCoverageIsEstablished: historyCoverageIsEstablished,
-            historyWindowIsComparable: historyTotalsAreComparable)
+            historyWindowIsComparable: historyTotalsAreComparable,
+            reportingPeriodSummary: reportingPeriodSummary)
     }
 
     /// Session fallback fields are local-day values, not timeless counters.
@@ -766,7 +794,7 @@ enum ProviderSnapshotMerger {
         let allSourceDayKeys = summaries.compactMap { summary in
             summary.sourceDayKey
                 ?? summary.sourceUpdatedAt.map(summary.costDayKey)
-                ?? summary.daily.map(\.dayKey).max()
+                ?? summary.reportingPeriodDaily.map(\.dayKey).max()
         }
         let hasUnalignedLegacySource = !allSourceDayKeys.isEmpty && allSourceDayKeys.count != summaries.count
         let hasOlderDatedSource: Bool
@@ -809,7 +837,7 @@ enum ProviderSnapshotMerger {
     }
 
     private static func mergedCostProvenance(_ summaries: [SyncCostSummary]) -> SyncCostProvenance? {
-        let values = summaries.compactMap(\.costProvenance)
+        let values = summaries.compactMap(\.reportingPeriodCostProvenance)
         guard !values.isEmpty, values.count == summaries.count else { return nil }
         if values.contains(.unknown) { return .unknown }
         if values.contains(.mixed) { return .mixed }
@@ -817,7 +845,7 @@ enum ProviderSnapshotMerger {
     }
 
     private static func mergedCostCoverage(_ summaries: [SyncCostSummary]) -> SyncCostCoverage? {
-        let values = summaries.compactMap(\.coverage)
+        let values = summaries.compactMap(\.reportingPeriodCoverage)
         guard !values.isEmpty, values.count == summaries.count else { return nil }
         return SyncCostCoverage(
             priced: SyncCounterMath.saturatingSum(values.map(\.priced)),
@@ -829,15 +857,15 @@ enum ProviderSnapshotMerger {
     private static func mergedCostTokenMix(_ summaries: [SyncCostSummary]) -> SyncCostTokenMix? {
         // Do not manufacture a zero-valued mix when every source is idle.
         // At least one writer must have reported an actual token class.
-        guard summaries.contains(where: { $0.tokenMix?.hasAnyValue == true }) else { return nil }
+        guard summaries.contains(where: { $0.reportingPeriodTokenMix?.hasAnyValue == true }) else { return nil }
 
         func sum(_ keyPath: KeyPath<SyncCostTokenMix, Int?>) -> Int? {
             let contributions = summaries.compactMap { summary -> Int? in
-                if let value = summary.tokenMix?[keyPath: keyPath] { return value }
+                if let value = summary.reportingPeriodTokenMix?[keyPath: keyPath] { return value }
                 // A modern writer that established an empty token window is a
                 // known-zero contribution, not missing legacy metadata.
-                if summary.historyCoverageIsEstablished == true,
-                   summary.last30DaysTokens == 0
+                if summary.reportingPeriodHistoryCoverageIsEstablished == true,
+                   summary.reportingPeriodTokens == 0
                 {
                     return 0
                 }

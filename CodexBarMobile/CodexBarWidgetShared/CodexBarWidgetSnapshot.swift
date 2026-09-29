@@ -434,10 +434,10 @@ enum CodexBarWidgetSnapshotBuilder {
         // dated point/session remains displayable while an undated legacy
         // fallback keeps the aggregate coverage guard.
         let todayCalendarIsInvalid = summary.hasInvalidBucketTimeZoneIdentifier
-        let historyScanIsIncomplete = summary.historyCoverageIsEstablished == false
+        let historyScanIsIncomplete = summary.reportingPeriodHistoryCoverageIsEstablished == false
         let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
-            summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
-        if let point = summary.daily.first(where: { $0.dayKey == dayKey }) {
+            summary.reportingPeriodCoverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
+        if let point = summary.reportingPeriodDaily.first(where: { $0.dayKey == dayKey }) {
             let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : point.costIsKnown
             return (
                 costIsKnown == false ? nil : point.costUSD,

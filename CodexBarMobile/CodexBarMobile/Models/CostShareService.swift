@@ -381,7 +381,7 @@ extension ShareCardData {
             let summaries = insights.providerRows.compactMap(\.provider.costSummary)
             guard !summaries.isEmpty else { return false }
             let periods = Set(summaries.map { summary in
-                summary.reportingPeriod ?? "rolling:\(max(1, min(summary.historyDays ?? 30, 365)))"
+                summary.reportingPeriod ?? "rolling:\(max(1, min(summary.reportingPeriodHistoryDays ?? 30, 365)))"
             })
             return periods.count > 1
         }()
@@ -389,14 +389,16 @@ extension ShareCardData {
         case .today:
             false
         case .week, .month:
-            insights.providerRows.contains { $0.provider.costSummary?.historyWindowIsComparable == false }
+            insights.providerRows.contains {
+                $0.provider.costSummary?.reportingPeriodHistoryWindowIsComparable == false
+            }
         }
         let selectedPeriodHasUnresolvedModernProviderCost = insights.providerRows.contains { row in
             guard let summary = row.provider.costSummary else { return false }
 
             // Aggregate coverage counters are not date-scoped, so a reported
             // pricing gap cannot be proven outside the selected period.
-            if summary.coverage.map({ $0.unpriced > 0 || $0.unmetered > 0 }) == true {
+            if summary.reportingPeriodCoverage.map({ $0.unpriced > 0 || $0.unmetered > 0 }) == true {
                 return true
             }
 
@@ -420,7 +422,7 @@ extension ShareCardData {
                 // The aggregate catch-up bit is not date-scoped. Even a
                 // priced Today row remains a lower bound until the producer
                 // finishes discovering every file in its scan window.
-                return summary.historyCoverageIsEstablished == false
+                return summary.reportingPeriodHistoryCoverageIsEstablished == false
             case .week:
                 // The producer's aggregate catch-up bit is not date-scoped.
                 // Old cached rows therefore cannot prove that a pending file
@@ -428,18 +430,18 @@ extension ShareCardData {
                 // cannot prove every source covered all seven days because
                 // the merged legacy-compatible payload retains only the
                 // widest label, so keep both cases qualified.
-                return summary.historyCoverageIsEstablished == false ||
-                    summary.historyWindowIsComparable == false
+                return summary.reportingPeriodHistoryCoverageIsEstablished == false ||
+                    summary.reportingPeriodHistoryWindowIsComparable == false
             case .month:
-                return summary.historyCoverageIsEstablished == false ||
-                    summary.historyWindowIsComparable == false
+                return summary.reportingPeriodHistoryCoverageIsEstablished == false ||
+                    summary.reportingPeriodHistoryWindowIsComparable == false
             }
         }
         let selectedPeriodHasUnknownLegacyProviderCost = insights.providerRows.contains { row in
             guard let summary = row.provider.costSummary,
-                  summary.historyCoverageIsEstablished == nil,
-                  summary.coverage == nil,
-                  summary.daily.isEmpty
+                  summary.reportingPeriodHistoryCoverageIsEstablished == nil,
+                  summary.reportingPeriodCoverage == nil,
+                  summary.reportingPeriodDaily.isEmpty
             else {
                 return false
             }
@@ -450,11 +452,11 @@ extension ShareCardData {
             case .week:
                 // A legacy aggregate with no dated rows cannot identify how
                 // much of a non-zero 30-day total belongs to this week.
-                let tokens = summary.last30DaysTokens ?? summary.sessionTokens ?? 0
-                return (summary.last30DaysCostUSD ?? 0) > 0 || tokens > 0
+                let tokens = summary.reportingPeriodTokens ?? summary.sessionTokens ?? 0
+                return (summary.reportingPeriodCostUSD ?? 0) > 0 || tokens > 0
             case .month:
-                let tokens = summary.last30DaysTokens ?? summary.sessionTokens ?? 0
-                return tokens > 0 && summary.last30DaysCostUSD == nil
+                let tokens = summary.reportingPeriodTokens ?? summary.sessionTokens ?? 0
+                return tokens > 0 && summary.reportingPeriodCostUSD == nil
             }
         }
 
@@ -478,11 +480,11 @@ extension ShareCardData {
             let summary = row.provider.costSummary
             if let summary {
                 let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map(summary.costDayKey)
-                guard summary.historyCoverageIsEstablished != false,
-                      summary.historyWindowIsComparable != false,
+                guard summary.reportingPeriodHistoryCoverageIsEstablished != false,
+                      summary.reportingPeriodHistoryWindowIsComparable != false,
                       !summary.hasIncompleteHistoricalCostCoverage(at: now),
                       !summary.hasInvalidBucketTimeZoneIdentifier,
-                      summary.coverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
+                      summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
                       sourceDayKey == nil || sourceDayKey == summary.costDayKey(for: now)
                 else {
                     return false
@@ -520,7 +522,7 @@ extension ShareCardData {
                     usesReaderCalendar: row.dailyPointsUseReaderCalendar)
             }
             if let summary {
-                for point in summary.daily {
+                for point in summary.reportingPeriodDaily {
                     guard let date = dayKeyFormatter.date(from: point.dayKey) else { continue }
                     addKnownOffset(
                         dayKey: point.dayKey,
@@ -537,12 +539,12 @@ extension ShareCardData {
             // the producer explicitly completed a window that covers every
             // selected logical date.
             guard let summary,
-                  summary.historyCoverageIsEstablished != false,
-                  summary.historyWindowIsComparable != false,
-                  (!summary.daily.isEmpty || summary.reportingPeriod != nil ||
-                    (summary.historyCoverageIsEstablished == true &&
-                        summary.last30DaysCostUSD == 0 && summary.last30DaysTokens == 0)),
-                  summary.daily.allSatisfy({ $0.costIsKnown != false }),
+                  summary.reportingPeriodHistoryCoverageIsEstablished != false,
+                  summary.reportingPeriodHistoryWindowIsComparable != false,
+                  (!summary.reportingPeriodDaily.isEmpty || summary.reportingPeriod != nil ||
+                    (summary.reportingPeriodHistoryCoverageIsEstablished == true &&
+                        summary.reportingPeriodCostUSD == 0 && summary.reportingPeriodTokens == 0)),
+                  summary.reportingPeriodDaily.allSatisfy({ $0.costIsKnown != false }),
                   !summary.hasIncompleteHistoricalCostCoverage(at: now)
             else {
                 return false
@@ -557,12 +559,12 @@ extension ShareCardData {
             } else if summary.reportingPeriod == "month-to-date" {
                 availableStartOffset = -(calendar.component(.day, from: today) - 1)
             } else if summary.reportingPeriod == "all",
-                      let historyDays = summary.historyDays,
+                      let historyDays = summary.reportingPeriodHistoryDays,
                       historyDays > 0
             {
                 availableStartOffset = -(min(historyDays, 365) - 1)
             } else if summary.reportingPeriod == nil,
-                      summary.historyDays.map({ $0 >= dayCount }) ?? true
+                      summary.reportingPeriodHistoryDays.map({ $0 >= dayCount }) ?? true
             {
                 // Before reportingPeriod was added, completed sparse summaries
                 // represented the legacy rolling window. A typed MTD summary
@@ -574,7 +576,7 @@ extension ShareCardData {
                 // rolling boundary. Dated rows above can still prove it.
                 return false
             }
-            if let historyDays = summary.historyDays, historyDays < dayCount {
+            if let historyDays = summary.reportingPeriodHistoryDays, historyDays < dayCount {
                 return false
             }
             let requiredStartOffset = -(dayCount - 1)
@@ -601,8 +603,8 @@ extension ShareCardData {
             guard let summary = row.provider.costSummary,
                   summary.last30DaysCostUSD != nil,
                   summary.reportingPeriod == nil,
-                  summary.historyWindowIsComparable != false,
-                  summary.historyDays == nil || summary.historyDays == 30
+                  summary.reportingPeriodHistoryWindowIsComparable != false,
+                  summary.reportingPeriodHistoryDays == nil || summary.reportingPeriodHistoryDays == 30
             else {
                 return false
             }
@@ -615,7 +617,7 @@ extension ShareCardData {
             guard let summary = row.provider.costSummary else {
                 return (nil, nil)
             }
-            guard summary.historyWindowIsComparable != false else {
+            guard summary.reportingPeriodHistoryWindowIsComparable != false else {
                 return (nil, nil)
             }
             guard !selectedPeriodHasMixedReportingPeriods else {
@@ -656,7 +658,7 @@ extension ShareCardData {
             period: SharePeriod) -> [SyncDailyPoint]
         {
             guard let summary = row.provider.costSummary else { return [] }
-            return summary.daily.filter { point in
+            return summary.reportingPeriodDaily.filter { point in
                 guard let date = dayKeyFormatter.date(from: point.dayKey) else { return false }
                 return periodIncludes(
                     dayKey: point.dayKey,
@@ -854,7 +856,7 @@ extension ShareCardData {
                 .allSatisfy { row, cost in
                     if cost.isKnown { return true }
                     guard let summary = row.provider.costSummary else { return false }
-                    return summary.daily.contains { point in
+                    return summary.reportingPeriodDaily.contains { point in
                         guard point.costIsKnown == false,
                               let date = SyncCostSummary.iso8601DayKeyFormatter().date(from: point.dayKey)
                         else {

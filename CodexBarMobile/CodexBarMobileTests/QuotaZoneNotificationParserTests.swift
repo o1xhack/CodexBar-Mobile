@@ -200,6 +200,19 @@ struct QuotaZoneNotificationParserTests {
             latestTransitionAt: now.addingTimeInterval(10.5)))
     }
 
+    @Test("warning record reads stop at a fixed bound when more records remain")
+    func warningRecordScanBound() {
+        #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 499,
+            hasContinuationCursor: true))
+        #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 500,
+            hasContinuationCursor: false))
+        #expect(QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: QuotaZoneNotificationParser.warningRecordScanLimit,
+            hasContinuationCursor: true))
+    }
+
     @Test("parseWarningRecordName rejects malformed names")
     func parseWarningRecordMalformed() {
         #expect(QuotaZoneNotificationParser.parseWarningRecordName(

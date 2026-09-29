@@ -170,7 +170,7 @@ enum CostLedgerService {
 
     // MARK: - Upsert: snapshot → daily rows
 
-    /// Iterate `provider.costSummary?.daily` and upsert each day as a
+    /// Iterate the current reporting-period daily points and upsert each day as a
     /// `DailyCostPoint` row. Called from `SwiftDataBridge.upsertProvider`
     /// **after** the existing blob write, **only when** `isEnabled()` is
     /// true. The blob path always runs, so even with CWL on the ledger and
@@ -189,7 +189,7 @@ enum CostLedgerService {
         userDefaults: UserDefaults = .standard) throws
     {
         guard let summary = provider.costSummary else { return }
-        guard !summary.daily.isEmpty else { return }
+        guard !summary.reportingPeriodDaily.isEmpty else { return }
         let costUpdatedAt = summary.sourceUpdatedAt ?? provider.lastUpdated
         if let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults),
            costUpdatedAt <= clearedAt
@@ -200,7 +200,7 @@ enum CostLedgerService {
         let encoder = CloudSyncConstants.makeJSONEncoder()
         let accountIdentityKeys = Self.accountIdentityKeys(for: provider)
         let accountIdentityKey = accountIdentityKeys.first
-        for point in summary.daily {
+        for point in summary.reportingPeriodDaily {
             try Self.upsertDayPoint(
                 deviceID: deviceID,
                 providerID: provider.providerID,
@@ -819,7 +819,7 @@ enum CostLedgerService {
             let accountRecordKey = row.accountRecordKey ?? payload?.accountRecordKey
             let accountIdentityKeys = payload.map(Self.accountIdentityKeys(for:))
             let accountIdentityKey = accountIdentityKeys?.first
-            for point in summary.daily {
+            for point in summary.reportingPeriodDaily {
                 try Self.upsertDayPoint(
                     deviceID: row.deviceID,
                     providerID: row.providerID,
@@ -872,7 +872,7 @@ enum CostLedgerService {
             let accountIdentityKeys = payload.map(Self.accountIdentityKeys(for:))
             let accountIdentityKey = accountIdentityKeys?.first
             let accountIdentitiesData = accountIdentityKeys.flatMap { try? encoder.encode($0) }
-            for point in summary.daily {
+            for point in summary.reportingPeriodDaily {
                 let key = DailyCostPoint.makeCompositeKey(
                     deviceID: row.deviceID,
                     providerID: row.providerID,

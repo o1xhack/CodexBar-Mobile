@@ -36,10 +36,20 @@ struct CloudKitMergeTests {
     }
 
     private struct LegacyMatrixSummary: Decodable {
+        let sessionCostUSD: Double?
+        let sessionTokens: Int?
         let last30DaysCostUSD: Double?
         let last30DaysTokens: Int?
         let daily: [SyncDailyPoint]
         let historyDays: Int?
+        let sourceUpdatedAt: Date?
+        let sourceDayKey: String?
+        let sessionDayKey: String?
+        let bucketTimeZoneIdentifier: String?
+        let sessionCostIsKnown: Bool?
+        let historyCoverageIsEstablished: Bool?
+        let historyWindowIsComparable: Bool?
+        let coverage: SyncCostCoverage?
     }
 
     private struct LegacyMatrixProvider: Decodable {
@@ -64,7 +74,19 @@ struct CloudKitMergeTests {
         let hasComparableHistoryTotals: Bool
         let totalCost: Double
         let totalCostIsKnown: Bool
+        let hasIncompleteCostData: Bool
         let widgetTodayCost: Double?
+    }
+
+    private struct LegacyIOS22Projection: Equatable {
+        let providerIDs: [String]
+        let visibleHistoryTotal: Double?
+        let hasHistoryForEveryProvider: Bool
+        let totalCostIsKnown: Bool
+        let hasIncompleteCostData: Bool
+        let todayCost: Double?
+        let todayCostIsKnown: Bool
+        let todayCostIsLowerBound: Bool
     }
 
     private func makeProvider(
@@ -207,6 +229,15 @@ struct CloudKitMergeTests {
                 costUSD: cost,
                 totalTokens: tokens,
                 costIsKnown: true)
+            let reportingPeriodSummary = isNew
+                ? SyncCostPeriodSummary(
+                    costUSD: cost,
+                    tokens: tokens,
+                    daily: [dailyPoint],
+                    historyDays: historyDays,
+                    historyCoverageIsEstablished: true,
+                    historyWindowIsComparable: true)
+                : nil
             let summary = SyncCostSummary(
                 sessionCostUSD: cost,
                 sessionTokens: tokens,
@@ -220,7 +251,8 @@ struct CloudKitMergeTests {
                 sessionDayKey: dayKey,
                 bucketTimeZoneIdentifier: "UTC",
                 sessionCostIsKnown: true,
-                historyCoverageIsEstablished: true)
+                historyCoverageIsEstablished: true,
+                reportingPeriodSummary: reportingPeriodSummary)
             let provider = ProviderUsageSnapshot(
                 providerID: providerID,
                 providerName: providerName,
@@ -264,52 +296,146 @@ struct CloudKitMergeTests {
             try decoder.decode(SyncedUsageSnapshot.self, from: $0)
         }
 
-        func readAsLegacyPhone(_ data: Data) throws -> SyncedUsageSnapshot {
-            let legacy = try decoder.decode(LegacyMatrixSnapshot.self, from: data)
-            let providers = legacy.providers.map { item -> ProviderUsageSnapshot in
-                let summary = item.costSummary.map {
-                    SyncCostSummary(
-                        sessionCostUSD: nil,
-                        sessionTokens: nil,
-                        last30DaysCostUSD: $0.last30DaysCostUSD,
-                        last30DaysTokens: $0.last30DaysTokens,
-                        daily: $0.daily,
-                        historyDays: $0.historyDays)
-                }
-                return ProviderUsageSnapshot(
-                    providerID: item.providerID,
-                    providerName: item.providerName,
-                    primary: nil,
-                    secondary: nil,
-                    accountEmail: item.accountEmail,
-                    loginMethod: nil,
-                    statusMessage: nil,
-                    isError: false,
-                    lastUpdated: item.lastUpdated,
-                    costSummary: summary)
+        func readAsLegacyPhone(_ data: Data) throws -> LegacyMatrixSnapshot {
+            try decoder.decode(LegacyMatrixSnapshot.self, from: data)
+        }
+
+        func legacyToday(_ summary: LegacyMatrixSummary) -> (value: Double?, known: Bool?, lowerBound: Bool) {
+            let parsedTimeZone = summary.bucketTimeZoneIdentifier
+                .flatMap(TimeZone.init(identifier:))
+            let timeZone = parsedTimeZone ?? .current
+            let calendar = Calendar(identifier: .gregorian)
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            let todayKey = formatter.string(from: now)
+            let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map(formatter.string(from:))
+            let sessionDayKey = summary.sessionDayKey ?? sourceDayKey
+            let sourceIsStale = sourceDayKey.map { $0 != todayKey } ?? false
+            let sessionIsStale = sessionDayKey.map { $0 != todayKey } ?? false
+            let invalidTimeZone = summary.bucketTimeZoneIdentifier != nil && parsedTimeZone == nil
+            let scanIsIncomplete = summary.historyCoverageIsEstablished == false
+            let historicalCoverageIsIncomplete = scanIsIncomplete ||
+                summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
+
+            if let todayPoint = summary.daily.first(where: { $0.dayKey == todayKey }) {
+                let known = invalidTimeZone || sourceIsStale ? false : todayPoint.costIsKnown
+                return (
+                    known == false ? nil : todayPoint.costUSD,
+                    known,
+                    known != false && scanIsIncomplete)
             }
-            return SyncedUsageSnapshot(
-                providers: providers,
-                syncTimestamp: legacy.syncTimestamp,
-                deviceName: legacy.deviceName,
-                deviceID: legacy.deviceID,
-                appVersion: legacy.appVersion)
+            if sessionIsStale {
+                return (nil, false, false)
+            }
+            let hasQualifiedSession = sessionDayKey == todayKey && summary.sessionCostIsKnown == true
+            let sessionIsKnown = invalidTimeZone ||
+                (historicalCoverageIsIncomplete && !hasQualifiedSession)
+                ? false
+                : summary.sessionCostIsKnown ?? (summary.sessionCostUSD == nil ? nil : true)
+            return (
+                sessionIsKnown == false ? nil : summary.sessionCostUSD,
+                sessionIsKnown,
+                sessionIsKnown != false && summary.sessionCostUSD != nil && scanIsIncomplete)
+        }
+
+        /// Frozen projection of the iOS 2.2 reader path. That build ignored
+        /// `reportingPeriodSummary`; its legacy total-known flag was true when
+        /// any provider row had a 30-day amount, while missing rows raised an
+        /// incomplete-data warning. Today resolution still used producer day,
+        /// session knownness, and scan coverage metadata.
+        func readLegacyPhone() throws -> LegacyIOS22Projection {
+            let snapshots = try records.map(readAsLegacyPhone)
+            let providers = snapshots.flatMap(\.providers)
+            let historyValues = providers.compactMap { provider -> Double? in
+                guard let summary = provider.costSummary else { return nil }
+                if let amount = summary.last30DaysCostUSD { return amount }
+                let availableDaily = summary.daily.filter { $0.costIsKnown != false }
+                return availableDaily.isEmpty
+                    ? nil
+                    : availableDaily.reduce(0) { $0 + $1.costUSD }
+            }
+            let summaries = providers.compactMap(\.costSummary)
+            let todayRows = summaries.map(legacyToday)
+            let todayValues = todayRows.compactMap { $0.value }
+            let todayKey = "2026-09-28"
+            let historyIncomplete = historyValues.count != providers.count || summaries.contains { summary in
+                let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map { timestamp in
+                    let timeZone = summary.bucketTimeZoneIdentifier
+                        .flatMap(TimeZone.init(identifier:)) ?? .current
+                    let formatter = DateFormatter()
+                    formatter.calendar = Calendar(identifier: .gregorian)
+                    formatter.locale = Locale(identifier: "en_US_POSIX")
+                    formatter.timeZone = timeZone
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    return formatter.string(from: timestamp)
+                }
+                return summary.historyWindowIsComparable == false ||
+                    summary.historyCoverageIsEstablished == false ||
+                    sourceDayKey.map { $0 != todayKey } == true ||
+                    summary.daily.contains(where: { $0.costIsKnown == false }) ||
+                    (summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } ?? false)
+            }
+            let todayOpinions = todayRows.compactMap(\.known)
+            let todayIsKnown = !todayOpinions.isEmpty && todayOpinions.allSatisfy(\.self)
+            return LegacyIOS22Projection(
+                providerIDs: providers.map(\.providerID).sorted(),
+                visibleHistoryTotal: historyValues.isEmpty ? nil : historyValues.reduce(0, +),
+                hasHistoryForEveryProvider: !providers.isEmpty && historyValues.count == providers.count,
+                totalCostIsKnown: !historyValues.isEmpty,
+                hasIncompleteCostData: historyIncomplete || todayOpinions.contains(false),
+                todayCost: todayValues.isEmpty ? nil : todayValues.reduce(0, +),
+                todayCostIsKnown: todayIsKnown,
+                todayCostIsLowerBound: todayIsKnown && todayRows.contains(where: { $0.lowerBound }))
         }
 
         func readPhone(isNew: Bool) throws -> MatrixReadProjection {
-            let snapshots: [SyncedUsageSnapshot]
-            if isNew {
-                var cache = SnapshotCache()
-                let newMacSnapshots = zip(currentWriterSnapshots, fixtures)
-                    .filter { $0.1.isNew }
-                    .map(\.0)
-                cache.replaceFromFullFetch(
-                    perProviderSnapshots: newMacSnapshots,
-                    legacySnapshots: currentWriterSnapshots)
-                snapshots = cache.buildDeviceSnapshots()
-            } else {
-                snapshots = try records.map(readAsLegacyPhone)
+            if !isNew {
+                let legacy = try readLegacyPhone()
+                #expect(legacy.providerIDs == ["claude", "codex"])
+                #expect(abs((legacy.todayCost ?? 0) - 200.95) < 0.0001)
+                #expect(legacy.todayCostIsKnown)
+                #expect(!legacy.todayCostIsLowerBound)
+                if macANew || macBNew {
+                    // A single remaining old Mac yields a visible partial
+                    // total with a warning; two new Macs leave no legacy
+                    // history amount to display.
+                    #expect(!legacy.hasHistoryForEveryProvider)
+                    #expect(legacy.hasIncompleteCostData)
+                    if macANew && macBNew {
+                        #expect(legacy.visibleHistoryTotal == nil)
+                        #expect(!legacy.totalCostIsKnown)
+                    } else {
+                        #expect(legacy.totalCostIsKnown)
+                        #expect(abs((legacy.visibleHistoryTotal ?? 0) - (macANew ? 193.58 : 7.37)) < 0.0001)
+                    }
+                } else {
+                    #expect(legacy.hasHistoryForEveryProvider)
+                    #expect(legacy.totalCostIsKnown)
+                    #expect(!legacy.hasIncompleteCostData)
+                    #expect(abs((legacy.visibleHistoryTotal ?? 0) - 200.95) < 0.0001)
+                }
+                return MatrixReadProjection(
+                    providerIDs: legacy.providerIDs,
+                    historyTitle: "30 Days",
+                    hasComparableHistoryTotals: legacy.hasHistoryForEveryProvider,
+                    totalCost: legacy.visibleHistoryTotal ?? 0,
+                    totalCostIsKnown: legacy.totalCostIsKnown,
+                    hasIncompleteCostData: legacy.hasIncompleteCostData,
+                    widgetTodayCost: legacy.todayCost)
             }
+
+            let snapshots: [SyncedUsageSnapshot]
+            var cache = SnapshotCache()
+            let newMacSnapshots = zip(currentWriterSnapshots, fixtures)
+                .filter { $0.1.isNew }
+                .map(\.0)
+            cache.replaceFromFullFetch(
+                perProviderSnapshots: newMacSnapshots,
+                legacySnapshots: currentWriterSnapshots)
+            snapshots = cache.buildDeviceSnapshots()
 
             let merged = try #require(CloudSyncReader.mergeSnapshots(snapshots))
             let insights = CostDashboardInsights(snapshot: merged, now: now)
@@ -321,12 +447,12 @@ struct CloudKitMergeTests {
             #expect(merged.providers.map(\.providerID).sorted() == ["claude", "codex"])
             #expect(insights.hasComparableHistoryTotals == expectedComparableWindows)
             if expectedComparableWindows {
-                #expect(insights.historyDisplayTitle == "30 Days")
+                #expect(insights.historyDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(30))
                 #expect(insights.spendProviderRows.count == 2)
                 #expect(share.totalCostIsKnown)
                 #expect(abs(share.totalCost - 200.95) < 0.0001)
             } else {
-                #expect(insights.historyDisplayTitle == "Mixed cost windows")
+                #expect(insights.historyDisplayTitle == String(localized: "Mixed cost windows"))
                 #expect(insights.spendProviderRows.isEmpty)
                 #expect(!share.totalCostIsKnown)
                 #expect(share.totalCostDisplayValue == "—")
@@ -339,6 +465,7 @@ struct CloudKitMergeTests {
                 hasComparableHistoryTotals: insights.hasComparableHistoryTotals,
                 totalCost: share.totalCost,
                 totalCostIsKnown: share.totalCostIsKnown,
+                hasIncompleteCostData: insights.hasIncompleteCostData,
                 widgetTodayCost: widget.todayCostUSD)
         }
 
@@ -347,6 +474,126 @@ struct CloudKitMergeTests {
         if iPhoneANew == iPhoneBNew {
             #expect(phoneA == phoneB)
         }
+    }
+
+    @Test
+    func `same-provider Mac merges keep period totals unavailable and Today intact`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
+        let dayKey = "2026-09-28"
+
+        func snapshot(deviceID: String, period: String, amount: Double, isModern: Bool) -> SyncedUsageSnapshot {
+            let tokens = Int(amount * 100)
+            let daily = [SyncDailyPoint(
+                dayKey: dayKey,
+                costUSD: amount,
+                totalTokens: tokens,
+                costIsKnown: true)]
+            let periodSummary = isModern
+                ? SyncCostPeriodSummary(
+                    costUSD: amount,
+                    tokens: tokens,
+                    daily: daily,
+                    historyDays: period == "all" ? 640 : 28,
+                    historyCoverageIsEstablished: true,
+                    historyWindowIsComparable: true)
+                : nil
+            let summary = SyncCostSummary(
+                sessionCostUSD: amount,
+                sessionTokens: tokens,
+                last30DaysCostUSD: amount,
+                last30DaysTokens: tokens,
+                daily: daily,
+                historyDays: period == "rolling:30" ? 30 : (period == "all" ? 640 : 28),
+                reportingPeriod: period,
+                sourceUpdatedAt: now,
+                sourceDayKey: dayKey,
+                sessionDayKey: dayKey,
+                bucketTimeZoneIdentifier: "UTC",
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: true,
+                reportingPeriodSummary: periodSummary)
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "same-account@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: summary)
+            return SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: deviceID,
+                deviceID: deviceID,
+                appVersion: isModern ? "0.68.0.1" : "0.66.0.1")
+        }
+
+        let cases: [(String, String, Bool)] = [
+            ("all", "month-to-date", true),
+            ("rolling:30", "month-to-date", false),
+        ]
+        for (periodA, periodB, isModernA) in cases {
+            let macA = snapshot(deviceID: "Mac A", period: periodA, amount: 5, isModern: isModernA)
+            let macB = snapshot(deviceID: "Mac B", period: periodB, amount: 7, isModern: true)
+            let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+            let cost = try #require(merged.providers.first?.costSummary)
+
+            #expect(cost.reportingPeriodCostUSD == nil)
+            #expect(cost.last30DaysCostUSD == 12)
+            #expect(cost.reportingPeriodSummary?.costUSD == nil)
+            #expect(cost.historyWindowIsComparable == false)
+            #expect(cost.reportingPeriodHistoryWindowIsComparable == false)
+            #expect(cost.hasIncompleteHistoricalCostCoverage(at: now))
+            #expect(cost.sessionCostUSD == 12)
+            #expect(cost.sessionCostIsKnown == true)
+            #expect(cost.todayTotals(now: now).displayCostUSD == 12)
+            #expect(cost.todayTotals(now: now).isLowerBound == false)
+        }
+    }
+
+    @Test
+    func `incomplete modern scan keeps Today lower-bound metadata readable by old iOS`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
+        let dayKey = "2026-09-28"
+        let summary = SyncCostSummary(
+            sessionCostUSD: 4.25,
+            sessionTokens: 425,
+            last30DaysCostUSD: 4.25,
+            last30DaysTokens: 425,
+            daily: [SyncDailyPoint(dayKey: dayKey, costUSD: 4.25, totalTokens: 425, costIsKnown: true)],
+            historyDays: 640,
+            reportingPeriod: "all",
+            sourceUpdatedAt: now,
+            sourceDayKey: dayKey,
+            sessionDayKey: dayKey,
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: false,
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 4.25,
+                tokens: 425,
+                daily: [SyncDailyPoint(dayKey: dayKey, costUSD: 4.25, totalTokens: 425, costIsKnown: true)],
+                historyDays: 640,
+                historyCoverageIsEstablished: false,
+                historyWindowIsComparable: true))
+
+        #expect(summary.historyCoverageIsEstablished == false)
+        #expect(summary.historyWindowIsComparable == nil)
+        #expect(summary.reportingPeriodHistoryCoverageIsEstablished == false)
+        #expect(summary.reportingPeriodHistoryWindowIsComparable == true)
+        #expect(summary.todayTotals(now: now).displayCostUSD == 4.25)
+        #expect(summary.todayTotals(now: now).isLowerBound)
+        let legacy = try CloudSyncConstants.makeJSONDecoder().decode(
+            LegacyMatrixSummary.self,
+            from: CloudSyncConstants.makeJSONEncoder().encode(summary))
+        #expect(legacy.historyCoverageIsEstablished == false)
+        #expect(legacy.historyWindowIsComparable == false)
+        #expect(legacy.sessionCostIsKnown == true)
+        #expect(legacy.sessionDayKey == dayKey)
+        #expect(legacy.daily.isEmpty)
     }
 
     // MARK: - Single device (degenerate case)
