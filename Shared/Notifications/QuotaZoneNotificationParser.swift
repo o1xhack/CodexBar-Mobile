@@ -16,7 +16,8 @@ public enum QuotaZoneNotificationParser {
         recordsExamined: Int,
         hasContinuationCursor: Bool) -> Bool
     {
-        recordsExamined >= Self.warningRecordScanLimit && hasContinuationCursor
+        recordsExamined > Self.warningRecordScanLimit ||
+            (recordsExamined == Self.warningRecordScanLimit && hasContinuationCursor)
     }
 
     /// Quota states the parser recognizes — must stay in lockstep with the

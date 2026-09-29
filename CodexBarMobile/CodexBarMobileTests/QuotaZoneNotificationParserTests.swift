@@ -200,13 +200,16 @@ struct QuotaZoneNotificationParserTests {
             latestTransitionAt: now.addingTimeInterval(10.5)))
     }
 
-    @Test("warning record reads stop at a fixed bound when more records remain")
+    @Test("warning record reads stop when the scan is truncated or more records remain")
     func warningRecordScanBound() {
         #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
             recordsExamined: 499,
             hasContinuationCursor: true))
         #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
             recordsExamined: 500,
+            hasContinuationCursor: false))
+        #expect(QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 501,
             hasContinuationCursor: false))
         #expect(QuotaZoneNotificationParser.warningRecordScanReachedLimit(
             recordsExamined: QuotaZoneNotificationParser.warningRecordScanLimit,

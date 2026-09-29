@@ -258,7 +258,7 @@ private struct TodayCard: View {
                             .font(.subheadline)
                             .foregroundStyle(self.theme.foreground)
                         Spacer()
-                        Text(formatUSD(provider.cost))
+                        Text(provider.costDisplayValue)
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(self.theme.secondary)
                         if provider.shareIsKnown {
@@ -362,7 +362,7 @@ private struct ChartCard: View {
             .padding(.bottom, 14)
 
             // Hero number
-            Text(self.data.totalCostIsKnown ? formatUSD(self.data.totalCost) : "—")
+            Text(self.data.totalCostDisplayValue)
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)

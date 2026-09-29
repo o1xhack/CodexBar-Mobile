@@ -70,6 +70,7 @@ struct ShareCardData {
     let topModels: [BreakdownRow]
     let dailyBars: [DailyBar] // bars for chart (7 or 30 entries)
     var totalCostIsKnown = true
+    var totalCostIsLowerBound = false
     var todayCostIsKnown = true
     var todayCostIsLowerBound = false
     var costCoverageIsIncomplete = false
@@ -81,6 +82,12 @@ struct ShareCardData {
         let share: Double // 0–1
         let color: Color
         var shareIsKnown = true
+        var costIsLowerBound = false
+
+        var costDisplayValue: String {
+            let prefix = self.costIsLowerBound ? "≥" : ""
+            return "\(prefix)\(CostFormatting.usd(self.cost))"
+        }
     }
 
     struct BreakdownRow {
@@ -109,7 +116,8 @@ struct ShareCardData {
             cost: othersCost,
             share: othersShare,
             color: .gray,
-            shareIsKnown: self.totalCostIsKnown)
+            shareIsKnown: self.providers.dropFirst(5).allSatisfy(\.shareIsKnown),
+            costIsLowerBound: self.providers.dropFirst(5).contains(where: \.costIsLowerBound))
         return top5 + [others]
     }
 
@@ -129,7 +137,8 @@ struct ShareCardData {
 
     var totalCostDisplayValue: String {
         guard self.totalCostIsKnown else { return "—" }
-        return CostFormatting.usd(self.totalCost)
+        let prefix = self.totalCostIsLowerBound ? "≥" : ""
+        return "\(prefix)\(CostFormatting.usd(self.totalCost))"
     }
 
     func chartBarHeight(for day: DailyBar, chartHeight: CGFloat) -> CGFloat {
@@ -638,7 +647,7 @@ extension ShareCardData {
             let dailyCoverageIsComplete = providerDailyCoverageIsComplete(for: row, dayCount: 30)
             let summaryCost = authoritativeThirtyDaySummary(for: row).costUSD
             guard let summaryCost else {
-                return (dailyCost, dailyCoverageIsComplete || !availableDaily.isEmpty)
+                return (dailyCost, dailyCoverageIsComplete)
             }
             return (
                 max(dailyCost, summaryCost),
@@ -881,7 +890,7 @@ extension ShareCardData {
             let availableDays = filteredDays.filter { $0.costIsKnown != false }
             let dailyCost = availableDays.reduce(0) { $0 + $1.costUSD }
             periodCost = providerCost > 0 ? providerCost : dailyCost
-            periodCostIsKnown = monthlyProviderCosts.contains(where: \.isKnown)
+            periodCostIsKnown = !monthlyProviderCosts.isEmpty && monthlyProviderCosts.allSatisfy(\.isKnown)
             let providerTokens = insights.providerRows.reduce(0) { $0 + monthlyTokens(for: $1) }
             let dailyTokens = filteredDays.reduce(0) { $0 + $1.totalTokens }
             periodTokens = providerTokens > 0 ? providerTokens : dailyTokens
@@ -931,20 +940,29 @@ extension ShareCardData {
         let adjustedProviders: [ProviderRow] = selectedPeriodHasIncomparableHistoryWindow
             ? []
             : insights.providerRows.map { row in
-            let cost: Double = switch period {
+            let cost: Double
+            let costIsLowerBound: Bool
+            switch period {
             case .today:
-                row.todayCost
+                cost = row.todayCost
+                costIsLowerBound = row.todayCostIsLowerBound
             case .week:
-                weeklyCost(for: row).value
+                let weekly = weeklyCost(for: row)
+                cost = weekly.value
+                costIsLowerBound = !weekly.isKnown
             case .month:
-                monthlyCost(for: row).value
+                let monthly = monthlyCost(for: row)
+                cost = monthly.value
+                costIsLowerBound = !monthly.isKnown ||
+                    row.provider.costSummary?.hasIncompleteHistoricalCostCoverage(at: now) == true
             }
             return ProviderRow(
                 name: row.provider.providerName,
                 cost: cost,
                 share: periodCost > 0 ? cost / periodCost : 0,
                 color: Self.providerColor(for: row.provider.providerID),
-                shareIsKnown: providerSharesAreKnown)
+                shareIsKnown: providerSharesAreKnown,
+                costIsLowerBound: costIsLowerBound)
         }
 
         let activeDays: Int
@@ -1025,6 +1043,9 @@ extension ShareCardData {
             }
         }
         self.totalCostIsKnown = periodCostIsKnown
+        self.totalCostIsLowerBound = period == .today
+            ? insights.totalTodayCostIsLowerBound
+            : adjustedProviders.contains(where: \.costIsLowerBound)
         self.todayCostIsKnown = insights.totalTodayCostIsKnown
         self.todayCostIsLowerBound = insights.totalTodayCostIsLowerBound
         let selectedPeriodUsesIncompleteSummary = period == .month &&

@@ -1279,8 +1279,204 @@ struct CostShareServiceTests {
         #expect(insights.hasIncompleteCostData)
         #expect(month.totalCost == 5)
         #expect(month.totalCostIsKnown)
+        #expect(month.totalCostDisplayValue.hasPrefix("≥"))
+        #expect(month.providers.first?.costDisplayValue.hasPrefix("≥") == true)
         #expect(month.costCoverageIsIncomplete)
         #expect(!month.avgDailyCostIsKnown)
+    }
+
+    @Test
+    func `Month to date subtotal is unknown for a thirty-day share early in the month`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-05T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dates = (0..<5).map { offset in
+            calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: now))!
+        }
+        let summaryDays = dates.map { date in
+            SyncDailyPoint(
+                dayKey: formatter.string(from: date),
+                costUSD: 5,
+                totalTokens: 500,
+                costIsKnown: true)
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 5,
+            sessionTokens: 500,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [],
+            historyDays: 5,
+            reportingPeriod: "month-to-date",
+            sourceUpdatedAt: now,
+            sourceDayKey: formatter.string(from: now),
+            sessionDayKey: formatter.string(from: now),
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true,
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 25,
+                tokens: 2500,
+                daily: summaryDays,
+                historyDays: 5,
+                historyCoverageIsEstablished: true))
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let providerDays = zip(summaryDays, dates).map { point, date in
+            CostDashboardInsights.DailyPoint(
+                dayKey: point.dayKey,
+                date: date,
+                costUSD: point.costUSD,
+                costIsKnown: point.costIsKnown,
+                totalTokens: point.totalTokens)
+        }
+        let row = CostDashboardInsights.ProviderRow(
+            provider: provider,
+            thirtyDayCost: 25,
+            todayCost: 5,
+            thirtyDayTokens: 2500,
+            todayTokens: 500,
+            dailyPoints: providerDays)
+        let insights = CostDashboardInsights(
+            providerRows: [row],
+            dailyPoints: providerDays,
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            referenceDate: now,
+            readerCalendar: calendar)
+
+        let month = ShareCardData(insights: insights, period: .month, now: now, calendar: calendar)
+
+        #expect(month.totalCost == 25)
+        #expect(!month.totalCostIsKnown)
+        #expect(month.providers.first?.shareIsKnown == false)
+        #expect(month.providers.first?.costIsLowerBound == true)
+        #expect(month.providers.first?.costDisplayValue.hasPrefix("≥") == true)
+        #expect(month.costCoverageIsIncomplete)
+        #expect(month.dailyBars.filter(\.costIsKnown).count == 5)
+    }
+
+    @Test("Partial provider coverage keeps a mixed thirty-day total unknown")
+    func partialProviderCoverageKeepsTotalUnknown() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-05T12:00:00Z"))
+        let dayKey = "2026-09-05"
+
+        func provider(
+            id: String,
+            name: String,
+            dailyCost: Double,
+            thirtyDayCost: Double?,
+            historyCoverageIsEstablished: Bool) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: id,
+                providerName: name,
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: dailyCost,
+                    sessionTokens: 1000,
+                    last30DaysCostUSD: thirtyDayCost,
+                    last30DaysTokens: thirtyDayCost == nil ? nil : 30_000,
+                    daily: [SyncDailyPoint(
+                        dayKey: dayKey,
+                        costUSD: dailyCost,
+                        totalTokens: 1000,
+                        costIsKnown: true)],
+                    historyDays: 30,
+                    reportingPeriod: "rolling:30",
+                    sourceUpdatedAt: now,
+                    sourceDayKey: dayKey,
+                    sessionDayKey: dayKey,
+                    bucketTimeZoneIdentifier: "UTC",
+                    sessionCostIsKnown: true,
+                    historyCoverageIsEstablished: historyCoverageIsEstablished))
+        }
+        let fullyCoveredProvider = provider(
+            id: "codex",
+            name: "Codex",
+            dailyCost: 100,
+            thirtyDayCost: 100,
+            historyCoverageIsEstablished: true)
+        let partialProvider = provider(
+            id: "claude",
+            name: "Claude",
+            dailyCost: 25,
+            thirtyDayCost: nil,
+            historyCoverageIsEstablished: false)
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [fullyCoveredProvider, partialProvider],
+            syncTimestamp: now,
+            deviceName: "Mac"))
+
+        let month = ShareCardData(insights: insights, period: .month, now: now)
+
+        #expect(month.totalCost == 125)
+        #expect(!month.totalCostIsKnown)
+        #expect(month.totalCostDisplayValue == "—")
+        #expect(month.providers.count == 2)
+        #expect(month.providers.first(where: { $0.name == "Claude" })?.costIsLowerBound == true)
+        #expect(month.costCoverageIsIncomplete)
+    }
+
+    @Test("Others hides its share when provider shares are incomplete")
+    func othersShareUsesCollapsedProviderCoverage() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-05T12:00:00Z"))
+        let providers = (0..<6).map { index in
+            ProviderUsageSnapshot(
+                providerID: "provider-\(index)",
+                providerName: "Provider \(index)",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: 10,
+                    last30DaysTokens: 1000,
+                    daily: [],
+                    historyCoverageIsEstablished: index != 0))
+        }
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: providers,
+            syncTimestamp: now,
+            deviceName: "Mac"))
+
+        let month = ShareCardData(insights: insights, period: .month, now: now)
+
+        #expect(month.totalCostIsKnown)
+        #expect(month.totalCostIsLowerBound)
+        #expect(month.costCoverageIsIncomplete)
+        #expect(month.providers.count == 6)
+        #expect(month.providers.allSatisfy { !$0.shareIsKnown })
+        #expect(month.displayProviders.count == 6)
+        #expect(month.displayProviders.last?.name ==
+            OthersRowPreview.title(names: month.providers.dropFirst(5).map(\.name)))
+        #expect(month.displayProviders.last?.shareIsKnown == false)
     }
 
     @Test

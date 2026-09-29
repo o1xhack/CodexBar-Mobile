@@ -58,7 +58,7 @@ enum ProviderWindowLabel {
         period: SyncRateWindowPeriod? = nil,
         locale: Locale = .current) -> String
     {
-        if providerID == "raycast", period == .monthly, label == nil || label == "Additional" {
+        if providerID == "raycast", period == .monthly, (label == nil || label == "Additional") {
             return MobileLocalizedString.value("Monthly", defaultValue: "Monthly", locale: locale)
         }
         if providerID == "aixy",

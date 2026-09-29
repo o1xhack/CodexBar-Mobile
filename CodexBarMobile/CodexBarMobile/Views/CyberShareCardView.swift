@@ -124,7 +124,7 @@ private struct VibeShareCard: View {
                                 .font(.subheadline.weight(.medium))
                                 .lineLimit(1)
                             Spacer()
-                            Text(provider.cost, format: .currency(code: "USD"))
+                            Text(provider.costDisplayValue)
                                 .font(.subheadline.monospacedDigit())
                             if provider.shareIsKnown {
                                 Text(provider.share, format: .percent.precision(.fractionLength(0)))

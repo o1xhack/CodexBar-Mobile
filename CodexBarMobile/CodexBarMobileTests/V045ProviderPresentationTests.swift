@@ -75,6 +75,11 @@ struct V045ProviderPresentationTests {
                 providerID: "raycast",
                 locale: locale) == expectation.left)
         }
+        #expect(ProviderWindowLabel.localized(
+            "Additional",
+            fallback: "Limit",
+            providerID: "codex",
+            locale: Locale(identifier: "en")) == "Additional")
     }
 
     @Test
