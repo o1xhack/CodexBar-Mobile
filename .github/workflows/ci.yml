@@ -146,7 +146,7 @@ jobs:
     # Apple-Silicon runners: ~2-4x faster Swift builds than the retired-path
     # Intel pool and much shorter queues (see #2585 for the measurements).
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -195,8 +195,9 @@ jobs:
         run: ./Scripts/lint.sh lint-macos
 
       - name: Swift Test
-        # Intel cold builds can spend ~26 minutes compiling the full test target before isolated suites start.
-        timeout-minutes: 50
+        # Measured cold builds take ~24 minutes, followed by ~247 isolated groups per shard.
+        # Keep every group and its 120s deadline; leave room for the complete selection.
+        timeout-minutes: 80
         run: |
           CODEXBAR_TEST_GROUP_SIZE=1 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \

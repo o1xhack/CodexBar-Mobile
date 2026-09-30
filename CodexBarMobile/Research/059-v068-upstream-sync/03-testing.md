@@ -163,3 +163,11 @@ iOS r85 的 6 skips：`testRoomyNavigationPreservesProviderThroughPortraitResize
 待运行的最终 head full CI `36669923694` 因已知必然包含这个 fixture 缺口而取消，不计 passing evidence；修复合并后重新 dispatch full=true。r96 signed artifact inputs 不受这项测试/文档修改影响。
 
 `TZ=UTC swift test --filter CostReportingPeriodTests`：11 tests / 1 suite passed，完整 targets 编译通过，elapsed .032 秒；changed-file SwiftLint/SwiftFormat 与 diff check passed。日志 `upstream-ci-calendar-fixture-fix.log`。前一 full CI 的 Mac shard 4 已 success；其余 shards 仍等待结果，不提前计全绿。
+
+## 完整矩阵时限审计
+
+旧 full run `36667161490` Mac shard 3/0 分别在 04:54:36Z / 04:55:45Z 因 `Swift Test` 50 分钟总时限终止；已完成部分未报告断言失败。shard 3 04:04:23Z 开始，04:27:52Z discovery 完成（约 23.5 分钟冷构建），1481 selections / 每 shard 247 groups；到 50 分钟才完成 190/247，说明当前时限不能容纳完整 isolated matrix。
+
+将 Mac job 总时限 60→90 分钟、Swift Test step 50→80 分钟；保留 six shards、group size 1、每组 120 秒 timeout、retry/cleanup/所有 assertions，不减少 selections，不改变 PR Fast / post-merge / manual 触发策略。运行时二进制与 package artifact inputs 不变。Mac shard 1/4 与 Linux 三 jobs 已 success；shard 5 的唯一 assertion failure 为已修复 host-calendar fixture；shard 2 仍运行。
+
+时限调整验证：`check_ci_policy.sh`、`test_ci_policy.sh`（trigger forms）、`test_ci_path_gate.sh`、`test_ci_upstream_check_gate.sh` 均通过，`git diff --check` 通过。PR #159 的此前 `89e6896d6` 虽已 clean（5904327153）/ Fast Checks green，但这些结果不含新时限提交；需要新 head 重审和 full CI。
