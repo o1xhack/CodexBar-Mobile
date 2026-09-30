@@ -29,3 +29,5 @@ Date: 2026-09-30
 最终代码871项unit通过，完整UI10通过/6条件跳过/0失败，64组合渲染人工检查通过。iOS27原生配置保存、timeline count与桌面1/2/3/4项完成，中尺寸四项与iPad超大四项实际显示通过。App内四选checkbox上限验证通过；四语言/2.3.0(224)文档齐备。Release Simulator与真机Debug构建通过，已按用户指定安装this phone has no air，随后通过iPhone镜像完成真机默认四项与原生选择两项的桌面验收。详见 [03-testing](060-widget-provider-overview/03-testing.md)。未上传、发布或push。
 
 原26.5异常实例原地升级27后保留三项配置，成功传入timeline与桌面显示；默认测试实例已升级27。26.5真机及真实Production两Mac两iPhone兼容矩阵仍为明确替代验证，不从Simulator结果推断实机同步通过。
+
+用户随后授权上传及ASC资料准备，已完成2.3.0(224) VALID /IN_BETA_TESTING，并绑定Prepare for Submission草稿；未提交审核。详见 [04-testflight-app-store](060-widget-provider-overview/04-testflight-app-store.md)。

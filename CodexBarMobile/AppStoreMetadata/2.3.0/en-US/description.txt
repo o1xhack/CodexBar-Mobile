@@ -1,0 +1,18 @@
+CodexBar for iOS lets you monitor your AI coding tool usage on the go. View rate limits, spending, token usage, and budget tracking for providers like Claude, Cursor, ChatGPT, and OpenRouter — all synced from your Mac in real time via iCloud.
+
+Requires the CodexBar Mac app — this iOS app is a companion that reads usage data pushed by CodexBar on your Mac. Install the Mac app first, enable iCloud Sync in its settings, and your data will appear on your iPhone automatically.
+
+Features:
+• Share your AI spending as a beautiful image card with Classic or Vibe style options
+• Export share cards for Today, 7 Days, or 30 Days, with dark mode support
+• Real-time rate limit tracking with reset countdowns, budget progress, and daily cost breakdowns
+• Cost dashboard with provider share, model and service mix, and 30-day spend analysis
+• Interactive charts with Bar and Line styles, press-and-hold inspection, and horizontal scrolling for history
+• Daily spend and token usage views with clearer summaries and sharper breakdown amounts
+• Sharper percentage and cost labels across provider cards and tighter layouts for easier reading
+• Toggle between used and remaining quota display in Settings
+• Smarter chart axis scaling with clean integer tick marks for easier reading
+• Improved iCloud sync reliability, better error reporting, pull-to-refresh, and built-in onboarding guidance
+
+Open Source
+CodexBar is built on the open-source CodexBar project, licensed under MIT. This fork (github.com/o1xhack/CodexBar-Mobile) adds iCloud sync and the iOS companion app. Contributions and feedback are welcome on GitHub.
