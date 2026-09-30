@@ -171,3 +171,11 @@ iOS r85 的 6 skips：`testRoomyNavigationPreservesProviderThroughPortraitResize
 将 Mac job 总时限 60→90 分钟、Swift Test step 50→80 分钟；保留 six shards、group size 1、每组 120 秒 timeout、retry/cleanup/所有 assertions，不减少 selections，不改变 PR Fast / post-merge / manual 触发策略。运行时二进制与 package artifact inputs 不变。Mac shard 1/4 与 Linux 三 jobs 已 success；shard 5 的唯一 assertion failure 为已修复 host-calendar fixture；shard 2 仍运行。
 
 时限调整验证：`check_ci_policy.sh`、`test_ci_policy.sh`（trigger forms）、`test_ci_path_gate.sh`、`test_ci_upstream_check_gate.sh` 均通过，`git diff --check` 通过。PR #159 的此前 `89e6896d6` 虽已 clean（5904327153）/ Fast Checks green，但这些结果不含新时限提交；需要新 head 重审和 full CI。
+
+## Linux 完整测试的调度隔离（05:16Z）
+
+PR #159 最终 head `2f34d93411429b7a9c593268ce4ff18ad00a7158` clean（https://github.com/o1xhack/CodexBar-Mobile/pull/159#issuecomment-5904435051），gate rounds=3 / unresolved=0，Fast Checks `36671280563` success；merge `996ea344dca7ae883aa7a83bddf781559de3060e`。完整 gate `36671727579` 的 Linux ARM64 success，Linux x64 的唯一 failure 为 Abacus billing timeout：5 秒 request budget 仍正确，但整个 fetch 在满负载并行 suite 调度下耗时 9.3569 秒，超过原严格 9 秒断言。日志 `upstream-ci-final-linux-x64.log`。
+
+Linux 测试改用 `swift test --no-parallel`，与本机最终全量和 Mac isolated groups 的串行语义一致；保留 Abacus 的 5 秒 request budget、4–9 秒 wall-clock assertions、全部测试和其他 deadline，不扩大断言容差、不跳过测试。Linux job 总时限 20→40 分钟，以容纳串行测试和冷构建；不改 PR/merge/manual 触发策略、Mac shards 或任何 runtime/package inputs。当前 Mac gate继续运行，其证据不能被 Linux failure 当成全绿；修复需自身 review、合并及新的远端 Linux 验证。
+
+串行定向复测：`swift test --no-parallel --filter AbacusPluginTests` 10 tests / 1 suite 全通过（38.740 秒），保留两 engine 的严格 elapsed 断言；日志 `upstream-ci-abacus-serial.log`。CI policy / trigger forms / path gate / upstream reuse gate 与 diff check 均通过。远端 Linux 调度效果仍待新 head 实测，不将本机结果当 Linux 证据。
