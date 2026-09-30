@@ -3,6 +3,40 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.68.0.1</title>
+            <pubDate>Wed, 30 Sep 2026 00:13:38 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>159.1.2.3.0</sparkle:version>
+            <sparkle:shortVersionString>0.68.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.68.0.1-Mobile 2.3.0</h2>
+<h3>Added</h3>
+<ul>
+<li>One Mac release train for every official upstream release from v0.67.0 through v0.68.0, including shared cost reporting periods, portable preferences, Stay Awake and credential-expiry options, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer cost details, and the Mistral Vibe Monthly Plan.</li>
+<li>Mac-to-iPhone sync preparation for the newly surfaced provider details and quota windows, with stable provider IDs and existing opaque payload compatibility.</li>
+<li>Mistral, ClinePass, Muse, Homebrew updates, and plugin form/POST/calendar-month improvements from v0.68.0.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Advance the Mac fork to <code>0.68.0.1</code> / build <code>159.1</code>, Sparkle <code>159.1.2.3.0</code>, and iOS <code>2.3.0</code> in one release train. Preserve Production CloudKit, fork release and CI policy, and the current Mac-to-iPhone sync contract.</li>
+<li>Include upstream plugin consolidation, Usage & Spend reporting, Codex session presentation, and status-item stability work through v0.68.0.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Include upstream security, credential handling, provider accounting, history-boundary, retry, and performance fixes through v0.68.0, including the QuickJS-NG 0.17.0 memory-safety update.</li>
+<li>Preserve fork-specific CloudKit, parser invalidation, Mac fleet sync ownership, and versioning constraints while integrating upstream.</li>
+<li>Keep native-currency Mistral history available in iPhone provider details without counting it as USD spend or exposing it as legacy USD history.</li>
+</ul>
+<h3>Upstream release range</h3>
+<ul>
+<li><code>v0.67.0</code>: shared reporting periods, portable preferences and switcher shortcuts, Stay Awake and account-scoped credential-expiry notifications, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer LiteLLM/Claude Admin/Grok cost details, 12 currencies, and the reported provider, cache, cookie-consent, and QuickJS fixes.</li>
+<li><code>v0.68.0</code>: Mistral Vibe Monthly Plan, ClinePass session reuse, optional Muse team quotas, Homebrew cask updates, plugin form/POST and calendar-month support, Codex daemon/dashboard fixes, status-item stability, Claude credential fallback, Venice Clerk sessions, Nous billed activity, Cursor date-boundary handling, and plugin-worker retry recovery.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.68.0.1-mobile.2.3.0/CodexBar-0.68.0.1-mobile.2.3.0.zip" length="80524313" type="application/octet-stream" sparkle:edSignature="vbF1Wg+VH88NL5pv47kbEsqCwTWNaXVHItDjWV6FmlNILQEoKNEA2K3iNvqdcQY4rkldaqkxyolEwiIKk6MaDg=="/>
+        </item>
+        <item>
             <title>0.66.0.1</title>
             <pubDate>Fri, 25 Sep 2026 18:05:29 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -56,43 +90,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.58.0.1-mobile.1.23.0/CodexBar-0.58.0.1-mobile.1.23.0.zip" length="76821031" type="application/octet-stream" sparkle:edSignature="StLtGfBDFs1h3XX01GNzg+TTg0uq4fwLrjIWGMmdRFcwLkrs0fvibFsX7xIRYlQnV3xcbX5Kv9DWLSTiVXJZAw=="/>
-        </item>
-        <item>
-            <title>0.56.0.1</title>
-            <pubDate>Sun, 30 Aug 2026 18:15:19 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>131.1.1.23.0</sparkle:version>
-            <sparkle:shortVersionString>0.56.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.56.0.1-Mobile 1.23.0</h2>
-<h3>Added</h3>
-<ul>
-<li>Upstream Mac: include Antigravity local SQLite token history, Cursor estimated API-rate costs, Cursor Grok Bot usage, Codex Business/Enterprise monthly credits, Kiro overage and z.ai balance details, Alibaba Bailian CLI quotas, Fireworks spend, and every provider/CLI improvement through v0.56.0.</li>
-<li>Mobile compatibility: carry the new dynamic quota windows, generic provider details, reported spend, and estimated/unpriced cost coverage through the existing bounded opaque payload, with four-language Kiro overage labels and v0.56 old/new fixtures.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Fork release: combine upstream v0.54.1-v0.56.0 into Mac <code>0.56.0.1</code> (<code>131.1.1.23.0</code> Sparkle build) and iOS <code>1.23.0</code> as one release train.</li>
-<li>Claude fleet sync: migrate same-email claude-swap snapshots to stable slot keys only after the replacement save succeeds, while preserving fork pending-delete ownership, retry, cancellation, and Mobile-sync isolation.</li>
-<li>Usage & Spend: preserve established and partial histories while absorbing upstream fair scheduling, incremental OpenCodex reads, cached report views, estimated-cost provenance, and 365-day freshness fixes.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: incorporate CLI 0.149 read-only approval compatibility, OAuth expiry handling, early weekly-reset recovery, account-scoped error cleanup, priority cursor persistence, and cost catch-up fixes.</li>
-<li>Provider reliability: incorporate Alibaba, Antigravity, Claude, Cursor, Fireworks, Gemini, Grok, OpenCode Go, OpenRouter, Qwen Cloud, Warp, and other fixes from v0.54.1-v0.56.0.</li>
-<li>Security: isolate CLI helper validation and administrator commands from inherited shell functions and startup hooks without changing the fork install and release paths.</li>
-<li>Fork integration: preserve Production CloudKit, Mobile/fleet sync ownership, collision-safe versioning, signing, live appcast history, fork CI policy, README branding, parser cache invalidation, and four-language iOS localization.</li>
-</ul>
-<h3>Upstream release range</h3>
-<ul>
-<li><code>v0.54.1</code>: Codex CLI/profile fixes, layout editor repair, Claude slot migration, Cursor/Kiro/z.ai additions, and faster Codex/Spend startup.</li>
-<li><code>v0.55.0</code>: ChatGPT-bundled Codex activity, Antigravity CLI/offline fallback, Gemini shutdown guidance, token/cost parity, local readers, and OpenCodex performance.</li>
-<li><code>v0.55.1</code>: Codex reset/spend recovery, Bailian CLI-first quotas, Grok/Fireworks/OpenRouter/Amp/OpenCode fixes, and incremental OpenCodex scanning.</li>
-<li><code>v0.56.0</code>: Antigravity SQLite history, Cursor estimated-cost coverage, Codex/Grok/Claude/OpenRouter correctness, cached-cost performance, WebView lifecycle, and CLI installer hardening.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.56.0.1-mobile.1.23.0/CodexBar-0.56.0.1-mobile.1.23.0.zip" length="74884775" type="application/octet-stream" sparkle:edSignature="oB61qduiJIXirTAre2BM1ZAO0xDaVr+ox0Ndgwci9Q/Zc4p9sXkA7GRlcAVFOP4ZiXJ+eEQY960uUcdRAbNGAA=="/>
         </item>
         <item>
             <title>0.14.0</title>
