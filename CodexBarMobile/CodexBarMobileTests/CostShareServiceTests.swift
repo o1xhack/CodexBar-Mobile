@@ -1371,6 +1371,93 @@ struct CostShareServiceTests {
         #expect(month.dailyBars.filter(\.costIsKnown).count == 5)
     }
 
+    @Test(
+        "MTD share coverage uses the producer calendar when the reader calendar differs",
+        arguments: [31, nil] as [Int?])
+    func mtdShareCoverageUsesProducerCalendar(historyDays: Int?) throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-31T12:00:00Z"))
+        var producerCalendar = Calendar(identifier: .gregorian)
+        producerCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        var readerCalendar = Calendar(identifier: .islamicUmmAlQura)
+        readerCalendar.timeZone = producerCalendar.timeZone
+        let formatter = DateFormatter()
+        formatter.calendar = producerCalendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = producerCalendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dayKey = formatter.string(from: now)
+        #expect(readerCalendar.component(.day, from: now) < 30)
+
+        let dailyPoint = SyncDailyPoint(
+            dayKey: dayKey,
+            costUSD: 1,
+            totalTokens: 100,
+            costIsKnown: true)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 1,
+            sessionTokens: 100,
+            last30DaysCostUSD: nil,
+            last30DaysTokens: nil,
+            daily: [],
+            historyDays: historyDays,
+            reportingPeriod: "month-to-date",
+            sourceUpdatedAt: now,
+            sourceDayKey: dayKey,
+            sessionDayKey: dayKey,
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true,
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 1,
+                tokens: 100,
+                daily: [dailyPoint],
+                historyDays: historyDays,
+                historyCoverageIsEstablished: true))
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let providerDay = CostDashboardInsights.DailyPoint(
+            dayKey: dayKey,
+            date: now,
+            costUSD: 1,
+            costIsKnown: true,
+            totalTokens: 100)
+        let row = CostDashboardInsights.ProviderRow(
+            provider: provider,
+            thirtyDayCost: 1,
+            todayCost: 1,
+            thirtyDayTokens: 100,
+            todayTokens: 100,
+            dailyPoints: [providerDay])
+        let insights = CostDashboardInsights(
+            providerRows: [row],
+            dailyPoints: [providerDay],
+            modelRows: [],
+            serviceRows: [],
+            budgetRows: [],
+            referenceDate: now,
+            readerCalendar: readerCalendar)
+
+        let month = ShareCardData(
+            insights: insights,
+            period: .month,
+            now: now,
+            calendar: readerCalendar)
+
+        #expect(month.totalCost == 1)
+        #expect(month.totalCostIsKnown)
+        #expect(month.providers.first?.shareIsKnown == true)
+        #expect(!month.costCoverageIsIncomplete)
+    }
+
     @Test("Partial provider coverage keeps a mixed thirty-day total unknown")
     func partialProviderCoverageKeepsTotalUnknown() throws {
         let now = try #require(ISO8601DateFormatter().date(from: "2026-09-05T12:00:00Z"))

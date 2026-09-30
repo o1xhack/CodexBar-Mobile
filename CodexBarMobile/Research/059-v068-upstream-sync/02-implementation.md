@@ -37,7 +37,8 @@ Date: 2026-09-28
 - Mac 完整 lint 通过：2,724 个文件 0 个 SwiftLint 违规；iOS `Localizable.xcstrings` 362 个 source keys 全部存在，四种语言均为 translated；parser-version audit 无需 bump。日志 `mac-lint-final-pass.log`。
 - iOS Release Simulator build 通过；6 个定向测试套件共 151 项通过，包含 16 组合 payload/merge 矩阵；20 项 quota notification parser 测试通过并覆盖 iOS 2.2 后缀规则。日志 `ios-release-build-final.log`、`ios-focused-final-resolved.log`、`ios-parser-compat-final.log`。
 - 16 种设备新旧组合都已逐格记录为 `substituted`；没有真实设备 fleet、CloudKit Production、APNs 或旧版二进制验证。CloudKit Production schema 审计为 `NO_DEPLOY`，没有 Production read/write。
-- Independent review 曾发现旧 NSE 对 named-window warning record name 的 P2；已调整尾部格式、增加旧解析器回归验证并复审。最终代码复审未发现阻塞项。
-- Mac draft 尚未创建。它需 Developer ID 签名/Apple notarization、Sparkle 私钥和 GitHub release 凭证。授权后只运行 `Scripts/release.sh --draft-no-tag-push` 创建无 tag draft；该模式不推 tag，且不会 finalize/publish。依 Goal 的凭证边界，在等待授权期间不读取或使用这些凭证。
+- Independent review 曾发现旧 NSE 对 named-window warning record name 的 P2；已调整尾部格式、增加旧解析器回归验证并复审。后续 review 发现的 cost-window coverage 与 reader/producer calendar 边界问题已修复并复测；当前候选仍须通过新 head 的 clean review gate。
+- 最新候选全量 iOS 测试通过：867 passed、6 skipped、0 failed；Release Simulator build 与全量 lint 通过。完整日志、result bundles、review 修复与未覆盖风险见 `03-testing.md`。
+- 用户已授权 Mac live release、合并 PR #155 和关闭 #150/#151；不包含 TestFlight 上传或 CloudKit deploy。先从同步分支源代码创建签名、公证的 tagless draft；clean review gate 与 Final CI 通过后再执行合并、tag 和 finalize。#154 保持 open。
 
-Research 保持 `in-progress`，直到 Mac draft 成功生成并记录链接；不得把 draft 阶段描述为 live release。
+Research 保持 `in-progress`，直到 Mac release、对应 issue 与证据收尾完成。

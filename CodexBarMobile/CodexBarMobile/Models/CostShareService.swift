@@ -566,7 +566,26 @@ extension ShareCardData {
             {
                 availableStartOffset = -(min(reportedDays, 365) - 1)
             } else if summary.reportingPeriod == "month-to-date" {
-                availableStartOffset = -(calendar.component(.day, from: today) - 1)
+                if let historyDays = summary.reportingPeriodHistoryDays {
+                    guard historyDays > 0 else { return false }
+                    availableStartOffset = -(min(historyDays, 365) - 1)
+                } else {
+                    // MTD is defined by the producer's Gregorian cost calendar,
+                    // not by the phone's display calendar. Older summaries
+                    // without an explicit day count can derive the month start
+                    // from the producer's source day key and bucket time zone.
+                    let producerDayKey = summary.sourceDayKey
+                        ?? summary.sourceUpdatedAt.map(summary.costDayKey)
+                        ?? summary.costDayKey(for: now)
+                    let producerMonthStartKey = "\(producerDayKey.prefix(7))-01"
+                    guard let producerMonthStartOffset = summary.costDayOffset(
+                        for: producerMonthStartKey,
+                        from: now)
+                    else {
+                        return false
+                    }
+                    availableStartOffset = producerMonthStartOffset
+                }
             } else if summary.reportingPeriod == "all",
                       let historyDays = summary.reportingPeriodHistoryDays,
                       historyDays > 0
