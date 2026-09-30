@@ -414,7 +414,7 @@ enum CodexBarWidgetSnapshotBuilder {
             usagePercent: usagePercent,
             todayCostUSD: today?.costIsKnown == false ? nil : today?.costUSD,
             todayCostIsLowerBound: today?.isLowerBound == true ? true : nil,
-            thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD(at: now),
+            thirtyDayCostUSD: provider.costSummary?.completeThirtyDayHistoryCostUSD(at: now),
             tokensToday: today?.tokens,
             isError: provider.isError,
             statusMessage: provider.statusMessage,

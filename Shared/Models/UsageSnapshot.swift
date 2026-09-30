@@ -640,6 +640,18 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.hasIncompleteHistoricalCostCoverage(at: referenceDate) ? nil : self.reportingPeriodCostUSD
     }
 
+    /// A cost value that is safe to place under a fixed "30 Days" label.
+    /// Period-aware writers may report all-time or month-to-date totals in
+    /// `reportingPeriodCostUSD`; those values must not be projected as a
+    /// rolling 30-day amount. Legacy payloads without a reporting-period
+    /// summary retain their historical `last30DaysCostUSD` semantics.
+    public func completeThirtyDayHistoryCostUSD(at referenceDate: Date) -> Double? {
+        let isThirtyDayPeriod = self.reportingPeriod == "rolling:30" ||
+            (self.reportingPeriod == nil && self.reportingPeriodSummary == nil)
+        guard isThirtyDayPeriod else { return nil }
+        return self.completeHistoryCostUSD(at: referenceDate)
+    }
+
     /// Formats a timestamp in the producer's configured cost-bucket calendar.
     /// Legacy payloads have no identifier and retain the historical reader-
     /// local behavior. An invalid non-nil identifier is treated as incomplete

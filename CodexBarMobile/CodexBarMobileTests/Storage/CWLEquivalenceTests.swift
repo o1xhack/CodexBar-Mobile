@@ -429,6 +429,79 @@ struct CWLEquivalenceTests {
     }
 
     @Test
+    func `completed wider history treats omitted active-day rows as zero in a shorter window`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-29T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let today = calendar.startOfDay(for: now)
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        let activeDays = [0, 3].map { offset -> SyncDailyPoint in
+            let date = calendar.date(byAdding: .day, value: -offset, to: today)!
+            return SyncDailyPoint(
+                dayKey: formatter.string(from: date),
+                costUSD: offset == 0 ? 2 : 5,
+                totalTokens: offset == 0 ? 20 : 50,
+                costIsKnown: true)
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 20,
+            last30DaysCostUSD: 40,
+            last30DaysTokens: 400,
+            daily: activeDays,
+            historyDays: 30,
+            reportingPeriod: "rolling:30",
+            sourceUpdatedAt: now,
+            sourceDayKey: formatter.string(from: today),
+            sessionDayKey: formatter.string(from: today),
+            bucketTimeZoneIdentifier: "UTC",
+            sessionCostIsKnown: true,
+            historyCoverageIsEstablished: true,
+            historyWindowIsComparable: true,
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 40,
+                tokens: 400,
+                daily: activeDays,
+                historyDays: 30,
+                historyCoverageIsEstablished: true,
+                historyWindowIsComparable: true))
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "dev@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: summary)
+        let rollup = try CostLedgerProviderRollup(
+            providerID: "codex",
+            accountEmail: "dev@example.com",
+            totalCostUSD: 7,
+            totalTokens: 70,
+            dailyPoints: activeDays,
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
+
+        let totals = CostDashboardInsights.ledgerDisplayTotals(
+            rollup: rollup,
+            provider: provider,
+            windowDays: 7,
+            now: now,
+            calendar: calendar)
+
+        #expect(totals.costUSD == 7)
+        #expect(totals.tokens == 70)
+        #expect(totals.costIsKnown)
+    }
+
+    @Test
     func `CWL month-to-date daily fallback stays incomplete for a thirty-day window`() throws {
         let now = try #require(ISO8601DateFormatter().date(from: "2026-09-28T12:00:00Z"))
         let timeZone = try #require(TimeZone(identifier: "UTC"))

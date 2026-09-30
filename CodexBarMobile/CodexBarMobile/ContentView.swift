@@ -2265,8 +2265,7 @@ struct CostDashboardInsights: Sendable {
 
         let today = calendar.startOfDay(for: now)
         let formatter = Self.dayKeyFormatter(calendar: calendar)
-        let knownOffsets = Set(points.compactMap { point -> Int? in
-            guard point.costIsKnown != false else { return nil }
+        let windowPoints = points.compactMap { point -> (offset: Int, isKnown: Bool)? in
             let offset: Int? = if !pointsUseReaderCalendar, let summary {
                 summary.costDayOffset(for: point.dayKey, from: now)
             } else if let date = formatter.date(from: point.dayKey) {
@@ -2278,10 +2277,80 @@ struct CostDashboardInsights: Sendable {
                 nil
             }
             guard let offset, offset >= -(windowDays - 1), offset <= 0 else { return nil }
-            return offset
-        })
+            return (offset, point.costIsKnown != false)
+        }
+        guard windowPoints.allSatisfy({ $0.isKnown }) else { return false }
+        let knownOffsets = Set(windowPoints.map { $0.offset })
+        if let summary,
+           Self.completedSummaryCoversSelectedWindow(
+               summary,
+               windowDays: windowDays,
+               now: now,
+               readerCalendar: calendar,
+               pointsUseReaderCalendar: pointsUseReaderCalendar)
+        {
+            // A completed wider scan certifies omitted daily rows as zeroes.
+            // Active-day-only summaries are intentionally sparse.
+            return true
+        }
         let requiredOffsets = Set((0..<windowDays).map { -$0 })
         return requiredOffsets.isSubset(of: knownOffsets)
+    }
+
+    private static func completedSummaryCoversSelectedWindow(
+        _ summary: SyncCostSummary,
+        windowDays: Int,
+        now: Date,
+        readerCalendar: Calendar,
+        pointsUseReaderCalendar: Bool) -> Bool
+    {
+        guard windowDays > 0,
+              summary.reportingPeriodHistoryCoverageIsEstablished == true,
+              summary.reportingPeriodHistoryWindowIsComparable != false,
+              !summary.hasIncompleteHistoricalCostCoverage(at: now),
+              !summary.hasInvalidBucketTimeZoneIdentifier,
+              summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
+        else {
+            return false
+        }
+
+        var sourceCalendar = Calendar(identifier: .gregorian)
+        sourceCalendar.timeZone = summary.bucketTimeZoneIdentifier
+            .flatMap(TimeZone.init(identifier:)) ?? .current
+        let windowCalendar = pointsUseReaderCalendar ? readerCalendar : sourceCalendar
+        guard let selectedStart = windowCalendar.date(
+            byAdding: .day,
+            value: -(windowDays - 1),
+            to: windowCalendar.startOfDay(for: now)) else {
+            return false
+        }
+        let selectedStartKey = summary.costDayKey(for: selectedStart)
+        let currentSourceDayKey = summary.costDayKey(for: now)
+        let sourceOffset = summary.costDayOffset(for: selectedStartKey, from: now)
+
+        if let period = summary.reportingPeriod {
+            if period == "all" { return true }
+            if period == "month-to-date" {
+                return selectedStartKey.hasPrefix(String(currentSourceDayKey.prefix(7)))
+            }
+            guard period.hasPrefix("rolling:"),
+                  let days = Int(period.dropFirst("rolling:".count)),
+                  (1...365).contains(days),
+                  let sourceOffset else {
+                return false
+            }
+            return sourceOffset >= -(days - 1) && sourceOffset <= 0
+        }
+
+        // Legacy summaries used last30Days fields without a reporting-period
+        // discriminator. Treat them as rolling only when the producer marked
+        // the scan complete; otherwise require every date to be present above.
+        guard summary.reportingPeriodSummary == nil,
+              let sourceOffset else {
+            return false
+        }
+        let legacyDays = min(max(summary.reportingPeriodHistoryDays ?? 30, 1), 365)
+        return sourceOffset >= -(legacyDays - 1) && sourceOffset <= 0
     }
 
     private static func breakdownRows(
