@@ -1815,28 +1815,7 @@ struct CostDashboardInsights: Sendable {
         })
         guard periods.count == 1 else { return false }
         guard periods.first == "month-to-date", summaries.count > 1 else { return true }
-        // MTD totals are comparable only when the producer calendars start
-        // the same month at the same instant. Unknown legacy boundaries are
-        // not evidence that two independent monthly totals can be combined.
-        let monthStarts = summaries.compactMap { summary -> Date? in
-            guard let identifier = summary.bucketTimeZoneIdentifier,
-                  let timeZone = TimeZone(identifier: identifier)
-            else { return nil }
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = timeZone
-            let formatter = DateFormatter()
-            formatter.calendar = calendar
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = timeZone
-            formatter.dateFormat = "yyyy-MM-dd"
-            formatter.isLenient = false
-            let sourceDay = summary.sourceDayKey ?? summary.sourceUpdatedAt.map { formatter.string(from: $0) }
-            guard let sourceDay, let date = formatter.date(from: sourceDay),
-                  formatter.string(from: date) == sourceDay
-            else { return nil }
-            return calendar.dateInterval(of: .month, for: date)?.start
-        }
-        return monthStarts.count == summaries.count && Set(monthStarts).count == 1
+        return ProviderSnapshotMerger.monthToDateWindowsAreComparable(summaries)
     }
 
     var historyDisplayTitle: String {

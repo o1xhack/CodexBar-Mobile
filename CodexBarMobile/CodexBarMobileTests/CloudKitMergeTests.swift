@@ -2338,6 +2338,35 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `local-cost MTD merge rejects stale or unknown producer month boundaries`() throws {
+        func snapshot(id: String, day: String?) -> SyncedUsageSnapshot {
+            self.makeSnapshot(deviceName: id, deviceID: id, providers: [
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+                    accountEmail: "synthetic@example.com", loginMethod: nil, statusMessage: nil,
+                    isError: false, lastUpdated: self.newerDate,
+                    costSummary: SyncCostSummary(
+                        sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: 12,
+                        last30DaysTokens: 120, daily: [], historyDays: 15,
+                        reportingPeriod: "month-to-date", sourceDayKey: day,
+                        bucketTimeZoneIdentifier: "UTC", historyCoverageIsEstablished: true)),
+            ])
+        }
+        for (day, comparable) in [("2026-09-15", true), ("2026-08-15", false), (nil, false)] {
+            let merged = try #require(CloudSyncReader.mergeSnapshots([
+                snapshot(id: "mac-current", day: "2026-09-15"),
+                snapshot(id: "mac-other", day: day),
+            ]))
+            let cost = try #require(merged.providers.first?.costSummary)
+            #expect(cost.historyWindowIsComparable == comparable)
+            if !comparable {
+                #expect(cost.completeHistoryCostUSD == nil)
+                #expect(!CostDashboardInsights(snapshot: merged).hasComparableHistoryTotals)
+            }
+        }
+    }
+
+    @Test
     func `local-cost merge accepts all-time writers with different history lengths`() throws {
         let todayKey = SyncCostSummary.iso8601DayKey(for: Date())
         func snapshot(name: String, id: String, days: Int, cost: Double) -> SyncedUsageSnapshot {

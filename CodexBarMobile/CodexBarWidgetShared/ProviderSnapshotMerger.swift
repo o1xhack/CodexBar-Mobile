@@ -20,6 +20,32 @@ enum ProviderSnapshotMerger {
         self.localCostProviders.contains(providerID)
     }
 
+    static func monthToDateWindowsAreComparable(_ summaries: [SyncCostSummary]) -> Bool {
+        guard summaries.count > 1 else { return true }
+        // MTD totals are comparable only when the producer calendars start
+        // the same month at the same instant. Unknown legacy boundaries are
+        // not evidence that two independent monthly totals can be combined.
+        let monthStarts = summaries.compactMap { summary -> Date? in
+            guard let identifier = summary.bucketTimeZoneIdentifier,
+                  let timeZone = TimeZone(identifier: identifier)
+            else { return nil }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.isLenient = false
+            let sourceDay = summary.sourceDayKey ?? summary.sourceUpdatedAt.map { formatter.string(from: $0) }
+            guard let sourceDay, let date = formatter.date(from: sourceDay),
+                  formatter.string(from: date) == sourceDay
+            else { return nil }
+            return calendar.dateInterval(of: .month, for: date)?.start
+        }
+        return monthStarts.count == summaries.count && Set(monthStarts).count == 1
+    }
+
     static func mergeSnapshots(
         _ snapshots: [SyncedUsageSnapshot],
         linkages: [ProviderAccountLinkage] = [],
@@ -682,7 +708,9 @@ enum ProviderSnapshotMerger {
         }
         let reportingPeriodsAreCompatible = Set(normalizedReportingPeriods).count == 1
         let isAllTimeWindow = normalizedReportingPeriods.first == "all"
-        let historyWindowsAreCompatible = reportingPeriodsAreCompatible &&
+        let monthBoundariesAreCompatible = normalizedReportingPeriods.first != "month-to-date" ||
+            self.monthToDateWindowsAreComparable(summaries)
+        let historyWindowsAreCompatible = reportingPeriodsAreCompatible && monthBoundariesAreCompatible &&
             (isAllTimeWindow || Set(normalizedHistoryDays).count == 1)
         // Preserve a fully legacy nil label. When rolling windows disagree,
         // report the widest normalized window; All Time writers can have
