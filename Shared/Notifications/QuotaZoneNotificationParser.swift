@@ -201,6 +201,28 @@ public enum QuotaZoneNotificationParser {
         return contemporaneousCount > 1
     }
 
+    /// An ambiguous push may still identify an account when every possible
+    /// triggering record names the same account. Missing timestamps remain
+    /// possible triggers; missing or conflicting account labels suppress it.
+    public static func commonWarningAccount(
+        records: [(transitionAt: Date?, accountEmail: String?)],
+        latestTransitionAt: Date? = nil,
+        tolerance: TimeInterval = 2) -> String?
+    {
+        guard let latest = latestTransitionAt ?? records.compactMap(\.transitionAt).max() else { return nil }
+        let candidates = records.filter { record in
+            record.transitionAt.map { abs($0.timeIntervalSince(latest)) <= tolerance } ?? true
+        }
+        let accounts = candidates.map { record -> String? in
+            let account = record.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return account?.isEmpty == false ? account : nil
+        }
+        guard let first = accounts.first, let account = first,
+              accounts.allSatisfy({ $0 == account })
+        else { return nil }
+        return account
+    }
+
     /// Extracts the quota zone ID from a CloudKit remote-notification user-info
     /// dictionary. Returns `nil` if the payload isn't a `CKRecordZoneNotification`
     /// or the zone isn't one of our quota push zones (defensive against future

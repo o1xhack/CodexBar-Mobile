@@ -101,13 +101,17 @@ SMOKE_ENV=(/usr/bin/env -i
   "TMPDIR=$SMOKE_DIR/tmp/"
   "CODEXBAR_CONFIG=$SMOKE_HOME/config.json"
   "SWIFT_TESTING=1"
+  "CODEXBAR_DISABLE_KEYCHAIN_ACCESS=1"
   "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1"
   "CODEXBAR_TEST_CODEX_FILE_ISOLATION=1"
   "CODEXBAR_TEST_SESSION_FILE_ISOLATION=1")
 SANDBOX_PROFILE="(version 1)
 (allow default)
 (deny network*)
+(deny mach-lookup (global-name-regex #\".*[Cc]loud.*\"))
+(deny mach-lookup (global-name-regex #\".*cfprefsd.*\"))
 (deny file-read* (subpath \"${ROOT}\"))
+(deny file-read* (require-all (subpath \"${HOME}\") (require-not (subpath \"${SMOKE_DIR}\"))))
 (deny file-write* (require-all (subpath \"${HOME}\") (require-not (subpath \"${SMOKE_DIR}\"))))"
 
 fail_with_probe_log() {
@@ -255,7 +259,7 @@ fi
 wait "$SMOKE_PID" 2>/dev/null || true
 SMOKE_PID=""
 
-if [[ "$GUI_SESSION" == "0" ]]; then
+if [[ "$GUI_SESSION" == "0" && "${CODEXBAR_REQUIRE_LAUNCH_SURVIVAL:-0}" != "1" ]]; then
   warn "Launch smoke check inconclusive: app exited early without the resource-bundle fatal signature (no Aqua session; likely unrelated to resources)."
   exit 0
 fi

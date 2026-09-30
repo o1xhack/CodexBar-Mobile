@@ -315,7 +315,10 @@ final class NotificationService: UNNotificationServiceExtension {
                 transitionTimes: transitionTimes,
                 latestTransitionAt: record["transitionAt"] as? Date)
             {
-                return .ambiguous(providerName: providerName, accountEmail: normalizedAccount)
+                let commonAccount = QuotaZoneNotificationParser.commonWarningAccount(
+                    records: records.map { ($0["transitionAt"] as? Date, $0["accountEmail"] as? String) },
+                    latestTransitionAt: record["transitionAt"] as? Date)
+                return .ambiguous(providerName: providerName, accountEmail: commonAccount)
             }
             guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
                 record.recordID.recordName)

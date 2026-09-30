@@ -44,6 +44,7 @@ ARTIFACT_INPUTS=(
   Scripts/package_product_paths.sh
   Scripts/release_dsym_paths.sh
   Scripts/sign-and-notarize.sh
+  Scripts/verify_packaged_app_launch.sh
   Scripts/sparkle_signing_paths.sh
   version.env
 )

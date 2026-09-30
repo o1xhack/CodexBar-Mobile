@@ -200,6 +200,35 @@ struct QuotaZoneNotificationParserTests {
             latestTransitionAt: now.addingTimeInterval(10.5)))
     }
 
+    @Test("ambiguous warning titles retain only an account shared by every possible trigger")
+    func ambiguousWarningAccount() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let recent = now.addingTimeInterval(0.4)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, "second@example.com")],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [
+                (now, " first@example.com "),
+                (recent, "first@example.com"),
+                (now.addingTimeInterval(-10), "older@example.com"),
+            ],
+            latestTransitionAt: recent) == "first@example.com")
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, nil)],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, "  ")],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [
+                (now, "first@example.com"),
+                (recent, "first@example.com"),
+                (nil, "unknown-time@example.com"),
+            ],
+            latestTransitionAt: recent) == nil)
+    }
+
     @Test("warning record reads stop when the scan is truncated or more records remain")
     func warningRecordScanBound() {
         #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(

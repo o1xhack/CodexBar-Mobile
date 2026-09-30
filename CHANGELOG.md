@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.68.0.1 — 2026-09-28
+## 0.68.0.1 — 2026-09-29
 
 ### Added
 - One Mac release train for every official upstream release from v0.67.0 through v0.68.0, including shared cost reporting periods, portable preferences, Stay Awake and credential-expiry options, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer cost details, and the Mistral Vibe Monthly Plan.
