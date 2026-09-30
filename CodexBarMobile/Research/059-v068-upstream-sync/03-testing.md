@@ -126,3 +126,11 @@ Round 14 (`97231d6b7`) 发现 Mistral USD 的 sparse/missing/ended range 在 MTD
 r85 在 97231d6b7 的 iOS 全量通过：874 passed、6 skipped、0 failed（880 total），结果 `.../UpstreamSync068Review20260929-r85-ios-full-native.xcresult`。此次后续修复只涉及 Mac mapper 与 Mac 测试，iOS/Shared 输入不变。r86 draft 在 arm64 构建阶段收到 Mac finding 后停止；没有签名 artifacts、draft、tag 或 live release。修复后候选通过 clean review 再重启签名流水线，避免反复构建已被 review 阻止的 Mac inputs。
 
 第十四轮复测：r90 Mistral + mapper + SyncCoordinator 共 182 + 6 = 188 tests / 26 suites 全通过；r89 完整 lint/i18n/parser audit 通过。r87 最新 Shared serializer 后的完整 Mac run 有 1 个既有 EUR round-trip 断言失败：V030SnapshotsCodableTests 仍读取 legacy last30DaysRequests，而非现代 reportingPeriodRequests。已按新的兼容契约验证现代 requests/cost/tokens/session 不丢失、legacy historical requests 不泄漏；r91 整套 V030 7 tests 通过，r92 新断言文件 lint 通过。r87 其余四个 run（282 + 435 + 74 + 4）通过，但完整 run 不计全绿，最终候选需再跑完整验证。证据 `.../UpstreamSync068Review20260929-r90-mistral-legacy.log`、`.../UpstreamSync068Review20260929-r89-mistral-wire-lint.log`、`.../UpstreamSync068Review20260929-r91-native-v030.log`、`.../UpstreamSync068Review20260929-r92-v030-lint.log`。
+
+## Final CI 编译器兼容修复（PR #155 合并后）
+
+PR #155 已于 2026-09-30T03:33:36Z 合并，merge commit `54aaddff5c6f494a6efa468050dfe6c9d02bfb41`；round 15 在 `067bf3aca` clean、所有 threads resolved。最终本机 Mac 全量 r93 为 13,414 tests / 1,371 suites、0 failures；iOS r85 为 874 passed / 6 skipped / 0 failed。
+
+Final CI run `36664952941` 未复用上游检查（上游 checks 未全部成功），按保守策略执行完整矩阵。Mac Xcode 26.3/26.2 与 Linux musl Swift 6.2.1 编译失败：provider `.init(red: 226 / 255, ...)` 在旧编译器中推断整数除法后不能传给 `Double`，本机 Swift 6.4 没有暴露该差异。修复只把隐式 color initializer 的 RGB denominator 写成 `255.0`，保留原 RGB；新增所有受影响 provider 与 widget RGB 的回归断言。发布 r94 进程已停止，不作为最终 artifact 证据；需新 head review、Final CI 和重打包完成后发布。
+
+修复本机验证：`swift test --filter ProviderAccentColorTests` 14 tests / 1 suite passed，完整 targets 编译通过；changed-file SwiftLint、SwiftFormat lint 与 `git diff --check` 通过。日志 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-ci-color-fix-test.log`。较旧 Swift 的完整编译以修复合并后的 Final CI 为准。
