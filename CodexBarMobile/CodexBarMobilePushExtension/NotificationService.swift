@@ -310,7 +310,7 @@ final class NotificationService: UNNotificationServiceExtension {
             }
             let accountEmail = (record["accountEmail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let normalizedAccount = (accountEmail?.isEmpty ?? true) ? nil : accountEmail
-            let transitionTimes = records.compactMap { $0["transitionAt"] as? Date }
+            let transitionTimes = records.map { $0["transitionAt"] as? Date }
             if QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
                 transitionTimes: transitionTimes,
                 latestTransitionAt: record["transitionAt"] as? Date)

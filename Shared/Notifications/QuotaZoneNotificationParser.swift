@@ -187,16 +187,18 @@ public enum QuotaZoneNotificationParser {
     }
 
     /// Zone notifications identify the changed zone but not the triggering
-    /// record. Near-simultaneous warning writes must keep a generic body rather
+    /// record. Near-simultaneous or undated warning writes keep a generic body rather
     /// than attaching another record's threshold or period.
     public static func warningRecordsAreAmbiguous(
-        transitionTimes: [Date],
+        transitionTimes: [Date?],
         latestTransitionAt: Date? = nil,
         tolerance: TimeInterval = 2) -> Bool
     {
-        guard let latest = latestTransitionAt ?? transitionTimes.max() else { return false }
+        guard let latest = latestTransitionAt ?? transitionTimes.compactMap(\.self).max() else {
+            return transitionTimes.count > 1
+        }
         let contemporaneousCount = transitionTimes.count { time in
-            abs(time.timeIntervalSince(latest)) <= tolerance
+            time.map { abs($0.timeIntervalSince(latest)) <= tolerance } ?? true
         }
         return contemporaneousCount > 1
     }

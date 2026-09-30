@@ -185,10 +185,17 @@ struct QuotaZoneNotificationParserTests {
         return (String(parts[parts.count - 3]), threshold)
     }
 
-    @Test("near-simultaneous warning records do not claim an exact trigger")
+    @Test("near-simultaneous or undated warning records do not claim an exact trigger")
     func warningRecordAmbiguity() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [now]))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: []))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [nil]))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [nil, nil]))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, nil], latestTransitionAt: now))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, nil], latestTransitionAt: nil))
         #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
             transitionTimes: [now, now.addingTimeInterval(0.4)],
             latestTransitionAt: now.addingTimeInterval(0.4)))
