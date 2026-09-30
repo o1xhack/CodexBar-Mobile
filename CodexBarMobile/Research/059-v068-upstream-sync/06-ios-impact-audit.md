@@ -45,6 +45,6 @@ Status: `ready`（静态基线审计；最终结论在 implementation 后更新�
 
 Mistral API projection 可以携带 EUR 等原币种；字段名 costUSD 是历史 wire 名称，并不证明金额已经换汇。Provider detail 与 daily chart 使用 currencyCode 保留原币种显示。Overview、Cost dashboard、CWL、分享卡片和 Widget 的美元统计只接受 USD；旧 payload 缺少 currencyCode 时沿用原有 USD 契约，显式未知币种不参与总额。同一 local account 的多 Mac summaries 若币种不同，返回没有金额的 unavailable envelope，避免 metadata 丢失后退回旧 ledger。已存在的非美元 ledger rows 在展示/model mix 阶段也被排除；没有破坏性数据库删除或伪造 FX 转换。
 
-Mac 对非美元 rolling summary 也写入已有 reportingPeriodSummary 结构。Shared encoder 保留 modern 原币种历史，隐藏旧版 USD historical fields；Mistral session/Today 字段继续为空，不把最后一个 dated bucket 当 Today。没有新增 wire key 或 CloudKit schema。16 组合 gate 以 synthetic old-reader/source-level 替代验证；旧 Mac 已经写入的 EUR legacy payload 不会被新 Mac retroactively 改写，实体旧 iOS/Production/APNs 仍是未覆盖风险。
+Mac 对非美元 rolling summary 也写入已有 reportingPeriodSummary 结构。Shared encoder 保留 modern 原币种历史，隐藏旧版 USD historical fields；Mistral session/Today 字段继续为空，不把最后一个 dated bucket 当 Today。新增内容仍限于既有 opaque payload 内的 optional JSON，不新增 CloudKit schema。16 组合 gate 以 synthetic old-reader/source-level 替代验证；旧 Mac 已经写入的 EUR legacy payload 不会被新 Mac retroactively 改写，实体旧 iOS/Production/APNs 仍是未覆盖风险。
 
 Round 13 补充：plugin producer 与普通 producer 共用 Shared encoder 的强制原币种边界。新增 payload 内 optional `nativeCurrencySession` 保存 native session amount/known metadata；不是新的 CKRecord schema field。现代 reader 恢复原币种 session，旧 reader 无法把它计为 USD；modern history fallback 在 serialization 边界生成，不再要求每个 producer 自行记住 envelope。

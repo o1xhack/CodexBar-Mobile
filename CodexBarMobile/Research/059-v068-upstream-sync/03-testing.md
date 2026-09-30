@@ -141,9 +141,33 @@ Final CI run `36664952941` 未复用上游检查（上游 checks 未全部成功
 
 超时 fixture 最终定向验证：`ProviderPluginDetailsParityTests` 17 tests passed，目标用例覆盖 QuickJS / JavaScriptCore × queued/unqueued 四组合，全部仍检查真实 key 超时与完整降级 details。fixture overall runtime budget 60 秒，独立于 5 秒 request deadline，防止更长 admission 模型碰到 unrelated outer deadline；production default 不变。日志 `upstream-ci-openrouter-timeout-fix-final.log`，elapsed 20.932 秒；lint 与 diff check 通过。
 
-## 当前发布候选闸门（2026-09-30 UTC，未完成）
+## 打包完成时的候选闸门（2026-09-30T04:16Z 历史状态）
 
 - Runtime/artifact source `45c2828ba3df0df223d39fd02cd184d10bc6922b` 已由 PR #156 clean-reviewed 并合并。r95 相同 runtime inputs 的 Mac full 13,415 tests / 1,371 suites、0 failures；quota expression delta 单独 28 tests passed；OpenRouter timeout delta 单独 17 tests passed、四参数组合 passed。iOS/Shared inputs 最后全量 r85 为 874 passed / 6 skipped / 0 failed；之后 delta 仅 Mac colors 与测试/文档，没有改变 iOS inputs。
 - r96 Mac phase1 完成。Apple notarization submission `2847b559-aac2-426f-a015-220d9530cb29` Accepted；AppKit packaging smoke 存活 6 秒、公证后 strict smoke 2 秒通过；codesign deep/strict、spctl accepted Notarized Developer ID、stapler validate 通过。Production entitlement 已从实际 ZIP 解包的签名 bundle 读取，两架构 minos 14.0。
 - Draft https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-a69da92a14bc37c77721 。包版本 `0.68.0.1` / `159.1.2.3.0`，embedded commit `45c2828ba`。ZIP 80,524,313 bytes，SHA256 `0b5a5e5b18e67daf282fbcfaded3e5aed0cb2f4f754ef4ed31f368b61a5ed1bb`；dSYM ZIP 66,277,400 bytes，SHA256 `6a6ce5fadf5ba90c285894509ec9a54d2a5ff7ed0b68a0953745360d8c70edcc`；与 GitHub draft asset digests 一致。
 - 后续 quota / timeout fixes 只改测试与 Research，ARTIFACT_INPUTS 未变；finalize 前仍要对当时 HEAD 审计 ancestry 和输入相同。PR #158 当前 head 未获得 clean review；full Final CI、tag、live/appcast、#150/#151 关闭和最终 Research closeout 都未完成。Draft 或旧 head review 不能替代这些 gate。#154 保持 open；无 TestFlight 上传、CloudKit deploy 或 Production probes。
+
+## 最新候选审核与待发布状态（2026-09-30T04:41Z）
+
+PR #158 在 `522e929b5f3f4cc6ce382a6eecad3b7898c6d918` clean，https://github.com/o1xhack/CodexBar-Mobile/pull/158#issuecomment-5904159969 ，gate rounds=2 / unresolved=0，Fast Checks `36668048749` success。两次 remote review container setup failure 分别为 `5904021510`、`5904113482`，均不计 clean；第三次重试才取得当前 head 的 clean。PR #158 merge `debeca9dc87a2c1f32241e33b5d952335e0bf787`（04:40:37Z），已对该合并提交 dispatch full=true Final CI `36669923694`；该 gate 仍在运行，live/tag/appcast 和 issue closure 尚未执行。此前 full run `36667161490` 的 Linux x64/ARM64/musl 已通过，Mac shards 待结果；它不含最后 timeout fix，不能单独作为最终 gate。
+
+iOS r85 的 6 skips：`testRoomyNavigationPreservesProviderThroughPortraitResize`、`testTabletColumnsSearchAndSettingsSelectionSurviveResize` 需要 iPad/roomy window；四个 `testSpringBoardWidgetCanSelect*`（Overview、ProviderFocus、SyncHealth、TodayCost）需要 Simulator Home Screen 预先放置 Widget。当前 iPhone fixture不具备这些条件。本轮不改 Widget 布局、configuration intent 或 mode/color controls，不触发 SpringBoard layout/config gate；WidgetSnapshotBuilder 与 render matrix 在完整 iOS run 中通过。真实 Home Screen 操作与 iPad resize 本轮未复跑。
+
+最终 artifacts 与只读验证 JSON 已保存在 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v068-release-verified/`，日志 r96。CloudConstants 相对上次正式 tag 无 diff；Shared schema keyword audit 0 added lines；parserLogicVersion 16→17，generated hash `6fbe90ca603fb1e4`，四 target iOS versions 2.3.0 / 223、三 entitlements Production，363 localized source keys 均在 catalog。
+
+## 较旧 Mac 完整矩阵暴露的 host timezone fixture（04:44Z）
+
+`36667161490` shard 5 运行完整 suites 后，`CostReportingPeriodTests.dashboard and CLI sum the same calendar window` 失败：dashboard=4、CLI=7。fixture 第一处 `tokenSnapshot` 没传 calendar，使用 CI host UTC，而 dashboard/CLI 显式 LA；Feb 1 UTC midnight 在 LA 为 Jan 31，导致 month boundary 不同。本机 LA host 通过隐藏了该缺口。补齐该 snapshot 的 `calendar: self.calendar`，该文件其余 snapshot factories 已显式传 calendar。不改产品聚合语义，不弱化原 equality/expected7 断言。
+
+待运行的最终 head full CI `36669923694` 因已知必然包含这个 fixture 缺口而取消，不计 passing evidence；修复合并后重新 dispatch full=true。r96 signed artifact inputs 不受这项测试/文档修改影响。
+
+`TZ=UTC swift test --filter CostReportingPeriodTests`：11 tests / 1 suite passed，完整 targets 编译通过，elapsed .032 秒；changed-file SwiftLint/SwiftFormat 与 diff check passed。日志 `upstream-ci-calendar-fixture-fix.log`。前一 full CI 的 Mac shard 4 已 success；其余 shards 仍等待结果，不提前计全绿。
+
+## 完整矩阵时限审计
+
+旧 full run `36667161490` Mac shard 3/0 分别在 04:54:36Z / 04:55:45Z 因 `Swift Test` 50 分钟总时限终止；已完成部分未报告断言失败。shard 3 04:04:23Z 开始，04:27:52Z discovery 完成（约 23.5 分钟冷构建），1481 selections / 每 shard 247 groups；到 50 分钟才完成 190/247，说明当前时限不能容纳完整 isolated matrix。
+
+将 Mac job 总时限 60→90 分钟、Swift Test step 50→80 分钟；保留 six shards、group size 1、每组 120 秒 timeout、retry/cleanup/所有 assertions，不减少 selections，不改变 PR Fast / post-merge / manual 触发策略。运行时二进制与 package artifact inputs 不变。Mac shard 1/4 与 Linux 三 jobs 已 success；shard 5 的唯一 assertion failure 为已修复 host-calendar fixture；shard 2 仍运行。
+
+时限调整验证：`check_ci_policy.sh`、`test_ci_policy.sh`（trigger forms）、`test_ci_path_gate.sh`、`test_ci_upstream_check_gate.sh` 均通过，`git diff --check` 通过。PR #159 的此前 `89e6896d6` 虽已 clean（5904327153）/ Fast Checks green，但这些结果不含新时限提交；需要新 head 重审和 full CI。

@@ -97,7 +97,11 @@ struct CostReportingPeriodTests {
             self.entry("2026-02-01", cost: 3),
             self.entry("2026-02-02", cost: 4),
         ]
-        let snapshot = CostUsageFetcher.tokenSnapshot(from: .init(data: rows, summary: nil), now: now, historyDays: 90)
+        let snapshot = CostUsageFetcher.tokenSnapshot(
+            from: .init(data: rows, summary: nil),
+            now: now,
+            historyDays: 90,
+            calendar: self.calendar)
         let dashboard = SpendDashboardModel.build(
             inputs: [.init(provider: .codex, displayName: "Synthetic Codex", snapshot: snapshot)],
             requestedDays: 90,
