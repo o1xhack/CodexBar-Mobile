@@ -620,6 +620,80 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Mistral sync labels only complete calendar month projections as MTD`() throws {
+        let formatter = ISO8601DateFormatter()
+        let now = try #require(formatter.date(from: "2026-07-31T12:00:00Z"))
+        let start = try #require(formatter.date(from: "2026-07-01T00:00:00Z"))
+        let priorEnd = try #require(formatter.date(from: "2026-07-30T00:00:00Z"))
+        let daily = [
+            MistralDailyUsageBucket(
+                day: "2026-07-01",
+                cost: 1,
+                inputTokens: 10,
+                cachedTokens: 0,
+                outputTokens: 0,
+                models: []),
+            MistralDailyUsageBucket(
+                day: "2026-07-31",
+                cost: 2,
+                inputTokens: 20,
+                cachedTokens: 0,
+                outputTokens: 0,
+                models: []),
+        ]
+        for (rangeStart, rangeEnd, expectedMTD) in [(start, now, true), (nil, nil, false), (start, priorEnd, false)] {
+            let native = MistralUsageSnapshot(
+                totalCost: 3,
+                currency: "USD",
+                currencySymbol: "$",
+                totalInputTokens: 30,
+                totalOutputTokens: 0,
+                totalCachedTokens: 0,
+                modelCount: 0,
+                daily: daily,
+                startDate: rangeStart,
+                endDate: rangeEnd,
+                updatedAt: now)
+            let summary = try #require(SyncCoordinator.mapMistralCostSummary(
+                provider: .mistral, snapshot: native.toUsageSnapshot()))
+            #expect((summary.reportingPeriod == "month-to-date") == expectedMTD)
+            if expectedMTD {
+                #expect(summary.reportingPeriodDaily.map(\.dayKey) == ["2026-07-01", "2026-07-31"])
+                #expect(summary.reportingPeriodCostUSD == 3)
+                #expect(summary.reportingPeriodHistoryDays == 31)
+            } else {
+                #expect(summary.reportingPeriod == nil)
+            }
+            #expect(summary.sourceDayKey == "2026-07-31")
+        }
+        let nextMonth = try #require(formatter.date(from: "2026-08-01T00:30:00Z"))
+        let previousMonth = MistralUsageSnapshot(
+            totalCost: 3,
+            currency: "USD",
+            currencySymbol: "$",
+            totalInputTokens: 30,
+            totalOutputTokens: 0,
+            totalCachedTokens: 0,
+            modelCount: 0,
+            daily: daily,
+            startDate: start,
+            endDate: now,
+            updatedAt: now).toUsageSnapshot()
+        let republished = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: nil,
+            mistralUsage: previousMonth.mistralUsage,
+            updatedAt: nextMonth)
+        let staleMonth = try #require(SyncCoordinator.mapMistralCostSummary(
+            provider: .mistral, snapshot: republished))
+        #expect(staleMonth.reportingPeriod == nil)
+        #expect(staleMonth.reportingPeriodHistoryCoverageIsEstablished == false)
+        #expect(staleMonth.sourceUpdatedAt == nextMonth)
+        #expect(staleMonth.sourceDayKey == "2026-08-01")
+    }
+
+    @Test
     func `provider-derived UTC cost summaries keep their native bucket calendar`() throws {
         let pinnedLocal = try #require(TimeZone(identifier: "America/Los_Angeles"))
         for provider in [UsageProvider.bedrock, .openai, .mistral, .openrouter, .xai] {

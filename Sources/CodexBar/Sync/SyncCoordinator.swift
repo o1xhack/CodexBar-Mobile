@@ -2437,7 +2437,17 @@ final class SyncCoordinator {
         // Reuse the provider's validated projection instead of trusting raw
         // billing buckets here. The projection rejects invalid dates,
         // negative counters, overflow, and totals that do not reconcile.
-        let projected = m.toCostUsageTokenSnapshot()
+        var apiCalendar = Calendar(identifier: .gregorian)
+        apiCalendar.timeZone = .gmt
+        // Include day one even on a 31-day month. Only the provider's
+        // validated complete-month evidence may label this projection MTD.
+        let requestedDays = max(30, apiCalendar.component(.day, from: m.updatedAt))
+        let projected = m.toCostUsageTokenSnapshot(historyDays: requestedDays)
+        // Fetch freshness remains separate from the observed billing range.
+        // A fresh republish of an ended range cannot establish zero-cost days
+        // through the fetch day, even when its historical rows are valid.
+        let coverageIsEstablished = projected.historyCoverageIsEstablished == true &&
+            apiCalendar.isDate(projected.updatedAt, inSameDayAs: snapshot.updatedAt)
         let daily: [SyncDailyPoint] = projected.daily.map { entry in
             let coverage = entry.coverageCounts
             let modelBreakdowns = (entry.modelBreakdowns ?? [])
@@ -2504,7 +2514,7 @@ final class SyncCoordinator {
                 unmetered: windowSummary.coverage.unmetered,
                 estimated: windowSummary.coverage.estimated),
             tokenMix: tokenMix,
-            historyCoverageIsEstablished: projected.historyCoverageIsEstablished)
+            historyCoverageIsEstablished: coverageIsEstablished)
         return SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -2513,7 +2523,9 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: projected.historyDays,
-            reportingPeriod: CostReportingPeriod.monthToDate.rawValue,
+            reportingPeriod: projected.historyLabel == "This month" &&
+                apiCalendar.isDate(projected.updatedAt, equalTo: snapshot.updatedAt, toGranularity: .month)
+                ? CostReportingPeriod.monthToDate.rawValue : nil,
             sessionRequests: nil,
             last30DaysRequests: projected.last30DaysRequests,
             currencyCode: projected.currencyCode,
@@ -2528,7 +2540,7 @@ final class SyncCoordinator {
             sourceUpdatedAt: snapshot.updatedAt,
             sourceDayKey: Self.producerDayKey(snapshot.updatedAt, timeZone: apiTimeZone),
             bucketTimeZoneIdentifier: "UTC",
-            historyCoverageIsEstablished: projected.historyCoverageIsEstablished,
+            historyCoverageIsEstablished: coverageIsEstablished,
             reportingPeriodSummary: reportingPeriodSummary)
     }
 
