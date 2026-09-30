@@ -2501,22 +2501,31 @@ final class SyncCoordinator {
         // while iOS labels session fields as Today when no matching daily point
         // exists. The dated daily rows remain the authoritative cross-device
         // source and avoid turning stale spend into current-day usage.
-        let reportingPeriodSummary = SyncCostPeriodSummary(
-            costUSD: projected.last30DaysCostUSD,
-            tokens: projected.last30DaysTokens,
-            requests: projected.last30DaysRequests,
-            daily: daily,
-            historyDays: projected.historyDays,
-            isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
-            meteredCostUSD: projected.meteredCostUSD,
-            costProvenance: Self.syncCostProvenance(windowSummary.provenance),
-            coverage: SyncCostCoverage(
-                priced: windowSummary.coverage.priced,
-                unpriced: windowSummary.coverage.unpriced,
-                unmetered: windowSummary.coverage.unmetered,
-                estimated: windowSummary.coverage.estimated),
-            tokenMix: tokenMix,
-            historyCoverageIsEstablished: coverageIsEstablished)
+        let reportingPeriod = projected.historyLabel == "This month" &&
+            apiCalendar.isDate(projected.updatedAt, equalTo: snapshot.updatedAt, toGranularity: .month)
+            ? CostReportingPeriod.monthToDate.rawValue : nil
+        let reportingPeriodSummary: SyncCostPeriodSummary? = if reportingPeriod != nil ||
+            projected.currencyCode != "USD"
+        {
+            SyncCostPeriodSummary(
+                costUSD: projected.last30DaysCostUSD,
+                tokens: projected.last30DaysTokens,
+                requests: projected.last30DaysRequests,
+                daily: daily,
+                historyDays: projected.historyDays,
+                isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
+                meteredCostUSD: projected.meteredCostUSD,
+                costProvenance: Self.syncCostProvenance(windowSummary.provenance),
+                coverage: SyncCostCoverage(
+                    priced: windowSummary.coverage.priced,
+                    unpriced: windowSummary.coverage.unpriced,
+                    unmetered: windowSummary.coverage.unmetered,
+                    estimated: windowSummary.coverage.estimated),
+                tokenMix: tokenMix,
+                historyCoverageIsEstablished: coverageIsEstablished)
+        } else {
+            nil
+        }
         return SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -2525,9 +2534,7 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: projected.historyDays,
-            reportingPeriod: projected.historyLabel == "This month" &&
-                apiCalendar.isDate(projected.updatedAt, equalTo: snapshot.updatedAt, toGranularity: .month)
-                ? CostReportingPeriod.monthToDate.rawValue : nil,
+            reportingPeriod: reportingPeriod,
             sessionRequests: nil,
             last30DaysRequests: projected.last30DaysRequests,
             currencyCode: projected.currencyCode,

@@ -137,7 +137,14 @@ struct V030SnapshotsCodableTests {
         let data = try Self.encoder.encode(source)
         let decoded = try Self.decoder.decode(SyncCostSummary.self, from: data)
         #expect(decoded.sessionRequests == 42)
-        #expect(decoded.last30DaysRequests == 7240)
+        // Native history lives in the modern envelope so old readers cannot
+        // mistake it for USD. Current readers retain requests and amounts.
+        #expect(decoded.last30DaysRequests == nil)
+        #expect(decoded.reportingPeriodRequests == 7240)
+        #expect(decoded.reportingPeriodCostUSD == 28.9)
+        #expect(decoded.reportingPeriodTokens == 1_200_000)
+        #expect(decoded.sessionCostUSD == 1.0)
+        #expect(decoded.sessionTokens == 1000)
         #expect(decoded.currencyCode == "EUR")
     }
 

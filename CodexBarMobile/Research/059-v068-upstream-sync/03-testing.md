@@ -118,3 +118,11 @@ Round 13 (`a5c30c84f`) 指出 plugin rolling cost 的独立 mapper 没有 modern
 - r75 a5c30c84f Mac arm64 Release 预构建通过，125.65 秒；r78 draft 在 lint 阶段收到新 Shared/Mac finding 后停止，未创建 artifact/release。不存在的进程已核实；下一次从修复后 head 重打。
 
 追加 architecture audit 已在 PR 记录，根因是每个 producer 自行维护 consumer compatibility；Shared serializer 现在强制保护 native history/session 边界。所有新 wire 值仍为 synthetic fixture，本轮没有 Production/APNs/实体双 Mac/iPhone 证据。#154 收到用户新回复：要求独立账户卡片；两个账户的三个 Personal/Business plans 目前仅显示两个。该 issue 保持 open，未把上游同步当成该问题已修复。
+
+## 第十四轮 review：保留未定型 USD Mistral 历史
+
+Round 14 (`97231d6b7`) 发现 Mistral USD 的 sparse/missing/ended range 在 MTD 校验失败后仍无条件创建 modern envelope；nil reportingPeriod 被 Shared encoder 视为非 rolling，导致 old reader 丢失历史。现已把 validated period 与 envelope 资格绑定：明确 MTD 或非 USD 才需要 modern envelope；未定型 USD 保留 legacy historical fields 及原 coverage/freshness metadata，不将不确定窗口冒充 rolling/MTD。回归扩大到实际 serialized wire 和 frozen legacy reader，检查 complete month、missing range、ended range、next-month cached republish。原 native currency 保护不受影响。
+
+r85 在 97231d6b7 的 iOS 全量通过：874 passed、6 skipped、0 failed（880 total），结果 `.../UpstreamSync068Review20260929-r85-ios-full-native.xcresult`。此次后续修复只涉及 Mac mapper 与 Mac 测试，iOS/Shared 输入不变。r86 draft 在 arm64 构建阶段收到 Mac finding 后停止；没有签名 artifacts、draft、tag 或 live release。修复后候选通过 clean review 再重启签名流水线，避免反复构建已被 review 阻止的 Mac inputs。
+
+第十四轮复测：r90 Mistral + mapper + SyncCoordinator 共 182 + 6 = 188 tests / 26 suites 全通过；r89 完整 lint/i18n/parser audit 通过。r87 最新 Shared serializer 后的完整 Mac run 有 1 个既有 EUR round-trip 断言失败：V030SnapshotsCodableTests 仍读取 legacy last30DaysRequests，而非现代 reportingPeriodRequests。已按新的兼容契约验证现代 requests/cost/tokens/session 不丢失、legacy historical requests 不泄漏；r91 整套 V030 7 tests 通过，r92 新断言文件 lint 通过。r87 其余四个 run（282 + 435 + 74 + 4）通过，但完整 run 不计全绿，最终候选需再跑完整验证。证据 `.../UpstreamSync068Review20260929-r90-mistral-legacy.log`、`.../UpstreamSync068Review20260929-r89-mistral-wire-lint.log`、`.../UpstreamSync068Review20260929-r91-native-v030.log`、`.../UpstreamSync068Review20260929-r92-v030-lint.log`。

@@ -665,6 +665,11 @@ struct SyncCoordinatorTests {
 
     @Test
     func `Mistral sync labels only complete calendar month projections as MTD`() throws {
+        struct FrozenLegacyHistory: Decodable {
+            let last30DaysCostUSD: Double?
+            let last30DaysTokens: Int?
+            let daily: [SyncDailyPoint]
+        }
         let formatter = ISO8601DateFormatter()
         let now = try #require(formatter.date(from: "2026-07-31T12:00:00Z"))
         let start = try #require(formatter.date(from: "2026-07-01T00:00:00Z"))
@@ -709,6 +714,19 @@ struct SyncCoordinatorTests {
                 #expect(summary.reportingPeriod == nil)
             }
             #expect(summary.sourceDayKey == "2026-07-31")
+            let data = try CloudSyncConstants.makeJSONEncoder().encode(summary)
+            let legacy = try CloudSyncConstants.makeJSONDecoder().decode(FrozenLegacyHistory.self, from: data)
+            let current = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: data)
+            #expect(current.reportingPeriodCostUSD == summary.reportingPeriodCostUSD)
+            #expect(current.reportingPeriodDaily == summary.reportingPeriodDaily)
+            if expectedMTD {
+                #expect(legacy.last30DaysCostUSD == nil)
+                #expect(legacy.daily.isEmpty)
+            } else {
+                #expect(legacy.last30DaysCostUSD == summary.last30DaysCostUSD)
+                #expect(legacy.last30DaysTokens == summary.last30DaysTokens)
+                #expect(legacy.daily == summary.daily)
+            }
         }
         let nextMonth = try #require(formatter.date(from: "2026-08-01T00:30:00Z"))
         let previousMonth = MistralUsageSnapshot(
@@ -735,6 +753,10 @@ struct SyncCoordinatorTests {
         #expect(staleMonth.reportingPeriodHistoryCoverageIsEstablished == false)
         #expect(staleMonth.sourceUpdatedAt == nextMonth)
         #expect(staleMonth.sourceDayKey == "2026-08-01")
+        let staleWire = try CloudSyncConstants.makeJSONEncoder().encode(staleMonth)
+        let staleLegacy = try CloudSyncConstants.makeJSONDecoder().decode(FrozenLegacyHistory.self, from: staleWire)
+        #expect(staleLegacy.last30DaysCostUSD == staleMonth.last30DaysCostUSD)
+        #expect(staleLegacy.daily == staleMonth.daily)
     }
 
     @Test
