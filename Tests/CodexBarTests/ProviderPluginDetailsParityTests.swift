@@ -137,7 +137,7 @@ struct ProviderPluginDetailsParityTests {
         let transport = ProviderHTTPTransportHandler { request in
             let isKeyRequest = request.url?.path == "/api/v1/key"
             if isKeyRequest {
-                try await Task.sleep(for: .milliseconds(1500))
+                try await Task.sleep(for: .milliseconds(7500))
             }
             let response = try #require(HTTPURLResponse(
                 url: request.url!,
@@ -154,11 +154,14 @@ struct ProviderPluginDetailsParityTests {
             source: source,
             resourceBundle: CodexBarCoreResources.bundle,
             transport: transport,
+            timeout: 60,
             contextOptions: ProviderPluginContextOptions(
-                optionalRequestTimeoutSeconds: 1,
+                // Keep a scheduling margin for credits under the full concurrent Linux matrix.
+                // The key transport and pre-attempt delay still exceed this budget.
+                optionalRequestTimeoutSeconds: 5,
                 beforeHTTPAttempt: {
                     // Model a task queued longer than the attempt budget before the transport begins.
-                    if delaysTaskStart { try await Task.sleep(for: .milliseconds(1500)) }
+                    if delaysTaskStart { try await Task.sleep(for: .milliseconds(7500)) }
                 }),
             engine: engine)
             .fetchUsage(secrets: ["OPENROUTER_API_KEY": "fixture-key"])
