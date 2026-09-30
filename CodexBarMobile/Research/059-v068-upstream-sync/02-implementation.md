@@ -7,7 +7,7 @@ Date: 2026-09-28
 
 - 从上一个正式同步点 `v0.66.0` 一次合并上游 `v0.68.0`，因此 issues #150 / #151 进入同一个 release train。保留上游 provider、plugin runtime、UI、cost history、CLI、安全、性能及平台改动；fork CI、版本和发布流程、CloudKit Production entitlement、iOS targets 与 fork-owned README 继续由 fork 控制。
 - README 单独审计：`v0.67.0` / `v0.68.0` 的 README 将总数从 84 更新为 87，并增加 Aixy、Raycast、xKiro。当前 Mac provider 清单包含这三项，因此将总数改为 87、social 图片 cache token 同步到当前图像，并把旧的 provider 名称摘要替换成指向本页 provider 清单的链接；fork 的安装、下载和其余产品说明保留。`Scripts/check_fork_readme.sh` 的哈希随这项有意审阅的 fork README 更新一起改动。
-- Mac `SyncCoordinator` 用已有 `ProviderUsageSnapshot` 通路输出 provider quota、amount、details、cost 和 identity；这轮新增了 Aixy 的 key-scoped opaque identity，并将 cost reporting period 映射到既有 cost summary。没有同步凭证、session、key secret、路径或用户设置。
+- Mac `SyncCoordinator` 用已有 `ProviderUsageSnapshot` 通路输出 provider quota、amount、details、cost 和 identity；这轮新增了 Aixy 的 key-scoped opaque identity，并将 cost reporting period 映射到既有 cost summary。没有同步凭证、登录 session secret、API key secret、路径或用户设置。
 - Raycast 插件给 credits meter 写入 `monthly` period，使 Mac 阈值 lane 与 iOS 通知使用周/月控制和 Monthly 文案；xKiro daily 通知不发送“Daily free tokens”自定义标题，避免和本地化 Daily 重复。
 - 上游 `.github/pr-proof/muse-web-team-quota.log` 是真实账户用量记录，不属于产品功能；已从候选分支移除。Muse team quota 的产品代码保留，本轮没有执行真实账户/provider QA。
 
@@ -26,8 +26,8 @@ Date: 2026-09-28
 
 ## CloudKit schema 判断
 
-- 新增字段只存在于既有 `DeviceProviderSnapshot.payload` JSON 内容，不是 CloudKit 可查询字段；没有新增 record type、zone、索引、subscription record 或 predicate。
-- `QuotaTransition` 仍复用现有 record type 与 private database zone/subscription 路径；provider list 只影响已有 transition event 写入资格，不改变已部署订阅身份。
+- 新增字段只存在于既有 `DeviceProviderSnapshot.payload` JSON 内容，不是 CloudKit 可查询字段；没有新增 CKRecord type、schema field、索引或 query/subscription predicate。新增 provider 可以创建自己的 private-zone / zone-subscription 实例；这些是运行时数据，并非新的 Dashboard schema。
+- `QuotaTransition` 仍复用现有 record type 与 private database zone/subscription 路径；provider list 追加新 provider 的 transition event 写入/订阅资格，保留所有已有 provider 的 zone/subscription 身份与字段契约。
 - 按 `docs/cloudkit-deploy-audit.md` 的 Production schema 规则结论为 `NO_DEPLOY`。本轮不读取或写入 Production CloudKit。
 
 ## 发布候选与验证状态
