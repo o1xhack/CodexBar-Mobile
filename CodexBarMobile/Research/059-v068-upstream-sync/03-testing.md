@@ -183,3 +183,21 @@ Linux 测试改用 `swift test --no-parallel`，与本机最终全量和 Mac iso
 串行定向复测：`swift test --no-parallel --filter AbacusPluginTests` 10 tests / 1 suite 全通过（38.740 秒），保留两 engine 的严格 elapsed 断言；日志 `upstream-ci-abacus-serial.log`。CI policy / trigger forms / path gate / upstream reuse gate 与 diff check 均通过。远端 Linux 调度效果仍待新 head 实测，不将本机结果当 Linux 证据。
 
 PR #160 在 `1432e736671f2a5e74afa3a4d45dabcfd2e7ec3d` clean（https://github.com/o1xhack/CodexBar-Mobile/pull/160#issuecomment-5904675265），review gate rounds=1 / unresolved=0，Fast Checks `36673030732` success；首次容器初始化失败 `5904639204` 不计 review success。merge `1b1067b9fe1ab06b4e665a1e69b776d014cd3318`，2026-09-30T05:25:23Z。该提交已 dispatch `full=true` 最终矩阵 `36673362217`。旧 `36667161490` 因被当前验证取代、`36671727579` 因已有 Linux failure 且被修复后矩阵取代而取消；两者均不计全绿，已完成的单项结果仅保留诊断证据。当前矩阵仍待结果；tag/live/appcast/issue closure 尚未执行。
+
+## 当前最终矩阵 Linux 结果（05:42Z）
+
+`36673362217` 的 Linux x64、ARM64 与 musl 三 jobs 均 success。两架构插件套件各 848 tests /112 suites passed（x64 114.364 秒，ARM64 112.278 秒）；原 Abacus 5 秒 request /4–9 秒 wall-clock 严格测试在两架构均以 5.005 秒通过。日志 `upstream-ci-final-linux-x64-serial.log`、`upstream-ci-final-linux-arm64-serial.log`。musl 为 Release CLI 构建 gate，不冒充额外测试套件。Mac 五 shards 运行、shard3 排队，整体仍非 completed，不计完整 gate 已通过。
+
+证据更新 PR #161 的 `1dc2745eb293eaed08933cb7e303c81b7697501c` clean（https://github.com/o1xhack/CodexBar-Mobile/pull/161#issuecomment-5904856888），gate rounds=1 / unresolved=0，Fast Checks passed；merge `54a9459bca07df5367bb4cdec61d2695dea1f8f3`（05:39:47Z）。对照 full gate source `1b1067b9`，后续仅 Research 文档，runtime / tests / CI workflow 未变，未替换当前运行的 full gate。该 docs merge 的 diff-selected Final CI `36674439541` 另待完成。
+
+PR #161 文档 merge 的 diff-selected Final CI `36674439541` 已 success；heavy jobs 按路径规则 skipped，此次仅证明文档/portable guards，不替代仍在运行的 full matrix `36673362217`。
+
+最终 Mac shard5（job `109753087931`）于 06:13:26Z success：246 selected groups，246 first-pass successful，0 failed/recovered/timed-out groups；日志 `upstream-ci-final-mac-shard5.log`。该分片包含之前 host-calendar 缺口的 CostReportingPeriodTests；当前 dashboard/CLI 同窗口断言已通过。queued shard3 于 06:13:34Z 开始执行，完整矩阵仍未完成。
+
+最终 Mac shard1 / shard4（jobs `109753087876` / `109753087930`）已 success；各 247 selected groups /247 first-pass successful，0 failed/recovered/timed-out。日志 `upstream-ci-final-mac-shard1.log`、`upstream-ci-final-mac-shard4.log`。截至 06:20Z，Mac 3/6 success，shard0 /2 /3 仍执行；full gate 仍未完成。
+
+最终 Mac shard0（job `109753087874`）已 success，含 `Provider plugin engine A/B goldens` success；日志 `upstream-ci-final-mac-shard0.log`。截至 06:25Z，Mac 4/6 success，shard2 /3 仍执行，live gate 仍未完整通过。
+
+最终 Mac shard0 的完整组统计为 247 selected /247 first-pass successful，0 failed/recovered/timed-out；engine A/B goldens 两次运行各 93 tests /6 suites success。最终 shard2（job `109753087903`）亦已 success，日志 `upstream-ci-final-mac-shard2.log`。截至 06:28Z，Mac 5/6 success，仅较晚启动的 shard3 仍执行；尚不发布。
+
+发布 gate 跨过 America/Los_Angeles 本地午夜，尚未公开的 Mac release 日期更新为 2026-09-30；版本仍 0.68.0.1 /159.1 /Mobile2.3.0，不拆新版本。public notes 的 provenance 明确涵盖 tests、Research 与 CI 调度/时限改动，artifact inputs 未变。最后 shard3 仍执行，Research 仍 in-progress，未提前执行 tag/live/appcast 或 issue closure。
