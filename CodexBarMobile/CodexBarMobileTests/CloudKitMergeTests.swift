@@ -628,6 +628,39 @@ struct CloudKitMergeTests {
         #expect(!ProviderSnapshotMerger.supportsUSDAggregation(current))
     }
 
+    @Test(arguments: ["USD", "EUR", "CNY"], [Bool?.none, true, false])
+    func `currency compatibility applies to every history and session writer`(currency: String, known: Bool?) throws {
+        let summary = SyncCostSummary(
+            sessionCostUSD: 1,
+            sessionTokens: 100,
+            last30DaysCostUSD: 3,
+            last30DaysTokens: 300,
+            daily: [SyncDailyPoint(dayKey: "2026-09-28", costUSD: 3, totalTokens: 300)],
+            historyDays: 30,
+            reportingPeriod: "rolling:30",
+            currencyCode: currency,
+            sessionCostIsKnown: known)
+        // Exercise a writer that has not supplied a modern history envelope.
+        let data = try CloudSyncConstants.makeJSONEncoder().encode(summary)
+        let legacy = try CloudSyncConstants.makeJSONDecoder().decode(LegacyMatrixSummary.self, from: data)
+        let current = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: data)
+        #expect(current.sessionCostUSD == 1)
+        #expect(current.sessionCostIsKnown == known)
+        #expect(current.reportingPeriodCostUSD == 3)
+        #expect(current.reportingPeriodDaily.first?.costUSD == 3)
+        #expect(current.currencyCode == currency)
+        if currency == "USD" {
+            #expect(legacy.sessionCostUSD == 1)
+            #expect(legacy.sessionCostIsKnown == known)
+            #expect(legacy.last30DaysCostUSD == 3)
+        } else {
+            #expect(legacy.sessionCostUSD == nil)
+            #expect(legacy.sessionCostIsKnown == false)
+            #expect(legacy.last30DaysCostUSD == nil)
+            #expect(legacy.daily.isEmpty)
+        }
+    }
+
     // MARK: - Single device (degenerate case)
 
     @Test

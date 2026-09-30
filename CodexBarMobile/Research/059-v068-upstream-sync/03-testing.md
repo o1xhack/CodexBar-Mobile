@@ -105,3 +105,16 @@ Round 12 (`f4199f79f`) 指出 Mistral EUR API cost 会被 iOS 美元总额使用
 - 未计通过的初次尝试：r61 optional snapshot compile、r62 SharePeriod enum fixture typo、r65 in-memory SwiftData 默认 CloudKit 配置、r68 缺少 nil initializer 参数，均已修复并由 r71 复测。r70/r69 被会话中断，进程已不存在且日志无 terminal pass；不重用为成功证据，改由 r73/r74 重跑。
 
 所有金额 fixture 均为合成数据；没有真实 provider/Keychain/Production CloudKit 操作。旧 Mac 的已存在 legacy EUR payload 不能由新 Mac retroactively 改写，本轮仅证明新 writer 不产生误标的 Mistral legacy history，以及新 reader 不把显式非 USD 计入美元总额；16 组合仍为 substituted，不是实体设备 pass。
+
+## 第十三轮 review：将原币种兼容保护集中到 Shared serializer
+
+Round 13 (`a5c30c84f`) 指出 plugin rolling cost 的独立 mapper 没有 modern history envelope。已补齐 plugin 映射，并将保障集中在 SyncCostSummary.encode：显式非 USD 即使 producer 未填 modern envelope，也自动保留 modern 历史并隐藏 legacy historical USD fields。附加审计发现原币种 session fallback 同样可能被旧 reader 当 USD；新增 optional opaque JSON `nativeCurrencySession`，保存原始 session amount/known status，新 reader 恢复，旧 reader 获得 nil USD amount / false known status。USD 与缺省币种旧契约保持原状。该改动不新增 CKRecord field/type/index/query/subscription，仍 NO_DEPLOY；新增的是 payload 内的 optional JSON key，需要 source-level old/new 兼容 gate。
+
+- r76 在该 serializer 改动前的最终 a5c30c84f iOS 全量通过：873 passed、6 skipped、0 failed（879 total）；`.../UpstreamSync068Review20260929-r76-ios-full-currency.xcresult`。
+- r81 serializer 变更后四套定向通过：186 passed、0 failed、0 skipped；新增 USD/EUR/CNY × nil/true/false session-known 9 组合和 writer 未填 envelope 的 frozen legacy/current round-trip；原 16 old/new masks、CWL、share、Widget 同时覆盖。`.../UpstreamSync068Review20260929-r81-native-envelope.xcresult`。
+- r77 完整 Mac test run 在 a5c30c84f（round 13 serializer fix 前）通过：12,619 + 282 + 435 + 74 + 4 = 13,414 tests / 1,371 suites，0 failures；日志 `.../UpstreamSync068Review20260929-r77-mac-full-currency.log`。r79 从最终 Shared/plugin 源代码重建并定向覆盖 mapper/SyncCoordinator：66 tests / 3 suites 全通过，包含 USD/EUR/CNY plugin rolling history 与新旧编码断言（`.../UpstreamSync068Review20260929-r79-plugin-currency.log`）。
+- r84 完整 lint/portable guards/四语/parser audit 通过，2,724 files 0 violations、363 source keys；`.../UpstreamSync068Review20260929-r84-native-lint.log`。初次单文件手工 lint 将 repo canonical exclusion 外的旧 iOS fixtures 也纳入产生无关告警，新 Shared 参数换行已修正，最终采用 canonical lint。
+- r83 Release Simulator build 通过（`.../UpstreamSync068Review20260929-r83-native-ios-release.log`）。
+- r75 a5c30c84f Mac arm64 Release 预构建通过，125.65 秒；r78 draft 在 lint 阶段收到新 Shared/Mac finding 后停止，未创建 artifact/release。不存在的进程已核实；下一次从修复后 head 重打。
+
+追加 architecture audit 已在 PR 记录，根因是每个 producer 自行维护 consumer compatibility；Shared serializer 现在强制保护 native history/session 边界。所有新 wire 值仍为 synthetic fixture，本轮没有 Production/APNs/实体双 Mac/iPhone 证据。#154 收到用户新回复：要求独立账户卡片；两个账户的三个 Personal/Business plans 目前仅显示两个。该 issue 保持 open，未把上游同步当成该问题已修复。

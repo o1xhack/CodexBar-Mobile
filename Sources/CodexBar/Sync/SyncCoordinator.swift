@@ -943,7 +943,7 @@ final class SyncCoordinator {
         let sourceDayKey = tokenSnapshot.windowEndDayKey
             ?? Self.producerDayKey(tokenSnapshot.updatedAt, timeZone: bucketTimeZone)
         let reportingPeriodSummary: SyncCostPeriodSummary? = if tokenSnapshot.reportingPeriod == .monthToDate
-            || tokenSnapshot.reportingPeriod == .allTime
+            || tokenSnapshot.reportingPeriod == .allTime || tokenSnapshot.currencyCode != "USD"
         {
             SyncCostPeriodSummary(
                 costUSD: tokenSnapshot.last30DaysCostUSD,

@@ -450,6 +450,14 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.reportingPeriodSummary = reportingPeriodSummary
     }
 
+    /// Optional opaque-payload envelope: old readers cannot mistake native
+    /// session spend for USD; current readers restore the original amount and
+    /// its known/unknown status without currency conversion.
+    private struct NativeCurrencySession: Codable {
+        let cost: Double?
+        let costIsKnown: Bool?
+    }
+
     private enum CodingKeys: String, CodingKey {
         case sessionCostUSD
         case sessionTokens
@@ -474,16 +482,79 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         case historyCoverageIsEstablished
         case historyWindowIsComparable
         case reportingPeriodSummary
+        case nativeCurrencySession
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.currencyCode = try container.decodeIfPresent(String.self, forKey: .currencyCode)
+        let nativeSession = try container.decodeIfPresent(NativeCurrencySession.self, forKey: .nativeCurrencySession)
+        let isNativeCurrency = self.currencyCode.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "USD"
+        } ?? false
+        if isNativeCurrency, let nativeSession {
+            self.sessionCostUSD = nativeSession.cost
+            self.sessionCostIsKnown = nativeSession.costIsKnown
+        } else {
+            self.sessionCostUSD = try container.decodeIfPresent(Double.self, forKey: .sessionCostUSD)
+            self.sessionCostIsKnown = try container.decodeIfPresent(Bool.self, forKey: .sessionCostIsKnown)
+        }
+        self.sessionTokens = try container.decodeIfPresent(Int.self, forKey: .sessionTokens)
+        self.last30DaysCostUSD = try container.decodeIfPresent(Double.self, forKey: .last30DaysCostUSD)
+        self.last30DaysTokens = try container.decodeIfPresent(Int.self, forKey: .last30DaysTokens)
+        self.daily = try container.decode([SyncDailyPoint].self, forKey: .daily)
+        self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
+        self.historyDays = try container.decodeIfPresent(Int.self, forKey: .historyDays)
+        self.reportingPeriod = try container.decodeIfPresent(String.self, forKey: .reportingPeriod)
+        self.sessionRequests = try container.decodeIfPresent(Int.self, forKey: .sessionRequests)
+        self.last30DaysRequests = try container.decodeIfPresent(Int.self, forKey: .last30DaysRequests)
+        self.meteredCostUSD = try container.decodeIfPresent(Double.self, forKey: .meteredCostUSD)
+        self.costProvenance = try container.decodeIfPresent(SyncCostProvenance.self, forKey: .costProvenance)
+        self.coverage = try container.decodeIfPresent(SyncCostCoverage.self, forKey: .coverage)
+        self.tokenMix = try container.decodeIfPresent(SyncCostTokenMix.self, forKey: .tokenMix)
+        self.sourceUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .sourceUpdatedAt)
+        self.sourceDayKey = try container.decodeIfPresent(String.self, forKey: .sourceDayKey)
+        self.sessionDayKey = try container.decodeIfPresent(String.self, forKey: .sessionDayKey)
+        self.bucketTimeZoneIdentifier = try container.decodeIfPresent(String.self, forKey: .bucketTimeZoneIdentifier)
+        self.historyCoverageIsEstablished = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .historyCoverageIsEstablished)
+        self.historyWindowIsComparable = try container.decodeIfPresent(Bool.self, forKey: .historyWindowIsComparable)
+        self.reportingPeriodSummary = try container.decodeIfPresent(
+            SyncCostPeriodSummary.self,
+            forKey: .reportingPeriodSummary)
     }
 
     public func encode(to encoder: Encoder) throws {
         let nativeCurrencyCannotEnterLegacyUSDTotals = self.currencyCode.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "USD"
         } ?? false
-        let suppressLegacyHistory = self.reportingPeriodSummary != nil &&
+        let wireHistory = self.reportingPeriodSummary ?? (nativeCurrencyCannotEnterLegacyUSDTotals
+            ? SyncCostPeriodSummary(
+                costUSD: self.last30DaysCostUSD,
+                tokens: self.last30DaysTokens,
+                requests: self.last30DaysRequests,
+                daily: self.daily,
+                historyDays: self.historyDays,
+                isEstimated: self.isEstimated,
+                meteredCostUSD: self.meteredCostUSD,
+                costProvenance: self.costProvenance,
+                coverage: self.coverage,
+                tokenMix: self.tokenMix,
+                historyCoverageIsEstablished: self.historyCoverageIsEstablished,
+                historyWindowIsComparable: self.historyWindowIsComparable)
+            : nil)
+        let suppressLegacyHistory = wireHistory != nil &&
             (!Self.hasLegacyRollingHistoryShape(self.reportingPeriod) || nativeCurrencyCannotEnterLegacyUSDTotals)
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(self.sessionCostUSD, forKey: .sessionCostUSD)
+        try container.encodeIfPresent(
+            nativeCurrencyCannotEnterLegacyUSDTotals ? nil : self.sessionCostUSD,
+            forKey: .sessionCostUSD)
+        if nativeCurrencyCannotEnterLegacyUSDTotals {
+            try container.encode(
+                NativeCurrencySession(cost: self.sessionCostUSD, costIsKnown: self.sessionCostIsKnown),
+                forKey: .nativeCurrencySession)
+        }
         try container.encodeIfPresent(self.sessionTokens, forKey: .sessionTokens)
         try container.encodeIfPresent(
             suppressLegacyHistory ? nil : self.last30DaysCostUSD,
@@ -508,12 +579,14 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         try container.encodeIfPresent(self.sourceDayKey, forKey: .sourceDayKey)
         try container.encodeIfPresent(self.sessionDayKey, forKey: .sessionDayKey)
         try container.encodeIfPresent(self.bucketTimeZoneIdentifier, forKey: .bucketTimeZoneIdentifier)
-        try container.encodeIfPresent(self.sessionCostIsKnown, forKey: .sessionCostIsKnown)
+        try container.encodeIfPresent(
+            nativeCurrencyCannotEnterLegacyUSDTotals ? false : self.sessionCostIsKnown,
+            forKey: .sessionCostIsKnown)
         try container.encodeIfPresent(self.historyCoverageIsEstablished, forKey: .historyCoverageIsEstablished)
         try container.encodeIfPresent(
             suppressLegacyHistory ? false : self.historyWindowIsComparable,
             forKey: .historyWindowIsComparable)
-        try container.encodeIfPresent(self.reportingPeriodSummary, forKey: .reportingPeriodSummary)
+        try container.encodeIfPresent(wireHistory, forKey: .reportingPeriodSummary)
     }
 
     private static func hasLegacyRollingHistoryShape(_ reportingPeriod: String?) -> Bool {
