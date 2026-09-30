@@ -1,7 +1,46 @@
 import Foundation
 
 public enum QoderProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor(
+        credentials: Self.credentials,
+        fetchPlan: Self.fetchPlan())
+    public static let spec = PluginProviderSpec(
+        id: .qoder,
+        displayName: "Qoder",
+        sessionLabel: "Credits",
+        weeklyLabel: "Balance",
+        creditsHint: "Big model credits from the Qoder usage dashboard.",
+        debugLogUnavailableMessage: "Qoder debug log not yet implemented",
+        usesDetailBackedWindow: true,
+        dashboardURL: QoderWebSite.international.dashboardURL.absoluteString,
+        color: .init(red: 16 / 255, green: 185 / 255, blue: 129 / 255),
+        confetti: [0x2ADB5C, 0x111113, 0xFFFFFF],
+        noDataMessage: "Qoder cost summary is not supported.",
+        presentation: ProviderUsagePresentation(
+            menuCard: ProviderMenuCardPresentation(
+                showsPrimaryBalanceDescription: true,
+                hidesPrimaryResetWithoutDate: true),
+            menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
+        webSource: .init(
+            settingsSection: .init(QoderProviderSettingsKey.self, cookieSettings: QoderProviderSettings.self),
+            browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
+                reason: "Preserve documented Chrome import without unrelated Keychain prompts"),
+            browserSupportExemption: { _, _, settings in
+                settings?.qoder?.cookieSource == .manual
+            },
+            field: .init(
+                id: "qoder-cookie",
+                title: "",
+                subtitle: "",
+                placeholder: "Cookie: \u{2026}\n\nor paste a cURL capture from the Qoder usage page",
+                action: (id: "qoder-open-usage", title: "Open Qoder Usage", url: "https://qoder.com/account/usage")),
+            picker: .init(
+                id: "qoder-cookie-source",
+                allowsOff: false,
+                auto: .localized("Automatic imports browser cookies."),
+                manual: .localized("Paste a Cookie header or cURL capture from %@.", argument: "Qoder usage"),
+                off: .localized("%@ cookies are disabled.", argument: "Qoder"))))
+
     private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
         title: "Session tokens",
         subtitle: "Store multiple Qoder Cookie headers.",
@@ -9,60 +48,6 @@ public enum QoderProviderDescriptor {
         injection: .cookieHeader,
         requiresManualCookieSource: true,
         cookieName: nil))
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .qoder,
-            settingsSection: .init(QoderProviderSettingsKey.self, cookieSettings: QoderProviderSettings.self),
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .qoder,
-                displayName: "Qoder",
-                sessionLabel: "Credits",
-                weeklyLabel: "Balance",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "Big model credits from the Qoder usage dashboard.",
-                toggleTitle: "Show Qoder usage",
-                cliName: "qoder",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                debugLogUnavailableMessage: "Qoder debug log not yet implemented",
-                usesDetailBackedWindow: true,
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                    reason: "Preserve documented Chrome import without unrelated Keychain prompts"),
-                dashboardURL: QoderWebSite.international.dashboardURL.absoluteString,
-                statusPageURL: nil,
-                statusLinkURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .qoder),
-                iconResourceName: "ProviderIcon-qoder",
-                color: ProviderColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0x2ADB5C),
-                    ProviderColor(hex: 0x111113),
-                    ProviderColor(hex: 0xFFFFFF),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Qoder cost summary is not supported." }),
-            presentation: ProviderUsagePresentation(
-                menuCard: ProviderMenuCardPresentation(
-                    showsPrimaryBalanceDescription: true,
-                    hidesPrimaryResetWithoutDate: true),
-                menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "qoder",
-                aliases: [],
-                versionDetector: nil,
-                browserSupportExemption: { _, _, settings in
-                    settings?.qoder?.cookieSource == .manual
-                }))
-    }
 
     private static func fetchPlan() -> ProviderFetchPlan {
         ProviderFetchPlan(

@@ -23,6 +23,8 @@ extension StatusItemController {
 
     private func cancelShutdownTasks() {
         self.agentSessions.stop()
+        self.store.credentialNotificationsStopped = true
+        self.store.retireCredentialNotifications()
         self.menuAppearanceObserver?.stop()
         self.menuAppearanceObserver = nil
         self.blinkTask?.cancel()
@@ -41,7 +43,6 @@ extension StatusItemController {
         self.menuCardRefreshMonitor.resetManualRefresh()
         self.screenChangeVisibilityTask?.cancel()
         self.screenChangeVisibilityTask = nil
-        self.pendingScreenChangePreviousCount = nil
         self.animationDriver?.stop()
         self.animationDriver = nil
         self.animationPhase = 0
@@ -101,10 +102,7 @@ extension StatusItemController {
     }
 
     private func removeShutdownStatusItems() {
-        self.statusItem.menu = nil
-        self.removeStatusItemPreservingPlacement(self.statusItem)
-
-        for item in self.statusItems.values {
+        for item in [self.statusItem] + Array(self.statusItems.values) {
             item.menu = nil
             self.removeStatusItemPreservingPlacement(item)
         }

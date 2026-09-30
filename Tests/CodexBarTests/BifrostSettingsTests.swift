@@ -18,7 +18,8 @@ struct BifrostSettingsTests {
         }
         for endpoint in ["http://bifrost.example.com", "https://user:password@bifrost.example.com", "file:///fixture"] {
             #expect(BifrostSettingsReader.baseURL(environment: ["BIFROST_BASE_URL": endpoint]) == nil)
-            #expect(BifrostSettingsReader.hasBaseURLOverride(environment: ["BIFROST_BASE_URL": endpoint]))
+            #expect(BifrostProviderDescriptor.spec.endpoint?
+                .isAvailable(environment: ["BIFROST_BASE_URL": endpoint]) == true)
         }
     }
 

@@ -1091,6 +1091,64 @@ struct WidgetSnapshotBuilderTests {
         #expect(widget.topProviders.first?.thirtyDayCostUSD == 3)
     }
 
+    @Test
+    func `thirty-day widget totals ignore all and month-to-date summaries`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-29T12:00:00Z"))
+        let dayKey = "2026-09-29"
+        let point = SyncDailyPoint(
+            dayKey: dayKey,
+            costUSD: 3,
+            totalTokens: 300,
+            costIsKnown: true)
+
+        for reportingPeriod in ["all", "month-to-date"] {
+            let summary = SyncCostSummary(
+                sessionCostUSD: 3,
+                sessionTokens: 300,
+                last30DaysCostUSD: 40,
+                last30DaysTokens: 4_000,
+                daily: [point],
+                historyDays: 30,
+                reportingPeriod: reportingPeriod,
+                sourceUpdatedAt: now,
+                sourceDayKey: dayKey,
+                sessionDayKey: dayKey,
+                bucketTimeZoneIdentifier: "UTC",
+                sessionCostIsKnown: true,
+                historyCoverageIsEstablished: true,
+                historyWindowIsComparable: true,
+                reportingPeriodSummary: SyncCostPeriodSummary(
+                    costUSD: 40,
+                    tokens: 4_000,
+                    daily: [point],
+                    historyDays: 30,
+                    historyCoverageIsEstablished: true,
+                    historyWindowIsComparable: true))
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "dev@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: now,
+                costSummary: summary)
+            let snapshot = SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: "Mac",
+                deviceID: "device-a")
+
+            #expect(summary.completeHistoryCostUSD(at: now) == 40)
+            #expect(summary.completeThirtyDayHistoryCostUSD(at: now) == nil)
+            let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+            #expect(widget.thirtyDayCostUSD == nil)
+            #expect(widget.topProviders.first?.thirtyDayCostUSD == nil)
+        }
+    }
+
     private static func provider(
         id: String,
         name: String,

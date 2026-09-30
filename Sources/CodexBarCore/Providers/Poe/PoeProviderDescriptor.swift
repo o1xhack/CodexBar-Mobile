@@ -1,71 +1,26 @@
 import Foundation
 
 public enum PoeProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
-    private static let credentials = ProviderCredentialAdapter.apiKey(
-        environmentKey: PoeSettingsReader.apiKeyEnvironmentKey,
-        resolve: PoeSettingsReader.apiKey)
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .poe,
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .poe,
-                displayName: "Poe",
-                sessionLabel: "Points",
-                weeklyLabel: "Points",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show Poe usage",
-                cliName: "poe",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                balanceOnly: true,
-                browserCookieOrder: nil,
-                dashboardURL: "https://poe.com/api/keys",
-                statusPageURL: nil,
-                statusLinkURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .poe),
-                iconResourceName: "ProviderIcon-poe",
-                color: ProviderColor(red: 93 / 255, green: 92 / 255, blue: 222 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0x5D5CDE),
-                    ProviderColor(hex: 0x2A2AA2),
-                    ProviderColor(hex: 0xE051ED),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Poe usage history is unavailable." }),
-            presentation: ProviderUsagePresentation(
-                menuCard: ProviderMenuCardPresentation(primaryDetailKind: .poeBalance),
-                planRow: ProviderPlanRowPresentation(label: "Balance", stripsBalancePrefix: true)),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "poe",
-                aliases: [],
-                versionDetector: nil))
-    }
-
-    private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                [ScriptFetchStrategy(
-                    id: "poe.js",
-                    provider: .poe,
-                    bundledPlugin: "poe",
-                    secretKey: PoeSettingsReader.apiKeyEnvironmentKey,
-                    sourceLabel: "api",
-                    resolveSecret: { environment in
-                        self.credentials.resolveToken(environment: environment)?.token
-                    },
-                    isEnabled: { _ in true })]
-            }))
-    }
+    public static let descriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .poe,
+        displayName: "Poe",
+        sessionLabel: "Points",
+        weeklyLabel: "Points",
+        balanceOnly: true,
+        dashboardURL: "https://poe.com/api/keys",
+        color: .init(red: 93 / 255, green: 92 / 255, blue: 222 / 255),
+        confetti: [0x5D5CDE, 0x2A2AA2, 0xE051ED],
+        noDataMessage: "Poe usage history is unavailable.",
+        environmentKey: "POE_API_KEY",
+        presentation: ProviderUsagePresentation(
+            menuCard: ProviderMenuCardPresentation(primaryDetailKind: .poeBalance),
+            planRow: ProviderPlanRowPresentation(label: "Balance", stripsBalancePrefix: true)),
+        apiKeyField: .init(
+            id: "poe-api-key",
+            title: "API key",
+            subtitle: "Stored in ~/.codexbar/config.json. Get your key from poe.com/api/keys.",
+            placeholder: nil),
+        showsAPIDetail: true,
+        availability: .configuredKey)
 }

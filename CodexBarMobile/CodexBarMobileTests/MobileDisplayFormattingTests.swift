@@ -150,6 +150,16 @@ struct MobileDisplayFormattingTests {
         #expect(ProviderDetailView.shouldRenderCostSummary(meteredOnly))
         #expect(ProviderDetailView.shouldRenderProviderReportedCost(meteredOnly))
         #expect(ProviderDetailView.shouldRenderCostSummary(tokenOnly))
+
+        let incomparable = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 37,
+            last30DaysTokens: 3_700,
+            daily: [],
+            historyWindowIsComparable: false)
+        #expect(ProviderDetailView.shouldRenderCostSummary(incomparable))
+        #expect(ProviderDetailView.historyCostToDisplay(incomparable) == nil)
     }
 
     @Test("Provider detail omits empty cost summaries")

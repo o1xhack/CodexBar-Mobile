@@ -11,6 +11,12 @@ struct InstallOriginTests {
         }
     }
 
+    @Test
+    func `unrelated caskroom directory does not claim the app`() {
+        #expect(!InstallOrigin.isHomebrewCask(
+            appBundleURL: URL(fileURLWithPath: "/example/Caskroom/other/1.0/CodexBar.app"), caskroomURLs: []))
+    }
+
     @Test(arguments: [false, true])
     func `matches the installed app through absolute or relative artifact links`(relative: Bool) throws {
         try self.withFixture { root, app, artifact in
@@ -56,6 +62,27 @@ struct InstallOriginTests {
                 withIntermediateDirectories: true)
             try FileManager.default.createSymbolicLink(at: current, withDestinationURL: app)
             #expect(InstallOrigin.isHomebrewCask(appBundleURL: app, caskroomURLs: caskrooms))
+        }
+    }
+
+    @Test
+    func `legacy caskroom apps still check for competing prefix claims`() throws {
+        try self.withFixture { root, _, artifact in
+            let manager = FileManager.default
+            try manager.createDirectory(at: artifact, withIntermediateDirectories: true)
+            let owner = root.appendingPathComponent("brew")
+            let samePrefix = owner.appendingPathComponent("Caskroom/codexbar/0.60.0/CodexBar.app")
+            try manager.createDirectory(at: samePrefix.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try manager.createSymbolicLink(at: samePrefix, withDestinationURL: artifact)
+            let caskrooms = [owner.appendingPathComponent("Caskroom"), root.appendingPathComponent("other/Caskroom")]
+            #expect(InstallOrigin.homebrewPrefix(appBundleURL: artifact, caskroomURLs: caskrooms)
+                == owner.resolvingSymlinksInPath().standardizedFileURL)
+
+            let competing = caskrooms[1].appendingPathComponent("codexbar/0.58.0/CodexBar.app")
+            try manager.createDirectory(at: competing.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try manager.createSymbolicLink(at: competing, withDestinationURL: artifact)
+            #expect(InstallOrigin.isHomebrewCask(appBundleURL: artifact, caskroomURLs: caskrooms))
+            #expect(InstallOrigin.homebrewPrefix(appBundleURL: artifact, caskroomURLs: caskrooms) == nil)
         }
     }
 

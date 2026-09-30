@@ -137,20 +137,11 @@ stapler validate "$APP_BUNDLE"
 # rejected by AMFI at launch time with "Launchd job spawn failed"
 # (POSIX 163). The only way to catch this class of failure is to
 # actually try to launch the binary.
-echo "Launch verification — direct exec of stapled bundle, must stay alive 2s"
-"$APP_BUNDLE/Contents/MacOS/$APP_NAME" >/dev/null 2>&1 &
-LAUNCH_TEST_PID=$!
-sleep 2
-if kill -0 "$LAUNCH_TEST_PID" 2>/dev/null; then
-  kill -TERM "$LAUNCH_TEST_PID" 2>/dev/null || true
-  sleep 1
-  if kill -0 "$LAUNCH_TEST_PID" 2>/dev/null; then
-    kill -KILL "$LAUNCH_TEST_PID" 2>/dev/null || true
-  fi
-  wait "$LAUNCH_TEST_PID" 2>/dev/null || true
+echo "Launch verification — isolated direct exec of stapled bundle, must stay alive 2s"
+if CODEXBAR_LAUNCH_SMOKE_SECONDS=2 CODEXBAR_REQUIRE_LAUNCH_SURVIVAL=1 \
+  "$ROOT/Scripts/verify_packaged_app_launch.sh" "$APP_BUNDLE"; then
   echo "Launch verification: OK"
 else
-  wait "$LAUNCH_TEST_PID" 2>/dev/null || true
   echo "" >&2
   echo "FATAL: $APP_NAME exited within 2s of launch." >&2
   echo "  spctl, stapler, and notarization all passed, but AMFI / Launch" >&2

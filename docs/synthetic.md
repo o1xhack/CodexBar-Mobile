@@ -69,4 +69,4 @@ codexbar usage --provider synthetic.new
 - `Sources/CodexBarCore/Providers/Synthetic/SyntheticProviderDescriptor.swift` (descriptor and script fetch strategy)
 - `Sources/CodexBarCore/Resources/Plugins/synthetic.js` (HTTP client and parser)
 - `Sources/CodexBarCore/Providers/Synthetic/SyntheticSettingsReader.swift` (environment variable parsing)
-- `Sources/CodexBar/Providers/Synthetic/SyntheticProviderImplementation.swift` (settings field and availability)
+- `Sources/CodexBar/Providers/Shared/PluginAPIKeyProviderImplementation.swift` (spec-built settings and availability)

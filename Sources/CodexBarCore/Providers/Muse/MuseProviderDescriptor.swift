@@ -15,10 +15,34 @@ public enum MuseProviderDescriptor {
             "Muse Code login not found. Run `muse login`, then refresh CodexBar."
         })
 
+    /// Chrome needs a no-UI Safe Storage grant and Firefox needs none; Safari's store can require Full Disk Access.
+    private static var browserCookieOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        [.chrome, .firefox]
+        #else
+        nil
+        #endif
+    }
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .muse,
+            settingsSection: .init(
+                MuseProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    .init(cookieSource: settings.cookieSource, manualCookieHeader: settings.manualCookieHeader)
+                },
+                credentialSettings: { context in
+                    // Browser sessions are opt-in for Muse: without an explicit source or pasted header, stay Off.
+                    let header = context.config?.sanitizedCookieHeader
+                    return MuseProviderSettings(
+                        cookieSource: context.config?.cookieSource ?? (header == nil ? .off : .manual),
+                        manualCookieHeader: header,
+                        webTeamID: context.config?.sanitizedWorkspaceID)
+                }),
             credentials: self.credentials,
+            // `workspaceID` holds the user-selected dev.meta.ai team for the browser-team quota.
+            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 8),
             metadata: ProviderMetadata(
                 id: .muse,
                 displayName: "Muse Code",
@@ -32,6 +56,7 @@ public enum MuseProviderDescriptor {
                 cliName: "muse",
                 defaultEnabled: false,
                 widgetSelectable: false,
+                browserCookieOrder: self.browserCookieOrder,
                 dashboardURL: "https://dev.meta.ai",
                 subscriptionDashboardURL: "https://dev.meta.ai",
                 statusPageURL: nil),
@@ -75,9 +100,23 @@ struct MuseOAuthFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let token = try MuseCredentials.accessToken(environment: context.env)
-        let runtime = try ProviderPluginRuntime(bundledPlugin: "muse")
-        let snapshot = try await runtime.fetchUsage(secrets: ["MUSE_DEVICE_TOKEN": token])
-        return self.makeResult(usage: snapshot, sourceLabel: "oauth")
+        // The key request (15 s) and the bounded dev.meta.ai fallback (5 × 8 s) fit one 60 s deadline.
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "muse", timeout: 60)
+        let cookies = ProviderPluginCookieBroker(
+            provider: .muse, domains: runtime.manifest.cookieDomains, context: context)
+        // Reading the browser session is opt-in: an unconfigured Muse provider keeps its CLI-token-only behavior.
+        let settings = context.settings?[MuseProviderSettingsKey.self]
+        let cookieSource = settings?.cookieSource ?? .off
+        let result = try await runtime.fetchResult(
+            settings: settings?.webTeamID.map { ["MUSE_WEB_TEAM_ID": $0] } ?? [:],
+            secrets: ["MUSE_DEVICE_TOKEN": token],
+            sourceMode: context.sourceMode,
+            cookieSource: cookieSource,
+            cookieInvalidator: { cookies.rejectCookie(domain: $0) },
+            cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
+            cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
+            cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
+        return self.makeResult(usage: result.usage, sourceLabel: result.sourceLabel ?? "oauth")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

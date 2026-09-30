@@ -50,6 +50,8 @@ public enum AccountIdentityComputer {
             self.claude(identity: identity)
         case .vertexai:
             self.vertexAI(identity: identity)
+        case .aixy:
+            self.aixy(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
@@ -94,7 +96,10 @@ public enum AccountIdentityComputer {
              // identifier is proven across Macs and exposed by the iOS bridge.
              .bifrost, .helmcode, .nous, .muse, .coderabbit, .replicate,
              .huggingface, .pi, .v0, .typesafe, .hyper, .gitkraken,
-             .devpass, .atlascloud, .vercel, .llmman:
+             .devpass, .atlascloud, .vercel, .llmman,
+             // Upstream v0.67.0 Raycast and xKiro expose quota data but no
+             // stable cross-Mac account identifier used by the mobile merger.
+             .raycast, .xkiro:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
@@ -157,9 +162,18 @@ public enum AccountIdentityComputer {
         return ids
     }
 
+    /// Aixy reports key-scoped usage and returns the stable server key ID.
+    /// The same project-scoped API key therefore merges across Macs, while
+    /// separate keys stay separate even when they belong to one project.
+    private static func aixy(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity else { return [] }
+        guard let keyID = Self.normalizeOpaque(identity.accountID) else { return [] }
+        return ["aixy:key:\(keyID)"]
+    }
+
     // MARK: - Normalization
 
-    /// Apply the normalization rules from Research/019 §4.4:
+    /// Apply the shared account-identity normalization rules from Research/019 §4.4:
     /// - lowercase
     /// - Unicode NFC
     /// - trim whitespace
@@ -177,6 +191,24 @@ public enum AccountIdentityComputer {
         guard !trimmed.isEmpty else { return nil }
         let lowered = trimmed.lowercased()
         let nfc = lowered.precomposedStringWithCanonicalMapping
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: ":|/"))
+        guard let encoded = nfc.addingPercentEncoding(withAllowedCharacters: allowed) else {
+            return nil
+        }
+        if encoded.count > Self.maxIdentifierLength {
+            return String(encoded.prefix(Self.maxIdentifierLength))
+        }
+        return encoded
+    }
+
+    /// Provider-issued opaque IDs may be case-sensitive (Aixy key IDs are an
+    /// example). Preserve their case while applying NFC, escaping, and length
+    /// limits; see the Aixy extension in Research/019 §4.2 and §4.4.
+    private static func normalizeOpaque(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let nfc = trimmed.precomposedStringWithCanonicalMapping
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: ":|/"))
         guard let encoded = nfc.addingPercentEncoding(withAllowedCharacters: allowed) else {
             return nil

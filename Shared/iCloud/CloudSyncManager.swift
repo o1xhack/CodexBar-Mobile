@@ -1,4 +1,5 @@
 import CloudKit
+import CryptoKit
 import Foundation
 #if canImport(OSLog)
 import OSLog
@@ -1287,13 +1288,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// state and read the recordName to construct a richer body
     /// ("Codex session at 50% warning threshold").
     ///
-    /// **recordName format**: `"{providerID}-{window}-t{threshold}-{hourBucket}"`
+    /// **recordName format**: `"{providerID}[-w{identityHash}[-l{label}]]-{window}-t{threshold}-{hourBucket}"`
     /// — e.g. `"codex-session-t50-477312"`. Different thresholds for the
     /// same (provider, window) produce different recordNames, so a user
     /// crossing 50% and then 20% within the same hour gets two distinct
     /// records and two distinct pushes (not collapsed by idempotency).
-    /// Two Macs crossing the same threshold for the same provider+window
-    /// in the same hour DO collapse — that's the intended dedupe.
+    /// Named windows include a non-reversible identity hash before the window
+    /// token so older notification extensions can still read the final
+    /// `-t{threshold}-{hourBucket}` components. The optional label is hex
+    /// encoded. Neither changes the CloudKit schema.
     ///
     /// Zone: `Quota-{providerID}-warningZone` (per `QuotaProviderList`),
     /// which iOS subscribes to via the same `CKRecordZoneSubscription`
@@ -1309,7 +1312,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         window: String,
         threshold: Int,
         transitionAt: Date,
-        accountEmail: String? = nil) async -> SyncPushResult
+        accountEmail: String? = nil,
+        windowIdentity: String? = nil,
+        windowDisplayLabel: String? = nil) async -> SyncPushResult
     {
         guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -1335,7 +1340,24 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // than packed into recordName so each iOS NSE invocation
         // can fetch + display the triggering account without having
         // to re-parse a longer recordName.
-        let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
+        let identityHash: String?
+        let displayLabel: String?
+        if let windowIdentity, !windowIdentity.isEmpty {
+            let identityInput = "\(windowIdentity)|\(accountEmail?.lowercased() ?? "")"
+            let digest = SHA256.hash(data: Data(identityInput.utf8))
+            identityHash = digest.prefix(12).map { String(format: "%02x", $0) }.joined()
+            displayLabel = windowDisplayLabel
+        } else {
+            identityHash = nil
+            displayLabel = nil
+        }
+        let recordName = QuotaZoneNotificationParser.warningRecordName(
+            providerID: providerID,
+            window: window,
+            threshold: threshold,
+            hourBucket: hourBucket,
+            identityHash: identityHash,
+            windowDisplayLabel: displayLabel)
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
 
         let record = CKRecord(

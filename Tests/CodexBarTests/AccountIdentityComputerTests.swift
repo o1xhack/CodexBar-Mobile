@@ -100,6 +100,26 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["vertexai:project:gcp-project-12345", "vertexai:email:gcp-user@example.com"])
     }
 
+    @Test
+    func `Aixy groups by case-preserving key ID and ignores missing key IDs`() throws {
+        let identity = ProviderIdentitySnapshot(
+            providerID: UsageProvider.aixy.instanceID,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "API key",
+            accountID: "  Key:AbC/123  ")
+        let ids = try #require(AccountIdentityComputer.compute(provider: .aixy, identity: identity))
+        #expect(ids == ["aixy:key:Key%3AAbC%2F123"])
+
+        let missingID = ProviderIdentitySnapshot(
+            providerID: UsageProvider.aixy.instanceID,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "API key")
+        #expect(AccountIdentityComputer.compute(provider: .aixy, identity: missingID) == [])
+        #expect(AccountIdentityComputer.compute(provider: .aixy, identity: nil) == [])
+    }
+
     // MARK: - Non-Tier-A providers
 
     @Test
@@ -111,6 +131,7 @@ struct AccountIdentityComputerTests {
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
             .zai, .antigravity, .kilo, .kiro, .sakana, .qoder, .clawrouter,
             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
+            .raycast, .xkiro,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

@@ -115,5 +115,5 @@ data, while `codexbar cost --provider t3chat` is unsupported.
 
 - `Sources/CodexBarCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
 - `Sources/CodexBarCore/Resources/Plugins/t3chat.js` — tRPC request, response decoding, and window mapping
-- `Sources/CodexBar/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
+- `Sources/CodexBar/Providers/Shared/PluginCookieProviderImplementation.swift` — settings pickers and bindings
 - `Sources/CodexBar/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence

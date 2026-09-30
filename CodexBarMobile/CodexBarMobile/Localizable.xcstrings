@@ -1,6 +1,14 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Totals here include USD spend only. Other currencies are shown in provider details.": {
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Totals here include USD spend only. Other currencies are shown in provider details."}},
+        "zh-Hans": {"stringUnit": {"state": "translated", "value": "这里的总计仅包含美元费用。其他币种会显示在服务商详情中。"}},
+        "zh-Hant": {"stringUnit": {"state": "translated", "value": "這裡的總計僅包含美元費用。其他幣別會顯示在服務商詳情中。"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "ここの合計には米ドルの費用のみ含まれます。他の通貨はプロバイダの詳細に表示されます。"}}
+      }
+    },
     "Account %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -5427,6 +5435,15 @@
             "value": "歷史版本"
           }
         }
+      }
+    },
+    "History Tokens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "History Tokens" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "履歴トークン数" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "历史 Token 数" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "歷史 Token 數" } }
       }
     },
     "Important": {
@@ -22368,6 +22385,42 @@
       "zh-Hans": { "stringUnit": { "state": "translated", "value": "费用覆盖：%lld / %lld 条用量记录已计价或估算。" } },
       "zh-Hant": { "stringUnit": { "state": "translated", "value": "費用涵蓋：%lld / %lld 筆用量記錄已計價或估算。" } }
     } },
+    "Cost windows differ, so history totals are unavailable.": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Cost windows differ, so history totals are unavailable." } },
+      "ja": { "stringUnit": { "state": "translated", "value": "コスト期間が異なるため、履歴の合計を表示できません。" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "费用统计周期不一致，因此无法显示历史总额。" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "費用統計週期不一致，因此無法顯示歷史總額。" } }
+    } },
+    "Mixed cost windows": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Mixed cost windows" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "異なるコスト期間" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "费用周期不一致" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "費用週期不一致" } }
+    } },
+    "Aixy key": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Aixy key" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "Aixy キー" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "Aixy 密钥" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "Aixy 金鑰" } }
+    } },
+    "Key": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Key" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "キー" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "密钥" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "金鑰" } }
+    } },
+    "Observed": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Observed" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "観測日時" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "观测时间" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "觀測時間" } }
+    } },
+    "Project": { "extractionState": "manual", "localizations": {
+      "en": { "stringUnit": { "state": "translated", "value": "Project" } },
+      "ja": { "stringUnit": { "state": "translated", "value": "プロジェクト" } },
+      "zh-Hans": { "stringUnit": { "state": "translated", "value": "项目" } },
+      "zh-Hant": { "stringUnit": { "state": "translated", "value": "專案" } }
+    } },
     "Historical cost coverage is incomplete.": { "extractionState": "manual", "localizations": {
       "en": { "stringUnit": { "state": "translated", "value": "Historical cost coverage is incomplete." } },
       "ja": { "stringUnit": { "state": "translated", "value": "過去のコストデータの対象範囲が不完全です。" } },
@@ -22684,6 +22737,9 @@
     "Hourly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Hourly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每小时"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每小時"}},"ja":{"stringUnit":{"state":"translated","value":"毎時"}}}},
     "limit %@": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"limit %@"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"上限 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"上限 %@"}},"ja":{"stringUnit":{"state":"translated","value":"上限 %@"}}}},
     "Monthly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Monthly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每月"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每月"}},"ja":{"stringUnit":{"state":"translated","value":"毎月"}}}},
+    "Monthly Plan": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Monthly Plan"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"月度套餐"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每月方案"}},"ja":{"stringUnit":{"state":"translated","value":"月次プラン"}}}},
+    "Match Mac": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Match Mac"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"匹配 Mac"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"與 Mac 相同"}},"ja":{"stringUnit":{"state":"translated","value":"Mac に合わせる"}}}},
+    "Match Mac follows the period selected on your Mac; day options use a rolling window on this iPhone.": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Match Mac follows the period selected on your Mac; day options use a rolling window on this iPhone."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"“匹配 Mac”会跟随 Mac 上选择的统计周期；按天选项则在此 iPhone 上使用滚动周期。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"「與 Mac 相同」會跟隨 Mac 上選擇的統計期間；天數選項則在此 iPhone 上使用滾動期間。"}},"ja":{"stringUnit":{"state":"translated","value":"「Mac に合わせる」は Mac で選択した期間に従い、日数の選択肢ではこの iPhone 上でローリング期間を使います。"}}}},
     "Muse login": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Muse login"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"Muse 登录"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"Muse 登入"}},"ja":{"stringUnit":{"state":"translated","value":"Muse ログイン"}}}},
     "Quarterly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Quarterly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每季度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每季"}},"ja":{"stringUnit":{"state":"translated","value":"四半期ごと"}}}},
     "Yearly": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Yearly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每年"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每年"}},"ja":{"stringUnit":{"state":"translated","value":"毎年"}}}},
@@ -22734,7 +22790,45 @@
     "CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"CodexBar opens these release notes after each app version update. Tap Setup at the top to open the Setup Guide."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每次更新应用版本后，CodexBar 都会显示本次更新说明。点按顶部的“设置指南”即可打开指南。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每次更新 App 版本後，CodexBar 都會顯示本次更新說明。點選頂部的「設定指南」即可開啟指南。"}},"ja":{"stringUnit":{"state":"translated","value":"アプリのバージョンを更新すると、CodexBar はこのリリースノートを表示します。上部の「セットアップ」をタップすると、セットアップガイドを開けます。"}}}},
     "Setup": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Setup"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"设置指南"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"設定指南"}},"ja":{"stringUnit":{"state":"translated","value":"セットアップ"}}}},
     "Waiting for Mac Sync": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Waiting for Mac Sync"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"等待 Mac 同步"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"等待 Mac 同步"}},"ja":{"stringUnit":{"state":"translated","value":"Mac からの同期を待っています"}}}},
-    "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请在 Mac 上打开 CodexBar 并启用 iCloud 同步，以便将用量数据同步到这台 iPhone。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"請在 Mac 上開啟 CodexBar 並啟用 iCloud 同步，將用量資料同步到這台 iPhone。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac で CodexBar を開き、iCloud 同期を有効にすると、この iPhone に使用状況データが同期されます。"}}}}
+    "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请在 Mac 上打开 CodexBar 并启用 iCloud 同步，以便将用量数据同步到这台 iPhone。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"請在 Mac 上開啟 CodexBar 並啟用 iCloud 同步，將用量資料同步到這台 iPhone。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac で CodexBar を開き、iCloud 同期を有効にすると、この iPhone に使用状況データが同期されます。"}}}},
+    "CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 将最新 Mac 更新带到 iPhone，并让服务额度和费用周期更清晰。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 將最新 Mac 更新帶到 iPhone，並讓服務額度與費用週期更清楚。"}},"ja":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 では最新の Mac 更新を iPhone に届け、サービスの利用枠と費用期間をわかりやすくします。"}}}},
+    "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details.": {
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details."}},
+        "zh-Hans": {"stringUnit": {"state": "translated", "value": "在 iPhone 上跟随 Mac 选择的费用范围，包括滚动周期、本月及全部历史。美元总计不包含其他币种，其他币种仍显示在服务商详情中。"}},
+        "zh-Hant": {"stringUnit": {"state": "translated", "value": "在 iPhone 上跟隨 Mac 選擇的費用範圍，包括滾動週期、本月及全部歷史。美元總計不包含其他幣別，其他幣別仍顯示在服務商詳情中。"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "iPhoneでMacの費用期間に合わせて、ローリング期間、今月、全期間の合計を確認できます。米ドルの合計には他の通貨を含めず、プロバイダの詳細に表示します。"}}
+      }
+    },
+    "See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"在 iPhone 上查看从 Mac 同步的 xKiro、Raycast 和 Aixy 用量详情与额度提醒。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"在 iPhone 上查看從 Mac 同步的 xKiro、Raycast 和 Aixy 用量詳情與額度提醒。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac から同期した xKiro、Raycast、Aixy の利用状況と利用枠の通知を iPhone で確認できます。"}}}},
+    "Get richer LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse usage details from Mac.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Get richer LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse usage details from Mac."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"查看 Mac 同步的 LiteLLM、Claude Admin、Grok、Antigravity、Mistral 和 Muse 的更多用量详情。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"查看 Mac 同步的 LiteLLM、Claude Admin、Grok、Antigravity、Mistral 和 Muse 的更多用量詳情。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac から同期される LiteLLM、Claude Admin、Grok、Antigravity、Mistral、Muse の詳細な利用状況を確認できます。"}}}},
+    "Update CodexBar on Mac to 0.68.0.1 or later for all new provider and cost-window data.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Update CodexBar on Mac to 0.68.0.1 or later for all new provider and cost-window data."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请将 Mac 上的 CodexBar 更新至 0.68.0.1 或更高版本，以获取所有新增服务和费用周期数据。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"請將 Mac 上的 CodexBar 更新至 0.68.0.1 或更新版本，以取得所有新增服務與費用週期資料。"}},"ja":{"stringUnit":{"state":"translated","value":"新しいプロバイダーと費用期間のデータを利用するには、Mac の CodexBar を 0.68.0.1 以降にアップデートしてください。"}}}},
+    "Secondary budget": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Secondary budget"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"次级预算"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"次級預算"}},"ja":{"stringUnit":{"state":"translated","value":"第二の予算"}}}},
+    "Daily free tokens": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Daily free tokens"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每日免费 Token"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每日免費 Token"}},"ja":{"stringUnit":{"state":"translated","value":"毎日の無料トークン"}}}},
+    "Organization": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Organization"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"组织"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"組織"}},"ja":{"stringUnit":{"state":"translated","value":"組織"}}}},
+    "Team": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Team"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"团队"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"團隊"}},"ja":{"stringUnit":{"state":"translated","value":"チーム"}}}},
+    "User": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"User"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"用户"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"使用者"}},"ja":{"stringUnit":{"state":"translated","value":"ユーザー"}}}},
+    "Lifetime": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Lifetime"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"终身"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"終身"}},"ja":{"stringUnit":{"state":"translated","value":"無期限"}}}},
+    "Shared": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Shared"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"共享"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"共用"}},"ja":{"stringUnit":{"state":"translated","value":"共有"}}}},
+    "Hard": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Hard"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"硬性"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"硬性"}},"ja":{"stringUnit":{"state":"translated","value":"ハード"}}}},
+    "Monitor": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Monitor"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"监控"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"監控"}},"ja":{"stringUnit":{"state":"translated","value":"モニタリング"}}}},
+    "Applicable budgets": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Applicable budgets"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"适用预算"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"適用預算"}},"ja":{"stringUnit":{"state":"translated","value":"適用される予算"}}}},
+    "Free tokens": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Free tokens"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"免费 Token"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"免費 Token"}},"ja":{"stringUnit":{"state":"translated","value":"無料トークン"}}}},
+    "Tokens used today": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Tokens used today"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"今日已用 Token"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"今日已使用 Token"}},"ja":{"stringUnit":{"state":"translated","value":"今日使用したトークン"}}}},
+    "Daily allowance": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Daily allowance"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每日额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每日額度"}},"ja":{"stringUnit":{"state":"translated","value":"1日の上限"}}}},
+    "Tokens remaining": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Tokens remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余 Token"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘 Token"}},"ja":{"stringUnit":{"state":"translated","value":"残りトークン"}}}},
+    "Daily reset": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Daily reset"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每日重置"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每日重置"}},"ja":{"stringUnit":{"state":"translated","value":"毎日のリセット"}}}},
+    "No cap reported": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"No cap reported"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"未提供上限"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"未提供上限"}},"ja":{"stringUnit":{"state":"translated","value":"上限の報告なし"}}}},
+    "Left": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Left"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘"}},"ja":{"stringUnit":{"state":"translated","value":"残り"}}}},
+    "%@ / %@ remaining": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ / %@ remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余 %@ / %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘 %@ / %@"}},"ja":{"stringUnit":{"state":"translated","value":"残り %@ / %@"}}}},
+    "%@ spent": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ spent"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已用 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已用 %@"}},"ja":{"stringUnit":{"state":"translated","value":"使用済み %@"}}}},
+    "%@ reserved": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ reserved"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已预留 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已預留 %@"}},"ja":{"stringUnit":{"state":"translated","value":"予約済み %@"}}}},
+    "%@ spent · %@ reserved": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ spent · %@ reserved"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"已用 %@ · 已预留 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"已用 %@ · 已預留 %@"}},"ja":{"stringUnit":{"state":"translated","value":"使用済み %@ · 予約済み %@"}}}},
+    "%@ / %@ credits left": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ / %@ credits left"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余 %@ / %@ 积分"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘 %@ / %@ 點數"}},"ja":{"stringUnit":{"state":"translated","value":"残り %@ / %@ クレジット"}}}},
+    "%@ remaining": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"%@ remaining"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"剩余 %@"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"剩餘 %@"}},"ja":{"stringUnit":{"state":"translated","value":"残り %@"}}}},
+    "Push.QuotaWarning.window.daily": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"daily"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每日"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每日"}},"ja":{"stringUnit":{"state":"translated","value":"日次"}}}},
+    "Push.QuotaWarning.window.monthly": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"monthly"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每月"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每月"}},"ja":{"stringUnit":{"state":"translated","value":"月次"}}}},
+    "Push.QuotaWarning.window.lifetime": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"lifetime"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"终身"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"終身"}},"ja":{"stringUnit":{"state":"translated","value":"無期限"}}}}
   },
   "version": "1.0"
 }

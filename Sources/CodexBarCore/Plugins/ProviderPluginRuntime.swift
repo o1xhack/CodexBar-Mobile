@@ -29,6 +29,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
     private let allowsDynamicID: Bool
     private let contextOptions: ProviderPluginContextOptions
     private let engineKind: ProviderPluginEngineKind
+    private let storage: ProviderPluginStorage?
     private let lock = NSLock()
     private var worker: (any ProviderPluginEngine)?
 
@@ -88,7 +89,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         responseSizeLimit: Int = ProviderPluginRuntime.maximumResponseBytes,
         enforcesUserResponsePolicy: Bool = false,
         allowsDynamicID: Bool = false,
-        engine: ProviderPluginEngineKind = .automatic) throws
+        engine: ProviderPluginEngineKind = .automatic,
+        storageDirectory: URL? = nil) throws
     {
         try self.init(
             source: source,
@@ -99,7 +101,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             enforcesUserResponsePolicy: enforcesUserResponsePolicy,
             allowsDynamicID: allowsDynamicID,
             contextOptions: .production,
-            engine: engine)
+            engine: engine,
+            storageDirectory: storageDirectory)
     }
 
     init(
@@ -111,7 +114,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         enforcesUserResponsePolicy: Bool = false,
         allowsDynamicID: Bool = false,
         contextOptions: ProviderPluginContextOptions = .production,
-        engine: ProviderPluginEngineKind = .automatic) throws
+        engine: ProviderPluginEngineKind = .automatic,
+        storageDirectory: URL? = nil) throws
     {
         guard timeout > 0 else { throw ProviderPluginError.load("timeout must be positive") }
         guard responseSizeLimit > 0 else { throw ProviderPluginError.load("response size limit must be positive") }
@@ -151,6 +155,11 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             allowsDynamicID: allowsDynamicID)
         self.worker = worker
         self.manifest = worker.manifest
+        self.storage = worker.manifest.capabilities.contains(.persistentStorage)
+            ? ProviderPluginStorage(
+                directory: storageDirectory ?? ProviderPluginStorage.defaultDirectory,
+                instanceID: worker.manifest.id)
+            : nil
     }
 
     public func fetchUsage(
@@ -206,6 +215,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         }
 
         var contextOptions = self.contextOptions
+        contextOptions.storage = self.storage
         contextOptions.cookieSource = sourceMode.usesWeb ? cookieSource : .off
         contextOptions.cookieInvalidator = cookieInvalidator
         contextOptions.cookieSessionResolver = cookieSessionResolver ?? ProviderPluginCookieSession.legacyResolver(
@@ -216,6 +226,16 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<ProviderPluginResult>()
+        let finish: @Sendable (Result<ProviderPluginResult, Error>) -> Void = { [weak worker] result in
+            gate.finish(result.mapError { self.redactedError($0, secrets: sanitizedSecrets.values) }) {
+                if case let .failure(error) = result,
+                   error is CancellationError || error as? ProviderPluginError == .timedOut, let worker
+                {
+                    worker.requestInterrupt()
+                    self.discard(worker)
+                }
+            }
+        }
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { continuation in
@@ -228,26 +248,20 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                     timeZone: timeZone,
                     contextOptions: contextOptions,
                     cookieResolver: cookieResolver,
-                    instanceCookieResolver: instanceCookieResolver)
-                { result in
-                    gate.finish(result.mapError { self.redactedError($0, secrets: sanitizedSecrets.values) })
-                }
-                Task.detached { [weak self, weak worker] in
-                    guard let self, let worker else { return }
-                    let nanoseconds = UInt64(self.timeout * 1_000_000_000)
-                    try? await Task.sleep(nanoseconds: nanoseconds)
-                    if gate.finish(.failure(ProviderPluginError.timedOut)) {
-                        worker.requestInterrupt()
-                        self.discard(worker)
-                    }
+                    instanceCookieResolver: instanceCookieResolver,
+                    completion: finish)
+                Task.detached {
+                    try? await Task.sleep(for: .seconds(self.timeout))
+                    finish(.failure(ProviderPluginError.timedOut))
                 }
             }
         } onCancel: {
-            if gate.finish(.failure(CancellationError())) {
-                worker.requestInterrupt()
-                self.discard(worker)
-            }
+            finish(.failure(CancellationError()))
         }
+    }
+
+    func removePersistentStorage() throws {
+        try self.storage?.removeAll()
     }
 
     public func globalType(of name: String) throws -> String {
@@ -364,23 +378,20 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
         self.lock.unlock()
     }
 
-    @discardableResult
-    func finish(_ result: Result<Value, Error>) -> Bool {
+    func finish(_ result: Result<Value, Error>, beforeResume: () -> Void) {
         self.lock.lock()
         guard !self.finished else {
             self.lock.unlock()
-            return false
+            return
         }
         self.finished = true
-        guard let continuation = self.continuation else {
-            self.pendingResult = result
-            self.lock.unlock()
-            return true
-        }
+        // Retire failed workers before a resumed caller can request another fetch.
+        beforeResume()
+        let continuation = self.continuation
+        if continuation == nil { self.pendingResult = result }
         self.continuation = nil
         self.lock.unlock()
-        continuation.resume(with: result)
-        return true
+        continuation?.resume(with: result)
     }
 }
 
@@ -393,41 +404,10 @@ private final class ProviderPluginJSValueBox: @unchecked Sendable {
     }
 }
 
-private final class ProviderPluginObjectBox: @unchecked Sendable {
-    let value: [String: Any]
-
-    init(_ value: [String: Any]) {
-        self.value = value
-    }
-}
-
 private struct ProviderPluginHTTPRequestCallbacks: @unchecked Sendable {
     let wantsJSON: Bool
     let resolve: ProviderPluginJSValueBox
     let reject: ProviderPluginJSValueBox
-}
-
-private final class ProviderPluginRedactionValues: @unchecked Sendable {
-    let transportErrors = ProviderPluginHTTPResponse.TransportErrors()
-    private let lock = NSLock()
-    private var values: Set<String>
-
-    init(_ values: some Sequence<String>) {
-        self.values = Set(values.filter { !$0.isEmpty })
-    }
-
-    func insert(_ value: String) {
-        guard !value.isEmpty else { return }
-        _ = self.lock.withLock { self.values.insert(value) }
-    }
-
-    func redact(_ message: String) -> String {
-        self.lock.withLock {
-            self.values.reduce(message) { partial, value in
-                partial.replacingOccurrences(of: value, with: "<redacted>")
-            }
-        }
-    }
 }
 
 final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
@@ -675,6 +655,24 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         }
         host.setObject(settingGet, forKeyedSubscript: "settingGet" as NSString)
 
+        let storage: @convention(block) (String, JSValue, JSValue) -> JSValue = { [weak self] operation, key, value in
+            guard let self else { return JSValue(undefinedIn: nil) }
+            do {
+                guard let storage = contextOptions.storage,
+                      !self.requestLock.withLock({ self.interrupted })
+                else { throw ProviderPluginError.script("persistent storage is unavailable or not declared") }
+                let result = try storage.access(
+                    operation,
+                    key: JavaScriptCorePluginValue(key, keyEnumerator: self.keyEnumerator),
+                    value: JavaScriptCorePluginValue(value, keyEnumerator: self.keyEnumerator))
+                return result.map { JSValue(object: $0, in: self.context) } ?? JSValue(nullIn: self.context)
+            } catch {
+                self.context.exception = JSValue(newErrorFromMessage: error.localizedDescription, in: self.context)
+                return JSValue(undefinedIn: self.context)
+            }
+        }
+        host.setObject(storage, forKeyedSubscript: "storage" as NSString)
+
         let env = JSValue(newObjectIn: self.context)!
         env.setObject(Self.normalizedTimeZoneIdentifier(timeZone), forKeyedSubscript: "timeZone" as NSString)
         ctx.setObject(env, forKeyedSubscript: "env" as NSString)
@@ -697,33 +695,31 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
-            guard rawHour.isFinite,
-                  rawHour.rounded() == rawHour,
-                  (0...23).contains(rawHour),
-                  let timeZone = TimeZone(identifier: identifier)
-            else {
+            do {
+                return try ProviderPluginDate.nextDailyReset(now: now, hour: rawHour, timeZone: identifier)
+            } catch {
                 self?.context.exception = JSValue(
-                    newErrorFromMessage: "invalid daily reset time zone or hour",
-                    in: self?.context)
+                    newErrorFromMessage: "invalid daily reset time zone or hour", in: self?.context)
                 return .nan
             }
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = timeZone
-            let now = Date()
-            let start = calendar.startOfDay(for: now)
-            var candidate = calendar.date(byAdding: .hour, value: Int(rawHour), to: start)!
-            if candidate <= now {
-                candidate = calendar.date(byAdding: .day, value: 1, to: candidate)!
-            }
-            return candidate.timeIntervalSince1970 * 1000
         }
         host.setObject(nextDailyReset, forKeyedSubscript: "nextDailyReset" as NSString)
+
+        let addMonths: @convention(block) (Double, Double, String) -> Double = { [weak self] date, months, zone in
+            do {
+                return try ProviderPluginDate.addMonths(milliseconds: date, months: months, timeZone: zone)
+            } catch {
+                self?.context.exception = JSValue(newErrorFromMessage: error.localizedDescription, in: self?.context)
+                return .nan
+            }
+        }
+        host.setObject(addMonths, forKeyedSubscript: "addMonths" as NSString)
 
         let http = self.makeHTTPBlock(
             settings: settings,
             secrets: secrets,
             redactionValues: redactionValues,
-            beforeAttempt: contextOptions.beforeHTTPAttempt)
+            contextOptions: contextOptions)
         host.setObject(http, forKeyedSubscript: "http" as NSString)
 
         let cookieAvailability: @convention(block) (String) -> String = { [weak self] rawDomain in
@@ -814,7 +810,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         settings: [String: String],
         secrets: [String: String],
         redactionValues: ProviderPluginRedactionValues,
-        beforeAttempt: (@Sendable () async throws -> Void)?) -> HTTPBlock
+        contextOptions: ProviderPluginContextOptions) -> HTTPBlock
     {
         { [weak self] rawURL, options, method, wantsJSON, resolve, reject in
             self?.startHTTPRequest(
@@ -824,7 +820,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 settings: settings,
                 secrets: secrets,
                 redactionValues: redactionValues,
-                beforeAttempt: beforeAttempt,
+                contextOptions: contextOptions,
                 callbacks: ProviderPluginHTTPRequestCallbacks(
                     wantsJSON: wantsJSON,
                     resolve: ProviderPluginJSValueBox(resolve),
@@ -841,34 +837,29 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         settings: [String: String],
         secrets: [String: String],
         redactionValues: ProviderPluginRedactionValues,
-        beforeAttempt: (@Sendable () async throws -> Void)?,
+        contextOptions: ProviderPluginContextOptions,
         callbacks: ProviderPluginHTTPRequestCallbacks)
     {
-        let request: URLRequest
-        let retryPolicy: ProviderHTTPRetryPolicy
+        let request: ProviderPluginHTTPResponse.Request
         do {
-            retryPolicy = try ProviderPluginHTTPResponse.retryPolicy(
-                options.forProperty("retryPolicy")
-                    .map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) })
             guard let dictionary = options.toDictionary() as? [String: Any] else {
                 throw ProviderPluginError.http("request options must be an object")
             }
-            request = try ProviderPluginHTTPResponse.request(
+            request = try ProviderPluginHTTPResponse.Request(
                 rawURL: rawURL,
                 options: dictionary,
                 method: method,
                 settings: settings,
                 secrets: secrets,
                 manifest: self.manifest,
-                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy)
+                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy,
+                redactionValues: redactionValues)
         } catch {
             self.reject(callbacks.reject, error: error, transportErrors: redactionValues.transportErrors)
             return
         }
 
         let worker = self
-        let transport = self.transport
-        let responseSizeLimit = self.responseSizeLimit
         let requestID = UUID()
         self.requestLock.lock()
         guard !self.interrupted else {
@@ -880,25 +871,14 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         self.requests[requestID] = Task.detached {
             defer { _ = worker.requestLock.withLock { worker.requests.removeValue(forKey: requestID) } }
             do {
-                let response = try await ProviderPluginHTTPResponse.response(
-                    for: request, transport: transport, retryPolicy: retryPolicy, beforeAttempt: beforeAttempt)
-                guard response.data.count <= responseSizeLimit else {
-                    throw ProviderPluginError.http("response exceeded the \(responseSizeLimit)-byte limit")
-                }
-                if worker.rejectsNonSuccessResponses, !(200..<300).contains(response.statusCode) {
-                    throw ProviderPluginHTTPResponse.StatusFailure(
-                        response: response.response, allowsRetry: retryPolicy.maxRetries == 0)
-                }
-                if worker.enforcesUserResponsePolicy,
-                   let encoding = response.response.value(forHTTPHeaderField: "Content-Encoding"),
-                   !encoding.isEmpty,
-                   encoding.caseInsensitiveCompare("identity") != .orderedSame
-                {
-                    throw ProviderPluginError.http("compressed responses are not allowed")
-                }
-                let payload = try ProviderPluginObjectBox(ProviderPluginHTTPResponse.payload(
-                    response,
-                    wantsJSON: callbacks.wantsJSON))
+                let payload = try await ProviderPluginHTTPResponse.fetch(
+                    request,
+                    transport: worker.transport,
+                    wantsJSON: callbacks.wantsJSON,
+                    responseSizeLimit: worker.responseSizeLimit,
+                    enforcesUserResponsePolicy: worker.enforcesUserResponsePolicy,
+                    rejectsNonSuccessResponses: worker.rejectsNonSuccessResponses,
+                    contextOptions: contextOptions)
                 worker.queue.async {
                     let value = JSValue(object: payload.value, in: worker.context) ?? JSValue(nullIn: worker.context)
                     _ = callbacks.resolve.value.call(withArguments: [value as Any])

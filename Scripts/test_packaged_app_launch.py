@@ -44,7 +44,7 @@ class PackagedAppLaunchTests(unittest.TestCase):
                 assert Path(os.environ['XDG_CONFIG_HOME']).is_relative_to(home)
                 assert Path(os.environ['TMPDIR']).is_relative_to(home.parent)
                 assert os.environ['PATH'] == '/usr/bin:/bin:/usr/sbin:/sbin'
-                for key in ['SWIFT_TESTING', 'CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS',
+                for key in ['SWIFT_TESTING', 'CODEXBAR_DISABLE_KEYCHAIN_ACCESS', 'CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS',
                             'CODEXBAR_TEST_CODEX_FILE_ISOLATION', 'CODEXBAR_TEST_SESSION_FILE_ISOLATION']:
                     assert os.environ[key] == '1', key
                 resource = os.environ.get('CODEXBAR_RESOURCE_SMOKE')
@@ -105,7 +105,10 @@ class PackagedAppLaunchTests(unittest.TestCase):
             self.assertEqual(len(sandbox_profiles), 4)
             for profile in sandbox_profiles:
                 self.assertIn('(deny network*)', profile)
+                self.assertIn('(deny mach-lookup (global-name-regex #".*[Cc]loud.*"))', profile)
+                self.assertIn('(deny mach-lookup (global-name-regex #".*cfprefsd.*"))', profile)
                 self.assertIn(f'(deny file-read* (subpath "{script.parent.parent}"))', profile)
+                self.assertIn(f'(deny file-read* (require-all (subpath "{ambient}")', profile)
                 self.assertIn(f'(deny file-write* (require-all (subpath "{ambient}")', profile)
                 exception = re.search(r'\(require-not \(subpath "([^"]+)"\)\)', profile)
                 self.assertIsNotNone(exception)
@@ -114,6 +117,19 @@ class PackagedAppLaunchTests(unittest.TestCase):
                 self.assertTrue(smoke_root.name.startswith("codexbar-launch-smoke."))
             self.assertFalse(list(ambient.iterdir()))
             self.assertFalse(list(temporary.iterdir()), "smoke launch left its child home or process files behind")
+
+            # Notarized release checks must reject early exit even without Aqua.
+            launchctl.write_text("#!/bin/sh\nprintf 'Background\\n'\n")
+            (app / "Contents/MacOS/CodexBar").write_text(child.replace("time.sleep(60)", "sys.exit(0)"))
+            strict_environment = dict(environment, CODEXBAR_REQUIRE_LAUNCH_SURVIVAL="1")
+            strict_result = subprocess.run(
+                ["/bin/bash", str(script), str(app)], env=strict_environment,
+                capture_output=True, text=True, timeout=20,
+            )
+            self.assertNotEqual(strict_result.returncode, 0)
+            self.assertIn("packaged app exited within", strict_result.stderr)
+            self.assertFalse(list(ambient.iterdir()))
+            self.assertFalse(list(temporary.iterdir()))
 
 
 if __name__ == "__main__":

@@ -1,12 +1,24 @@
 import Foundation
 
 public enum NeuralWattProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
     private static let missingCredentialMessage =
         "Missing Neuralwatt API key. Set apiKey in the CodexBar config file or NEURALWATT_API_KEY."
-    private static let credentials = ProviderCredentialAdapter.apiKey(
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .neuralwatt,
+        displayName: "Neuralwatt",
+        sessionLabel: "Subscription",
+        weeklyLabel: "Key allowance",
+        creditsHint: "Subscription kWh and prepaid USD balance.",
+        usesDetailBackedWindow: true,
+        dashboardURL: "https://portal.neuralwatt.com/dashboard",
+        subscriptionDashboardURL: "https://portal.neuralwatt.com/dashboard",
+        color: ProviderColor(red: 0.22, green: 0.85, blue: 0.55),
+        confetti: [0x38D98C, 0x17243A, 0xFFFFFF],
+        widgetColor: ProviderColor(red: 56 / 255, green: 217 / 255, blue: 140 / 255),
+        noDataMessage: "Neuralwatt token cost history is not available via the quota API.",
         environmentKey: NeuralWattSettingsReader.apiKeyEnvironmentKey,
-        resolve: NeuralWattSettingsReader.apiKey,
+        missingCredentialMessage: { _ in NeuralWattProviderDescriptor.missingCredentialMessage },
         tokenAccountSupport: TokenAccountSupport(
             title: "API keys",
             subtitle: "Store multiple Neuralwatt API keys.",
@@ -15,87 +27,27 @@ public enum NeuralWattProviderDescriptor {
             requiresManualCookieSource: false,
             cookieName: nil,
             minimumDelayBetweenAccountRefreshes: .seconds(1)),
-        missingCredentialMessage: { _ in NeuralWattProviderDescriptor.missingCredentialMessage })
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .neuralwatt,
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .neuralwatt,
-                displayName: "Neuralwatt",
-                sessionLabel: "Subscription",
-                weeklyLabel: "Key allowance",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "Subscription kWh and prepaid USD balance.",
-                toggleTitle: "Show Neuralwatt usage",
-                cliName: "neuralwatt",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                usesDetailBackedWindow: true,
-                browserCookieOrder: nil,
-                dashboardURL: "https://portal.neuralwatt.com/dashboard",
-                subscriptionDashboardURL: "https://portal.neuralwatt.com/dashboard",
-                changelogURL: nil,
-                statusPageURL: nil,
-                statusLinkURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .neuralwatt),
-                iconResourceName: "ProviderIcon-neuralwatt",
-                color: ProviderColor(red: 0.22, green: 0.85, blue: 0.55),
-                confettiPalette: [
-                    ProviderColor(hex: 0x38D98C),
-                    ProviderColor(hex: 0x17243A),
-                    ProviderColor(hex: 0xFFFFFF),
-                ],
-                widgetColor: ProviderColor(red: 56 / 255, green: 217 / 255, blue: 140 / 255)),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Neuralwatt token cost history is not available via the quota API." }),
-            presentation: ProviderUsagePresentation(
-                costPresenter: { _ in ProviderCostPresentation(menuCardStyle: .payAsYouGoBalance) },
-                menuCard: ProviderMenuCardPresentation(
-                    showsPrimaryBalanceDescription: true,
-                    hidesPrimaryResetWithoutDate: true),
-                menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "neuralwatt",
-                aliases: ["nw", "neural"],
-                versionDetector: nil))
-    }
-
-    private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                [ScriptFetchStrategy(
-                    id: "neuralwatt.js",
-                    provider: .neuralwatt,
-                    bundledPlugin: "neuralwatt",
-                    secretKey: NeuralWattSettingsReader.apiKeyEnvironmentKey,
-                    sourceLabel: "api",
-                    timeout: 45,
-                    validateContext: { context in
-                        guard self.credentials.resolveToken(environment: context.env) != nil else {
-                            throw ProviderFetchClassifiedError(
-                                kind: .missingCredential, message: self.missingCredentialMessage)
-                        }
-                        try NeuralWattSettingsReader.validateEndpointOverrides(environment: context.env)
-                    },
-                    resolveValues: { context in
-                        guard let token = self.credentials.resolveToken(environment: context.env)?.token
-                        else { return nil }
-                        return .init(
-                            settings: ["BASE_URL": NeuralWattSettingsReader.apiURL(environment: context.env)
-                                .absoluteString],
-                            secrets: [NeuralWattSettingsReader.apiKeyEnvironmentKey: token])
-                    },
-                    isEnabled: { _ in true })]
-            }))
-    }
+        presentation: ProviderUsagePresentation(
+            costPresenter: { _ in ProviderCostPresentation(menuCardStyle: .payAsYouGoBalance) },
+            menuCard: ProviderMenuCardPresentation(
+                showsPrimaryBalanceDescription: true,
+                hidesPrimaryResetWithoutDate: true),
+            menu: ProviderMenuDescriptorPresentation(primaryDescriptionIsDetail: { _ in true })),
+        aliases: ["nw", "neural"],
+        timeout: 45,
+        scriptSettings: { ["BASE_URL": NeuralWattSettingsReader.apiURL(environment: $0.env).absoluteString] },
+        validateContext: { context in
+            guard NeuralWattSettingsReader.apiKey(environment: context.env) != nil else {
+                throw ProviderFetchClassifiedError(kind: .missingCredential, message: Self.missingCredentialMessage)
+            }
+            try NeuralWattSettingsReader.validateEndpointOverrides(environment: context.env)
+        },
+        apiKeyField: .init(
+            id: "neuralwatt-api-key",
+            title: "API key",
+            subtitle: "Stored in the CodexBar config file. Manage keys from the Neuralwatt dashboard.",
+            placeholder: "sk-..."),
+        showsAPIDetail: true,
+        availability: .configuredKeyOrAccount,
+        observesTokenAccounts: true)
 }

@@ -83,7 +83,7 @@ void CQJSWatchdogInterrupt(CQJSWatchdog *watchdog) {
 }
 
 bool CQJSWatchdogIsInterrupted(CQJSWatchdog *watchdog) {
-    return atomic_load_explicit(&watchdog->interrupted, memory_order_relaxed);
+    return CQJSInterruptHandler(NULL, watchdog) != 0;
 }
 
 JSValue CQJSNewHostFunction(JSContext *context, int32_t magic, const char *name, int argument_count) {

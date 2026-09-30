@@ -165,13 +165,13 @@ struct ProviderEndpointOverrideSecurityLinuxTests {
         // the fetch path can report invalidEndpointOverride instead of the provider going missing.
         let liteLLM = [LiteLLMSettingsReader.baseURLEnvironmentKey: "http://attacker.test"]
         #expect(LiteLLMSettingsReader.baseURL(environment: liteLLM) == nil)
-        #expect(LiteLLMSettingsReader.hasBaseURLOverride(environment: liteLLM))
-        #expect(!LiteLLMSettingsReader.hasBaseURLOverride(environment: [:]))
+        #expect(LiteLLMProviderDescriptor.spec.endpoint?.isAvailable(environment: liteLLM) == true)
+        #expect(LiteLLMProviderDescriptor.spec.endpoint?.isAvailable(environment: [:]) == false)
 
         let llmProxy = [LLMProxySettingsReader.baseURLEnvironmentKey: "http://attacker.test"]
         #expect(LLMProxySettingsReader.baseURL(environment: llmProxy) == nil)
-        #expect(LLMProxySettingsReader.hasBaseURLOverride(environment: llmProxy))
-        #expect(!LLMProxySettingsReader.hasBaseURLOverride(environment: [:]))
+        #expect(LLMProxyProviderDescriptor.spec.endpoint?.isAvailable(environment: llmProxy) == true)
+        #expect(LLMProxyProviderDescriptor.spec.endpoint?.isAvailable(environment: [:]) == false)
     }
 
     @Test

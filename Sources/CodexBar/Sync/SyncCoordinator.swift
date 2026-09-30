@@ -40,6 +40,18 @@ enum SyncPhase: String, Sendable {
 @MainActor
 @Observable
 final class SyncCoordinator {
+    private struct ReportingPeriodSummaryInput {
+        let tokenSnapshot: CostUsageTokenSnapshot?
+        let daily: [SyncDailyPoint]
+        let bucketCalendar: Calendar
+        let isEstimated: Bool
+        let windowSummary: CostUsageWindowSummary?
+        let costMetadataIsAligned: Bool
+        let coverage: SyncCostCoverage?
+        let tokenMix: SyncCostTokenMix?
+        let fallbackDailyCost: Double?
+    }
+
     private static let logger = CodexBarLog.logger(LogCategories.iCloudSync)
     private let store: UsageStore
     private let settings: SettingsStore
@@ -715,7 +727,7 @@ final class SyncCoordinator {
         return confidence.rawValue
     }
 
-    private static func syncRateWindow(
+    static func syncRateWindow(
         id: String?,
         label: String?,
         window: RateWindow,
@@ -727,6 +739,7 @@ final class SyncCoordinator {
             usedPercent: window.usedPercent,
             usageKnown: usageKnown,
             windowMinutes: window.windowMinutes,
+            period: window.period.flatMap { SyncRateWindowPeriod(rawValue: $0.rawValue) },
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
             nextRegenPercent: window.nextRegenPercent,
@@ -926,8 +939,31 @@ final class SyncCoordinator {
             : nil
         let bucketTimeZoneIdentifier = tokenSnapshot.bucketTimeZoneIdentifier ?? "UTC"
         let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? .gmt
+        let bucketCalendar = CostUsageBucketTimeZone.calendar(identifier: bucketTimeZoneIdentifier)
         let sourceDayKey = tokenSnapshot.windowEndDayKey
             ?? Self.producerDayKey(tokenSnapshot.updatedAt, timeZone: bucketTimeZone)
+        let reportingPeriodSummary: SyncCostPeriodSummary? = if tokenSnapshot.reportingPeriod == .monthToDate
+            || tokenSnapshot.reportingPeriod == .allTime || tokenSnapshot.currencyCode != "USD"
+        {
+            SyncCostPeriodSummary(
+                costUSD: tokenSnapshot.last30DaysCostUSD,
+                tokens: tokenSnapshot.last30DaysTokens,
+                requests: tokenSnapshot.last30DaysRequests,
+                daily: daily,
+                historyDays: tokenSnapshot.displayHistoryDays(calendar: bucketCalendar),
+                isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
+                meteredCostUSD: tokenSnapshot.meteredCostUSD,
+                costProvenance: Self.syncCostProvenance(windowSummary.provenance),
+                coverage: SyncCostCoverage(
+                    priced: windowSummary.coverage.priced,
+                    unpriced: windowSummary.coverage.unpriced,
+                    unmetered: windowSummary.coverage.unmetered,
+                    estimated: windowSummary.coverage.estimated),
+                tokenMix: tokenMix,
+                historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
+        } else {
+            nil
+        }
 
         return SyncCostSummary(
             sessionCostUSD: tokenSnapshot.sessionCostUSD,
@@ -936,7 +972,12 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot.last30DaysTokens,
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
-            historyDays: tokenSnapshot.historyDays,
+            // Legacy iOS builds use historyDays as their only period label.
+            // For all-time summaries, publish the observed span instead of the
+            // all-time scan sentinel so older clients do not render hundreds
+            // of thousands of days.
+            historyDays: tokenSnapshot.displayHistoryDays(calendar: bucketCalendar),
+            reportingPeriod: (tokenSnapshot.reportingPeriod ?? .rolling(days: tokenSnapshot.historyDays)).rawValue,
             sessionRequests: tokenSnapshot.sessionRequests,
             last30DaysRequests: tokenSnapshot.last30DaysRequests,
             currencyCode: tokenSnapshot.currencyCode,
@@ -956,7 +997,8 @@ final class SyncCoordinator {
                 ? sourceDayKey
                 : nil,
             bucketTimeZoneIdentifier: bucketTimeZone.identifier,
-            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
+            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
+            reportingPeriodSummary: reportingPeriodSummary)
     }
 
     // swiftlint:disable:next function_body_length
@@ -985,7 +1027,7 @@ final class SyncCoordinator {
             } else {
                 metadata?.sessionLabel
             }
-            let window = Self.syncRateWindow(id: "primary", label: label, window: p)
+            let window = Self.syncRateWindow(id: p.id ?? "primary", label: p.label ?? label, window: p)
             rateWindows.append(window)
             semanticWindows.primary = window
         }
@@ -995,7 +1037,7 @@ final class SyncCoordinator {
                     window: s,
                     fallback: metadata?.weeklyLabel ?? "Usage")
                 : metadata?.weeklyLabel
-            let window = Self.syncRateWindow(id: "secondary", label: label, window: s)
+            let window = Self.syncRateWindow(id: s.id ?? "secondary", label: s.label ?? label, window: s)
             rateWindows.append(window)
             semanticWindows.secondary = window
         }
@@ -2255,6 +2297,7 @@ final class SyncCoordinator {
             tokenBucketTimeZoneIdentifier
         }
         let bucketTimeZone = TimeZone(identifier: bucketTimeZoneIdentifier) ?? fallbackBucketTimeZone
+        let bucketCalendar = CostUsageBucketTimeZone.calendar(identifier: bucketTimeZoneIdentifier)
         let sourceDayKey = costSourceUpdatedAt.map { Self.producerDayKey($0, timeZone: bucketTimeZone) }
         let sessionDayKey = tokenSnapshot.map { Self.producerDayKey($0.updatedAt, timeZone: bucketTimeZone) }
         let sessionCostIsKnown: Bool? = if publishesSessionFallback,
@@ -2275,6 +2318,17 @@ final class SyncCoordinator {
             nil
         }
 
+        let reportingPeriodSummary = Self.syncReportingPeriodSummary(.init(
+            tokenSnapshot: tokenSnapshot,
+            daily: daily,
+            bucketCalendar: bucketCalendar,
+            isEstimated: summaryIsEstimated,
+            windowSummary: windowSummary,
+            costMetadataIsAligned: costMetadataIsAligned,
+            coverage: syncCoverage,
+            tokenMix: syncTokenMix,
+            fallbackDailyCost: knownDailyCosts.isEmpty ? nil : totalDailyCost))
+
         return SyncCostSummary(
             sessionCostUSD: publishesSessionFallback ? tokenSnapshot?.sessionCostUSD : nil,
             sessionTokens: publishesSessionFallback ? tokenSnapshot?.sessionTokens : nil,
@@ -2283,7 +2337,13 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
-            historyDays: tokenSnapshot?.historyDays,
+            // Preserve period metadata for modern iOS readers. Codable keeps
+            // All/MTD legacy fields out of the wire payload while retaining
+            // this full summary for Mac-side views.
+            historyDays: tokenSnapshot.map { $0.displayHistoryDays(calendar: bucketCalendar) },
+            reportingPeriod: tokenSnapshot.map {
+                ($0.reportingPeriod ?? .rolling(days: $0.historyDays)).rawValue
+            },
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
             currencyCode: tokenSnapshot?.currencyCode,
@@ -2302,7 +2362,34 @@ final class SyncCoordinator {
             // incomparable with the token window, but they do not make an
             // incomplete token scan complete. Preserve the fail-closed
             // coverage bit so iOS never presents a partial headline as final.
-            historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished)
+            historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
+            reportingPeriodSummary: reportingPeriodSummary)
+    }
+
+    private static func syncReportingPeriodSummary(
+        _ input: ReportingPeriodSummaryInput) -> SyncCostPeriodSummary?
+    {
+        guard let tokenSnapshot = input.tokenSnapshot else { return nil }
+        let nativeCurrencyCannotEnterLegacyUSDTotals = tokenSnapshot.currencyCode != "USD"
+        guard tokenSnapshot.reportingPeriod == .monthToDate || tokenSnapshot.reportingPeriod == .allTime ||
+            nativeCurrencyCannotEnterLegacyUSDTotals
+        else {
+            return nil
+        }
+        return SyncCostPeriodSummary(
+            costUSD: tokenSnapshot.last30DaysCostUSD ?? input.fallbackDailyCost,
+            tokens: tokenSnapshot.last30DaysTokens,
+            requests: tokenSnapshot.last30DaysRequests,
+            daily: input.daily,
+            historyDays: tokenSnapshot.displayHistoryDays(calendar: input.bucketCalendar),
+            isEstimated: input.isEstimated ? true : nil,
+            meteredCostUSD: input.costMetadataIsAligned ? input.windowSummary?.meteredCostUSD : nil,
+            costProvenance: input.costMetadataIsAligned
+                ? input.windowSummary.map { Self.syncCostProvenance($0.provenance) }
+                : nil,
+            coverage: input.costMetadataIsAligned ? input.coverage : nil,
+            tokenMix: input.tokenMix,
+            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
     }
 
     private static func syncCostProvenance(_ provenance: CostProvenance) -> SyncCostProvenance {
@@ -2352,7 +2439,17 @@ final class SyncCoordinator {
         // Reuse the provider's validated projection instead of trusting raw
         // billing buckets here. The projection rejects invalid dates,
         // negative counters, overflow, and totals that do not reconcile.
-        let projected = m.toCostUsageTokenSnapshot()
+        var apiCalendar = Calendar(identifier: .gregorian)
+        apiCalendar.timeZone = .gmt
+        // Include day one even on a 31-day month. Only the provider's
+        // validated complete-month evidence may label this projection MTD.
+        let requestedDays = max(30, apiCalendar.component(.day, from: m.updatedAt))
+        let projected = m.toCostUsageTokenSnapshot(historyDays: requestedDays)
+        // Fetch freshness remains separate from the observed billing range.
+        // A fresh republish of an ended range cannot establish zero-cost days
+        // through the fetch day, even when its historical rows are valid.
+        let coverageIsEstablished = projected.historyCoverageIsEstablished == true &&
+            apiCalendar.isDate(projected.updatedAt, inSameDayAs: snapshot.updatedAt)
         let daily: [SyncDailyPoint] = projected.daily.map { entry in
             let coverage = entry.coverageCounts
             let modelBreakdowns = (entry.modelBreakdowns ?? [])
@@ -2404,6 +2501,31 @@ final class SyncCoordinator {
         // while iOS labels session fields as Today when no matching daily point
         // exists. The dated daily rows remain the authoritative cross-device
         // source and avoid turning stale spend into current-day usage.
+        let reportingPeriod = projected.historyLabel == "This month" &&
+            apiCalendar.isDate(projected.updatedAt, equalTo: snapshot.updatedAt, toGranularity: .month)
+            ? CostReportingPeriod.monthToDate.rawValue : nil
+        let reportingPeriodSummary: SyncCostPeriodSummary? = if reportingPeriod != nil ||
+            projected.currencyCode != "USD"
+        {
+            SyncCostPeriodSummary(
+                costUSD: projected.last30DaysCostUSD,
+                tokens: projected.last30DaysTokens,
+                requests: projected.last30DaysRequests,
+                daily: daily,
+                historyDays: projected.historyDays,
+                isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
+                meteredCostUSD: projected.meteredCostUSD,
+                costProvenance: Self.syncCostProvenance(windowSummary.provenance),
+                coverage: SyncCostCoverage(
+                    priced: windowSummary.coverage.priced,
+                    unpriced: windowSummary.coverage.unpriced,
+                    unmetered: windowSummary.coverage.unmetered,
+                    estimated: windowSummary.coverage.estimated),
+                tokenMix: tokenMix,
+                historyCoverageIsEstablished: coverageIsEstablished)
+        } else {
+            nil
+        }
         return SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -2412,6 +2534,7 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: daily.contains(where: { $0.isEstimated == true }) ? true : nil,
             historyDays: projected.historyDays,
+            reportingPeriod: reportingPeriod,
             sessionRequests: nil,
             last30DaysRequests: projected.last30DaysRequests,
             currencyCode: projected.currencyCode,
@@ -2426,7 +2549,8 @@ final class SyncCoordinator {
             sourceUpdatedAt: snapshot.updatedAt,
             sourceDayKey: Self.producerDayKey(snapshot.updatedAt, timeZone: apiTimeZone),
             bucketTimeZoneIdentifier: "UTC",
-            historyCoverageIsEstablished: projected.historyCoverageIsEstablished)
+            historyCoverageIsEstablished: coverageIsEstablished,
+            reportingPeriodSummary: reportingPeriodSummary)
     }
 
     /// xAI's Management API exposes prepaid balance plus daily USD spend.

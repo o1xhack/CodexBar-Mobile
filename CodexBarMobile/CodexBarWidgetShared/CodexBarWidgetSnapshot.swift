@@ -348,6 +348,7 @@ enum CodexBarWidgetSnapshotBuilder {
             .filter { provider, _ in !provider.isProviderLevelCostEnvelope }
             .map(\.1)
         let costSummaries = providers.compactMap(\.costSummary)
+            .filter(ProviderSnapshotMerger.supportsUSDAggregation)
         let todayCostIsUnavailable = costSummaries.contains { summary in
             let today = self.todayTotals(from: summary, now: now)
             return today.costIsKnown == false
@@ -398,7 +399,9 @@ enum CodexBarWidgetSnapshotBuilder {
         for provider: ProviderUsageSnapshot,
         now: Date) -> CodexBarWidgetProviderSummary
     {
-        let today = provider.costSummary.map { self.todayTotals(from: $0, now: now) }
+        let costSummary = ProviderSnapshotMerger.supportsUSDAggregation(provider.costSummary)
+            ? provider.costSummary : nil
+        let today = costSummary.map { self.todayTotals(from: $0, now: now) }
         let windows = provider.allRateWindows.map(\.usedPercent)
         let budgetPercent: Double? = provider.budget.flatMap { budget in
             guard budget.limitAmount > 0 else { return nil }
@@ -414,7 +417,7 @@ enum CodexBarWidgetSnapshotBuilder {
             usagePercent: usagePercent,
             todayCostUSD: today?.costIsKnown == false ? nil : today?.costUSD,
             todayCostIsLowerBound: today?.isLowerBound == true ? true : nil,
-            thirtyDayCostUSD: provider.costSummary?.completeHistoryCostUSD(at: now),
+            thirtyDayCostUSD: costSummary?.completeThirtyDayHistoryCostUSD(at: now),
             tokensToday: today?.tokens,
             isError: provider.isError,
             statusMessage: provider.statusMessage,
@@ -434,10 +437,10 @@ enum CodexBarWidgetSnapshotBuilder {
         // dated point/session remains displayable while an undated legacy
         // fallback keeps the aggregate coverage guard.
         let todayCalendarIsInvalid = summary.hasInvalidBucketTimeZoneIdentifier
-        let historyScanIsIncomplete = summary.historyCoverageIsEstablished == false
+        let historyScanIsIncomplete = summary.reportingPeriodHistoryCoverageIsEstablished == false
         let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
-            summary.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
-        if let point = summary.daily.first(where: { $0.dayKey == dayKey }) {
+            summary.reportingPeriodCoverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
+        if let point = summary.reportingPeriodDaily.first(where: { $0.dayKey == dayKey }) {
             let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : point.costIsKnown
             return (
                 costIsKnown == false ? nil : point.costUSD,

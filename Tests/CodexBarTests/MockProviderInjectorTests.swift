@@ -60,8 +60,8 @@ struct MockProviderInjectorTests {
         // iOS 1.20.0 adds 4 v0.46-v0.47 provider mocks. 77 → 81.
         // iOS 1.21.0 adds Fireworks and IBM Bob. 81 → 83.
         #expect(
-            MockProviderInjector.allMocks().count == 99,
-            "iOS 2.1.0: 83 → 99 (+16 upstream providers).")
+            MockProviderInjector.allMocks().count == 102,
+            "iOS 2.3.0: 99 → 102 (+3 upstream providers).")
     }
 
     @Test
@@ -295,7 +295,7 @@ struct MockProviderInjectorTests {
         //   - wayfinder (local routing/savings telemetry, no billing)
         //   - new quota/credit/detail-only providers without USD cost history:
         //     helmcode, nous, muse, gitkraken, devpass, coderabbit, hyper,
-        //     atlascloud, and llmman.
+        //     atlascloud, llmman, and xkiro/raycast. Aixy reports estimated USD spend.
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
@@ -307,9 +307,22 @@ struct MockProviderInjectorTests {
                 "longcat", "wayfinder", "zenmux", "qwencloud", "zoommate", "notion", "ibmbob",
                 "helmcode", "nous", "muse", "gitkraken", "devpass",
                 "coderabbit", "hyper", "atlascloud", "llmman",
+                "xkiro", "raycast",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
+    }
+
+    @Test
+    func `Aixy mock carries estimated spend rather than appearing cost-less`() {
+        self.resetActivationState()
+        UserDefaults.standard.set(true, forKey: MockProviderInjector.userDefaultsKey)
+        defer { self.resetActivationState() }
+
+        let aixy = MockProviderInjector.allMocks().first { $0.providerID == "aixy" }
+        #expect(aixy?.costSummary?.isEstimated == true)
+        #expect((aixy?.costSummary?.last30DaysCostUSD ?? 0) > 0)
+        #expect((aixy?.costSummary?.sessionCostUSD ?? 0) > 0)
     }
 
     @Test

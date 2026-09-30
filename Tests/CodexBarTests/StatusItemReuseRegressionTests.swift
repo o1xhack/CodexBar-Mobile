@@ -49,7 +49,7 @@ struct StatusItemReuseRegressionTests {
         controller.statusBar.removeStatusItem(initialItem)
 
         var itemSeenByUpdate: NSStatusItem?
-        let vendedItem = controller._test_vendStatusItem(for: .codex) { created in
+        let vendedItem = controller.lazyStatusItem(for: .codex) { created in
             #expect(created.autosaveName == "codexbar-codex")
             #expect(controller.statusItems[.codex] === created)
             store._setSnapshotForTesting(

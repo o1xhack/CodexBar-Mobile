@@ -204,4 +204,45 @@ struct ProviderUsageViewSubtitleTests {
         #expect(parts.first?.contains("≥") == true)
         #expect(parts.count == 1)
     }
+
+    @Test("Cost window labels follow the selected Mac reporting period")
+    func costWindowLabelsFollowReportingPeriod() {
+        func summary(_ period: String, days: Int) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: 12,
+                last30DaysTokens: 120,
+                daily: [],
+                historyDays: days,
+                reportingPeriod: period)
+        }
+
+        let monthToDate = summary("month-to-date", days: 30)
+        let allTime = summary("all", days: 365)
+        let rolling = summary("rolling:7", days: 7)
+        let customRolling = summary("rolling:45", days: 45)
+
+        #expect(monthToDate.reportingPeriodDisplayTitle == String(localized: "This month"))
+        #expect(monthToDate.compactReportingPeriodLabel == String(localized: "This month"))
+        #expect(allTime.reportingPeriodDisplayTitle == String(localized: "All"))
+        #expect(allTime.compactReportingPeriodLabel == String(localized: "All"))
+        #expect(rolling.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(7))
+        #expect(rolling.compactReportingPeriodLabel.contains("7"))
+        #expect(customRolling.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(45))
+        #expect(customRolling.compactReportingPeriodLabel.contains("45"))
+    }
+
+    @Test("Legacy cost payloads keep the rolling 30-day label")
+    func legacyCostWindowLabelRemainsThirtyDays() {
+        let legacy = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 12,
+            last30DaysTokens: 120,
+            daily: [])
+
+        #expect(legacy.reportingPeriodDisplayTitle == SyncCostSummary.localizedRollingPeriodTitle(30))
+        #expect(legacy.compactReportingPeriodLabel.contains("30"))
+    }
 }

@@ -1,13 +1,31 @@
 import Foundation
 
 public enum ElevenLabsProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
     private static let missingCredentialMessage =
         "Missing ElevenLabs API key. Set apiKey in ~/.codexbar/config.json or ELEVENLABS_API_KEY."
-    private static let credentials = ProviderCredentialAdapter.apiKey(
+    public static let descriptor: ProviderDescriptor = Self.spec.makeDescriptor()
+    public static let spec = PluginProviderSpec(
+        id: .elevenlabs,
+        displayName: "ElevenLabs",
+        sessionLabel: "Credits",
+        weeklyLabel: "Voices",
+        sharePlanLabels: [
+            "free": "Free", "starter": "Starter", "creator": "Creator", "pro": "Pro",
+            "scale": "Scale", "business": "Business", "growing business": "Business",
+            "enterprise": "Enterprise",
+        ],
+        dashboardURL: "https://elevenlabs.io/app/developers/usage",
+        subscriptionDashboardURL: "https://elevenlabs.io/app/subscription",
+        statusLinkURL: "https://status.elevenlabs.io",
+        color: ProviderColor(red: 0.92, green: 0.92, blue: 0.90),
+        confetti: [0x000000, 0x808080, 0xFDFCFC],
+        widgetColor: ProviderColor(red: 235 / 255, green: 235 / 255, blue: 230 / 255),
+        progressColorStyle: .label,
+        noDataMessage: "ElevenLabs cost history is not available via API yet.",
         environmentKey: ElevenLabsSettingsReader.apiKeyEnvironmentKey,
+        environmentAliases: ["XI_API_KEY"],
         apiKeyDebugLabel: ElevenLabsSettingsReader.apiKeyEnvironmentKey,
-        resolve: ElevenLabsSettingsReader.apiKey,
+        missingCredentialMessage: { _ in ElevenLabsProviderDescriptor.missingCredentialMessage },
         tokenAccountSupport: TokenAccountSupport(
             title: "API keys",
             subtitle: "Store multiple ElevenLabs API keys.",
@@ -15,86 +33,23 @@ public enum ElevenLabsProviderDescriptor {
             injection: .environment(key: ElevenLabsSettingsReader.apiKeyEnvironmentKey),
             requiresManualCookieSource: false,
             cookieName: nil),
-        missingCredentialMessage: { _ in ElevenLabsProviderDescriptor.missingCredentialMessage })
-
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .elevenlabs,
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .elevenlabs,
-                displayName: "ElevenLabs",
-                sessionLabel: "Credits",
-                weeklyLabel: "Voices",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show ElevenLabs usage",
-                cliName: "elevenlabs",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                sharePlanLabels: [
-                    "free": "Free", "starter": "Starter", "creator": "Creator", "pro": "Pro",
-                    "scale": "Scale", "business": "Business", "growing business": "Business",
-                    "enterprise": "Enterprise",
-                ],
-                browserCookieOrder: nil,
-                dashboardURL: "https://elevenlabs.io/app/developers/usage",
-                subscriptionDashboardURL: "https://elevenlabs.io/app/subscription",
-                statusPageURL: nil,
-                statusLinkURL: "https://status.elevenlabs.io"),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .elevenlabs),
-                iconResourceName: "ProviderIcon-elevenlabs",
-                color: ProviderColor(red: 0.92, green: 0.92, blue: 0.90),
-                confettiPalette: [
-                    ProviderColor(hex: 0x000000),
-                    ProviderColor(hex: 0x808080),
-                    ProviderColor(hex: 0xFDFCFC),
-                ],
-                widgetColor: ProviderColor(red: 235 / 255, green: 235 / 255, blue: 230 / 255),
-                progressColorStyle: .label),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "ElevenLabs cost history is not available via API yet." }),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "elevenlabs",
-                aliases: ["11labs", "eleven"],
-                versionDetector: nil))
-    }
-
-    private static func fetchPlan() -> ProviderFetchPlan {
-        ProviderFetchPlan(
-            sourceModes: [.auto, .api],
-            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                [ScriptFetchStrategy(
-                    id: "elevenlabs.js",
-                    provider: .elevenlabs,
-                    bundledPlugin: "elevenlabs",
-                    secretKey: ElevenLabsSettingsReader.apiKeyEnvironmentKey,
-                    sourceLabel: "api",
-                    validateContext: { context in
-                        guard self.credentials.resolveToken(environment: context.env) != nil else {
-                            throw ProviderFetchClassifiedError(
-                                kind: .missingCredential, message: self.missingCredentialMessage)
-                        }
-                        try ElevenLabsSettingsReader.validateEndpointOverrides(environment: context.env)
-                    },
-                    resolveValues: { self.scriptValues(environment: $0.env) },
-                    isEnabled: { _ in true })]
-            }))
-    }
-
-    static func scriptValues(environment: [String: String]) -> ScriptFetchStrategy.Values? {
-        guard let token = self.credentials.resolveToken(environment: environment)?.token else { return nil }
-        var url = ElevenLabsSettingsReader.apiURL(environment: environment)
-        url.append(path: url.path.split(separator: "/").last == "v1" ? "user/subscription" : "v1/user/subscription")
-        return .init(
-            settings: ["BASE_URL": url.absoluteString],
-            secrets: [ElevenLabsSettingsReader.apiKeyEnvironmentKey: token])
-    }
+        aliases: ["11labs", "eleven"],
+        scriptSettings: { context in
+            var url = ElevenLabsSettingsReader.apiURL(environment: context.env)
+            url.append(path: url.path.split(separator: "/").last == "v1" ? "user/subscription" : "v1/user/subscription")
+            return ["BASE_URL": url.absoluteString]
+        },
+        validateContext: { context in
+            guard ElevenLabsSettingsReader.apiKey(environment: context.env) != nil else {
+                throw ProviderFetchClassifiedError(kind: .missingCredential, message: Self.missingCredentialMessage)
+            }
+            try ElevenLabsSettingsReader.validateEndpointOverrides(environment: context.env)
+        },
+        apiKeyField: .init(
+            id: "elevenlabs-api-key",
+            title: "API key",
+            subtitle: "Stored in ~/.codexbar/config.json. Get your key from elevenlabs.io/app/settings/api-keys.",
+            placeholder: "xi-..."),
+        showsAPIDetail: true,
+        availability: .configuredKeyOrAccount)
 }

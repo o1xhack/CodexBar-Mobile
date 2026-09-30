@@ -18,29 +18,17 @@ struct SpendDashboardClockRolloverTests {
         // construct SpendDashboardController with the default store still get the 30-day window.
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-window")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-window") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { _ in
-                let count = loadCount.value + 1
-                loadCount.setValue(count)
-                return SpendDashboardLoadResult(
-                    inputs: [count == 1 ? initialInput : rolloverInput],
-                    failedSourceIDs: [])
-            },
-            nowProvider: { clock.value })
+        let controller = Self.controller(defaults: defaults, configuration: configuration, clock: clock, loader: { _ in
+            let count = loadCount.value + 1
+            loadCount.setValue(count)
+            return SpendDashboardLoadResult(
+                inputs: [count == 1 ? initialInput : rolloverInput],
+                failedSourceIDs: [])
+        })
 
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing }
-        controller.selectDays(7)
+        controller.selectPeriod(.rolling(days: 7))
         #expect(controller.model.groups.first?.totalCost == 4)
         let generation = controller.generation
 
@@ -69,23 +57,11 @@ struct SpendDashboardClockRolloverTests {
         let input = Self.input(day: "2026-07-15", cost: 4, updatedAt: loadedAt)
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-same-day")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-same-day") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { _ in
-                let count = loadCount.value + 1
-                loadCount.setValue(count)
-                return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
-            },
-            nowProvider: { clock.value })
+        let controller = Self.controller(defaults: defaults, configuration: configuration, clock: clock, loader: { _ in
+            let count = loadCount.value + 1
+            loadCount.setValue(count)
+            return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
+        })
 
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing }
@@ -113,27 +89,15 @@ struct SpendDashboardClockRolloverTests {
         let recoveredInput = Self.input(day: "2026-07-15", cost: 4, updatedAt: laterSameDay)
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-failed-retry")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-failed-retry") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { _ in
-                let count = loadCount.value + 1
-                loadCount.setValue(count)
-                if count == 1 {
-                    return SpendDashboardLoadResult(inputs: [], failedSourceIDs: ["codex:rollover"])
-                } else {
-                    return SpendDashboardLoadResult(inputs: [recoveredInput], failedSourceIDs: [])
-                }
-            },
-            nowProvider: { clock.value })
+        let controller = Self.controller(defaults: defaults, configuration: configuration, clock: clock, loader: { _ in
+            let count = loadCount.value + 1
+            loadCount.setValue(count)
+            if count == 1 {
+                return SpendDashboardLoadResult(inputs: [], failedSourceIDs: ["codex:rollover"])
+            } else {
+                return SpendDashboardLoadResult(inputs: [recoveredInput], failedSourceIDs: [])
+            }
+        })
 
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing }
@@ -161,21 +125,13 @@ struct SpendDashboardClockRolloverTests {
         let gate = SpendDashboardRolloverGate()
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-inflight")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-inflight") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
+        let controller = Self.controller(
+            defaults: defaults,
+            configuration: configuration,
+            clock: clock,
             loader: { request in
                 await gate.load(request)
-            },
-            nowProvider: { clock.value })
+            })
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
 
@@ -206,23 +162,11 @@ struct SpendDashboardClockRolloverTests {
         let input = Self.input(day: "2026-07-15", cost: 4, updatedAt: loadedAt)
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-stale-skip")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-stale-skip") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { _ in
-                let count = loadCount.value + 1
-                loadCount.setValue(count)
-                return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
-            },
-            nowProvider: { clock.value })
+        let controller = Self.controller(defaults: defaults, configuration: configuration, clock: clock, loader: { _ in
+            let count = loadCount.value + 1
+            loadCount.setValue(count)
+            return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
+        })
 
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing }
@@ -254,19 +198,11 @@ struct SpendDashboardClockRolloverTests {
         let refreshedInput = Self.input(day: "2026-07-15", cost: 9, updatedAt: atTTL)
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-stale-refresh")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-stale-refresh") }
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { request in await gate.load(request) },
-            nowProvider: { clock.value })
+        let controller = Self.controller(
+            defaults: defaults,
+            configuration: configuration,
+            clock: clock,
+            loader: { request in await gate.load(request) })
 
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
@@ -316,22 +252,10 @@ struct SpendDashboardClockRolloverTests {
         let defaults = try Self.isolatedDefaults(suiteName: "SpendDashboardClockRolloverTests-reopen")
         defer { defaults.removePersistentDomain(forName: "SpendDashboardClockRolloverTests-reopen") }
         let input = Self.input(day: "2026-07-16", cost: 4, updatedAt: loadedAt)
-        let controller = SpendDashboardController(
-            userDefaults: defaults,
-            requestBuilder: { mode in
-                SpendDashboardLoadRequest(
-                    configuration: configuration,
-                    capturedInputs: [],
-                    unavailableSourceIDs: [],
-                    codexRequests: [],
-                    now: clock.value,
-                    force: mode.forcesLoader)
-            },
-            loader: { _ in
-                loadCount.setValue(loadCount.value + 1)
-                return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
-            },
-            nowProvider: { clock.value })
+        let controller = Self.controller(defaults: defaults, configuration: configuration, clock: clock, loader: { _ in
+            loadCount.setValue(loadCount.value + 1)
+            return SpendDashboardLoadResult(inputs: [input], failedSourceIDs: [])
+        })
         controller.update(configuration: configuration)
         await Self.waitUntil { !controller.isRefreshing }
 
@@ -342,6 +266,27 @@ struct SpendDashboardClockRolloverTests {
 
         #expect(loadCount.value == 2)
         #expect(controller.dashboardSnapshotLoadedAt == reopenedAt)
+    }
+
+    private static func controller(
+        defaults: UserDefaults,
+        configuration: SpendDashboardConfiguration,
+        clock: LockIsolated<Date>,
+        loader: @escaping SpendDashboardController.Loader) -> SpendDashboardController
+    {
+        SpendDashboardController(
+            userDefaults: defaults,
+            requestBuilder: { mode in
+                SpendDashboardLoadRequest(
+                    configuration: configuration,
+                    capturedInputs: [],
+                    unavailableSourceIDs: [],
+                    codexRequests: [],
+                    now: clock.value,
+                    force: mode.forcesLoader)
+            },
+            loader: loader,
+            nowProvider: { clock.value })
     }
 
     private static let configuration = SpendDashboardConfiguration(

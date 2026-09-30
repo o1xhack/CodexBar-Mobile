@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CostMetricCard: View {
     let title: LocalizedStringResource
+    var localizedTitleOverride: String? = nil
     let value: String
     let subtitle: String?
     var tintColor: Color = .secondary
@@ -16,9 +17,15 @@ struct CostMetricCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(self.title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Group {
+                if let localizedTitleOverride {
+                    Text(localizedTitleOverride)
+                } else {
+                    Text(self.title)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
             ViewThatFits(in: .horizontal) {
                 self.valueText(font: .title2.monospacedDigit())

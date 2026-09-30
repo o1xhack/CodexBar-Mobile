@@ -125,6 +125,13 @@ public struct CostUsageSessionBreakdown: Sendable, Equatable, Identifiable {
     public let requestCount: Int?
     public let costUSD: Double?
     public let modelBreakdowns: [CostUsageDailyReport.ModelBreakdown]
+    /// Canonical project path, matching the key of the session's Projects row.
+    public let projectPath: String?
+    public let projectName: String?
+    /// Thread name from Codex metadata, when one exists.
+    public private(set) var title: String?
+    /// Original rollout directory; relative SQLite homes must not use the canonical project path.
+    var workingDirectory: String?
 
     public var id: String {
         self.sessionID
@@ -140,7 +147,10 @@ public struct CostUsageSessionBreakdown: Sendable, Equatable, Identifiable {
         totalTokens: Int?,
         requestCount: Int?,
         costUSD: Double?,
-        modelBreakdowns: [CostUsageDailyReport.ModelBreakdown])
+        modelBreakdowns: [CostUsageDailyReport.ModelBreakdown],
+        projectPath: String? = nil,
+        projectName: String? = nil,
+        title: String? = nil)
     {
         self.sessionID = sessionID
         self.lastActivity = lastActivity
@@ -152,6 +162,15 @@ public struct CostUsageSessionBreakdown: Sendable, Equatable, Identifiable {
         self.requestCount = requestCount
         self.costUSD = costUSD
         self.modelBreakdowns = modelBreakdowns
+        self.projectPath = projectPath
+        self.projectName = projectName
+        self.title = title
+    }
+
+    public func withTitle(_ title: String?) -> CostUsageSessionBreakdown {
+        var copy = self
+        copy.title = title
+        return copy
     }
 }
 
@@ -207,10 +226,10 @@ public struct CostUsageTimedEntry: Sendable, Equatable {
 public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
-    public let sessionRequests: Int?
+    public internal(set) var sessionRequests: Int?
     public let last30DaysTokens: Int?
     public let last30DaysCostUSD: Double?
-    public let last30DaysRequests: Int?
+    public internal(set) var last30DaysRequests: Int?
     public let currencyCode: String
     public let historyDays: Int
     public let historyCoverageIsEstablished: Bool
@@ -218,7 +237,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     /// exhausted scan budget, or rows that failed to decode. The rows present are usable, but every
     /// total derived from them is a lower bound, so no surface may present them as complete.
     public let historyScanIsPartial: Bool
-    public let historyLabel: String?
+    public var historyLabel: String?
+    public var reportingPeriod: CostReportingPeriod?
     /// Provider-metered spend over the same window as `last30DaysCostUSD` — what the plan
     /// actually deducts, as opposed to the API-rate estimate. Only some providers (e.g. Cursor)
     /// report this; `nil` when unknown.
@@ -311,14 +331,10 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
 
     public func summary(forLastDays requestedDays: Int, calendar: Calendar = .current) -> CostUsageWindowSummary {
         let days = max(1, requestedDays)
-        let today = calendar.startOfDay(for: self.updatedAt)
-        let start = calendar.date(byAdding: .day, value: -(days - 1), to: today) ?? today
-        let startKey = CostUsageLocalDay.key(from: start, calendar: calendar)
-        let endKey = CostUsageLocalDay.key(from: today, calendar: calendar)
-        let entries = self.daily.filter { entry in
-            guard let dayKey = Self.localDayKey(for: entry.date, calendar: calendar) else { return false }
-            return dayKey >= startKey && dayKey <= endKey
-        }
+        let entries = CostReportingPeriod.rolling(days: days).entries(
+            self.daily,
+            now: self.updatedAt,
+            calendar: calendar)
         let costs = entries.compactMap(\.costUSD)
         let tokens = entries.compactMap(\.totalTokens)
         let requests = entries.compactMap(\.requestCount)
@@ -397,7 +413,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         }
     }
 
-    fileprivate static func localDayKey(for rawDate: String, calendar: Calendar) -> String? {
+    static func localDayKey(for rawDate: String, calendar: Calendar) -> String? {
         let trimmed = rawDate.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.count >= 10 {
             let prefix = String(trimmed.prefix(10))

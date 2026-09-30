@@ -9,31 +9,12 @@ import Testing
 struct DeepgramProviderTests {
     @Test
     func `deepgram field kinds and bindings`() throws {
-        let suite = "DeepgramProviderTests-field-kinds"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
-        let store = UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings)
-        let context = ProviderSettingsContext(
-            provider: .deepgram,
-            settings: settings,
-            store: store,
-            statusText: { _ in nil },
-            setStatusText: { _, _ in },
-            lastAppActiveRunAt: { _ in nil },
-            setLastAppActiveRunAt: { _, _ in },
-            requestConfirmation: { _ in },
-            runLoginFlow: {})
+        let fixture = try ProviderSettingsDescriptorTests()
+            .makeSettingsFixture(suite: "DeepgramProviderTests-field-kinds")
+        let settings = fixture.settings
+        let context = fixture.settingsContext(provider: .deepgram)
 
-        let fields = DeepgramProviderImplementation().settingsFields(context: context)
+        let fields = try (#require(ProviderCatalog.implementation(for: .deepgram))).settingsFields(context: context)
         let apiField = try #require(fields.first(where: { $0.id == "deepgram-api-key" }))
         let projectField = try #require(fields.first(where: { $0.id == "deepgram-project-id" }))
 

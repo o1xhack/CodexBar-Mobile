@@ -4,6 +4,7 @@ import SwiftUI
 struct UsageCardView: View {
     let label: String
     let window: SyncRateWindow
+    var providerID: String? = nil
     var tintColor: Color = .blue
     var percentageAccessibilityIdentifier: String?
     /// Quota warning thresholds expressed as **remaining percent**, as
@@ -89,7 +90,9 @@ struct UsageCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.caption)
-                    Text(description)
+                    Text(ProviderDetailLocalization.localizedValue(
+                        description,
+                        providerID: self.providerID ?? ""))
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)

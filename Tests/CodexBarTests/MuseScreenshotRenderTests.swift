@@ -6,6 +6,46 @@ import XCTest
 
 @MainActor
 final class MuseScreenshotRenderTests: XCTestCase {
+    func test_renderBrowserTeamQuota() async throws {
+        guard let path = ProcessInfo.processInfo.environment["CODEXBAR_MUSE_TEAM_SCREENSHOT_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_MUSE_TEAM_SCREENSHOT_DIR to render synthetic browser-team quotas.")
+        }
+        let directory = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let before = try await MusePluginTests.fetch(MusePluginTests.activeWithoutWindows, engine: .quickJS)
+        let after = try await MusePluginTests.fetchWithWeb(
+            engine: .quickJS, web: MusePluginTests.web(quota: MusePluginTests.quota())).usage
+        for (name, snapshot) in [("before", before), ("after", after)] {
+            let model = try UsageMenuCardView.Model.make(.init(
+                provider: .muse,
+                metadata: XCTUnwrap(ProviderDefaults.metadata[.muse]),
+                snapshot: snapshot,
+                credits: nil,
+                creditsError: nil,
+                dashboardError: nil,
+                tokenSnapshot: nil,
+                tokenError: nil,
+                account: AccountInfo(email: nil, plan: snapshot.loginMethod(for: .muse)),
+                isRefreshing: false,
+                lastError: nil,
+                usageBarsShowUsed: true,
+                resetTimeDisplayStyle: .absolute,
+                tokenCostUsageEnabled: false,
+                showOptionalCreditsAndExtraUsage: true,
+                hidePersonalInfo: true,
+                usesLiveSubtitle: false,
+                now: snapshot.updatedAt))
+            let hosting = NSHostingView(rootView: UsageMenuCardView(model: model, width: 380)
+                .environment(\.locale, Locale(identifier: "en"))
+                .environment(\.colorScheme, .light)
+                .environment(\.displayScale, 2)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            hosting.appearance = NSAppearance(named: .aqua)
+            try XCTUnwrap(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: hosting))
+                .write(to: directory.appendingPathComponent("muse-team-\(name).png"))
+        }
+    }
+
     func test_renderTokenHistory() async throws {
         guard let path = ProcessInfo.processInfo.environment["CODEXBAR_MUSE_HISTORY_SCREENSHOT_DIR"] else {
             throw XCTSkip("Set CODEXBAR_MUSE_HISTORY_SCREENSHOT_DIR to render synthetic token history.")

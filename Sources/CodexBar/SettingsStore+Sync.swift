@@ -4,42 +4,27 @@ import Foundation
 extension SettingsStore {
     var macFleetSyncEnabled: Bool {
         get { self.defaultsState.macFleetSyncEnabled }
-        set {
-            self.defaultsState.macFleetSyncEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "macFleetSyncEnabled")
-        }
+        set { self.setDefault(\.macFleetSyncEnabled, newValue, key: "macFleetSyncEnabled") }
     }
 
     var macFleetSyncIncludeSecrets: Bool {
         get { self.defaultsState.macFleetSyncIncludeSecrets }
-        set {
-            self.defaultsState.macFleetSyncIncludeSecrets = newValue
-            self.userDefaults.set(newValue, forKey: "macFleetSyncIncludeSecrets")
-        }
+        set { self.setDefault(\.macFleetSyncIncludeSecrets, newValue, key: "macFleetSyncIncludeSecrets") }
     }
 
     var macFleetSyncSnapshotsEnabled: Bool {
         get { self.defaultsState.macFleetSyncSnapshotsEnabled }
-        set {
-            self.defaultsState.macFleetSyncSnapshotsEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "macFleetSyncSnapshotsEnabled")
-        }
+        set { self.setDefault(\.macFleetSyncSnapshotsEnabled, newValue, key: "macFleetSyncSnapshotsEnabled") }
     }
 
     var macFleetSyncShowFleetAccounts: Bool {
         get { self.defaultsState.macFleetSyncShowFleetAccounts }
-        set {
-            self.defaultsState.macFleetSyncShowFleetAccounts = newValue
-            self.userDefaults.set(newValue, forKey: "macFleetSyncShowFleetAccounts")
-        }
+        set { self.setDefault(\.macFleetSyncShowFleetAccounts, newValue, key: "macFleetSyncShowFleetAccounts") }
     }
 
     var macFleetSyncDeviceID: String {
         get { self.defaultsState.macFleetSyncDeviceID }
-        set {
-            self.defaultsState.macFleetSyncDeviceID = newValue
-            self.userDefaults.set(newValue, forKey: "com.codexbar.sync.deviceID")
-        }
+        set { self.setDefault(\.macFleetSyncDeviceID, newValue, key: "com.codexbar.sync.deviceID") }
     }
 
     var syncedPreferences: SyncedPreferences {

@@ -1,11 +1,11 @@
 import Foundation
 
 public enum AiAndSettingsReader {
-    public static let apiKeyEnvironmentKey = "AIAND_API_KEY"
+    public static let apiKeyEnvironmentKey = AiAndProviderDescriptor.spec.environmentKey
 
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
-        SettingsValue.cleaned(environment[self.apiKeyEnvironmentKey])
+        AiAndProviderDescriptor.spec.apiKey(environment: environment)
     }
 }

@@ -43,6 +43,52 @@ struct CostTabInsightsResolverTests {
     }
 
     @Test
+    func `Match Mac uses the synced reporting period even when local history is enabled`() throws {
+        for period in ["month-to-date", "all"] {
+            let summary = SyncCostSummary(
+                sessionCostUSD: 12,
+                sessionTokens: 1200,
+                last30DaysCostUSD: 12,
+                last30DaysTokens: 1200,
+                daily: [SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKey(for: self.now),
+                    costUSD: 12,
+                    totalTokens: 1200,
+                    costIsKnown: true)],
+                historyDays: 640,
+                reportingPeriod: period,
+                historyCoverageIsEstablished: true)
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.now,
+                costSummary: summary)
+            let snapshot = SyncedUsageSnapshot(
+                providers: [provider],
+                syncTimestamp: self.now,
+                deviceName: "Mac",
+                deviceID: "mac-A")
+
+            let insights = try #require(CostTabInsightsResolver.make(
+                snapshot: snapshot,
+                ledgerAggregation: nil,
+                isLedgerEnabled: true,
+                isDemoMode: false,
+                localHistoryClearedAt: self.now,
+                ledgerWindowDays: 0))
+
+            #expect(insights.historyDisplayTitle == summary.reportingPeriodDisplayTitle)
+            #expect(insights.cwlWindowDays == nil)
+        }
+    }
+
+    @Test
     func `Empty ledger without clear falls back to synced snapshot`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [self.provider(cost: 12, tokens: 1200)],
@@ -437,7 +483,7 @@ struct CostTabInsightsResolverTests {
 
     @Test
     func `Cost refresh clock restarts when the reader time zone changes`() {
-        let sourceTimeZones: Set<String> = ["Asia/Tokyo", "UTC"]
+        let sourceTimeZones: Set = ["Asia/Tokyo", "UTC"]
         let losAngeles = CostLedgerRefreshClock.restartKey(
             sourceTimeZoneIdentifiers: sourceTimeZones,
             readerTimeZoneIdentifier: "America/Los_Angeles")

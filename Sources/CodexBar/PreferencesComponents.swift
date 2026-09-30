@@ -27,6 +27,7 @@ struct SettingsIconChip: View {
 
 /// Two-line label for grouped-form rows that genuinely need a supporting sentence.
 struct SettingsRowLabel: View {
+    @Environment(\.isEnabled) private var isEnabled
     let title: String
     let subtitle: String?
 
@@ -38,6 +39,7 @@ struct SettingsRowLabel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(self.title)
+                .foregroundStyle(self.isEnabled ? .primary : .secondary)
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
                     .font(.caption)

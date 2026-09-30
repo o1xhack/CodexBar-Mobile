@@ -411,7 +411,7 @@ struct ChutesProviderTests {
         #expect(ProviderDescriptorRegistry.all.contains { $0.id == .chutes })
 
         let implementation = try #require(ProviderCatalog.implementation(for: .chutes))
-        #expect(implementation is ChutesProviderImplementation)
+        #expect(implementation is PluginAPIKeyProviderImplementation)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -529,7 +529,7 @@ struct ChutesProviderTests {
     func `missing credentials fail before transport`() async {
         let context = Self.context(environment: [:])
         let transport = ProviderHTTPTransportStub { _ in throw ProviderPluginError.script("unexpected request") }
-        let strategy = ChutesProviderDescriptor.scriptStrategy(transport: transport)
+        let strategy = ChutesProviderDescriptor.spec.makeStrategy(transport: transport)
         #expect(await strategy.isAvailable(context) == false)
         await #expect {
             _ = try await strategy.fetch(context)
@@ -553,7 +553,7 @@ struct ChutesProviderTests {
             "CHUTES_API_URL": "http://chutes.test",
         ])
         let transport = ProviderHTTPTransportStub { _ in throw ProviderPluginError.script("unexpected request") }
-        let strategy = ChutesProviderDescriptor.scriptStrategy(transport: transport)
+        let strategy = ChutesProviderDescriptor.spec.makeStrategy(transport: transport)
         await #expect {
             _ = try await strategy.fetch(context)
         } throws: { $0 as? ChutesSettingsError == .invalidEndpointOverride("CHUTES_API_URL") }

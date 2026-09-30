@@ -177,16 +177,18 @@ private struct StackedBar: View {
     let cornerRadius: CGFloat
 
     var body: some View {
-        // Largest at bottom (stable baseline), smallest at top
-        VStack(spacing: 0) {
-            ForEach(Array(self.providers.reversed().enumerated()), id: \.offset) { _, p in
-                Rectangle()
-                    .fill(p.color)
-                    .frame(height: max(0, self.totalHeight * p.share))
+        if self.providers.allSatisfy(\.shareIsKnown) {
+            // Largest at bottom (stable baseline), smallest at top
+            VStack(spacing: 0) {
+                ForEach(Array(self.providers.reversed().enumerated()), id: \.offset) { _, p in
+                    Rectangle()
+                        .fill(p.color)
+                        .frame(height: max(0, self.totalHeight * p.share))
+                }
             }
+            .frame(height: self.totalHeight)
+            .clipShape(RoundedRectangle(cornerRadius: self.cornerRadius))
         }
-        .frame(height: self.totalHeight)
-        .clipShape(RoundedRectangle(cornerRadius: self.cornerRadius))
     }
 }
 
@@ -256,30 +258,34 @@ private struct TodayCard: View {
                             .font(.subheadline)
                             .foregroundStyle(self.theme.foreground)
                         Spacer()
-                        Text(formatUSD(provider.cost))
+                        Text(provider.costDisplayValue)
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(self.theme.secondary)
-                        Text(formatPercent(provider.share))
-                            .font(.caption.bold().monospacedDigit())
-                            .foregroundStyle(self.theme.foreground)
-                            .frame(width: 36, alignment: .trailing)
+                        if provider.shareIsKnown {
+                            Text(formatPercent(provider.share))
+                                .font(.caption.bold().monospacedDigit())
+                                .foregroundStyle(self.theme.foreground)
+                                .frame(width: 36, alignment: .trailing)
+                        }
                     }
                 }
             }
             .padding(.bottom, 14)
 
             // Share bar
-            GeometryReader { geo in
-                HStack(spacing: 2) {
-                    ForEach(Array(providers.enumerated()), id: \.offset) { _, p in
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(p.color)
-                            .frame(width: max(4, geo.size.width * p.share))
+            if providers.allSatisfy(\.shareIsKnown) {
+                GeometryReader { geo in
+                    HStack(spacing: 2) {
+                        ForEach(Array(providers.enumerated()), id: \.offset) { _, p in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(p.color)
+                                .frame(width: max(4, geo.size.width * p.share))
+                        }
                     }
                 }
+                .frame(height: 8)
+                .padding(.bottom, 14)
             }
-            .frame(height: 8)
-            .padding(.bottom, 14)
 
             // Top models (compact)
             if !self.data.topModels.isEmpty {
@@ -356,7 +362,7 @@ private struct ChartCard: View {
             .padding(.bottom, 14)
 
             // Hero number
-            Text(self.data.totalCostIsKnown ? formatUSD(self.data.totalCost) : "—")
+            Text(self.data.totalCostDisplayValue)
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -462,9 +468,11 @@ private struct ChartCard: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                         Spacer(minLength: 3)
-                        Text(formatPercent(p.share))
-                            .font(.system(size: 10, weight: .semibold).monospacedDigit())
-                            .foregroundStyle(self.theme.secondary)
+                        if p.shareIsKnown {
+                            Text(formatPercent(p.share))
+                                .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                                .foregroundStyle(self.theme.secondary)
+                        }
                     }
                 }
             }

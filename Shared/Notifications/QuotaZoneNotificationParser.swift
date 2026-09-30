@@ -7,6 +7,19 @@ import Foundation
 /// provider data — and unit-testable independent of the extension target.
 public enum QuotaZoneNotificationParser {
 
+    /// Hard cap for warning-zone reads in the notification service extension.
+    /// A saturated legacy zone falls back to its generic alert instead of
+    /// paging without limit or guessing which account/window changed.
+    public static let warningRecordScanLimit = 500
+
+    public static func warningRecordScanReachedLimit(
+        recordsExamined: Int,
+        hasContinuationCursor: Bool) -> Bool
+    {
+        recordsExamined > Self.warningRecordScanLimit ||
+            (recordsExamined == Self.warningRecordScanLimit && hasContinuationCursor)
+    }
+
     /// Quota states the parser recognizes — must stay in lockstep with the
     /// states `QuotaTransitionSubscriptions` registers and the `state`
     /// strings Mac writes in `QuotaTransition` records.
@@ -65,26 +78,151 @@ public enum QuotaZoneNotificationParser {
     ///
     /// **Format contract**: matches
     /// `CloudSyncManager.writeQuotaWarningTransition`'s recordName
-    /// template `"{providerID}-{window}-t{threshold}-{hourBucket}"`.
+    /// template `"{providerID}[-w{identityHash}[-l{label}]]-{window}-t{threshold}-{hourBucket}"`.
     /// Used by the iOS NSE to format the push body with the specific
     /// window + threshold without needing extra CKRecord fields.
     public static func parseWarningRecordName(
         _ recordName: String
-    ) -> (providerID: String, window: String, threshold: Int)? {
-        // Split on `-`. Need at least 4 components: providerID-window-tN-hourBucket.
+    ) -> (providerID: String, window: String, threshold: Int, windowLabel: String?)? {
+        // Split on `-`. Accept legacy names and the optional named-window suffix.
         // providerID itself could theoretically contain a hyphen but doesn't
         // today; assume the simple split is sufficient.
-        let parts = recordName.split(separator: "-", omittingEmptySubsequences: false)
+        let parts = recordName.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
         guard parts.count >= 4 else { return nil }
-        // Last component is hourBucket (integer), second-to-last is "tN"
-        let thresholdPart = String(parts[parts.count - 2])
+        var contentCount = parts.count
+        var windowLabel: String?
+        // Read the v0.68 layout for records that may already have been written
+        // with identity tokens after the hour bucket.
+        if contentCount > 0, parts[contentCount - 1].hasPrefix("l") {
+            guard let decoded = self.decodeWindowLabel(String(parts[contentCount - 1].dropFirst())) else {
+                return nil
+            }
+            windowLabel = decoded
+            contentCount -= 1
+        }
+        if contentCount > 0, parts[contentCount - 1].hasPrefix("w") {
+            guard self.isWindowIdentityToken(parts[contentCount - 1]) else { return nil }
+            contentCount -= 1
+        }
+        let hourIndex = contentCount - 1
+        let thresholdIndex = hourIndex - 1
+        let windowIndex = thresholdIndex - 1
+        guard hourIndex >= 3, Int(parts[hourIndex]) != nil else { return nil }
+        let thresholdPart = parts[thresholdIndex]
         guard thresholdPart.hasPrefix("t"),
               let threshold = Int(thresholdPart.dropFirst())
         else { return nil }
-        let window = String(parts[parts.count - 3])
-        let providerID = parts[0..<(parts.count - 3)].joined(separator: "-")
+        let window = parts[windowIndex]
+
+        // New writers put identity tokens before the window. This leaves the
+        // final `window-tN-hour` shape intact for older iOS notification
+        // extensions, which only read the last three components.
+        var providerParts = Array(parts[..<windowIndex])
+        if providerParts.count >= 2,
+           providerParts[providerParts.count - 1].hasPrefix("l"),
+           providerParts[providerParts.count - 2].hasPrefix("w")
+        {
+            guard let decoded = self.decodeWindowLabel(
+                String(providerParts[providerParts.count - 1].dropFirst())),
+                self.isWindowIdentityToken(providerParts[providerParts.count - 2])
+            else { return nil }
+            if windowLabel == nil { windowLabel = decoded }
+            providerParts.removeLast(2)
+        } else if let last = providerParts.last, last.hasPrefix("w") {
+            guard self.isWindowIdentityToken(last) else { return nil }
+            providerParts.removeLast()
+        }
+        let providerID = providerParts.joined(separator: "-")
         guard !providerID.isEmpty, !window.isEmpty else { return nil }
-        return (providerID, window, threshold)
+        return (providerID, window, threshold, windowLabel)
+    }
+
+    /// Creates a warning record name while preserving the suffix read by old
+    /// NSE parsers. `identityHash` is a short hash, never a user identity.
+    public static func warningRecordName(
+        providerID: String,
+        window: String,
+        threshold: Int,
+        hourBucket: Int,
+        identityHash: String? = nil,
+        windowDisplayLabel: String? = nil) -> String
+    {
+        var components = [providerID]
+        if let identityHash, self.isWindowIdentityToken("w\(identityHash)") {
+            components.append("w\(identityHash)")
+            if let token = windowDisplayLabel.flatMap(self.encodeWarningWindowLabel) {
+                components.append("l\(token)")
+            }
+        }
+        components.append(contentsOf: [window, "t\(threshold)", String(hourBucket)])
+        return components.joined(separator: "-")
+    }
+
+    private static func isWindowIdentityToken(_ token: String) -> Bool {
+        guard token.hasPrefix("w") else { return false }
+        let identity = token.dropFirst()
+        return identity.count == 24 && identity.allSatisfy(\.isHexDigit)
+    }
+
+    /// Encodes a short, non-user-entered display label into a record-name token.
+    /// The label is hex encoded so CloudKit's `-` separators remain unambiguous.
+    public static func encodeWarningWindowLabel(_ label: String) -> String? {
+        let data = Data(label.utf8)
+        guard !data.isEmpty, data.count <= 64 else { return nil }
+        return data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func decodeWindowLabel(_ token: String) -> String? {
+        guard !token.isEmpty, token.count.isMultiple(of: 2), token.count <= 128 else { return nil }
+        var data = Data()
+        var index = token.startIndex
+        while index < token.endIndex {
+            let end = token.index(index, offsetBy: 2)
+            guard let byte = UInt8(token[index..<end], radix: 16) else { return nil }
+            data.append(byte)
+            index = end
+        }
+        guard let label = String(data: data, encoding: .utf8), !label.isEmpty else { return nil }
+        return label
+    }
+
+    /// Zone notifications identify the changed zone but not the triggering
+    /// record. Near-simultaneous or undated warning writes keep a generic body rather
+    /// than attaching another record's threshold or period.
+    public static func warningRecordsAreAmbiguous(
+        transitionTimes: [Date?],
+        latestTransitionAt: Date? = nil,
+        tolerance: TimeInterval = 2) -> Bool
+    {
+        guard let latest = latestTransitionAt ?? transitionTimes.compactMap(\.self).max() else {
+            return transitionTimes.count > 1
+        }
+        let contemporaneousCount = transitionTimes.count { time in
+            time.map { abs($0.timeIntervalSince(latest)) <= tolerance } ?? true
+        }
+        return contemporaneousCount > 1
+    }
+
+    /// An ambiguous push may still identify an account when every possible
+    /// triggering record names the same account. Missing timestamps remain
+    /// possible triggers; missing or conflicting account labels suppress it.
+    public static func commonWarningAccount(
+        records: [(transitionAt: Date?, accountEmail: String?)],
+        latestTransitionAt: Date? = nil,
+        tolerance: TimeInterval = 2) -> String?
+    {
+        guard let latest = latestTransitionAt ?? records.compactMap(\.transitionAt).max() else { return nil }
+        let candidates = records.filter { record in
+            record.transitionAt.map { abs($0.timeIntervalSince(latest)) <= tolerance } ?? true
+        }
+        let accounts = candidates.map { record -> String? in
+            let account = record.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return account?.isEmpty == false ? account : nil
+        }
+        guard let first = accounts.first, let account = first,
+              accounts.allSatisfy({ $0 == account })
+        else { return nil }
+        return account
     }
 
     /// Extracts the quota zone ID from a CloudKit remote-notification user-info

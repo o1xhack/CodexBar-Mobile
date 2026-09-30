@@ -988,6 +988,9 @@ extension StatusItemController {
             self.menuAppearanceObserver = StatusMenuAppearanceObserver(controller: self)
         }
         let menu = StatusItemMenu()
+        menu.switcherShortcuts = { [weak self] in self?.settings.providerSwitcherShortcuts
+            ?? ProviderSwitcherShortcuts.defaults
+        }
         menu.autoenablesItems = false
         menu.delegate = self
         menu.persistentActionDelegate = self
@@ -1493,8 +1496,11 @@ extension StatusItemController {
     private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
         guard let submenu = self.makeCostHistorySubmenu(provider: provider, width: self.renderedMenuWidth(for: menu))
         else { return false }
-        let days = self.store.settings.costUsageHistoryDays
-        let title = days == 1 ? L("Usage history (today)") : String(format: L("Usage history (%d days)"), days)
+        let title: String = switch self.store.settings.costReportingPeriod {
+        case .rolling(1): L("Usage history (today)")
+        case let .rolling(days): String(format: L("Usage history (%d days)"), days)
+        case let period: "\(L("cost_history_window_title")) (\(L(period.label)))"
+        }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = true
         item.submenu = submenu

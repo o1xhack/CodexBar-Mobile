@@ -1,11 +1,39 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @Suite(.serialized, CodexCredentialFixtures())
 @MainActor
 struct CodexAccountPromotionExecutionTests {
+    @Test
+    func `displaced auth is private before publication and failure removes imported home`() async throws {
+        let container = try CodexAccountPromotionTestContainer(suiteName: "promotion-private-publication")
+        defer { container.tearDown() }
+        let target = try container.createManagedAccount(persistedEmail: "beta@example.com", authAccountID: "acct-beta")
+        try container.persistAccounts([target])
+        let live = try container.writeLiveOAuthAuthFile(email: "alpha@example.com", accountID: "acct-alpha")
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let executor = CodexDisplacedLivePreservationExecutor(
+            store: container.fileStore, homeFactory: container.homeFactory, fileManager: .default)
+        let inspectStaged: @Sendable (URL) throws -> Void = { staged in
+            guard staged.lastPathComponent == "auth.json" else { return }
+            let directory = staged.deletingLastPathComponent()
+            let attributes = try FileManager.default.attributesOfItem(atPath: directory.path)
+            #expect((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o700)
+            #expect(try Data(contentsOf: staged) == live)
+            throw CancellationError()
+        }
+        CredentialFileWriter.$beforePublishForTesting.withValue(inspectStaged) {
+            #expect(throws: CodexAccountPromotionError.displacedLiveImportFailed) {
+                try executor.execute(plan: .importNew(reason: .noExistingManagedDestination), context: context)
+            }
+        }
+        #expect(try container.liveAuthData() == live)
+        #expect(try container.managedHomeURLs().count == 1)
+        #expect(try container.loadAccounts().accounts.count == 1)
+    }
+
     @Test
     func `executor import store failure cleans up imported home and maps managed store error`() async throws {
         let container = try CodexAccountPromotionTestContainer(
@@ -111,7 +139,7 @@ struct CodexAccountPromotionExecutionTests {
 
         let result = try executor.execute(plan: .importNew(reason: .noExistingManagedDestination), context: context)
 
-        #expect(result.displacedLiveDisposition == .alreadyManaged(managedAccountID: concurrentManaged.id))
+        #expect(result == .alreadyManaged(managedAccountID: concurrentManaged.id))
         let accounts = try container.loadAccounts().accounts
         let repaired = try #require(accounts.first(where: { $0.id == concurrentManaged.id }))
         #expect(repaired.providerAccountID == "acct-alpha")
@@ -152,7 +180,7 @@ struct CodexAccountPromotionExecutionTests {
 
         let result = try executor.execute(plan: .importNew(reason: .noExistingManagedDestination), context: context)
 
-        #expect(result.displacedLiveDisposition == .alreadyManaged(managedAccountID: concurrentManaged.id))
+        #expect(result == .alreadyManaged(managedAccountID: concurrentManaged.id))
         let accounts = try container.loadAccounts().accounts
         let repaired = try #require(accounts.first(where: { $0.id == concurrentManaged.id }))
         #expect(accounts.count == 2)
@@ -329,7 +357,7 @@ struct CodexAccountPromotionExecutionTests {
         let builder = PreparedPromotionContextBuilder(
             store: container.fileStore,
             workspaceResolver: container.workspaceResolver,
-            snapshotLoader: SettingsStoreCodexAccountReconciliationSnapshotLoader(settingsStore: container.settings),
+            snapshotLoader: container.settings,
             authMaterialReader: DefaultCodexAuthMaterialReader(),
             baseEnvironment: container.baseEnvironment,
             fileManager: .default)

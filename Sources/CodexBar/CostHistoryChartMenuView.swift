@@ -76,7 +76,7 @@ struct CostHistoryChartMenuView: View {
     private let historyDays: Int
     private let historyCoverageIsEstablished: Bool
     private let bucketTimeZoneIdentifier: String?
-    private let windowLabel: String?
+    private let windowLabel: String
     private let projects: [CostUsageProjectBreakdown]
     private let sessions: [CostUsageSessionBreakdown]
     private let hidePersonalInfo: Bool
@@ -109,7 +109,7 @@ struct CostHistoryChartMenuView: View {
         self.historyDays = max(1, min(365, historyDays))
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
         self.bucketTimeZoneIdentifier = bucketTimeZoneIdentifier
-        self.windowLabel = windowLabel
+        self.windowLabel = windowLabel.map { L($0) } ?? Self.windowLabel(days: self.historyDays)
         self.projects = projects
         self.sessions = sessions
         self.hidePersonalInfo = hidePersonalInfo
@@ -357,7 +357,7 @@ struct CostHistoryChartMenuView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(
                         format: incompleteCount > 0 ? L("Est. subtotal (%@): %@") : L("Est. total (%@): %@"),
-                        self.windowLabel ?? Self.windowLabel(days: self.historyDays),
+                        self.windowLabel,
                         self.totalCostUSD.map(self.costString) ?? "—")
                         + UsageFormatter.incompleteUsageSuffix(incompleteCount))
                         .font(.caption)
@@ -483,7 +483,7 @@ struct CostHistoryChartMenuView: View {
         let visibleCount = min(self.sessions.count, Self.maxVisibleSessionRows)
         return VStack(alignment: .leading, spacing: Self.sessionRowSpacing) {
             HStack {
-                Text(L("Conversations (%@)", self.windowLabel ?? Self.windowLabel(days: self.historyDays)))
+                Text(L("Conversations (%@)", self.windowLabel))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -542,7 +542,7 @@ struct CostHistoryChartMenuView: View {
         .accessibilityElement(children: .combine)
     }
 
-    static func shortSessionID(_ sessionID: String) -> String {
+    nonisolated static func shortSessionID(_ sessionID: String) -> String {
         let trimmed = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 12 else { return trimmed }
         return "\(trimmed.prefix(4))...\(trimmed.suffix(8))"

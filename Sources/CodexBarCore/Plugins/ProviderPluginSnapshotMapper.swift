@@ -241,12 +241,22 @@ enum ProviderPluginSnapshotMapper {
         let resetsAt = try self.optionalDate(value, property: "resetsAt", path: path)
         let resetDescription = try self.optionalString(value, property: "resetDescription", path: path)
         let nextRegenPercent = try self.optionalFiniteNumber(value, property: "nextRegenPercent", path: path)
+        let rawPeriod = try self.optionalString(value, property: "period", path: path)
+        let period = rawPeriod.flatMap(RateWindowPeriod.init(rawValue:))
+        guard rawPeriod == nil || period != nil else {
+            throw ProviderPluginError.invalidSnapshot("\(path).period is unsupported")
+        }
+        let id = try self.optionalString(value, property: "id", path: path)
+        let label = try self.optionalString(value, property: "label", path: path)
         return RateWindow(
             usedPercent: usedPercent,
             windowMinutes: windowMinutes,
             resetsAt: resetsAt,
             resetDescription: resetDescription,
-            nextRegenPercent: nextRegenPercent.map { min(100, max(0, $0)) })
+            nextRegenPercent: nextRegenPercent.map { min(100, max(0, $0)) },
+            period: period,
+            id: id,
+            label: label)
     }
 
     private static func extraWindows(_ root: any ProviderPluginValue) throws -> [NamedRateWindow]? {

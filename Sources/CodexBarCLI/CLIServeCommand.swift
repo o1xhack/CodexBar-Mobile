@@ -213,6 +213,9 @@ struct DashboardSnapshotContext: Sendable {
 }
 
 private struct ServeCostContext: Sendable {
+    let period: CostReportingPeriod
+    let now: Date
+    let calendar: Calendar
     let config: CodexBarConfig
     let collection: ServeCostCollectionContext
 }
@@ -930,6 +933,11 @@ extension CodexBarCLI {
             guard !runtime.dataRoutesRequireAuth || runtime.dashboardAuth.authorize(request) else {
                 return Self.serveUnauthorizedResponse()
             }
+            let now = Date()
+            let period = Self.costReportingPeriodFromDefaults()
+            let calendar = CostUsageBucketTimeZone.calendar(
+                identifier: Self.stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
+            let periodIdentity = period.identity(now: now, calendar: calendar)
             let snapshot: CLIServeConfigSnapshot
             let operationKey: String
             do {
@@ -942,7 +950,7 @@ extension CodexBarCLI {
             return await Self.addingNoStore(Self.cachedServeResponse(
                 request: ServeResponseRequest(
                     key: operationKey,
-                    configFingerprint: snapshot.cacheToken,
+                    configFingerprint: snapshot.cacheToken + periodIdentity,
                     refreshInterval: runtime.refreshInterval,
                     deadline: requestDeadline,
                     allowsStaleWhileRevalidate: true),
@@ -951,9 +959,12 @@ extension CodexBarCLI {
                     await Self.serveCost(
                         provider: provider,
                         context: ServeCostContext(
+                            period: period,
+                            now: now,
+                            calendar: calendar,
                             config: snapshot.config,
                             collection: ServeCostCollectionContext(
-                                configFingerprint: snapshot.cacheToken,
+                                configFingerprint: snapshot.cacheToken + periodIdentity,
                                 providerTimeout: providerTimeout,
                                 requestDeadline: requestDeadline,
                                 now: { ContinuousClock().now },
@@ -1489,8 +1500,7 @@ extension CodexBarCLI {
                 message: "cost is only supported for \(Self.costSupportedProviderNames())")
         }
 
-        let costBucketCalendar = Self.costBucketCalendarFromAppDefaults()
-        let fetcher = CostUsageFetcher(calendar: costBucketCalendar)
+        let fetcher = CostUsageFetcher(calendar: context.calendar)
         let piSessionProcessContexts = await Self.piSessionProcessContextsForCost(
             providers: providers,
             includePiSessions: true)
@@ -1502,7 +1512,9 @@ extension CodexBarCLI {
             do {
                 let snapshot = try await fetcher.loadTokenSnapshot(
                     provider: provider,
+                    now: context.now,
                     forceRefresh: false,
+                    historyDays: context.period.days(now: context.now, calendar: context.calendar),
                     cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     refreshPricingInBackground: Self.serveCostRefreshesPricingInBackground,
                     includePiSessions: Self.costIncludePiSessions(
@@ -1511,18 +1523,14 @@ extension CodexBarCLI {
                         groupBy: .none,
                         format: .json,
                         includePiSessions: true),
-                    piSessionProcessContexts: piSessionProcessContexts)
+                    piSessionProcessContexts: piSessionProcessContexts).reporting(context.period)
                 return Self.makeCostPayload(
                     provider: provider,
                     snapshot: snapshot,
                     error: nil,
-                    calendar: costBucketCalendar)
+                    calendar: context.calendar)
             } catch {
-                return Self.makeCostPayload(
-                    provider: provider,
-                    snapshot: nil,
-                    error: error,
-                    calendar: costBucketCalendar)
+                return Self.makeCostPayload(provider: provider, snapshot: nil, error: error)
             }
         }
 

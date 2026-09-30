@@ -325,6 +325,11 @@ extension UsageMenuCardView.Model {
             return [L("Quota estimated from local usage history")] + subscriptionNotes
         }
 
+        // Provider-specific by design: Muse browser-team quotas come from a user-selected dev.meta.ai team.
+        if input.provider == .muse, input.snapshot?.dataConfidence == .estimated {
+            return [L("Quota from the selected dev.meta.ai browser team")] + subscriptionNotes
+        }
+
         if let notes = self.apiProviderUsageNotes(input: input) {
             return notes + subscriptionNotes
         }

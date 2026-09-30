@@ -21,6 +21,45 @@ import Foundation
 /// same number. Reported as the same class of bug as the Subscription
 /// Utilization aggregate/detail mismatch fixed in Build 77.
 extension SyncCostSummary {
+    /// Localized label for the history amount shown in a provider detail page.
+    /// New period values take precedence over the legacy `historyDays` count.
+    var reportingPeriodDisplayTitle: String {
+        if self.reportingPeriod == "month-to-date" { return String(localized: "This month") }
+        if self.reportingPeriod == "all" { return String(localized: "All") }
+
+        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.reportingPeriodHistoryDays ?? 30
+        return Self.localizedRollingPeriodTitle(days)
+    }
+
+    /// Compact counterpart used in provider-card cost teasers.
+    var compactReportingPeriodLabel: String {
+        if self.reportingPeriod == "month-to-date" { return String(localized: "This month") }
+        if self.reportingPeriod == "all" { return String(localized: "All") }
+
+        let days = Self.reportingPeriodDays(self.reportingPeriod) ?? self.reportingPeriodHistoryDays ?? 30
+        if days == 1 { return String(localized: "Today") }
+        if days == 30 { return String(localized: "30d") }
+        return Self.localizedDayCount(days)
+    }
+
+    private static func reportingPeriodDays(_ reportingPeriod: String?) -> Int? {
+        guard let reportingPeriod, reportingPeriod.hasPrefix("rolling:"),
+              let days = Int(reportingPeriod.dropFirst("rolling:".count)), days > 0
+        else {
+            return nil
+        }
+        return min(days, 365)
+    }
+
+    private static func localizedDayCount(_ days: Int) -> String {
+        String.localizedStringWithFormat(String(localized: "%d days"), days)
+    }
+
+    static func localizedRollingPeriodTitle(_ days: Int) -> String {
+        if days == 1 { return String(localized: "Today") }
+        return String.localizedStringWithFormat(String(localized: "%lld Days"), Int64(days))
+    }
+
     /// The pair of cost + tokens for today's calendar day, resolved together.
     ///
     /// Held as a pair (not two independent accessors) because separate
@@ -70,10 +109,10 @@ extension SyncCostSummary {
         // undated session fallback is not independently qualified, so it keeps
         // the aggregate coverage guard used by older payloads.
         let todayCalendarIsInvalid = self.hasInvalidBucketTimeZoneIdentifier
-        let historyScanIsIncomplete = self.historyCoverageIsEstablished == false
+        let historyScanIsIncomplete = self.reportingPeriodHistoryCoverageIsEstablished == false
         let historicalCoverageIsIncomplete = historyScanIsIncomplete ||
-            self.coverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
-        if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
+            self.reportingPeriodCoverage.map { $0.unpriced > 0 || $0.unmetered > 0 } == true
+        if let todayPoint = self.reportingPeriodDaily.first(where: { $0.dayKey == todayKey }) {
             let costIsKnown = todayCalendarIsInvalid || sourceIsStale ? false : todayPoint.costIsKnown
             return TodayTotals(
                 costUSD: todayPoint.costUSD,

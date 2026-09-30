@@ -140,6 +140,118 @@ struct QuotaZoneNotificationParserTests {
         #expect(parsed?.threshold == 20)
     }
 
+    @Test("parseWarningRecordName preserves hashed named-window identity and display label")
+    func parseNamedWindowWarningRecord() {
+        let label = "Organization · Monthly · Shared · Hard"
+        let recordName = QuotaZoneNotificationParser.warningRecordName(
+            providerID: "aixy",
+            window: "monthly",
+            threshold: 50,
+            hourBucket: 477312,
+            identityHash: "0123456789abcdef01234567",
+            windowDisplayLabel: label)
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            recordName)
+        #expect(parsed?.providerID == "aixy")
+        #expect(parsed?.window == "monthly")
+        #expect(parsed?.threshold == 50)
+        #expect(parsed?.windowLabel == label)
+        let legacy = Self.parseWarningRecordNameWithV066Rules(recordName)
+        #expect(legacy?.window == "monthly")
+        #expect(legacy?.threshold == 50)
+    }
+
+    @Test("parseWarningRecordName reads existing post-hour identity suffixes")
+    func parsePreviouslyWrittenNamedWindowWarningRecord() {
+        let label = "Organization · Monthly · Shared · Hard"
+        let encoded = QuotaZoneNotificationParser.encodeWarningWindowLabel(label)!
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            "aixy-monthly-t50-477312-w0123456789abcdef01234567-l\(encoded)")
+        #expect(parsed?.providerID == "aixy")
+        #expect(parsed?.window == "monthly")
+        #expect(parsed?.threshold == 50)
+        #expect(parsed?.windowLabel == label)
+    }
+
+    private static func parseWarningRecordNameWithV066Rules(
+        _ recordName: String) -> (window: String, threshold: Int)?
+    {
+        let parts = recordName.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count >= 4,
+              let thresholdPart = parts.dropLast(1).last,
+              thresholdPart.hasPrefix("t"),
+              let threshold = Int(thresholdPart.dropFirst())
+        else { return nil }
+        return (String(parts[parts.count - 3]), threshold)
+    }
+
+    @Test("near-simultaneous or undated warning records do not claim an exact trigger")
+    func warningRecordAmbiguity() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [now]))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: []))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [nil]))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(transitionTimes: [nil, nil]))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, nil], latestTransitionAt: now))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, nil], latestTransitionAt: nil))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, now.addingTimeInterval(0.4)],
+            latestTransitionAt: now.addingTimeInterval(0.4)))
+        #expect(!QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now, now.addingTimeInterval(0.5), now.addingTimeInterval(10)],
+            latestTransitionAt: now.addingTimeInterval(10)))
+        #expect(QuotaZoneNotificationParser.warningRecordsAreAmbiguous(
+            transitionTimes: [now.addingTimeInterval(10), now.addingTimeInterval(10.5)],
+            latestTransitionAt: now.addingTimeInterval(10.5)))
+    }
+
+    @Test("ambiguous warning titles retain only an account shared by every possible trigger")
+    func ambiguousWarningAccount() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let recent = now.addingTimeInterval(0.4)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, "second@example.com")],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [
+                (now, " first@example.com "),
+                (recent, "first@example.com"),
+                (now.addingTimeInterval(-10), "older@example.com"),
+            ],
+            latestTransitionAt: recent) == "first@example.com")
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, nil)],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [(now, "first@example.com"), (recent, "  ")],
+            latestTransitionAt: recent) == nil)
+        #expect(QuotaZoneNotificationParser.commonWarningAccount(
+            records: [
+                (now, "first@example.com"),
+                (recent, "first@example.com"),
+                (nil, "unknown-time@example.com"),
+            ],
+            latestTransitionAt: recent) == nil)
+    }
+
+    @Test("warning record reads stop when the scan is truncated or more records remain")
+    func warningRecordScanBound() {
+        #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 499,
+            hasContinuationCursor: true))
+        #expect(!QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 500,
+            hasContinuationCursor: false))
+        #expect(QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: 501,
+            hasContinuationCursor: false))
+        #expect(QuotaZoneNotificationParser.warningRecordScanReachedLimit(
+            recordsExamined: QuotaZoneNotificationParser.warningRecordScanLimit,
+            hasContinuationCursor: true))
+    }
+
     @Test("parseWarningRecordName rejects malformed names")
     func parseWarningRecordMalformed() {
         #expect(QuotaZoneNotificationParser.parseWarningRecordName(

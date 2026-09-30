@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.68.0.1 — 2026-09-29
+
+### Added
+- One Mac release train for every official upstream release from v0.67.0 through v0.68.0, including shared cost reporting periods, portable preferences, Stay Awake and credential-expiry options, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer cost details, and the Mistral Vibe Monthly Plan.
+- Mac-to-iPhone sync preparation for the newly surfaced provider details and quota windows, with stable provider IDs and existing opaque payload compatibility.
+- Mistral, ClinePass, Muse, Homebrew updates, and plugin form/POST/calendar-month improvements from v0.68.0.
+
+### Changed
+- Advance the Mac fork to `0.68.0.1` / build `159.1`, Sparkle `159.1.2.3.0`, and iOS `2.3.0` in one release train. Preserve Production CloudKit, fork release and CI policy, and the current Mac-to-iPhone sync contract.
+- Include upstream plugin consolidation, Usage & Spend reporting, Codex session presentation, and status-item stability work through v0.68.0.
+
+### Fixed
+- Include upstream security, credential handling, provider accounting, history-boundary, retry, and performance fixes through v0.68.0, including the QuickJS-NG 0.17.0 memory-safety update.
+- Preserve fork-specific CloudKit, parser invalidation, Mac fleet sync ownership, and versioning constraints while integrating upstream.
+- Keep native-currency Mistral history available in iPhone provider details without counting it as USD spend or exposing it as legacy USD history.
+
+### Upstream release range
+- `v0.67.0`: shared reporting periods, portable preferences and switcher shortcuts, Stay Awake and account-scoped credential-expiry notifications, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer LiteLLM/Claude Admin/Grok cost details, 12 currencies, and the reported provider, cache, cookie-consent, and QuickJS fixes.
+- `v0.68.0`: Mistral Vibe Monthly Plan, ClinePass session reuse, optional Muse team quotas, Homebrew cask updates, plugin form/POST and calendar-month support, Codex daemon/dashboard fixes, status-item stability, Claude credential fallback, Venice Clerk sessions, Nous billed activity, Cursor date-boundary handling, and plugin-worker retry recovery.
+
 ## 0.66.0.1 — 2026-09-25
 
 ### Added

@@ -289,6 +289,7 @@ extension UsageStore {
     func invalidateGenericWidgetUsage(for provider: UsageProvider) {
         // Provider-specific by design: Claude keeps its existing owner-aware preservation policy.
         guard provider != .claude else { return }
+        self.lastWidgetSourceSnapshots[provider.instanceID] = nil
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A successful fetch cannot make an older queued account valid again.
         if self.lastQueuedWidgetSnapshot?.entries.contains(where: { $0.provider == provider.instanceID }) == true {
@@ -317,7 +318,7 @@ extension UsageStore {
                    !self.widgetUsagePreservationBlockedProviders.contains(entry.provider)
            })
         {
-            entries = previousSnapshot.entries
+            entries = previousSnapshot.entries.map { self.preservedWidgetEntryForCurrentMetric($0) }
         }
         return WidgetSnapshot(
             entries: entries,
@@ -383,6 +384,11 @@ extension UsageStore {
         let usageRows = snapshot.map {
             self.widgetUsageRows(provider: provider, snapshot: $0, now: now)
         } ?? preservedClaudeUsage?.usageRows ?? []
+        if ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRowsFollowMenuBarMetric,
+           let snapshot
+        {
+            self.lastWidgetSourceSnapshots[provider.instanceID] = snapshot
+        }
 
         let creditsRemaining: Double?
         let codeReviewRemaining: Double?
@@ -509,7 +515,7 @@ extension UsageStore {
         default: "Today"
         }
         let defaultMonthLabel = snapshot.historyDays == 1 ? "Today" : "\(snapshot.historyDays)d"
-        let monthLabel = snapshot.historyLabel ?? defaultMonthLabel
+        let monthLabel = snapshot.historyLabel.map { L($0) } ?? defaultMonthLabel
         let estimateSuffix = provider == .codex ? " API est. · not billed" : ""
         return WidgetSnapshot.TokenUsageSummary(
             sessionCostUSD: snapshot.sessionCostUSD,
@@ -672,7 +678,11 @@ extension UsageStore {
                     percentLeft: window.window.remainingPercent)
             })
         }
-        return rows.filter { $0.percentLeft != nil }
+        return ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRows(
+            rows,
+            snapshot: snapshot,
+            metric: self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot).providerMetric)
+            .filter { $0.percentLeft != nil }
     }
 
     /// Identifier prefix Claude fetchers use for model-scoped weekly carve-outs (for example, Fable).
@@ -705,5 +715,29 @@ extension UsageStore {
                 title: namedWindow.title,
                 percentLeft: namedWindow.usageKnown ? namedWindow.window.remainingPercent : nil)
         }
+    }
+
+    /// Reproject the last published source without changing its measurement time.
+    private func preservedWidgetEntryForCurrentMetric(
+        _ entry: WidgetSnapshot.ProviderEntry) -> WidgetSnapshot.ProviderEntry
+    {
+        guard let provider = entry.provider.firstPartyProvider,
+              ProviderDescriptorRegistry.descriptor(for: provider).presentation.widgetRowsFollowMenuBarMetric,
+              let snapshot = self.lastWidgetSourceSnapshots[entry.provider]
+        else { return entry }
+        return WidgetSnapshot.ProviderEntry(
+            instanceID: entry.provider,
+            updatedAt: entry.updatedAt,
+            primary: entry.primary,
+            secondary: entry.secondary,
+            tertiary: entry.tertiary,
+            usageRows: self.widgetUsageRows(provider: provider, snapshot: snapshot, now: entry.updatedAt),
+            creditsRemaining: entry.creditsRemaining,
+            codeReviewRemainingPercent: entry.codeReviewRemainingPercent,
+            tokenUsage: entry.tokenUsage,
+            dailyUsage: entry.dailyUsage,
+            providerCost: entry.providerCost,
+            quotaOwnerKey: entry.quotaOwnerKey,
+            balanceText: entry.balanceText)
     }
 }

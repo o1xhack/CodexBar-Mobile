@@ -4,33 +4,6 @@
 import CodexBarCore
 import Foundation
 
-struct TokenAccountUsageSnapshot: Identifiable {
-    let id: UUID
-    let account: ProviderTokenAccount
-    let snapshot: UsageSnapshot?
-    let error: String?
-    let sourceLabel: String?
-    let cacheKey: String
-    let fetchError: (any Error)?
-
-    init(
-        account: ProviderTokenAccount,
-        snapshot: UsageSnapshot?,
-        error: String?,
-        sourceLabel: String?,
-        cacheKey: String,
-        fetchError: (any Error)? = nil)
-    {
-        self.id = account.id
-        self.account = account
-        self.snapshot = snapshot
-        self.error = error
-        self.sourceLabel = sourceLabel
-        self.cacheKey = cacheKey
-        self.fetchError = fetchError
-    }
-}
-
 extension UsageStore {
     func activateCachedTokenAccountSnapshot(provider: UsageProvider, accountID: UUID) {
         guard self.settings.effectiveSelectedTokenAccount(for: provider)?.id == accountID else { return }
@@ -307,6 +280,8 @@ extension UsageStore {
                         for: account,
                         priorSnapshot: priorSnapshot,
                         activeVisibleAccountID: originalVisibleAccountID))
+            self.handleCodexCredentialOutcome(
+                outcome, account: account, snapshot: resolved.usage, projection: currentProjection)
             if let snapshot = resolved.snapshot {
                 snapshots.append(CodexAccountUsageSnapshot(
                     account: snapshot.account,
@@ -806,6 +781,20 @@ extension UsageStore {
                 let context = self.makeFetchContext(provider: provider, override: override)
                 return (index, account, descriptor, context)
             }
+
+        #if DEBUG
+        if let override = self._test_tokenAccountFetchOutcomeOverride {
+            var results: [TokenAccountFetchResult] = []
+            results.reserveCapacity(requests.count)
+            for request in requests {
+                await results.append(TokenAccountFetchResult(
+                    index: request.index,
+                    account: request.account,
+                    outcome: override(provider, request.account)))
+            }
+            return results
+        }
+        #endif
 
         if let delay = TokenAccountSupportCatalog.support(for: provider)?
             .minimumDelayBetweenAccountRefreshes
@@ -1321,6 +1310,10 @@ extension UsageStore {
         account: ProviderTokenAccount,
         priorSnapshot: TokenAccountUsageSnapshot? = nil) -> ResolvedAccountOutcome
     {
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: Self.warningTokenAccountDiscriminator(account) ?? "default",
+            result: outcome.result)
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
@@ -1579,6 +1572,10 @@ extension UsageStore {
             return
         }
         self.lastFetchAttempts[provider.instanceID] = outcome.attempts
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: Self.warningTokenAccountDiscriminator(account) ?? "default",
+            result: outcome.result)
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)

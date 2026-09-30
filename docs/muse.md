@@ -39,7 +39,33 @@ Reset timestamps outside the supported date range are omitted without discarding
 
 Pay-as-you-go accounts without `is_subs_active` are reported as having no subscription rather than a fake 0% bar. Accounts that still need a payment method are reported as billing-incomplete.
 
-An active subscription whose mint response omits `subs_usage` or returns it as `null` keeps its plan and identity, with **Quota: Not included in this login response** and no quota bars. Malformed quota objects still fail parsing; missing windows never become invented 0% usage.
+An active subscription whose mint response omits `subs_usage` or returns it as `null` keeps its plan and identity. Meta omits `subs_usage` while the 5-hour window is idle, even when the weekly limit has usage.
+
+## Browser team quota
+
+When `subs_usage` is missing, CodexBar can read the subscription quota of one `dev.meta.ai` team that you choose, using your browser session for `dev.meta.ai` (the `llama_dev_sess` cookie). A session can see more than one team, and nothing in the responses links a team to the CLI login, so CodexBar never picks a team for you.
+
+1. `GET https://dev.meta.ai/api/auth/me`. The session email must match the CLI login email, or CodexBar ignores the browser session.
+2. `GET https://dev.meta.ai/api/portal/teams`. The selected **Browser team** must be in this list, or no quota is read.
+3. `GET https://dev.meta.ai/api/portal/teams/{team_id}/subscription-quota` for the selected team only. Its `tier` must equal the plan in the login response (`subs_tier_name`), or the quota is ignored.
+
+Usage is `used / limit` for the 5-hour and weekly weighted limits. An idle 5-hour window with zero reported usage, or one whose valid reset time has passed, shows 0% with no reset time. A malformed reset, or nonzero usage without a reset, withholds the browser reading rather than inventing an idle window. If the weekly reset time has passed, or a limit is zero or missing, CodexBar shows no browser-team reading at all. The menu shows the values in a **Browser team quota (dev.meta.ai)** section with the team name, the source label becomes `oauth+web`, and the snapshot confidence is `estimated`, because the link between the team and the CLI login is your choice, not something Meta reports. The device-code token is sent only to `api.meta.ai`; `dev.meta.ai` requests carry only the browser cookie.
+
+Setup, in **Settings → Providers → Muse Code**:
+
+1. Set **Cookie source**. It is **Off** by default, so CodexBar reads no browser data until you choose a source. **Automatic** imports the cookie from Chrome or Firefox; **Manual** uses a pasted Cookie header or cURL capture from `dev.meta.ai`.
+2. Refresh Muse Code. When the login omits `subs_usage`, **Browser team** lists the teams the session can see, with their IDs. It starts at **Choose a team…** and never selects the first team automatically. The same list appears in the Muse menu.
+3. Choose the team whose web quota you want to display, then refresh. A saved team that is no longer visible stays marked unavailable; CodexBar never switches to another team for you.
+
+Automatic mode tries later browser sessions when the first session is expired or belongs to another account. The fallback makes at most five web requests per refresh; Manual uses only the pasted session.
+
+In `~/.codexbar/config.json`, the team ID is the Muse entry's `workspaceID`:
+
+```json
+{ "id": "muse", "cookieSource": "auto", "workspaceID": "<DEV_META_AI_TEAM_ID>" }
+```
+
+If the source is off, there is no session, the session belongs to another account, the team is not selected or not visible, the plan differs, the request is rejected or times out, or the response has an unexpected shape, the card keeps **Quota: Not included in this login response** and no quota bars. Malformed mint quota objects still fail parsing; missing windows never become invented usage.
 
 ## Local token history
 

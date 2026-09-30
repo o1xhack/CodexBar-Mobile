@@ -75,19 +75,39 @@ extension UsageStore {
             primaryWindow = suppressWindows ? nil : snapshot.primary
             secondaryWindow = suppressWindows ? nil : snapshot.secondary
         }
-        let primaryWindowDisplayLabel = provider == .amp
-            ? AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
-            : nil
-        let secondaryWindowDisplayLabel = provider == .amp
-            ? AmpProviderDescriptor.secondaryLabel(snapshot: snapshot)
-            : nil
-        let extraWindows = provider == .claude
-            ? (snapshot.extraRateWindows ?? []).filter(Self.isClaudeNotifiableExtraWindow)
-            : []
+        let primaryWindowDisplayLabel: String? = if provider == .amp {
+            AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
+        } else if provider == .aixy {
+            primaryWindow?.label
+        } else {
+            nil
+        }
+        let secondaryWindowDisplayLabel: String? = if provider == .amp {
+            AmpProviderDescriptor.secondaryLabel(snapshot: snapshot)
+        } else if provider == .aixy {
+            secondaryWindow?.label
+        } else {
+            nil
+        }
+        let extraWindows = (snapshot.extraRateWindows ?? []).filter { named in
+            (provider == .claude && Self.isClaudeNotifiableExtraWindow(named)) ||
+                (provider == .aixy && named.usageKnown)
+        }
         let windows: [(QuotaWarningWindow, RateWindow?, String?, String?)] = [
-            (.session, primaryWindow, nil, primaryWindowDisplayLabel),
-            (.weekly, secondaryWindow, nil, secondaryWindowDisplayLabel),
-        ] + extraWindows.map { (.weekly, $0.window, $0.id, $0.title) }
+            (
+                Self.quotaWarningLane(for: primaryWindow?.period, fallback: .session),
+                primaryWindow,
+                primaryWindow?.id,
+                primaryWindowDisplayLabel),
+            (
+                Self.quotaWarningLane(for: secondaryWindow?.period, fallback: .weekly),
+                secondaryWindow,
+                secondaryWindow?.id,
+                secondaryWindowDisplayLabel),
+        ] + extraWindows.map {
+            (Self.quotaWarningLane(for: $0.window.period, fallback: .weekly), $0.window, $0.id, $0.title)
+        }
+        let activeWindowIDs = Set(windows.compactMap(\.2))
         if notificationsEnabled {
             for (window, rateWindow, windowID, label) in windows {
                 self.handleQuotaWarningTransition(
@@ -99,13 +119,16 @@ extension UsageStore {
                     windowID: windowID,
                     windowDisplayLabel: label)
             }
-            // A missing extras payload is not authoritative; prune only when another extra window remains.
-            if !extraWindows.isEmpty, self.settings.quotaWarningEnabled(provider: provider, window: .weekly) {
-                let activeIDs = Set(extraWindows.map(\.id))
+            // A missing extras payload is not authoritative. When the producer
+            // does send that field, keep IDs for promoted windows as well as
+            // extras so their threshold-crossing episodes survive refreshes.
+            // Provider-specific by design: Aixy and Claude expose authoritative extras that prune removed warning
+            // episodes.
+            if provider == .aixy || provider == .claude, snapshot.extraRateWindows != nil {
                 self.quotaWarningState = self.quotaWarningState.filter { key, _ in
-                    key.provider != provider || key.window != .weekly ||
+                    key.provider != provider ||
                         key.accountDiscriminator != accountContext.discriminator ||
-                        (key.windowID.map { activeIDs.contains($0) } ?? true)
+                        (key.windowID.map { activeWindowIDs.contains($0) } ?? true)
                 }
             }
         }
@@ -120,16 +143,33 @@ extension UsageStore {
                     accountDiscriminator: hookDiscriminator,
                     accountDisplayName: accountContext.displayName)
             }
-            self.pruneQuotaLowHookUsage(
-                provider: provider,
-                accountDiscriminator: hookDiscriminator,
-                keepingExtraWindowIDs: Set(extraWindows.map(\.id)))
+            if snapshot.extraRateWindows != nil {
+                self.pruneQuotaLowHookUsage(
+                    provider: provider,
+                    accountDiscriminator: hookDiscriminator,
+                    keepingExtraWindowIDs: activeWindowIDs)
+            }
         }
     }
 
     private static func isClaudeNotifiableExtraWindow(_ named: NamedRateWindow) -> Bool {
         guard named.usageKnown else { return false }
         return named.id.hasPrefix("claude-weekly-scoped-") || named.id == "claude-routines"
+    }
+
+    /// The settings surface has two threshold lanes. Calendar-day windows use
+    /// the short-cycle session controls; weekly and longer budgets use the
+    /// weekly controls. Windows without period metadata keep their historical
+    /// primary/secondary or named-extra assignment.
+    private static func quotaWarningLane(
+        for period: RateWindowPeriod?,
+        fallback: QuotaWarningWindow) -> QuotaWarningWindow
+    {
+        switch period {
+        case .session, .daily: .session
+        case .weekly, .monthly, .lifetime: .weekly
+        case nil: fallback
+        }
     }
 
     private func handleQuotaWarningTransition(
@@ -206,6 +246,7 @@ extension UsageStore {
                     currentRemaining: currentRemaining,
                     accountDisplayName: accountContext.displayName,
                     windowID: windowID,
+                    windowPeriod: rateWindow.period,
                     windowDisplayLabel: windowDisplayLabel),
                 provider: provider)
         }

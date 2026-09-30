@@ -7,6 +7,39 @@ import Testing
 
 struct ClinePassPluginTests {
     @Test(arguments: BundledPluginTestSupport.engines)
+    func `browser session reaches quota parser on both engines`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try BundledPluginTestSupport.runtime(
+            "clinepass", engine: engine, transport: ProviderHTTPTransportHandler { request in
+                #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer workos:fixture-session")
+                return try Self.response(
+                    request, body: #"{"success":true,"data":{"limits":[{"type":"weekly","percentUsed":25}]}}"#)
+            })
+        let snapshot = try await runtime.fetchUsage(
+            settings: ["CLINE_AUTH_SOURCE": "oauth"], secrets: ["CLINE_API_KEY": "workos:fixture-session"])
+        #expect(snapshot.identity?.loginMethod == "Browser")
+        #expect(snapshot.secondary?.usedPercent == 25)
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `rejected browser session explains manual renewal without disclosing secrets`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try BundledPluginTestSupport.runtime(
+            "clinepass", engine: engine, transport: ProviderHTTPTransportHandler { request in
+                try Self.response(request, body: #"{"error":"workos:fixture-session"}"#, status: 401)
+            })
+        do {
+            _ = try await runtime.fetchUsage(
+                settings: ["CLINE_AUTH_SOURCE": "oauth"], secrets: ["CLINE_API_KEY": "workos:fixture-session"])
+            Issue.record("Expected rejected session")
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .authenticationExpired)
+            #expect(error.message.contains("cline auth"))
+            #expect(!error.message.contains("fixture-session"))
+        }
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
     func `all rate-window fixture matches the production golden`(engine: ProviderPluginEngineKind) async throws {
         let body = #"""
         {
@@ -103,7 +136,7 @@ struct ClinePassPluginTests {
         await Self.expectFailure(
             kind,
             contains: status == 401 || status == 403
-                ? "ClinePass API key was rejected."
+                ? "ClinePass credentials were rejected."
                 : "ClinePass API error: HTTP \(status)")
         {
             try await runtime.fetchUsage(secrets: ["CLINE_API_KEY": "test-key"])

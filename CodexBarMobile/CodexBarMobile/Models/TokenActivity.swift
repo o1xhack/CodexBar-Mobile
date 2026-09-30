@@ -140,7 +140,7 @@ enum TokenActivity {
             let reader = formatter.calendar.date(byAdding: .day, value: -age, to: readerToday)!
             mapping[formatter.string(from: producer)] = formatter.string(from: reader)
         }
-        return summary.daily.compactMap { point in
+        return summary.reportingPeriodDaily.compactMap { point in
             guard let key = mapping[point.dayKey] else { return nil }
             return SyncDailyPoint(
                 dayKey: key,

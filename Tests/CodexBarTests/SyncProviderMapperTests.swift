@@ -53,6 +53,28 @@ struct SyncProviderMapperTests {
         #expect(SyncCoordinator.additionalWindowLabel(windowMinutes: nil) == "Additional")
     }
 
+    @Test
+    func `promoted rate windows preserve provider identity label and calendar period on the wire`() {
+        let window = RateWindow(
+            usedPercent: 35,
+            windowMinutes: 43200,
+            resetsAt: Self.now,
+            resetDescription: nil,
+            period: .monthly,
+            id: "aixy-budget-123",
+            label: "Project · Monthly · Shared · Hard")
+
+        let mapped = SyncCoordinator.syncRateWindow(
+            id: window.id,
+            label: window.label,
+            window: window)
+
+        #expect(mapped.id == "aixy-budget-123")
+        #expect(mapped.label == "Project · Monthly · Shared · Hard")
+        #expect(mapped.period == .monthly)
+        #expect(mapped.usedPercent == 35)
+    }
+
     @Test(arguments: [UsageProvider.neuralwatt, .zenmux])
     func `zero-limit balances use amount lane`(_ provider: UsageProvider) throws {
         let cost = ProviderCostSnapshot(
@@ -161,8 +183,8 @@ struct SyncProviderMapperTests {
         #expect(balance.providerAmount?.amount == 40)
     }
 
-    @Test
-    func `custom plugin cost-only snapshot remains visible to iOS with UTC day metadata`() throws {
+    @Test(arguments: ["USD", "EUR", "CNY"])
+    func `custom plugin cost-only snapshot remains visible to iOS with UTC day metadata`(currency: String) throws {
         let instanceID = try #require(ProviderInstanceID(rawValue: "acme-meter"))
         let costUpdatedAt = try #require(ISO8601DateFormatter().date(from: "2026-08-22T12:00:00Z"))
         let costUsage = CostUsageTokenSnapshot(
@@ -171,6 +193,7 @@ struct SyncProviderMapperTests {
             last30DaysTokens: 300,
             last30DaysCostUSD: 4.25,
             last30DaysRequests: 3,
+            currencyCode: currency,
             historyDays: 7,
             historyCoverageIsEstablished: true,
             meteredCostUSD: 3.0,
@@ -210,6 +233,20 @@ struct SyncProviderMapperTests {
         #expect(summary.sourceUpdatedAt == costUpdatedAt)
         #expect(summary.sourceDayKey == "2026-08-18")
         #expect(summary.bucketTimeZoneIdentifier == "GMT")
+        let wire = try CloudSyncConstants.makeJSONEncoder().encode(summary)
+        let json = try #require(JSONSerialization.jsonObject(with: wire) as? [String: Any])
+        let roundTrip = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: wire)
+        #expect(roundTrip.currencyCode == currency)
+        #expect(roundTrip.reportingPeriodCostUSD == 4.25)
+        #expect(roundTrip.reportingPeriodDaily.first?.costUSD == 4.25)
+        if currency == "USD" {
+            #expect(json["last30DaysCostUSD"] as? Double == 4.25)
+        } else {
+            #expect(summary.reportingPeriodSummary?.costUSD == 4.25)
+            #expect(json["last30DaysCostUSD"] == nil)
+            #expect((json["daily"] as? [Any])?.isEmpty == true)
+            #expect(json["reportingPeriodSummary"] != nil)
+        }
     }
 
     @Test
@@ -325,6 +362,24 @@ struct SyncProviderMapperTests {
         #expect(identities == [
             "cursor:email:same@example.com",
             "cursor:record:token-a",
+        ])
+    }
+
+    @Test
+    func `mapper keeps Aixy server key identity ahead of local token record key`() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: UsageProvider.aixy.instanceID,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "API key",
+            accountID: "key-123")
+        let identities = SyncCoordinator.syncAccountIdentities(
+            provider: .aixy,
+            identity: identity,
+            accountRecordKey: "token-a")
+        #expect(identities == [
+            "aixy:key:key-123",
+            "aixy:record:token-a",
         ])
     }
 

@@ -59,6 +59,18 @@ for provider in "${PROVIDERS[@]}"; do
   while IFS= read -r match; do
     [[ -n "$match" ]] && implementation_matches+=("$match")
   done < <(grep -rlE "let id: UsageProvider = \\.${provider}\$" --include='*ProviderImplementation.swift' "$IMPLEMENTATION_DIR" || true)
+  if [[ "${#implementation_matches[@]}" -eq 0 ]] &&
+    grep -qE 'public static let spec = PluginProviderSpec\(' "${descriptor_matches[0]}" &&
+    grep -qE 'webSource: \.init\(' "${descriptor_matches[0]}"; then
+    IMPLEMENTATION_TYPES+=("PluginCookieProviderImplementation(spec: ${descriptor_type}.spec)")
+    continue
+  fi
+  if [[ "${#implementation_matches[@]}" -eq 0 ]] &&
+    grep -qE 'public static let spec = PluginProviderSpec\(' "${descriptor_matches[0]}" &&
+    grep -qE 'apiKeyField: \.init\(' "${descriptor_matches[0]}"; then
+    IMPLEMENTATION_TYPES+=("PluginAPIKeyProviderImplementation(spec: ${descriptor_type}.spec)")
+    continue
+  fi
   if [[ "${#implementation_matches[@]}" -ne 1 ]]; then
     echo "error: provider '${provider}' must have exactly one implementation file declaring 'let id: UsageProvider = .${provider}'; found ${#implementation_matches[@]}" >&2
     exit 1
@@ -68,7 +80,7 @@ for provider in "${PROVIDERS[@]}"; do
     echo "error: could not find the ProviderImplementation type for provider '${provider}' in ${implementation_matches[0]#${ROOT_DIR}/}" >&2
     exit 1
   fi
-  IMPLEMENTATION_TYPES+=("$implementation_type")
+  IMPLEMENTATION_TYPES+=("${implementation_type}()")
 done
 
 render_descriptors() {
@@ -101,7 +113,7 @@ enum ProviderImplementationManifest {
     static let implementations: [any ProviderImplementation] = [
 SWIFT
   for implementation_type in "${IMPLEMENTATION_TYPES[@]}"; do
-    printf '        %s(),\n' "$implementation_type"
+    printf '        %s,\n' "$implementation_type"
   done
   cat <<'SWIFT'
     ]

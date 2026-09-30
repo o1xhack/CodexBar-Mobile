@@ -85,6 +85,7 @@ extension UsageStore {
                 self.invalidateProviderAvailabilityCache()
                 self.probeLogs = [:]
                 guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
+                self.retireDisabledCredentialNotifications()
                 self.startTimer()
                 self.updateProviderRuntimes()
                 let enabledNow = Set(self.settings.enabledProvidersOrdered(
@@ -133,6 +134,25 @@ extension UsageStore {
             }
         }
         return nil
+    }
+
+    var tokenFetchTTL: TimeInterval? {
+        Self.tokenFetchTTL(
+            for: self.settings.refreshFrequency,
+            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
+    }
+
+    static func tokenFetchTTL(
+        for frequency: RefreshFrequency,
+        lowPowerModeEnabled: Bool = false) -> TimeInterval?
+    {
+        let interval = frequency.usesAdaptivePolicy
+            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
+            : frequency.seconds
+        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
+        return BackgroundWorkPowerPolicy.automaticInterval(
+            widgetSafeInterval,
+            lowPowerModeEnabled: lowPowerModeEnabled)
     }
 }
 
@@ -283,6 +303,8 @@ final class UsageStore {
     @ObservationIgnored var _test_providerFetchOutcomeOverride: (@MainActor (
         UsageProvider) async -> ProviderFetchOutcome)?
     #if DEBUG
+    @ObservationIgnored var _test_tokenAccountFetchOutcomeOverride: (@MainActor (
+        UsageProvider, ProviderTokenAccount) async -> ProviderFetchOutcome)?
     @ObservationIgnored var _test_codexAccountScopedRefreshDidComplete: (@MainActor () -> Void)?
     @ObservationIgnored var _test_codexPlanHistoryBackfillWillRecord: (@MainActor () -> Void)?
     @ObservationIgnored var _test_cursorCostCredentialFingerprintOverride: (() -> String?)?
@@ -343,6 +365,7 @@ final class UsageStore {
     @ObservationIgnored var widgetSnapshotPersistTask: Task<Void, Never>?
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
     @ObservationIgnored var lastQueuedWidgetSnapshotIsPreservable = false
+    @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
     @ObservationIgnored let widgetTimelineReloader: @MainActor () -> Void
     @ObservationIgnored var widgetUsagePreservationBlockedProviders: Set<ProviderInstanceID> = []
@@ -462,6 +485,13 @@ final class UsageStore {
     @ObservationIgnored var quotaLowHookUsage: [QuotaWarningStateKey: Double] = [:]
     @ObservationIgnored var quotaLowHookConfigRevision: Int?
     @ObservationIgnored var predictivePaceWarningNotifiedKeys: Set<PredictivePaceWarningStateKey> = []
+    #if DEBUG
+    @ObservationIgnored var _test_credentialNotificationPost: ((String, @escaping @MainActor (Bool) -> Void) -> Void)?
+    @ObservationIgnored var _test_credentialNotificationRemove: ((String) -> Void)?
+    #endif
+    @ObservationIgnored var claudeCredentialNotificationScopes: [String: String] = [:]
+    @ObservationIgnored var credentialNotificationsStopped = false
+    @ObservationIgnored var credentialNotificationEpisodes: [CredentialNotificationKey: UUID] = [:]
     @ObservationIgnored var lastPermissionPromptNotificationAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [ProviderInstanceID: String] = [:]
@@ -490,25 +520,6 @@ final class UsageStore {
     /// Energy/WidgetKit floor for expensive local-history scans and their additional snapshot publications.
     /// Faster provider refreshes still update quota/status normally, but reuse token-cost history within this TTL.
     static let minimumTokenFetchTTL: TimeInterval = 15 * 60
-
-    var tokenFetchTTL: TimeInterval? {
-        Self.tokenFetchTTL(
-            for: self.settings.refreshFrequency,
-            lowPowerModeEnabled: self.settings.backgroundWorkLowPowerModeEnabled)
-    }
-
-    static func tokenFetchTTL(
-        for frequency: RefreshFrequency,
-        lowPowerModeEnabled: Bool = false) -> TimeInterval?
-    {
-        let interval = frequency.usesAdaptivePolicy
-            ? AdaptiveRefreshPolicy.nominalIntervalForHeuristics
-            : frequency.seconds
-        let widgetSafeInterval = interval.map { max($0, Self.minimumTokenFetchTTL) }
-        return BackgroundWorkPowerPolicy.automaticInterval(
-            widgetSafeInterval,
-            lowPowerModeEnabled: lowPowerModeEnabled)
-    }
 
     @ObservationIgnored let tokenFetchTimeout: TimeInterval = 10 * 60
     @ObservationIgnored let startupBehavior: StartupBehavior
@@ -1066,10 +1077,8 @@ extension UsageStore {
             onScreenAlertEnabled: self.settings.quotaWarningOnScreenAlertEnabled)
         if self.settings.notificationPushToiOSEnabled {
             self.quotaTransitionWriter.writeQuotaWarning(
-                provider: provider,
-                window: event.window,
-                threshold: event.threshold,
-                accountDisplayName: event.accountDisplayName)
+                event: event,
+                provider: provider)
         }
     }
 
@@ -1538,7 +1547,9 @@ extension UsageStore {
         guard !self.tokenRefreshInFlight.contains(provider.instanceID) else { return }
 
         let now = Date()
-        let historyDays = self.settings.costUsageHistoryDays
+        let historyDays = self.settings.costReportingPeriod.days(
+            now: now,
+            calendar: self.settings.costUsageBucketCalendar)
         // Cursor cost reuses the status cookie policy: a Manual source forwards the manual header so
         // cost and status share the same session; other sources fall back to auto resolution.
         guard case let .proceed(cursorCookieHeaderOverride) = self.prepareCursorCostCookie(for: provider) else {

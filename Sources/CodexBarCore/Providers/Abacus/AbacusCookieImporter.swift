@@ -53,7 +53,7 @@ public enum AbacusCookieImporter {
     public static func importSessions(
         browserDetection: BrowserDetection = BrowserDetection(),
         preferredBrowsers: [Browser] = [.chrome],
-        logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
+        logger: ((String) -> Void)? = nil) -> [SessionInfo]
     {
         var candidates: [SessionInfo] = []
         let installedBrowsers = preferredBrowsers.isEmpty
@@ -91,27 +91,7 @@ public enum AbacusCookieImporter {
             }
         }
 
-        guard !candidates.isEmpty else {
-            throw AbacusUsageError.noSessionCookie
-        }
         return candidates
-    }
-
-    /// Cheap check for whether any browser has an Abacus session cookie,
-    /// used by the fetch strategy's `isAvailable()`.
-    public static func hasSession(
-        browserDetection: BrowserDetection = BrowserDetection(),
-        preferredBrowsers: [Browser] = [.chrome],
-        logger: ((String) -> Void)? = nil) -> Bool
-    {
-        do {
-            return try !self.importSessions(
-                browserDetection: browserDetection,
-                preferredBrowsers: preferredBrowsers,
-                logger: logger).isEmpty
-        } catch {
-            return false
-        }
     }
 
     /// Returns `true` if the cookie set contains at least one cookie whose name

@@ -266,6 +266,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastAgentSessionsEnabled: Bool
     var lastAgentSessionsManualHosts: String
     var lastAgentSessionsRefreshFrequency: RefreshFrequency
+    var lastStayAwakeEnabled: Bool
     var lastAdaptiveActivityScanningEnabled: Bool
     /// Tracks which `usageBarsShowUsed` mode the provider switcher was built with.
     /// Used to decide whether we can "smart update" menu content without rebuilding the switcher.
@@ -316,8 +317,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastObservedStoreIconWorkSignature: String?
     var iconPerfRefreshCycleMetrics: IconPerfRefreshCycleMetrics?
     var iconPerfUpdatePassActive = false
-    var lastKnownScreenCount: Int
-    var pendingScreenChangePreviousCount: Int?
     var screenChangeVisibilityTask: Task<Void, Never>?
     let loginLogger = CodexBarLog.logger(LogCategories.login)
     let menuLogger = CodexBarLog.logger(LogCategories.app)
@@ -403,6 +402,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.lastAgentSessionsEnabled = settings.agentSessionsEnabled
         self.lastAgentSessionsManualHosts = settings.agentSessionsManualHosts
         self.lastAgentSessionsRefreshFrequency = settings.refreshFrequency
+        self.lastStayAwakeEnabled = settings.stayAwakeEnabled
         self.lastAdaptiveActivityScanningEnabled = settings.adaptiveActivityScanningEnabled
         self.lastSwitcherUsageBarsShowUsed = settings.usageBarsShowUsed
         self.menuCardRenderingEnabledForController = menuCardRenderingEnabled
@@ -415,7 +415,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             identity: .merged,
             defaults: settings.userDefaults,
             legacyDefaultItemIndex: Self.mergedLegacyDefaultItemIndex)
-        self.lastKnownScreenCount = NSScreen.screens.count
         // Status items for individual providers are now created lazily in updateVisibility()
         super.init()
         if !repairedStatusItemVisibilityKeys.isEmpty {
@@ -607,6 +606,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private func observeUpdaterChanges() {
         withObservationTracking {
             _ = self.updater.updateStatus.isUpdateReady
+            _ = self.updater.updateStatus.availableVersion
+            _ = self.updater.updateStatus.isInstalling
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -918,7 +919,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.loginTask?.cancel()
         self.overviewSharePresentation.task?.cancel()
         self.screenChangeVisibilityTask?.cancel()
-        self.pendingScreenChangePreviousCount = nil
         NotificationCenter.default.removeObserver(self)
     }
 }

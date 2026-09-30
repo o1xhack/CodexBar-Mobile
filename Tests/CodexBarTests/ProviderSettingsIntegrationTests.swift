@@ -53,7 +53,7 @@ struct ProviderSettingsIntegrationTests {
             .abacus, .alibaba, .alibabatokenplan, .amp, .augment, .claude, .codex, .commandcode,
             .copilot, .cursor, .devin, .factory, .grok, .kimi, .longcat, .manus, .mimo, .minimax,
             .mistral, .notion, .ollama, .opencode, .opencodego, .perplexity, .qoder, .qwencloud,
-            .stepfun, .t3chat, .typesafe, .venice, .windsurf, .zoommate,
+            .raycast, .stepfun, .t3chat, .typesafe, .venice, .windsurf, .zoommate,
         ]
         for provider in providers {
             let context = ProviderSettingsContext(
@@ -91,7 +91,8 @@ struct ProviderSettingsIntegrationTests {
         defer { settings.debugDisableKeychainAccess = false }
         let providers: [UsageProvider] = [
             .abacus, .amp, .augment, .commandcode, .cursor, .factory, .kimi, .longcat,
-            .manus, .mimo, .mistral, .ollama, .perplexity, .qoder, .qwencloud, .t3chat, .typesafe, .venice, .zoommate,
+            .manus, .mimo, .mistral, .ollama, .perplexity, .qoder, .qwencloud, .raycast, .t3chat,
+            .typesafe, .venice, .zoommate,
         ]
         for provider in providers {
             let implementation = try #require(ProviderCatalog.implementation(for: provider))
@@ -119,7 +120,7 @@ struct ProviderSettingsIntegrationTests {
     @Test
     func `standard app cookie sections keep account overrides scoped and normalized`() {
         let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
-        settings.manusManualCookieHeader = "session_id=configured"
+        settings[providerConfig: .manus, field: .cookieHeader] = "session_id=configured"
         settings.miMoCookieHeader = "mimo=configured"
         let account = ProviderTokenAccount(id: UUID(), label: "Fixture", token: "override", addedAt: 0, lastUsed: nil)
         let snapshot = ProviderRegistry.makeSettingsSnapshot(
@@ -130,7 +131,7 @@ struct ProviderSettingsIntegrationTests {
         #expect(snapshot.manus?.manualCookieHeader == "session_id=override")
         #expect(snapshot.mimo?.cookieSource == .auto)
         #expect(snapshot.mimo?.manualCookieHeader == "mimo=configured")
-        #expect(settings.manusManualCookieHeader == "session_id=configured")
+        #expect(settings[providerConfig: .manus, field: .cookieHeader] == "session_id=configured")
         #expect(settings.tokenAccounts(for: .manus).isEmpty)
 
         #expect(TokenAccountSupportCatalog.support(for: .qwencloud) == nil)
@@ -140,5 +141,14 @@ struct ProviderSettingsIntegrationTests {
             tokenOverride: TokenAccountOverride(provider: .qwencloud, account: account))
         #expect(unsupportedOverride.qwenCloud?.cookieSource == .auto)
         #expect(unsupportedOverride.qwenCloud?.manualCookieHeader == "qwen=configured")
+
+        #expect(TokenAccountSupportCatalog.support(for: .raycast) == nil)
+        settings.setCookieSource(.manual, provider: .raycast)
+        settings[providerConfig: .raycast, field: .cookieHeader] = "__raycast_session=configured"
+        let raycastOverride = ProviderRegistry.makeSettingsSnapshot(
+            settings: settings,
+            tokenOverride: TokenAccountOverride(provider: .raycast, account: account))
+        #expect(raycastOverride.raycast?.cookieSource == .manual)
+        #expect(raycastOverride.raycast?.manualCookieHeader == "__raycast_session=configured")
     }
 }

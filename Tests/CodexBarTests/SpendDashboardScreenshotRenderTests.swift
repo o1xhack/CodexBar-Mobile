@@ -174,7 +174,10 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
                         totalTokens: 40,
                         requestCount: 1,
                         costUSD: 2.1,
-                        modelBreakdowns: []),
+                        modelBreakdowns: [],
+                        projectPath: "/Users/example/Projects/example-app",
+                        projectName: "example-app",
+                        title: "Fix the menu bar icon"),
                 ],
                 updatedAt: now))
         let hourly = SpendDashboardModel.build(
@@ -328,6 +331,10 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
             (
                 "usage-spend-sessions",
                 AnyView(self.chrome(selectedDays: 7, group: hourlyGroup, detailSection: .sessions))),
+            (
+                "usage-spend-sessions-private",
+                AnyView(self.chrome(
+                    selectedDays: 7, group: hourlyGroup, detailSection: .sessions, hidePersonalInfo: true))),
             ("usage-spend-export-actions", AnyView(self.exportActionsChrome())),
             (
                 "usage-spend-hourly",
@@ -349,7 +356,8 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
         selectedDays: Int,
         group: SpendDashboardModel.CurrencyGroup,
         detailSection: SpendDashboardDetailSection = .providers,
-        trendSection: SpendDashboardTrendSection? = nil) -> some View
+        trendSection: SpendDashboardTrendSection? = nil,
+        hidePersonalInfo: Bool = false) -> some View
     {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 16) {
@@ -379,6 +387,7 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
             SpendDashboardCurrencySection(
                 group: group,
                 requestedDays: selectedDays,
+                hidePersonalInfo: hidePersonalInfo,
                 initialDetailSection: detailSection,
                 initialTrendSection: trendSection)
         }

@@ -20,10 +20,8 @@ protocol QuotaTransitionWriting: AnyObject {
     /// pushes can include the triggering account in the body (e.g.
     /// "Codex (admin@example.com) — Session at 50%").
     func writeQuotaWarning(
-        provider: UsageProvider,
-        window: QuotaWarningWindow,
-        threshold: Int,
-        accountDisplayName: String?)
+        event: QuotaWarningEvent,
+        provider: UsageProvider)
 }
 
 /// Writes `QuotaTransition` records to CloudKit so iOS receives a visible alert push
@@ -136,14 +134,12 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     }
 
     func writeQuotaWarning(
-        provider: UsageProvider,
-        window: QuotaWarningWindow,
-        threshold: Int,
-        accountDisplayName: String?)
+        event: QuotaWarningEvent,
+        provider: UsageProvider)
     {
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
-        let windowString = window.rawValue
-        let key = "\(provider.rawValue)|\(windowString)|\(threshold)"
+        let windowString = event.windowPeriod?.rawValue ?? event.window.rawValue
+        let key = "\(provider.rawValue)|\(windowString)|\(event.windowID ?? "")|\(event.threshold)"
         let now = Date()
 
         if let lastWrite = self.lastWarningWriteByKey[key],
@@ -151,18 +147,24 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         {
             self.logger.debug(
                 "QuotaWarning write debounced: provider=\(provider.rawValue) " +
-                    "window=\(windowString) threshold=\(threshold)")
+                    "window=\(windowString) threshold=\(event.threshold)")
             return
         }
 
-        Task { [providerName, windowString, accountDisplayName] in
+        let windowIdentity = event.windowID
+        let windowDisplayLabel = event.windowDisplayLabel
+        let threshold = event.threshold
+        let accountDisplayName = event.accountDisplayName
+        Task { [providerName, windowString, windowIdentity, windowDisplayLabel, threshold, accountDisplayName] in
             let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 window: windowString,
                 threshold: threshold,
                 transitionAt: now,
-                accountEmail: accountDisplayName)
+                accountEmail: accountDisplayName,
+                windowIdentity: windowIdentity,
+                windowDisplayLabel: windowDisplayLabel)
             if result.succeeded {
                 self.lastWarningWriteByKey[key] = now
                 self.logger.info(

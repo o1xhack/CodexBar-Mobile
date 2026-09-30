@@ -1,6 +1,7 @@
 import Foundation
 
 public enum LiteLLMSettingsReader {
+    public static let modelUsageEnvironmentKey = "LITELLM_MODEL_USAGE_ENABLED"
     public static let apiKeyEnvironmentKey = "LITELLM_API_KEY"
     public static let baseURLEnvironmentKey = "LITELLM_BASE_URL"
 
@@ -19,17 +20,6 @@ public enum LiteLLMSettingsReader {
         // hosts must use HTTPS, and no endpoint may carry embedded credentials.
         return ProviderEndpointOverrideValidator().validatedURLAllowingPrivateNetworkHTTP(raw)
     }
-
-    /// True when a base URL is configured at all, even if it fails validation.
-    ///
-    /// Availability checks use this so a rejected override still reaches the fetch path and
-    /// surfaces ``LiteLLMUsageError/invalidEndpointOverride(_:)`` instead of silently hiding
-    /// the provider as unconfigured.
-    public static func hasBaseURLOverride(
-        environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool
-    {
-        SettingsValue.cleaned(environment[self.baseURLEnvironmentKey]) != nil
-    }
 }
 
 public enum LiteLLMUsageError: LocalizedError, Sendable {
@@ -41,5 +31,12 @@ public enum LiteLLMUsageError: LocalizedError, Sendable {
             "LiteLLM base URL override \(key) is invalid. Use an HTTPS URL, or plain HTTP for " +
                 "loopback or private-network addresses and .local hosts, without embedded credentials."
         }
+    }
+}
+
+extension ProviderConfig {
+    public var litellmModelUsageEnabled: Bool? {
+        get { self.extensionValue(forKey: "litellmModelUsageEnabled") }
+        set { self.setExtensionValue(newValue, forKey: "litellmModelUsageEnabled") }
     }
 }

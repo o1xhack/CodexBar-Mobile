@@ -9,6 +9,141 @@ struct CLIServeWebUITests {
         String(bytes: CLIServeWebUI.response().body, encoding: .utf8) ?? ""
     }
 
+    @Test(arguments: ["server", "used", "remaining"], [false, true])
+    func `browser choice overrides both labels and widths without changing consumption status`(
+        choice: String, serverUsed: Bool) throws
+    {
+        let context = try self.recordingContext()
+        context.evaluateScript("""
+        fixture.host.usageBarsShowUsed = \(serverUsed);
+        renderSnapshot(fixture);
+        elements.error.classList.add('visible');
+        state.forceStale = true;
+        elements.usageDisplay.value = '\(choice)';
+        changeUsageDisplay();
+        const rendered = renderWindow({label:'Session', usedPercent:90, remainingPercent:10});
+        """)
+        let showUsed = choice == "used" || (choice == "server" && serverUsed)
+        #expect(context.exception == nil)
+        #expect(context.evaluateScript("recordedText(rendered)[0]")?.toString() ==
+            (showUsed ? "Session · 90% used" : "Session · 10% left"))
+        #expect(context.evaluateScript(
+            "recordedNodes(rendered).find(node => node.className === 'fill').style.width")?.toString() ==
+            (showUsed ? "90%" : "10%"))
+        #expect(context.evaluateScript(
+            "recordedNodes(rendered).find(node => node.className === 'track').attributes['aria-valuenow']")?
+            .toString() == (showUsed ? "90" : "10"))
+        #expect(context.evaluateScript("worstWindowLevel([{usedPercent:95}])")?.toString() == "critical")
+        #expect(context.evaluateScript("worstWindowLevel([{usedPercent:80}])")?.toString() == "warning")
+        #expect(context.evaluateScript("fixture.host.usageBarsShowUsed")?.toBool() == serverUsed)
+        #expect(context.evaluateScript("elements.error.className.includes('visible') && state.forceStale")?
+            .toBool() == true)
+        let widths = context.evaluateScript(
+            "recordedNodes(elements.providers).filter(node => node.className === 'fill')" +
+                ".map(node => node.style.width)")?
+            .toArray() as? [String]
+        #expect(widths == (showUsed ? ["20%", "40%", "70%", "10%"] : ["80%", "60%", "30%", "90%"]))
+    }
+
+    @Test(arguments: ["used", "remaining", "server", "unknown", "{malformed", "null"])
+    func `saved browser choice is validated during page initialization`(saved: String) throws {
+        let context = try self.recordingContext(storageSetup: """
+        localStorage.getItem = key => key === 'codexbar.dashboard.usageDisplay' ? '\(saved)' : null;
+        """)
+        let expected = ["used", "remaining"].contains(saved) ? saved : "server"
+        #expect(context.evaluateScript("state.usageDisplay")?.toString() == expected)
+        #expect(context.evaluateScript("elements.usageDisplay.value")?.toString() == expected)
+    }
+
+    @Test
+    func `browser choices persist and follow server removes only the display override`() throws {
+        let context = try self.recordingContext(storageSetup: """
+        const saved = {'codexbar.dashboardToken':'synthetic', 'codexbar.lastSnapshot':'null'};
+        localStorage.getItem = key => saved[key] ?? null;
+        localStorage.setItem = (key, value) => saved[key] = value;
+        localStorage.removeItem = key => delete saved[key];
+        """)
+        for choice in ["used", "remaining", "server"] {
+            context.evaluateScript("elements.usageDisplay.value = '\(choice)'; changeUsageDisplay();")
+            #expect(context.evaluateScript("storedUsageDisplay()")?.toString() == choice)
+        }
+        #expect(context.evaluateScript("saved[usageDisplayKey] === undefined")?.toBool() == true)
+        #expect(context.evaluateScript("saved['codexbar.dashboardToken']")?.toString() == "synthetic")
+        #expect(context.evaluateScript("saved['codexbar.lastSnapshot']")?.toString() == "null")
+        context.evaluateScript("""
+        renderSnapshot(fixture);
+        fixture.host.usageBarsShowUsed = true;
+        renderSnapshot(fixture);
+        const rendered = renderWindow({usedPercent:25});
+        """)
+        #expect(context.evaluateScript("recordedText(rendered)[0]")?.toString() == "Usage · 25% used")
+    }
+
+    @Test(arguments: ["used", "remaining", "server"], [false, true])
+    func `browser choice survives reload with an older cached snapshot`(choice: String, hasHost: Bool) throws {
+        let storage = """
+        localStorage.getItem = key => saved[key] ?? null;
+        localStorage.setItem = (key, value) => saved[key] = value;
+        localStorage.removeItem = key => delete saved[key];
+        """
+        let context = try self.recordingContext(storageSetup: "const saved = {};\n" + storage)
+        context.evaluateScript("""
+        if (\(hasHost)) delete fixture.host.usageBarsShowUsed;
+        else delete fixture.host;
+        for (const provider of fixture.providers) {
+          for (const window of provider.windows || []) delete window.remainingPercent;
+          for (const account of provider.accounts || []) {
+            for (const window of account.windows || []) delete window.remainingPercent;
+          }
+        }
+        persistSnapshot(fixture);
+        elements.usageDisplay.value = '\(choice)';
+        changeUsageDisplay();
+        """)
+        #expect(context.exception == nil)
+        let savedJSON = try #require(context.evaluateScript("JSON.stringify(saved)")?.toString())
+        let reloaded = try self.recordingContext(storageSetup: "const saved = \(savedJSON);\n" + storage)
+        #expect(reloaded.evaluateScript("elements.usageDisplay.value")?.toString() == choice)
+        #expect(reloaded.evaluateScript("state.forceStale")?.toBool() == true)
+        #expect(reloaded.evaluateScript(
+            "recordedNodes(elements.providers).filter(node => node.className === 'fill')" +
+                ".map(node => node.style.width)")?.toArray() as? [String] ==
+            (choice == "used" ? ["20%", "40%", "70%", "10%"] : ["80%", "60%", "30%", "90%"]))
+        #expect(reloaded.evaluateScript("recordedText(elements.providers).some(text => text.includes('20% used'))")?
+            .toBool() == (choice == "used"))
+        #expect(reloaded.evaluateScript("recordedText(elements.providers).some(text => text.includes('80% left'))")?
+            .toBool() == (choice != "used"))
+    }
+
+    @Test
+    func `usage display control is labeled and bundled without external resources`() {
+        #expect(self.html.contains(#"<label for="usage-display">Usage display</label>"#))
+        #expect(self.html.contains(#"<option value="server">Follow server</option>"#))
+        #expect(self.html.contains(#"<option value="used">Used</option>"#))
+        #expect(self.html.contains(#"<option value="remaining">Remaining</option>"#))
+        #expect(!self.html.contains("<script src="))
+        #expect(!self.html.contains(#"rel="stylesheet""#))
+    }
+
+    @Test
+    func `unavailable storage defaults to server and allows a temporary override`() throws {
+        let context = try self.recordingContext(storageSetup: """
+        for (const method of ['getItem', 'setItem', 'removeItem']) {
+          localStorage[method] = () => { throw new Error('Storage unavailable'); };
+        }
+        """)
+        #expect(context.evaluateScript("state.usageDisplay")?.toString() == "server")
+        context.evaluateScript("fixture.host.usageBarsShowUsed = false; renderSnapshot(fixture);")
+        for choice in ["used", "remaining", "server"] {
+            context.evaluateScript("elements.usageDisplay.value = '\(choice)'; changeUsageDisplay();")
+            #expect(context.exception == nil)
+            #expect(context.evaluateScript("state.usageDisplay")?.toString() == choice)
+            #expect(context.evaluateScript(
+                "recordedNodes(elements.providers).find(node => node.className === 'fill').style.width")?
+                .toString() == (choice == "used" ? "20%" : "80%"))
+        }
+    }
+
     @Test(arguments: [false, true], [false, true])
     func `window labels widths and accessibility values follow the selected fill mode`(
         showUsed: Bool,
@@ -260,7 +395,11 @@ struct CLIServeWebUITests {
         }
     }
 
-    private func recordingContext(costJSON: String? = nil, locale: String? = nil) throws -> JSContext {
+    private func recordingContext(
+        costJSON: String? = nil,
+        locale: String? = nil,
+        storageSetup: String? = nil) throws -> JSContext
+    {
         let context = try #require(JSContext())
         if let locale {
             let localeJSON = try #require(String(data: JSONEncoder().encode(locale), encoding: .utf8))
@@ -282,6 +421,7 @@ struct CLIServeWebUITests {
                     + ": new Promise(() => {});")
         }
         context.evaluateScript(dom)
+        if let storageSetup { context.evaluateScript(storageSetup) }
         let start = try #require(self.html.range(of: "<script>"))
         let end = try #require(self.html.range(of: "</script>"))
         context.evaluateScript(String(self.html[start.upperBound..<end.lowerBound]))

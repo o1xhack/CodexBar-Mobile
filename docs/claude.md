@@ -51,6 +51,19 @@ Admin API key setup:
   - Inline 30-day dashboard chart when daily buckets are present.
   - Identity login method: `Admin API`.
 
+### Optional workspace spend
+
+Enable **Show workspace spend** in Settings → Providers → Claude, set `claudeWorkspaceSpendEnabled: true` on the
+Claude provider config entry, or set `ANTHROPIC_ADMIN_WORKSPACE_SPEND=true`. It is off by default and applies only
+to the Admin API source.
+
+The existing [cost report](https://platform.claude.com/docs/en/api/admin/cost_report/retrieve) request adds
+`group_by[]=workspace_id` alongside `group_by[]=description`; no extra request or credentials are required.
+The organization totals, cost items, token summaries, and daily chart remain unchanged. When more than one workspace
+has cost rows, **Workspace spend · 30d** shows up to 20 workspaces, highest spend first, over the same 30-day buckets
+as the organization total. Labels use workspace IDs; a null workspace is **Default**. Amounts are converted from
+Anthropic's USD cents to dollars. A single workspace keeps the existing organization view.
+
 ## Recover usage when Claude is already signed in
 
 A working Claude Code login or Claude browser tab does not by itself confirm that CodexBar can read that
@@ -115,6 +128,10 @@ the cookie import.
 - When a CodexBar-owned OAuth cache item's ACL rejects the current build, fresh credentials from an allowed source
   can replace that cache item using no-UI deletion and creation. A locked or inconclusive Keychain is preserved;
   failed ACL repairs back off for five minutes. This never deletes or recreates Claude Code's credential item.
+- If CodexBar's cache is temporarily unavailable, automatic refreshes can reuse an unexpired credential already in
+  memory beyond the normal 30-minute cache window, ahead of a stale credentials file. Each refresh retries the
+  persistent cache. Token expiry, profile changes, cache invalidation, and Never prompt still prevent reuse;
+  pending invalidation after a rejected cache write remains a separate recovery limitation.
 - For the default CLI profile, expired cached or file credentials can adopt a fresh CLI Keychain token after file fallback, even when its fingerprint was already observed during an earlier repair. Existing direct-read consent, prompt policy, cooldown, one-minute freshness-check throttle, and noninteractive-read checks still apply. Custom profiles are not recovered from the unscoped global item, and CLI credentials are never rewritten by this synchronization. Background recovery still requires the Always allow prompts policy; the default Only on user action policy requires an explicit Refresh.
 - On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. CodexBar treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).

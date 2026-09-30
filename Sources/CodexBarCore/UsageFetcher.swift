@@ -1,5 +1,13 @@
 import Foundation
 
+public enum RateWindowPeriod: String, Codable, Sendable {
+    case session
+    case daily
+    case weekly
+    case monthly
+    case lifetime
+}
+
 public struct RateWindow: Codable, Equatable, Sendable {
     /// Provider usage value, intentionally not normalized globally. Pace and provider-specific diagnostics may
     /// preserve raw over-quota values; display-only projections should use `UsagePercent.displayClamped`.
@@ -10,6 +18,15 @@ public struct RateWindow: Codable, Equatable, Sendable {
     public let resetDescription: String?
     /// Optional percent restored on the next regeneration tick for providers with rolling recovery.
     public let nextRegenPercent: Double?
+    /// Stable provider identity for windows promoted into a primary/secondary
+    /// slot. Most providers leave this unset; Aixy budgets must retain their
+    /// identities when ranking changes between refreshes.
+    public let id: String?
+    /// Provider-authored display label for a promoted named window.
+    public let label: String?
+    /// Provider-declared quota period. Duration alone cannot distinguish a
+    /// calendar budget from a session lane when reset metadata is incomplete.
+    public let period: RateWindowPeriod?
     /// Whether this window was synthesized to stand in for a quota lane the provider did not actually
     /// report, rather than being a real zero-usage window.
     ///
@@ -26,6 +43,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
         resetsAt: Date?,
         resetDescription: String?,
         nextRegenPercent: Double? = nil,
+        period: RateWindowPeriod? = nil,
+        id: String? = nil,
+        label: String? = nil,
         isSyntheticPlaceholder: Bool = false)
     {
         self.usedPercent = usedPercent
@@ -33,6 +53,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
         self.nextRegenPercent = nextRegenPercent
+        self.period = period
+        self.id = id
+        self.label = label
         self.isSyntheticPlaceholder = isSyntheticPlaceholder
     }
 
@@ -42,6 +65,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
         case resetsAt
         case resetDescription
         case nextRegenPercent
+        case period
+        case id
+        case label
         case isSyntheticPlaceholder
     }
 
@@ -52,6 +78,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
         self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
+        self.period = try container.decodeIfPresent(RateWindowPeriod.self, forKey: .period)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id)
+        self.label = try container.decodeIfPresent(String.self, forKey: .label)
         self.isSyntheticPlaceholder =
             try container.decodeIfPresent(Bool.self, forKey: .isSyntheticPlaceholder) ?? false
     }
@@ -63,6 +92,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
         try container.encodeIfPresent(self.resetsAt, forKey: .resetsAt)
         try container.encodeIfPresent(self.resetDescription, forKey: .resetDescription)
         try container.encodeIfPresent(self.nextRegenPercent, forKey: .nextRegenPercent)
+        try container.encodeIfPresent(self.period, forKey: .period)
+        try container.encodeIfPresent(self.id, forKey: .id)
+        try container.encodeIfPresent(self.label, forKey: .label)
         // Only persist the flag when set, keeping payloads identical for the common (real-window) case.
         if self.isSyntheticPlaceholder {
             try container.encode(true, forKey: .isSyntheticPlaceholder)
@@ -89,6 +121,9 @@ public struct RateWindow: Codable, Equatable, Sendable {
             resetsAt: cachedReset,
             resetDescription: self.resetDescription ?? cached?.resetDescription,
             nextRegenPercent: self.nextRegenPercent,
+            period: self.period ?? cached?.period,
+            id: self.id ?? cached?.id,
+            label: self.label ?? cached?.label,
             // Preserve the placeholder marker: backfilling a stale reset onto Claude web's null-session
             // placeholder must not let it masquerade as a real session lane.
             isSyntheticPlaceholder: self.isSyntheticPlaceholder)

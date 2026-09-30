@@ -12,6 +12,7 @@ struct V045ProviderPresentationTests {
         #expect(ProviderWindowLabel.localizationKey(for: "5-hour") == "5-hour")
         #expect(ProviderWindowLabel.localizationKey(for: "Credits") == "Credits")
         #expect(ProviderWindowLabel.localizationKey(for: "Monthly") == "v045_window_monthly")
+        #expect(ProviderWindowLabel.localizationKey(for: "Monthly Plan") == "Monthly Plan")
         #expect(ProviderWindowLabel.localizationKey(for: "Additional") == "v045_window_additional")
         #expect(ProviderWindowLabel.localizationKey(for: "5 hour limit") == "v045_window_5_hour_limit")
         #expect(ProviderWindowLabel.localizationKey(for: "Daily Routines") == "v045_window_daily_routines")
@@ -45,6 +46,40 @@ struct V045ProviderPresentationTests {
                 fallback: "Limit",
                 locale: locale) == expectation.onDemand)
         }
+    }
+
+    @Test
+    func `Mistral and Raycast quota windows localize in all four languages`() {
+        let expectations: [(locale: String, monthlyPlan: String, monthly: String, left: String)] = [
+            ("en", "Monthly Plan", "Monthly", "Left"),
+            ("zh-Hans", "月度套餐", "每月", "剩余"),
+            ("zh-Hant", "每月方案", "每月", "剩餘"),
+            ("ja", "月次プラン", "毎月", "残り"),
+        ]
+
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderWindowLabel.localized(
+                "Monthly Plan",
+                fallback: "Limit",
+                providerID: "mistral",
+                locale: locale) == expectation.monthlyPlan)
+            #expect(ProviderWindowLabel.localized(
+                "Additional",
+                fallback: "Limit",
+                providerID: "raycast",
+                period: .monthly,
+                locale: locale) == expectation.monthly)
+            #expect(ProviderDetailLocalization.localized(
+                "Left",
+                providerID: "raycast",
+                locale: locale) == expectation.left)
+        }
+        #expect(ProviderWindowLabel.localized(
+            "Additional",
+            fallback: "Limit",
+            providerID: "codex",
+            locale: Locale(identifier: "en")) == "Additional")
     }
 
     @Test
