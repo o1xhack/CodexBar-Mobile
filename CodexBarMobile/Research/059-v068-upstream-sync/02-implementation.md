@@ -1,7 +1,19 @@
 # v0.67.0–v0.68.0 单版本实现记录
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-28
+
+## 最终闭环（2026-09-30）
+
+- Mac 正式发布：[v0.68.0.1-mobile.2.3.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.68.0.1-mobile.2.3.0)，07:13:40Z published，非 draft / prerelease。Mac 0.68.0.1，build 159.1，Sparkle 159.1.2.3.0；iOS 2.3.0 (223) 本地完成，未上传 TestFlight。
+- 签名、公证、隔离打包启动与公开 ZIP SHA256 验证通过；tag `616701b95122c94e106299d18ac6a83c61850d94`，binary source `45c2828ba3df0df223d39fd02cd184d10bc6922b` 为祖先且 artifact inputs 相同。appcast `aac69c8aa944468b3480ae8241a83d70ccb1fc0e`，公开 feed 与本地验签 XML 字节一致。
+- [完整 Final CI 36673362217](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36673362217) success：Mac 六 shards 1481 groups 首轮通过，Linux x64 / ARM64 / musl 通过。PR #155–#162 均经各自当前 head clean review、零 unresolved threads、Fast Checks 与合并前 gate；后续仅测试、CI、文档变化，发布输入不变。最后文档收尾 PR 的独立 review / CI 状态以其 GitHub 记录为准。
+- [Release CLI 36682499760](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36682499760) success，六平台 CLI 全通过；fork Homebrew 更新按条件 skipped。18 个 release assets 已齐全；8 个 tarballs 和 8 个 checksum sidecars 实际下载，SHA256 / size / filename 与资产 metadata 一致，archive paths 安全；`Scripts/check-release-assets.sh` PASS。证据：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v068-release-verified/cli-assets/verification.json`。
+- [#150 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/150#issuecomment-5906470855)（07:36:38Z）与 [#151 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/151#issuecomment-5906471563)（07:36:40Z）已关闭为 COMPLETED。#154 的多账户 / workspace 展示诉求独立保持 OPEN，未声称已修复。
+- 最终 Mac 本地 13,415 tests / 1,371 suites 通过；iOS r85 874 passed / 6 skipped / 0 failed，Release Simulator build 通过，2724 files lint 零违规，363 source keys 四语言 translated。6 skips 为 2 个 roomy/iPad resize 与 4 个 SpringBoard widget placement 场景，未声称这些实测通过。
+- CloudKit `NO_DEPLOY`：新增 `reportingPeriodSummary` / `nativeCurrencySession` 为既有 opaque payload 的 optional JSON，不新增 CKRecord type / field / index / query / subscription；没有 Production read/write 或 deploy。兼容 gate 的全部 16 组合均为 `substituted`，不是物理设备通过；旧 binary、双 Mac × 双 iPhone Production 收敛与 APNs 风险仍未实测。
+
+## 过程记录（以下日期与待办描述保留当时状态）
 
 ## 上游 Mac 同步
 

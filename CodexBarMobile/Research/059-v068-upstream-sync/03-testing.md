@@ -1,7 +1,19 @@
 # 测试、CloudKit 与 16 组合兼容证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-29
+
+## 最终闭环（2026-09-30）
+
+- Mac 正式发布：[v0.68.0.1-mobile.2.3.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.68.0.1-mobile.2.3.0)，07:13:40Z published，非 draft / prerelease。Mac 0.68.0.1，build 159.1，Sparkle 159.1.2.3.0；iOS 2.3.0 (223) 本地完成，未上传 TestFlight。
+- 签名、公证、隔离打包启动与公开 ZIP SHA256 验证通过；tag `616701b95122c94e106299d18ac6a83c61850d94`，binary source `45c2828ba3df0df223d39fd02cd184d10bc6922b` 为祖先且 artifact inputs 相同。appcast `aac69c8aa944468b3480ae8241a83d70ccb1fc0e`，公开 feed 与本地验签 XML 字节一致。
+- [完整 Final CI 36673362217](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36673362217) success：Mac 六 shards 1481 groups 首轮通过，Linux x64 / ARM64 / musl 通过。PR #155–#162 均经各自当前 head clean review、零 unresolved threads、Fast Checks 与合并前 gate；后续仅测试、CI、文档变化，发布输入不变。最后文档收尾 PR 的独立 review / CI 状态以其 GitHub 记录为准。
+- [Release CLI 36682499760](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36682499760) success，六平台 CLI 全通过；fork Homebrew 更新按条件 skipped。18 个 release assets 已齐全；8 个 tarballs 和 8 个 checksum sidecars 实际下载，SHA256 / size / filename 与资产 metadata 一致，archive paths 安全；`Scripts/check-release-assets.sh` PASS。证据：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v068-release-verified/cli-assets/verification.json`。
+- [#150 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/150#issuecomment-5906470855)（07:36:38Z）与 [#151 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/151#issuecomment-5906471563)（07:36:40Z）已关闭为 COMPLETED。#154 的多账户 / workspace 展示诉求独立保持 OPEN，未声称已修复。
+- 最终 Mac 本地 13,415 tests / 1,371 suites 通过；iOS r85 874 passed / 6 skipped / 0 failed，Release Simulator build 通过，2724 files lint 零违规，363 source keys 四语言 translated。6 skips 为 2 个 roomy/iPad resize 与 4 个 SpringBoard widget placement 场景，未声称这些实测通过。
+- CloudKit `NO_DEPLOY`：新增 `reportingPeriodSummary` / `nativeCurrencySession` 为既有 opaque payload 的 optional JSON，不新增 CKRecord type / field / index / query / subscription；没有 Production read/write 或 deploy。兼容 gate 的全部 16 组合均为 `substituted`，不是物理设备通过；旧 binary、双 Mac × 双 iPhone Production 收敛与 APNs 风险仍未实测。
+
+## 过程记录（以下待办描述保留各时点状态）
 
 ## 环境与目标版本
 
@@ -201,3 +213,13 @@ PR #161 文档 merge 的 diff-selected Final CI `36674439541` 已 success；heav
 最终 Mac shard0 的完整组统计为 247 selected /247 first-pass successful，0 failed/recovered/timed-out；engine A/B goldens 两次运行各 93 tests /6 suites success。最终 shard2（job `109753087903`）亦已 success，日志 `upstream-ci-final-mac-shard2.log`。截至 06:28Z，Mac 5/6 success，仅较晚启动的 shard3 仍执行；尚不发布。
 
 发布 gate 跨过 America/Los_Angeles 本地午夜，尚未公开的 Mac release 日期更新为 2026-09-30；版本仍 0.68.0.1 /159.1 /Mobile2.3.0，不拆新版本。public notes 的 provenance 明确涵盖 tests、Research 与 CI 调度/时限改动，artifact inputs 未变。最后 shard3 仍执行，Research 仍 in-progress，未提前执行 tag/live/appcast 或 issue closure。
+
+## Mac 正式发布与当前收尾（2026-09-30T07:13:40Z）
+
+完整 `full=true` CI `36673362217` 已 success，head `1b1067b9fe1ab06b4e665a1e69b776d014cd3318`，所有 jobs success。最后 shard3 job `109753087888` 为 247 selected /247 first-pass successful、0 failed/recovered/timed-out，日志 `upstream-ci-final-mac-shard3.log`；六 shard 共 1481 groups，全部首轮通过。后续代码/tests/CI workflow 未变；PR #162 文档 head `93bbaac9f185944ed089efa38ebb7ea840cb07ab` clean（https://github.com/o1xhack/CodexBar-Mobile/pull/162#issuecomment-5906005187）、gate rounds=1 /unresolved=0，merge `616701b95122c94e106299d18ac6a83c61850d94`，diff-selected Final CI `36681805210` success。
+
+Tag `v0.68.0.1-mobile.2.3.0` 已作为 annotated tag 单独推送，指向 `616701b95122c94e106299d18ac6a83c61850d94`。release source `45c2828ba` 为该 tag 祖先，全部 ARTIFACT_INPUTS 无 diff。发布前再次运行仅接受 OPEN PR 的 gate，因 #162 已 MERGED 返回 state mismatch，但结构化结果仍 currentClean=true /unresolved=0；这不是新的 review finding。合并前 gate 已通过，未通过篡改 state、reopen PR 或忽略 finding 绕过；后续使用该已审核合并来源与输入相同审计。
+
+Canonical `release.sh --finalize` exit0；正式 release https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.68.0.1-mobile.2.3.0 于 07:13:40Z published，isDraft=false /isPrerelease=false。appcast commit `aac69c8aa944468b3480ae8241a83d70ccb1fc0e` 已推 mobile-dev；日志 `upstream-v068-finalize.log`。公开 feed 实际回读为 Sparkle `159.1.2.3.0` /short `0.68.0.1`，完整 tag download URL、length80524313、EdSignature 均正确，字节与本地已验签 XML 相同（`upstream-v068-live-appcast.xml`）。实际公开下载 ZIP 80524313 bytes /SHA256 `0b5a5e5b18e67daf282fbcfaded3e5aed0cb2f4f754ef4ed31f368b61a5ed1bb` 与签名包一致（`upstream-v068-release-verified/published-CodexBar-0.68.0.1-mobile.2.3.0.zip`）。
+
+Release CLI workflow `36682499760` 已 success；全部六平台 tarballs/checksums 已验证，#150/#151 已关闭。最终文档 review 与 Todoist 完成状态由 GitHub / Todoist 收尾记录提供。#154 保持 open。iOS 2.3.0(223)仅本地准备/测试，没有 TestFlight upload；CloudKit NO_DEPLOY，无 Production probes。

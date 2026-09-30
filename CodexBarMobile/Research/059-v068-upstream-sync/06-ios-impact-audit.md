@@ -1,6 +1,8 @@
 # iOS 数据与展示影响审计
 
-Status: `ready`（静态基线审计；最终结论在 implementation 后更新）
+Status: `done`
+
+最终审计：实施及兼容证据见 02 / 03。`reportingPeriodSummary` 与 `nativeCurrencySession` 为既有 opaque payload 的 optional JSON，旧 reader 安全忽略，新 reader 支持旧 writer 缺省；不新增 CloudKit record schema，结论 NO_DEPLOY。Mac 凭证、本地设置与平台专属 UI 不向 iOS 同步。
 
 ## 已核实的共享通路
 
