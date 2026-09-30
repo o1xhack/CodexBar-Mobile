@@ -36,7 +36,7 @@ enum ProviderDetailLocalization {
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
         "Characters", "Context files", "Context used", "Cost items", "Credit", "Credit balance",
         "Credit history", "Credit quota", "Credits", "Credits left", "Credits total", "Credits used",
-        "Cycle remaining", "Cycle used", "Daemon", "Daily", "Hard", "Lifetime",
+        "Cycle remaining", "Cycle used", "Daemon", "Daily", "Hard", "Lifetime", "Monthly", "Monitor",
         "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage", "DevPass credits",
         "Exhausted keys", "Extra usage", "Gateway", "GPU time remaining", "GPU time used",
         "Granted", "Gross inference usage", "Included inference amount", "Individual credits",

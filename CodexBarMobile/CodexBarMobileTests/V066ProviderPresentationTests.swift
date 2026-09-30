@@ -6,6 +6,28 @@ import Testing
 @Suite("Bundled plugin presentation")
 struct V066ProviderPresentationTests {
     @Test
+    func `every Aixy budget label fragment localizes in all four languages`() {
+        for language in ["en", "zh-Hans", "zh-Hant", "ja"] {
+            let locale = Locale(identifier: language)
+            for scope in ["Organization", "Project", "Team", "User", "Key"] {
+                for period in ["Daily", "Weekly", "Monthly", "Lifetime"] {
+                    for sharing in ["Shared", "Personal"] {
+                        for enforcement in ["Hard", "Monitor"] {
+                            let fragments = [scope, period, sharing, enforcement]
+                            let label = fragments.joined(separator: " · ")
+                            let expected = fragments.map {
+                                MobileLocalizedString.value($0, defaultValue: $0, locale: locale)
+                            }.joined(separator: " · ")
+                            #expect(ProviderDetailLocalization.localized(
+                                label, providerID: "aixy", locale: locale) == expected)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     func `Aixy fixed detail labels localize while dynamic plugin content stays verbatim`() {
         let expectations: [(locale: String, title: String, key: String, project: String, observed: String)] = [
             ("en", "Aixy key", "Key", "Project", "Observed"),
