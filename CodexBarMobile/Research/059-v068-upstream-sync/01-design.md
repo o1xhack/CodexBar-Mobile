@@ -1,6 +1,6 @@
 # v0.67.0–v0.68.0 单版本设计
 
-Status: `ready`
+Status: `done`
 Date: 2026-09-28
 
 ## 合并策略
@@ -43,4 +43,4 @@ Date: 2026-09-28
 - i18n：`bash Scripts/lint.sh audit-i18n`，逐项检查新 source keys 的四种语言。
 - Sync compatibility：按 `docs/ios-sync-compatibility-testing.md` 列 2 Mac × 2 iPhone 的全部 16 组合；真实 Production 设备不可得时用隔离 test stores / fixtures / Simulator / code audit 替代并保留风险。
 - 自查每阶段 diff；实施后调用可用 review/agent 能力做独立 review，修复阻塞项并复测。Review 必须覆盖 Mac merge、sync bridge、iOS/UI-localization、release/version 变更。
-- 本地候选完成后不 push、merge、publish tag、TestFlight upload、CloudKit Production deploy 或 live release。签名/公证/GitHub draft 若需要 release credentials，先完成全部可独立验证的本地工作，再按用户指示停在凭证边界。
+- 最初 Goal 停在 draft；用户随后明确授权 Mac live release 和必要的 origin push / merge / tag / appcast / issue closure，并确认 MOBILE_VERSION=2.3.0。按该授权完成本地、review、CI 与签名公证 gate 后发布；TestFlight upload 与 CloudKit Production deploy 未执行。实现与 Research 在任务分支进行，审核合并后的干净 managed checkout 用于 canonical release finalize。

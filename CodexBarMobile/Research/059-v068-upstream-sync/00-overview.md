@@ -1,20 +1,32 @@
 # v0.67.0–v0.68.0 单版本上游同步
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-28
+
+## 最终闭环（2026-09-30）
+
+- Mac 正式发布：[v0.68.0.1-mobile.2.3.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.68.0.1-mobile.2.3.0)，07:13:40Z published，非 draft / prerelease。Mac 0.68.0.1，build 159.1，Sparkle 159.1.2.3.0；iOS 2.3.0 (223) 本地完成，未上传 TestFlight。
+- 签名、公证、隔离打包启动与公开 ZIP SHA256 验证通过；tag `616701b95122c94e106299d18ac6a83c61850d94`，binary source `45c2828ba3df0df223d39fd02cd184d10bc6922b` 为祖先且 artifact inputs 相同。appcast `aac69c8aa944468b3480ae8241a83d70ccb1fc0e`，公开 feed 与本地验签 XML 字节一致。
+- [完整 Final CI 36673362217](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36673362217) success：Mac 六 shards 1481 groups 首轮通过，Linux x64 / ARM64 / musl 通过。PR #155–#162 均经各自当前 head clean review、零 unresolved threads、Fast Checks 与合并前 gate；后续仅测试、CI、文档变化，发布输入不变。最后文档收尾 PR 的独立 review / CI 状态以其 GitHub 记录为准。
+- [Release CLI 36682499760](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36682499760) success，六平台 CLI 全通过；fork Homebrew 更新按条件 skipped。18 个 release assets = 2 个 Mac ZIP + 六平台 CLI 的 6 个 tarballs / 6 个 sidecars + Linux Desktop integration 的 2 个 tarballs / 2 个 sidecars。额外两组为 `CodexBarDesktop-v0.68.0.1-mobile.2.3.0-linux-aarch64.tar.gz` 与 `CodexBarDesktop-v0.68.0.1-mobile.2.3.0-linux-x86_64.tar.gz`（各有 `.sha256`），由 `.github/workflows/release-linux-desktop.yml` 的 [success run 36682499835](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/36682499835) 自动上传，source 同为 `616701b9`；不属于六平台 CLI matrix，也非手工添加。合计 8 个 tarballs 和 8 个 checksum sidecars 实际下载，SHA256 / size / filename 与资产 metadata 一致，archive paths 安全；`Scripts/check-release-assets.sh` PASS。证据：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v068-release-verified/cli-assets/verification.json`。
+- [#150 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/150#issuecomment-5906470855)（07:36:38Z）与 [#151 完成回复](https://github.com/o1xhack/CodexBar-Mobile/issues/151#issuecomment-5906471563)（07:36:40Z）已关闭为 COMPLETED。#154 的多账户 / workspace 展示诉求独立保持 OPEN，未声称已修复。
+- 最终 Mac 本地 13,415 tests / 1,371 suites 通过；iOS r85 874 passed / 6 skipped / 0 failed，Release Simulator build 通过，2724 files lint 零违规，363 source keys 四语言 translated。6 skips 为 2 个 roomy/iPad resize 与 4 个 SpringBoard widget placement 场景，未声称这些实测通过。
+- CloudKit `NO_DEPLOY`：新增 `reportingPeriodSummary` / `nativeCurrencySession` 为既有 opaque payload 的 optional JSON，不新增 CKRecord type / field / index / query / subscription；没有 Production read/write 或 deploy。兼容 gate 的全部 16 组合均为 `substituted`，不是物理设备通过；旧 binary、双 Mac × 双 iPhone Production 收敛与 APNs 风险仍未实测。
+
+## 过程记录（以下日期与待办描述保留当时状态）
 
 ## 基线、范围与分支
 
 - 本轮从最新 `origin/mobile-dev` `91501264c1607f603240376208a094f94c8000ba` 创建 `upstream-sync/v0.68.0-mobile.2.3.0`。此前有一处未提交的 repo-local Git workflow skill 修改；创建分支时原样保留，不属于本轮 Research 或后续提交。
 - 权威基线：`version.env` 的 `UPSTREAM_VERSION=v0.66.0`、`UPSTREAM_SYNC_DATE=2026-09-24`；Mac 现行为 `0.66.0.1 / 156.1`，该版本已正式发布为 `v0.66.0.1-mobile.2.1.0`。
-- GitHub Releases 当前正式最新版本为 [v0.68.0](https://github.com/steipete/CodexBar/releases/tag/v0.68.0)，发布于 2026-09-27 UTC。Release 列表同时包含 v0.67.0 和 v0.68.0；仓库中可见的 v0.69.0 tag 不属于 Releases 正式发布，按用户指定的事实来源排除。
-- 当前全部 open `upstream-sync` issues 只有 [#150](https://github.com/o1xhack/CodexBar-Mobile/issues/150)（v0.67.0）和 [#151](https://github.com/o1xhack/CodexBar-Mobile/issues/151)（v0.68.0）。本轮把两项合并为一个目标，不拆分版本；范围从上游 v0.66.0 tag 一次 merge 到 v0.68.0。
+- 调研时 GitHub Releases 正式最新版本为 [v0.68.0](https://github.com/steipete/CodexBar/releases/tag/v0.68.0)，发布于 2026-09-27 UTC。Release 列表同时包含 v0.67.0 和 v0.68.0；仓库中可见的 v0.69.0 tag 不属于 Releases 正式发布，按用户指定的事实来源排除。
+- 任务开始时全部 open `upstream-sync` issues 只有 [#150](https://github.com/o1xhack/CodexBar-Mobile/issues/150)（v0.67.0）和 [#151](https://github.com/o1xhack/CodexBar-Mobile/issues/151)（v0.68.0）。本轮把两项合并为一个目标，不拆分版本；范围从上游 v0.66.0 tag 一次 merge 到 v0.68.0。
 - 上游 v0.68.0 tag peeled commit 为 `7998bf66c796befcb91c38e6b1096e702e511481`；本地 tag 元数据有 SSH 签名，但本机缺少 `gpg.ssh.allowedSignersFile`，故 `git verify-tag` 无法本地验签。GitHub Release 页面显示 v0.67.0 / v0.68.0 tag commit 为 Verified。v0.68.0 上游 `version.env` 为 `MARKETING_VERSION=0.68.0`、`BUILD_NUMBER=159`。
 - v0.66.0→v0.68.0 共 105 个非 merge commits、510 个变更文件（28,249 insertions / 13,786 deletions），需保留上游完整 Mac 功能、修复、性能与安全变化，同时逐项保留 fork CI、发布、CloudKit、Mobile sync、版本号和 README 约束。
 
 ## Issue 与历史闭环
 
-| 当前 open issue | 正式 release | 结果范围 |
+| 本轮 issue | 正式 release | 结果范围 |
 |---|---|---|
 | #150 | [v0.67.0](https://github.com/steipete/CodexBar/releases/tag/v0.67.0)（2026-09-26 UTC） | 纳入本轮单一 v0.68.0 目标 |
 | #151 | [v0.68.0](https://github.com/steipete/CodexBar/releases/tag/v0.68.0)（2026-09-27 UTC） | 纳入本轮单一 v0.68.0 目标 |
@@ -23,11 +35,11 @@ Date: 2026-09-28
 
 最新 iOS 状态：用户于 2026-09-29 确认 iOS 2.2.0 已发布；此前 Research 058 / PR #153 中 `WAITING_FOR_REVIEW` 是旧状态，本轮没有独立查询 App Store Connect。用户确认将本轮 Mac release 的 `MOBILE_VERSION` 设为 `2.3.0`，并计划随后上传 iOS 2.3.0；候选 iOS build 为 223。此次只完成 iOS 本地构建与测试，不上传 TestFlight。
 
-## 版本候选
+## 最终版本
 
-按 `docs/versioning.md`，单一候选为：
+按 `docs/versioning.md`，单一版本为：
 
-| 变量 | 候选值 | 推导 |
+| 变量 | 最终值 | 推导 |
 |---|---|---|
 | Mac `MARKETING_VERSION` | `0.68.0.1` | 上游版本段照抄 v0.68.0，fork release patch 为 `.1` |
 | Mac `BUILD_NUMBER` | `159.1` | v0.68.0 上游整数 build 159，加本轮 fork patch |
@@ -37,7 +49,7 @@ Date: 2026-09-28
 | `UPSTREAM_SYNC_DATE` | `2026-09-27` | GitHub Release 日期，UTC |
 | iOS project build | `223` | 当前工程 build 222 后递增，所有 target 一致 |
 
-这组值属于单版本发布候选。用户已明确授权 Mac live release 及必要的 origin push、merge、tag 和 appcast 发布；仍需先通过 review/测试/公证闸门。本轮不上传 TestFlight 或提交新的 App Review。
+这组值已用于单版本正式发布。用户已明确授权 Mac live release 及必要的 origin push、merge、tag 和 appcast 发布；发布前已通过 review/测试/公证闸门。本轮不上传 TestFlight 或提交新的 App Review。
 
 ## 上游变化初筛
 
@@ -60,4 +72,4 @@ Date: 2026-09-28
 - [04-upstream-release-notes.md](04-upstream-release-notes.md)：v0.67.0 / v0.68.0 发布说明人工复核。
 - [05-upstream-commits.md](05-upstream-commits.md)：release tag、commit range 和重点 PR/commit。
 - [06-ios-impact-audit.md](06-ios-impact-audit.md)：iOS 数据通道和 CloudKit 影响清单。
-- [02-implementation.md](02-implementation.md)：待 implementation 阶段填写。
+- [02-implementation.md](02-implementation.md)：实现与发布来源记录。

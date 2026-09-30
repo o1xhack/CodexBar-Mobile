@@ -1,6 +1,6 @@
 # v0.66.0→v0.68.0 上游提交与 PR 线索
 
-Status: `ready`
+Status: `done`
 
 ## Release anchors
 

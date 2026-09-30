@@ -1,6 +1,6 @@
 # 上游 Release Notes 人工复核：v0.67.0–v0.68.0
 
-Status: `ready`
+Status: `done`
 Source of truth: [steipete/CodexBar GitHub Releases](https://github.com/steipete/CodexBar/releases)
 
 ## v0.67.0 — 2026-09-26 UTC
