@@ -26,24 +26,26 @@ Date: 2026-09-29
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
-| 1 | old | old | old | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 0 | Synthetic v0.66 writer DTO + legacy reader projection; no physical fleet or live CloudKit. |
-| 2 | old | old | old | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 1 | Same fixture matrix; iPhone B uses current reader path. |
-| 3 | old | old | new | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 2 | Same fixture matrix; iPhone A uses current reader path. |
-| 4 | old | old | new | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 3 | Both iPhone readers use current reader path. |
-| 5 | old | new | old | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 4 | Mac B uses v0.68 fixture writer; both iPhones use legacy projection. |
-| 6 | old | new | old | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 5 | Mac B uses v0.68 fixture writer; iPhone B uses current reader path. |
-| 7 | old | new | new | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 6 | Mac B uses v0.68 fixture writer; iPhone A uses current reader path. |
-| 8 | old | new | new | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 7 | Mac B and both iPhones use v0.68/current fixture paths. |
-| 9 | new | old | old | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 8 | Mac A uses v0.68 fixture writer; both iPhones use legacy projection. |
-| 10 | new | old | old | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 9 | Mac A uses v0.68 fixture writer; iPhone B uses current reader path. |
-| 11 | new | old | new | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 10 | Mac A uses v0.68 fixture writer; iPhone A uses current reader path. |
-| 12 | new | old | new | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 11 | Mac A uses v0.68 fixture writer; both iPhones use current reader path. |
-| 13 | new | new | old | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 12 | Both Macs use v0.68 fixture writers; both iPhones use legacy projection. |
-| 14 | new | new | old | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 13 | Both Macs use v0.68 fixture writers; iPhone B uses current reader path. |
-| 15 | new | new | new | old | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 14 | Both Macs use v0.68 fixture writers; iPhone A uses current reader path. |
-| 16 | new | new | new | new | substituted | `UpstreamSync068Review20260929-ios-focused-r11.log`, mask 15 | All four devices use v0.68/current fixture paths. |
+| 1 | old | old | old | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 0 | Synthetic v0.66 writer DTO + legacy reader projection; no physical fleet or live CloudKit. |
+| 2 | old | old | old | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 1 | Same fixture matrix; iPhone B uses current reader path. |
+| 3 | old | old | new | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 2 | Same fixture matrix; iPhone A uses current reader path. |
+| 4 | old | old | new | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 3 | Both iPhone readers use current reader path. |
+| 5 | old | new | old | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 4 | Mac B uses v0.68 fixture writer; both iPhones use legacy projection. |
+| 6 | old | new | old | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 5 | Mac B uses v0.68 fixture writer; iPhone B uses current reader path. |
+| 7 | old | new | new | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 6 | Mac B uses v0.68 fixture writer; iPhone A uses current reader path. |
+| 8 | old | new | new | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 7 | Mac B and both iPhones use v0.68/current fixture paths. |
+| 9 | new | old | old | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 8 | Mac A uses v0.68 fixture writer; both iPhones use legacy projection. |
+| 10 | new | old | old | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 9 | Mac A uses v0.68 fixture writer; iPhone B uses current reader path. |
+| 11 | new | old | new | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 10 | Mac A uses v0.68 fixture writer; iPhone A uses current reader path. |
+| 12 | new | old | new | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 11 | Mac A uses v0.68 fixture writer; both iPhones use current reader path. |
+| 13 | new | new | old | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 12 | Both Macs use v0.68 fixture writers; both iPhones use legacy projection. |
+| 14 | new | new | old | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 13 | Both Macs use v0.68 fixture writers; iPhone B uses current reader path. |
+| 15 | new | new | new | old | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 14 | Both Macs use v0.68 fixture writers; iPhone A uses current reader path. |
+| 16 | new | new | new | new | substituted | `UpstreamSync068Review20260929-r85-ios-full-native.log`, mask 15 | All four devices use v0.68/current fixture paths. |
 
-Parameterized case `CloudKitMergeTests.v0.66 and v0.68 reporting periods survive the 2 Mac x 2 iPhone matrix` passed all 16 masks in the latest full iOS run `UpstreamSync068Review20260929-r25-ios-full-mtd-calendar.xcresult`; focused source matrix evidence is in `UpstreamSync068Review20260929-r11-focused.xcresult`. Bit mapping: Mac A = bit 3, Mac B = bit 2, iPhone A = bit 1, iPhone B = bit 0. It serializes current snapshots, supplies synthetic v0.66 writer values, projects old readers through `LegacyMatrixSnapshot`, then checks merge, rendering and cost-window results. It does not run old app binaries, independent device caches, CloudKit subscriptions/APNs or Production records. These are substituted results, not a physical 16-combination pass.
+Parameterized case `CloudKitMergeTests.v0.66 and v0.68 reporting periods survive the 2 Mac x 2 iPhone matrix` passed all 16 masks in the final full iOS run `UpstreamSync068Review20260929-r85-ios-full-native.xcresult` (log line 859; all mask 0–15 invocations at lines 843–858). The initial focused source matrix remains historical evidence in `UpstreamSync068Review20260929-r11-focused.xcresult`. Bit mapping: Mac A = bit 3, Mac B = bit 2, iPhone A = bit 1, iPhone B = bit 0. It serializes current snapshots, supplies synthetic v0.66 writer values, projects old readers through `LegacyMatrixSnapshot`, then checks merge, rendering and cost-window results. It does not run old app binaries, real device caches, CloudKit subscriptions/APNs or Production records. These are substituted results, not a physical 16-combination pass.
+
+最终 r85 同时通过另外四套各 16 组合的 old/new payload、generic-details、独立 synthetic reader-cache 与 Today cost 矩阵（日志 lines 2203、2241、2289、2417）。这里的 cache 为隔离测试对象，不是真实设备缓存；native-currency history/session 的 frozen-reader 与当前 round-trip 另由 r81 和 r85 覆盖。
 
 ### Quota warning notification compatibility
 
@@ -179,3 +181,5 @@ PR #159 最终 head `2f34d93411429b7a9c593268ce4ff18ad00a7158` clean（https://g
 Linux 测试改用 `swift test --no-parallel`，与本机最终全量和 Mac isolated groups 的串行语义一致；保留 Abacus 的 5 秒 request budget、4–9 秒 wall-clock assertions、全部测试和其他 deadline，不扩大断言容差、不跳过测试。Linux job 总时限 20→40 分钟，以容纳串行测试和冷构建；不改 PR/merge/manual 触发策略、Mac shards 或任何 runtime/package inputs。当前 Mac gate继续运行，其证据不能被 Linux failure 当成全绿；修复需自身 review、合并及新的远端 Linux 验证。
 
 串行定向复测：`swift test --no-parallel --filter AbacusPluginTests` 10 tests / 1 suite 全通过（38.740 秒），保留两 engine 的严格 elapsed 断言；日志 `upstream-ci-abacus-serial.log`。CI policy / trigger forms / path gate / upstream reuse gate 与 diff check 均通过。远端 Linux 调度效果仍待新 head 实测，不将本机结果当 Linux 证据。
+
+PR #160 在 `1432e736671f2a5e74afa3a4d45dabcfd2e7ec3d` clean（https://github.com/o1xhack/CodexBar-Mobile/pull/160#issuecomment-5904675265），review gate rounds=1 / unresolved=0，Fast Checks `36673030732` success；首次容器初始化失败 `5904639204` 不计 review success。merge `1b1067b9fe1ab06b4e665a1e69b776d014cd3318`，2026-09-30T05:25:23Z。该提交已 dispatch `full=true` 最终矩阵 `36673362217`。旧 `36667161490` 因被当前验证取代、`36671727579` 因已有 Linux failure 且被修复后矩阵取代而取消；两者均不计全绿，已完成的单项结果仅保留诊断证据。当前矩阵仍待结果；tag/live/appcast/issue closure 尚未执行。

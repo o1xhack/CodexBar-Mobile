@@ -20,6 +20,7 @@ Date: 2026-09-28
 
 ## iOS 用户体验与发布记录
 
+- PreviewData 已按卡片类型复核：现有 Claude quota、多 rate windows、Kiro generic details 与 Antigravity 多账户样例覆盖本轮沿用的通用表现；本轮新 provider 未新增卡片布局，不为每个 provider 重复添加同类 preview。Provider-specific identities/labels/colors 与 payload 数据仍由专项测试和 mock injector 覆盖。
 - iOS provider 列表、颜色、detail subtitle、mock provider 和 quota notification list 已覆盖本轮新增的 xKiro、Raycast、Aixy，以及 upstream provider display 的新增数据。Grok / LiteLLM / Claude / Mistral / Muse 等内容走 generic snapshot/details 与既有 provider data model；不可从 Mac payload 得出的数据维持 unavailable。
 - `ContentView.swift` 的 release notes 新增 2.3.0 并包含 en、zh-Hans、zh-Hant、ja 翻译；`Localizable.xcstrings` 的本轮新增文案经 i18n audit 确认为四语 translated。iOS 技术 changelog 更新为 2.3.0 (223)。
 - iOS `project.yml` 中所有 targets 使用 `MARKETING_VERSION=2.3.0`、`CURRENT_PROJECT_VERSION=223`；已运行 `xcodegen generate` 生成 `CodexBarMobile.xcodeproj`。
@@ -37,15 +38,15 @@ Date: 2026-09-28
 - Mac 完整 lint 通过：2,724 个文件 0 个 SwiftLint 违规；iOS `Localizable.xcstrings` 363 个 source keys 全部存在，四种语言均为 translated；parserLogicVersion 已从 16 bump 到 17，CodexParserHash 已重生成至 `6fbe90ca603fb1e4`；parser-version/hash guards 通过。日志 `mac-lint-final-pass.log`。
 - iOS Release Simulator build 通过；6 个定向测试套件共 151 项通过，包含 16 组合 payload/merge 矩阵；20 项 quota notification parser 测试通过并覆盖 iOS 2.2 后缀规则。日志 `ios-release-build-final.log`、`ios-focused-final-resolved.log`、`ios-parser-compat-final.log`。
 - 16 种设备新旧组合都已逐格记录为 `substituted`；没有真实设备 fleet、CloudKit Production、APNs 或旧版二进制验证。CloudKit Production schema 审计为 `NO_DEPLOY`，没有 Production read/write。
-- Independent review 曾发现旧 NSE 对 named-window warning record name 的 P2；已调整尾部格式、增加旧解析器回归验证并复审。后续 review 发现的 cost-window coverage 与 reader/producer calendar 边界问题已修复并复测；PR #155、#156、#157 和 #158 的各自最终 head 已通过 clean review / resolved-thread gate；host-timezone fixture 修复后的最终 full Final CI 仍待完成。
+- Independent review 曾发现旧 NSE 对 named-window warning record name 的 P2；已调整尾部格式、增加旧解析器回归验证并复审。后续 review 发现的 cost-window coverage 与 reader/producer calendar 边界问题已修复并复测；PR #155、#156、#157、#158、#159 和 #160 的各自最终 head 已通过 clean review / resolved-thread gate；host-timezone fixture 修复后的最终 full Final CI 仍待完成。
 - 最新候选全量 iOS 测试通过：874 passed、6 skipped、0 failed（r85）；Release Simulator build 与全量 lint 通过。完整日志、result bundles、review 修复与未覆盖风险见 `03-testing.md`。
-- 用户已授权 Mac live release、合并 PR #155 和关闭 #150/#151；不包含 TestFlight 上传或 CloudKit deploy。已从同步分支源代码创建签名、公证的 tagless draft；PR #155/#156/#157/#158 已按各自 clean review / Fast Checks 合并，此前合并提交 `debeca9dc87a2c1f32241e33b5d952335e0bf787` 的 full Final CI `36669923694` 因已知 host-timezone fixture 缺口取消；当前正在补齐测试 calendar 参数，修复合并后需新的 full Final CI。通过后再执行 tag 和 finalize。#154 保持 open。
+- 用户已授权 Mac live release、合并 PR #155 和关闭 #150/#151；不包含 TestFlight 上传或 CloudKit deploy。已从同步分支源代码创建签名、公证的 tagless draft；PR #155–#160 已按各自 clean review / Fast Checks 合并；host-calendar fixture 与 Linux deadline suite 调度修复均已合并。当前 merge commit `1b1067b9fe1ab06b4e665a1e69b776d014cd3318` 的 full Final CI `36673362217` 正在运行。此前失败/取消的矩阵不计全绿。通过后再执行 tag 和 finalize。#154 保持 open。
 
 Research 保持 `in-progress`，直到 Mac release、对应 issue 与证据收尾完成。
 
 ## 打包与 review 证据
 
-Mac r96 phase1 签名、公证（Accepted `2847b559-aac2-426f-a015-220d9530cb29`）、6 秒 packaging AppKit smoke 与公证后 2 秒 strict smoke、codesign/spctl/stapler 验证通过。Draft https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-a69da92a14bc37c77721 ，实际包版本 `0.68.0.1` / `159.1.2.3.0`，Production，arm64/x86_64 最低 macOS 14.0。artifact source `45c2828ba`；后续修复仅测试/Research，artifact inputs 相同。
+Mac r96 phase1 签名、公证（Accepted `2847b559-aac2-426f-a015-220d9530cb29`）、6 秒 packaging AppKit smoke 与公证后 2 秒 strict smoke、codesign/spctl/stapler 验证通过。Draft https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-a69da92a14bc37c77721 ，实际包版本 `0.68.0.1` / `159.1.2.3.0`，Production，arm64/x86_64 最低 macOS 14.0。artifact source `45c2828ba`；后续修复仅测试/Research/CI 调度，artifact inputs 相同。
 
 - PR #155 merge `54aaddff5`：单版本同步 + iOS bridge，round 15 clean。
 - PR #156 merge `c42f504af`：较旧 Swift 的 RGB type inference 修复，clean。
