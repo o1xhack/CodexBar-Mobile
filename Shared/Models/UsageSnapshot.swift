@@ -477,8 +477,11 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     }
 
     public func encode(to encoder: Encoder) throws {
+        let nativeCurrencyCannotEnterLegacyUSDTotals = self.currencyCode.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != "USD"
+        } ?? false
         let suppressLegacyHistory = self.reportingPeriodSummary != nil &&
-            !Self.hasLegacyRollingHistoryShape(self.reportingPeriod)
+            (!Self.hasLegacyRollingHistoryShape(self.reportingPeriod) || nativeCurrencyCannotEnterLegacyUSDTotals)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(self.sessionCostUSD, forKey: .sessionCostUSD)
         try container.encodeIfPresent(self.sessionTokens, forKey: .sessionTokens)

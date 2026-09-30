@@ -364,6 +364,87 @@ struct CWLEquivalenceTests {
     }
 
     @Test
+    func `USD surfaces exclude native currencies without changing provider payloads`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = .gmt
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let day = formatter.string(from: now)
+        func provider(id: String, currency: String?, amount: Double) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: id, providerName: id, primary: nil, secondary: nil,
+                accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: amount,
+                    last30DaysTokens: 10, daily: [SyncDailyPoint(
+                        dayKey: day, costUSD: amount, totalTokens: 10,
+                        modelBreakdowns: [SyncCostBreakdown(label: id + "-model", costUSD: amount)],
+                        costIsKnown: true)],
+                    historyDays: 30, reportingPeriod: "rolling:30", currencyCode: currency,
+                    sourceUpdatedAt: now, sourceDayKey: day, bucketTimeZoneIdentifier: "UTC",
+                    historyCoverageIsEstablished: true))
+        }
+        let usd = provider(id: "codex", currency: " usd ", amount: 2)
+        let eur = provider(id: "mistral", currency: "EUR", amount: 3)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [usd, eur], syncTimestamp: now, deviceName: "Synthetic Mac", deviceID: "currency-mac")
+        let native = try #require(snapshot.providers.last?.costSummary)
+        #expect(native.currencyCode == "EUR")
+        #expect(native.reportingPeriodCostUSD == 3)
+        #expect(ProviderSnapshotMerger.supportsUSDAggregation(provider(id: "legacy", currency: nil, amount: 1).costSummary))
+        #expect(!ProviderSnapshotMerger.supportsUSDAggregation(provider(id: "unknown", currency: " ", amount: 1).costSummary))
+        let blob = CostDashboardInsights(snapshot: snapshot, now: now, calendar: calendar)
+        #expect(blob.providerRows.map(\.provider.providerID) == ["codex"])
+        #expect(blob.totalTodayCost == 2)
+        #expect(blob.total30DayCost == 2)
+        #expect(ShareCardData(insights: blob, period: .today, now: now, calendar: calendar).totalCost == 2)
+        let widget = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: now)
+        #expect(widget.todayCostUSD == 2)
+        #expect(widget.thirtyDayCostUSD == 2)
+        #expect(widget.topProviders.first(where: { $0.providerID == "mistral" })?.todayCostUSD == nil)
+
+        let mixedAccount = try #require(CloudSyncReader.mergeSnapshots([
+            SyncedUsageSnapshot(providers: [usd], syncTimestamp: now, deviceName: "USD Mac", deviceID: "usd-mac"),
+            SyncedUsageSnapshot(providers: [provider(id: "codex", currency: "EUR", amount: 3)],
+                                syncTimestamp: now, deviceName: "EUR Mac", deviceID: "eur-mac"),
+        ]))
+        let mixedCost = try #require(mixedAccount.providers.first?.costSummary)
+        #expect(!ProviderSnapshotMerger.supportsUSDAggregation(mixedCost))
+        #expect(mixedCost.reportingPeriodCostUSD == nil)
+        #expect(mixedCost.daily.isEmpty)
+        #expect(CostDashboardInsights(snapshot: mixedAccount, now: now, calendar: calendar).providerRows.isEmpty)
+
+        let schema = Schema(CodexBarSwiftDataSchema.models)
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(
+            schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        for provider in snapshot.providers {
+            try CostLedgerService.upsertFromSnapshot(provider, deviceID: "currency-mac", in: context)
+        }
+        #expect(try context.fetchCount(FetchDescriptor<DailyCostPoint>()) == 1)
+        // Simulate an existing ledger row written by a pre-fix reader.
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "currency-mac", providerID: "mistral", dayKey: day, costUSD: 3,
+            totalTokens: 10, costIsKnown: true, isEstimated: false,
+            modelBreakdowns: [SyncCostBreakdown(label: "eur-model", costUSD: 3)],
+            serviceBreakdowns: [], lastUpdated: now, in: context)
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30, in: context, asOf: now, readerTimeZone: .gmt)
+        let ledger = CostDashboardInsights.fromLedger(
+            aggregation: aggregation, snapshot: snapshot, now: now, calendar: calendar)
+        #expect(ledger.providerRows.map(\.provider.providerID) == ["codex"])
+        #expect(ledger.totalTodayCost == 2)
+        #expect(ledger.total30DayCost == 2)
+        #expect(ledger.modelRows.allSatisfy { $0.label != "eur-model" })
+        #expect(ShareCardData(insights: ledger, period: .today, now: now, calendar: calendar).totalCost == 2)
+    }
+
+    @Test
     func `blob MTD totals require matching producer month boundaries`() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         func provider(id: String, day: String?, zone: String?) -> ProviderUsageSnapshot {

@@ -31,13 +31,13 @@ Date: 2026-09-28
 |---|---|---|
 | Mac `MARKETING_VERSION` | `0.68.0.1` | 上游版本段照抄 v0.68.0，fork release patch 为 `.1` |
 | Mac `BUILD_NUMBER` | `159.1` | v0.68.0 上游整数 build 159，加本轮 fork patch |
-| `MOBILE_VERSION` | `2.3.0` | 新 iOS release train；2.2.0 build 222 已送审 |
+| `MOBILE_VERSION` | `2.3.0` | 新 iOS release train；用户确认 2.2.0 已发布 |
 | Sparkle `version` | `159.1.2.3.0` | `BUILD_NUMBER + "." + MOBILE_VERSION` |
 | tag / zip 基名 | `v0.68.0.1-mobile.2.3.0` | 单一 Mac/iOS train |
 | `UPSTREAM_SYNC_DATE` | `2026-09-27` | GitHub Release 日期，UTC |
 | iOS project build | `223` | 当前工程 build 222 后递增，所有 target 一致 |
 
-这组值是本地候选；不会因此创建或推送 tag、发布 live release、上传 TestFlight 或提交新的 App Review。
+这组值属于单版本发布候选。用户已明确授权 Mac live release 及必要的 origin push、merge、tag 和 appcast 发布；仍需先通过 review/测试/公证闸门。本轮不上传 TestFlight 或提交新的 App Review。
 
 ## 上游变化初筛
 

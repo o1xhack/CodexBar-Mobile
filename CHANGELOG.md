@@ -14,6 +14,7 @@
 ### Fixed
 - Include upstream security, credential handling, provider accounting, history-boundary, retry, and performance fixes through v0.68.0, including the QuickJS-NG 0.17.0 memory-safety update.
 - Preserve fork-specific CloudKit, parser invalidation, Mac fleet sync ownership, and versioning constraints while integrating upstream.
+- Keep native-currency Mistral history available in iPhone provider details without counting it as USD spend or exposing it as legacy USD history.
 
 ### Upstream release range
 - `v0.67.0`: shared reporting periods, portable preferences and switcher shortcuts, Stay Awake and account-scoped credential-expiry notifications, plugin checkpoints, Burn Down widgets, xKiro/Raycast/Aixy, richer LiteLLM/Claude Admin/Grok cost details, 12 currencies, and the reported provider, cache, cookie-consent, and QuickJS fixes.

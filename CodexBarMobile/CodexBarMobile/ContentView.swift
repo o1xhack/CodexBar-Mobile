@@ -1198,6 +1198,14 @@ private struct CostDashboardView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if self.usageData.snapshot?.providers.contains(where: {
+                !ProviderSnapshotMerger.supportsUSDAggregation($0.costSummary)
+            }) == true {
+                Text(String(localized: "Totals here include USD spend only. Other currencies are shown in provider details."))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 CostMetricCard(
                     // Reflect the Mac's configurable 1–365 day window (gap F).
@@ -1869,7 +1877,8 @@ struct CostDashboardInsights: Sendable {
                 budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
             }
 
-            guard let costSummary = provider.costSummary else { continue }
+            guard let costSummary = provider.costSummary,
+                  ProviderSnapshotMerger.supportsUSDAggregation(costSummary) else { continue }
 
             let availableDailyCosts = costSummary.reportingPeriodDaily.filter { $0.costIsKnown != false }
             let fallbackThirtyDayCost = availableDailyCosts.isEmpty
@@ -2007,16 +2016,9 @@ struct CostDashboardInsights: Sendable {
         var providerRows: [ProviderRow] = []
         var representedProviderKeys = Set<String>()
         var dailyTotals: [String: DailyAccumulator] = [:]
-        var modelTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
-        var modelSplits = Dictionary(
-            uniqueKeysWithValues: aggregation.modelMix.compactMap {
-                bd -> (String, (std: Double, fast: Double))? in
-                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
-                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
-            })
-        var serviceTotals = Dictionary(
-            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+        var modelTotals: [String: Double] = [:]
+        var modelSplits: [String: (std: Double, fast: Double)] = [:]
+        var serviceTotals: [String: Double] = [:]
         let displayDayKeyFormatter = Self.dayKeyFormatter(calendar: calendar)
 
         for rollup in aggregation.providerRollups.values {
@@ -2029,12 +2031,23 @@ struct CostDashboardInsights: Sendable {
                 // Pre-1.19 ledger rows have no opaque identity metadata.
                 return $0.accountEmail == rollup.accountEmail
             }) else { continue }
+            guard ProviderSnapshotMerger.supportsUSDAggregation(provider.costSummary) else { continue }
             let totals = Self.ledgerDisplayTotals(
                 rollup: rollup,
                 provider: provider,
                 windowDays: aggregation.windowDays,
                 now: now,
                 calendar: calendar)
+            for breakdown in rollup.modelBreakdowns {
+                modelTotals[breakdown.label, default: 0] += breakdown.costUSD
+                if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                    modelSplits[breakdown.label, default: (0, 0)].std += breakdown.standardCostUSD ?? 0
+                    modelSplits[breakdown.label, default: (0, 0)].fast += breakdown.priorityCostUSD ?? 0
+                }
+            }
+            for breakdown in rollup.serviceBreakdowns {
+                serviceTotals[breakdown.label, default: 0] += breakdown.costUSD
+            }
             let providerDailyPoints = rollup.dailyPoints.compactMap(Self.dailyPoint)
             for point in rollup.dailyPoints {
                 dailyTotals[point.dayKey, default: .init()].ingest(point)
@@ -2066,7 +2079,8 @@ struct CostDashboardInsights: Sendable {
         }
 
         for provider in liveProviders where !representedProviderKeys.contains(provider.cardIdentityKey) {
-            guard let costSummary = provider.costSummary else { continue }
+            guard let costSummary = provider.costSummary,
+                  ProviderSnapshotMerger.supportsUSDAggregation(costSummary) else { continue }
             let costUpdatedAt = costSummary.sourceUpdatedAt ?? provider.lastUpdated
             if let snapshotFallbackCutoff, costUpdatedAt <= snapshotFallbackCutoff {
                 continue
@@ -4524,7 +4538,7 @@ private enum MobileReleaseNotesCatalog {
             sections: [
                 .init(title: String(localized: "What's New"), items: [
                     String(
-                        localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals."),
+                        localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details."),
                     String(
                         localized: "See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac."),
                     String(

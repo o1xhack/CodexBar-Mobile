@@ -40,3 +40,9 @@ Status: `ready`（静态基线审计；最终结论在 implementation 后更新�
 - 上游插件 `Sources/CodexBarCore/Resources/Plugins/aixy.ts` 从响应中的 `root.key.id` 取服务器 key ID，并以 `ProviderIdentitySnapshot.accountID` 暴露；同步路径中的 first-party `.aixy` 不经过 non-first-party plugin mapper。
 - Aixy 用量按 API key 计量，故 Mac 发布 `aixy:key:<opaque-key-id>`，相同 key 可跨 Mac 合并，不同 key 即使属于同一 project 也保持分开。ID 保留大小写并做 NFC、trim、percent-encoding 与长度限制；不得用 workspace 标签、secret 或 email 推断身份。缺少 key ID 时不输出 Aixy identity，iOS 沿用 per-device legacy bucket。
 - 此方案只增加已有 `accountIdentities` optional 数组中的字符串；iOS 已对 identity 做 opaque string equality，不新增 payload key、CloudKit 字段或 schema。对应测试覆盖大小写敏感 ID、缺失 ID 与 mapper 保留 key identity。
+
+## 原币种费用与美元统计边界
+
+Mistral API projection 可以携带 EUR 等原币种；字段名 costUSD 是历史 wire 名称，并不证明金额已经换汇。Provider detail 与 daily chart 使用 currencyCode 保留原币种显示。Overview、Cost dashboard、CWL、分享卡片和 Widget 的美元统计只接受 USD；旧 payload 缺少 currencyCode 时沿用原有 USD 契约，显式未知币种不参与总额。同一 local account 的多 Mac summaries 若币种不同，返回没有金额的 unavailable envelope，避免 metadata 丢失后退回旧 ledger。已存在的非美元 ledger rows 在展示/model mix 阶段也被排除；没有破坏性数据库删除或伪造 FX 转换。
+
+Mac 对非美元 rolling summary 也写入已有 reportingPeriodSummary 结构。Shared encoder 保留 modern 原币种历史，隐藏旧版 USD historical fields；Mistral session/Today 字段继续为空，不把最后一个 dated bucket 当 Today。没有新增 wire key 或 CloudKit schema。16 组合 gate 以 synthetic old-reader/source-level 替代验证；旧 Mac 已经写入的 EUR legacy payload 不会被新 Mac retroactively 改写，实体旧 iOS/Production/APNs 仍是未覆盖风险。

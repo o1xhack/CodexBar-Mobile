@@ -188,7 +188,8 @@ enum CostLedgerService {
         in context: ModelContext,
         userDefaults: UserDefaults = .standard) throws
     {
-        guard let summary = provider.costSummary else { return }
+        guard let summary = provider.costSummary,
+              ProviderSnapshotMerger.supportsUSDAggregation(summary) else { return }
         guard !summary.reportingPeriodDaily.isEmpty else { return }
         let costUpdatedAt = summary.sourceUpdatedAt ?? provider.lastUpdated
         if let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults),
@@ -809,7 +810,8 @@ enum CostLedgerService {
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
             guard let blob = row.costSummaryData,
-                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
+                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob),
+                  ProviderSnapshotMerger.supportsUSDAggregation(summary)
             else { continue }
             let costUpdatedAt = summary.sourceUpdatedAt ?? row.lastUpdated
             if let newerThan, costUpdatedAt <= newerThan { continue }
@@ -861,7 +863,8 @@ enum CostLedgerService {
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for row in providers {
             guard let blob = row.costSummaryData,
-                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
+                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob),
+                  ProviderSnapshotMerger.supportsUSDAggregation(summary)
             else { continue }
             let costUpdatedAt = summary.sourceUpdatedAt ?? row.lastUpdated
             if let newerThan, costUpdatedAt <= newerThan { continue }
@@ -1013,6 +1016,7 @@ enum CostLedgerService {
             let deviceID = snapshot.deviceID ?? SwiftDataBridge.deviceIDFallback(for: snapshot)
             for provider in snapshot.providers {
                 guard let summary = provider.costSummary,
+                      ProviderSnapshotMerger.supportsUSDAggregation(summary),
                       !summary.hasInvalidBucketTimeZoneIdentifier
                 else { continue }
                 let todayDayKey = summary.costDayKey(for: asOf)

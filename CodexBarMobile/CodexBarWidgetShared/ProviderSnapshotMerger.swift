@@ -20,6 +20,13 @@ enum ProviderSnapshotMerger {
         self.localCostProviders.contains(providerID)
     }
 
+    /// Legacy cost payloads use USD. Explicit native currencies remain on the
+    /// provider detail surface and must never enter USD-only aggregates.
+    static func supportsUSDAggregation(_ summary: SyncCostSummary?) -> Bool {
+        guard let currency = summary?.currencyCode else { return true }
+        return currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "USD"
+    }
+
     static func monthToDateWindowsAreComparable(_ summaries: [SyncCostSummary]) -> Bool {
         guard summaries.count > 1 else { return true }
         // MTD totals are comparable only when the producer calendars start
@@ -597,6 +604,19 @@ enum ProviderSnapshotMerger {
         guard !sources.isEmpty else { return nil }
         if summaries.count == 1 { return summaries[0] }
 
+        let normalizedCurrencies = Set(summaries.map {
+            $0.currencyCode?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? "USD"
+        })
+        guard normalizedCurrencies.count == 1 else {
+            // A local-account merge cannot convert or add different currencies.
+            // Keep an unavailable envelope so legacy ledger rows cannot become
+            // a fallback USD subtotal after the native metadata disappears.
+            return SyncCostSummary(
+                sessionCostUSD: nil, sessionTokens: nil,
+                last30DaysCostUSD: nil, last30DaysTokens: nil, daily: [],
+                currencyCode: "XXX", historyCoverageIsEstablished: false,
+                historyWindowIsComparable: false)
+        }
         let explicitBucketTimeZones = summaries.compactMap(\.bucketTimeZoneIdentifier)
         let dayBucketsAreCompatible = summaries.allSatisfy { !$0.hasInvalidBucketTimeZoneIdentifier } &&
             (explicitBucketTimeZones.isEmpty ||
@@ -722,8 +742,8 @@ enum ProviderSnapshotMerger {
             ? summaries.compactMap(\.reportingPeriod).first
             : nil
         let historyTotalsAreComparable = historyWindowsAreCompatible && dayBucketsAreCompatible
-        let currencies = Set(summaries.compactMap(\.currencyCode))
-        let currencyCode = currencies.count == 1 ? currencies.first : nil
+        let currencyCode = summaries.allSatisfy { $0.currencyCode == nil }
+            ? nil : normalizedCurrencies.first
         let hasCompleteProvenance = summaries.allSatisfy { $0.reportingPeriodCostProvenance != nil }
         let meteredCosts = summaries.compactMap(\.reportingPeriodMeteredCostUSD)
         let hasCompleteMeteredCost = meteredCosts.count == summaries.count

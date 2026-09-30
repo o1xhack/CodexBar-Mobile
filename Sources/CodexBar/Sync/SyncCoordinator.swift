@@ -2369,8 +2369,10 @@ final class SyncCoordinator {
     private static func syncReportingPeriodSummary(
         _ input: ReportingPeriodSummaryInput) -> SyncCostPeriodSummary?
     {
-        guard let tokenSnapshot = input.tokenSnapshot,
-              tokenSnapshot.reportingPeriod == .monthToDate || tokenSnapshot.reportingPeriod == .allTime
+        guard let tokenSnapshot = input.tokenSnapshot else { return nil }
+        let nativeCurrencyCannotEnterLegacyUSDTotals = tokenSnapshot.currencyCode != "USD"
+        guard tokenSnapshot.reportingPeriod == .monthToDate || tokenSnapshot.reportingPeriod == .allTime ||
+            nativeCurrencyCannotEnterLegacyUSDTotals
         else {
             return nil
         }

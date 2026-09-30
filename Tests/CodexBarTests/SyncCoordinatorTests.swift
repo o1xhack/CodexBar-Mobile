@@ -620,6 +620,50 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Mistral native currency publication preserves modern history without legacy USD totals`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-mistralNativeCurrency")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .mistral,
+            metadata: #require(ProviderDefaults.metadata[.mistral]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 300,
+                sessionCostUSD: 3,
+                last30DaysTokens: 300,
+                last30DaysCostUSD: 3,
+                currencyCode: "EUR",
+                historyDays: 30,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-09-28",
+                    inputTokens: 200,
+                    outputTokens: 100,
+                    totalTokens: 300,
+                    costUSD: 3,
+                    modelsUsed: ["mistral-large"],
+                    modelBreakdowns: nil)],
+                updatedAt: Date()),
+            provider: .mistral)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        let summary = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.mistral.rawValue })?.costSummary)
+        #expect(summary.currencyCode == "EUR")
+        #expect(summary.sessionCostUSD == nil)
+        #expect(summary.reportingPeriodSummary?.costUSD == 3)
+        let data = try CloudSyncConstants.makeJSONEncoder().encode(summary)
+        let json = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(json["last30DaysCostUSD"] == nil)
+        #expect((json["daily"] as? [Any])?.isEmpty == true)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: data)
+        #expect(decoded.reportingPeriodCostUSD == 3)
+        #expect(decoded.currencyCode == "EUR")
+    }
+
+    @Test
     func `Mistral sync labels only complete calendar month projections as MTD`() throws {
         let formatter = ISO8601DateFormatter()
         let now = try #require(formatter.date(from: "2026-07-31T12:00:00Z"))

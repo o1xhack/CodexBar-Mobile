@@ -596,6 +596,38 @@ struct CloudKitMergeTests {
         #expect(legacy.daily.isEmpty)
     }
 
+    @Test
+    func `native currency rolling history is retained only for current readers`() throws {
+        let daily = [SyncDailyPoint(dayKey: "2026-09-28", costUSD: 3, totalTokens: 300)]
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 3,
+            last30DaysTokens: 300,
+            daily: daily,
+            historyDays: 30,
+            reportingPeriod: "30",
+            currencyCode: "EUR",
+            reportingPeriodSummary: SyncCostPeriodSummary(
+                costUSD: 3,
+                tokens: 300,
+                daily: daily,
+                historyDays: 30,
+                historyCoverageIsEstablished: true))
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(summary)
+        let legacy = try CloudSyncConstants.makeJSONDecoder().decode(LegacyMatrixSummary.self, from: encoded)
+        let current = try CloudSyncConstants.makeJSONDecoder().decode(SyncCostSummary.self, from: encoded)
+        #expect(legacy.sessionCostUSD == nil)
+        #expect(legacy.last30DaysCostUSD == nil)
+        #expect(legacy.last30DaysTokens == nil)
+        #expect(legacy.daily.isEmpty)
+        #expect(legacy.historyWindowIsComparable == false)
+        #expect(current.currencyCode == "EUR")
+        #expect(current.reportingPeriodCostUSD == 3)
+        #expect(current.reportingPeriodDaily == daily)
+        #expect(!ProviderSnapshotMerger.supportsUSDAggregation(current))
+    }
+
     // MARK: - Single device (degenerate case)
 
     @Test

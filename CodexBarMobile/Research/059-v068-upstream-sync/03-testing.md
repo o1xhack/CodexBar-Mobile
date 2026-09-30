@@ -92,3 +92,16 @@ Round 11 (`140345e2c`) 发现 Mistral 默认 30-day projection 在 31 日会漏�
 扩大测试发现既有 `sourceUpdatedAt/sourceDayKey` 表示 provider fetch freshness；首次尝试改为 observation end 违反既有断言，已恢复原契约，并将 coverage 资格与 freshness 分离：ended range 不能声称覆盖 fetch day 的零日。新测试覆盖 31 日全月、稀疏无范围、ended range、次月 fetch republish；原 source-freshness 回归保持通过。r50 新用例单独通过；r51 首次 lint 有 8 个新 fixture 参数换行问题、已修正；r52 大套因上述 freshness 契约有 2 断言失败、已修复；r56 Mac 最终定向 161 + 6 = 167 tests / 26 suites 全通过，r57 完整 lint/i18n/parser guards 通过。日志 `.../UpstreamSync068Review20260929-r56-mistral-sync.log`、`.../UpstreamSync068Review20260929-r57-mistral-lint.log`。没有执行真实 provider/Keychain/CloudKit 访问。
 
 Mac r46 因此次 Mac 发布输入修复主动停止，未产出 draft；后续签名、公证包必须从修复后的精确候选重新构建。CloudKit 仍为 NO_DEPLOY，没有新 wire/schema 字段，已记录的 16-mask 兼容替代验证继续适用。
+
+## 第十二轮 review：原币种不能进入 USD 统计
+
+Round 12 (`f4199f79f`) 指出 Mistral EUR API cost 会被 iOS 美元总额使用。修复将 currency acceptance 集中到 ProviderSnapshotMerger；blob/CWL/old ledger model mix/share/widget 均过滤显式非 USD，provider details 保留原币种；多 Mac 同账户若币种不同，保留无金额的 unavailable envelope。Mac 对原币种 rolling history 使用既有 modern period envelope；Shared encoder 对 old-reader 隐藏 legacy historical USD fields，Mistral Today/session 保持 nil。四语统计范围提示与同一 2.3.0 notes block 已更新。无新增 schema，结论仍 NO_DEPLOY。
+
+- r60 正确隔离环境的 Mac 全量测试通过：12,618 + 282 + 435 + 74 + 4 = 13,413 tests / 1,371 suites，0 failures；日志 `.../UpstreamSync068Review20260929-r60-mac-full.log`。该完整 run 在 round 12 Shared/Mac 改动前构建；新增 wire 修复再跑定向测试。此前 r58 将 release smoke 的显式禁用 Keychain 环境误用于策略单元测试，17 个环境语义断言失败；不计通过。r60 保留 SWIFT_TESTING / CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS，使真实 SecItem 访问仍 fail closed，移除显式 disable 和文件隔离覆盖。
+- r71 iOS 四套定向：185 passed、0 failed、0 skipped（xcresult summary Passed），覆盖 CWL、分享、Widget、merge/current-native/frozen-old reader，包含全部 16 masks。结果 `.../UpstreamSync068Review20260929-r71-currency.xcresult`；日志 `.../UpstreamSync068Review20260929-r71-currency.log`。
+- r74 完整 lint、portable guards、四语审计与 parser audit 通过：2,724 Swift 文件 0 violations；363 source keys 全部存在且 translated（`.../UpstreamSync068Review20260929-r74-currency-lint.log`）。
+- r73 Mac SyncCoordinator 定向测试通过：38 tests / 2 suites，覆盖 native EUR publication、MTD/freshness 与旧 session 契约（`.../UpstreamSync068Review20260929-r73-currency-mac.log`）。
+- r72 Release Simulator build 通过（`.../UpstreamSync068Review20260929-r72-ios-release-currency.log`）。
+- 未计通过的初次尝试：r61 optional snapshot compile、r62 SharePeriod enum fixture typo、r65 in-memory SwiftData 默认 CloudKit 配置、r68 缺少 nil initializer 参数，均已修复并由 r71 复测。r70/r69 被会话中断，进程已不存在且日志无 terminal pass；不重用为成功证据，改由 r73/r74 重跑。
+
+所有金额 fixture 均为合成数据；没有真实 provider/Keychain/Production CloudKit 操作。旧 Mac 的已存在 legacy EUR payload 不能由新 Mac retroactively 改写，本轮仅证明新 writer 不产生误标的 Mistral legacy history，以及新 reader 不把显式非 USD 计入美元总额；16 组合仍为 substituted，不是实体设备 pass。
