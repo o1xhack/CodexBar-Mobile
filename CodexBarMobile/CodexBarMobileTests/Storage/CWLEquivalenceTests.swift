@@ -364,6 +364,45 @@ struct CWLEquivalenceTests {
     }
 
     @Test
+    func `blob MTD totals require matching producer month boundaries`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func provider(id: String, day: String?, zone: String?) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: id, providerName: id, primary: nil, secondary: nil,
+                accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: now,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: 12,
+                    last30DaysTokens: 120, daily: [], reportingPeriod: "month-to-date",
+                    sourceDayKey: day, bucketTimeZoneIdentifier: zone))
+        }
+        func insights(dayA: String?, zoneA: String?, dayB: String?, zoneB: String?) -> CostDashboardInsights {
+            CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+                providers: [
+                    provider(id: "openai", day: dayA, zone: zoneA),
+                    provider(id: "claude", day: dayB, zone: zoneB),
+                ], syncTimestamp: now, deviceName: "Synthetic Mac"), now: now)
+        }
+        let sameMonth = insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-10-02", zoneB: "GMT")
+        #expect(sameMonth.hasComparableHistoryTotals)
+        #expect(sameMonth.total30DayCostIsKnown)
+        for mixed in [
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-09-30", zoneB: "America/Los_Angeles"),
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-10-01", zoneB: "America/Los_Angeles"),
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-09-30", zoneB: "UTC"),
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: nil, zoneB: nil),
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-10-01", zoneB: "invalid-zone"),
+            insights(dayA: "2026-10-01", zoneA: "UTC", dayB: "2026-02-30", zoneB: "UTC"),
+        ] {
+            #expect(!mixed.hasComparableHistoryTotals)
+            #expect(!mixed.total30DayCostIsKnown)
+            #expect(mixed.total30DayTokens == 0)
+            #expect(mixed.spendProviderRows.isEmpty)
+            #expect(mixed.historyDisplayTitle == String(localized: "Mixed cost windows"))
+        }
+    }
+
+    @Test
     func `CWL summary totals require the selected reporting period`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let point = SyncDailyPoint(
