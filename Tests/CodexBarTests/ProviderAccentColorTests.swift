@@ -4,6 +4,20 @@ import Testing
 
 struct ProviderAccentColorTests {
     @Test
+    func `plugin provider RGB colors retain fractional components`() {
+        let expected: [(UsageProvider, UInt32)] = [
+            (.aiand, 0xE25C2B), (.deepinfra, 0x2A3275), (.manus, 0x34322D),
+            (.perplexity, 0x20B2AA), (.poe, 0x5D5CDE), (.qoder, 0x10B981),
+            (.t3chat, 0xF56647), (.zenmux, 0x6C5CE7),
+        ]
+        for (provider, rgb) in expected {
+            #expect(ProviderDescriptorRegistry.descriptor(for: provider).branding.color == ProviderColor(hex: rgb))
+        }
+        #expect(ManusProviderDescriptor.descriptor.branding.widgetColor == ProviderColor(hex: 0x181818))
+        #expect(SakanaProviderDescriptor.descriptor.branding.widgetColor == ProviderColor(hex: 0x2975DB))
+    }
+
+    @Test
     func `hex string parses with and without the leading hash`() throws {
         let withHash = try #require(ProviderColor(hexString: "#60BA7E"))
         let withoutHash = try #require(ProviderColor(hexString: "60BA7E"))

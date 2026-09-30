@@ -21,7 +21,7 @@ public enum SakanaProviderDescriptor {
         dashboardURL: "https://console.sakana.ai/billing",
         color: .init(red: 0.16, green: 0.46, blue: 0.86),
         confetti: [0xE10600, 0x0D0D0D, 0xFFFFFF],
-        widgetColor: .init(red: 41 / 255, green: 117 / 255, blue: 219 / 255),
+        widgetColor: .init(red: 41 / 255.0, green: 117 / 255.0, blue: 219 / 255.0),
         noDataMessage: "Sakana AI cost summary is not supported.",
         presentation: ProviderUsagePresentation(
             optionalDetails: ProviderOptionalDetailsPresentation(hidesAllWithoutOptionalUsage: true)),

@@ -13,7 +13,7 @@ public enum QoderProviderDescriptor {
         debugLogUnavailableMessage: "Qoder debug log not yet implemented",
         usesDetailBackedWindow: true,
         dashboardURL: QoderWebSite.international.dashboardURL.absoluteString,
-        color: .init(red: 16 / 255, green: 185 / 255, blue: 129 / 255),
+        color: .init(red: 16 / 255.0, green: 185 / 255.0, blue: 129 / 255.0),
         confetti: [0x2ADB5C, 0x111113, 0xFFFFFF],
         noDataMessage: "Qoder cost summary is not supported.",
         presentation: ProviderUsagePresentation(
