@@ -62,6 +62,7 @@
 		4012D7EC2F2083F196B70B84 /* MoonshotBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */; };
 		44179B7669F19C60FFA54FCD /* CostShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C72A51985FA627302CDAC57 /* CostShareService.swift */; };
 		44E3492D9285BDA200F789FB /* ProviderSnapshotMerger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */; };
+		47ACC2512A20DF9808E40EB0 /* WidgetProviderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */; };
 		47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14429075896F45B38264DC77 /* CloudSyncManager.swift */; };
 		48A7DACDCA4F25935E003084 /* V037Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CF055050A36BB624EF0AA0 /* V037Snapshots.swift */; };
 		49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */; };
@@ -84,6 +85,7 @@
 		5B784FEEABE8100EF75A55D3 /* V039Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FFC97C9D977AF715126622 /* V039Snapshots.swift */; };
 		5BDC62538006F2EF448F53ED /* MockProviderBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13047F3A04FEB413C5E079B0 /* MockProviderBanner.swift */; };
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
+		5F6266E4F1AA20536278C5C2 /* WidgetProviderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C84584F7A18675D8A2E8A81 /* WidgetProviderSelectionTests.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6286CAAFBB5488AB41199E18 /* TokenActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318F0CC046A3AFB53D6A216F /* TokenActivity.swift */; };
 		638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */; };
@@ -152,6 +154,7 @@
 		AF756D8CEBEC328EF8827EA6 /* ClaudeExtraUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */; };
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
 		B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */; };
+		B1D59C84629F7317657710F5 /* WidgetProviderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */; };
 		B4A74E58A58B3CBCE5D3900E /* WidgetActivityProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484A69D6665BE9EADD5FA571 /* WidgetActivityProjection.swift */; };
 		B51DF1D4DEDA3E174C81B79D /* MobileAdaptiveLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C14FB019008FD0CC5CE92C /* MobileAdaptiveLayoutTests.swift */; };
 		B791AA587A4C35B09ADB0104 /* SyncedDailyActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6D955B355B9CDF255AF8DB /* SyncedDailyActivityView.swift */; };
@@ -381,6 +384,7 @@
 		6BBBF160B317AF2B0C136E2B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridge.swift; sourceTree = "<group>"; };
 		6C72A51985FA627302CDAC57 /* CostShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareService.swift; sourceTree = "<group>"; };
+		6C84584F7A18675D8A2E8A81 /* WidgetProviderSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetProviderSelectionTests.swift; sourceTree = "<group>"; };
 		6CA751A1638AFC94E23C38FA /* WidgetActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetActivityView.swift; sourceTree = "<group>"; };
 		6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerplexityCreditsCard.swift; sourceTree = "<group>"; };
 		6F8B2EE4A4A283389BC42245 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -423,6 +427,7 @@
 		A45A7C39DD816CBE4C4EF9EB /* CodexBarMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CodexBarMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A4CAFB868825B9A3F09FE0AA /* DeviceLifecycleEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLifecycleEventTests.swift; sourceTree = "<group>"; };
 		A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountGroup.swift; sourceTree = "<group>"; };
+		A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetProviderSelection.swift; sourceTree = "<group>"; };
 		A9F340DA45364A878F1BB616 /* V027Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V027Snapshots.swift; sourceTree = "<group>"; };
 		AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramUsageCard.swift; sourceTree = "<group>"; };
 		AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailRedaction.swift; sourceTree = "<group>"; };
@@ -601,6 +606,7 @@
 				53E361D17ACD47D04499F0CD /* V066ProviderPresentationTests.swift */,
 				44D42B29EEA7ECECF396429B /* ViewCacheIdentityTests.swift */,
 				B1BB1B7D889AC7E25520F356 /* WidgetActivityProjectionTests.swift */,
+				6C84584F7A18675D8A2E8A81 /* WidgetProviderSelectionTests.swift */,
 				534FD5DA53F564D357F039EE /* WidgetSnapshotBuilderTests.swift */,
 				8AC0B6FF92A39F3671C44FE2 /* Fixtures */,
 				44CE71E4FE80F6CA918A36BB /* Storage */,
@@ -632,6 +638,7 @@
 				B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */,
 				484A69D6665BE9EADD5FA571 /* WidgetActivityProjection.swift */,
 				6CA751A1638AFC94E23C38FA /* WidgetActivityView.swift */,
+				A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */,
 			);
 			path = CodexBarWidgetShared;
 			sourceTree = "<group>";
@@ -1159,6 +1166,7 @@
 				4A1541C52B01FBCFBC3E55F9 /* V066ProviderPresentationTests.swift in Sources */,
 				26AC46B00EDA26107412B467 /* ViewCacheIdentityTests.swift in Sources */,
 				AAD38B49F341E26428134603 /* WidgetActivityProjectionTests.swift in Sources */,
+				5F6266E4F1AA20536278C5C2 /* WidgetProviderSelectionTests.swift in Sources */,
 				80B6863B91547B2CA369FC58 /* WidgetSnapshotBuilderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1251,6 +1259,7 @@
 				F1E70894B80CE53B4E5597FE /* WidgetActivityProjectionBuilder.swift in Sources */,
 				10FEFC29978C1B22D5599BD7 /* WidgetActivityPublisher.swift in Sources */,
 				6B09013A53AB897492346AEF /* WidgetActivityView.swift in Sources */,
+				B1D59C84629F7317657710F5 /* WidgetProviderSelection.swift in Sources */,
 				F17B695DE47773A5DF665875 /* ZaiHourlyChart.swift in Sources */,
 				7BD11914FFDAC4688B440B82 /* ZoomMateCreditsCard.swift in Sources */,
 			);
@@ -1318,6 +1327,7 @@
 				55DA4BB195EF540E5EC8FDAB /* WidgetActivityProjection.swift in Sources */,
 				55C7C6DD91048AE5A198CA85 /* WidgetActivityTimeline.swift in Sources */,
 				CA364295E052B5CFC0CFC614 /* WidgetActivityView.swift in Sources */,
+				47ACC2512A20DF9808E40EB0 /* WidgetProviderSelection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1399,7 +1409,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1419,7 +1429,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1444,7 +1454,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1619,7 +1629,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1641,7 +1651,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1679,7 +1689,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1715,7 +1725,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1739,7 +1749,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 223;
+				CURRENT_PROJECT_VERSION = 224;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -59,3 +59,5 @@ This directory contains research documents for features being considered for Cod
 | 052 | iOS历史完整性与后台刷新 | `in-progress` | 已确认代码缺陷已修复；问题手机金额对账待设备/页面确认 | [052-history-refresh-integrity/00-research.md](052-history-refresh-integrity/00-research.md) | 2026-09-10 |
 | 054 | Cost 分享编辑页与 Heatmap 模板 | `done` | 2.0.0 (211) 已合并、Internal TestFlight 为 VALID，并已送 App Review（`WAITING_FOR_REVIEW` / `MANUAL`）；Heatmap In-App Event 仍未创建 | [054-cost-share-redesign/00-design.md](054-cost-share-redesign/00-design.md) | 2026-09-14 |
 | 055 | iOS 2.0 App Store 版本与 Token Activity 活动 | `draft` | 2.0.0 (211) 已完成四语元数据并送审（`WAITING_FOR_REVIEW` / `MANUAL`）；活动视觉参考与 deep link gate 独立待办 | [055-ios-2-app-store-event/00-plan.md](055-ios-2-app-store-event/00-plan.md) | 2026-09-14 |
+
+| 060 | Provider Overview 多选、自适应布局与刷新倒计时 | `done` | 871单测、UI10通过/6条件跳过、64渲染及iPad原生验证完成；224指定真机镜像默认四项/选择两项桌面验收通过；未上传/发布 | [060-widget-provider-overview.md](060-widget-provider-overview.md) | 2026-09-30 |

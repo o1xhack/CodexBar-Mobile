@@ -4537,6 +4537,7 @@ private enum MobileReleaseNotesCatalog {
                 localized: "CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows."),
             sections: [
                 .init(title: String(localized: "What's New"), items: [
+                    String(localized: "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown."),
                     String(
                         localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details."),
                     String(
@@ -5761,6 +5762,7 @@ private struct WidgetSettingsView: View {
 
     @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
     @State private var selectedColorStyle = CodexBarWidgetColorStyle.mono
+    @State private var selectedProviderIDs: [String] = []
 
     private let modes: [CodexBarWidgetMode] = [
         .overview,
@@ -5792,7 +5794,8 @@ private struct WidgetSettingsView: View {
                             family: self.selectedFamily,
                             mode: mode,
                             colorStyle: self.selectedColorStyle,
-                            snapshot: self.previewSnapshot)
+                            snapshot: self.previewSnapshot,
+                            providers: mode == .overview ? self.previewSelection : nil)
                     }
                 }
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
@@ -5802,9 +5805,44 @@ private struct WidgetSettingsView: View {
             } header: {
                 Text("Preview")
             }
+            Section {
+                ForEach(self.previewProviderChoices) { provider in
+                    Button {
+                        if self.selectedProviderIDs.contains(provider.id) {
+                            self.selectedProviderIDs.removeAll { $0 == provider.id }
+                        } else if self.selectedProviderIDs.count < 4 {
+                            self.selectedProviderIDs.append(provider.id)
+                        }
+                    } label: {
+                        HStack {
+                            Text(provider.name).foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: self.selectedProviderIDs.contains(provider.id) ? "checkmark.circle.fill" : "circle")
+                        }
+                    }
+                    .disabled(self.selectedProviderIDs.count == 4 && !self.selectedProviderIDs.contains(provider.id))
+                }
+            } header: {
+                Text(String(localized: "Preview Providers"))
+            } footer: {
+                Text(String(localized: "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget."))
+            }
         }
         .navigationTitle("Widget Setting")
         .listStyle(.insetGrouped)
+    }
+
+    private var previewProviderChoices: [WidgetProviderEntity] {
+        var seen = Set<String>()
+        return self.previewSnapshot.topProviders.filter { seen.insert($0.providerID).inserted }
+            .map { WidgetProviderEntity(id: $0.providerID, name: $0.providerName) }
+    }
+
+    private var previewSelection: [WidgetProviderEntity]? {
+        guard !self.selectedProviderIDs.isEmpty else { return nil }
+        return self.selectedProviderIDs.map { id in
+            self.previewProviderChoices.first { $0.id == id } ?? WidgetProviderEntity(id: id, name: id)
+        }
     }
 
     private var availableFamilies: [CodexBarWidgetPreviewFamily] {
@@ -5830,6 +5868,7 @@ private struct WidgetPreviewFrame: View {
     let mode: CodexBarWidgetMode
     let colorStyle: CodexBarWidgetColorStyle
     let snapshot: CodexBarWidgetSnapshot
+    var providers: [WidgetProviderEntity]? = nil
 
     var body: some View {
         GeometryReader { proxy in
@@ -5847,7 +5886,8 @@ private struct WidgetPreviewFrame: View {
                             date: .now,
                             configuration: CodexBarWidgetConfigurationIntent(
                                 mode: self.mode,
-                                colorStyle: self.colorStyle),
+                                colorStyle: self.colorStyle,
+                                providers: self.providers),
                             snapshot: self.snapshot),
                         previewFamily: self.family.widgetFamily)
                         .frame(width: size.width, height: size.height)

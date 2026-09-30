@@ -16,6 +16,10 @@ enum WidgetActivityPublisher {
         let projection: WidgetActivityProjection
         if let snapshot {
             let providers = MockProviderDetector.filteredProviders(from: snapshot)
+            // Configuration suggestions use only the app's already resolved local data.
+            try? WidgetProviderCatalogue.write(providers.map {
+                WidgetProviderEntity(id: $0.providerID, name: $0.providerName)
+            })
             // Make the current synced days available before the longer ledger
             // read. SwiftUI can cancel this task during a sync publication;
             // without this first write a newly installed widget has no file.

@@ -1,6 +1,150 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Preview Providers": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Preview Providers"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "预览服务商"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "預覽服務商"}}, "ja": {"stringUnit": {"state": "translated", "value": "プレビューのプロバイダー"}}}},
+    "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "为此预览选择最多四个服务商。要保存主屏幕的选择，请使用“编辑小组件”。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "為此預覽選擇最多四個服務商。要儲存主畫面的選擇，請使用「編輯小組件」。"}}, "ja": {"stringUnit": {"state": "translated", "value": "プレビュー用に最大4つ選択できます。ホーム画面の選択を保存するには「ウィジェットを編集」を使ってください。"}}}},
+    "Now": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Now"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "现在"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "現在"}}, "ja": {"stringUnit": {"state": "translated", "value": "まもなく"}}}},
+    "Choose up to four providers. Leave empty for automatic selection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose up to four providers. Leave empty for automatic selection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多选择四个服务商。留空时自动选择。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多選擇四個服務商。留空時自動選擇。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大4つのプロバイダーを選択。未選択の場合は自動で選びます。"
+          }
+        }
+      }
+    },
+    "%@d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@d"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@天"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@天"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@日"
+          }
+        }
+      }
+    },
+    "<0.1d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1d"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1天"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1天"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1日"
+          }
+        }
+      }
+    },
+    "Resets in %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets in %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@后刷新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@後重設"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@後にリセット"
+          }
+        }
+      }
+    },
+    "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总览小组件可选择最多四个服务商，布局随选择数量调整，并显示简洁的额度刷新倒计时。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "總覽小組件可選擇最多四個服務商，佈局隨選擇數量調整，並顯示簡潔的額度重設倒數。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "概要ウィジェットで最大4つのプロバイダーを選択できます。選択数に合わせたレイアウトと、上限リセットまでの残り時間を表示します。"
+          }
+        }
+      }
+    }
+,
     "Totals here include USD spend only. Other currencies are shown in provider details.": {
       "localizations": {
         "en": {"stringUnit": {"state": "translated", "value": "Totals here include USD spend only. Other currencies are shown in provider details."}},

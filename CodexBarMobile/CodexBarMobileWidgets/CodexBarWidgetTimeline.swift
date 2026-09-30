@@ -1,5 +1,6 @@
 import CodexBarSync
 import WidgetKit
+import OSLog
 
 struct CodexBarWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in _: Context) -> CodexBarWidgetEntry {
@@ -30,6 +31,10 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
         in _: Context
     ) async -> Timeline<CodexBarWidgetEntry> {
         let now = Date()
+        #if DEBUG
+        Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "overview").notice(
+            "Overview configuration count: \(configuration.providers?.count ?? 0, privacy: .public)")
+        #endif
         #if targetEnvironment(simulator)
         if ProcessInfo.processInfo.environment["CODEXBAR_WIDGET_DISABLE_SIMULATOR_MOCK"] != "1" {
             let entry = CodexBarWidgetEntry(
