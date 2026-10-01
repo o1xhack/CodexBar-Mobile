@@ -372,14 +372,64 @@ enum CostUsageClaudeCacheIO {
         static let shared = ArtifactMemo()
         let entries = NSCache<NSURL, Entry>()
 
-        private init() {
+        #if DEBUG
+        var retainsEntries = false
+        private let retainedLock = NSLock()
+        private var retainedEntries: [NSURL: Entry] = [:]
+        #endif
+
+        init() {
             self.entries.countLimit = 4
+        }
+
+        func entry(for key: NSURL) -> Entry? {
+            #if DEBUG
+            if self.retainsEntries { return self.retainedLock.withLock { self.retainedEntries[key] } }
+            #endif
+            return self.entries.object(forKey: key)
+        }
+
+        func store(_ entry: Entry, for key: NSURL) {
+            #if DEBUG
+            if self.retainsEntries {
+                self.retainedLock.withLock { self.retainedEntries[key] = entry }
+                return
+            }
+            #endif
+            self.entries.setObject(entry, forKey: key)
+        }
+
+        func evict(_ key: NSURL) {
+            #if DEBUG
+            if self.retainsEntries {
+                self.retainedLock.withLock { _ = self.retainedEntries.removeValue(forKey: key) }
+                return
+            }
+            #endif
+            self.entries.removeObject(forKey: key)
         }
     }
 
+    private static var artifactMemo: ArtifactMemo {
+        #if DEBUG
+        if let scopedArtifactMemo { return scopedArtifactMemo }
+        #endif
+        return ArtifactMemo.shared
+    }
+
     #if DEBUG
+    @TaskLocal private static var scopedArtifactMemo: ArtifactMemo?
+
+    /// Establishes artifact residency for pricing tests without relying on NSCache's
+    /// discretionary eviction or clearing another test's global cache entries.
+    static func withRetainedArtifactMemoForTesting<T>(_ operation: () throws -> T) rethrows -> T {
+        let memo = ArtifactMemo()
+        memo.retainsEntries = true
+        return try self.$scopedArtifactMemo.withValue(memo, operation: operation)
+    }
+
     static func evictArtifactMemoForTesting(at url: URL) {
-        ArtifactMemo.shared.entries.removeObject(forKey: url.standardizedFileURL.resolvingSymlinksInPath() as NSURL)
+        self.artifactMemo.evict(url.standardizedFileURL.resolvingSymlinksInPath() as NSURL)
     }
     #endif
 
@@ -412,7 +462,7 @@ enum CostUsageClaudeCacheIO {
         let key = url.standardizedFileURL.resolvingSymlinksInPath() as NSURL
         let stamp = CostUsageClaudeFileStamp.read(at: url)
         let cache: CostUsageClaudeCache
-        if let stamp, let memoized = ArtifactMemo.shared.entries.object(forKey: key), memoized.stamp == stamp {
+        if let stamp, let memoized = self.artifactMemo.entry(for: key), memoized.stamp == stamp {
             cache = memoized.cache
         } else {
             guard let data = try? Data(contentsOf: url) else { return CostUsageClaudeCache() }
@@ -425,7 +475,7 @@ enum CostUsageClaudeCacheIO {
             cache = decoded
             // A concurrent replacement must fall through to a fresh decode next time.
             if let stamp, CostUsageClaudeFileStamp.read(at: url) == stamp {
-                ArtifactMemo.shared.entries.setObject(ArtifactMemo.Entry(stamp: stamp, cache: cache), forKey: key)
+                self.artifactMemo.store(ArtifactMemo.Entry(stamp: stamp, cache: cache), for: key)
             }
         }
         guard cache.usage.version == self.schemaVersion,
@@ -451,7 +501,7 @@ enum CostUsageClaudeCacheIO {
         }
         let key = url.standardizedFileURL.resolvingSymlinksInPath() as NSURL
         try checkCancellation?()
-        if let memoized = ArtifactMemo.shared.entries.object(forKey: key), memoized.cache.contentID == cache.contentID,
+        if let memoized = self.artifactMemo.entry(for: key), memoized.cache.contentID == cache.contentID,
            CostUsageClaudeFileStamp.read(at: url) == memoized.stamp
         {
             return memoized.stamp
@@ -461,7 +511,7 @@ enum CostUsageClaudeCacheIO {
         #endif
         let stamp = try self.write(cache, to: url, checkCancellation: checkCancellation)
         if let stamp, CostUsageClaudeFileStamp.read(at: url) == stamp {
-            ArtifactMemo.shared.entries.setObject(ArtifactMemo.Entry(stamp: stamp, cache: cache), forKey: key)
+            self.artifactMemo.store(ArtifactMemo.Entry(stamp: stamp, cache: cache), for: key)
         }
         return stamp
     }

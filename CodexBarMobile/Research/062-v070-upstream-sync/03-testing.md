@@ -47,3 +47,34 @@ Status: `in-progress`
 - mac-bridge-r4.log：新增modelsUsed wire roundtrip及旧JSON fallback后重跑；成功后同一session46144自动执行mac-full-r2.log（repo默认12 selections/group、180s timeout）。必须读取r4与full-r2终态，不能把pipeline启动作通过。
 
 mac-bridge-r4.log最新树构建与12 tests/4 suites通过，含modelsUsed wire roundtrip/旧JSON fallback；同pipeline已进入mac-full-r2，137 groups（12 selections/group），当前未结束。session46144维持运行。
+
+## 冻结 Shared 序列化兼容（阶段证据，不是完整矩阵）
+
+使用最后正式发布v0.68.0.1-mobile.2.3.0的精确Shared源码（commit616701b95122c94e106299d18ac6a83c61850d94）与当前Shared源码，分别编译Foundation-only独立reader/writer。16份Swift源文件SHA256记录在BuildScratch/upstream-v070/frozen-wire-r5/source-manifest.json；构建、module cache与TMPDIR均在SSD，未调用CloudSyncManager、Keychain或真实数据库。
+
+可复现命令：`PATH=/opt/homebrew/bin:$PATH python3 CodexBarMobile/Research/062-v070-upstream-sync/tools/check_frozen_wire.py --old-ref v0.68.0.1-mobile.2.3.0 --scratch /Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070/frozen-wire-r5`。exit0，全部16 wire-only masks/64独立reader进程通过。旧reader读取新effective blocked百分比与monthly reset，新reader恢复raw metadata/modelsUsed；旧缺字段payload读为nil；独立deviceID、未知cost、envelope encode/decode roundtrip均断言。日志matrix-wire.log与JSON逐条readOperations记录。
+
+该fixture是合成writer数据，不是旧Mac运行时或真实CK记录；没有测试iOS merger、SwiftData、UI、fallback/ghost清理、Production收敛、subscriptions/APNs。表中16组合保持pending，后续完整iOS替代验证与可用硬件检查完成后才逐格定最终result。初次工具preflight错误使用diskutil plist不存在的Mounted key导致早停；已改为MountPoint+os.path.ismount并验证正确UUID，再成功运行。
+
+## 完整 Mac 回归失败与隔离修正
+
+mac-full-r2.log终态exit1：1520 selections /137 groups，首轮52组成功、1组失败；失败组重试一次未恢复，无timeout。discovery10.3秒，execution660.5秒。唯一finding是CostUsageClaudeKimiAliasTests:151的cacheDecodes期望0实际1，其真实cost/tokens、0 transcript parse、0 cache encode、reprice count与bytes未失败。未运行剩余组，不能标为完整通过。
+
+独立suite复测mac-alias-isolated-r1.log（7 tests）和同12-suite组mac-alias-group-r1.log（64 tests）通过，但不足以抹去完整失败。CacheIO与upstream没有差异，NSCache驻留不是保证；具体驱逐原因没有证实。既有fixture cleanup已经evict对应artifact/report memo，不能归因于未cleanup。
+
+新增DEBUG TaskLocal自有retained ArtifactMemo，仅pricing fixture作用域保持驻留；生产仍shared NSCache countLimit4，不清全局其它测试的cache。原warm与report-memory-cold严格断言全部保留，另显式清report memory+persisted+artifact验证真正cold decode=1、parse/encode0、价格/token与bytes正确。独立只读review无阻塞。mac-alias-group-r2编译发现嵌套private initializer外层不可访问，已修正为private type内可访问init，r3重新验证。parserhash仍11b5eaedd0f337a7 current。
+
+## 上游重型 CI provenance
+
+v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check runs已读取至BuildScratch/upstream-v070/upstream-v070-checks.tsv。release publish、六平台CLI build与Linux desktop build成功；该commit的lint、Mac两shards、Mac compatibility、Linux CI jobs为cancelled（musl为skipped），aggregate lint-build-test也cancelled。不能把release已发布或CLI build成功当作上游完整heavy test成功，更不能宣称满足fork upstream-heavy复用gate；以后获准push/merge时Final CI应按现有verifier决定回退本仓库完整矩阵。本Goal当前不授权remote dispatch/push。
+
+## 修正后的最新验证
+
+- mac-alias-group-r3.log：exit0，64 tests /12 suites，4.213秒，包含warm驻留、report-memory cold与显式artifact cold解码断言。
+- lint-r7.log：exit0，全树guards、SwiftFormat、SwiftLint通过；2749 files零违规，367个iOS source keys四语言齐全且translated。
+- frozen-wire-r5.log：exit0，格式化后harness再次通过16 wire-only masks/64独立reader进程，source-manifest含harness SHA256。
+- mac-full-r3.log：以最新代码重新完整构建并运行137 groups，session70586；仍在执行，尚未标记为最终pass。
+
+独立review核查冻结文件集合、SHA256与断言，无阻塞；随后按manifest paths编译以排除scratch遗留源码，新增windowID/rawResetsAt断言，输出改称JSON roundtrip，frozen-wire-r5再测exit0。
+
+只读硬件inventory：devicectl列出一台connected实体iPhone Air，另一台实体iPhone17ProMax为unavailable。当前尚未确认第二台Mac远程可操作性，且没有安装/覆盖实体app或访问真实CloudKit。后续矩阵需先确认硬件与旧/新binary可重现范围，不把Simulator或wire fixture当作实体收敛证据。
