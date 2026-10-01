@@ -746,6 +746,50 @@ final class SyncCoordinator {
             isSyntheticPlaceholder: window.isSyntheticPlaceholder)
     }
 
+    /// Publish effective availability in the legacy fields so old phones cannot
+    /// promise access at a shorter reset while a provider's longer pool blocks it.
+    static func projectingBlockingQuota(
+        _ windows: [SyncRateWindow],
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> [SyncRateWindow]
+    {
+        guard let snapshot,
+              let policy = ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuCard.blockingQuota,
+              let blocker = snapshot.extraRateWindows?.first(where: {
+                  $0.id == policy.windowID && $0.usageKnown && !$0.window.isSyntheticPlaceholder
+              })
+        else { return windows }
+        return windows.map { window in
+            guard window.usageKnown, !window.isSyntheticPlaceholder, window.blockingQuota == nil
+            else { return window }
+            let raw = RateWindow(
+                usedPercent: window.usedPercent,
+                windowMinutes: window.windowMinutes,
+                resetsAt: window.resetsAt,
+                resetDescription: window.resetDescription)
+            guard let projection = RateWindow.bindingQuotaProjection(
+                primary: raw, bindingLanes: [blocker.window], now: snapshot.updatedAt)
+            else { return window }
+            return SyncRateWindow(
+                id: window.id,
+                label: window.label,
+                usedPercent: projection.usedPercent,
+                usageKnown: window.usageKnown,
+                windowMinutes: window.windowMinutes,
+                period: window.period,
+                resetsAt: projection.resetsAt,
+                resetDescription: projection.resetDescription,
+                nextRegenPercent: nil,
+                isSyntheticPlaceholder: window.isSyntheticPlaceholder,
+                blockingQuota: SyncBlockingQuota(
+                    windowID: blocker.id,
+                    rawUsedPercent: window.usedPercent,
+                    rawResetsAt: window.resetsAt,
+                    rawResetDescription: window.resetDescription,
+                    rawNextRegenPercent: window.nextRegenPercent))
+        }
+    }
+
     static func mapDetails(_ sections: [ProviderDetailSection]) -> [SyncProviderDetailSection] {
         sections.map { section in
             let chart = section.chart.map { chart in
@@ -770,6 +814,20 @@ final class SyncCoordinator {
                         secondaryValue: $0.secondaryValue)
                 },
                 chart: chart)
+        }
+    }
+
+    /// Claude reset inventory is live-only. Mobile stores decoded details without the
+    /// native UsageSnapshot cache filter, so exclude these rows before persistence.
+    static func mapSyncedDetails(
+        _ sections: [ProviderDetailSection],
+        provider: UsageProvider) -> [SyncProviderDetailSection]
+    {
+        guard provider == .claude else { return self.mapDetails(sections) }
+        return self.mapDetails(sections).compactMap { section -> SyncProviderDetailSection? in
+            let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
+            guard !rows.isEmpty || section.chart != nil else { return nil }
+            return SyncProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
         }
     }
 
@@ -926,7 +984,8 @@ final class SyncCoordinator {
                     : nil,
                 costIsKnown: entry.costUSD != nil && coverage.unpriced == 0 && coverage.unmetered == 0,
                 requestCount: entry.requestCount,
-                tokenCountIsKnown: entry.totalTokens != nil)
+                tokenCountIsKnown: entry.totalTokens != nil,
+                modelsUsed: entry.modelsUsed)
         }
         let windowSummary = Self.syncWindowSummary(tokenSnapshot)
         let tokenMix = windowSummary.tokenMix.hasAnyClass
@@ -1062,6 +1121,8 @@ final class SyncCoordinator {
                 window: extra.window,
                 usageKnown: extra.usageKnown))
         }
+
+        rateWindows = Self.projectingBlockingQuota(rateWindows, provider: provider, snapshot: snapshot)
 
         // Legacy primary/secondary for backward compat with older iOS builds.
         let primaryWindow = provider == .alibabatokenplan ? semanticWindows.primary : rateWindows.first
@@ -1234,7 +1295,7 @@ final class SyncCoordinator {
             accountRecordKey: accountRecordKey,
             accountOrganization: snapshot?.identity?.accountOrganization,
             zoomMateCredits: zoomMateCredits,
-            details: Self.mapDetails(snapshot?.details ?? []))
+            details: Self.mapSyncedDetails(snapshot?.details ?? [], provider: provider))
     }
 
     static func syncAccountIdentities(
@@ -2242,7 +2303,8 @@ final class SyncCoordinator {
                 isEstimated: dayIsEstimated ? true : nil,
                 costIsKnown: costIsKnown,
                 requestCount: entry?.requestCount,
-                tokenCountIsKnown: entry?.totalTokens != nil)
+                tokenCountIsKnown: entry?.totalTokens != nil,
+                modelsUsed: entry?.modelsUsed)
         }
 
         let knownDailyCosts = daily.compactMap { point in
@@ -2479,7 +2541,8 @@ final class SyncCoordinator {
                 isEstimated: modelBreakdowns.contains(where: { $0.isEstimated == true }) ? true : nil,
                 costIsKnown: entry.costUSD != nil && coverage.unpriced == 0 && coverage.unmetered == 0,
                 requestCount: entry.requestCount,
-                tokenCountIsKnown: entry.totalTokens != nil)
+                tokenCountIsKnown: entry.totalTokens != nil,
+                modelsUsed: entry.modelsUsed)
         }
         let windowSummary = Self.syncWindowSummary(projected)
         let tokenMix = windowSummary.tokenMix.hasAnyClass

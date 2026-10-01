@@ -163,11 +163,17 @@ struct GrokTokenSnapshotProjectionTests {
         let today = Self.dayKey(now, calendar: calendar)
         let yesterday = try Self.dayKey(#require(calendar.date(byAdding: .day, value: -1, to: now)), calendar: calendar)
         var published = CostUsageTokenSnapshot(
-            sessionTokens: 10, sessionCostUSD: nil,
-            last30DaysTokens: 30, last30DaysCostUSD: nil,
-            historyDays: 30, historyCoverageIsEstablished: false, historyScanIsPartial: true,
+            sessionTokens: 10,
+            sessionCostUSD: nil,
+            last30DaysTokens: 30,
+            last30DaysCostUSD: nil,
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            historyScanIsPartial: true,
             daily: [Self.entry(date: yesterday, tokens: 20), Self.entry(date: today, tokens: 10)],
-            bucketTimeZoneIdentifier: "Pacific/Kiritimati", windowEndDayKey: today, updatedAt: now)
+            bucketTimeZoneIdentifier: "Pacific/Kiritimati",
+            windowEndDayKey: today,
+            updatedAt: now)
         published.reportingPeriod = .rolling(days: 30)
         published.historyLabel = "Last 30 days"
         let store = Self.makeStore(environment: [:])

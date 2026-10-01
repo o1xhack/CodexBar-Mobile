@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.70.0.1 — Unreleased
+
+### Changed
+
+- Sync upstream v0.69.0 and v0.70.0 in one fork release, retaining the complete upstream provider, cost, quota burndown, widget, process cleanup, and environment-redaction changes listed below.
+- Preserve fork CloudKit Production publishing, account ownership fences, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.
+- Kimi mobile snapshots publish effective availability when the monthly pool blocks shorter quotas; optional metadata retains the original observed usage and reset for newer mobile clients.
+
+### Fixed
+
+- Keep Grok token-history projections aligned with the producer time zone, requested reporting period, and partial-history metadata; sync observed model names even when token usage has no known cost.
+- Keep partial cost scans marked as lower bounds on legacy and current mobile payloads; invalidate semantic parser caches while retaining compatible published cache predecessors.
+- Exclude Claude live-only reset inventory from persistent mobile detail rows to prevent stale redemption availability after cache restore.
+
+
 ## 0.70.0 — 2026-09-29
 
 ### Highlights

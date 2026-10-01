@@ -19,3 +19,11 @@ Mac build、lint、完整 no-UI test suite 和 plugin suites；重点 PR 原有�
 03-testing.md 列 16 组合。真实 2 Mac × 2 iPhone old/new 无可用硬件/旧 binary/owner-account 证据时只能逐行 substituted，以实际跑过的隔离 fixtures 和 Simulator 替代并写明 APNs、Production convergence 风险。失败不能以 substituted 掩盖。
 
 循环 diff review 覆盖冲突、wire backward compatibility、payload bounds、account attribution、窗口语义、localization、版本、签名/发布来源。阻塞项修复复测至 0；当前未授权 push/PR，因此不声称远程 current-head clean review。Goal 明确允许 review/agent 能力，必要时可委托独立 review，但执行期本地工作串行。
+
+## 数据通道细化（2026-10-01）
+
+独立只读review认可：Kimi在native bridge将更短真实窗口投影成effective availability，legacy primary/secondary从同一rateWindows结果取值；仅usageKnown、非synthetic、月池仍有效耗尽时应用，判断时间使用Mac snapshot.updatedAt。新增optional SyncRateWindow.blockingQuota只保存raw usage/reset/regen和blocker ID，位于既有opaque payload内，无新CloudKit field。旧iOS忽略optional key，仍收到100% blocked和有效reset；新iOS需区分原始消耗与可用性，widget/通知继续effective。历史采样不改成100%，缓存过reset后不能推断真实账户已恢复。
+
+Claude上游测试明确cached or synced copy不得复活已使用reset。native .claude通用details过滤Limit Reset Credits，普通rows/chart保留，用户plugin同名row不受影响。iOS暂无authoritative live refresh入口，因此不展示库存，不新建持久化观察模型；新iOS也需过滤历史旧缓存的同名native row。Mac实时功能完整保留。
+
+Grok modelsUsed作为SyncDailyPoint optional数组保留观察名，既有cost breakdown仍仅表示有价格的模型；三个生产daily mapper同步转发，新iOS后续可展示“观察到的模型”但不创建虚构单模型成本。

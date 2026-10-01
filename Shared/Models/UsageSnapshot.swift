@@ -8,6 +8,30 @@ public enum SyncRateWindowPeriod: String, Codable, Sendable, Equatable {
     case lifetime
 }
 
+/// Original observed quota behind an effective availability projection. Optional JSON
+/// metadata keeps old mobile consumers safe while newer clients can explain the blocker.
+public struct SyncBlockingQuota: Codable, Sendable, Equatable {
+    public let windowID: String
+    public let rawUsedPercent: Double
+    public let rawResetsAt: Date?
+    public let rawResetDescription: String?
+    public let rawNextRegenPercent: Double?
+
+    public init(
+        windowID: String,
+        rawUsedPercent: Double,
+        rawResetsAt: Date?,
+        rawResetDescription: String?,
+        rawNextRegenPercent: Double?)
+    {
+        self.windowID = windowID
+        self.rawUsedPercent = rawUsedPercent
+        self.rawResetsAt = rawResetsAt
+        self.rawResetDescription = rawResetDescription
+        self.rawNextRegenPercent = rawNextRegenPercent
+    }
+}
+
 /// A single rate-limit window snapshot for iCloud sync.
 public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let id: String?
@@ -22,6 +46,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let resetDescription: String?
     public let nextRegenPercent: Double?
     public let isSyntheticPlaceholder: Bool
+    public let blockingQuota: SyncBlockingQuota?
 
     public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
@@ -37,7 +62,8 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         resetsAt: Date?,
         resetDescription: String?,
         nextRegenPercent: Double? = nil,
-        isSyntheticPlaceholder: Bool = false)
+        isSyntheticPlaceholder: Bool = false,
+        blockingQuota: SyncBlockingQuota? = nil)
     {
         self.id = id
         self.label = label
@@ -49,6 +75,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.resetDescription = resetDescription
         self.nextRegenPercent = nextRegenPercent
         self.isSyntheticPlaceholder = isSyntheticPlaceholder
+        self.blockingQuota = blockingQuota
     }
 
     public init(from decoder: Decoder) throws {
@@ -65,6 +92,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
         self.isSyntheticPlaceholder =
             try container.decodeIfPresent(Bool.self, forKey: .isSyntheticPlaceholder) ?? false
+        self.blockingQuota = try container.decodeIfPresent(SyncBlockingQuota.self, forKey: .blockingQuota)
     }
 }
 
@@ -119,6 +147,8 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
     public let requestCount: Int?
     public let tokenCountIsKnown: Bool?
     public let modelBreakdowns: [SyncCostBreakdown]
+    /// Observed model names, including token-only usage without a known price.
+    public let modelsUsed: [String]?
     public let serviceBreakdowns: [SyncCostBreakdown]
     /// Day-level OR aggregate of `modelBreakdowns[*].isEstimated`. `nil`
     /// for payloads from Mac builds before 0.23 — iOS treats nil as
@@ -138,7 +168,8 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         isEstimated: Bool? = nil,
         costIsKnown: Bool? = nil,
         requestCount: Int? = nil,
-        tokenCountIsKnown: Bool? = nil)
+        tokenCountIsKnown: Bool? = nil,
+        modelsUsed: [String]? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
@@ -146,6 +177,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.requestCount = requestCount
         self.tokenCountIsKnown = tokenCountIsKnown
         self.modelBreakdowns = modelBreakdowns
+        self.modelsUsed = modelsUsed
         self.serviceBreakdowns = serviceBreakdowns
         self.isEstimated = isEstimated
         self.costIsKnown = costIsKnown
@@ -158,6 +190,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.totalTokens = try container.decode(Int.self, forKey: .totalTokens)
         self.requestCount = try container.decodeIfPresent(Int.self, forKey: .requestCount)
         self.tokenCountIsKnown = try container.decodeIfPresent(Bool.self, forKey: .tokenCountIsKnown)
+        self.modelsUsed = try container.decodeIfPresent([String].self, forKey: .modelsUsed)
         // `?? []` backward-compat fallback: Mac builds prior to 0.18 didn't
         // write `modelBreakdowns` / `serviceBreakdowns`. Those old payloads
         // must still decode — an iPhone reading them treats the day as "no

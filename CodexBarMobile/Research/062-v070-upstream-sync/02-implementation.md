@@ -31,3 +31,13 @@ Merge commit13d7101ef的README与mobile-dev字节相同，SHA256 1bc04267c61dca6
 ## 后续发布路径
 
 Scripts/release.sh已支持DRAFT_NO_TAG_PUSH=1：GitHub draft先用mobile-dev作为placeholder target，在notes明确local source commit；不会创建/推送tag，publish前需授权并retarget reviewed source。该路径符合本Goal禁止push/tag publish边界。签名脚本需要Developer ID、ASC与Sparkle凭证；尚未读取或使用这些凭证。实际签名公证前按Goal询问凭证使用授权。现有draft清理步骤有删除行为，执行前必须先列出现有同tag draft，存在时不能自动删除。
+
+## Mac→iOS 桥接补齐
+
+新增optional SyncBlockingQuota/SyncRateWindow.blockingQuota，native Kimi映射同一组effective rateWindows与legacy windows；保留raw usage/reset/regen供新iOS解释。同步算法使用snapshot.updatedAt，不用手机当前时间伪造恢复；upstream历史输入未改变。Claude native generic details过滤live reset row，保留其它rows/chart和插件任意label。研究、定向测试已补，尚未取得最终构建/测试终态，iOS消费实现与旧缓存过滤仍待下一阶段。
+
+初次完整测试因新增桥接实现使旧binary不再对应最新树，exit130主动停止；将重建后使用repo默认12 selections/group完成最终Mac gate。
+
+Grok模型观察补齐：SyncDailyPoint新增optional modelsUsed，native、plugin、Mistral三个生产daily mapper均转发entry.modelsUsed；token-only模型不伪造cost breakdown。独立只读审查确认所有生产路径覆盖、reporting-period复用和新旧optional解码兼容，新增wire roundtrip/旧JSON断言。
+
+lint-r6.log全树exit0：portable/JS/SwiftFormat/SwiftLint/i18n/parser-version均通过；随后modelsUsed细化的三份文件定向SwiftLint零违规。桥接r1因Core内部makeSection在app不可见失败，改为过滤已经映射的SyncProviderDetailSection；r2构建和11 tests/4 suites通过，之后集成与models测试扩展仍待最新r4。

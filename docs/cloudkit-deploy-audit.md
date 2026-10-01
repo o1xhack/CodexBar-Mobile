@@ -80,6 +80,10 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 | v0.58.0.1-mobile.1.23.0 candidate | ❌ 不需要（代码审计） | published v0.56.0.1-mobile.1.23.0 → candidate：CloudConstants 无 diff；amount/budget observedAt、daily requestCount/tokenCountIsKnown 均是既有 opaque payload 内的 optional JSON，未改 record type/field/index/query/subscription，providerPayloadVersion=1。本轮未调用 Production export 或 schema deploy。 |
 | v0.68.0.1-mobile.2.3.0 | ❌ 不需要（代码审计） | published v0.66.0.1-mobile.2.1.0 → candidate：CloudConstants 与 providerPayloadVersion 无 schema 变化；新增 `reportingPeriodSummary` / `nativeCurrencySession` 位于既有 `DeviceProviderSnapshot.payload` optional JSON；quota warning 沿用已部署 `QuotaTransition` type、fields 与 predicate。private-zone / zone-subscription 实例是运行时数据。本轮未读取或写入 Production。 |
 
+## v0.70.0.1 候选代码审计（2026-10-01，尚未发布）
+
+对照最新published `v0.68.0.1-mobile.2.3.0`，`Shared/iCloud/CloudConstants.swift`无diff，`providerPayloadVersion=1`。新增`SyncRateWindow.blockingQuota`与`SyncDailyPoint.modelsUsed`是既有`DeviceProviderSnapshot.payload`中的optional JSON；没有新增record type、CloudKit field/index、query或subscription，也不增加private zone。因此当前候选代码判定`NO_DEPLOY`。Mac打包与iOSentitlements仍为Production。本轮没有调用Production schema export、deploy或实际数据库读写；iOS实现后的最终diff仍需复核，兼容矩阵不能由本结论代替。
+
 ## 注意事项
 
 - **`providerPayloadVersion` bump = 强制全量重写**。看到 commit 改它必须警惕：除了 CK deploy，还会触发用户首次启动新版后 CPU/网络 spike。Phase B 加 6 个 optional 字段时**故意不 bump** 就是为了避这个。

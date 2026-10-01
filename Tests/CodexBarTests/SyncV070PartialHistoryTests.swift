@@ -25,25 +25,34 @@ struct SyncV070PartialHistoryTests {
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(
-                homeDirectory: "/nonexistent", cacheTTL: 0, fileExists: { _ in false }, directoryContents: { _ in [] }),
-            settings: settings, startupBehavior: .testing, environmentBase: [:])
+                homeDirectory: "/nonexistent",
+                cacheTTL: 0,
+                fileExists: { _ in false },
+                directoryContents: { _ in [] }),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
         let updatedAt = Date(timeIntervalSince1970: 1_791_020_400)
         store._setSnapshotForTesting(
             UsageSnapshot(primary: nil, secondary: nil, updatedAt: updatedAt),
             provider: .codex)
         var tokens = CostUsageTokenSnapshot(
-            sessionTokens: 12, sessionCostUSD: 1,
-            last30DaysTokens: 12, last30DaysCostUSD: 1,
-            historyCoverageIsEstablished: true, historyScanIsPartial: true,
+            sessionTokens: 12,
+            sessionCostUSD: 1,
+            last30DaysTokens: 12,
+            last30DaysCostUSD: 1,
+            historyCoverageIsEstablished: true,
+            historyScanIsPartial: true,
             daily: [.init(
                 date: "2026-10-02",
                 inputTokens: 6,
                 outputTokens: 6,
                 totalTokens: 12,
                 costUSD: 1,
-                modelsUsed: nil,
+                modelsUsed: ["Observed Fictitious Model"],
                 modelBreakdowns: nil)],
-            bucketTimeZoneIdentifier: "UTC", updatedAt: updatedAt)
+            bucketTimeZoneIdentifier: "UTC",
+            updatedAt: updatedAt)
         tokens.reportingPeriod = period
         store._setTokenSnapshotForTesting(tokens, provider: .codex)
         let pusher = MockSyncPusher()
@@ -51,6 +60,7 @@ struct SyncV070PartialHistoryTests {
         await coordinator.pushCurrentSnapshot()
         let summary = try #require(pusher.lastSnapshot?.providers.first?.costSummary)
         #expect(summary.historyCoverageIsEstablished == false)
+        #expect(summary.reportingPeriodDaily.first?.modelsUsed == ["Observed Fictitious Model"])
         if period != .rolling(days: 30) {
             #expect(summary.reportingPeriodSummary?.historyCoverageIsEstablished == false)
         }
@@ -58,5 +68,8 @@ struct SyncV070PartialHistoryTests {
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let wire = try decoder.decode(SyncCostSummary.self, from: encoder.encode(summary))
         #expect(wire.reportingPeriodHistoryCoverageIsEstablished == false)
+        #expect(wire.reportingPeriodDaily.first?.modelsUsed == ["Observed Fictitious Model"])
+        let oldJSON = Data(#"{"dayKey":"2026-10-02","costUSD":0,"totalTokens":12}"#.utf8)
+        #expect(try decoder.decode(SyncDailyPoint.self, from: oldJSON).modelsUsed == nil)
     }
 }
