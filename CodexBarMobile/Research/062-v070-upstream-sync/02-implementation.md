@@ -21,3 +21,13 @@ Status: `in-progress`
 Mac初次swift build --build-tests通过，326.65秒；随后定向41 tests/6 suites通过（含Grok、partial wire、widget、burndown、Kimi、Claude resets）。在parser version18/缓存predecessor、窄窗口period细化后，已启动完整测试，尚未获得终态，不能用初次41通过声明最终树通过。
 
 Lint遇到上游env scrub fixture与fork重复test discovery的不兼容：fixture只识别无参数test list，改为支持--skip-build。10 harness测试通过。默认Python3.9缺waitid，重跑使用Homebrew3.14。第三次lint已通过此前harness，停在social image content hash：upstream图片已变而README按fork要求保持旧字节；merge后将以单独有意README适配更新token和burndown说明，禁止仅为过gate机械替换README/hash。
+
+## 合并后 README 有意适配
+
+Merge commit13d7101ef的README与mobile-dev字节相同，SHA256 1bc04267c61dca67c2f8a258386a1ea8c84be659bed1b8d9661b61e3d54a5add。合并完成后单独审计v0.68..v0.70 README只有social image token和新增quota burndown说明；本次有意移植这两项，fork iOS/App Store/Mac下载入口和身份内容保留，更新guard hash与这项文档变化一起审查。未移植上游整份README。
+
+本地独立README review通过：核对merge commit README与mobile-dev SHA256一致，后续diff与上游两项事实完全一致，fork身份/App Store/Mac Releases入口保留，guard新hash 56b7ebcf36aed3ee70c7429f1e38ae3e92356889ab47c87e828bb4120c04f730。只读review不代表remote CR。
+
+## 后续发布路径
+
+Scripts/release.sh已支持DRAFT_NO_TAG_PUSH=1：GitHub draft先用mobile-dev作为placeholder target，在notes明确local source commit；不会创建/推送tag，publish前需授权并retarget reviewed source。该路径符合本Goal禁止push/tag publish边界。签名脚本需要Developer ID、ASC与Sparkle凭证；尚未读取或使用这些凭证。实际签名公证前按Goal询问凭证使用授权。现有draft清理步骤有删除行为，执行前必须先列出现有同tag draft，存在时不能自动删除。
