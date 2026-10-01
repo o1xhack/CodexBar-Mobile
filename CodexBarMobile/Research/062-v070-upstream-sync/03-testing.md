@@ -78,3 +78,13 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 独立review核查冻结文件集合、SHA256与断言，无阻塞；随后按manifest paths编译以排除scratch遗留源码，新增windowID/rawResetsAt断言，输出改称JSON roundtrip，frozen-wire-r5再测exit0。
 
 只读硬件inventory：devicectl列出一台connected实体iPhone Air，另一台实体iPhone17ProMax为unavailable。当前尚未确认第二台Mac远程可操作性，且没有安装/覆盖实体app或访问真实CloudKit。后续矩阵需先确认硬件与旧/新binary可重现范围，不把Simulator或wire fixture当作实体收敛证据。
+
+## Mac r3 完整回归终态与安全修正
+
+`mac-full-r3.log`终态exit1：1520 selections /137 groups，100组首轮成功、1组失败，整组重试仍失败，无timeout；discovery16.4秒、execution982.6秒、total998.9秒。此前失败的第53组已通过（64 tests /12 suites，4.776秒），确认缓存驻留修正有效；本次唯一未预期finding是`ProcessEnvironmentStorageTests`在Alibaba新增`SubscriptionSummaryContext`与`RateLimitContext`发现两个未脱敏存储的environment字典（其它14 issues为已知issue）。未运行剩余36组，不能标记全量通过。
+
+两个context的environment改为`@ProcessEnvironment private(set) var`，与既有PersonalAPIContext一致，保留执行值并对自动Mirror/description脱敏；没有增加transient exception或放宽security测试。单文件SwiftFormat/SwiftLint零违规；`mac-env-storage-r1.log`定向安全与Alibaba构建测试、`lint-r8.log`最新全树lint执行中。成功后需对最新tree重新完整回归。
+
+`mac-env-storage-r1.log`终态exit0，102 tests /20 suites，2.783秒（14 known issues，非新增失败）；`lint-r8.log`终态exit0，2749 Swift files零违规，安全/CI/发布脚本与本地化/parser guards通过。独立review确认两context wrapper保持memberwise init/执行字典/Sendable行为，Sources/WidgetExtension按security scanner同规则无其余未包装存储。
+
+修正后新一轮完整`mac-full-r4.log`仍采用repo默认12 selections/group与180s timeout；等待终态，不把定向通过替代全量。

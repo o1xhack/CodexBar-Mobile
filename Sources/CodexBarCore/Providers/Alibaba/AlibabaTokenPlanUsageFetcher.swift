@@ -49,7 +49,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let cookieHeader: String
         let secToken: String?
         let region: AlibabaTokenPlanAPIRegion
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
     }
 
@@ -66,7 +66,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let cookieHeader: String
         let secToken: String
         let region: AlibabaTokenPlanAPIRegion
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
     }
 
