@@ -87,8 +87,8 @@ enum WidgetProviderSelection {
                 todayCostUSD: nil,
                 thirtyDayCostUSD: nil,
                 tokensToday: nil,
-                isError: false,
-                statusMessage: nil,
+                isError: true,
+                statusMessage: String(localized: "Unavailable"),
                 lastUpdated: now)
         }
     }

@@ -84,6 +84,44 @@ struct CostShareServiceTests {
         #expect(insights.historyCostIsLowerBound)
         #expect(insights.displayHistoryCostUSD == 2)
         #expect(insights.topProvider?.availableHistoryCostUSD == 2)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [row.provider], syncTimestamp: insights.referenceDate, deviceName: "Fixture Mac")
+        let report = CostDiagnosticsReport.make(
+            insights: insights, snapshot: snapshot, rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot], cwlEnabled: true, cwlWindowDays: 30, ledgerAvailable: true)
+        #expect(insights.knownHistoryDailyCostUSD == 2)
+        #expect(report.checks.first { $0.kind == .dailySpend }?.detail == .matchesOverviewTotal)
+    }
+
+    @Test
+    func `Lower bound diagnostics exclude unknown future and expired daily amounts`() {
+        let points = [
+            self.day(daysAgo: 0, cost: 2, tokens: 200, costIsKnown: true),
+            self.day(daysAgo: 1, cost: 99, tokens: 900, costIsKnown: false),
+            self.day(daysAgo: 200, cost: 50, tokens: 500, costIsKnown: true),
+            self.day(daysAgo: -1, cost: 70, tokens: 700, costIsKnown: true),
+            self.day(daysAgo: 2, cost: .infinity, tokens: 0, costIsKnown: true),
+            self.day(daysAgo: 3, cost: -1, tokens: 0, costIsKnown: true),
+        ]
+        let rows = [
+            CostDashboardInsights.ProviderRow(
+                provider: self.provider(id: "codex", name: "Codex", thirtyDayCost: 900, historyDays: 50),
+                thirtyDayCost: 900, todayCost: 2, thirtyDayTokens: 0, todayTokens: 200, dailyPoints: points),
+            CostDashboardInsights.ProviderRow(
+                provider: self.provider(id: "claude", name: "Claude", thirtyDayCost: 800, historyDays: 200),
+                thirtyDayCost: 800, todayCost: 0, thirtyDayTokens: 0, todayTokens: 0, dailyPoints: []),
+        ]
+        let insights = CostDashboardInsights(
+            providerRows: rows, dailyPoints: points, modelRows: [], serviceRows: [], budgetRows: [])
+        let snapshot = SyncedUsageSnapshot(
+            providers: rows.map(\.provider), syncTimestamp: insights.referenceDate, deviceName: "Fixture Macs")
+        let report = CostDiagnosticsReport.make(
+            insights: insights, snapshot: snapshot, rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot], cwlEnabled: false, cwlWindowDays: 365, ledgerAvailable: false)
+        #expect(!insights.hasComparableHistoryTotals)
+        #expect(insights.displayHistoryCostUSD == 2)
+        #expect(insights.knownHistoryDailyCostUSD == 2)
+        #expect(report.checks.first { $0.kind == .dailySpend }?.detail == .matchesOverviewTotal)
     }
 
     @Test

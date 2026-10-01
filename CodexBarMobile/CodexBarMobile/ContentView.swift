@@ -1780,7 +1780,9 @@ struct CostDashboardInsights: Sendable {
 
     var historyCostIsAvailable: Bool {
         if self.hasComparableHistoryTotals {
-            return self.providerRows.contains(where: \.hasAvailableHistoryCost)
+            return self.providerRows.contains {
+                ($0.thirtyDayCostIsKnown && $0.hasAvailableHistoryCost) || self.historyCostUSD(for: $0) > 0
+            }
         }
         return self.canDisplayDailyHistory && self.providerRows.contains {
             self.historyCostUSD(for: $0) > 0
@@ -1802,15 +1804,35 @@ struct CostDashboardInsights: Sendable {
     }
 
     func historyCostUSD(for row: ProviderRow) -> Double {
-        if self.hasComparableHistoryTotals { return row.availableHistoryCostUSD }
-        guard self.canDisplayDailyHistory, let summary = row.provider.costSummary else { return 0 }
+        if self.hasComparableHistoryTotals, row.thirtyDayCostIsKnown { return row.availableHistoryCostUSD }
+        guard self.hasComparableHistoryTotals || self.canDisplayDailyHistory else { return 0 }
+        return self.knownHistoryDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+    }
+
+    var knownHistoryDailyCostUSD: Double {
+        guard self.hasComparableHistoryTotals || self.canDisplayDailyHistory else { return 0 }
+        return self.providerRows.reduce(0) { total, row in
+            total + self.knownHistoryDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+        }
+    }
+
+    private func knownHistoryDailyPoints(for row: ProviderRow) -> [DailyPoint] {
         let days = max(1, min(self.historyDays ?? 30, 365))
+        let formatter = Self.dayKeyFormatter(calendar: self.readerCalendar)
+        let today = self.readerCalendar.startOfDay(for: self.referenceDate)
         return row.dailyPoints.filter {
-            guard $0.costIsKnown != false, $0.costUSD.isFinite, $0.costUSD >= 0,
-                  let offset = summary.costDayOffset(for: $0.dayKey, from: self.referenceDate)
-            else { return false }
+            guard $0.costIsKnown != false, $0.costUSD.isFinite, $0.costUSD >= 0 else { return false }
+            let offset: Int? = if !row.dailyPointsUseReaderCalendar, let summary = row.provider.costSummary {
+                summary.costDayOffset(for: $0.dayKey, from: self.referenceDate)
+            } else if let date = formatter.date(from: $0.dayKey) {
+                self.readerCalendar.dateComponents(
+                    [.day], from: today, to: self.readerCalendar.startOfDay(for: date)).day
+            } else {
+                nil
+            }
+            guard let offset else { return false }
             return offset >= -(days - 1) && offset <= 0
-        }.reduce(0) { $0 + $1.costUSD }
+        }
     }
 
     var historyCostIsLowerBound: Bool {

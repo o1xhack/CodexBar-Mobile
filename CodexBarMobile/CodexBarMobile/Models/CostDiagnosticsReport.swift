@@ -128,7 +128,7 @@ struct CostDiagnosticsReport: Equatable {
 
         let totalCost = insights.displayHistoryCostUSD
         let providerShareTotal = insights.spendProviderRows.reduce(0) { $0 + insights.historyCostUSD(for: $1) }
-        let dailyTotal = insights.dailyPoints.reduce(0) { $0 + $1.costUSD }
+        let dailyTotal = insights.knownHistoryDailyCostUSD
         let modelTotal = insights.modelRows.reduce(0) { $0 + $1.amountUSD }
         let serviceTotal = insights.serviceRows.reduce(0) { $0 + $1.amountUSD }
         let weeklyShareCard = ShareCardData(insights: insights, period: .week)

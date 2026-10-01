@@ -56,6 +56,8 @@ final class WidgetProviderSelectionTests: XCTestCase {
         XCTAssertEqual(result.first?.providerID, "missing")
         XCTAssertNil(result.first?.usagePercent)
         XCTAssertNil(result.first?.resetsAt)
+        XCTAssertEqual(result.first?.isError, true)
+        XCTAssertEqual(result.first?.statusMessage, String(localized: "Unavailable"))
     }
 
     func testResetCountdownIsFractionalAndNeverNegative() {
@@ -72,6 +74,26 @@ final class WidgetProviderSelectionTests: XCTestCase {
         XCTAssertEqual(
             WidgetProviderResetText.days(self.now.addingTimeInterval(-1), now: self.now),
             String(localized: "Now"))
+    }
+
+    func testCatalogueExcludesProviderLevelManagementCostsLikeRenderedSnapshot() {
+        let management = ProviderUsageSnapshot(
+            providerID: "openrouter", providerName: "OpenRouter",
+            primary: nil, secondary: nil, accountEmail: nil, loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: self.now,
+            accountRecordKey: ProviderUsageSnapshot.openRouterManagementCostRecordKey)
+        let usage = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex",
+            primary: nil, secondary: nil, accountEmail: nil, loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: self.now)
+        XCTAssertTrue(WidgetActivityPublisher.catalogueEntities(from: [management]).isEmpty)
+        let providers = [management, usage]
+        let snapshot = SyncedUsageSnapshot(
+            providers: providers, syncTimestamp: self.now, deviceName: "Fixture Mac", deviceID: "fixture")
+        let catalogue = WidgetActivityPublisher.catalogueEntities(from: providers)
+        let rendered = CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], now: self.now)
+        XCTAssertEqual(catalogue.map(\.id), ["codex"])
+        XCTAssertEqual(catalogue.map(\.id), rendered.topProviders.map(\.providerID))
     }
 
     func testUsageAndResetComeFromTheSameKnownWindow() {
@@ -109,12 +131,11 @@ final class WidgetProviderSelectionTests: XCTestCase {
             CodexBarWidgetProviderSummary.self,
             from: JSONSerialization.data(withJSONObject: object))
         XCTAssertNil(legacy.resetsAt)
-        let directory = URL(
-            fileURLWithPath: "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/WidgetOverview224-fixtures",
-            isDirectory: true)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("widget-catalogue-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("catalogue-\(UUID().uuidString).json")
-        defer { try? FileManager.default.removeItem(at: url) }
         try WidgetProviderCatalogue.write(
             [.init(id: "codex", name: "Codex"), .init(id: "codex", name: "Codex")],
             to: url)
