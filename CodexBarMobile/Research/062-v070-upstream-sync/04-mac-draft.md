@@ -27,3 +27,7 @@ PATH使用Homebrew Python3.14；TMPDIR与CODEXBAR_RELEASE_STAGE_BASE均位于`/V
 ## 仍待证明
 
 完整Mac回归终态；universal Release构建；签名/公证/Production entitlements与Gatekeeper验收；ZIP/dSYM对应及SHA256；tagless GitHub draft URL、asset digest/size回读；candidate appcast签名/URL/length验证（不发布现有feed）。
+
+## 发布配置预检
+
+2026-10-01 universal Release compiler预检通过，source `c0343b3a2`；三个实际product均arm64+x86_64/minOS14.0且dSYM UUID匹配（详情见03-testing与BuildScratch/mac-release-preflight-artifacts.json）。尚未生成可安装签名bundle或draft，不把预检当作发布完成；正式脚本仍需完整Mac回归通过与Goal规定的凭据使用确认。

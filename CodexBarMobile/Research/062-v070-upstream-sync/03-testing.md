@@ -88,3 +88,9 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 `mac-env-storage-r1.log`终态exit0，102 tests /20 suites，2.783秒（14 known issues，非新增失败）；`lint-r8.log`终态exit0，2749 Swift files零违规，安全/CI/发布脚本与本地化/parser guards通过。独立review确认两context wrapper保持memberwise init/执行字典/Sendable行为，Sources/WidgetExtension按security scanner同规则无其余未包装存储。
 
 修正后新一轮完整`mac-full-r4.log`仍采用repo默认12 selections/group与180s timeout；等待终态，不把定向通过替代全量。
+
+## Universal Release 无凭据构建
+
+`mac-release-preflight-r1.log`终态exit0，692.99秒。命令`swift build -c release --arch arm64 --arch x86_64 --scratch-path /Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070/mac-release-preflight --jobs 2`，TMPDIR在本轮SSD scratch。独立构建不修改完整测试的.build；compiler module-cache-path均在此scratch的out/Intermediates.noindex/SwiftExplicitPrecompiledModules。
+
+`mac-release-preflight-artifacts.json`记录source commit `c0343b3a2`对应完整SHA、3个product SHA256/UUID。CodexBar、CodexBarCLI、CodexBarWidget的lipo实际均为arm64+x86_64，otool两slice的LC_BUILD_VERSION实际minos均14.0，dSYM UUID与binary逐项匹配。构建日志的Xcode SDK x86_64 deprecation warning没有改变实际最低系统版本。此证据仅证明Release compiler与universal/dSYM，不是Developer ID签名、打包、公证或GitHub draft证据；未读取/使用发布凭证，也未运行binary触发真实provider或Keychain。完整mac-full-r4仍在执行。
