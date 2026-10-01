@@ -96,6 +96,28 @@ final class WidgetProviderSelectionTests: XCTestCase {
         XCTAssertEqual(catalogue.map(\.id), rendered.topProviders.map(\.providerID))
     }
 
+    func testCatalogueClearsAuthoritativeEmptySyncAndPreservesTransientFailures() throws {
+        for status in [SyncStatus.noData, .synced(ago: 0)] {
+            XCTAssertEqual(WidgetActivityPublisher.catalogueUpdate(snapshot: nil, syncStatus: status), [])
+        }
+        for status in [SyncStatus.syncing, .error(message: "Fixture failure"), .incompatibleData] {
+            XCTAssertNil(WidgetActivityPublisher.catalogueUpdate(snapshot: nil, syncStatus: status))
+        }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("widget-catalogue-clear-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("catalogue.json")
+        try WidgetProviderCatalogue.write([.init(id: "codex", name: "Codex")], to: url)
+        if let update = WidgetActivityPublisher.catalogueUpdate(snapshot: nil, syncStatus: .syncing) {
+            try WidgetProviderCatalogue.write(update, to: url)
+        }
+        XCTAssertEqual(try WidgetProviderCatalogue.read(from: url).map(\.id), ["codex"])
+        let cleared = try XCTUnwrap(WidgetActivityPublisher.catalogueUpdate(snapshot: nil, syncStatus: .noData))
+        try WidgetProviderCatalogue.write(cleared, to: url)
+        XCTAssertTrue(try WidgetProviderCatalogue.read(from: url).isEmpty)
+    }
+
     func testUsageAndResetComeFromTheSameKnownWindow() {
         let firstReset = self.now.addingTimeInterval(86400)
         let secondReset = self.now.addingTimeInterval(3.7 * 86400)

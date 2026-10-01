@@ -14,10 +14,11 @@ enum WidgetActivityPublisher {
         referenceDate: Date)
     async {
         let projection: WidgetActivityProjection
+        if let catalogue = Self.catalogueUpdate(snapshot: snapshot, syncStatus: syncStatus) {
+            try? WidgetProviderCatalogue.write(catalogue)
+        }
         if let snapshot {
             let providers = MockProviderDetector.filteredProviders(from: snapshot)
-            // Configuration suggestions use only the app's already resolved local data.
-            try? WidgetProviderCatalogue.write(Self.catalogueEntities(from: providers))
             // Make the current synced days available before the longer ledger
             // read. SwiftUI can cancel this task during a sync publication;
             // without this first write a newly installed widget has no file.
@@ -90,6 +91,21 @@ enum WidgetActivityPublisher {
     static func catalogueEntities(from providers: [ProviderUsageSnapshot]) -> [WidgetProviderEntity] {
         providers.filter { !$0.isProviderLevelCostEnvelope }.map {
             WidgetProviderEntity(id: $0.providerID, name: $0.providerName)
+        }
+    }
+
+    /// Empty authoritative results remove suggestions; transient failures keep
+    /// the last successful catalogue available while data is being recovered.
+    static func catalogueUpdate(
+        snapshot: SyncedUsageSnapshot?,
+        syncStatus: SyncStatus) -> [WidgetProviderEntity]?
+    {
+        if let snapshot {
+            return self.catalogueEntities(from: MockProviderDetector.filteredProviders(from: snapshot))
+        }
+        switch syncStatus {
+        case .noData, .synced: return []
+        case .syncing, .error, .incompatibleData: return nil
         }
     }
 

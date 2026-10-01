@@ -46,6 +46,21 @@ struct CodexBarWidgetConfigurationIntent: AppIntent, WidgetConfigurationIntent {
         size: IntentCollectionSize(min: 0, max: 4))
     var providers: [WidgetProviderEntity]?
 
+    static var parameterSummary: some ParameterSummary {
+        When(\.$mode, .equalTo, CodexBarWidgetMode.overview) {
+            Summary {
+                \.$mode
+                \.$colorStyle
+                \.$providers
+            }
+        } otherwise: {
+            Summary {
+                \.$mode
+                \.$colorStyle
+            }
+        }
+    }
+
     init() {}
 
     init(
