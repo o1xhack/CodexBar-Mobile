@@ -61,4 +61,4 @@ This directory contains research documents for features being considered for Cod
 | 055 | iOS 2.0 App Store 版本与 Token Activity 活动 | `draft` | 2.0.0 (211) 已完成四语元数据并送审（`WAITING_FOR_REVIEW` / `MANUAL`）；活动视觉参考与 deep link gate 独立待办 | [055-ios-2-app-store-event/00-plan.md](055-ios-2-app-store-event/00-plan.md) | 2026-09-14 |
 
 | 060 | Provider Overview 多选、自适应布局与刷新倒计时 | `done` | 871单测、UI10通过/6条件跳过、64渲染及iPad原生验证完成；224指定真机镜像默认四项/选择两项桌面验收通过；未上传/发布 | [060-widget-provider-overview.md](060-widget-provider-overview.md) | 2026-09-30 |
-| 061 | iOS 2.3 旧 Mac 历史费用小计兼容修复 | `in-progress` | Air旧双Mac实测恢复，完整单测/16-mask替代验证通过；225本地，未上传 | [061-ios-legacy-history-cost/00-research.md](061-ios-legacy-history-cost/00-research.md) | 2026-09-30 |
+| 061 | iOS 2.3 旧 Mac 历史费用小计兼容修复 | `done` | Air旧双Mac实测恢复，完整单测/16-mask替代验证通过；225内测可用，草稿已绑定，未提交审核 | [061-ios-legacy-history-cost/00-research.md](061-ios-legacy-history-cost/00-research.md) | 2026-09-30 |

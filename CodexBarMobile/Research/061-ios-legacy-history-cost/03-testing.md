@@ -1,6 +1,6 @@
 # 测试与兼容证据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-30
 Branch: `fix/ios-230-legacy-mac-compatibility`
 Version: iOS 2.3.0 (225)
@@ -70,4 +70,4 @@ Air真实old/old→new的CWL关闭、临时365、重启及fresh sync补充验证
 
 主代理自查、独立agent多轮审查：当前功能diff无阻塞；特别审查原始周期总额与日期小计的区分、金额过滤、排行榜一致性及16-mask预期更新。
 剩余风险：真实全矩阵、旧iOS物理客户端及后台推送仍为替代验证；不能宣称这次覆盖全部真实fleet。
-225仅本地构建/安装，TestFlight仍是224；没有上传225、提交审核、push、merge或tag。
+225已完成Release Archive/export/upload，Apple VALID、内测IN_BETA_TESTING、原内测组包含225；App Store草稿绑定225且保持PREPARE_FOR_SUBMISSION。四语言What’s New/测试说明回读通过；见04-testflight.md。没有提交审核、push、merge或tag。

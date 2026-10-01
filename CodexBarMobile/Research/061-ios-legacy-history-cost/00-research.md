@@ -1,6 +1,6 @@
 # 旧 Mac 历史费用在 iOS 2.3.0 被隐藏
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-09-30
 Branch: `fix/ios-230-legacy-mac-compatibility`
 
@@ -42,5 +42,5 @@ Air 的实际设置还暴露 CWL 关闭路径：两台 Mac 同账户的 50/200 �
 成本测试与界面验证。实机替代与真实 Production 证据分别记录；不声称
 上一轮 16 个替代组合已证明所有真实旧 Mac 场景通过。
 
-修复构建 2.3.0 (225) 已本地安装 Air；未上传新构建或提交审核。用户个人
+修复构建 2.3.0 (225) 已本地安装 Air，已上传并进入内测 TestFlight；App Store 草稿绑定225，未提交审核。用户个人
 workflow skill 修改不在本次 diff。详见 03-testing.md。
