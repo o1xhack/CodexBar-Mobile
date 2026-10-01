@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.3.0 (225)] — Upstream v0.67–v0.68 companion update
+## [2.3.0 (226)] — Upstream v0.67–v0.68 companion update
 
 ### Added
 - Overview widgets support up to four selected providers, family-specific automatic defaults, adaptive layouts, and localized fractional-day quota reset countdowns.
@@ -11,7 +11,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Show upstream provider details and cost data from LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse through the existing generic provider fields.
 
 ### Changed
-- Pair iOS 2.3.0 (225) with Mac 0.68.0.1 / 159.1 as one release train covering official upstream v0.67.0–v0.68.0.
+- Pair iOS 2.3.0 (226) with Mac 0.68.0.1 / 159.1 as one release train covering official upstream v0.67.0–v0.68.0.
 
 ### Fixed
 - Preserve priced historical ledger subtotals from older Macs when the iPhone selects a wider history window; show lower bounds and restore provider ranking without treating missing days as zero. Cost diagnostics use the same visible subtotal.
