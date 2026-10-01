@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.70.0.1 — Unreleased
+## 0.70.0.1 — 2026-10-01
+
+### Highlights
+
+- Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.
+- Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.
+- Grok keeps local token history available during billing outages and includes observed model names. Partial cost scans remain clearly incomplete instead of appearing fully accounted for.
+- Mistral offers Monthly Plan in the menu bar and uses event, API zone, and service tier when calculating costs; updated model aliases and published pricing improve other cost estimates.
+- Refreshed provider colors and bundled Notion, ZoomMate, and LongCat integrations preserve their provider-specific quota, credit, and usage details.
+- Widget snapshots retain each provider's last good result, Codex handles plan upgrades and catch-up more reliably, and process cleanup stays responsive on busy machines.
+- Diagnostics redact stored process environments throughout the app, CLI, provider contexts, and session scanners.
 
 ### Changed
 

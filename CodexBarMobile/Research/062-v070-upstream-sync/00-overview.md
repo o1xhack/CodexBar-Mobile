@@ -27,4 +27,4 @@ v0.70.0：Codex/Claude quota burndown、16 个品牌 accents；Mistral event/zon
 
 Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 准备。禁止 origin push、merge、tag publish、live release、TestFlight upload。实际凭证使用与 schema deploy 按 Goal 暂停确认。GitHub draft 不能让 CLI 隐式创建远程 tag；先核对可用无 tag-publish 路径再创建。仅本地打包不等同 GitHub draft 完成。
 
-当前尚未完成合并、bridge 审计、iOS 实现、测试、签名公证/draft 与最终 review；不得将文档或编译单项视为 Goal 完成。
+Mac上游合并、bridge审计/实现和本地独立review已完成对应checkpoint；全树lint与最新12项定向测试通过，完整Mac回归仍运行。iOS实现、最终测试矩阵、签名公证/draft与最终review尚未完成；不得将文档或编译单项视为Goal完成。
