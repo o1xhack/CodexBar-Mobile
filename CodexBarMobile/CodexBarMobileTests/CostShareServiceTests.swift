@@ -8,6 +8,220 @@ import Testing
 struct CostShareServiceTests {
     private static let tolerance = 0.001
 
+    @Test
+    func `Old Mac sparse history remains a visible lower bound in a 365 day ledger`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-09-30T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        // Decode the pre-period-summary wire shape rather than constructing a
+        // modern summary that accidentally supplies completeness metadata.
+        let json = #"{"sessionCostUSD":2,"last30DaysCostUSD":7,"daily":[{"dayKey":"2026-09-30","costUSD":2,"totalTokens":100},{"dayKey":"2026-09-29","costUSD":5,"totalTokens":200}],"historyDays":50}"#
+        let summary = try JSONDecoder().decode(SyncCostSummary.self, from: Data(json.utf8))
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex",
+            primary: nil, secondary: nil, accountEmail: nil, loginMethod: nil,
+            statusMessage: nil, isError: false, lastUpdated: now, costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: now, deviceName: "Fixture Mac",
+            deviceID: "fixture-old-mac", appVersion: "0.58.0.1")
+        let rollup = CostLedgerProviderRollup(
+            providerID: "codex", accountEmail: nil,
+            totalCostUSD: 7, totalTokens: 300, dailyPoints: summary.daily,
+            modelBreakdowns: [], serviceBreakdowns: [])
+        let aggregation = CostLedgerAggregation(
+            windowDays: 365, totalCostUSD: 7, totalTokens: 300, activeDayCount: 2,
+            providerRollups: ["codex|": rollup], dailyPoints: summary.daily,
+            modelMix: [], serviceMix: [])
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation, snapshot: snapshot, now: now, calendar: calendar)
+
+        #expect(!insights.total30DayCostIsKnown)
+        #expect(insights.historyCostIsAvailable)
+        #expect(insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 7)
+        #expect(insights.hasIncompleteCostData)
+        #expect(insights.spendProviderRows.count == 1)
+        #expect(insights.topProvider?.provider.providerID == "codex")
+        let report = CostDiagnosticsReport.make(
+            insights: insights, snapshot: snapshot, rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot], cwlEnabled: true,
+            cwlWindowDays: 365, ledgerAvailable: true)
+        #expect(report.totalCostDisplayValue.hasPrefix("≥"))
+        #expect(report.totalCostUSD == 7)
+        #expect(report.checks.allSatisfy { $0.detail != .noCostTotal })
+    }
+
+    @Test
+    func `Unknown historical costs cannot become a displayed subtotal`() {
+        let point = self.day(daysAgo: 0, cost: 4, tokens: 400, costIsKnown: false)
+        let row = CostDashboardInsights.ProviderRow(
+            provider: self.provider(id: "codex", name: "Codex"),
+            thirtyDayCost: 4, todayCost: 0, thirtyDayCostIsKnown: false,
+            todayCostIsKnown: false, thirtyDayTokens: 400, todayTokens: 0,
+            dailyPoints: [point])
+        let insights = CostDashboardInsights(
+            providerRows: [row], dailyPoints: [point], modelRows: [],
+            serviceRows: [], budgetRows: [])
+        #expect(!insights.historyCostIsAvailable)
+        #expect(!insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 0)
+        #expect(insights.topProvider == nil)
+    }
+
+    @Test
+    func `A priced day does not authorize an unavailable day's amount`() {
+        let known = self.day(daysAgo: 1, cost: 2, tokens: 200, costIsKnown: true)
+        let unknown = self.day(daysAgo: 0, cost: 99, tokens: 400, costIsKnown: false)
+        let row = CostDashboardInsights.ProviderRow(
+            provider: self.provider(id: "codex", name: "Codex"),
+            thirtyDayCost: 101, todayCost: 0, thirtyDayCostIsKnown: false,
+            todayCostIsKnown: false, thirtyDayTokens: 600, todayTokens: 0,
+            dailyPoints: [known, unknown])
+        let insights = CostDashboardInsights(
+            providerRows: [row], dailyPoints: [known, unknown], modelRows: [],
+            serviceRows: [], budgetRows: [])
+        #expect(insights.historyCostIsAvailable)
+        #expect(insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 2)
+        #expect(insights.topProvider?.availableHistoryCostUSD == 2)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [row.provider], syncTimestamp: insights.referenceDate, deviceName: "Fixture Mac")
+        let report = CostDiagnosticsReport.make(
+            insights: insights, snapshot: snapshot, rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot], cwlEnabled: true, cwlWindowDays: 30, ledgerAvailable: true)
+        #expect(insights.knownHistoryDailyCostUSD == 2)
+        #expect(report.checks.first { $0.kind == .dailySpend }?.detail == .matchesOverviewTotal)
+    }
+
+    @Test
+    func `Lower bound diagnostics exclude unknown future and expired daily amounts`() {
+        let points = [
+            self.day(daysAgo: 0, cost: 2, tokens: 200, costIsKnown: true),
+            self.day(daysAgo: 1, cost: 99, tokens: 900, costIsKnown: false),
+            self.day(daysAgo: 200, cost: 50, tokens: 500, costIsKnown: true),
+            self.day(daysAgo: -1, cost: 70, tokens: 700, costIsKnown: true),
+            self.day(daysAgo: 2, cost: .infinity, tokens: 0, costIsKnown: true),
+            self.day(daysAgo: 3, cost: -1, tokens: 0, costIsKnown: true),
+        ]
+        let rows = [
+            CostDashboardInsights.ProviderRow(
+                provider: self.provider(id: "codex", name: "Codex", thirtyDayCost: 900, historyDays: 50),
+                thirtyDayCost: 900, todayCost: 2, thirtyDayTokens: 0, todayTokens: 200, dailyPoints: points),
+            CostDashboardInsights.ProviderRow(
+                provider: self.provider(id: "claude", name: "Claude", thirtyDayCost: 800, historyDays: 200),
+                thirtyDayCost: 800, todayCost: 0, thirtyDayTokens: 0, todayTokens: 0, dailyPoints: []),
+        ]
+        let insights = CostDashboardInsights(
+            providerRows: rows, dailyPoints: points, modelRows: [], serviceRows: [], budgetRows: [])
+        let snapshot = SyncedUsageSnapshot(
+            providers: rows.map(\.provider), syncTimestamp: insights.referenceDate, deviceName: "Fixture Macs")
+        let report = CostDiagnosticsReport.make(
+            insights: insights, snapshot: snapshot, rawDeviceSnapshots: [snapshot],
+            activeDeviceSnapshots: [snapshot], cwlEnabled: false, cwlWindowDays: 365, ledgerAvailable: false)
+        #expect(!insights.hasComparableHistoryTotals)
+        #expect(insights.displayHistoryCostUSD == 2)
+        #expect(insights.knownHistoryDailyCostUSD == 2)
+        #expect(report.checks.first { $0.kind == .dailySpend }?.detail == .matchesOverviewTotal)
+    }
+
+    @Test
+    func `Different legacy Mac scan windows keep dated spend visible without summing scan totals`() throws {
+        let first = self.provider(
+            id: "codex", name: "Codex", thirtyDayCost: 900,
+            historyDays: 50, daily: [self.summaryDay(daysAgo: 0, cost: 2, tokens: 200, models: [])])
+        let second = self.provider(
+            id: "claude", name: "Claude", thirtyDayCost: 800,
+            historyDays: 200, daily: [self.summaryDay(daysAgo: 1, cost: 5, tokens: 500, models: [])])
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [first, second], syncTimestamp: Date(), deviceName: "Fixture Macs"))
+        #expect(!insights.hasComparableHistoryTotals)
+        #expect(!insights.total30DayCostIsKnown)
+        #expect(insights.historyCostIsAvailable)
+        #expect(insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 7)
+        #expect(insights.spendProviderRows.count == 2)
+        #expect(insights.topProvider?.provider.providerID == "claude")
+        let topProvider = try #require(insights.topProvider)
+        #expect(insights.historyCostUSD(for: topProvider) == 5)
+    }
+
+    @Test
+    func `Incomparable legacy scan totals do not revoke individually known daily costs`() {
+        let first = self.provider(
+            id: "codex", name: "Codex", thirtyDayCost: 900, historyDays: 50,
+            daily: [self.summaryDay(daysAgo: 0, cost: 2, tokens: 200, models: [])],
+            historyWindowIsComparable: false)
+        let second = self.provider(
+            id: "claude", name: "Claude", thirtyDayCost: 800, historyDays: 200,
+            daily: [self.summaryDay(daysAgo: 0, cost: 5, tokens: 500, models: [])])
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [first, second], syncTimestamp: Date(), deviceName: "Fixture Macs"))
+        #expect(!insights.total30DayCostIsKnown)
+        #expect(insights.historyCostIsAvailable)
+        #expect(insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 7)
+        #expect(insights.spendProviderRows.count == 2)
+    }
+
+    @Test
+    func `Two old Mac writers with unequal scan lengths retain their merged daily subtotal`() throws {
+        let first = self.provider(
+            id: "codex", name: "Codex", thirtyDayCost: 900, historyDays: 50,
+            daily: [self.summaryDay(daysAgo: 0, cost: 2, tokens: 200, models: [])])
+        let second = self.provider(
+            id: "codex", name: "Codex", thirtyDayCost: 800, historyDays: 200,
+            daily: [self.summaryDay(daysAgo: 0, cost: 5, tokens: 500, models: [])])
+        let snapshots = [first, second].enumerated().map { index, provider in
+            SyncedUsageSnapshot(
+                providers: [provider], syncTimestamp: Date(), deviceName: "Fixture Mac \(index)",
+                deviceID: "fixture-mac-\(index)", appVersion: "0.58.0.1")
+        }
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(snapshots))
+        #expect(merged.providers.first?.costSummary?.historyWindowIsComparable == false)
+        let insights = CostDashboardInsights(snapshot: merged)
+        #expect(insights.historyCostIsAvailable)
+        #expect(insights.historyCostIsLowerBound)
+        #expect(insights.displayHistoryCostUSD == 7)
+        let topProvider = try #require(insights.topProvider)
+        #expect(insights.historyCostUSD(for: topProvider) == 7)
+    }
+
+    @Test(arguments: [0, 1, 2, 3])
+    func `Every old and new Mac writer pair keeps known dated history visible`(writerMask: Int) throws {
+        let now = Date()
+        let snapshots = try (0..<2).map { index -> SyncedUsageSnapshot in
+            let isNew = writerMask & (1 << index) != 0
+            let cost = index == 0 ? 2.0 : 5.0
+            let point = self.summaryDay(daysAgo: index, cost: cost, tokens: 200, models: [])
+            let summary = SyncCostSummary(
+                sessionCostUSD: nil, sessionTokens: nil,
+                last30DaysCostUSD: cost, last30DaysTokens: 200, daily: [point],
+                historyDays: index == 0 ? 50 : 200,
+                reportingPeriod: isNew ? "rolling:\(index == 0 ? 50 : 200)" : nil,
+                reportingPeriodSummary: isNew ? SyncCostPeriodSummary(
+                    costUSD: cost, tokens: 200, requests: nil, daily: [point],
+                    historyDays: index == 0 ? 50 : 200) : nil)
+            // Exercise the additive wire shape before the merge projection.
+            let decoded = try JSONDecoder().decode(
+                SyncCostSummary.self, from: JSONEncoder().encode(summary))
+            let provider = ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+                accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: now, costSummary: decoded)
+            return SyncedUsageSnapshot(
+                providers: [provider], syncTimestamp: now, deviceName: "Fixture Mac \(index)",
+                deviceID: "fixture-writer-\(index)", appVersion: isNew ? "0.68.0.1" : "0.58.0.1")
+        }
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(snapshots))
+        for _ in 0..<2 {
+            let reader = CostDashboardInsights(snapshot: merged)
+            #expect(reader.historyCostIsAvailable)
+            #expect(reader.historyCostIsLowerBound)
+            #expect(reader.displayHistoryCostUSD == 7)
+            #expect(!reader.total30DayCostIsKnown)
+        }
+    }
+
     private func provider(
         id: String,
         name: String,
@@ -1144,7 +1358,8 @@ struct CostShareServiceTests {
         #expect(insights.providerRows.count == 1)
         #expect(!insights.hasIncompleteCostData)
         #expect(month.dailyBars.count == 30)
-        #expect(month.dailyBars.allSatisfy { $0.costIsKnown })
+        let allDailyCostsAreKnown = month.dailyBars.allSatisfy(\.costIsKnown)
+        #expect(allDailyCostsAreKnown)
         #expect(!month.costCoverageIsIncomplete)
         #expect(month.avgDailyCostIsKnown)
     }
@@ -1289,7 +1504,7 @@ struct CostShareServiceTests {
     func `Month to date subtotal is unknown for a thirty-day share early in the month`() throws {
         let now = try #require(ISO8601DateFormatter().date(from: "2026-09-05T12:00:00Z"))
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -1377,7 +1592,7 @@ struct CostShareServiceTests {
     func mtdShareCoverageUsesProducerCalendar(historyDays: Int?) throws {
         let now = try #require(ISO8601DateFormatter().date(from: "2026-10-31T12:00:00Z"))
         var producerCalendar = Calendar(identifier: .gregorian)
-        producerCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        producerCalendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         var readerCalendar = Calendar(identifier: .islamicUmmAlQura)
         readerCalendar.timeZone = producerCalendar.timeZone
         let formatter = DateFormatter()
@@ -1484,7 +1699,7 @@ struct CostShareServiceTests {
                     sessionCostUSD: dailyCost,
                     sessionTokens: 1000,
                     last30DaysCostUSD: thirtyDayCost,
-                    last30DaysTokens: thirtyDayCost == nil ? nil : 30_000,
+                    last30DaysTokens: thirtyDayCost == nil ? nil : 30000,
                     daily: [SyncDailyPoint(
                         dayKey: dayKey,
                         costUSD: dailyCost,

@@ -15,6 +15,7 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
     let providerID: String
     let loginMethod: String?
     let usagePercent: Double?
+    let resetsAt: Date?
     let todayCostUSD: Double?
     let todayCostIsLowerBound: Bool?
     let thirtyDayCostUSD: Double?
@@ -29,6 +30,7 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
         providerID: String,
         loginMethod: String?,
         usagePercent: Double?,
+        resetsAt: Date? = nil,
         todayCostUSD: Double?,
         todayCostIsLowerBound: Bool? = nil,
         thirtyDayCostUSD: Double?,
@@ -42,6 +44,7 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
         self.providerID = providerID
         self.loginMethod = loginMethod
         self.usagePercent = usagePercent
+        self.resetsAt = resetsAt
         self.todayCostUSD = todayCostUSD
         self.todayCostIsLowerBound = todayCostIsLowerBound
         self.thirtyDayCostUSD = thirtyDayCostUSD
@@ -134,6 +137,7 @@ struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {
                     providerID: "codex",
                     loginMethod: "Team",
                     usagePercent: 78,
+                    resetsAt: now.addingTimeInterval(3.7 * 86400),
                     todayCostUSD: 12.64,
                     thirtyDayCostUSD: 109.33,
                     tokensToday: 366_000,
@@ -146,12 +150,18 @@ struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {
                     providerID: "claude",
                     loginMethod: "Max",
                     usagePercent: 42,
+                    resetsAt: now.addingTimeInterval(0.6 * 86400),
                     todayCostUSD: 6.78,
                     thirtyDayCostUSD: 129.44,
                     tokensToday: 456_000,
                     isError: false,
                     statusMessage: nil,
                     lastUpdated: now.addingTimeInterval(-300)),
+                CodexBarWidgetProviderSummary(
+                    id: "raycast|sample", providerName: "Raycast", providerID: "raycast",
+                    loginMethod: nil, usagePercent: 30, resetsAt: now.addingTimeInterval(3.6 * 86400),
+                    todayCostUSD: nil, thirtyDayCostUSD: nil, tokensToday: nil,
+                    isError: false, statusMessage: nil, lastUpdated: now),
                 CodexBarWidgetProviderSummary(
                     id: "openrouter|sample",
                     providerName: "OpenRouter",
@@ -390,7 +400,7 @@ enum CodexBarWidgetSnapshotBuilder {
             thirtyDayCostUSD: !thirtyDayCostIsIncomplete && thirtyDayCost > 0 ? thirtyDayCost : nil,
             todayTokens: todayTokens > 0 ? todayTokens : nil,
             maxUsagePercent: maxUsage,
-            topProviders: Array(topProviders.prefix(6)),
+            topProviders: topProviders,
             message: nil,
             isStale: latestSyncAt.map { now.timeIntervalSince($0) > Self.staleInterval } ?? false)
     }
@@ -402,12 +412,17 @@ enum CodexBarWidgetSnapshotBuilder {
         let costSummary = ProviderSnapshotMerger.supportsUSDAggregation(provider.costSummary)
             ? provider.costSummary : nil
         let today = costSummary.map { self.todayTotals(from: $0, now: now) }
-        let windows = provider.allRateWindows.map(\.usedPercent)
+        let leadingWindow = provider.allRateWindows
+            .filter { $0.usageKnown && !$0.isSyntheticPlaceholder && $0.usedPercent.isFinite }
+            .max { $0.usedPercent < $1.usedPercent }
+        let windowPercent = leadingWindow?.usedPercent
         let budgetPercent: Double? = provider.budget.flatMap { budget in
-            guard budget.limitAmount > 0 else { return nil }
+            guard budget.limitAmount > 0, budget.limitAmount.isFinite, budget.usedAmount.isFinite else { return nil }
             return min(100, max(0, budget.usedAmount / budget.limitAmount * 100))
         }
-        let usagePercent = (windows + [budgetPercent].compactMap(\.self)).max()
+        let budgetLeads = budgetPercent.map { $0 > (windowPercent ?? -1) } ?? false
+        let usagePercent = budgetLeads ? budgetPercent : windowPercent
+        let resetsAt = budgetLeads ? provider.budget?.resetsAt : leadingWindow?.resetsAt
         let accountKey = provider.accountEmail ?? "_"
         return CodexBarWidgetProviderSummary(
             id: "\(provider.providerID)|\(accountKey)",
@@ -415,6 +430,7 @@ enum CodexBarWidgetSnapshotBuilder {
             providerID: provider.providerID,
             loginMethod: provider.loginMethod,
             usagePercent: usagePercent,
+            resetsAt: resetsAt,
             todayCostUSD: today?.costIsKnown == false ? nil : today?.costUSD,
             todayCostIsLowerBound: today?.isLowerBound == true ? true : nil,
             thirtyDayCostUSD: costSummary?.completeThirtyDayHistoryCostUSD(at: now),

@@ -1114,12 +1114,12 @@ private struct CostDashboardView: View {
                                     // instead of one row drawn twice.
                                     CostBreakdownRow(
                                         label: $0.provider.providerName,
-                                        amountUSD: $0.thirtyDayCost,
+                                        amountUSD: self.insights.historyCostUSD(for: $0),
                                         subtitle: self.providerSubtitle(for: $0),
                                         color: providerTint(for: $0.provider),
                                         identityOverride: $0.id)
                                 },
-                                total: self.insights.spendProviderRows.reduce(0) { $0 + $1.thirtyDayCost })
+                                total: self.insights.displayHistoryCostUSD)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -1189,19 +1189,28 @@ private struct CostDashboardView: View {
                 .padding(.top, 4)
 
             if !self.insights.hasComparableHistoryTotals {
-                Text("Cost windows differ, so history totals are unavailable.")
+                Text(self.insights.historyCostIsAvailable
+                    ? String(localized: "Cost windows differ. Showing known daily costs only.")
+                    : String(localized: "Cost windows differ, so history totals are unavailable."))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else if self.insights.hasIncompleteCostData {
                 Text("Historical cost coverage is incomplete.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                if self.insights.historyCostIsAvailable {
+                    Text("Known costs remain visible as lower bounds. Missing history is not counted as zero.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if self.usageData.snapshot?.providers.contains(where: {
                 !ProviderSnapshotMerger.supportsUSDAggregation($0.costSummary)
             }) == true {
-                Text(String(localized: "Totals here include USD spend only. Other currencies are shown in provider details."))
+                Text(
+                    String(
+                        localized: "Totals here include USD spend only. Other currencies are shown in provider details."))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -1211,12 +1220,13 @@ private struct CostDashboardView: View {
                     // Reflect the Mac's configurable 1–365 day window (gap F).
                     title: "30 Days",
                     localizedTitleOverride: self.insights.historyDisplayTitle,
-                    value: self.insights.total30DayCostIsKnown
-                        ? Self.formatUSD(self.insights.total30DayCost)
+                    value: self.insights.historyCostIsAvailable
+                        ? Self.formatUSD(self.insights.displayHistoryCostUSD)
                         : "—",
                     subtitle: self.insights.hasComparableHistoryTotals && self.insights.total30DayTokens > 0 ? Self
                         .formatTokens(self.insights.total30DayTokens) : nil,
-                    tintColor: .orange)
+                    tintColor: .orange,
+                    isLowerBound: self.insights.historyCostIsLowerBound)
 
                 CostMetricCard(
                     title: "Today",
@@ -1230,10 +1240,11 @@ private struct CostDashboardView: View {
                 CostMetricCard(
                     title: "Top Driver",
                     value: self.insights.topProvider.map {
-                        Self.formatUSD($0.thirtyDayCost)
+                        Self.formatUSD(self.insights.historyCostUSD(for: $0))
                     } ?? "—",
                     subtitle: self.topDriverSubtitle,
-                    tintColor: providerTint(for: self.insights.topProvider?.provider))
+                    tintColor: providerTint(for: self.insights.topProvider?.provider),
+                    isLowerBound: self.insights.historyCostIsLowerBound && self.insights.topProvider != nil)
 
                 CostMetricCard(
                     title: "Active Days",
@@ -1528,6 +1539,9 @@ private struct CostDashboardView: View {
     }
 
     private var providerShareSubtitle: LocalizedStringResource {
+        if self.insights.historyCostIsLowerBound {
+            return "Shares use known costs only; missing history may change the ranking."
+        }
         guard let days = self.insights.historyDays, days != 30 else {
             return "30-day spend contribution across synced providers."
         }
@@ -1547,7 +1561,10 @@ private struct CostDashboardView: View {
 
     private var topDriverSubtitle: String? {
         guard let topProvider = self.insights.topProvider else { return nil }
-        return "\(topProvider.provider.providerName) · \(Self.formatShare(topProvider.thirtyDayCost, total: self.insights.total30DayCost))"
+        if self.insights.historyCostIsLowerBound {
+            return "\(topProvider.provider.providerName) · \(String(localized: "Known spend"))"
+        }
+        return "\(topProvider.provider.providerName) · \(Self.formatShare(topProvider.availableHistoryCostUSD, total: self.insights.displayHistoryCostUSD))"
     }
 
     private var activeDaySubtitle: String? {
@@ -1707,6 +1724,23 @@ struct CostDashboardInsights: Sendable {
             self.provider.cardIdentityKey
         }
 
+        /// A sparse ledger can carry priced spend without certifying every day
+        /// in a wider reader window. Missing dates must not erase that subtotal.
+        var hasAvailableHistoryCost: Bool {
+            guard self.thirtyDayCost.isFinite, self.thirtyDayCost >= 0 else { return false }
+            return self.thirtyDayCostIsKnown || self.dailyPoints.contains {
+                $0.costIsKnown != false && $0.costUSD.isFinite && $0.costUSD > 0
+            }
+        }
+
+        var availableHistoryCostUSD: Double {
+            guard self.hasAvailableHistoryCost else { return 0 }
+            if self.thirtyDayCostIsKnown { return self.thirtyDayCost }
+            return self.dailyPoints.filter {
+                $0.costIsKnown != false && $0.costUSD.isFinite && $0.costUSD >= 0
+            }.reduce(0) { $0 + $1.costUSD }
+        }
+
         var todayCostDisplayValue: String {
             guard self.todayCostIsKnown else { return "—" }
             let prefix = self.todayCostIsLowerBound ? "≥" : ""
@@ -1744,6 +1778,67 @@ struct CostDashboardInsights: Sendable {
         self.hasComparableHistoryTotals && self.providerRows.contains(where: \.thirtyDayCostIsKnown)
     }
 
+    var historyCostIsAvailable: Bool {
+        if self.hasComparableHistoryTotals {
+            return self.providerRows.contains {
+                ($0.thirtyDayCostIsKnown && $0.hasAvailableHistoryCost) || self.historyCostUSD(for: $0) > 0
+            }
+        }
+        return self.canDisplayDailyHistory && self.providerRows.contains {
+            self.historyCostUSD(for: $0) > 0
+        }
+    }
+
+    var displayHistoryCostUSD: Double {
+        self.providerRows.reduce(0) { $0 + self.historyCostUSD(for: $1) }
+    }
+
+    /// Different reporting windows can still contain independently priced
+    /// dates. Only those dates enter this bounded lower-bound projection;
+    /// incomparable period totals never become comparable through it.
+    private var canDisplayDailyHistory: Bool {
+        !self.providerRows.isEmpty && self.providerRows.allSatisfy {
+            guard let summary = $0.provider.costSummary else { return false }
+            return !summary.hasInvalidBucketTimeZoneIdentifier
+        }
+    }
+
+    func historyCostUSD(for row: ProviderRow) -> Double {
+        if self.hasComparableHistoryTotals, row.thirtyDayCostIsKnown { return row.availableHistoryCostUSD }
+        guard self.hasComparableHistoryTotals || self.canDisplayDailyHistory else { return 0 }
+        return self.knownHistoryDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+    }
+
+    var knownHistoryDailyCostUSD: Double {
+        guard self.hasComparableHistoryTotals || self.canDisplayDailyHistory else { return 0 }
+        return self.providerRows.reduce(0) { total, row in
+            total + self.knownHistoryDailyPoints(for: row).reduce(0) { $0 + $1.costUSD }
+        }
+    }
+
+    private func knownHistoryDailyPoints(for row: ProviderRow) -> [DailyPoint] {
+        let days = max(1, min(self.historyDays ?? 30, 365))
+        let formatter = Self.dayKeyFormatter(calendar: self.readerCalendar)
+        let today = self.readerCalendar.startOfDay(for: self.referenceDate)
+        return row.dailyPoints.filter {
+            guard $0.costIsKnown != false, $0.costUSD.isFinite, $0.costUSD >= 0 else { return false }
+            let offset: Int? = if !row.dailyPointsUseReaderCalendar, let summary = row.provider.costSummary {
+                summary.costDayOffset(for: $0.dayKey, from: self.referenceDate)
+            } else if let date = formatter.date(from: $0.dayKey) {
+                self.readerCalendar.dateComponents(
+                    [.day], from: today, to: self.readerCalendar.startOfDay(for: date)).day
+            } else {
+                nil
+            }
+            guard let offset else { return false }
+            return offset >= -(days - 1) && offset <= 0
+        }
+    }
+
+    var historyCostIsLowerBound: Bool {
+        self.historyCostIsAvailable && self.hasIncompleteCostData
+    }
+
     var totalTodayCostIsKnown: Bool {
         let opinions = self.providerRows.compactMap { row -> Bool? in
             // The ledger and the live summary are independent authorities.
@@ -1778,7 +1873,7 @@ struct CostDashboardInsights: Sendable {
     }
 
     var hasIncompleteCostData: Bool {
-        self.providerRows.contains {
+        (!self.hasComparableHistoryTotals && self.canDisplayDailyHistory) || self.providerRows.contains {
             !$0.thirtyDayCostIsKnown ||
                 $0.provider.costSummary?.todayTotals(now: self.referenceDate).costIsKnown == false ||
                 $0.dailyPoints.contains(where: { $0.costIsKnown == false }) ||
@@ -1796,8 +1891,8 @@ struct CostDashboardInsights: Sendable {
     }
 
     var spendProviderRows: [ProviderRow] {
-        guard self.hasComparableHistoryTotals else { return [] }
-        return self.providerRows.filter { $0.thirtyDayCostIsKnown && $0.thirtyDayCost > 0 }
+        guard self.historyCostIsAvailable else { return [] }
+        return self.providerRows.filter { self.historyCostUSD(for: $0) > 0 }
     }
 
     var costDailyPoints: [DailyPoint] {
@@ -1827,7 +1922,10 @@ struct CostDashboardInsights: Sendable {
     }
 
     var historyDisplayTitle: String {
-        guard self.hasComparableHistoryTotals else { return String(localized: "Mixed cost windows") }
+        guard self.hasComparableHistoryTotals else {
+            return self.historyCostIsAvailable
+                ? String(localized: "Known history") : String(localized: "Mixed cost windows")
+        }
         if let cwlWindowDays = self.cwlWindowDays {
             return SyncCostSummary.localizedRollingPeriodTitle(cwlWindowDays)
         }
@@ -1838,7 +1936,7 @@ struct CostDashboardInsights: Sendable {
     }
 
     var topProvider: ProviderRow? {
-        self.spendProviderRows.max { $0.thirtyDayCost < $1.thirtyDayCost }
+        self.spendProviderRows.max { self.historyCostUSD(for: $0) < self.historyCostUSD(for: $1) }
     }
 
     var highestDay: DailyPoint? {
@@ -2295,8 +2393,8 @@ struct CostDashboardInsights: Sendable {
             guard let offset, offset >= -(windowDays - 1), offset <= 0 else { return nil }
             return (offset, point.costIsKnown != false)
         }
-        guard windowPoints.allSatisfy({ $0.isKnown }) else { return false }
-        let knownOffsets = Set(windowPoints.map { $0.offset })
+        guard windowPoints.allSatisfy(\.isKnown) else { return false }
+        let knownOffsets = Set(windowPoints.map(\.offset))
         if let summary,
            Self.completedSummaryCoversSelectedWindow(
                summary,
@@ -2337,7 +2435,8 @@ struct CostDashboardInsights: Sendable {
         guard let selectedStart = windowCalendar.date(
             byAdding: .day,
             value: -(windowDays - 1),
-            to: windowCalendar.startOfDay(for: now)) else {
+            to: windowCalendar.startOfDay(for: now))
+        else {
             return false
         }
         let selectedStartKey = summary.costDayKey(for: selectedStart)
@@ -2352,7 +2451,8 @@ struct CostDashboardInsights: Sendable {
             guard period.hasPrefix("rolling:"),
                   let days = Int(period.dropFirst("rolling:".count)),
                   (1...365).contains(days),
-                  let sourceOffset else {
+                  let sourceOffset
+            else {
                 return false
             }
             return sourceOffset >= -(days - 1) && sourceOffset <= 0
@@ -2362,7 +2462,8 @@ struct CostDashboardInsights: Sendable {
         // discriminator. Treat them as rolling only when the producer marked
         // the scan complete; otherwise require every date to be present above.
         guard summary.reportingPeriodSummary == nil,
-              let sourceOffset else {
+              let sourceOffset
+        else {
             return false
         }
         let legacyDays = min(max(summary.reportingPeriodHistoryDays ?? 30, 1), 365)
@@ -3798,7 +3899,9 @@ private struct RawProviderDetailView: View {
                 Section("Cost Summary") {
                     LabeledContent("Session", value: self.formatCost(cost.sessionCostUSD))
                     LabeledContent("Session Tokens", value: self.formatTokens(cost.sessionTokens))
-                    LabeledContent(cost.reportingPeriodDisplayTitle, value: self.formatCost(cost.reportingPeriodCostUSD))
+                    LabeledContent(
+                        cost.reportingPeriodDisplayTitle,
+                        value: self.formatCost(cost.reportingPeriodCostUSD))
                     LabeledContent("History Tokens", value: self.formatTokens(cost.reportingPeriodTokens))
                 }
             }
@@ -4102,7 +4205,7 @@ private struct CostDiagnosticsView: View {
                     LabeledContent("Window", value: String(format: String(localized: "%d days"), report.windowDays))
                     LabeledContent(
                         "Total Cost",
-                        value: report.totalCostIsKnown ? CostFormatting.usd(report.totalCostUSD) : "—")
+                        value: report.totalCostDisplayValue)
                     LabeledContent(
                         "Today",
                         value: report.todayCostDisplayValue)
@@ -4322,7 +4425,8 @@ private struct CostDiagnosticsView: View {
         guard let name = report.topDriverName, let cost = report.topDriverCostUSD else {
             return String(localized: "None")
         }
-        return "\(name) · \(CostFormatting.usd(cost))"
+        let prefix = report.totalCostIsLowerBound ? "≥" : ""
+        return "\(name) · \(prefix)\(CostFormatting.usd(cost))"
     }
 
     private func statusSymbol(_ status: CostDiagnosticsStatus) -> String {
@@ -4538,7 +4642,9 @@ private enum MobileReleaseNotesCatalog {
             sections: [
                 .init(title: String(localized: "What's New"), items: [
                     String(
-                        localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details."),
+                        localized: "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown."),
+                    String(
+                        localized: "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details. Keep known history from older Macs visible, with clear indicators for missing data."),
                     String(
                         localized: "See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac."),
                     String(
@@ -5761,6 +5867,7 @@ private struct WidgetSettingsView: View {
 
     @State private var selectedFamily = CodexBarWidgetPreviewFamily.medium
     @State private var selectedColorStyle = CodexBarWidgetColorStyle.mono
+    @State private var selectedProviderIDs: [String] = []
 
     private let modes: [CodexBarWidgetMode] = [
         .overview,
@@ -5792,7 +5899,8 @@ private struct WidgetSettingsView: View {
                             family: self.selectedFamily,
                             mode: mode,
                             colorStyle: self.selectedColorStyle,
-                            snapshot: self.previewSnapshot)
+                            snapshot: self.previewSnapshot,
+                            providers: mode == .overview ? self.previewSelection : nil)
                     }
                 }
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
@@ -5802,9 +5910,47 @@ private struct WidgetSettingsView: View {
             } header: {
                 Text("Preview")
             }
+            Section {
+                ForEach(self.previewProviderChoices) { provider in
+                    Button {
+                        if self.selectedProviderIDs.contains(provider.id) {
+                            self.selectedProviderIDs.removeAll { $0 == provider.id }
+                        } else if self.selectedProviderIDs.count < 4 {
+                            self.selectedProviderIDs.append(provider.id)
+                        }
+                    } label: {
+                        HStack {
+                            Text(provider.name).foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: self.selectedProviderIDs
+                                .contains(provider.id) ? "checkmark.circle.fill" : "circle")
+                        }
+                    }
+                    .disabled(self.selectedProviderIDs.count == 4 && !self.selectedProviderIDs.contains(provider.id))
+                }
+            } header: {
+                Text(String(localized: "Preview Providers"))
+            } footer: {
+                Text(
+                    String(
+                        localized: "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget."))
+            }
         }
         .navigationTitle("Widget Setting")
         .listStyle(.insetGrouped)
+    }
+
+    private var previewProviderChoices: [WidgetProviderEntity] {
+        var seen = Set<String>()
+        return self.previewSnapshot.topProviders.filter { seen.insert($0.providerID).inserted }
+            .map { WidgetProviderEntity(id: $0.providerID, name: $0.providerName) }
+    }
+
+    private var previewSelection: [WidgetProviderEntity]? {
+        guard !self.selectedProviderIDs.isEmpty else { return nil }
+        return self.selectedProviderIDs.map { id in
+            self.previewProviderChoices.first { $0.id == id } ?? WidgetProviderEntity(id: id, name: id)
+        }
     }
 
     private var availableFamilies: [CodexBarWidgetPreviewFamily] {
@@ -5830,6 +5976,7 @@ private struct WidgetPreviewFrame: View {
     let mode: CodexBarWidgetMode
     let colorStyle: CodexBarWidgetColorStyle
     let snapshot: CodexBarWidgetSnapshot
+    var providers: [WidgetProviderEntity]?
 
     var body: some View {
         GeometryReader { proxy in
@@ -5847,7 +5994,8 @@ private struct WidgetPreviewFrame: View {
                             date: .now,
                             configuration: CodexBarWidgetConfigurationIntent(
                                 mode: self.mode,
-                                colorStyle: self.colorStyle),
+                                colorStyle: self.colorStyle,
+                                providers: self.providers),
                             snapshot: self.snapshot),
                         previewFamily: self.family.widgetFamily)
                         .frame(width: size.width, height: size.height)

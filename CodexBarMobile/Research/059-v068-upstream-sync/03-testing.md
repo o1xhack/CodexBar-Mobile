@@ -3,6 +3,10 @@
 Status: `done`
 Date: 2026-09-29
 
+## 2.3.0 (224) 实机兼容缺陷补充（2026-09-30）
+
+用户发现旧Mac0.58的50/200天费用到新iOS365天汇总被隐藏。此前16-mask替代验证未覆盖该真实稀疏窗口，不能据此推断真实fleet全部兼容。reader展示修复和新增证据见 [061/03-testing](../061-ios-legacy-history-cost/03-testing.md)。
+
 ## 最终闭环（2026-09-30）
 
 - Mac 正式发布：[v0.68.0.1-mobile.2.3.0](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.68.0.1-mobile.2.3.0)，07:13:40Z published，非 draft / prerelease。Mac 0.68.0.1，build 159.1，Sparkle 159.1.2.3.0；iOS 2.3.0 (223) 本地完成，未上传 TestFlight。

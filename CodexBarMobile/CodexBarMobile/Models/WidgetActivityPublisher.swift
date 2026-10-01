@@ -14,6 +14,9 @@ enum WidgetActivityPublisher {
         referenceDate: Date)
     async {
         let projection: WidgetActivityProjection
+        if let catalogue = Self.catalogueUpdate(snapshot: snapshot, syncStatus: syncStatus) {
+            try? WidgetProviderCatalogue.write(catalogue)
+        }
         if let snapshot {
             let providers = MockProviderDetector.filteredProviders(from: snapshot)
             // Make the current synced days available before the longer ledger
@@ -85,6 +88,27 @@ enum WidgetActivityPublisher {
         Self.publish(projection)
     }
 
+    static func catalogueEntities(from providers: [ProviderUsageSnapshot]) -> [WidgetProviderEntity] {
+        providers.filter { !$0.isProviderLevelCostEnvelope }.map {
+            WidgetProviderEntity(id: $0.providerID, name: $0.providerName)
+        }
+    }
+
+    /// Empty authoritative results remove suggestions; transient failures keep
+    /// the last successful catalogue available while data is being recovered.
+    static func catalogueUpdate(
+        snapshot: SyncedUsageSnapshot?,
+        syncStatus: SyncStatus) -> [WidgetProviderEntity]?
+    {
+        if let snapshot {
+            return self.catalogueEntities(from: MockProviderDetector.filteredProviders(from: snapshot))
+        }
+        switch syncStatus {
+        case .noData, .synced: return []
+        case .syncing, .error, .incompatibleData: return nil
+        }
+    }
+
     private static func publish(_ projection: WidgetActivityProjection) {
         do {
             try WidgetActivityStore.write(projection)
@@ -114,7 +138,7 @@ enum WidgetActivityPublisher {
         latestSyncAt: Date?,
         now: Date) -> WidgetActivityProjection
     {
-        return WidgetActivityProjection(
+        WidgetActivityProjection(
             version: WidgetActivityProjection.schemaVersion,
             state: state,
             generatedAt: now,

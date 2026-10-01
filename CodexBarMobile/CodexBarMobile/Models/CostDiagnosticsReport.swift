@@ -64,6 +64,7 @@ struct CostDiagnosticsReport: Equatable {
     let totalCostUSD: Double
     let todayCostUSD: Double
     let totalCostIsKnown: Bool
+    let totalCostIsLowerBound: Bool
     let todayCostIsKnown: Bool
     let todayCostIsLowerBound: Bool
     let costCoverageIsIncomplete: Bool
@@ -76,6 +77,12 @@ struct CostDiagnosticsReport: Equatable {
     let excludedDeviceCount: Int
     let providerRules: [CostDiagnosticsProviderRule]
     let checks: [CostDiagnosticsCheck]
+
+    var totalCostDisplayValue: String {
+        guard self.totalCostIsKnown else { return "—" }
+        let prefix = self.totalCostIsLowerBound ? "≥" : ""
+        return "\(prefix)\(CostFormatting.usd(self.totalCostUSD))"
+    }
 
     var todayCostDisplayValue: String {
         guard self.todayCostIsKnown else { return "—" }
@@ -119,9 +126,9 @@ struct CostDiagnosticsReport: Equatable {
                         : .latestAccountDay)
             }
 
-        let totalCost = insights.total30DayCost
-        let providerShareTotal = insights.spendProviderRows.reduce(0) { $0 + $1.thirtyDayCost }
-        let dailyTotal = insights.dailyPoints.reduce(0) { $0 + $1.costUSD }
+        let totalCost = insights.displayHistoryCostUSD
+        let providerShareTotal = insights.spendProviderRows.reduce(0) { $0 + insights.historyCostUSD(for: $1) }
+        let dailyTotal = insights.knownHistoryDailyCostUSD
         let modelTotal = insights.modelRows.reduce(0) { $0 + $1.amountUSD }
         let serviceTotal = insights.serviceRows.reduce(0) { $0 + $1.amountUSD }
         let weeklyShareCard = ShareCardData(insights: insights, period: .week)
@@ -154,7 +161,7 @@ struct CostDiagnosticsReport: Equatable {
         ]
         let checks = Self.adjustedChecks(
             baseChecks,
-            totalCostIsKnown: insights.total30DayCostIsKnown,
+            totalCostIsKnown: insights.historyCostIsAvailable,
             coverageIsIncomplete: insights.hasIncompleteCostData)
         let windowDays = if dataSource == .localLedger {
             insights.historyDays ?? cwlWindowDays
@@ -167,14 +174,15 @@ struct CostDiagnosticsReport: Equatable {
             windowDays: windowDays,
             totalCostUSD: totalCost,
             todayCostUSD: insights.totalTodayCost,
-            totalCostIsKnown: insights.total30DayCostIsKnown,
+            totalCostIsKnown: insights.historyCostIsAvailable,
+            totalCostIsLowerBound: insights.historyCostIsLowerBound,
             todayCostIsKnown: insights.totalTodayCostIsKnown,
             todayCostIsLowerBound: insights.totalTodayCostIsLowerBound,
             costCoverageIsIncomplete: insights.hasIncompleteCostData,
             totalTokens: insights.total30DayTokens,
             activeDayCount: insights.activeDayCount,
             topDriverName: insights.topProvider?.provider.providerName,
-            topDriverCostUSD: insights.topProvider?.thirtyDayCost,
+            topDriverCostUSD: insights.topProvider.map { insights.historyCostUSD(for: $0) },
             rawDeviceCount: rawDeviceSnapshots.count,
             activeDeviceCount: activeDeviceSnapshots.count,
             excludedDeviceCount: max(0, rawDeviceSnapshots.count - activeDeviceSnapshots.count),

@@ -43,17 +43,21 @@ struct CodexBarWidgetView: View {
 
     @ViewBuilder
     private var loadedView: some View {
-        switch family {
-        case .systemSmall:
-            smallLoadedView
-        case .systemMedium:
-            mediumLoadedView
-        case .systemLarge:
-            largeLoadedView
-        case .systemExtraLarge:
-            extraLargeLoadedView
-        default:
-            mediumLoadedView
+        if self.entry.configuration.mode == .overview {
+            self.providerOverview
+        } else {
+            switch self.family {
+            case .systemSmall:
+                self.smallLoadedView
+            case .systemMedium:
+                self.mediumLoadedView
+            case .systemLarge:
+                self.largeLoadedView
+            case .systemExtraLarge:
+                self.extraLargeLoadedView
+            default:
+                self.mediumLoadedView
+            }
         }
     }
 
@@ -927,6 +931,107 @@ private enum CodexBarWidgetMetricAccent {
     case warning
     case providers
     case devices
+}
+
+private extension CodexBarWidgetView {
+    private var providerOverview: some View {
+        let providers = WidgetProviderSelection.resolve(
+            from: self.displayProviders,
+            selected: self.entry.configuration.providers,
+            family: self.family,
+            now: self.entry.date)
+        let columns = WidgetProviderSelection.columns(count: providers.count, family: self.family)
+        let rows = max(1, (providers.count + columns - 1) / columns)
+        return VStack(alignment: .leading, spacing: 8) {
+            if providers.isEmpty {
+                Text(String(localized: "No provider data"))
+                    .foregroundStyle(self.palette.secondary)
+            } else {
+                GeometryReader { geometry in
+                    let gap: CGFloat = self.family == .systemSmall ? 8 : 12
+                    let width = max(0, (geometry.size.width - gap * CGFloat(columns - 1)) / CGFloat(columns))
+                    let height = max(0, (geometry.size.height - gap * CGFloat(rows - 1)) / CGFloat(rows))
+                    VStack(spacing: gap) {
+                        ForEach(0..<rows, id: \.self) { row in
+                            HStack(spacing: gap) {
+                                ForEach(0..<columns, id: \.self) { column in
+                                    let index = row * columns + column
+                                    if index < providers.count {
+                                        self.overviewTile(
+                                            providers[index],
+                                            index: index,
+                                            compact: height < 85,
+                                            narrow: width < 100)
+                                            .frame(width: width, height: height, alignment: .leading)
+                                    } else {
+                                        Color.clear.frame(width: width, height: height)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            self.loadedFooterLine
+        }
+        .padding(self.spacing.padding)
+    }
+
+    private func overviewPercentText(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return (min(100, max(0, value)) / 100).formatted(.percent.precision(.fractionLength(0)))
+    }
+
+    private func overviewTile(
+        _ provider: CodexBarWidgetProviderSummary,
+        index: Int,
+        compact: Bool,
+        narrow: Bool) -> some View
+    {
+        let accent = self.palette.isColorful && !provider.isError
+            ? ProviderColorPalette.color(for: provider.providerID)
+            : self.palette.providerAccent(index: index, isError: provider.isError)
+        return VStack(alignment: .leading, spacing: compact ? 4 : 8) {
+            HStack(spacing: 5) {
+                if !narrow { self.providerMark(provider, accent: accent) }
+                Text(provider.providerName)
+                    .font(.system(size: compact ? 11 : 13, weight: .semibold))
+                    .foregroundStyle(self.palette.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(provider.isError
+                    ? String(localized: "Unavailable")
+                    : self.overviewPercentText(provider.usagePercent))
+                    .font(.system(size: narrow ? 16 : (compact ? 22 : 36), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(self.palette.isColorful ? accent : self.palette.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .privacySensitive()
+                    .widgetAccentable()
+                if !provider.isError, let reset = WidgetProviderResetText.days(provider.resetsAt, now: entry.date) {
+                    Text(reset)
+                        .font(.system(size: narrow ? 9 : 11, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(self.palette.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .accessibilityLabel(String(format: String(localized: "Resets in %@"), reset))
+                }
+            }
+            self.progressLine(provider.isError ? nil : provider.usagePercent, height: 4, fill: accent)
+            if !compact {
+                Text(provider.isError ? String(localized: "Sync Error") : String(localized: "used"))
+                    .font(.caption2)
+                    .foregroundStyle(self.palette.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
 }
 
 private struct CodexBarWidgetSpacing {

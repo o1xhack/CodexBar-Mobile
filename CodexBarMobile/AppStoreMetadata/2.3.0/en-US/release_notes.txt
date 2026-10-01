@@ -1,0 +1,9 @@
+CodexBar 2.3 brings the latest Mac updates to iPhone and more useful Overview widgets.
+
+• Choose up to four providers in Overview widgets. Small widgets show two by default; medium and larger widgets show four. Layouts adapt to your selection.
+• See a compact quota reset countdown beside each usage percentage, including fractional days such as 3.7d.
+• Follow the cost period selected on Mac: rolling periods, this month, or all time. Non-USD costs remain visible in provider details and are excluded from USD totals.
+• View xKiro, Raycast, and Aixy usage with quota alerts, plus richer details for LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse when available from Mac.
+• Improve handling of incomplete cost history, calendar boundaries, and quota alerts across multiple accounts. Known history from older Macs remains visible as a lower bound when data is incomplete.
+
+Update Mac CodexBar to 0.68.0.1 or later for the new provider and cost-period data.

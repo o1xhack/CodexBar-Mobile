@@ -185,7 +185,7 @@ struct CloudKitMergeTests {
 
             let phoneA = try records.map { try read($0, newReader: iPhoneAIsNew) }
             let phoneB = try records.map { try read($0, newReader: iPhoneBIsNew) }
-            #expect(phoneA.map { $0.core.deviceID } == ["mac-a", "mac-b"])
+            #expect(phoneA.map(\.core.deviceID) == ["mac-a", "mac-b"])
             #expect(phoneA.map(\.core) == phoneB.map(\.core))
 
             if !iPhoneAIsNew {
@@ -279,7 +279,7 @@ struct CloudKitMergeTests {
                 providerID: "codex",
                 providerName: "Codex",
                 cost: 7.37,
-                tokens: 7_000,
+                tokens: 7000,
                 isNew: macANew), macANew),
             (writer(
                 deviceID: "matrix-mac-b",
@@ -359,7 +359,7 @@ struct CloudKitMergeTests {
             }
             let summaries = providers.compactMap(\.costSummary)
             let todayRows = summaries.map(legacyToday)
-            let todayValues = todayRows.compactMap { $0.value }
+            let todayValues = todayRows.compactMap(\.value)
             let todayKey = "2026-09-28"
             let historyIncomplete = historyValues.count != providers.count || summaries.contains { summary in
                 let sourceDayKey = summary.sourceDayKey ?? summary.sourceUpdatedAt.map { timestamp in
@@ -388,7 +388,7 @@ struct CloudKitMergeTests {
                 hasIncompleteCostData: historyIncomplete || todayOpinions.contains(false),
                 todayCost: todayValues.isEmpty ? nil : todayValues.reduce(0, +),
                 todayCostIsKnown: todayIsKnown,
-                todayCostIsLowerBound: todayIsKnown && todayRows.contains(where: { $0.lowerBound }))
+                todayCostIsLowerBound: todayIsKnown && todayRows.contains(where: \.lowerBound))
         }
 
         func readPhone(isNew: Bool) throws -> MatrixReadProjection {
@@ -404,7 +404,7 @@ struct CloudKitMergeTests {
                     // history amount to display.
                     #expect(!legacy.hasHistoryForEveryProvider)
                     #expect(legacy.hasIncompleteCostData)
-                    if macANew && macBNew {
+                    if macANew, macBNew {
                         #expect(legacy.visibleHistoryTotal == nil)
                         #expect(!legacy.totalCostIsKnown)
                     } else {
@@ -430,7 +430,7 @@ struct CloudKitMergeTests {
             let snapshots: [SyncedUsageSnapshot]
             var cache = SnapshotCache()
             let newMacSnapshots = zip(currentWriterSnapshots, fixtures)
-                .filter { $0.1.isNew }
+                .filter(\.1.isNew)
                 .map(\.0)
             cache.replaceFromFullFetch(
                 perProviderSnapshots: newMacSnapshots,
@@ -452,8 +452,14 @@ struct CloudKitMergeTests {
                 #expect(share.totalCostIsKnown)
                 #expect(abs(share.totalCost - 200.95) < 0.0001)
             } else {
-                #expect(insights.historyDisplayTitle == String(localized: "Mixed cost windows"))
-                #expect(insights.spendProviderRows.isEmpty)
+                // Period totals remain incomparable, but independently priced
+                // dates are a visible lower bound under a different heading.
+                #expect(insights.historyDisplayTitle == String(localized: "Known history"))
+                #expect(insights.historyCostIsAvailable)
+                #expect(insights.historyCostIsLowerBound)
+                #expect(abs(insights.displayHistoryCostUSD - 200.95) < 0.0001)
+                #expect(insights.spendProviderRows.count == 2)
+                #expect(!insights.total30DayCostIsKnown)
                 #expect(!share.totalCostIsKnown)
                 #expect(share.totalCostDisplayValue == "—")
             }
@@ -3600,13 +3606,13 @@ struct CloudKitMergeTests {
     func `todayTotals keeps a known dated amount during incomplete historical catch-up`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 4.56,
-            sessionTokens: 4_000,
+            sessionTokens: 4000,
             last30DaysCostUSD: 50,
-            last30DaysTokens: 30_000,
+            last30DaysTokens: 30000,
             daily: [SyncDailyPoint(
                 dayKey: Self.pinnedTodayKey,
                 costUSD: 4.56,
-                totalTokens: 4_000,
+                totalTokens: 4000,
                 costIsKnown: true)],
             coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
             sourceUpdatedAt: Self.pinnedToday,
@@ -3618,7 +3624,7 @@ struct CloudKitMergeTests {
         let today = cost.todayTotals(now: Self.pinnedToday)
 
         #expect(today.displayCostUSD == 4.56)
-        #expect(today.tokens == 4_000)
+        #expect(today.tokens == 4000)
         #expect(today.isLowerBound)
         #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
     }
@@ -3627,13 +3633,13 @@ struct CloudKitMergeTests {
     func `todayTotals does not qualify known Today for gaps on older days`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 4.56,
-            sessionTokens: 4_000,
+            sessionTokens: 4000,
             last30DaysCostUSD: 50,
-            last30DaysTokens: 30_000,
+            last30DaysTokens: 30000,
             daily: [SyncDailyPoint(
                 dayKey: Self.pinnedTodayKey,
                 costUSD: 4.56,
-                totalTokens: 4_000,
+                totalTokens: 4000,
                 costIsKnown: true)],
             coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
             sourceUpdatedAt: Self.pinnedToday,
@@ -3653,9 +3659,9 @@ struct CloudKitMergeTests {
     func `todayTotals keeps a known session fallback during incomplete historical catch-up`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,
-            sessionTokens: 1_000,
+            sessionTokens: 1000,
             last30DaysCostUSD: 50,
-            last30DaysTokens: 30_000,
+            last30DaysTokens: 30000,
             daily: [],
             coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
             sourceUpdatedAt: Self.pinnedToday,
@@ -3667,7 +3673,7 @@ struct CloudKitMergeTests {
         let today = cost.todayTotals(now: Self.pinnedToday)
 
         #expect(today.displayCostUSD == 1.23)
-        #expect(today.tokens == 1_000)
+        #expect(today.tokens == 1000)
         #expect(today.isLowerBound)
         #expect(cost.hasIncompleteHistoricalCostCoverage(at: Self.pinnedToday))
     }

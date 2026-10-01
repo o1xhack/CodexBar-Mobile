@@ -40,11 +40,37 @@ struct CodexBarWidgetConfigurationIntent: AppIntent, WidgetConfigurationIntent {
     @Parameter(title: "Color Style", default: .mono)
     var colorStyle: CodexBarWidgetColorStyle
 
+    @Parameter(
+        title: "Providers",
+        description: "Choose up to four providers. Leave empty for automatic selection.",
+        size: IntentCollectionSize(min: 0, max: 4))
+    var providers: [WidgetProviderEntity]?
+
+    static var parameterSummary: some ParameterSummary {
+        When(\.$mode, .equalTo, CodexBarWidgetMode.overview) {
+            Summary {
+                \.$mode
+                \.$colorStyle
+                \.$providers
+            }
+        } otherwise: {
+            Summary {
+                \.$mode
+                \.$colorStyle
+            }
+        }
+    }
+
     init() {}
 
-    init(mode: CodexBarWidgetMode, colorStyle: CodexBarWidgetColorStyle = .mono) {
+    init(
+        mode: CodexBarWidgetMode,
+        colorStyle: CodexBarWidgetColorStyle = .mono,
+        providers: [WidgetProviderEntity]? = nil)
+    {
         self.mode = mode
         self.colorStyle = colorStyle
+        self.providers = providers
     }
 
     func perform() async throws -> some IntentResult {

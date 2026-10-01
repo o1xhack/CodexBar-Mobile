@@ -1,6 +1,295 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Cost windows differ. Showing known daily costs only.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost windows differ. Showing known daily costs only."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "费用周期不同，仅显示已知的每日费用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "費用週期不同，僅顯示已知的每日費用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "費用の期間が異なるため、判明している日別費用のみを表示します。"
+          }
+        }
+      }
+    },
+    "Known history": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Known history"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知历史"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知歷史"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "判明している履歴"
+          }
+        }
+      }
+    },
+    "Known costs remain visible as lower bounds. Missing history is not counted as zero.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Known costs remain visible as lower bounds. Missing history is not counted as zero."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知费用仍显示为下限，缺失的历史不会计为零。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知費用仍顯示為下限，缺失的歷史不會計為零。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "判明している費用は下限として表示します。不足している履歴をゼロとして扱いません。"
+          }
+        }
+      }
+    },
+    "Shares use known costs only; missing history may change the ranking.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shares use known costs only; missing history may change the ranking."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "占比仅按已知费用计算，缺失的历史可能改变排名。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "占比僅按已知費用計算，缺失的歷史可能改變排名。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "割合は判明している費用のみで計算します。不足している履歴により順位が変わる場合があります。"
+          }
+        }
+      }
+    },
+    "Known spend": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Known spend"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知费用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已知費用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "判明している費用"
+          }
+        }
+      }
+    },
+    "Preview Providers": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Preview Providers"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "预览服务商"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "預覽服務商"}}, "ja": {"stringUnit": {"state": "translated", "value": "プレビューのプロバイダー"}}}},
+    "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Choose up to four providers for this preview. To save your Home Screen selection, use Edit Widget."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "为此预览选择最多四个服务商。要保存主屏幕的选择，请使用“编辑小组件”。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "為此預覽選擇最多四個服務商。要儲存主畫面的選擇，請使用「編輯小組件」。"}}, "ja": {"stringUnit": {"state": "translated", "value": "プレビュー用に最大4つ選択できます。ホーム画面の選択を保存するには「ウィジェットを編集」を使ってください。"}}}},
+    "Now": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Now"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "现在"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "現在"}}, "ja": {"stringUnit": {"state": "translated", "value": "まもなく"}}}},
+    "Choose up to four providers. Leave empty for automatic selection.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose up to four providers. Leave empty for automatic selection."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多选择四个服务商。留空时自动选择。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最多選擇四個服務商。留空時自動選擇。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大4つのプロバイダーを選択。未選択の場合は自動で選びます。"
+          }
+        }
+      }
+    },
+    "%@d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@d"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@天"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@天"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@日"
+          }
+        }
+      }
+    },
+    "<0.1d": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1d"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1天"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1天"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "<0.1日"
+          }
+        }
+      }
+    },
+    "Resets in %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets in %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@后刷新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@後重設"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@後にリセット"
+          }
+        }
+      }
+    },
+    "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose up to four providers in Overview widgets, with layouts that adapt to your selection and a compact quota reset countdown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总览小组件可选择最多四个服务商，布局随选择数量调整，并显示简洁的额度刷新倒计时。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "總覽小組件可選擇最多四個服務商，佈局隨選擇數量調整，並顯示簡潔的額度重設倒數。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "概要ウィジェットで最大4つのプロバイダーを選択できます。選択数に合わせたレイアウトと、上限リセットまでの残り時間を表示します。"
+          }
+        }
+      }
+    }
+,
     "Totals here include USD spend only. Other currencies are shown in provider details.": {
       "localizations": {
         "en": {"stringUnit": {"state": "translated", "value": "Totals here include USD spend only. Other currencies are shown in provider details."}},
@@ -22792,12 +23081,32 @@
     "Waiting for Mac Sync": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Waiting for Mac Sync"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"等待 Mac 同步"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"等待 Mac 同步"}},"ja":{"stringUnit":{"state":"translated","value":"Mac からの同期を待っています"}}}},
     "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"请在 Mac 上打开 CodexBar 并启用 iCloud 同步，以便将用量数据同步到这台 iPhone。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"請在 Mac 上開啟 CodexBar 並啟用 iCloud 同步，將用量資料同步到這台 iPhone。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac で CodexBar を開き、iCloud 同期を有効にすると、この iPhone に使用状況データが同期されます。"}}}},
     "CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 将最新 Mac 更新带到 iPhone，并让服务额度和费用周期更清晰。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 將最新 Mac 更新帶到 iPhone，並讓服務額度與費用週期更清楚。"}},"ja":{"stringUnit":{"state":"translated","value":"CodexBar 2.3 では最新の Mac 更新を iPhone に届け、サービスの利用枠と費用期間をわかりやすくします。"}}}},
-    "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details.": {
+    "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details. Keep known history from older Macs visible, with clear indicators for missing data.": {
       "localizations": {
-        "en": {"stringUnit": {"state": "translated", "value": "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details."}},
-        "zh-Hans": {"stringUnit": {"state": "translated", "value": "在 iPhone 上跟随 Mac 选择的费用范围，包括滚动周期、本月及全部历史。美元总计不包含其他币种，其他币种仍显示在服务商详情中。"}},
-        "zh-Hant": {"stringUnit": {"state": "translated", "value": "在 iPhone 上跟隨 Mac 選擇的費用範圍，包括滾動週期、本月及全部歷史。美元總計不包含其他幣別，其他幣別仍顯示在服務商詳情中。"}},
-        "ja": {"stringUnit": {"state": "translated", "value": "iPhoneでMacの費用期間に合わせて、ローリング期間、今月、全期間の合計を確認できます。米ドルの合計には他の通貨を含めず、プロバイダの詳細に表示します。"}}
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow the selected Mac cost window on iPhone, including rolling periods, this month, and all-time totals. USD totals exclude other currencies, which stay in provider details. Keep known history from older Macs visible, with clear indicators for missing data."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 上跟随 Mac 选择的费用范围，包括滚动周期、本月及全部历史。美元总计不包含其他币种，其他币种仍显示在服务商详情中。 使用旧版 Mac 时仍显示已知历史费用，并清楚标注缺失的数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 上跟隨 Mac 選擇的費用範圍，包括滾動週期、本月及全部歷史。美元總計不包含其他幣別，其他幣別仍顯示在服務商詳情中。 使用舊版 Mac 時仍顯示已知歷史費用，並清楚標示缺失的資料。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhoneでMacの費用期間に合わせて、ローリング期間、今月、全期間の合計を確認できます。米ドルの合計には他の通貨を含めず、プロバイダの詳細に表示します。 古い Mac バージョンの判明している履歴の費用も表示し、不足しているデータを明示します。"
+          }
+        }
       }
     },
     "See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac.": {"localizations":{"en":{"stringUnit":{"state":"translated","value":"See xKiro, Raycast, and Aixy usage on iPhone, with quota alerts and provider details synced from Mac."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"在 iPhone 上查看从 Mac 同步的 xKiro、Raycast 和 Aixy 用量详情与额度提醒。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"在 iPhone 上查看從 Mac 同步的 xKiro、Raycast 和 Aixy 用量詳情與額度提醒。"}},"ja":{"stringUnit":{"state":"translated","value":"Mac から同期した xKiro、Raycast、Aixy の利用状況と利用枠の通知を iPhone で確認できます。"}}}},

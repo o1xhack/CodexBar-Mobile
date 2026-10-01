@@ -1,0 +1,18 @@
+CodexBar for iOS 讓你隨時隨地查看 AI 編程工具的使用情況。可在 iPhone 上查看 Claude、Cursor、ChatGPT、OpenRouter 等提供商的速率限制、花費、Token 用量和預算追蹤，所有資料都會透過 iCloud 從你的 Mac 即時同步。
+
+需要先安裝 CodexBar Mac 版。這個 iOS App 是配套應用，用於讀取 Mac 上 CodexBar 推送的使用資料。先安裝 Mac App，並在設定中啟用 iCloud Sync，你的資料就會自動出現在 iPhone 上。
+
+功能：
+• 將 AI 花費生成為精美圖片卡片分享，支援 Classic 和 Vibe 兩種風格
+• 分享卡片支援今日、7 天、30 天範圍，並自動適配深色模式
+• 即時查看速率限制、重置倒數計時、預算進度和每日費用明細
+• 成本面板支援查看 provider 佔比、模型與服務構成，以及 30 天支出分析
+• 互動式圖表支援柱狀圖和折線圖切換、長按查看數值、橫向滾動瀏覽歷史
+• 按日查看花費與 Token 用量，概覽和明細金額顯示更清晰
+• Provider 卡片中的百分比和費用數字更銳利，在緊湊版面下也更易閱讀
+• 可在設定中切換顯示已用配額或剩餘配額
+• 圖表座標軸刻度更智慧，採用更清晰的整數刻度顯示
+• iCloud 同步穩定性和錯誤提示進一步改進，並提供下拉刷新與內建上手引導
+
+開源
+CodexBar 基於開源專案 CodexBar 構建，採用 MIT 授權。本分支（github.com/o1xhack/CodexBar）增加了 iCloud 同步和 iOS 配套應用。歡迎在 GitHub 上提交回饋和貢獻。

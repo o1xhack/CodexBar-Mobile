@@ -2,17 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.3.0 (223)] — Upstream v0.67–v0.68 companion update
+## [2.3.0 (226)] — Upstream v0.67–v0.68 companion update
 
 ### Added
+- Overview widgets support up to four selected providers, family-specific automatic defaults, adaptive layouts, and localized fractional-day quota reset countdowns.
 - Display the Mac's selected cost window on provider cards and details, including rolling periods, month to date, and all-time totals. Preserve the older rolling-window behavior when reading legacy Mac payloads.
 - Add iPhone quota alerts for xKiro, Raycast, and Aixy, with dynamic quota windows and provider colors through the existing sync payload.
 - Show upstream provider details and cost data from LiteLLM, Claude Admin, Grok, Antigravity, Mistral, and Muse through the existing generic provider fields.
 
 ### Changed
-- Pair iOS 2.3.0 (223) with Mac 0.68.0.1 / 159.1 as one release train covering official upstream v0.67.0–v0.68.0.
+- Pair iOS 2.3.0 (226) with Mac 0.68.0.1 / 159.1 as one release train covering official upstream v0.67.0–v0.68.0.
 
 ### Fixed
+- Preserve priced historical ledger subtotals from older Macs when the iPhone selects a wider history window; show lower bounds and restore provider ranking without treating missing days as zero. Cost diagnostics use the same visible subtotal.
 - Keep non-USD costs in provider details and exclude them from USD dashboard, widget, share-card and ledger totals; explain this scope in all four languages.
 - Keep incomplete spend qualified, reserve the fixed 30-day widget field for rolling totals, and treat sparse zero-cost days as covered only by completed producer windows. Month-to-date coverage uses the Mac cost calendar even when the iPhone system calendar differs.
 - Preserve legacy quota-warning record-name parsing and bound warning-zone scans. Ambiguous multi-account pushes retain an account title only when every possible triggering record agrees on that account.
