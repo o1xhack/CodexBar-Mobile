@@ -16,6 +16,6 @@ codexbar cost --days 7 --json
 
 The existing host-summary protocol (`--remote` and `--summary-only`) remains limited to 1–365 days. When All is selected, use an explicit `--days N` for those modes.
 
-All reads the available source history, including local logs older than a year. Missing or deleted logs cannot be recovered, provider APIs can impose their own history limits, and incomplete scans remain marked as incomplete. This is not a permanent ledger or a lifetime bill since installation. The separate token-activity heatmap still covers one year.
+All reads the available source history, including local logs older than a year. Missing or deleted logs cannot be recovered, provider APIs can impose their own history limits, and incomplete scans remain marked as incomplete. Local priority metadata is reconciled only for recorded days, without a fixed earliest-year cutoff or empty-day cache entries. This is not a permanent ledger or a lifetime bill since installation. The separate token-activity heatmap still covers one year.
 
 Cursor's quota bars keep the billing-cycle dates reported by Cursor. Calendar-month cost is a complementary view of dated usage events; it does not reinterpret a mid-month billing-cycle allowance as a calendar-month quota.

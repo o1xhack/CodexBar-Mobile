@@ -1,7 +1,11 @@
 import Foundation
 
 public enum NousProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    public static let descriptor = Self.spec.makeDescriptor(
+        credentials: Self.credentials,
+        fetchPlan: ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [NousAPIFetchStrategy()] })))
 
     private static let credentials = ProviderCredentialAdapter(
         supportsAPIKeyOverride: false,
@@ -20,52 +24,20 @@ public enum NousProviderDescriptor {
             NousSettingsReader.unavailableMessage(environment: environment)
         })
 
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .nous,
-            menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary]),
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .nous,
-                displayName: "Nous Portal",
-                shortDisplayName: "Nous",
-                sessionLabel: "Monthly credits",
-                weeklyLabel: "Weekly",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show Nous Portal usage",
-                cliName: "nous",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                dashboardURL: "https://portal.nousresearch.com/usage",
-                subscriptionDashboardURL: "https://portal.nousresearch.com/manage-subscription",
-                statusPageURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .nous),
-                iconResourceName: "ProviderIcon-nous",
-                color: ProviderColor(red: 214 / 255, green: 165 / 255, blue: 92 / 255),
-                confettiPalette: [
-                    ProviderColor(hex: 0xD6A55C),
-                    ProviderColor(hex: 0x1C1B1A),
-                    ProviderColor(hex: 0xF3EADB),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Nous Portal cost summary is not available." }),
-            presentation: ProviderUsagePresentation(
-                planRow: ProviderPlanRowPresentation(label: "Plan")),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [NousAPIFetchStrategy()] })),
-            cli: ProviderCLIConfig(
-                name: "nous",
-                aliases: ["nous-portal", "hermes"],
-                versionDetector: nil))
-    }
+    public static let spec = PluginProviderSpec(
+        id: .nous,
+        displayName: "Nous Portal",
+        shortDisplayName: "Nous",
+        sessionLabel: "Monthly credits",
+        weeklyLabel: "Weekly",
+        dashboardURL: "https://portal.nousresearch.com/usage",
+        subscriptionDashboardURL: "https://portal.nousresearch.com/manage-subscription",
+        color: ProviderColor(hex: 0xD6A55C),
+        confetti: [0xD6A55C, 0x1C1B1A, 0xF3EADB],
+        noDataMessage: "Nous Portal cost summary is not available.",
+        menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary]),
+        presentation: ProviderUsagePresentation(planRow: ProviderPlanRowPresentation(label: "Plan")),
+        aliases: ["nous-portal", "hermes"])
 }
 
 struct NousAPIFetchStrategy: ProviderFetchStrategy {

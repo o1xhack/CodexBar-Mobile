@@ -16,6 +16,16 @@ LongCat reads quota data from an authenticated `longcat.chat` web session. It do
   `LONGCAT_MANUAL_COOKIE`.
 - Automatic mode can import supported browser cookies during a user-initiated refresh.
 
+The bundled `longcat.ts` plugin owns requests, session-error classification, and quota mapping on QuickJS and
+JavaScriptCore. The host keeps imported cookies opaque, groups them per browser profile, and selects cookies separately
+for each request URL, including same-origin HTTPS redirects. It retains path-scoped duplicate names and honors
+host-only scope, Secure, and expiry. Cross-origin redirects are rejected.
+
+Automatic imports try Chrome before Firefox and run only during a user-initiated app refresh. LongCat does not read or
+write a persistent session cache. Background refreshes and the CLI require a manual/environment cookie. Manual settings
+take precedence over the environment; Off disables environment cookies too. Profiles advance only for missing cookies
+or an invalid session, so network and parse errors do not silently switch accounts.
+
 ## Request sequence
 
 1. `GET /api/v1/user-current` is required and validates the session while providing the account name.

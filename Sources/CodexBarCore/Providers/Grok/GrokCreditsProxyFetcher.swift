@@ -10,7 +10,6 @@ public enum GrokCreditsProxyFetcher {
     public static let defaultEndpoint = URL(
         string: "https://cli-chat-proxy.grok.com/v1/billing?format=credits")!
     private static let requestTimeoutSeconds: TimeInterval = 15
-    private static let productCompositionTolerancePercent = 1.0
 
     public static func fetch(
         credentials: GrokCredentials,
@@ -69,7 +68,8 @@ public enum GrokCreditsProxyFetcher {
                 resetsAt: resetsAt,
                 windowMinutes: windowMinutes,
                 subscriptionTier: subscriptionTier,
-                productUsage: Self.composingProducts(config.productUsage?.values ?? [], creditUsagePercent: percent))
+                productUsage: GrokProductUsage.composing(
+                    config.productUsage?.values ?? [], creditUsagePercent: percent))
         }
 
         if let cap = config.onDemandCap?.val,
@@ -93,16 +93,6 @@ public enum GrokCreditsProxyFetcher {
         }
 
         throw GrokWebBillingError.parseFailed
-    }
-
-    private static func composingProducts(
-        _ products: [GrokProductUsage],
-        creditUsagePercent: Double) -> [GrokProductUsage]
-    {
-        // Shares must compose this payload's credit percentage; any malformed entry drops the breakdown.
-        guard !products.isEmpty else { return [] }
-        let sum = products.reduce(0) { $0 + $1.usedPercent }
-        return abs(sum - creditUsagePercent) <= Self.productCompositionTolerancePercent ? products : []
     }
 
     private static func windowMinutes(start: String?, end: Date?, now: Date) -> Int? {

@@ -3,7 +3,7 @@ import Foundation
 
 struct KiloProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .kilo
-    private let environment: [String: String]?
+    @ProcessEnvironment private var environment: [String: String]?
     private let fetchOrganizations: @Sendable (String) async throws -> [KiloOrganization]
 
     init(

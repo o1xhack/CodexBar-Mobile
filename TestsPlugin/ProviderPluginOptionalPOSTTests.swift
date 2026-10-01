@@ -94,29 +94,12 @@ struct ProviderPluginOptionalPOSTTests {
         #expect(error?.localizedDescription.contains("private-fixture") == false)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
-    func `caller cancellation interrupts required GET and optional POST`(engine: ProviderPluginEngineKind) async throws {
-        let calls = Calls()
-        let runtime = try Self.runtime(engine) { request in
-            calls.started()
-            do { try await Task.sleep(for: .seconds(30)) } catch {
-                calls.cancelled()
-                throw error
-            }
-            return ProviderPluginConsoleCapabilitiesTests.response(request, body: "late")
-        }
-        let task = Task { try await runtime.fetchUsage() }
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-        while calls.count < 2, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.count == 2)
-        task.cancel()
-        await #expect(throws: CancellationError.self) { try await task.value }
-        while calls.cancellations < 2, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(calls.cancellations == 2)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines, [false, true])
+    func `caller cancellation interrupts required GET and optional POST`(
+        engine: ProviderPluginEngineKind, waitingForAdmission: Bool) async throws
+    {
+        try await ProviderPluginCancellationTestSupport.checkCallerCancellation(
+            engine: engine, optionalMethod: "POST", waitingForAdmission: waitingForAdmission)
     }
 
     private static func runtime(
@@ -136,16 +119,10 @@ struct ProviderPluginOptionalPOSTTests {
     private final class Calls: @unchecked Sendable {
         private let lock = NSLock()
         private var starts = 0
-        private var cancels = 0
         var count: Int {
             self.lock.withLock { self.starts }
         }
 
-        var cancellations: Int {
-            self.lock.withLock { self.cancels }
-        }
-
         func started() { self.lock.withLock { self.starts += 1 } }
-        func cancelled() { self.lock.withLock { self.cancels += 1 } }
     }
 }

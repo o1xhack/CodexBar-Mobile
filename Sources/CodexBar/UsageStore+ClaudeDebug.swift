@@ -13,7 +13,7 @@ extension UsageStore {
     struct ClaudeDebugLogConfiguration {
         let runtime: CodexBarCore.ProviderRuntime
         let sourceMode: ProviderSourceMode
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let webExtrasEnabled: Bool
         let usageDataSource: ClaudeUsageDataSource
         let cookieSource: ProviderCookieSource

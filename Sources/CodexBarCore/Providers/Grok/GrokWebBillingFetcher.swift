@@ -14,6 +14,17 @@ public struct GrokProductUsage: Sendable, Equatable {
     }
 }
 
+extension GrokProductUsage {
+    static let compositionTolerancePercent = 1.0
+
+    static func composing(_ products: [GrokProductUsage], creditUsagePercent: Double) -> [GrokProductUsage] {
+        // Shares must compose this payload's credit percentage; any malformed entry drops the breakdown.
+        guard !products.isEmpty else { return [] }
+        let sum = products.reduce(0) { $0 + $1.usedPercent }
+        return abs(sum - creditUsagePercent) <= Self.compositionTolerancePercent ? products : []
+    }
+}
+
 public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let usedPercent: Double?
     public let resetsAt: Date?
@@ -306,14 +317,14 @@ public enum GrokWebBillingFetcher {
             scan.merge(Self.scanProtobuf(payload, depth: 0))
         }
 
-        let parsedPercent = scan.fixed32Fields
+        let parsedPercentField = scan.fixed32Fields
             .filter { field in
                 field.path.last == 1 && field.value.isFinite && field.value >= 0 && field.value <= 100
             }
             .min { lhs, rhs in
                 lhs.path.count == rhs.path.count ? lhs.order < rhs.order : lhs.path.count < rhs.path.count
             }
-            .map { Double($0.value) }
+        let parsedPercent = parsedPercentField.map { Double($0.value) }
 
         let resetFields = scan.varintFields.compactMap { field -> (path: [UInt64], date: Date)? in
             let raw = field.value
@@ -344,11 +355,20 @@ public enum GrokWebBillingFetcher {
         guard let percent = parsedPercent ?? (noUsageYet ? 0 : nil) else {
             throw GrokWebBillingError.parseFailed
         }
+        let productUsage: [GrokProductUsage] = if payloads.count == 1, scan.isComplete,
+                                                  let parsedPercent, parsedPercentField?.path == [1, 1]
+        {
+            GrokProductUsage.composing(
+                Self.decodeProductUsage(payloads[0]), creditUsagePercent: parsedPercent)
+        } else {
+            []
+        }
         return GrokWebBillingSnapshot(
             usedPercent: percent,
             resetsAt: reset,
             usedPercentIsWirePublished: parsedPercent != nil,
-            usedPercentIsImplicitZero: noUsageYet && payloads.count == 1 && scan.isComplete && hasActiveCurrentPeriod)
+            usedPercentIsImplicitZero: noUsageYet && payloads.count == 1 && scan.isComplete && hasActiveCurrentPeriod,
+            productUsage: productUsage)
     }
 
     static func looksLikeProtobufPayload(_ data: Data) -> Bool {
@@ -365,6 +385,7 @@ public enum GrokWebBillingFetcher {
         while index < bytes.count {
             guard index + 5 <= bytes.count else { return [] }
             let flags = bytes[index]
+            guard flags == 0 || flags == 0x80 else { return [] }
             let length =
                 (Int(bytes[index + 1]) << 24)
                 | (Int(bytes[index + 2]) << 16)
@@ -487,70 +508,21 @@ public enum GrokWebBillingFetcher {
         var nextOrder = order
 
         while index < bytes.count {
-            let fieldStart = index
-            guard let key = Self.readVarint(bytes, index: &index), key >> 3 > 0, key >> 3 <= 536_870_911 else {
+            guard let field = GrokProtobufField.read(bytes, index: &index) else {
                 scan.isComplete = false
-                index = fieldStart + 1
-                continue
+                return (scan, nextOrder)
             }
-            let fieldNumber = key >> 3
-            let wireType = key & 0x07
-            let fieldPath = path + [fieldNumber]
-
-            switch wireType {
-            case 0:
-                if let value = Self.readVarint(bytes, index: &index) {
-                    scan.varintFields.append(ProtobufScan.VarintField(path: fieldPath, value: value))
-                } else {
-                    scan.isComplete = false
-                    index = fieldStart + 1
-                }
-            case 1:
-                guard index + 8 <= bytes.count else {
-                    scan.isComplete = false
-                    return (scan, nextOrder)
-                }
-                index += 8
-            case 2:
-                guard let length = Self.readVarint(bytes, index: &index),
-                      length <= UInt64(bytes.count - index)
-                else {
-                    scan.isComplete = false
-                    index = fieldStart + 1
-                    continue
-                }
-                let start = index
-                let end = index + Int(length)
-                if depth < 4, Self.isKnownBillingMessage(path: fieldPath) {
-                    let nested = Self.scanProtobuf(
-                        Data(bytes[start..<end]),
-                        depth: depth + 1,
-                        path: fieldPath,
-                        order: nextOrder)
-                    scan.merge(nested.scan)
-                    nextOrder = nested.order
-                }
-                index = end
-            case 5:
-                guard index + 4 <= bytes.count else {
-                    scan.isComplete = false
-                    return (scan, nextOrder)
-                }
-                let bitPattern =
-                    UInt32(bytes[index])
-                    | (UInt32(bytes[index + 1]) << 8)
-                    | (UInt32(bytes[index + 2]) << 16)
-                    | (UInt32(bytes[index + 3]) << 24)
-                scan.fixed32Fields.append(
-                    ProtobufScan.Fixed32Field(
-                        path: fieldPath,
-                        value: Float(bitPattern: bitPattern),
-                        order: nextOrder))
+            let fieldPath = path + [field.number]
+            if let value = field.varint {
+                scan.varintFields.append(ProtobufScan.VarintField(path: fieldPath, value: value))
+            } else if let message = field.message, depth < 4, Self.isKnownBillingMessage(path: fieldPath) {
+                let nested = Self.scanProtobuf(
+                    Data(message), depth: depth + 1, path: fieldPath, order: nextOrder)
+                scan.merge(nested.scan)
+                nextOrder = nested.order
+            } else if let value = field.fixed32 {
+                scan.fixed32Fields.append(ProtobufScan.Fixed32Field(path: fieldPath, value: value, order: nextOrder))
                 nextOrder += 1
-                index += 4
-            default:
-                scan.isComplete = false
-                index = fieldStart + 1
             }
         }
 
@@ -570,19 +542,40 @@ public enum GrokWebBillingFetcher {
         }
     }
 
-    private static func readVarint(_ bytes: [UInt8], index: inout Int) -> UInt64? {
-        var value: UInt64 = 0
-        var shift: UInt64 = 0
-        while index < bytes.count, shift < 64 {
-            let byte = bytes[index]
-            index += 1
-            if shift == 63, byte > 1 { return nil }
-            value |= UInt64(byte & 0x7F) << shift
-            if byte & 0x80 == 0 {
-                return value
+    private static func decodeProductUsage(_ payload: Data) -> [GrokProductUsage] {
+        guard let root = GrokProtobufField.fields(in: Array(payload)) else { return [] }
+        let configs = root.filter { $0.number == 1 }
+        guard configs.count == 1, let message = configs[0].message,
+              let config = GrokProtobufField.fields(in: message),
+              config.filter({ $0.number == 1 }).count == 1 else { return [] }
+        var products: [GrokProductUsage] = []
+        var seenIDs: Set<UInt64> = []
+        for field in config where field.number == 7 {
+            guard let entry = field.message,
+                  let (id, percent) = Self.decodeProductEntry(entry), seenIDs.insert(id).inserted else { return [] }
+            // Only live-verified product IDs are named.
+            let name: String? = switch id {
+            case 2: "GrokBuild"
+            case 4: "GrokChat"
+            default: nil
             }
-            shift += 7
+            if let name {
+                products.append(GrokProductUsage(product: name, usedPercent: percent))
+            } else if percent > 0 {
+                return []
+            }
         }
-        return nil
+        return products
+    }
+
+    private static func decodeProductEntry(_ bytes: [UInt8]) -> (UInt64, Double)? {
+        guard let fields = GrokProtobufField.fields(in: bytes) else { return nil }
+        let ids = fields.filter { $0.number == 1 }
+        let percentages = fields.filter { $0.number == 2 }
+        guard ids.count == 1, let id = ids[0].varint, percentages.count <= 1,
+              percentages.isEmpty || percentages[0].fixed32 != nil else { return nil }
+        let percent = Double(percentages.first?.fixed32 ?? 0)
+        guard percent.isFinite, percent >= 0 else { return nil }
+        return (id, percent)
     }
 }

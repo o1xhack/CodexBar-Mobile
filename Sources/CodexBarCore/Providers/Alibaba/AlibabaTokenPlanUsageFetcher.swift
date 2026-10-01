@@ -57,7 +57,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let apiCookieHeader: String
         let secToken: String?
         let region: AlibabaTokenPlanAPIRegion
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
         let session: URLSession
     }

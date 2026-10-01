@@ -960,7 +960,7 @@ final class SyncCoordinator {
                     unmetered: windowSummary.coverage.unmetered,
                     estimated: windowSummary.coverage.estimated),
                 tokenMix: tokenMix,
-                historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
+                historyCoverageIsEstablished: tokenSnapshot.historyIsFullyScanned)
         } else {
             nil
         }
@@ -997,7 +997,7 @@ final class SyncCoordinator {
                 ? sourceDayKey
                 : nil,
             bucketTimeZoneIdentifier: bucketTimeZone.identifier,
-            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
+            historyCoverageIsEstablished: tokenSnapshot.historyIsFullyScanned,
             reportingPeriodSummary: reportingPeriodSummary)
     }
 
@@ -2312,7 +2312,7 @@ final class SyncCoordinator {
                 // an authoritative zero. During catch-up, the scanner also
                 // synthesizes zero when only older rows exist; that zero is a
                 // lower bound and must remain unavailable on iOS.
-                tokenSnapshot.historyCoverageIsEstablished && sessionCost == 0
+                tokenSnapshot.historyIsFullyScanned && sessionCost == 0
             }
         } else {
             nil
@@ -2362,7 +2362,7 @@ final class SyncCoordinator {
             // incomparable with the token window, but they do not make an
             // incomplete token scan complete. Preserve the fail-closed
             // coverage bit so iOS never presents a partial headline as final.
-            historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
+            historyCoverageIsEstablished: tokenSnapshot?.historyIsFullyScanned,
             reportingPeriodSummary: reportingPeriodSummary)
     }
 
@@ -2389,7 +2389,7 @@ final class SyncCoordinator {
                 : nil,
             coverage: input.costMetadataIsAligned ? input.coverage : nil,
             tokenMix: input.tokenMix,
-            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished)
+            historyCoverageIsEstablished: tokenSnapshot.historyIsFullyScanned)
     }
 
     private static func syncCostProvenance(_ provenance: CostProvenance) -> SyncCostProvenance {

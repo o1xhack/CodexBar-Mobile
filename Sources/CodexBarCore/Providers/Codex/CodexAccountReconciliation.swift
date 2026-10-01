@@ -218,7 +218,7 @@ public struct DefaultCodexAccountReconciler: Sendable {
     public let storeLoader: @Sendable () throws -> ManagedCodexAccountSet
     public let systemObserver: any CodexSystemAccountObserving
     public let activeSource: CodexActiveSource
-    public let baseEnvironment: [String: String]
+    @ProcessEnvironment public private(set) var baseEnvironment: [String: String]
     public let profileHomePaths: [String]
     public let managedEnvironmentBuilder: @Sendable ([String: String], ManagedCodexAccount) -> [String: String]
 

@@ -30,7 +30,7 @@ defineProvider({
     let response;
     let rejected = false;
     for await (const session of ctx.browser.sessions(domain)) {
-      const cookie = session.header
+      const cookie = _nullishCoalesce(session.header, () => "")
         .split(";")
         .map((part) => part.trim())
         .filter((part) => /^(?:__raycast_session|csrf_token)=/.test(part))

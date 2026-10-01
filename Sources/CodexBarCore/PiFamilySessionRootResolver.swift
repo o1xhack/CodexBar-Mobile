@@ -73,10 +73,9 @@ struct OMPSessionRootResolver: Sendable {
         environment: [String: String]) -> Bool
     {
         guard case .named = self.normalizedProfile(profile),
-              let home = homeURL(
-                  environment: environment,
-                  baseDirectory: nil,
-                  fileManager: .default),
+              let home = self.environmentURL(
+                  environment["HOME"],
+                  baseDirectory: nil),
               configRoot(home: home, environment: environment) != nil
         else { return false }
 
@@ -93,16 +92,14 @@ struct OMPSessionRootResolver: Sendable {
         baseDirectory: URL?,
         fileManager: FileManager) -> [URL]
     {
-        guard let home = homeURL(
-            environment: environment,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
+        guard let home = self.environmentURL(
+            environment["HOME"],
+            baseDirectory: baseDirectory)
         else { return [] }
         guard let configRoot = Self.configRoot(home: home, environment: environment) else { return [] }
-        let customAgentRoot = Self.customAgentRoot(
-            environment: environment,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
+        let customAgentRoot = self.environmentURL(
+            environment["PI_CODING_AGENT_DIR"],
+            baseDirectory: baseDirectory)
         let agentRoot: URL
         if let customAgentRoot {
             agentRoot = customAgentRoot
@@ -114,7 +111,7 @@ struct OMPSessionRootResolver: Sendable {
             agentRoot = canonicalAgentRoot
         }
 
-        guard let root = Self.sessionRoot(agentRoot: agentRoot, fileManager: fileManager) else { return [] }
+        guard let root = Self.sessionRoot(agentRoot: agentRoot) else { return [] }
 
         var roots = [root]
         #if os(macOS) || os(Linux)
@@ -122,16 +119,14 @@ struct OMPSessionRootResolver: Sendable {
            let xdgDataHome = Self.xdgDataHome(
                environment: environment,
                home: home,
-               baseDirectory: baseDirectory,
-               fileManager: fileManager)
+               baseDirectory: baseDirectory)
         {
             let xdgSessions = xdgDataHome
                 .appendingPathComponent("omp", isDirectory: true)
                 .appendingPathComponent("sessions", isDirectory: true)
             if Self.isDirectory(xdgSessions, fileManager: fileManager),
                let xdgRoot = Self.sessionRoot(
-                   agentRoot: xdgDataHome.appendingPathComponent("omp", isDirectory: true),
-                   fileManager: fileManager)
+                   agentRoot: xdgDataHome.appendingPathComponent("omp", isDirectory: true))
             {
                 roots.append(xdgRoot)
             }
@@ -148,10 +143,9 @@ struct OMPSessionRootResolver: Sendable {
         baseDirectory: URL?,
         fileManager: FileManager) -> [OMPSessionResolvedRoot]
     {
-        guard let home = homeURL(
-            environment: environment,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
+        guard let home = self.environmentURL(
+            environment["HOME"],
+            baseDirectory: baseDirectory)
         else { return [] }
         guard let configRoot = Self.configRoot(home: home, environment: environment) else { return [] }
         let profileRoot = configRoot
@@ -162,7 +156,7 @@ struct OMPSessionRootResolver: Sendable {
             home: home)
         else { return [] }
 
-        guard let root = Self.sessionRoot(agentRoot: agentRoot, fileManager: fileManager) else { return [] }
+        guard let root = Self.sessionRoot(agentRoot: agentRoot) else { return [] }
         var roots: [OMPSessionResolvedRoot] = []
 
         func appendExistingLayouts(in profileRoot: URL) {
@@ -187,8 +181,7 @@ struct OMPSessionRootResolver: Sendable {
         if let xdgDataHome = Self.xdgDataHome(
             environment: environment,
             home: home,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
+            baseDirectory: baseDirectory)
         {
             let xdgProfileRoot = xdgDataHome
                 .appendingPathComponent("omp", isDirectory: true)
@@ -210,27 +203,23 @@ struct OMPSessionRootResolver: Sendable {
     /// This keeps profile discovery aligned with `sessionRoots` when `PI_CONFIG_DIR` is customized.
     static func profileDiscoveryDirectories(
         environment: [String: String],
-        baseDirectory: URL?,
-        fileManager: FileManager = .default) -> [URL]
+        baseDirectory: URL?) -> [URL]
     {
-        guard let home = homeURL(
-            environment: environment,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager),
+        guard let home = self.environmentURL(
+            environment["HOME"],
+            baseDirectory: baseDirectory),
             let configRoot = Self.configRoot(home: home, environment: environment)
         else { return [] }
 
         var directories = [configRoot.appendingPathComponent("profiles", isDirectory: true)]
         #if os(macOS) || os(Linux)
-        if Self.customAgentRoot(
-            environment: environment,
-            baseDirectory: baseDirectory,
-            fileManager: fileManager) == nil,
+        if self.environmentURL(
+            environment["PI_CODING_AGENT_DIR"],
+            baseDirectory: baseDirectory) == nil,
             let xdgDataHome = Self.xdgDataHome(
                 environment: environment,
                 home: home,
-                baseDirectory: baseDirectory,
-                fileManager: fileManager)
+                baseDirectory: baseDirectory)
         {
             directories.append(
                 xdgDataHome
@@ -319,19 +308,6 @@ struct OMPSessionRootResolver: Sendable {
         }
     }
 
-    private static func homeURL(
-        environment: [String: String],
-        baseDirectory: URL?,
-        fileManager: FileManager) -> URL?
-    {
-        guard let home = environmentURL(
-            environment["HOME"],
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
-        else { return nil }
-        return home
-    }
-
     private static func configRoot(home: URL, environment: [String: String]) -> URL? {
         let name: String = if let configuredPath = environment["PI_CONFIG_DIR"]?
             .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -350,21 +326,9 @@ struct OMPSessionRootResolver: Sendable {
         return configRoot
     }
 
-    private static func customAgentRoot(
-        environment: [String: String],
-        baseDirectory: URL?,
-        fileManager: FileManager) -> URL?
-    {
-        self.environmentURL(
-            environment["PI_CODING_AGENT_DIR"],
-            baseDirectory: baseDirectory,
-            fileManager: fileManager)
-    }
-
     private static func environmentURL(
         _ value: String?,
-        baseDirectory: URL?,
-        fileManager: FileManager) -> URL?
+        baseDirectory: URL?) -> URL?
     {
         guard let value else { return nil }
         let path = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -383,16 +347,14 @@ struct OMPSessionRootResolver: Sendable {
     private static func xdgDataHome(
         environment: [String: String],
         home: URL,
-        baseDirectory: URL?,
-        fileManager: FileManager) -> URL?
+        baseDirectory: URL?) -> URL?
     {
         if let configured = environment["XDG_DATA_HOME"],
            !configured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             return self.environmentURL(
                 configured,
-                baseDirectory: baseDirectory,
-                fileManager: fileManager)
+                baseDirectory: baseDirectory)
         }
         return home
             .appendingPathComponent(".local", isDirectory: true)
@@ -412,7 +374,7 @@ struct OMPSessionRootResolver: Sendable {
         URL(fileURLWithPath: fileManager.currentDirectoryPath, isDirectory: true)
     }
 
-    private static func sessionRoot(agentRoot: URL, fileManager: FileManager) -> URL? {
+    private static func sessionRoot(agentRoot: URL) -> URL? {
         let canonicalAgentRoot = Self.canonicalURL(agentRoot)
         let candidate = Self.canonicalURL(
             agentRoot.appendingPathComponent("sessions", isDirectory: true))
@@ -427,8 +389,12 @@ struct OMPSessionRootResolver: Sendable {
         return canonicalAgentRoot
     }
 
-    private static func canonicalURL(_ url: URL) -> URL {
-        url.standardizedFileURL.resolvingSymlinksInPath().standardizedFileURL
+    static func canonicalURL(_ url: URL) -> URL {
+        let resolved = url.standardizedFileURL.resolvingSymlinksInPath().standardizedFileURL
+        // resolvingSymlinksInPath drops the directory marker for paths that do not exist yet,
+        // which would make a root's canonical URL depend on whether the directory is on disk.
+        guard url.hasDirectoryPath, !resolved.hasDirectoryPath else { return resolved }
+        return URL(fileURLWithPath: resolved.path, isDirectory: true)
     }
 
     private static func isDirectory(_ url: URL, fileManager: FileManager) -> Bool {

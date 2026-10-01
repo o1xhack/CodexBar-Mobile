@@ -364,7 +364,7 @@ final class UsageStore {
         TimeInterval) async throws -> Void)?
     @ObservationIgnored var widgetSnapshotPersistTask: Task<Void, Never>?
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
-    @ObservationIgnored var lastQueuedWidgetSnapshotIsPreservable = false
+    @ObservationIgnored var invalidatedQueuedWidgetProviders: Set<ProviderInstanceID> = []
     @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
     @ObservationIgnored let widgetTimelineReloader: @MainActor () -> Void
@@ -376,7 +376,7 @@ final class UsageStore {
     @ObservationIgnored let browserDetection: BrowserDetection
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
-    @ObservationIgnored let environmentBase: [String: String]
+    @ObservationIgnored @ProcessEnvironment private(set) var environmentBase: [String: String]
     @ObservationIgnored let pluginApprovalStore: ProviderPluginApprovalStore
     @ObservationIgnored let sessionQuotaNotifier: any SessionQuotaNotifying
     @ObservationIgnored let quotaTransitionWriter: any QuotaTransitionWriting

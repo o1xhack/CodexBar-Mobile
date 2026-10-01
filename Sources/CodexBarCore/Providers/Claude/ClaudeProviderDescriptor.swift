@@ -758,6 +758,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             tertiary: usage.opus,
             extraRateWindows: usage.extraRateWindows.isEmpty ? nil : usage.extraRateWindows,
             providerCost: usage.providerCost,
+            details: usage.resetCredits?.detailSections(now: usage.updatedAt) ?? [],
+            claudeResetCredits: usage.resetCredits,
             updatedAt: usage.updatedAt,
             identity: identity,
             dataConfidence: dataConfidence)

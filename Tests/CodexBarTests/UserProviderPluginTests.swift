@@ -29,7 +29,7 @@ struct UserProviderPluginTests {
         #expect(plugin.manifest.id.rawValue == "acme-meter")
         #expect(plugin.manifest.icon.monogram == "AM")
         #expect(plugin.manifest.icon.tint == "#336699")
-        #expect(plugin.manifest.topLevel == false)
+        #expect(plugin.manifest.topLevel)
 
         let binding = try plugin.approvalBinding(settings: [:])
         await #expect(throws: UserProviderPluginError.self) {
@@ -63,7 +63,6 @@ struct UserProviderPluginTests {
           id: "proxy-meter",
           name: "Proxy Meter",
           icon: { monogram: "PM", tint: "#336699" },
-          topLevel: true,
           endpoints: ["https://proxy.example"],
           settings: [],
           fetchUsage() { return { primary: { usedPercent: 12 } }; },
@@ -144,7 +143,7 @@ struct UserProviderPluginTests {
         defer { fixture.remove() }
         _ = try fixture.write(
             name: "solo.js",
-            source: Self.menuPlugin(id: "solo-meter", name: "Solo Meter", topLevel: true))
+            source: Self.menuPlugin(id: "solo-meter", name: "Solo Meter"))
         let plugin = try #require(UserProviderPluginRegistry.refresh(
             loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).first?.plugin)
         let (controller, store, settings) = Self.makePluginMenuController(
@@ -174,10 +173,10 @@ struct UserProviderPluginTests {
         defer { fixture.remove() }
         _ = try fixture.write(
             name: "first.js",
-            source: Self.menuPlugin(id: "first-meter", name: "First Meter", topLevel: true))
+            source: Self.menuPlugin(id: "first-meter", name: "First Meter"))
         _ = try fixture.write(
             name: "second.js",
-            source: Self.menuPlugin(id: "second-meter", name: "Second Meter", topLevel: true))
+            source: Self.menuPlugin(id: "second-meter", name: "Second Meter"))
         _ = try fixture.write(
             name: "legacy.js",
             source: Self.menuPlugin(id: "legacy-meter", name: "Legacy Meter", topLevel: false))
@@ -228,7 +227,6 @@ struct UserProviderPluginTests {
               id: "collision-meter",
               name: "\(name)",
               icon: { monogram: "\(monogram)", tint: "#336699" },
-              topLevel: true,
               endpoints: ["https://collision.example"],
               settings: [],
               fetchUsage() { return { primary: { usedPercent: 12 } }; },
@@ -260,7 +258,7 @@ struct UserProviderPluginTests {
         defer { fixture.remove() }
         _ = try fixture.write(
             name: "selected.js",
-            source: Self.menuPlugin(id: "selected-meter", name: "Selected Meter", topLevel: true))
+            source: Self.menuPlugin(id: "selected-meter", name: "Selected Meter"))
         let plugin = try #require(UserProviderPluginRegistry.refresh(
             loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).first?.plugin)
         let (controller, _, settings) = Self.makePluginMenuController(
@@ -283,16 +281,16 @@ struct UserProviderPluginTests {
     }
 
     @MainActor
-    @Test
-    func `persistent refresh targets the selected user plugin`() async throws {
+    @Test(arguments: [false, true])
+    func `persistent refresh targets the selected user plugin`(keyboard: Bool) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         _ = try fixture.write(
             name: "first.js",
-            source: Self.menuPlugin(id: "first-meter", name: "First Meter", topLevel: true))
+            source: Self.menuPlugin(id: "first-meter", name: "First Meter"))
         _ = try fixture.write(
             name: "second.js",
-            source: Self.menuPlugin(id: "second-meter", name: "Second Meter", topLevel: true))
+            source: Self.menuPlugin(id: "second-meter", name: "Second Meter"))
         let plugins = UserProviderPluginRegistry.refresh(
             loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).compactMap(\.plugin)
         let selectedID = try #require(ProviderInstanceID(rawValue: "second-meter"))
@@ -321,7 +319,25 @@ struct UserProviderPluginTests {
         store.refreshingProviders.insert(plugins[0].manifest.id)
         #expect(!controller.isRefreshActionInFlight(for: menu))
         store.refreshingProviders.remove(plugins[0].manifest.id)
-        controller.refreshMenuProviderNow(in: menu)
+        if keyboard {
+            let event = try #require(NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "r",
+                charactersIgnoringModifiers: "r",
+                isARepeat: false,
+                keyCode: 15))
+            #expect(menu.performKeyEquivalent(with: event))
+            for _ in 0..<20 where controller.manualRefreshTasks[.provider(selectedID)] == nil {
+                await Task.yield()
+            }
+        } else {
+            controller.refreshMenuProviderNow(in: menu)
+        }
 
         #expect(controller.manualRefreshTasks[.provider(selectedID)] != nil)
         #expect(controller.manualRefreshTasks[.global] == nil)
@@ -933,12 +949,136 @@ struct UserProviderPluginTests {
 }
 
 extension UserProviderPluginTests {
-    private static func menuPlugin(id: String, name: String, topLevel: Bool) -> String {
+    @MainActor
+    @Test(arguments: [nil, true, false] as [Bool?])
+    func `plugin placement respects default explicit override and unmerged menus`(topLevel: Bool?) throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        _ = try fixture.write(
+            name: "placement.js",
+            source: Self.menuPlugin(id: "placement-meter", name: "Placement Meter", topLevel: topLevel))
+        let plugin = try #require(UserProviderPluginRegistry.refresh(
+            loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).first?.plugin)
+        #expect(plugin.manifest.topLevel == (topLevel ?? true))
+        let (controller, _, settings) = Self.makePluginMenuController(
+            suiteName: "UserProviderPluginTests.placement",
+            selectedPluginID: .codex,
+            enabledPluginIDs: [plugin.manifest.id],
+            approvalStore: fixture.approvals)
+        defer { controller.releaseStatusItemsForTesting() }
+        for provider in [UsageProvider.codex, .claude] {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderRegistry.shared.metadata[provider]),
+                enabled: true)
+        }
+        let expectedCards = topLevel == false ? ["pluginCard:placement-meter"] : []
+        for overview in [false, true] {
+            settings.mergedMenuLastSelectedWasOverview = overview
+            let menu = controller.makeMenu()
+            controller.populateMenu(menu, provider: nil)
+            #expect(Self.pluginCardIDs(in: menu) == expectedCards)
+            let switcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
+            #expect(switcher._test_segmentTitles().contains("Placement Meter") == (topLevel != false))
+            controller.warmMergedSwitcherSiblingContent(in: menu)
+            let caches = controller.mergedSwitcherContentCaches[ObjectIdentifier(menu)] ?? [:]
+            let cachedPlugin = caches[.provider(plugin.manifest.id)]
+            #expect((cachedPlugin != nil) == (topLevel != false))
+        }
+        settings.mergeIcons = false
+        settings.mergedMenuLastSelectedWasOverview = false
+        let unmerged = controller.makeMenu()
+        controller.populateMenu(unmerged, provider: .codex)
+        #expect(!controller.shouldMergeIcons)
+        #expect(!(unmerged.items.first?.view is ProviderSwitcherView))
+        #expect(Self.pluginCardIDs(in: unmerged) == ["pluginCard:placement-meter"])
+        settings.setPluginEnabled(plugin.manifest.id, enabled: false)
+        controller.populateMenu(unmerged, provider: .codex)
+        #expect(Self.pluginCardIDs(in: unmerged).isEmpty)
+        #expect(controller.topLevelUserProviderPlugins().isEmpty)
+    }
+
+    @MainActor
+    @Test
+    func `render default plugin placement with synthetic production menus`() throws {
+        guard let path = ProcessInfo.processInfo.environment["CODEXBAR_PLUGIN_DEFAULT_PROOF_DIR"] else { return }
+        try #require(ProcessInfo.processInfo.environment["CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS"] == "1")
+        try #require(ProcessInfo.processInfo.environment["CODEXBAR_TEST_CODEX_FILE_ISOLATION"] == "1")
+        try #require(ProcessInfo.processInfo.environment["CODEXBAR_TEST_SESSION_FILE_ISOLATION"] == "1")
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        _ = try fixture.write(
+            name: "github-ratelimit.js",
+            source: Self.menuPlugin(id: "github-ratelimit", name: "GitHub Rate Limit"))
+        let plugin = try #require(UserProviderPluginRegistry.refresh(
+            loader: fixture.loader(transport: RecordingTransport(responseJSON: "{}"))).first?.plugin)
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+        let (controller, store, settings) = Self.makePluginMenuController(
+            suiteName: "UserProviderPluginTests.renderDefault",
+            selectedPluginID: .codex,
+            enabledPluginIDs: [plugin.manifest.id],
+            approvalStore: fixture.approvals)
+        defer { controller.releaseStatusItemsForTesting() }
+        settings.costUsageEnabled = false
+        settings.hidePersonalInfo = true
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        for provider in [UsageProvider.codex, .claude] {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderRegistry.shared.metadata[provider]),
+                enabled: true)
+            store._setSnapshotForTesting(snapshot, provider: provider)
+        }
+        store.snapshots[plugin.manifest.id] = snapshot
+        let directory = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let stage = plugin.manifest.topLevel ? "after" : "before"
+        var receipt: [String: [String]] = [:]
+        for selection in ["codex", "overview", "plugin"] {
+            if selection == "plugin", !plugin.manifest.topLevel { continue }
+            settings.selectedMenuProvider = selection == "plugin" ? plugin.manifest.id : .codex
+            settings.mergedMenuLastSelectedWasOverview = selection == "overview"
+            let menu = controller.makeMenu()
+            controller.populateMenu(menu, provider: nil)
+            receipt[selection + "Cards"] = Self.pluginCardIDs(in: menu)
+            receipt[selection + "Tabs"] = (menu.items.first?.view as? ProviderSwitcherView)?
+                ._test_segmentTitles() ?? []
+            // Use the actual menu's production views; no desktop capture or real provider data.
+            let rows = menu.items.compactMap(\.view)
+            let canvas = PluginMenuProofCanvas(frame: NSRect(
+                x: 0,
+                y: 0,
+                width: (rows.map(\.frame.width).max() ?? 310) + 16,
+                height: rows.reduce(16) { $0 + $1.frame.height + 4 }))
+            canvas.appearance = NSAppearance(named: .aqua)
+            canvas.wantsLayer = true
+            canvas.layer?.backgroundColor = NSColor.white.cgColor
+            var y: CGFloat = 8
+            for row in rows {
+                let wrapper = NSView(frame: NSRect(origin: NSPoint(x: 8, y: y), size: row.frame.size))
+                row.setFrameOrigin(.zero)
+                wrapper.addSubview(row)
+                canvas.addSubview(wrapper)
+                y += row.frame.height + 4
+            }
+            let png = try #require(MenuLayoutScreenshotRenderTests.pngDataWithWindow(hosting: canvas))
+            try png.write(to: directory.appendingPathComponent("\(stage)-\(selection).png"))
+        }
+        try JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys, .prettyPrinted])
+            .write(to: directory.appendingPathComponent("\(stage)-menus.json"))
+    }
+
+    private static func menuPlugin(id: String, name: String, topLevel: Bool? = nil) -> String {
         """
         defineProvider({
           id: "\(id)",
           name: "\(name)",
-          topLevel: \(topLevel),
+          \(topLevel.map { "topLevel: \($0)," } ?? "")
           endpoints: ["https://\(id).example"],
           settings: [],
           fetchUsage() { return { primary: { usedPercent: 12 } }; },
@@ -956,6 +1096,7 @@ extension UserProviderPluginTests {
     {
         let settings = testSettingsStore(
             suiteName: suiteName,
+            userDefaults: InMemoryUserDefaults(),
             tokenAccountStore: InMemoryTokenAccountStore())
         settings.providerDetectionCompleted = true
         settings.statusChecksEnabled = false
@@ -1092,6 +1233,17 @@ private actor SequenceResponseTransport: ProviderHTTPTransport {
             httpVersion: nil,
             headerFields: headers)!
         return (Data(response.body.utf8), httpResponse)
+    }
+}
+
+@MainActor
+private final class PluginMenuProofCanvas: NSView {
+    override var isFlipped: Bool {
+        true
+    }
+
+    override var fittingSize: NSSize {
+        self.frame.size
     }
 }
 

@@ -72,6 +72,42 @@ struct PiSharedRootMergeTests {
     }
 
     @Test
+    func `custom agent dir root identity does not depend on directory existence`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let agentDir = env.root.appendingPathComponent("custom-pi-agent", isDirectory: true)
+        let sessionsRoot = agentDir.appendingPathComponent("sessions", isDirectory: true)
+        let environment = [
+            "HOME": env.root.path,
+            "PI_CODING_AGENT_DIR": agentDir.path,
+        ]
+
+        // The directory is absent on disk: canonicalization must keep the
+        // directory marker so the resolved root stays identical once it appears.
+        let missing = OMPSessionRootResolver.sessionRoots(
+            environment: environment,
+            baseDirectory: env.root)
+        let missingRoot = try #require(missing.first { $0.path.hasSuffix("custom-pi-agent/sessions") })
+        #expect(missingRoot.hasDirectoryPath)
+
+        let missingCostRoot = try #require(PiFamilySessionScanner.costSessionRoots(
+            environment: environment,
+            baseDirectories: [env.root]).first { $0.url.path == missingRoot.path })
+        #expect(missingCostRoot.url.hasDirectoryPath)
+
+        try FileManager.default.createDirectory(
+            at: sessionsRoot,
+            withIntermediateDirectories: true)
+        #expect(OMPSessionRootResolver.sessionRoots(
+            environment: environment,
+            baseDirectory: env.root) == missing)
+        #expect(PiFamilySessionScanner.costSessionRoots(
+            environment: environment,
+            baseDirectories: [env.root]).first { $0.url.path == missingRoot.path }?.url == missingCostRoot.url)
+    }
+
+    @Test
     func `shared pi and omp root keeps required process provenance`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

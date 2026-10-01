@@ -39,7 +39,13 @@ Local cost scanners preserve that scope when selecting a catalog:
 - Other bare Claude-session IDs are priced only when exactly one selected first-party catalog matches. Ambiguous cross-vendor matches remain unpriced.
 - Provider-qualified Claude-session IDs stay on an approved explicit route and never fall through to another vendor.
 - Claude's [documented `k3[1m]` alias](https://www.kimi.com/code/docs/en/third-party-tools/claude-code.html) resolves to `kimi-for-coding/k3` after exact-row lookup, including the existing `kimi-coding/` and `kimi-for-coding/` routes. Recorded model names stay unchanged; other context variants and paid Moonshot routes are not inferred. Catalog zero rates remain known estimates, not a claim that subscriptions or extra usage are free.
+- OpenAI's [Daybreak aliases](https://developers.openai.com/api/docs/pricing) resolve like the unsuffixed `gpt-5.6` alias: `gpt-daybreak-blue-latest` prices as `gpt-5.6-sol` and `gpt-daybreak-red-latest` as `gpt-5.6-cyber`. Native usage rows retain raw model evidence; Codex aggregate model IDs follow the canonicalizer.
+- Antigravity's Gemini 3.1 Pro aliases (`gemini-pro-default`, `gemini-pro-agent`, and the `gemini-3.1-pro` effort tiers) price as `gemini-3.1-pro-preview`, the only catalogued Gemini 3.1 Pro row. The alias is provider-local; recorded model names stay unchanged.
 - Vertex AI Claude logs: models.dev provider id `google-vertex-anthropic`
+
+Dated Codex usage retains the prior bundled GPT-5.6 Sol rates before **2026-08-21 UTC**, the repricing date in the
+[OpenAI changelog](https://developers.openai.com/api/docs/changelog). Current and undated usage use the published
+current rates. Terra and Luna retain their separate July 30 cutoff. Custom-pricing overlays retain precedence.
 
 ### Explicit provider identity in OpenCodex
 

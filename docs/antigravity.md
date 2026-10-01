@@ -41,6 +41,12 @@ or later before using print mode; [Google introduced non-interactive usage repor
 It requires a successful `usage` command report with known,
 enabled quota buckets, bounds the command to 90 seconds and its output to 1 MiB, and terminates the command
 on cancellation. It runs in a private empty directory and does not send a model prompt or parse TUI output.
+Each print probe receives a fresh `CODEXBAR_PROBE_OWNER` environment marker. On completion, timeout, or
+cancellation, CodexBar stops its process group and reaps same-user processes that still carry that exact marker,
+including detached MCP servers. Ownership and process start identity are checked again before each signal;
+unreadable environments are skipped. Cleanup never selects a process by name, executable, or working directory.
+Children that deliberately discard the inherited environment cannot be identified by this safety net. The installed
+`agy` 1.2.11 `--help` offers MCP configuration commands but no per-probe switch to disable MCP startup.
 The report contains no account or plan identity: explicit CLI mode remains authoritative, while Auto uses
 this fallback only without a selected token account or explicitly injected OAuth credentials. Successful
 HTTPS results retain their verified identity. Failed command diagnostics do not include raw stderr.
@@ -74,11 +80,17 @@ can take a few extra seconds while CodexBar waits for readiness; later refreshes
 The local and CLI paths both prefer Antigravity's internal `RetrieveUserQuotaSummary` quota payload and may fall back to
 `GetUserStatus`, then `GetCommandModelConfigs`; CodexBar never scrapes the desktop UI or the `agy` TUI.
 
-As of Antigravity 2.x, the Antigravity app and `agy` CLI payloads can be richer than Google OAuth and IDE payloads.
-`RetrieveUserQuotaSummary` exposes the same two groups shown by Antigravity's Model Quota UI:
+The Antigravity app, `agy` CLI, and Google OAuth paths prefer quota summaries, using the same parser for
+the two groups shown by Antigravity's Model Quota UI:
 
 - `Gemini Models`: weekly limit and five-hour limit.
 - `Claude and GPT models`: weekly limit and five-hour limit.
+
+Starter accounts can supply only weekly limits. Both weekly groups remain visible when untouched, without
+inventing five-hour allowances. OAuth first tries `retrieveUserQuotaSummary` with the selected account's
+project and a two-second timeout cap. Unavailable, legacy model-bucket, or unmeasured summary responses fall
+back to the existing model endpoints; authentication failures and cancellation still propagate. Grouped OAuth
+quotas retain that account's existing email and plan, without an additional identity request.
 
 Older local payloads may only include raw Claude, GPT-OSS, Gemini tiers, account plan, and session reset timestamps.
 Current Antigravity IDE local endpoints return `GetUserStatus`, `GetAvailableModels`, and `GetCascadeModelConfigData`
@@ -120,8 +132,8 @@ be polled within the readiness deadline.
 - `POST https://cloudcode-pa.googleapis.com/v1internal:onboardUser`
 - `POST https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels`
 - `POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`
-- `POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` (available, but current observed OAuth
-  responses are model-bucket shaped rather than Antigravity 2.0's two quota groups)
+- `POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` (preferred when it returns measured
+  groups; older model-bucket responses use the model-endpoint fallback)
 
 ## Data sources + fallback order
 
@@ -265,7 +277,8 @@ shared OAuth file can still be used as a fallback credential source.
   - `userStatus.cascadeModelConfigData.clientModelConfigs[].quotaInfo.resetTime`
 - Preferred quota summary UI:
   - Render `Gemini Session`, `Gemini Weekly`, `Claude + GPT Session`, and `Claude + GPT Weekly` as named windows.
-  - Keep Antigravity's bucket description as reset prose; infer `windowMinutes` from the bucket ID/display name.
+  - Keep Antigravity's bucket description as reset prose; use its explicit `window` cadence, falling back to the
+    bucket ID/display name only when the cadence is absent.
   - Use the most constrained known bucket as the compact/menu-bar metric.
 - Legacy user-facing quota groups:
   - `Gemini` groups Gemini Pro and Gemini Flash text models.
@@ -278,7 +291,8 @@ shared OAuth file can still be used as a fallback credential source.
 - `resetTime` parsing:
   - ISO-8601 preferred; numeric epoch seconds as fallback.
 - Identity:
-  - `accountEmail` and `planName` only from `GetUserStatus`.
+  - Local HTTPS merges email and plan from the same server's `GetUserStatus`; print reports supply neither.
+  - OAuth retains the selected account's existing email claims and `loadCodeAssist` plan when parsing grouped quotas.
 
 ## UI mapping
 - Provider metadata:
@@ -328,6 +342,9 @@ A pool reset timestamp alone does not establish a five-hour cycle: session pace 
 five-hour duration.
 
 ## Local token history
+
+Recognized Gemini 3.1 Pro product and effort aliases use the catalog’s preview-model rates while retaining their
+recorded breakdown names. See [model pricing](model-pricing.md) for the supported aliases.
 
 Local history reads only the existing recognized roots: `~/.gemini/antigravity-cli/conversations/*.db`,
 `~/.gemini/antigravity/*.db`, and `~/.gemini/antigravity/conversations/*.db`. `GEMINI_CLI_HOME` replaces

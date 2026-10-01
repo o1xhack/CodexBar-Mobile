@@ -1,5 +1,8 @@
 import CoreFoundation
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public enum ProviderPluginEngineKind: Equatable, Sendable {
     case automatic
@@ -13,14 +16,30 @@ struct ProviderPluginContextOptions: Sendable {
     let optionalRequestTimeoutSeconds: TimeInterval?
     // Internal test control; public runtime initializers always use the production budget.
     var optionalCollectionBudget: Duration = .milliseconds(200)
+    var waitForOptionalDeadline: @Sendable (ContinuousClock.Instant, Duration) async throws -> Void = { start, budget in
+        try await Task.sleep(until: start.advanced(by: budget), clock: .continuous)
+    }
+
     var storage: ProviderPluginStorage?
-    var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
+    var beforeHTTPAttempt: (@Sendable (URLRequest) async throws -> Void)?
     var cookieSource: ProviderCookieSource = .auto
     var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
     var cookieSessionResolver: ProviderPluginRuntime.CookieSessionResolver?
     var cookieSessionInvalidator: ProviderPluginRuntime.CookieSessionInvalidator?
+    var cookieJar: ProviderPluginCookieJar?
+    var cookieSessionValidator: ProviderPluginRuntime.CookieSessionValidator?
+
+    func acceptCookie(domain: String, id: String) throws {
+        guard self.cookieJar?.contains(id: id, domain: domain) == true,
+              let validate = self.cookieSessionValidator
+        else {
+            throw ProviderPluginError.secretAccess("validated cookie session is unavailable")
+        }
+        try validate(domain, id)
+    }
 
     func rejectCookie(domain: String, id: String) {
+        self.cookieJar?.reject(id: id)
         if !id.isEmpty, let invalidate = self.cookieSessionInvalidator {
             invalidate(domain, id)
         } else {

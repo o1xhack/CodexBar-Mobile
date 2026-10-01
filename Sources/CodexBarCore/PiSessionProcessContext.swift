@@ -8,7 +8,7 @@ public struct PiSessionProcessContext: Equatable, Sendable {
     /// The process CWD, when it could be read. An absolute `--session-dir` remains resolvable when this is nil.
     public let workingDirectory: URL?
     /// Captured Pi root selectors only. Missing evidence must never inherit the scanner's environment.
-    public let selectorEnvironment: [String: String]?
+    @ProcessEnvironment public private(set) var selectorEnvironment: [String: String]?
 
     public init(
         command: String,

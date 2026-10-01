@@ -5,15 +5,17 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct PersistentRefreshAccessibilityTests {
-    @Test
-    func `disabled refresh row rejects accessibility press`() {
+    @Test(arguments: [nil, "arrow.clockwise"] as [String?])
+    func `disabled refresh row rejects accessibility press`(systemImageName: String?) {
         var pressCount = 0
         let view = PersistentRefreshMenuView(
             title: "Refresh",
-            systemImageName: "arrow.clockwise",
+            systemImageName: systemImageName,
             shortcutText: "⌘ R",
             onClick: { pressCount += 1 })
 
+        #expect(view.accessibilityRole() == .button)
+        #expect(view.accessibilityLabel() == "Refresh")
         #expect(view.isAccessibilityEnabled())
         #expect(view.accessibilityPerformPress())
         #expect(pressCount == 1)

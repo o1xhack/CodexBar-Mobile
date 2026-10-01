@@ -7,6 +7,41 @@ import Testing
 struct MenuBarLayoutProviderBalanceTests {
     private let now = Date(timeIntervalSince1970: 1_752_768_000)
 
+    @Test
+    func `TypeSafe plugin balance reaches automatic and explicit layout tokens`() async throws {
+        let snapshot = try await TypeSafePluginTests.fetch(engine: .quickJS)
+        let data = self.data(provider: .typesafe, snapshot: snapshot)
+        #expect(data.balance == "$4.98")
+        #expect(data.automaticText == "$4.98")
+        for token: MenuBarLayoutToken in [.balance, .percent(window: .automatic)] {
+            #expect(self.render(layout: MenuBarLayout(lines: [[token]]), data: data).attributedTitle.string == "$4.98")
+        }
+    }
+
+    @Test(arguments: [
+        (UsageProvider.typesafe, UsageProvider.typesafe, "$4.98" as String?),
+        (.poe, .typesafe, nil),
+        (.claude, .claude, nil),
+    ])
+    func `balance labels require matching provider identity and declared presentation`(
+        provider: UsageProvider,
+        identityProvider: UsageProvider,
+        expected: String?)
+    {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            updatedAt: self.now,
+            identity: ProviderIdentitySnapshot(
+                providerID: identityProvider.instanceID,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Balance: $4.98"))
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot)
+            == expected)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: nil) == nil)
+    }
+
     @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass])
     func `stored balance and automatic tokens resolve provider amounts`(provider: UsageProvider) throws {
         let (snapshot, expected) = try self.fixture(provider: provider)

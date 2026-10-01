@@ -3,6 +3,29 @@ import Testing
 @testable import CodexBarCore
 
 struct UserProviderPluginPortableTests {
+    @Test(arguments: ProviderPluginTransportTests.engines)
+    func `plugin tab placement defaults and boolean validation agree across engines`(
+        engine: ProviderPluginEngineKind) throws
+    {
+        for field in ["", "topLevel: undefined,", "topLevel: null,", "topLevel: true,", "topLevel: false,"] {
+            let runtime = try ProviderPluginRuntime(source: """
+            defineProvider({id: 'synthetic', name: 'Fixture', endpoints: ['https://example.test'], settings: [],
+              \(field)
+              fetchUsage() { return {primary: {usedPercent: 25}}; }});
+            """, engine: engine)
+            #expect(runtime.manifest.topLevel == (field != "topLevel: false,"))
+        }
+        for value in ["'yes'", "1", "{}", "[]"] {
+            #expect(throws: ProviderPluginError.self) {
+                try ProviderPluginRuntime(source: """
+                defineProvider({id: 'synthetic', name: 'Fixture', endpoints: ['https://example.test'], settings: [],
+                  topLevel: \(value),
+                  fetchUsage() { return {primary: {usedPercent: 25}}; }});
+                """, engine: engine)
+            }
+        }
+    }
+
     @Test
     func `loader built API only cookie plugin never touches the broker`() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

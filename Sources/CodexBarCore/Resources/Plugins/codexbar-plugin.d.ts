@@ -1,10 +1,11 @@
-/** A secret header bound to one declared origin; reject with its opaque ID to advance safely. */
+/** A host-issued candidate. Request-URL cookie policies expose metadata only. */
 interface CodexBarCookieSession {
   readonly id: string;
-  readonly header: string;
+  readonly header?: string;
   readonly source: string;
   readonly origin: string;
   readonly cachedAt?: number;
+  readonly cacheKey?: string;
 }
 
 type CodexBarJSONPrimitive = boolean | number | string | null;
@@ -162,6 +163,8 @@ interface CodexBarFetchResult {
 }
 
 interface CodexBarHTTPRequestOptions {
+  /** Opaque session ID issued by browser.sessions for a request-url cookie policy. */
+  cookieSession?: string;
   headers?: Readonly<Record<string, string>>;
   /** Hard deadline from transport start, 1–90 seconds (default 15); also bounded by the overall fetch deadline. */
   timeoutSeconds?: number;
@@ -234,6 +237,7 @@ interface CodexBarPluginContext {
   };
   readonly browser: {
     availability(domain: string): "available" | "off" | "manual";
+    acceptCookie(domain: string, session: CodexBarCookieSession): void;
     rejectCookie(domain: string, session?: CodexBarCookieSession): void;
     sessions(domain: string, options?: { cachedOnly?: boolean }): AsyncIterable<CodexBarCookieSession>;
     cookieHeader(domain: string): Promise<string>;
@@ -284,7 +288,7 @@ interface CodexBarProviderDefinition {
   id: string;
   name: string;
   icon?: { monogram?: string; tint?: string };
-  /** Shows this plugin as its own provider-switcher tab. */
+  /** Defaults to true: a switcher tab when Merge Icons is on. False keeps an appended card. */
   topLevel?: boolean;
   endpoints: CodexBarEndpoint[];
   auth?: CodexBarAuth;
@@ -292,6 +296,17 @@ interface CodexBarProviderDefinition {
   /** Grants declared cookie access, HTTP status handling, or bounded non-secret persistent state. */
   capabilities?: Array<"browser-cookies" | "http-status" | "persistent-storage">;
   cookieDomains?: string[];
+  snapshotPolicy?: { percent: "clamp" | "preserve-overage" };
+  /** Bundled-only, host-owned per-profile cookie selection without persistent session caching. */
+  cookiePolicy?: {
+    selection: "request-url" | "ranked-source-domains";
+    cache: "nonpersistent" | "validated-single-entry";
+    sourceDomains?: string[];
+    requiredCookies?: string[];
+    missingCookies?: "reject" | "omit";
+    imports?: "app-interactive" | "access-gated";
+    sessionFile?: { tokenField: string; cookieName: string };
+  };
   fetchUsage(
     ctx: CodexBarPluginContext,
   ): CodexBarUsageSnapshot | CodexBarFetchResult | Promise<CodexBarUsageSnapshot | CodexBarFetchResult>;

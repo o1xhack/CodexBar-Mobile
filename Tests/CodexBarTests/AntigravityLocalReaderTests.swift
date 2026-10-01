@@ -159,7 +159,8 @@ struct AntigravityLocalReaderTests {
 
         #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.8-flash-tiered")
             == "gemini-3.8-flash")
-        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.1-pro-low") == "gemini-3.1-pro")
+        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.1-pro-low")
+            == "gemini-3.1-pro-preview")
         #expect(AntigravityLocalReader.pricingBaseModelID(for: "claude-opus-4-6-thinking")
             == "claude-opus-4-6")
         #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.8-flash") == nil)
@@ -897,5 +898,46 @@ struct AntigravityLocalReaderTests {
         let snapshot = try await fixture.snapshot()
         #expect(!snapshot.historyCoverageIsEstablished)
         #expect(snapshot.last30DaysTokens == nil)
+    }
+}
+
+extension AntigravityLocalReaderTests {
+    @Test
+    func `gemini pro product aliases price from the catalogued preview model`() async throws {
+        let fixture = try Fixture()
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
+        {
+            "google": {
+                "id": "google",
+                "name": "Google",
+                "models": {
+                    "gemini-3.1-pro-preview": {
+                        "id": "gemini-3.1-pro-preview",
+                        "cost": {"input": 1, "output": 2, "cache_read": 0.2}
+                    }
+                }
+            }
+        }
+        """#.utf8))
+        let cacheRoot = fixture.root.appendingPathComponent("scanner-cache")
+        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: Fixture.now, cacheRoot: cacheRoot))
+        try fixture.database(blobs: [Fixture.blob(model: "gemini-pro-default")])
+
+        let snapshot = try await fixture.snapshot()
+        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(snapshot.last30DaysCostUSD == expected)
+        // The recorded alias keeps its own identity in the breakdown; only pricing resolves.
+        #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-pro-default")
+
+        for alias in [
+            "gemini-pro-default",
+            "gemini-pro-agent",
+            "gemini-3.1-pro",
+            "gemini-3.1-pro-high",
+            "gemini-3.1-pro-thinking",
+        ] {
+            #expect(AntigravityLocalReader.pricingBaseModelID(for: alias) == "gemini-3.1-pro-preview")
+        }
+        #expect(AntigravityLocalReader.pricingBaseModelID(for: "Gemini-Pro-Default") == "gemini-3.1-pro-preview")
     }
 }

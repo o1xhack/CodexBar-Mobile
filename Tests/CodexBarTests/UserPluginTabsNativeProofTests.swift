@@ -170,7 +170,7 @@ final class UserPluginTabsNativeProofTests: XCTestCase {
             defineProvider({
               id: "\(id)", name: "\(name)",
               icon: {monogram: "\(monogram)", tint: "\(tint)"},
-              topLevel: \(topLevel && primaryTab),
+              \(topLevel && primaryTab ? "" : "topLevel: false,")
               endpoints: ["https://example.com"], settings: [],
               fetchUsage() { return {primary: {usedPercent: \(used)}}; }
             });

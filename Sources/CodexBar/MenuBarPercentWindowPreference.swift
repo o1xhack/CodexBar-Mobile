@@ -8,6 +8,7 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
     case session
     case weekly
     case tertiary
+    case monthlyPlan
 
     var id: String {
         self.rawValue
@@ -18,26 +19,30 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         case .automatic: .automatic
         case .session: .session
         case .weekly: .weekly
-        case .tertiary: nil
+        case .tertiary, .monthlyPlan: nil
         }
     }
 
     private var layoutToken: MenuBarLayoutToken {
-        switch self {
-        case .automatic: .percent(window: .automatic)
-        case .session: .percent(window: .session)
-        case .weekly: .percent(window: .weekly)
-        case .tertiary: .lanePercent(lane: .tertiary)
-        }
+        if self == .tertiary { return .lanePercent(lane: .tertiary) }
+        // Metric-backed choices resolve through the automatic lane.
+        return .percent(window: self.percentWindow ?? .automatic)
+    }
+
+    /// The per-provider metric this choice stores for providers that offer Monthly Plan, which the
+    /// automatic percent and widgets read.
+    var menuBarMetric: MenuBarMetricPreference {
+        self == .monthlyPlan ? .monthlyPlan : .automatic
     }
 
     func label(for provider: UsageProvider) -> String {
         guard self != .automatic else { return L("menu_bar_layout_token_auto") }
+        if self == .monthlyPlan { return MenuBarMetricPreference.monthlyPlan.label }
         if self == .tertiary {
             return MenuBarLayoutLaneLabels(provider: provider, snapshot: nil).label(for: .tertiary)
         }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        let primary = Self.percentWindow(descriptor.presentation.primarySemanticWindow)
+        let primary = PercentWindow.forSemanticWindow(descriptor.presentation.primarySemanticWindow)
         let presentation = descriptor.presentation
         return L(self.percentWindow == primary
             ? presentation.menuBarLayoutPrimaryLabel ?? descriptor.metadata.sessionLabel
@@ -53,8 +58,8 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
     {
         var windows = Set<PercentWindow>()
         for metric in metrics.supported {
-            windows.insert(Self.percentWindow(
-                for: metric,
+            windows.insert(PercentWindow.forMetric(
+                metric,
                 primarySemanticWindow: primarySemanticWindow,
                 secondarySemanticWindow: secondarySemanticWindow))
         }
@@ -64,6 +69,9 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         }
         if metrics.supported.contains(.tertiary), !metrics.tertiaryRequiresWindow {
             options.append(.tertiary)
+        }
+        if metrics.supported.contains(.monthlyPlan) {
+            options.append(.monthlyPlan)
         }
         return options
     }
@@ -77,18 +85,23 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         if let layout, !self.percentWindows(in: layout).isEmpty, self.hasTertiaryPercent(in: layout) {
             return options.filter { $0 != .tertiary }
         }
+        // Without a percentage in the layout, only the stored metric can change.
+        if let layout, options.contains(.monthlyPlan), !self.hasPercentToken(in: layout) {
+            return [.automatic, .monthlyPlan]
+        }
         return options
     }
 
     /// The simplified picker controls percent layouts without changing the global icon style.
+    /// Monthly Plan also picks the widget allowance, so it stays reachable in every style and layout.
     static func isVisible(
         iconStyle: MenuBarIconStyle,
         layout: MenuBarLayout,
         available: [Self]) -> Bool
     {
-        iconStyle == .iconAndPercent
-            && self.hasPercentToken(in: layout)
-            && available.count > 1
+        guard available.count > 1 else { return false }
+        if available.contains(.monthlyPlan) { return true }
+        return iconStyle == .iconAndPercent && self.hasPercentToken(in: layout)
     }
 
     static func isVisible(
@@ -104,10 +117,17 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
 
     /// Ordinary percentages own the choice when a custom layout also has an independent tertiary
     /// token. Only layouts without ordinary percentages treat tertiary tokens as the controlled group.
-    static func current(in layout: MenuBarLayout) -> Self? {
+    /// Pass the stored metric for providers that offer Monthly Plan: it turns an all-automatic layout into the
+    /// Monthly Plan choice, and alone decides the choice when the layout has no percentage.
+    static func current(in layout: MenuBarLayout, metric: MenuBarMetricPreference? = nil) -> Self? {
         let windows = Self.percentWindows(in: layout)
-        guard let first = windows.first else { return self.hasTertiaryPercent(in: layout) ? .tertiary : nil }
+        guard let first = windows.first else {
+            if self.hasTertiaryPercent(in: layout) { return .tertiary }
+            guard let metric else { return nil }
+            return metric == .monthlyPlan ? .monthlyPlan : .automatic
+        }
         guard windows.allSatisfy({ $0 == first }) else { return nil }
+        if first == .automatic, metric == .monthlyPlan { return .monthlyPlan }
         return Self.allCases.first { $0.percentWindow == first }
     }
 
@@ -137,27 +157,6 @@ enum MenuBarPercentWindowPreference: String, CaseIterable, Identifiable, Sendabl
         layout.lines.flatMap(\.self).compactMap { token in
             guard case let .percent(window) = token else { return nil }
             return window
-        }
-    }
-
-    /// Same semantic mapping as layout migration: other metrics retain Automatic as an option.
-    private static func percentWindow(
-        for metric: ProviderMenuBarMetric,
-        primarySemanticWindow: ProviderSemanticWindow,
-        secondarySemanticWindow: ProviderSemanticWindow) -> PercentWindow
-    {
-        switch metric {
-        case .primary: self.percentWindow(primarySemanticWindow)
-        case .secondary: self.percentWindow(secondarySemanticWindow)
-        case .automatic, .primaryAndSecondary, .tertiary, .extraUsage, .average, .monthlyPlan:
-            .automatic
-        }
-    }
-
-    private static func percentWindow(_ window: ProviderSemanticWindow) -> PercentWindow {
-        switch window {
-        case .session: .session
-        case .weekly: .weekly
         }
     }
 }

@@ -10,6 +10,7 @@
     "projections": {"XKIRO_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["xkiro.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -23,6 +24,7 @@
     "projections": {"ATLASCLOUD_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["atlascloud.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -36,6 +38,7 @@
     "projections": {"AI_GATEWAY_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["vercel.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -49,6 +52,7 @@
     "projections": {"DEVPASS_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["devpass.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -62,6 +66,7 @@
     "projections": {"GITKRAKEN_API_TOKEN": "fixture-key", "GITKRAKEN_ORG_ID": "fixture-project"},
     "sourceModes": ["api", "auto"],
     "strategies": ["gitkraken.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": 7
   },
   {
@@ -75,6 +80,7 @@
     "projections": {"POE_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["poe.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -88,6 +94,7 @@
     "projections": {"DEEPINFRA_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["deepinfra.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -101,6 +108,7 @@
     "projections": {"ZENMUX_MANAGEMENT_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["zenmux.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -114,6 +122,7 @@
     "projections": {"CLINE_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["clinepass.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -127,6 +136,7 @@
     "projections": {"AIAND_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["aiand.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -140,6 +150,7 @@
     "projections": {"SYNTHETIC_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["synthetic.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -153,6 +164,7 @@
     "projections": {"CHUTES_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["chutes.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -166,6 +178,7 @@
     "projections": {"V0_API_KEY": "fixture-key", "V0_SCOPE": "fixture-project"},
     "sourceModes": ["api", "auto"],
     "strategies": ["v0.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -179,6 +192,7 @@
     "projections": {"ELEVENLABS_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["elevenlabs.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -192,6 +206,7 @@
     "projections": {"NEURALWATT_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto"],
     "strategies": ["neuralwatt.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -205,6 +220,7 @@
     "projections": {"CLAWROUTER_API_KEY": "fixture-key", "CLAWROUTER_BASE_URL": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["clawrouter.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -218,6 +234,7 @@
     "projections": {"AIXY_API_KEY": "fixture-key", "AIXY_BASE_URL": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["aixy.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -231,6 +248,7 @@
     "projections": {"BIFROST_API_KEY": "fixture-key", "BIFROST_BASE_URL": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["bifrost.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -244,6 +262,7 @@
     "projections": {"DEEPGRAM_API_KEY": "fixture-key", "DEEPGRAM_PROJECT_ID": "fixture-project"},
     "sourceModes": ["api", "auto"],
     "strategies": ["deepgram.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": 5
   },
   {
@@ -257,6 +276,7 @@
     "projections": {"LLM_PROXY_API_KEY": "fixture-key", "LLM_PROXY_BASE_URL": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["llmproxy.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -270,6 +290,7 @@
     "projections": {"LITELLM_API_KEY": "fixture-key", "LITELLM_BASE_URL": "https://fixture.example.com", "LITELLM_MODEL_USAGE_ENABLED": "true"},
     "sourceModes": ["api", "auto"],
     "strategies": ["litellm.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -283,6 +304,7 @@
     "projections": {"SUB2API_API_KEY": "fixture-key", "SUB2API_BASE_URL": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["sub2api.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -296,6 +318,7 @@
     "projections": {"LLMMAN_API_KEY": "fixture-key", "LLMMAN_HOST": "https://fixture.example.com"},
     "sourceModes": ["api", "auto"],
     "strategies": ["llmman.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -309,6 +332,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["helmcode.web"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -322,6 +346,7 @@
     "projections": {"HYPER_API_KEY": "fixture-key"},
     "sourceModes": ["api", "auto", "web"],
     "strategies": ["hyper.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -335,6 +360,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["manus.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -348,6 +374,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["perplexity.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -361,6 +388,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["qoder.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -374,6 +402,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["raycast.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -387,6 +416,7 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["sakana.js"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   },
   {
@@ -400,6 +430,91 @@
     "projections": {},
     "sourceModes": ["auto", "web"],
     "strategies": ["t3chat.js"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
+    "availability": [false, false, true],
+    "cliResolution": {"HUGGINGFACE": ["huggingface"], "HF": ["huggingface"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[false, false], [true, true], [true, true], [true, true]],
+    "fields": ["secure"],
+    "id": "huggingface",
+    "projectToken": "",
+    "projections": {"CODEXBAR_HUGGINGFACE_API_KEY": "fixture-key"},
+    "sourceModes": ["api", "auto"],
+    "strategies": ["huggingface.js"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
+    "availability": [false, false, false],
+    "cliResolution": {"NOUS": ["nous"], "NOUS-PORTAL": ["nous"], "HERMES": ["nous"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[false, false], [false, false], [false, false], [false, false]],
+    "fields": [],
+    "id": "nous",
+    "projectToken": "",
+    "projections": {},
+    "sourceModes": ["api", "auto"],
+    "strategies": ["nous.api"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
+    "availability": [false, false, true],
+    "cliResolution": {"FIREWORKS": ["fireworks"], "FW": ["fireworks"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[false, false], [true, true], [true, true], [true, true]],
+    "fields": ["secure", "plain"],
+    "id": "fireworks",
+    "projectToken": "",
+    "projections": {"CODEXBAR_FIREWORKS_API_KEY": "fixture-key"},
+    "sourceModes": ["api", "auto"],
+    "strategies": ["fireworks.js"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
+    "availability": [false, false, true],
+    "cliResolution": {"XAI": ["xai"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[false, false], [true, true], [true, true], [true, true]],
+    "fields": ["secure", "plain"],
+    "id": "xai",
+    "projectToken": "",
+    "projections": {"XAI_MANAGEMENT_API_KEY": "fixture-key", "XAI_TEAM_ID": "fixture-project"},
+    "sourceModes": ["api", "auto"],
+    "strategies": ["xai.js"],
+    "supportsTokenCost": true,
+    "workspaceOrder": 6
+  },
+  {
+    "availability": [false, false, false],
+    "cliResolution": {"VENICE": ["venice"], "VEN": ["venice"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[false, false], [true, true], [true, true], [true, true]],
+    "fields": ["secure"],
+    "id": "venice",
+    "projectToken": "",
+    "projections": {"VENICE_API_KEY": "fixture-key"},
+    "sourceModes": ["api", "auto", "web"],
+    "strategies": ["venice.js"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
+    "availability": [true, true, true],
+    "cliResolution": {"ZED": ["zed"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[true, true], [true, true], [true, true], [true, true]],
+    "fields": ["secure"],
+    "id": "zed",
+    "projectToken": "",
+    "projections": {},
+    "sourceModes": ["api", "auto", "web"],
+    "strategies": ["zed.local"],
+    "supportsTokenCost": false,
     "workspaceOrder": null
   }
 ]

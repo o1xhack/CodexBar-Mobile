@@ -159,7 +159,7 @@ struct ProviderPluginDetailsParityTests {
                 // Keep a scheduling margin for credits under the full concurrent Linux matrix.
                 // The key transport and pre-attempt delay still exceed this budget.
                 optionalRequestTimeoutSeconds: 5,
-                beforeHTTPAttempt: {
+                beforeHTTPAttempt: { _ in
                     // Model a task queued longer than the attempt budget before the transport begins.
                     if delaysTaskStart { try await Task.sleep(for: .milliseconds(7500)) }
                 }),

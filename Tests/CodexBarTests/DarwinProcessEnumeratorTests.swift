@@ -49,7 +49,7 @@ struct DarwinProcessEnumeratorTests {
         #expect(DarwinProcessEnumerator.parseProcArgs2Arguments(data) == [
             "/usr/local/bin/omp", "", "--profile", "work",
         ])
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(data) == [
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(data) == [
             "HOME": "/synthetic/home", "OMP_PROFILE": "work",
         ])
         #expect(DarwinProcessEnumerator.parseProcArgs2(data)?.contains("HOME=") == false)
@@ -58,16 +58,16 @@ struct DarwinProcessEnumeratorTests {
     @Test
     func `proc args selector environment distinguishes omitted empty and truncated evidence`() {
         let empty = Self.procArgsData(arguments: ["pi"])
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(empty) == nil)
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(empty) == nil)
         var paddedEmpty = empty
         paddedEmpty.append(contentsOf: [0, 0])
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(paddedEmpty) == nil)
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(paddedEmpty) == nil)
         let knownEmpty = Self.procArgsData(arguments: ["pi"], environment: ["UNRELATED=value"])
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(knownEmpty) == [:])
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(knownEmpty) == [:])
         var truncated = Self.procArgsData(arguments: ["pi"], environment: ["HOME=/synthetic/home"])
         truncated.removeLast()
         #expect(DarwinProcessEnumerator.parseProcArgs2Arguments(truncated) == ["pi"])
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(truncated) == nil)
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(truncated) == nil)
     }
 
     @Test
@@ -75,7 +75,7 @@ struct DarwinProcessEnumeratorTests {
         var data = Self.procArgsData(arguments: ["pi"], environment: ["HOME=/synthetic/process"])
         data.append(0)
         data.append(contentsOf: "HOME=/synthetic/apple-vector\0ptr_munge=ignored\0".utf8)
-        #expect(DarwinProcessEnumerator.parseProcArgs2PiSelectorEnvironment(data) == [
+        #expect(DarwinProcessEnumerator.parseProcArgs2Environment(data) == [
             "HOME": "/synthetic/process",
         ])
     }

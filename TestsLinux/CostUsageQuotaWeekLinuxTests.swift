@@ -242,8 +242,9 @@ struct CostUsageQuotaWeekLinuxTests {
         #expect(current?.totalTokens == 400)
         #expect(previous?.totalCostUSD == 2)
         #expect(previous?.totalTokens == 200)
-        let combinedCostUSD: Double = (current?.totalCostUSD ?? 0) + (previous?.totalCostUSD ?? 0)
-        #expect(combinedCostUSD == 6)
+        let currentCost: Double = current?.totalCostUSD ?? 0
+        let previousCost: Double = previous?.totalCostUSD ?? 0
+        #expect(currentCost + previousCost == 6)
         #expect(current?.entryCount == 1)
         #expect(previous?.entryCount == 1)
     }
@@ -286,8 +287,9 @@ struct CostUsageQuotaWeekLinuxTests {
         #expect(previous?.totalTokens == 200)
         #expect(current?.totalCostUSD == 4)
         #expect(current?.totalTokens == 400)
-        let combinedCostUSD: Double = (current?.totalCostUSD ?? 0) + (previous?.totalCostUSD ?? 0)
-        #expect(combinedCostUSD == 6)
+        let currentCost: Double = current?.totalCostUSD ?? 0
+        let previousCost: Double = previous?.totalCostUSD ?? 0
+        #expect(currentCost + previousCost == 6)
     }
 
     @Test

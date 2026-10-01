@@ -43,12 +43,13 @@ public enum LongCatProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .longcat),
                 iconResourceName: "ProviderIcon-longcat",
-                color: ProviderColor(red: 255 / 255, green: 209 / 255, blue: 0 / 255),
+                color: ProviderColor(hex: 0x29E154),
                 confettiPalette: [
-                    ProviderColor(hex: 0xFFD100),
+                    ProviderColor(hex: 0x29E154),
                     ProviderColor(hex: 0x111111),
                     ProviderColor(hex: 0xFFFFFF),
-                ]),
+                ],
+                widgetColor: ProviderColor(hex: 0xFFD100)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "LongCat cost summary is not supported." }),
@@ -62,7 +63,7 @@ public enum LongCatProviderDescriptor {
                     secondaryDescriptionMode: .detailWhenResetDatePresent)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [LongCatWebFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.webStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "longcat",
                 aliases: ["long-cat", "lc"],
@@ -70,88 +71,29 @@ public enum LongCatProviderDescriptor {
     }
 }
 
-struct LongCatWebFetchStrategy: ProviderFetchStrategy {
-    let id: String = "longcat.web"
-    let kind: ProviderFetchKind = .web
-    private static let log = CodexBarLog.logger(LogCategories.provider(.longcat, scope: "web"))
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        if LongCatCookieHeader.resolveCookieOverride(context: context) != nil {
-            return true
-        }
-
-        #if os(macOS)
-        if Self.allowsBrowserImport(context: context) {
-            return LongCatCookieImporter.hasSession(browserDetection: context.browserDetection)
-        }
-        #endif
-
-        return false
+extension LongCatProviderDescriptor {
+    static func webStrategy(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy {
+        ScriptFetchStrategy(
+            id: "longcat.web",
+            provider: .longcat,
+            bundledPlugin: "longcat",
+            sourceLabel: "web",
+            kind: .web,
+            transport: transport,
+            cookieSettings: self.cookieSettings,
+            resolveValues: { _ in .init() },
+            isEnabled: { _ in true })
     }
 
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let snapshot: LongCatUsageSnapshot
-        if let override = LongCatCookieHeader.resolveCookieOverride(context: context) {
-            snapshot = try await LongCatUsageFetcher.fetchUsage(cookieHeader: override.cookieHeader)
-        } else {
-            #if os(macOS)
-            guard Self.allowsBrowserImport(context: context) else {
-                throw LongCatAPIError.missingCookies
-            }
-            let sessions = try LongCatCookieImporter.importSessions(browserDetection: context.browserDetection)
-            snapshot = try await Self.fetchImportedSessions(sessions) { session in
-                try await LongCatUsageFetcher.fetchUsage(cookies: session.cookies)
-            }
-            #else
-            throw LongCatAPIError.missingCookies
-            #endif
+    static func cookieSettings(_ context: ProviderFetchContext) -> ProviderSettingsSnapshot.CookieProviderSettings {
+        let settings = context.settings?.longcat
+        let source = settings?.cookieSource ?? .auto
+        guard source != .off else { return .init(cookieSource: .off, manualCookieHeader: nil) }
+        let manual = source == .manual ? settings?.manualCookieHeader : nil
+        let raw = manual?.isEmpty == false ? manual : LongCatSettingsReader.cookieHeader(environment: context.env)
+        if let header = CookieHeaderNormalizer.normalize(raw), header.contains("=") {
+            return .init(cookieSource: .manual, manualCookieHeader: header)
         }
-        return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "web")
-    }
-
-    func shouldFallback(on error: Error, context _: ProviderFetchContext) -> Bool {
-        if case LongCatAPIError.missingCookies = error {
-            return false
-        }
-        if case LongCatAPIError.invalidSession = error {
-            return false
-        }
-        return true
-    }
-
-    #if os(macOS)
-    static func fetchImportedSessions(
-        _ sessions: [LongCatCookieImporter.SessionInfo],
-        fetch: (LongCatCookieImporter.SessionInfo) async throws -> LongCatUsageSnapshot) async throws
-        -> LongCatUsageSnapshot
-    {
-        var lastCredentialError: LongCatAPIError?
-        for session in sessions {
-            do {
-                return try await fetch(session)
-            } catch let error as LongCatAPIError {
-                switch error {
-                case .invalidSession, .missingCookies:
-                    lastCredentialError = error
-                default:
-                    throw error
-                }
-            }
-        }
-        throw lastCredentialError ?? LongCatAPIError.missingCookies
-    }
-    #endif
-
-    /// Browser cookie/keychain import is only used for user-initiated app
-    /// refreshes in the Auto source. Manual must use the pasted header and Off
-    /// disables web auth, so neither should silently fall back to a browser
-    /// session.
-    static func allowsBrowserImport(context: ProviderFetchContext) -> Bool {
-        let source = context.settings?.longcat?.cookieSource
-        return context.runtime == .app &&
-            ProviderInteractionContext.current == .userInitiated &&
-            (source == nil || source == .auto)
+        return .init(cookieSource: source, manualCookieHeader: nil)
     }
 }

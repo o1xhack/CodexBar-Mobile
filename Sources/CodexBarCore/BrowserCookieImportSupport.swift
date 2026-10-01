@@ -17,7 +17,7 @@ enum BrowserCookieImportSupport {
     #if os(macOS)
     static func collectSessions<Session>(
         from browsers: [Browser],
-        missingError: any Error,
+        missingError: (any Error)?,
         logger: (String) -> Void,
         load: (Browser) throws -> [Session]) throws -> [Session]
     {
@@ -30,7 +30,7 @@ enum BrowserCookieImportSupport {
                 logger("\(browser.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }
-        guard !sessions.isEmpty else { throw missingError }
+        if sessions.isEmpty, let missingError { throw missingError }
         return sessions
     }
 

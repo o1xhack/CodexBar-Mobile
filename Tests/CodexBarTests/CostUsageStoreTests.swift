@@ -1026,6 +1026,8 @@ extension CostUsageStoreTests {
         "1bd2d8ec2fd2dcf2",
         "834522608c1b0457",
         "8b9bc662426a8aab",
+        "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
+        "98de5f52231e524e", // Released in 0.68.0.
         "9972dad7f7aeff21", // Before direct-fork baseline corrections.
         "03e43d1217789d16",
         "4dd9e5769818370a", // Before Linux Priority trace support.
@@ -1069,6 +1071,8 @@ extension CostUsageStoreTests {
             "1bd2d8ec2fd2dcf2",
             "834522608c1b0457",
             "8b9bc662426a8aab",
+            "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
+            "98de5f52231e524e",
             "9972dad7f7aeff21",
             "4dd9e5769818370a",
             "03e43d1217789d16",

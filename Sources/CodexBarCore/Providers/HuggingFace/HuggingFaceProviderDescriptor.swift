@@ -1,7 +1,11 @@
 import Foundation
 
 public enum HuggingFaceProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    public static let descriptor = Self.spec.makeDescriptor(
+        credentials: Self.credentials,
+        fetchPlan: ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [HuggingFaceScriptFetchStrategy.shared] })))
     private static let credentials = ProviderCredentialAdapter.apiKey(
         environmentKey: HuggingFaceSettingsReader.configAPIKeyEnvironmentKey,
         resolve: { HuggingFaceSettingsReader.apiKey(environment: $0) },
@@ -16,50 +20,33 @@ public enum HuggingFaceProviderDescriptor {
             "Missing Hugging Face token. Add one in Settings, set HF_TOKEN, or run hf auth login."
         })
 
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .huggingface,
-            menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .secondary]),
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .huggingface,
-                displayName: "Hugging Face",
-                sessionLabel: "Inference",
-                weeklyLabel: "ZeroGPU",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show Hugging Face usage",
-                cliName: "huggingface",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                dashboardURL: "https://huggingface.co/settings/billing",
-                statusPageURL: "https://status.huggingface.co"),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .huggingface),
-                iconResourceName: "ProviderIcon-huggingface",
-                color: ProviderColor(hex: 0xFFD21E),
-                confettiPalette: [
-                    ProviderColor(hex: 0xFFD21E),
-                    ProviderColor(hex: 0xFF9D00),
-                    ProviderColor(hex: 0x6B7280),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Hugging Face usage comes from the billing API; cost history is not tracked." }),
-            presentation: ProviderUsagePresentation(
-                costPresenter: { _ in
-                    ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)
-                }),
-            fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [HuggingFaceScriptFetchStrategy.shared] })),
-            cli: ProviderCLIConfig(
-                name: "huggingface",
-                aliases: ["hf"],
-                versionDetector: nil))
-    }
+    public static let spec = PluginProviderSpec(
+        id: .huggingface,
+        displayName: "Hugging Face",
+        sessionLabel: "Inference",
+        weeklyLabel: "ZeroGPU",
+        dashboardURL: "https://huggingface.co/settings/billing",
+        statusPageURL: "https://status.huggingface.co",
+        color: ProviderColor(hex: 0xFFD21E),
+        confetti: [0xFFD21E, 0xFF9D00, 0x6B7280],
+        noDataMessage: "Hugging Face usage comes from the billing API; cost history is not tracked.",
+        environmentKey: HuggingFaceSettingsReader.configAPIKeyEnvironmentKey,
+        environmentAliases: HuggingFaceSettingsReader.apiKeyEnvironmentKeys,
+        menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .secondary]),
+        presentation: ProviderUsagePresentation(
+            costPresenter: { _ in
+                ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .hidden)
+            }),
+        aliases: ["hf"],
+        apiKeyField: .init(
+            id: "huggingface-api-token",
+            title: "Access token",
+            subtitle: "Create a token at huggingface.co/settings/tokens. Classic read tokens work; "
+                + "fine-grained tokens need the Billing read permission.",
+            placeholder: "Paste access token…",
+            action: ("huggingface-open-tokens", "Open Hugging Face", "https://huggingface.co/settings/tokens")),
+        showsAPIDetail: true,
+        availability: .configuredKeyOrAccount)
 }
 
 final class HuggingFaceScriptFetchStrategy: ProviderFetchStrategy {

@@ -240,7 +240,8 @@ private struct PricingRaceFixture {
 
     init() throws {
         let environment = try CostUsageTestEnvironment()
-        let day = try environment.makeLocalNoon(year: 2026, month: 8, day: 7)
+        // After the 2026-08-21 Sol repricing, so catalog rates apply instead of historical bundled rates.
+        let day = try environment.makeLocalNoon(year: 2026, month: 9, day: 7)
         let timestamp = environment.isoString(for: day)
         let entries: [[String: Any]] = [
             ["type": "turn_context", "timestamp": timestamp, "payload": ["model": "gpt-5.6-sol"]],

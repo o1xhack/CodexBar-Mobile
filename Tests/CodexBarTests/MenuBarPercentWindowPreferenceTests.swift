@@ -246,7 +246,8 @@ struct MenuBarPercentWindowPreferenceTests {
     @Test
     func `picker stays hidden unless the global style is icon and percent`() {
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
-        let options = MenuBarPercentWindowPreference.allCases
+        // Monthly Plan keeps the picker visible in every style; MistralMonthlyPlanPickerTests covers it.
+        let options = MenuBarPercentWindowPreference.allCases.filter { $0 != .monthlyPlan }
 
         #expect(MenuBarPercentWindowPreference.isVisible(
             iconStyle: .iconAndPercent,
@@ -270,7 +271,7 @@ struct MenuBarPercentWindowPreferenceTests {
     func `picker hides when session and weekly cannot apply`() {
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
         let automaticOnly = MenuBarPercentWindowPreference.available(
-            metrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .monthlyPlan]))
+            metrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .extraUsage]))
 
         #expect(automaticOnly == [.automatic])
         #expect(MenuBarPercentWindowPreference.isVisible(
@@ -286,7 +287,7 @@ struct MenuBarPercentWindowPreferenceTests {
     @Test
     func `available options follow provider percent-window capabilities`() {
         let mistralLike = ProviderMenuBarMetricCapabilities(supported: [.automatic, .monthlyPlan])
-        #expect(MenuBarPercentWindowPreference.available(metrics: mistralLike) == [.automatic])
+        #expect(MenuBarPercentWindowPreference.available(metrics: mistralLike) == [.automatic, .monthlyPlan])
 
         let sessionOnlyPrimary = ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary])
         #expect(MenuBarPercentWindowPreference.available(metrics: sessionOnlyPrimary) == [.automatic, .session])
@@ -298,7 +299,7 @@ struct MenuBarPercentWindowPreferenceTests {
 
         #expect(MenuBarPercentWindowPreference.available(
             metrics: .standard) == [.automatic, .session, .weekly])
-        #expect(MenuBarPercentWindowPreference.available(for: .mistral) == [.automatic, .session])
+        #expect(MenuBarPercentWindowPreference.available(for: .mistral) == [.automatic, .session, .monthlyPlan])
         #expect(MenuBarPercentWindowPreference.available(for: .openrouter) == [.automatic, .session])
         #expect(MenuBarPercentWindowPreference.available(for: .codex) == [.automatic, .session, .weekly])
         #expect(MenuBarPercentWindowPreference.isVisible(

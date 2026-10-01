@@ -463,7 +463,7 @@ private enum CodexManagedRemoteHomeTestingOverride {
         var unreadableStore: Bool = false
         var managedStoreURL: URL?
         var liveSystemAccount: ObservedSystemCodexAccount?
-        var reconciliationEnvironment: [String: String]?
+        @ProcessEnvironment var reconciliationEnvironment: [String: String]?
 
         var isEmpty: Bool {
             self.account == nil && self.homePath == nil && self.unreadableStore == false && self

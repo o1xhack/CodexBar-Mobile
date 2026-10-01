@@ -130,9 +130,9 @@ if [[ -s "$unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success true success success >/dev/null
-"$verify" success success false skipped false skipped skipped >/dev/null
-"$verify" success success true success false skipped skipped >/dev/null
+"$verify" success success true success true success success success >/dev/null
+"$verify" success success false skipped false skipped skipped skipped >/dev/null
+"$verify" success success true success false skipped skipped success >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -161,4 +161,9 @@ grep -Fq '      - build-linux-musl-cli' "$workflow"
 grep -Fq '            "${{ needs.build-linux-cli.result }}" \' "$workflow"
 grep -Fq '            "${{ needs.build-linux-musl-cli.result }}"' "$workflow"
 
+for compatibility_result in failure cancelled skipped '' unknown; do
+  assert_verify_fails success success true success true success success "$compatibility_result"
+done
+assert_verify_fails success success true success true success success
+assert_verify_fails success success false skipped false skipped skipped success
 printf 'CI final path gate tests passed.\n'

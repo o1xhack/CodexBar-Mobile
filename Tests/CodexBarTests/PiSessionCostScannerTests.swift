@@ -729,6 +729,7 @@ struct PiSessionCostScannerTests {
             cachedInputTokens: 10,
             outputTokens: 5,
             cacheWriteInputTokens: 20,
+            pricingDate: day,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
         // Stale: writes folded into uncached input at 1× (pre-v5 behavior).
         let staleCost = CostUsagePricing.codexCostUSD(
@@ -736,6 +737,7 @@ struct PiSessionCostScannerTests {
             inputTokens: 100,
             cachedInputTokens: 10,
             outputTokens: 5,
+            pricingDate: day,
             modelsDevCacheRoot: env.cacheRoot) ?? 0
         #expect(abs(expectedCost - staleCost) > 0.000001)
 
@@ -1053,12 +1055,12 @@ extension PiSessionCostScannerTests {
         #expect(cache.files.values.flatMap(\.entryUsages.keys).count == 4)
     }
 
-    @Test
-    func `pi scanner reprices unchanged files when catalog rates change`() throws {
+    @Test(arguments: [false, true])
+    func `pi scanner updates catalog pricing while retaining historical rates`(historical: Bool) throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
-        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 10)
+        let day = try env.makeLocalNoon(year: 2026, month: historical ? 7 : 9, day: 10)
         let model = "gpt-5.6-sol"
         func assistant(at timestamp: Date) -> [String: Any] {
             [
@@ -1078,7 +1080,7 @@ extension PiSessionCostScannerTests {
             ]
         }
         _ = try env.writePiSessionFile(
-            relativePath: "2026-07-10T10-00-00-000Z_catalog-change.jsonl",
+            relativePath: "catalog-change.jsonl",
             contents: env.jsonl([
                 assistant(at: day.addingTimeInterval(-1)),
                 assistant(at: day),
@@ -1099,7 +1101,7 @@ extension PiSessionCostScannerTests {
         let firstCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         let firstPricingKey = try #require(firstCache.pricingKey)
         #expect(firstReport.data.first?.totalTokens == 300_000)
-        #expect(abs((firstReport.data.first?.costUSD ?? 0) - 1.2) < 0.0000001)
+        #expect(abs((firstReport.data.first?.costUSD ?? 0) - (historical ? 1.5 : 1.2)) < 0.0000001)
 
         let secondCatalog = try Self.modelsDevCatalog(inputCostPerMillion: 8)
         #expect(ModelsDevCache.save(
@@ -1122,9 +1124,9 @@ extension PiSessionCostScannerTests {
         let secondCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         #expect(secondCache.pricingKey != firstPricingKey)
         // Each 150K message stays below the 272K threshold. The 300K daily aggregate must be the
-        // sum of two short-context costs, proving the pricing change triggered a full-file reparse.
+        // sum of two short-context costs. Historical rows keep their dated rate across catalog refreshes.
         #expect(secondReport.data.first?.totalTokens == 300_000)
-        #expect(abs((secondReport.data.first?.costUSD ?? 0) - 2.4) < 0.0000001)
+        #expect(abs((secondReport.data.first?.costUSD ?? 0) - (historical ? 1.5 : 2.4)) < 0.0000001)
     }
 
     @Test

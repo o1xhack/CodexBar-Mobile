@@ -89,7 +89,7 @@ defineProvider({
         for await (const session of ctx.browser.sessions("dev.meta.ai")) {
           if (requestsLeft <= 0) break;
           let rejected = false;
-          const headers = { Cookie: session.header, "User-Agent": "CodexBar" };
+          const headers = { Cookie: session.header ?? "", "User-Agent": "CodexBar" };
           const get = async (path: string): Promise<Record<string, unknown> | undefined> => {
             if (requestsLeft-- <= 0) throw new Error("Muse browser request budget exhausted");
             const response = await ctx.http.get(`https://dev.meta.ai${path}`, { headers, timeoutSeconds: 8 });

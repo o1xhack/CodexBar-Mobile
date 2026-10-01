@@ -30,8 +30,9 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
-        // Provider-specific by design: Grok removes migrated reset rows; Sub2API localizes its usage details.
-        if input.provider == .grok {
+        // Provider-specific by design: Grok and Claude replace reset rows with the live section; Sub2API
+        // localizes its usage details.
+        if input.provider == .grok || input.provider == .claude {
             details = details.compactMap { section in
                 let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
                 guard !rows.isEmpty || section.chart != nil else { return nil }

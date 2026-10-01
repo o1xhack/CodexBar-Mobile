@@ -8,7 +8,8 @@ struct PiSessionCostRefreshReliabilityTests {
     func `an incomplete catalog reprice retains the previous report until every source can be repriced`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
-        let day = try env.makeLocalNoon(year: 2026, month: 7, day: 10)
+        // After the 2026-08-21 Sol repricing, so catalog rates apply instead of historical bundled rates.
+        let day = try env.makeLocalNoon(year: 2026, month: 9, day: 10)
         let contents = try env.jsonl([
             self.row(env, day, input: 150_000, model: "gpt-5.6-sol"),
         ])
