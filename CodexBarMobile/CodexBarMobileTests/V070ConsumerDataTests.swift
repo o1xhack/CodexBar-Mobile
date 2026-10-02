@@ -1046,3 +1046,159 @@ private enum LegacyV230Ledger {
         }
     }
 }
+
+// MARK: - Alias quota provenance regression
+
+extension V070ConsumerDataTests {
+    private func kimiWindows(blocked: Bool) -> [SyncRateWindow] {
+        [
+            SyncRateWindow(
+                id: "kimi-weekly",
+                label: "Weekly",
+                usedPercent: blocked ? 100 : 20,
+                windowMinutes: 10080,
+                resetsAt: self.captured.addingTimeInterval(86400),
+                resetDescription: nil,
+                blockingQuota: blocked ? SyncBlockingQuota(
+                    windowID: "kimi-monthly",
+                    rawUsedPercent: 25,
+                    rawResetsAt: self.captured.addingTimeInterval(3600),
+                    rawResetDescription: nil,
+                    rawNextRegenPercent: nil) : nil),
+            SyncRateWindow(
+                id: "kimi-monthly",
+                label: "Monthly",
+                usedPercent: blocked ? 100 : 50,
+                windowMinutes: 43200,
+                resetsAt: self.captured.addingTimeInterval(86400),
+                resetDescription: nil),
+        ]
+    }
+
+    private func collapseAliases(_ snapshots: [SyncedUsageSnapshot]) throws -> SyncedUsageSnapshot {
+        let ids = snapshots.compactMap(\.deviceID)
+        let event = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: ids[0],
+            relatedDeviceIDs: Array(ids.dropFirst()),
+            confirmedFromDeviceID: "fixture-phone")
+        let resolution = DeviceSnapshotResolver.resolveDeviceSnapshots(
+            snapshots,
+            lifecycleEvents: [event])
+        #expect(resolution.activeSnapshots.count == 1)
+        return try #require(resolution.activeSnapshots.first)
+    }
+
+    @Test func `Alias sibling versions cannot promote a legacy or unknown Kimi writer`() throws {
+        let blockedWindows = self.kimiWindows(blocked: true)
+        let blocker = self.snapshot(
+            device: "fixture-capable",
+            history: [],
+            windows: blockedWindows,
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        for version in ["0.68.0.1", "unknown", nil] {
+            let legacy = self.snapshot(
+                device: "fixture-legacy",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: version)
+            let sibling = self.snapshot(
+                device: "fixture-modern-sibling",
+                history: [],
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(240))
+            for aliases in [[legacy, sibling], [sibling, legacy]] {
+                let collapsed = try self.collapseAliases(aliases)
+                #expect(collapsed.appVersion == (version == "unknown" ? "unknown" : "0.70.0.1"))
+                let kimi = try #require(collapsed.providers.first { $0.providerID == "kimi" })
+                let provenance = try #require(collapsed.providerQuotaSources[
+                    SyncedUsageSnapshot.providerPublicationKey(for: kimi),
+                ])
+                #expect(provenance.appVersion == version)
+                for inputs in [[collapsed, blocker], [blocker, collapsed]] {
+                    let final = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs)?.providers.first {
+                        $0.providerID == "kimi"
+                    })
+                    #expect(final.primary == blockedWindows[0])
+                    #expect(final.rateWindows == blockedWindows)
+                    #expect(final.lastUpdated == self.captured)
+                }
+            }
+        }
+    }
+
+    @Test func `Alias collapse keeps the selected Kimi quota publication for both block and clear`() throws {
+        for firstBlocked in [false, true] {
+            let selected = self.snapshot(
+                device: "fixture-selected-z",
+                history: [],
+                windows: self.kimiWindows(blocked: firstBlocked),
+                providerID: "kimi",
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(10))
+            let legacy = self.snapshot(
+                device: "fixture-later-legacy",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: "0.68.0.1",
+                publishedAt: self.captured.addingTimeInterval(100))
+            let later = self.snapshot(
+                device: "fixture-capable-a",
+                history: [],
+                windows: self.kimiWindows(blocked: !firstBlocked),
+                providerID: "kimi",
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(20))
+            for aliases in [[selected, legacy], [legacy, selected]] {
+                let collapsed = try self.collapseAliases(aliases)
+                let kimi = try #require(collapsed.providers.first)
+                #expect(collapsed.publicationTimestamp(for: kimi) == self.captured.addingTimeInterval(10))
+                for inputs in [[collapsed, later], [later, collapsed]] {
+                    let reduced = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs))
+                    let final = try #require(reduced.providers.first)
+                    #expect(final.primary == later.providers[0].primary)
+                    #expect(final.rateWindows == later.providers[0].rateWindows)
+                    #expect(reduced.publicationTimestamp(for: final) == self.captured.addingTimeInterval(20))
+                }
+            }
+        }
+    }
+
+    @Test func `Alias canonical identity cannot replace the quota writer tie breaker`() throws {
+        let selected = self.snapshot(
+            device: "fixture-quota-a",
+            history: [],
+            windows: self.kimiWindows(blocked: true),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(10))
+        let sibling = self.snapshot(
+            device: "fixture-canonical-z",
+            history: [],
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(100))
+        let other = self.snapshot(
+            device: "fixture-quota-b",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(10))
+        for aliases in [[selected, sibling], [sibling, selected]] {
+            let collapsed = try self.collapseAliases(aliases)
+            #expect(collapsed.deviceID == "fixture-canonical-z")
+            for inputs in [[collapsed, other], [other, collapsed]] {
+                let final = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs)?.providers.first {
+                    $0.providerID == "kimi"
+                })
+                #expect(final.primary == other.providers[0].primary)
+                #expect(final.rateWindows == other.providers[0].rateWindows)
+            }
+        }
+    }
+}
