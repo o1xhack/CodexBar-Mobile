@@ -581,6 +581,24 @@ enum SwiftDataBridge {
             // the merge layer.
             guard !providers.isEmpty else { continue }
 
+            let publications = device.providerPublicationTimestampsData.flatMap {
+                try? decoder.decode([String: Date].self, from: $0)
+            } ?? [:]
+            var quotaSources = device.providerQuotaSourcesData.flatMap {
+                try? decoder.decode([String: SyncProviderQuotaSource].self, from: $0)
+            } ?? [:]
+            // Older caches stored a device-wide version from the newest sibling
+            // envelope. It cannot prove that a Kimi clear came from a capable writer.
+            for provider in providers where provider.providerID == "kimi" {
+                let key = SyncedUsageSnapshot.providerPublicationKey(for: provider)
+                if quotaSources[key] == nil {
+                    quotaSources[key] = SyncProviderQuotaSource(
+                        appVersion: nil,
+                        publicationTimestamp: publications[key] ?? device.lastSyncAt,
+                        deviceID: device.deviceID)
+                }
+            }
+
             snapshots.append(SyncedUsageSnapshot(
                 providers: providers,
                 syncTimestamp: device.lastSyncAt,
@@ -589,12 +607,8 @@ enum SwiftDataBridge {
                 appVersion: device.appVersion,
                 mobileVersion: nil,
                 notificationPushEnabled: nil,
-                providerPublicationTimestamps: device.providerPublicationTimestampsData.flatMap {
-                    try? decoder.decode([String: Date].self, from: $0)
-                } ?? [:],
-                providerQuotaSources: device.providerQuotaSourcesData.flatMap {
-                    try? decoder.decode([String: SyncProviderQuotaSource].self, from: $0)
-                } ?? [:]))
+                providerPublicationTimestamps: publications,
+                providerQuotaSources: quotaSources))
         }
 
         return snapshots

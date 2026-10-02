@@ -1260,12 +1260,20 @@ extension V070ConsumerDataTests {
                 let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: ModelContext(opened.container))
                 let cold = try #require(restored.first)
                 #expect(cold.providerQuotaSources == live.providerQuotaSources)
+                let context = ModelContext(opened.container)
+                let device = try #require(try context.fetch(FetchDescriptor<DeviceRecord>()).first)
+                device.providerQuotaSourcesData = nil
+                try context.save()
+                let legacyCache = try #require(try SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+                #expect(legacyCache.appVersion == "0.70.0.1")
+                #expect(legacyCache.providerQuotaSources[key]?.appVersion == nil)
+                #expect(legacyCache.providerQuotaSources[key]?.publicationTimestamp == provenance.publicationTimestamp)
                 let aliasSibling = self.snapshot(
                     device: "fixture-new-alias",
                     history: [],
                     appVersion: "0.71.0",
                     publishedAt: self.captured.addingTimeInterval(200))
-                for first in [live, cold] {
+                for first in [live, cold, legacyCache] {
                     for aliases in [[first, aliasSibling], [aliasSibling, first]] {
                         let collapsed = try self.collapseAliases(aliases)
                         for inputs in [[collapsed, blocker], [blocker, collapsed]] {
