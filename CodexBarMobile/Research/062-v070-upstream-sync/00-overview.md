@@ -27,7 +27,9 @@ v0.70.0：Codex/Claude quota burndown、16 个品牌 accents；Mistral event/zon
 
 Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 准备。禁止 origin push、merge、tag publish、live release、TestFlight upload。实际凭证使用与 schema deploy 按 Goal 暂停确认。GitHub draft 不能让 CLI 隐式创建远程 tag；先核对可用无 tag-publish 路径再创建。仅本地打包不等同 GitHub draft 完成。
 
-Mac上游合并、bridge审计/实现和本地独立review已完成对应checkpoint；最新全树lint通过，完整Mac回归mac-full-r5已exit0（1520 selections /137组全部首轮通过），双架构Release compiler预检及现有iOS consumer编译/153项定向基线测试通过。iOS 数据持久化、实际采样的 quota pace 图、monthly blocking、模型名展示、provider 呈现与四语言发布说明已实现；当前为 2.4.0 (227)。完整旧 schema fixture 与 UI tests 已经过 generic Simulator 编译，但 migration、四语言运行截图和最终 runtime gate 仍待测试终态。最终测试矩阵、签名公证/draft与最终review尚未完成；不得将文档或编译单项视为Goal完成。
+当前生产源码 checkpoint 为 `577ceb90a`。Mac 完整回归 mac-full-r5 exit0（1520 selections /137组、0 retries/timeouts），双架构 unsigned Release compiler 预检通过。iOS 2.4.0 (227) 已实现数据持久化、实际采样 quota pace、monthly blocking、模型名、provider 呈现及四语言说明；原始 Swift Testing 在 iOS26.5 Simulator 313项/15 suites 通过，完整旧 schema migration 在其中。生产图表离屏渲染为四语言×两外观×两宽度，并补跨午夜24h fixture，共32 PNG。16 old/new组合以冻结 wire、真实 merger 和独立 iOS 磁盘缓存替代验证；32缓存、96独立进程全部通过。以上不证明真实 App 导航、VoiceOver、Production CloudKit/APNs 或实体四设备。
+
+验收发现 ProviderColorPalette 同时被 WidgetActivityView 与 CodexBarWidgetView 使用，因此触发 Widget render matrix 和真实 SpringBoard gate；313项中的 WidgetSnapshotBuilder 不能代替渲染测试，这两项尚未完成。标准 XCTest 运行仍等待 debugger 启动；iOS27独立复验也仍 live，不能报告通过。最新本地 review clean 不等同 GitHub PR/CR。PR、merge、签名公证和 Mac draft 均未执行，Goal 保持 in-progress。逐项验收见07-acceptance-audit.md。
 
 ## 用户调整执行顺序
 
