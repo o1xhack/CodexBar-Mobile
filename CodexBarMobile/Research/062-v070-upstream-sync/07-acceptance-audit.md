@@ -8,7 +8,7 @@ Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 p
 
 | Goal 项 | 当前证据 | 判定与剩余工作 |
 |---|---|---|
-| 1 调研范围/issue/设计 | 00/01/06、两 release JSON、commit 清单；#166；v0.68→v0.69+v0.70 单 train | 已记录；正式发布前回读 issue/release 当前状态 |
+| 1 调研范围/issue/设计 | 00/01/06、两 release JSON、commit 清单；#166；v0.68→v0.69+v0.70 单 train | r18已只读回读：唯一open upstream-sync为#166，最新稳定v0.70.0；正式发布前再次核对 |
 | 2 从 mobile-dev 建新分支 | 基线322865d30，upstream-sync/v0.70.0-mobile.2.4.0；独立worktree | 已完成；原 checkout 变动保留 |
 | 3 Mac 完整同步与 fork 保留 | 上游 merge、Mac全回归 mac-full-r5 1520 selections/137 groups exit0，lint-r12，02实现记录 | 本地完成；远端 Final CI未执行 |
 | 4 Mac→iOS数据准备 | Shared optional blocking/modelsUsed；真实old/new wire+merger+cache；CloudConstants/schema audit | 已实现；Production/APNs实际同步未验证 |
@@ -38,3 +38,7 @@ iOS全部适用本地gate → 获准push/PR → current-head CR清洁/全thread 
 ## r17本地检查点
 
 本地审查未发现新的可证实源码阻塞。各适用本地功能gate按03/09的分来源范围记录，不能扩展为所有family×mode×style×language均在r16实际复跑。专用iOS26已恢复原AppleLanguages=zh-Hans-US,en-US及AppleLocale=zh-Hans_US，主动重启后的sim-use基线已重置，SpringBoard读回正常简中。未重置全局Simulator、未操作其他项目设备。最终Git来源检查点及exact-head本地review另行记录；远端与发布gate仍未执行。
+
+## r18补充核验
+
+安全Mac多账号专项128 tests/12 suites终态通过；r7标准xcresult中7个iOS多账号/双zone suites共65 case节点Passed，含DualZoneReader10项。当前CI policy/fork README guard和fork changelog HTML提取通过。具体命令、来源及范围见03的r18段。产品及文档检查点本地review clean；尚无push/PR授权和远端PR，后续用户明确授权后才执行remote handoff，Mac draft仍按既定顺序等待。

@@ -2,7 +2,7 @@
 
 Status: `in-progress`
 
-当前 Mac 完整回归已通过；iOS 原始313单元与生产组件离屏渲染已通过。16组合已有冻结旧/新 wire、真实合并与独立磁盘缓存替代证据；真实 App 四语言 quota UI 已通过；SpringBoard timeline、人工 VoiceOver、实体 CloudKit/APNs、GitHub PR/CR 与 Mac draft 仍未完成。历史段落按发生顺序保留，旧 pending 不代表当前结果。
+当前 Mac 完整回归已通过；iOS r7标准完整单元916 tests/1012 runs及r16相关回归51 tests/66 runs已通过。16组合已有冻结旧/新 wire、真实合并与独立磁盘缓存替代证据；真实 App 四语言 quota UI、标准Widget渲染及分范围生产SpringBoard配置/timeline/Home验收已通过，r17六组受控路径通过但保留r15/r16偶发无法载入未知原因风险。人工 VoiceOver、实体 CloudKit/APNs、GitHub PR/CR 与 Mac draft 仍未完成。历史段落按发生顺序保留，旧 pending 不代表当前结果。
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
@@ -454,3 +454,11 @@ review确认generated协议defaultProvider1–4为optional，缺实现不能直�
 六组终态exit0，无实际無法載入、未知crash banner或数据清除。每组action JSON包含原始UI/命令/timestamp，result记录实际停留，图片已检查。完整系统日志status-slots-controlled-lifecycle-r17.log及-f.log在终态后停止保存；正常退出a/b也出现system extension connection interrupted和Invalidation requested，所以单条该日志不能替代实际面板结果。不能据本轮无复现宣称旧失败根因已修复，旧r15/r16失败证据和系统会话风险保留，请review比较。
 
 所有截图/脚本/逐动作/日志hash冻结status-slots-production-evidence-r17.json。当前控制流程已通过，其余本地scope仍依据此前分来源证据；最终验收判断与来源提交review进行中。正在恢复专用iOS26原简中设置。未remote handoff/merge/Mac draft，Goal active。
+
+## r18发布前专项覆盖与当前来源复核（2026-10-02）
+
+产品检查点55fdc080dc5b228d811e34a3969ed49b5a6fec95、文档检查点7661b9ed25ff6ccc0ea21612df80004fee1bd180均已完成exact-head本地review，未发现新增阻塞；工作树clean。192/192产品输入与r16冻结SHA一致；Mac Sources/Tests/Shared/Package/version.env相对完整回归bc26b3512 diff为空。
+
+发布清单的多账号专项命令通过安全test_environment执行：明确unset live Keychain opt-in，TMPDIR指向SSD，`swift test --skip-build --filter 'AccountIdentity|MultiAccount|DualZoneReader'`终态exit0，128 tests/12 suites通过；mac-account-gate-r18.log保留完整结果。DualZoneReader位于iOS target，不能把这个Mac过滤器当该suite证据。另从r7标准xcresult测试树逐项读回7个AccountIdentity/MultiAccount/DualZoneReader suites，共65 test-case节点均Passed，其中DualZoneReader10项；ios-account-gate-readback-r18.json记录节点与结果。这是旧r7证据覆盖复核，不宣称在r18重跑iOS全量测试。
+
+当前CI policy与fork README guards exit0；changelog-to-html 0.70.0.1实际提取fork Highlights/Changed/Fixed和Mobile2.3.0标题，非上游技术段。MOBILE_VERSION保持已发配套2.3.0，未上传的iOS2.4.0不作为已发版本。GitHub只读回读：唯一open upstream-sync仍为#166，最新published稳定release仍为v0.70.0，前两版v0.69.0/v0.68.0；本分支PR列表为空。未push/PR/merge/tag/签名公证/Mac draft/TestFlight。
