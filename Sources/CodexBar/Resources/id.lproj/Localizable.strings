@@ -1716,3 +1716,7 @@
 "Shared" = "Bersama";
 "Hard" = "Keras";
 "Monitor" = "Pemantauan";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Sinkronisasi pengaturan Mac terpisah dari sinkronisasi penggunaan iPhone. Aktifkan di setiap Mac agar muncul di sini. Riwayat biaya tetap lokal.";
+
+"Cached data from" = "Data tersimpan dari";

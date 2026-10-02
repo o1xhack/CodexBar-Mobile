@@ -1717,3 +1717,7 @@
 "Shared" = "مشترك";
 "Hard" = "صارم";
 "Monitor" = "مراقبة";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "مزامنة إعدادات Mac منفصلة عن مزامنة استخدام iPhone. فعّلها على كل Mac ليظهر هنا. يبقى سجل التكلفة محليًا.";
+
+"Cached data from" = "بيانات مخزنة مؤقتًا من";

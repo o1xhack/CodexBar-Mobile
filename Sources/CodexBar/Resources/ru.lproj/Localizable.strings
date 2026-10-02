@@ -1714,3 +1714,7 @@
 "Shared" = "Общий";
 "Hard" = "Жёсткий";
 "Monitor" = "Мониторинг";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Синхронизация настроек Mac выполняется отдельно от синхронизации использования iPhone. Включите её на каждом Mac, чтобы он появился здесь. История расходов остаётся локальной.";
+
+"Cached data from" = "Кэшированные данные от";

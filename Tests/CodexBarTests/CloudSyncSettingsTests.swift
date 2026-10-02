@@ -12,6 +12,23 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CloudSyncSettingsTests {
     @Test
+    func `manual fleet refresh is bounded and preserves newly reported failures`() async {
+        let state = CloudSyncState()
+        state.status.lastError = "Old synthetic error"
+        var calls = 0
+        state.refreshHandler = {
+            calls += 1
+            #expect(state.status.lastError == nil)
+            await state.requestRefresh()
+            state.status.lastError = "Synthetic record apply failed"
+        }
+        await state.requestRefresh()
+        #expect(calls == 1)
+        #expect(!state.isRefreshing)
+        #expect(state.status.lastError == "Synthetic record apply failed")
+    }
+
+    @Test
     func `fleet sync uses the fork CloudKit container and state namespace`() {
         #expect(CloudSyncEngine.containerIdentifier == CloudSyncConstants.containerIdentifier)
         #expect(CloudSyncEngine.containerIdentifier == "iCloud.com.o1xhack.codexbar")

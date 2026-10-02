@@ -49,7 +49,8 @@ struct CWLEquivalenceTests {
         modelLabel: String,
         dailyCosts: [(daysAgo: Int, cost: Double, tokens: Int)],
         lastUpdated: Date,
-        reportingPeriod: String? = nil) -> ProviderUsageSnapshot
+        reportingPeriod: String? = nil,
+        headlineCost: Double? = nil) -> ProviderUsageSnapshot
     {
         let daily = dailyCosts.map { entry in
             SyncDailyPoint(
@@ -73,11 +74,135 @@ struct CWLEquivalenceTests {
             costSummary: SyncCostSummary(
                 sessionCostUSD: nil,
                 sessionTokens: nil,
-                last30DaysCostUSD: nil, // force blob to reduce from daily[]
+                last30DaysCostUSD: headlineCost,
                 last30DaysTokens: nil,
                 daily: daily,
                 isEstimated: false,
-                reportingPeriod: reportingPeriod))
+                historyDays: headlineCost == nil ? nil : 365,
+                reportingPeriod: reportingPeriod,
+                historyCoverageIsEstablished: headlineCost == nil ? nil : true))
+    }
+
+    @Test
+    func `dated producer rows outside a local window cannot restore a headline`() {
+        let provider = self.provider(
+            id: "codex",
+            name: "Codex",
+            modelLabel: "Synthetic Model",
+            dailyCosts: [(100, 1, 10)],
+            lastUpdated: .now,
+            reportingPeriod: "rolling:30",
+            headlineCost: 99)
+        let empty = CostLedgerProviderRollup(
+            providerID: "codex",
+            accountEmail: nil,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            dailyPoints: [],
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
+        let totals = CostDashboardInsights.ledgerDisplayTotals(
+            rollup: empty, provider: provider, windowDays: 30)
+        #expect(totals.costUSD == 0)
+        #expect(totals.tokens == 0)
+    }
+
+    @Test(arguments: [30, 90, 365])
+    func `complete saved windows remain known under an incomplete incoming summary`(days: Int) throws {
+        let now = Date()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let points = (0..<days).map { offset in
+            SyncDailyPoint(
+                dayKey: self.dayKey(daysAgo: offset),
+                costUSD: 1,
+                totalTokens: 10,
+                costIsKnown: true)
+        }
+        let rollup = CostLedgerProviderRollup(
+            providerID: "codex",
+            accountEmail: nil,
+            totalCostUSD: Double(days),
+            totalTokens: days * 10,
+            dailyPoints: points,
+            modelBreakdowns: [],
+            serviceBreakdowns: [])
+        let aggregation = CostLedgerAggregation(
+            windowDays: days,
+            totalCostUSD: Double(days),
+            totalTokens: days * 10,
+            activeDayCount: days,
+            providerRollups: ["codex": rollup],
+            dailyPoints: points,
+            modelMix: [],
+            serviceMix: [])
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: 1,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: 1,
+                daily: [],
+                historyDays: days,
+                reportingPeriod: "rolling:\(days)",
+                sessionCostIsKnown: false,
+                historyCoverageIsEstablished: false))
+        let snapshot = SyncedUsageSnapshot(providers: [provider], syncTimestamp: now, deviceName: "Synthetic Mac")
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation, snapshot: snapshot, now: now, calendar: calendar)
+        #expect(insights.displayHistoryCostUSD == Double(days))
+        #expect(insights.total30DayCostIsKnown)
+        #expect(insights.totalTodayCostIsKnown)
+        #expect(!insights.totalTodayCostIsLowerBound)
+        #expect(!insights.hasIncompleteCostData)
+        #expect(!insights.historyCostIsLowerBound)
+    }
+
+    @Test
+    func `same window refresh preserves saved older days through write aggregate and display`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+        let initial = self.provider(
+            id: "codex", name: "Codex", modelLabel: "Synthetic Model",
+            dailyCosts: [(0, 2, 20), (14, 8, 80), (100, 10, 100)],
+            lastUpdated: .now.addingTimeInterval(-60), reportingPeriod: "rolling:365")
+        try CostLedgerService.upsertFromSnapshot(initial, deviceID: "synthetic-mac", in: context)
+        let incoming = self.provider(
+            id: "codex", name: "Codex", modelLabel: "Synthetic Model",
+            dailyCosts: [(0, 1, 10)], lastUpdated: .now,
+            reportingPeriod: "rolling:365", headlineCost: 1)
+        try CostLedgerService.upsertFromSnapshot(incoming, deviceID: "synthetic-mac", in: context)
+        try context.save()
+        let snapshot = SyncedUsageSnapshot(
+            providers: [incoming],
+            syncTimestamp: .now,
+            deviceName: "Synthetic Mac",
+            deviceID: "synthetic-mac")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        for (days, cost, tokens) in [(30, 9.0, 90), (90, 9.0, 90), (365, 19.0, 190)] {
+            let aggregation = try CostLedgerService.aggregate(
+                windowDays: days, in: context, readerTimeZone: calendar.timeZone)
+            let insights = CostDashboardInsights.fromLedger(
+                aggregation: aggregation, snapshot: snapshot, calendar: calendar)
+            #expect(insights.total30DayCost == cost)
+            #expect(insights.total30DayTokens == tokens)
+            #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == cost)
+            #expect(insights.modelRows.reduce(0) { $0 + $1.amountUSD } == cost)
+        }
+        let matchMac = CostDashboardInsights(snapshot: snapshot)
+        #expect(matchMac.total30DayCost == 1)
     }
 
     @Test
@@ -112,7 +237,7 @@ struct CWLEquivalenceTests {
         }
         try context.save()
         let aggregation = try CostLedgerService.aggregate(
-                windowDays: 365, in: context, readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            windowDays: 365, in: context, readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let ledger = CostDashboardInsights.fromLedger(
             aggregation: aggregation, snapshot: snapshot)
 
@@ -247,7 +372,7 @@ struct CWLEquivalenceTests {
             windowDays: 365,
             in: context,
             activeDeviceIDs: ["dev-A", "dev-B"],
-            readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let ledger = CostDashboardInsights.fromLedger(
             aggregation: aggregation, snapshot: mergedSnapshot)
 
@@ -291,7 +416,7 @@ struct CWLEquivalenceTests {
         // Each selected CWL window must drive the Overview "N Days" headline.
         for window in [7, 30, 90, 365] {
             let agg = try CostLedgerService.aggregate(
-                windowDays: window, in: context, readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+                windowDays: window, in: context, readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
             let insights = CostDashboardInsights.fromLedger(aggregation: agg, snapshot: snapshot)
             #expect(insights.cwlWindowDays == window)
             #expect(insights.historyDays == window, "CWL window \(window) must drive the headline")
@@ -396,8 +521,10 @@ struct CWLEquivalenceTests {
         let native = try #require(snapshot.providers.last?.costSummary)
         #expect(native.currencyCode == "EUR")
         #expect(native.reportingPeriodCostUSD == 3)
-        #expect(ProviderSnapshotMerger.supportsUSDAggregation(provider(id: "legacy", currency: nil, amount: 1).costSummary))
-        #expect(!ProviderSnapshotMerger.supportsUSDAggregation(provider(id: "unknown", currency: " ", amount: 1).costSummary))
+        #expect(ProviderSnapshotMerger
+            .supportsUSDAggregation(provider(id: "legacy", currency: nil, amount: 1).costSummary))
+        #expect(!ProviderSnapshotMerger
+            .supportsUSDAggregation(provider(id: "unknown", currency: " ", amount: 1).costSummary))
         let blob = CostDashboardInsights(snapshot: snapshot, now: now, calendar: calendar)
         #expect(blob.providerRows.map(\.provider.providerID) == ["codex"])
         #expect(blob.totalTodayCost == 2)
@@ -410,8 +537,11 @@ struct CWLEquivalenceTests {
 
         let mixedAccount = try #require(CloudSyncReader.mergeSnapshots([
             SyncedUsageSnapshot(providers: [usd], syncTimestamp: now, deviceName: "USD Mac", deviceID: "usd-mac"),
-            SyncedUsageSnapshot(providers: [provider(id: "codex", currency: "EUR", amount: 3)],
-                                syncTimestamp: now, deviceName: "EUR Mac", deviceID: "eur-mac"),
+            SyncedUsageSnapshot(
+                providers: [provider(id: "codex", currency: "EUR", amount: 3)],
+                syncTimestamp: now,
+                deviceName: "EUR Mac",
+                deviceID: "eur-mac"),
         ]))
         let mixedCost = try #require(mixedAccount.providers.first?.costSummary)
         #expect(!ProviderSnapshotMerger.supportsUSDAggregation(mixedCost))
@@ -484,7 +614,7 @@ struct CWLEquivalenceTests {
     }
 
     @Test
-    func `CWL summary totals require the selected reporting period`() {
+    func `CWL saved daily totals outrank even a matching producer period`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let point = SyncDailyPoint(
             dayKey: "2023-11-14",
@@ -536,16 +666,16 @@ struct CWLEquivalenceTests {
             rollup: rollup,
             provider: provider(reportingPeriod: "rolling:30", historyDays: 30),
             windowDays: 30)
-        #expect(matchingRolling.costUSD == 12)
-        #expect(matchingRolling.tokens == 120)
-        #expect(matchingRolling.costIsKnown)
+        #expect(matchingRolling.costUSD == 7)
+        #expect(matchingRolling.tokens == 70)
+        #expect(!matchingRolling.costIsKnown)
 
         let legacyThirtyDay = CostDashboardInsights.ledgerDisplayTotals(
             rollup: rollup,
             provider: provider(reportingPeriod: nil, historyDays: 30),
             windowDays: 30)
-        #expect(legacyThirtyDay.costUSD == 12)
-        #expect(legacyThirtyDay.tokens == 120)
+        #expect(legacyThirtyDay.costUSD == 7)
+        #expect(legacyThirtyDay.tokens == 70)
     }
 
     @Test
@@ -710,7 +840,7 @@ struct CWLEquivalenceTests {
                 sessionCostUSD: nil,
                 sessionTokens: nil,
                 last30DaysCostUSD: 37,
-                last30DaysTokens: 3_700,
+                last30DaysTokens: 3700,
                 daily: [SyncDailyPoint(
                     dayKey: self.dayKey(daysAgo: 0),
                     costUSD: 5,
@@ -730,7 +860,7 @@ struct CWLEquivalenceTests {
         let aggregation = try CostLedgerService.aggregate(
             windowDays: 30,
             in: context,
-            readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let insights = CostDashboardInsights.fromLedger(
             aggregation: aggregation,
             snapshot: snapshot,
@@ -798,7 +928,7 @@ struct CWLEquivalenceTests {
         try context.save()
 
         let aggregation = try CostLedgerService.aggregate(
-                windowDays: 90, in: context, readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            windowDays: 90, in: context, readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: snapshot)
         let row = try #require(insights.providerRows.first { $0.provider.providerID == "claude" })
         let summaryOnlyRow = try #require(insights.providerRows.first { $0.provider.providerID == "openai" })
@@ -851,7 +981,7 @@ struct CWLEquivalenceTests {
         try context.save()
 
         let aggregation = try CostLedgerService.aggregate(
-                windowDays: 7, in: context, readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            windowDays: 7, in: context, readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: snapshot)
         let row = try #require(insights.providerRows.first)
 
@@ -990,7 +1120,7 @@ struct CWLEquivalenceTests {
     }
 
     @Test
-    func `CWL applies live source freshness to a stored Today row`() throws {
+    func `CWL keeps a saved Today row when the live source is stale`() throws {
         let now = Date()
         let staleSource = try #require(Calendar.current.date(byAdding: .day, value: -1, to: now))
         let todayKey = SyncCostSummary.iso8601DayKey(for: now)
@@ -1047,10 +1177,10 @@ struct CWLEquivalenceTests {
             snapshot: snapshot)
 
         let row = try #require(insights.providerRows.first)
-        #expect(row.todayCost == 0)
-        #expect(!row.todayCostIsKnown)
-        #expect(!insights.totalTodayCostIsKnown)
-        #expect(insights.hasIncompleteCostData)
+        #expect(row.todayCost == 5)
+        #expect(row.todayCostIsKnown)
+        #expect(insights.totalTodayCostIsKnown)
+        #expect(insights.hasIncompleteCostData) // Sparse ledger still has uncovered days.
     }
 
     @Test
@@ -1331,7 +1461,7 @@ struct CWLEquivalenceTests {
         }
         try context.save()
         let aggregation = try CostLedgerService.aggregate(
-                windowDays: 365, in: context, readerTimeZone: TimeZone(secondsFromGMT: 0)!)
+            windowDays: 365, in: context, readerTimeZone: #require(TimeZone(secondsFromGMT: 0)))
         let ledger = CostDashboardInsights.fromLedger(
             aggregation: aggregation, snapshot: snapshot)
 

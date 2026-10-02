@@ -194,7 +194,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func `push includes model and service breakdowns`() async throws {
+    func `push includes local model breakdowns without account dashboard services`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-breakdowns")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -268,10 +268,7 @@ struct SyncCoordinatorTests {
             SyncCostBreakdown(label: "gpt-5.4", costUSD: 1.80),
             SyncCostBreakdown(label: "gpt-5.3-codex", costUSD: 0.60),
         ])
-        #expect(daily.serviceBreakdowns == [
-            SyncCostBreakdown(label: "Codex Run", costUSD: 1.90),
-            SyncCostBreakdown(label: "GitHub Code Review", costUSD: 0.50),
-        ])
+        #expect(daily.serviceBreakdowns.isEmpty)
         #expect(daily.requestCount == 4)
         #expect(daily.tokenCountIsKnown == true)
         #expect(costSummary.meteredCostUSD == 1.80)
@@ -375,7 +372,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func `push builds codex cost summary from dashboard when token snapshot missing`() async throws {
+    func `account dashboard costs never become device local Codex history`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardFallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -409,15 +406,12 @@ struct SyncCoordinatorTests {
 
         let provider = try #require(mock.lastSnapshot?.providers
             .first(where: { $0.providerID == UsageProvider.codex.rawValue }))
-        let costSummary = try #require(provider.costSummary)
-        #expect(costSummary.sessionCostUSD == nil)
-        #expect(costSummary.last30DaysCostUSD == 2.0)
-        #expect(costSummary.daily.count == 2)
-        #expect(costSummary.daily[0].serviceBreakdowns == [SyncCostBreakdown(label: "Codex Run", costUSD: 0.75)])
+        #expect(provider.costSummary == nil)
+        #expect(store.openAIDashboard?.usageBreakdown.count == 2)
     }
 
     @Test
-    func `dashboard service fallback suppresses token-only cost metadata`() async throws {
+    func `dashboard cannot fill unknown local cost or erase its provenance`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardMetadataAlignment")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -471,17 +465,17 @@ struct SyncCoordinatorTests {
 
         let cost = try #require(mock.lastSnapshot?.providers
             .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
-        #expect(cost.last30DaysCostUSD == 0.75)
-        #expect(cost.daily.first?.costIsKnown == true)
-        #expect(cost.meteredCostUSD == nil)
-        #expect(cost.costProvenance == nil)
-        #expect(cost.coverage == nil)
+        #expect(cost.last30DaysCostUSD == nil)
+        #expect(cost.daily.first?.costIsKnown == false)
+        #expect(cost.daily.first?.serviceBreakdowns.isEmpty == true)
+        #expect(cost.meteredCostUSD == 0.25)
+        #expect(cost.costProvenance == unavailableCost.costProvenance)
         #expect(cost.historyCoverageIsEstablished == false)
         #expect(cost.tokenMix == SyncCostTokenMix(inputTokens: 80, outputTokens: 20))
     }
 
     @Test
-    func `service fallback preserves incomplete token-window coverage`() async throws {
+    func `account dashboard days are excluded from device local history`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardPartialCoverage")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -528,8 +522,8 @@ struct SyncCoordinatorTests {
             .first(where: { $0.providerID == UsageProvider.codex.rawValue })?.costSummary)
         #expect(cost.last30DaysCostUSD == 0.25)
         #expect(cost.historyCoverageIsEstablished == false)
-        #expect(cost.costProvenance == nil)
-        #expect(cost.coverage == nil)
+        #expect(cost.costProvenance == .listPriceEstimate)
+        #expect(cost.daily.map(\.dayKey) == ["2026-03-16"])
     }
 
     @Test

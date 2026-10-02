@@ -1712,3 +1712,7 @@
 "Shared" = "Delad";
 "Hard" = "Hård";
 "Monitor" = "Övervakning";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Synkronisering av Mac-inställningar är separat från iPhone-användning. Aktivera den på varje Mac för att visa den här. Kostnadshistoriken sparas lokalt.";
+
+"Cached data from" = "Cachelagrade data från";

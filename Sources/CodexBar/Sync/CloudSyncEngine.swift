@@ -30,6 +30,17 @@ final class CloudSyncState {
     var fleetDevices: [String: DeviceSyncPayload] = [:]
     var fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:]
     var removeDeviceHandler: ((String) async -> Void)?
+    var refreshHandler: (() async -> Void)?
+    private(set) var isRefreshing = false
+
+    func requestRefresh() async {
+        guard !self.isRefreshing, let refreshHandler else { return }
+        self.isRefreshing = true
+        self.status.lastError = nil
+        defer { self.isRefreshing = false }
+        await refreshHandler()
+    }
+
     @ObservationIgnored private var removingDevices: Set<String> = []
 
     func requestDeviceRemoval(_ deviceID: String) async {

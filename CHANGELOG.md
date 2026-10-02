@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates.
+
 - Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.
 - Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.
 - Grok keeps local token history available during billing outages and includes observed model names. Partial cost scans remain clearly incomplete instead of appearing fully accounted for.

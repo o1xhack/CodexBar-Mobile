@@ -636,7 +636,7 @@ struct CostTabInsightsResolverTests {
     }
 
     @Test
-    func `Summary-only snapshot after clear can still fill missing ledger provider`() {
+    func `summary only after clear cannot fill a different local history window`() {
         let clearTime = self.now
         let freshSummaryOnly = self.provider(
             id: "claude",
@@ -658,7 +658,7 @@ struct CostTabInsightsResolverTests {
             isDemoMode: false,
             localHistoryClearedAt: clearTime)
 
-        #expect(insights?.total30DayCost == 14)
+        #expect(insights?.total30DayCost == 0)
         #expect(insights?.providerRows.map(\.provider.providerID) == ["claude"])
         #expect(insights?.dailyPoints.isEmpty == true)
     }

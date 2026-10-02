@@ -2253,7 +2253,10 @@ final class SyncCoordinator {
         let dashboardTimeZoneIdentifier = self.store.openAIDashboard?.usageBreakdownTimeZoneIdentifier
         let dashboardCalendarMatchesToken = dashboardTimeZoneIdentifier == tokenBucketTimeZoneIdentifier
         let canPublishDashboardRows = tokenSnapshot == nil || dashboardCalendarMatchesToken
-        let serviceBreakdownsByDay = canPublishDashboardRows
+        // Codex's local history is device-scoped; web dashboard costs are
+        // account-scoped. Filling local gaps with account totals would charge
+        // the same activity again when iOS adds reports from multiple Macs.
+        let serviceBreakdownsByDay = canPublishDashboardRows && provider != .codex
             ? self.dashboardServiceBreakdowns(for: provider)
             : [:]
 

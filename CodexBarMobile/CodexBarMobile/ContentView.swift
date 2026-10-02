@@ -1094,6 +1094,23 @@ private struct CostDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 MockProviderBanner(snapshot: self.usageData.snapshot)
+                Text(self.insights.cwlWindowDays == nil
+                    ?
+                    String(
+                        localized: "Showing the latest Mac reports. Local estimates are separate from account-wide dashboard usage.")
+                    :
+                    String(
+                        localized: "Showing saved daily history on this iPhone. Mac summaries do not replace saved totals."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("cost-data-scope")
+                if self.usageData.deviceSnapshots.count > 1 {
+                    Text(
+                        String(
+                            localized: "Local estimates from multiple Macs are added by device. Copied sessions may be counted more than once; this is not an account-wide total."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 let columns = self.layout.usesTwoColumns
                     ? AnyLayout(HStackLayout(alignment: .top, spacing: 20))
                     : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
@@ -1858,6 +1875,11 @@ struct CostDashboardInsights: Sendable {
             }) {
                 return false
             }
+            if row.dailyPointsUseReaderCalendar,
+               row.dailyPoints.contains(where: { $0.dayKey == dailyTodayKey })
+            {
+                return row.todayCostIsKnown
+            }
             if let opinion = row.provider.costSummary?
                 .todayTotals(now: self.referenceDate).costIsKnown
             {
@@ -1874,7 +1896,11 @@ struct CostDashboardInsights: Sendable {
 
     var hasIncompleteCostData: Bool {
         (!self.hasComparableHistoryTotals && self.canDisplayDailyHistory) || self.providerRows.contains {
-            !$0.thirtyDayCostIsKnown ||
+            if $0.dailyPointsUseReaderCalendar {
+                return !$0.thirtyDayCostIsKnown || !$0.todayCostIsKnown ||
+                    $0.dailyPoints.contains(where: { $0.costIsKnown == false })
+            }
+            return !$0.thirtyDayCostIsKnown ||
                 $0.provider.costSummary?.todayTotals(now: self.referenceDate).costIsKnown == false ||
                 $0.dailyPoints.contains(where: { $0.costIsKnown == false }) ||
                 $0.provider.costSummary?
@@ -2154,7 +2180,7 @@ struct CostDashboardInsights: Sendable {
             let todayPoint = providerDailyPoints.first(where: { $0.dayKey == todayKey })
             let fallbackToday = provider.costSummary?.todayTotals(now: now)
             let resolvedTodayCost: Double? = if let todayPoint {
-                todayPoint.costIsKnown == false || fallbackToday?.costIsKnown == false
+                todayPoint.costIsKnown == false
                     ? nil
                     : todayPoint.costUSD
             } else {
@@ -2168,7 +2194,7 @@ struct CostDashboardInsights: Sendable {
                 todayCost: todayCost,
                 thirtyDayCostIsKnown: totals.costIsKnown,
                 todayCostIsKnown: resolvedTodayCost != nil,
-                todayCostIsLowerBound: fallbackToday?.isLowerBound == true,
+                todayCostIsLowerBound: todayPoint == nil && fallbackToday?.isLowerBound == true,
                 thirtyDayTokens: totals.tokens,
                 todayTokens: todayTokens,
                 dailyPoints: providerDailyPoints,
@@ -2184,20 +2210,12 @@ struct CostDashboardInsights: Sendable {
                 continue
             }
             let emptyRollup = CostLedgerProviderRollup(
-                providerID: provider.providerID,
-                accountEmail: provider.accountEmail,
-                accountIdentityKey: CostLedgerService.accountIdentityKey(for: provider),
-                totalCostUSD: 0,
-                totalTokens: 0,
-                dailyPoints: [],
-                modelBreakdowns: [],
-                serviceBreakdowns: [])
-            let totals = Self.ledgerDisplayTotals(
-                rollup: emptyRollup,
-                provider: provider,
-                windowDays: aggregation.windowDays,
-                now: now,
-                calendar: calendar)
+                providerID: provider.providerID, accountEmail: provider.accountEmail,
+                totalCostUSD: 0, totalTokens: 0, dailyPoints: [],
+                modelBreakdowns: [], serviceBreakdowns: [])
+            let periodFallback = Self.ledgerDisplayTotals(
+                rollup: emptyRollup, provider: provider, windowDays: aggregation.windowDays,
+                now: now, calendar: calendar)
             let todayTotals = costSummary.todayTotals(now: now)
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
@@ -2221,9 +2239,10 @@ struct CostDashboardInsights: Sendable {
                 calendar: calendar,
                 pointsUseReaderCalendar: false)
             let fallbackDailyTokens = SyncCounterMath.saturatingSum(fallbackSyncPoints.map { max(0, $0.totalTokens) })
-            let resolvedCost = max(totals.costUSD, max(fallbackDailyCost ?? 0, todayCost))
-            let resolvedCostIsKnown = totals.costIsKnown || fallbackDailyCoverageIsComplete
-            let resolvedTokens = max(totals.tokens, max(fallbackDailyTokens, todayTokens))
+            let resolvedCost = fallbackSyncPoints.isEmpty ? periodFallback.costUSD : fallbackDailyCost ?? 0
+            let resolvedCostIsKnown = fallbackSyncPoints.isEmpty
+                ? periodFallback.costIsKnown : fallbackDailyCoverageIsComplete
+            let resolvedTokens = fallbackSyncPoints.isEmpty ? periodFallback.tokens : fallbackDailyTokens
             guard resolvedCostIsKnown || resolvedTodayCost != nil ||
                 resolvedTokens > 0 ||
                 costSummary.reportingPeriodCostUSD != nil ||
@@ -2321,7 +2340,14 @@ struct CostDashboardInsights: Sendable {
             now: now,
             calendar: calendar,
             pointsUseReaderCalendar: true)
-        guard let summary = provider.costSummary else {
+        // Only an empty provider ledger may fall back to a comparable
+        // producer period. Existing dated observations always stay authoritative.
+        guard rollup.dailyPoints.isEmpty else {
+            return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
+        }
+        guard let summary = provider.costSummary,
+              summary.reportingPeriodDaily.isEmpty
+        else {
             return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
         }
 
@@ -2366,17 +2392,6 @@ struct CostDashboardInsights: Sendable {
         pointsUseReaderCalendar: Bool) -> Bool
     {
         guard windowDays > 0 else { return false }
-        if let summary {
-            guard summary.reportingPeriodHistoryCoverageIsEstablished != false,
-                  summary.reportingPeriodHistoryWindowIsComparable != false,
-                  !summary.hasIncompleteHistoricalCostCoverage(at: now),
-                  !summary.hasInvalidBucketTimeZoneIdentifier,
-                  summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
-            else {
-                return false
-            }
-        }
-
         let today = calendar.startOfDay(for: now)
         let formatter = Self.dayKeyFormatter(calendar: calendar)
         let windowPoints = points.compactMap { point -> (offset: Int, isKnown: Bool)? in
@@ -4646,10 +4661,13 @@ private enum MobileReleaseNotesCatalog {
                     String(
                         localized: "See Kimi monthly blocks and short-window usage. Cached data waits for Mac sync."),
                     String(
+                        localized: "Keep saved daily costs and tokens when Mac refreshes, with clearer explanations of local history and multi-Mac estimates."),
+                    String(
                         localized: "Keep model names with daily token history, even when cost is unavailable."),
                     String(
                         localized: "Updated provider colors stay readable in light and dark modes."),
-                    String(localized: "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again."),
+                    String(
+                        localized: "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

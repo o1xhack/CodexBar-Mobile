@@ -1716,3 +1716,7 @@
 "Shared" = "Condiviso";
 "Hard" = "Rigido";
 "Monitor" = "Monitoraggio";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "La sincronizzazione delle impostazioni Mac è separata da quella dell’utilizzo su iPhone. Attivala su ogni Mac per visualizzarlo qui. La cronologia dei costi resta locale.";
+
+"Cached data from" = "Dati nella cache del";

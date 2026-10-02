@@ -282,15 +282,29 @@ struct SpendDashboardPane: View {
     @ViewBuilder
     private var refreshStatus: some View {
         if self.controller.failedSourceCount > 0 {
-            Label(
-                spendDashboardRefreshFailureText(self.controller.failedSourceCount),
-                systemImage: "exclamationmark.triangle.fill")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.orange)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 6) {
+                Label(
+                    spendDashboardRefreshFailureText(self.controller.failedSourceCount),
+                    systemImage: "exclamationmark.triangle.fill")
+                ForEach(self.controller.publication.sources.filter {
+                    $0.state == .unavailable || $0.state == .staleLastKnown
+                }, id: \.id) { source in
+                    Text(source.displayName + " · " + L(source.provider.flatMap {
+                        // Account-specific sources must not borrow another account's error.
+                        source.id == $0.rawValue ? self.store.tokenErrors[$0.instanceID] : nil
+                    } ?? "Local token history is unavailable or incomplete."))
+                    if let cached = self.controller.publication.inputs.first(where: { $0.id == source.id }) {
+                        Text(L("Cached data from") + " " +
+                            cached.snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 

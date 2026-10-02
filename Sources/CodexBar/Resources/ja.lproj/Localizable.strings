@@ -1713,3 +1713,9 @@
 "Shared" = "共有";
 "Hard" = "ハード";
 "Monitor" = "監視";
+
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac の設定同期は iPhone の使用量同期とは別です。各 Mac で有効にするとここに表示されます。費用履歴はローカルに保存されます。";
+
+
+"Cached data from" = "キャッシュ日時：";

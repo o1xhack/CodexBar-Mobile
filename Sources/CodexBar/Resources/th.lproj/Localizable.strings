@@ -1717,3 +1717,7 @@
 "Shared" = "ใช้ร่วมกัน";
 "Hard" = "แบบกำหนดตายตัว";
 "Monitor" = "เฝ้าติดตาม";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "การซิงค์การตั้งค่า Mac แยกจากการซิงค์การใช้งาน iPhone เปิดใช้งานบน Mac แต่ละเครื่องเพื่อแสดงที่นี่ ประวัติค่าใช้จ่ายยังคงอยู่ในเครื่อง";
+
+"Cached data from" = "ข้อมูลแคชจาก";

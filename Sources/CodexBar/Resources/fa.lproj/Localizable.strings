@@ -1717,3 +1717,7 @@
 "Shared" = "مشترک";
 "Hard" = "سخت";
 "Monitor" = "پایش";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "همگام‌سازی تنظیمات Mac از همگام‌سازی مصرف iPhone جداست. آن را در هر Mac فعال کنید تا اینجا نمایش داده شود. سابقه هزینه محلی می‌ماند.";
+
+"Cached data from" = "داده‌های ذخیره‌شده از";

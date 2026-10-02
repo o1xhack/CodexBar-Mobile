@@ -5,6 +5,10 @@ import SwiftUI
 struct ICloudSyncPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var state: CloudSyncState
+    private static let scopeFootnote =
+        "Mac settings sync is separate from iPhone usage sync. " +
+        // The scope remains device settings, not the mobile cost ledger.
+        "Enable it on each Mac to list that Mac here. Cost history stays local."
     private static let securityFootnote =
         "Secrets use iCloud end-to-end encryption via encryptedValues. " +
         "Hooks and machine-local paths never sync."
@@ -49,6 +53,16 @@ struct ICloudSyncPane: View {
             }
 
             Section {
+                Button(L("Refresh")) {
+                    Task { await self.state.requestRefresh() }
+                }
+                .disabled(!self.syncCanRun || !self.settings.macFleetSyncEnabled || self.state.isRefreshing)
+                Text(L(Self.scopeFootnote))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let error = self.state.status.lastError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
                 LabeledContent(
                     L("Last successful fetch"),
                     value: self.relativeTime(self.state.status.lastSuccessfulFetchAt))

@@ -1682,3 +1682,7 @@
 "Shared" = "공유";
 "Hard" = "하드";
 "Monitor" = "모니터링";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac 설정 동기화는 iPhone 사용량 동기화와 별개입니다. 각 Mac에서 켜면 여기에 표시됩니다. 비용 기록은 로컬에 저장됩니다.";
+
+"Cached data from" = "캐시 데이터 시각:";

@@ -1714,3 +1714,7 @@
 "Shared" = "Dùng chung";
 "Hard" = "Cứng";
 "Monitor" = "Theo dõi";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Đồng bộ cài đặt Mac tách biệt với đồng bộ mức sử dụng iPhone. Bật trên từng Mac để hiển thị tại đây. Lịch sử chi phí vẫn được lưu cục bộ.";
+
+"Cached data from" = "Dữ liệu lưu đệm từ";
