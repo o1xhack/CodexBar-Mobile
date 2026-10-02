@@ -124,6 +124,7 @@ struct QuotaBurndownSection: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             .padding(16)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("quota-burndown-section")
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         }

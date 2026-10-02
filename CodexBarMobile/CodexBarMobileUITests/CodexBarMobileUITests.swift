@@ -33,10 +33,19 @@ final class CodexBarMobileUITests: XCTestCase {
             }
             XCTAssertTrue(heading.isHittable, "Quota heading must be visible in \(language)")
             let chart = app.descendants(matching: .any)["quota-burndown-lane-0"].firstMatch
-            XCTAssertTrue(chart.exists, "Real production chart must exist in \(language)")
-            for _ in 0..<4 where !chart.isHittable {
+            // A visible section heading can sit above a chart that is still
+            // below the viewport or behind the tab bar. Scroll the chart into
+            // view before requiring its accessibility element to be mounted.
+            for _ in 0..<8 where !chart.exists || !chart.isHittable {
                 app.swipeUp()
             }
+            if !chart.exists {
+                let hierarchy = XCTAttachment(string: app.debugDescription)
+                hierarchy.name = "Quota chart accessibility hierarchy \(language)"
+                hierarchy.lifetime = .keepAlways
+                add(hierarchy)
+            }
+            XCTAssertTrue(chart.waitForExistence(timeout: 5), "Real production chart must exist in \(language)")
             XCTAssertTrue(chart.isHittable, "Chart must be visible before capture in \(language)")
             XCTAssertGreaterThan(chart.frame.height, 0)
             XCTAssertTrue(chart.label.contains(title))

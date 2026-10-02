@@ -29,7 +29,7 @@ Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 
 
 当前生产源码 checkpoint 为 `577ceb90a`。Mac 完整回归 mac-full-r5 exit0（1520 selections /137组、0 retries/timeouts），双架构 unsigned Release compiler 预检通过。iOS 2.4.0 (227) 已实现数据持久化、实际采样 quota pace、monthly blocking、模型名、provider 呈现及四语言说明；原始 Swift Testing 在 iOS26.5 Simulator 313项/15 suites 通过，完整旧 schema migration 在其中。生产图表离屏渲染为四语言×两外观×两宽度，并补跨午夜24h fixture，共32 PNG。16 old/new组合以冻结 wire、真实 merger 和独立 iOS 磁盘缓存替代验证；32缓存、96独立进程全部通过。以上不证明真实 App 导航、VoiceOver、Production CloudKit/APNs 或实体四设备。
 
-验收发现 ProviderColorPalette 同时被 WidgetActivityView 与 CodexBarWidgetView 使用，因此触发 Widget render matrix 和真实 SpringBoard gate；313项中的 WidgetSnapshotBuilder 不能代替渲染测试。现已补原始矩阵5/6方法通过，以及仅适配附件持久化后的6/6方法、220次离屏渲染与12张视觉图；标准XCTest附件系统与真实SpringBoard gate仍未完成，详见03。最终axis输入在iOS27复验313项/15 suites exit0；标准Widget/UI XCTest在用户处理密码后重新启动，仍无终态，不称通过。最新本地 review clean 不等同 GitHub PR/CR。PR、merge、签名公证和 Mac draft 均未执行，Goal 保持 in-progress。逐项验收见07-acceptance-audit.md。
+验收发现 ProviderColorPalette 同时被 WidgetActivityView 与 CodexBarWidgetView 使用，因此触发 Widget render matrix 和真实 SpringBoard gate；313项中的 WidgetSnapshotBuilder 不能代替渲染测试。现已补原始矩阵5/6方法通过，以及仅适配附件持久化后的6/6方法、220次离屏渲染与12张视觉图；标准XCTest附件现已生成，真实SpringBoard gate仍未完成，详见03。最终axis输入在iOS27复验313项/15 suites exit0；标准Widget原六方法全部通过，真实App四语言quota UI在修复辅助功能容器后exit0；人工VoiceOver及真实SpringBoard配置仍未完成。最新本地 review clean 不等同 GitHub PR/CR。PR、merge、签名公证和 Mac draft 均未执行，Goal 保持 in-progress。逐项验收见07-acceptance-audit.md。
 
 ## 用户调整执行顺序
 

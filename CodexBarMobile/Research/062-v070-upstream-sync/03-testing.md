@@ -274,3 +274,19 @@ DevToolsSecurity仍报告disabled。本机manpage说明：普通系统在一个l
 历史313项通过后，旧进程确实退出且用户已处理密码提示；启动独立ios27-axis-final-r1，链接frozen-axis-final所有生产/原测试对象，逐个SHA匹配。仅Runner的event输出路径与bundle ID改变，clone当前真实app资源，没有替换原Swift Testing断言。保存compile-command/object/source/binary/artifact manifests。iOS27.0(24A434)运行terminal exit0，313 tests/15 suites passed after2.851s。当前最终图表输入在iOS26.5和iOS27均有原始单元通过证据；仍不证明真实App或系统Widget行为。
 
 旧标准XCTest三PID已缺失且无完整result，因环境变化后重新从ios-display-final启动Widget六方法+四语言quota UI test，session26117/PID17111，result ios-widget-ui-after-auth-r1.xcresult。本次没有重启live run；当前仍live且没有测试终态，不称pass。未进行sim-use坐标操作；SpringBoard配置gate继续未完成。
+
+
+## 标准XCTest恢复：Widget完成、真实UI定位失败
+
+ios-widget-ui-after-auth-r1终态exit65，真实xcresult summary为6 passed /1 failed /0 skipped。CodexBarWidgetRenderMatrixTests原始六方法全部通过（含此前activities异常的附件方法），导出12张标准XCTest PNG；因此Widget离屏矩阵和标准附件gate现已完成，不再仅依赖适配runner。实际SpringBoard配置仍未验收。
+
+唯一失败为四语言quota UI test的英文首轮：App启动成功，provider-group-claude可点击、Claude navigation/title可见，图表exists断言失败。失败录像15s截图显示quota卡片在viewport底部，标题可点击而图表仍被tab栏遮住。这证明Simulator/XCTest启动和导航可用，不支持“Simulator整体故障”的判断；sim-use入口错误是独立channel，不能拿来推断XCTest失败根因。
+
+修正测试：先滚动直到chart.exists且isHittable，再waitForExistence与原有hittability/height/label/value断言；未删减图表内容断言或改productionview。原失败保留。ios-quota-ui-scroll-r2以当前源码构建并运行，session8077/PID20535，结果未终态。测试SwiftFormat lint 0/1 files需改，diff check通过。
+
+
+## 图表辅助功能容器修复与四语言真实 App UI 通过
+
+scroll-only r2终态exit65，仍不能定位lane ID，因此viewport不是完整根因。外层VStack的section identifier传播到子节点（初次log标题被解析为quota-burndown-section）；显式accessibilityElement(children:.contain)建立section container，保留Chart各自ID/label/value与子元素，不使用combine/ignore吞并图表。r3按当前修改源码编译，终态exit0 / TEST SUCCEEDED；xcresult1 passed/0 failed/0 skipped，四语言循环全部完成：preview模式真实App启动、Claude导航、滚动、lane0 exists/hittable/frame>0/localized label/87%value。四张标准App screenshot已export并逐张查看；source/summary/log/attachment SHA见ios-quota-ui-contain-r3-evidence.json。截图显示真实生产图表，非ImageRenderer；仍是虚构preview数据，不证明live账户/CloudKit或人工VoiceOver。
+
+代码静态review clean；两Swift文件format lint 0/2需改。新改动只是section辅助功能分组和严格测试定位顺序；模型/缓存/merger源码未改。Widget原六方法标准XCTest已在after-auth-r1全部通过并生成12附件。真实SpringBoard编辑配置/切换mode、实体Production/APNs以及GitHubPR/CR、merge和Macdraft仍未完成。sim-use入口此前错误不等同Simulator整体故障，标准XCTest已实际证明正常启动/导航/图表访问。

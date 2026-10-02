@@ -15,7 +15,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 ### Fixed
 - Preserve actual utilization observations and declines instead of synthesizing hourly averages; reject invalid/future observations before selecting the current lane duration.
 - Bound utilization chart gap expansion and reject invalid timestamp-to-integer conversions.
-- Keep quota chart date/time ticks legible on narrow screens and match the steady-use guide to its legend in light and dark modes.
+- Keep quota chart date/time ticks legible on narrow screens, match the steady-use guide to its legend in light and dark modes, and retain each chart’s accessibility identifier within the section.
 - Filter native Claude live-only reset-credit inventory out of legacy cached details, preserving plugin-defined details.
 
 ## [2.3.0 (226)] — Upstream v0.67–v0.68 companion update

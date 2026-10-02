@@ -8,7 +8,9 @@ Validation: Mac safe regression runner passed 1520 selections in 137 groups with
 
 Widget validation: original XCTest suite passed five of six methods; the attachment method failed because the standalone runner disables activities. Replacing only attachment persistence with PNG export preserved all rendering/assertions and passed six methods covering220 renders;12 exported images inspected. This is substituted evidence, not a standard Xcode XCTest pass.
 
-Outstanding before release: standard XCTest attachment execution and real SpringBoard edit/configuration proof; real App navigation/accessibility; actual Production CloudKit/APNs/multi-device validation. Matrix results are substituted evidence, not physical four-device results. Final-axis original313 tests/15 suites also passed on iOS27 with exit0. Standard Widget/UI XCTest remains live without terminal success. Root lint passed; targeted changed-line iOS lint found no new violations, not a claim that the entire existing iOS tree is lint-clean.
+Later standard Xcode XCTest passed all six original Widget methods with12 native attachments. Fix the quota section accessibility container to retain lane identifiers and scroll before chart lookup; the real App four-language quota UI test now passes with four native screenshots.
+
+Outstanding before release: real SpringBoard edit/configuration proof and manual VoiceOver; actual Production CloudKit/APNs/multi-device validation. Matrix results are substituted evidence, not physical four-device results. Final-axis original313 tests/15 suites also passed on iOS27 with exit0. Standard Widget and four-language quota UI XCTest subsequently passed on iOS26.5. Root lint passed; targeted changed-line iOS lint found no new violations, not a claim that the entire existing iOS tree is lint-clean.
 
 GitHub exact-head CR, thread resolution, review gate, PR Fast Checks, authorized merge and applicable Final CI must precede Mac draft. Local review does not replace remote CR. No signed/notarized draft, public release or TestFlight upload exists for this train yet. Update this body with actual remaining-gate results before handoff.
 
