@@ -764,7 +764,10 @@ final class SyncedUsageData {
                 appVersion: snapshot.appVersion,
                 mobileVersion: snapshot.mobileVersion,
                 notificationPushEnabled: snapshot.notificationPushEnabled,
-                providerPublicationTimestamps: providerPublicationTimestamps)
+                providerPublicationTimestamps: providerPublicationTimestamps,
+                providerQuotaSources: snapshot.providerQuotaSources.filter {
+                    providerPublicationTimestamps[$0.key] != nil
+                })
         }
     }
 

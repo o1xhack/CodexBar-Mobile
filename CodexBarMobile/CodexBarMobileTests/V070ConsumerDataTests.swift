@@ -15,20 +15,23 @@ struct V070ConsumerDataTests {
         updatedAt: Date? = nil,
         providerID: String = "codex",
         appVersion: String? = nil,
-        publishedAt: Date? = nil) -> SyncedUsageSnapshot
+        publishedAt: Date? = nil,
+        accountRecordKey: String? = nil,
+        accountEmail: String? = "fixture@example.invalid") -> SyncedUsageSnapshot
     {
         let provider = ProviderUsageSnapshot(
             providerID: providerID,
             providerName: "Fixture Provider",
             primary: windows.first,
             secondary: nil,
-            accountEmail: "fixture@example.invalid",
+            accountEmail: accountEmail,
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
             lastUpdated: updatedAt ?? self.captured,
             rateWindows: windows,
-            utilizationHistory: history)
+            utilizationHistory: history,
+            accountRecordKey: accountRecordKey)
         return SyncedUsageSnapshot(
             providers: [provider],
             syncTimestamp: publishedAt ?? max(
@@ -1220,7 +1223,8 @@ extension V070ConsumerDataTests {
             history: [],
             windows: self.kimiWindows(blocked: true),
             providerID: "kimi",
-            appVersion: "0.70.0.1")
+            appVersion: "0.70.0.1",
+            accountRecordKey: "opaque-kimi-account")
         for version in ["0.68.0.1", nil] {
             let raw = self.snapshot(
                 device: "fixture-mixed",
@@ -1228,7 +1232,8 @@ extension V070ConsumerDataTests {
                 windows: self.kimiWindows(blocked: false),
                 updatedAt: self.captured.addingTimeInterval(60),
                 providerID: "kimi",
-                appVersion: version)
+                appVersion: version,
+                accountRecordKey: "opaque-kimi-account")
             let sibling = self.snapshot(device: "fixture-mixed", history: [], appVersion: "0.70.0.1")
             func envelope(_ snapshot: SyncedUsageSnapshot, publication: Double) -> ProviderUsageEnvelope {
                 ProviderUsageEnvelope(
@@ -1244,6 +1249,27 @@ extension V070ConsumerDataTests {
             for records in [envelopes, Array(envelopes.reversed())] {
                 let sources = CloudSyncManager.reconstructSnapshots(envelopesByDeviceID: ["fixture-mixed": records])
                 let live = try #require(sources.first)
+                var fullCache = SnapshotCache()
+                fullCache.replaceFromFullFetch(perProviderSnapshots: sources, legacySnapshots: nil)
+                var deltaCache = SnapshotCache()
+                deltaCache.applyDelta(upserted: records, deletedRecordNames: [])
+                var replayCache = SnapshotCache()
+                replayCache.replacePerProviderFromReplay(records)
+                let cached = try [fullCache, deltaCache, replayCache].map {
+                    try #require($0.buildDeviceSnapshots().first)
+                }
+                #expect(cached.allSatisfy { $0.providerQuotaSources == live.providerQuotaSources })
+                let siblingRecord = "fixture-mixed|" + SnapshotCache.compositeKey(for: sibling.providers[0])
+                let filtered = SyncedUsageData.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+                    [live], deletedRecordNames: [siblingRecord])
+                #expect(filtered.first?.providerQuotaSources == live.providerQuotaSources)
+                deltaCache.applyDelta(upserted: [], deletedRecordNames: [siblingRecord])
+                #expect(deltaCache.buildDeviceSnapshots().first?.providerQuotaSources == live.providerQuotaSources)
+                let quotaRecord = "fixture-mixed|" + SnapshotCache.compositeKey(for: raw.providers[0])
+                deltaCache.applyDelta(upserted: [], deletedRecordNames: [quotaRecord])
+                #expect(deltaCache.perProviderQuotaSourcesByDevice["fixture-mixed"] == nil)
+                #expect(deltaCache.buildDeviceSnapshots().isEmpty)
+
                 #expect(live.appVersion == "0.70.0.1")
                 let key = SyncedUsageSnapshot.providerPublicationKey(for: raw.providers[0])
                 let provenance = try #require(live.providerQuotaSources[key])
@@ -1253,13 +1279,16 @@ extension V070ConsumerDataTests {
                 do {
                     let opened = ModelContainerFactory.openContainer(at: store)
                     #expect(opened.isPersistent)
-                    try SwiftDataBridge.upsert(deviceSnapshots: sources, into: ModelContext(opened.container))
+                    try SwiftDataBridge.upsert(
+                        deviceSnapshots: fullCache.buildDeviceSnapshots(),
+                        into: ModelContext(opened.container))
                 }
                 let opened = ModelContainerFactory.openContainer(at: store)
                 #expect(opened.isPersistent)
                 let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: ModelContext(opened.container))
                 let cold = try #require(restored.first)
                 #expect(cold.providerQuotaSources == live.providerQuotaSources)
+                #expect(cold.providers.first { $0.providerID == "kimi" }?.accountRecordKey == "opaque-kimi-account")
                 let context = ModelContext(opened.container)
                 let device = try #require(try context.fetch(FetchDescriptor<DeviceRecord>()).first)
                 device.providerQuotaSourcesData = nil
@@ -1273,7 +1302,7 @@ extension V070ConsumerDataTests {
                     history: [],
                     appVersion: "0.71.0",
                     publishedAt: self.captured.addingTimeInterval(200))
-                for first in [live, cold, legacyCache] {
+                for first in [live, cold, legacyCache] + cached + filtered {
                     for aliases in [[first, aliasSibling], [aliasSibling, first]] {
                         let collapsed = try self.collapseAliases(aliases)
                         for inputs in [[collapsed, blocker], [blocker, collapsed]] {
@@ -1287,5 +1316,77 @@ extension V070ConsumerDataTests {
                 }
             }
         }
+    }
+
+    @Test
+    func `Quota provenance filters stale identities and ignores empty sibling observations`() throws {
+        let active = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            providerID: "kimi",
+            appVersion: "0.68.0.1",
+            accountRecordKey: "opaque-active")
+        let stale = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            updatedAt: self.captured.addingTimeInterval(-40 * 86400),
+            providerID: "kimi",
+            appVersion: "0.71.0",
+            accountRecordKey: "opaque-stale",
+            accountEmail: nil)
+        let activeKey = SyncedUsageSnapshot.providerPublicationKey(for: active.providers[0])
+        let staleKey = SyncedUsageSnapshot.providerPublicationKey(for: stale.providers[0])
+        let source = SyncProviderQuotaSource(
+            appVersion: "0.68.0.1",
+            publicationTimestamp: active.syncTimestamp,
+            deviceID: "fixture-cache")
+        let legacy = SyncedUsageSnapshot(
+            providers: active.providers + stale.providers,
+            syncTimestamp: active.syncTimestamp,
+            deviceName: "fixture-cache",
+            deviceID: "fixture-cache",
+            appVersion: "0.71.0",
+            providerQuotaSources: [activeKey: source,
+            staleKey: SyncProviderQuotaSource(
+                appVersion: "0.71.0",
+                publicationTimestamp: stale.syncTimestamp,
+                deviceID: "fixture-cache")])
+        for perProvider in [false, true] {
+            var cache = SnapshotCache()
+            cache.replaceFromFullFetch(
+                perProviderSnapshots: perProvider ? [legacy] : nil,
+                legacySnapshots: perProvider ? nil : [legacy])
+            let result = try #require(cache.buildDeviceSnapshots().first)
+            #expect(result.providers.count == 1)
+            #expect(result.providerQuotaSources == [activeKey: source])
+        }
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [legacy],
+            legacySnapshots: nil)
+        let empty = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            providerID: "kimi",
+            appVersion: "0.71.0",
+            accountRecordKey: "opaque-active")
+        cache.applyDelta(upserted: [ProviderUsageEnvelope(
+            deviceID: "fixture-cache",
+            deviceName: "fixture-cache",
+            appVersion: "0.71.0",
+            mobileVersion: nil,
+            syncTimestamp: self.captured.addingTimeInterval(1000),
+            notificationPushEnabled: nil,
+            provider: empty.providers[0])],
+            deletedRecordNames: [])
+        #expect(cache.buildDeviceSnapshots().first?.providerQuotaSources == [activeKey: source])
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(legacy)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            SyncedUsageSnapshot.self,
+            from: encoded)
+        #expect(decoded.providerQuotaSources.isEmpty)
+        #expect(decoded.providers == legacy.providers)
     }
 }
