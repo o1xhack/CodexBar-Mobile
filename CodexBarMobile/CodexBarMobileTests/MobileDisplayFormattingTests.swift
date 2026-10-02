@@ -6,6 +6,27 @@ import Testing
 @Suite("Mobile Display Formatting")
 @MainActor
 struct MobileDisplayFormattingTests {
+    @Test func `Over-quota usage remains visible without unsafe integer conversion`() {
+        let overage = SyncRateWindow(usedPercent: 140, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+        #expect(UsagePercentDisplayMode.used.percentageValueText(for: overage) == "140%")
+        #expect(UsagePercentDisplayMode.used.progressFraction(for: overage) == 1)
+        #expect(UsagePercentDisplayMode.remaining.percentageValueText(for: overage) == "0%")
+        let extreme = SyncRateWindow(usedPercent: 1e30, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+        #expect(UsagePercentDisplayMode.used.percentageValueText(for: extreme).hasSuffix("%"))
+        #expect(UsagePercentDisplayMode.used.progressFraction(for: extreme) == 1)
+    }
+
+    @Test func `Nonfinite observations are unavailable in both usage display modes`() {
+        for value in [Double.nan, Double.infinity, -Double.infinity] {
+            let window = SyncRateWindow(usedPercent: value, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+            for mode in UsagePercentDisplayMode.allCases {
+                #expect(mode.percentageValueText(for: window) == String(localized: "Unavailable"))
+                #expect(mode.percentageText(for: window) == String(localized: "Usage unavailable"))
+                #expect(mode.progressFraction(for: window) == 0)
+            }
+        }
+    }
+
     @Test("Provider-level OpenRouter cost envelope is hidden only from Usage cards")
     func providerLevelOpenRouterCostEnvelopeClassification() {
         let provider = ProviderUsageSnapshot(
@@ -95,7 +116,7 @@ struct MobileDisplayFormattingTests {
             SyncDailyPoint(
                 dayKey: String(format: "2026-06-%02d", $0),
                 costUSD: Double($0),
-                totalTokens: $0 * 1_000)
+                totalTokens: $0 * 1000)
         }
 
         #expect(ProviderDetailView.dailyAxisDayKeys(for: points) == [
@@ -110,9 +131,9 @@ struct MobileDisplayFormattingTests {
     @Test("Provider daily spend axis sorts unsorted points before choosing ticks")
     func providerDailySpendAxisSortsBeforeChoosingTicks() {
         let points = [
-            SyncDailyPoint(dayKey: "2026-06-15", costUSD: 15, totalTokens: 15_000),
-            SyncDailyPoint(dayKey: "2026-06-01", costUSD: 1, totalTokens: 1_000),
-            SyncDailyPoint(dayKey: "2026-06-08", costUSD: 8, totalTokens: 8_000),
+            SyncDailyPoint(dayKey: "2026-06-15", costUSD: 15, totalTokens: 15000),
+            SyncDailyPoint(dayKey: "2026-06-01", costUSD: 1, totalTokens: 1000),
+            SyncDailyPoint(dayKey: "2026-06-08", costUSD: 8, totalTokens: 8000),
         ]
 
         #expect(ProviderDetailView.sortedDailyPoints(points).map(\.dayKey) == [
@@ -155,7 +176,7 @@ struct MobileDisplayFormattingTests {
             sessionCostUSD: nil,
             sessionTokens: nil,
             last30DaysCostUSD: 37,
-            last30DaysTokens: 3_700,
+            last30DaysTokens: 3700,
             daily: [],
             historyWindowIsComparable: false)
         #expect(ProviderDetailView.shouldRenderCostSummary(incomparable))
@@ -214,7 +235,7 @@ struct MobileDisplayFormattingTests {
             sessionCostUSD: nil,
             sessionTokens: nil,
             last30DaysCostUSD: 12.34,
-            last30DaysTokens: 1_000,
+            last30DaysTokens: 1000,
             daily: [],
             coverage: SyncCostCoverage(priced: 9, unpriced: 1, unmetered: 0, estimated: 0),
             historyCoverageIsEstablished: true)
@@ -222,7 +243,7 @@ struct MobileDisplayFormattingTests {
             sessionCostUSD: nil,
             sessionTokens: nil,
             last30DaysCostUSD: 12.34,
-            last30DaysTokens: 1_000,
+            last30DaysTokens: 1000,
             daily: [],
             coverage: SyncCostCoverage(priced: 10, unpriced: 0, unmetered: 0, estimated: 0),
             historyCoverageIsEstablished: true)

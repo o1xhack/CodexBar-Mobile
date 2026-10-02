@@ -68,19 +68,25 @@ enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {
     }
 
     func progressFraction(for window: SyncRateWindow) -> Double {
-        min(max(self.displayedPercent(for: window) / 100, 0), 1)
+        let value = self.displayedPercent(for: window)
+        guard window.usedPercent.isFinite, value.isFinite else { return 0 }
+        return min(max(value / 100, 0), 1)
     }
 
     func percentageValueText(for window: SyncRateWindow) -> String {
         let displayedPercent = self.displayedPercent(for: window)
+        guard window.usedPercent.isFinite, displayedPercent.isFinite else { return String(localized: "Unavailable") }
         if displayedPercent > 0, displayedPercent < 1 {
             return "<1%"
         }
-        let roundedValue = Int(displayedPercent.rounded())
-        return "\(roundedValue)%"
+        if let roundedValue = Int(exactly: displayedPercent.rounded()) {
+            return "\(roundedValue)%"
+        }
+        return displayedPercent.formatted(.number.precision(.fractionLength(0)).grouping(.never)) + "%"
     }
 
     func percentageText(for window: SyncRateWindow) -> String {
-        "\(self.percentageValueText(for: window)) \(self.percentSuffix)"
+        guard window.usedPercent.isFinite else { return String(localized: "Usage unavailable") }
+        return "\(self.percentageValueText(for: window)) \(self.percentSuffix)"
     }
 }

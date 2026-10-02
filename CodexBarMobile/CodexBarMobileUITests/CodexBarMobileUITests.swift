@@ -6,7 +6,48 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
-    func testVersionUpdateShowsReleaseNotesAndSetupGuideOnDemand() throws {
+    func testV070QuotaPaceRendersInFourLanguages() {
+        XCUIDevice.shared.orientation = .portrait
+        for (language, title) in [
+            ("en", "Quota pace"),
+            ("zh-Hans", "额度消耗趋势"),
+            ("zh-Hant", "額度消耗趨勢"),
+            ("ja", "クォータ消費の推移"),
+        ] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "UI_TEST_PREVIEW_DATA", "UI_TEST_SKIP_ONBOARDING", "UI_TEST_RESET_DEFAULTS",
+                "-cwlEnabled", "NO", "-AppleLanguages", "(\(language))", "-AppleLocale", language,
+            ]
+            app.launch()
+            let provider = app.buttons["provider-group-claude"]
+            XCTAssertTrue(provider.waitForExistence(timeout: 10))
+            for _ in 0..<6 where !provider.isHittable {
+                app.swipeUp()
+            }
+            provider.tap()
+            XCTAssertTrue(app.navigationBars["Claude"].waitForExistence(timeout: 5))
+            let heading = app.staticTexts[title].firstMatch
+            for _ in 0..<14 where !heading.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(heading.isHittable, "Quota heading must be visible in \(language)")
+            let chart = app.descendants(matching: .any)["quota-burndown-lane-0"].firstMatch
+            XCTAssertTrue(chart.exists, "Real production chart must exist in \(language)")
+            for _ in 0..<4 where !chart.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(chart.isHittable, "Chart must be visible before capture in \(language)")
+            XCTAssertGreaterThan(chart.frame.height, 0)
+            XCTAssertTrue(chart.label.contains(title))
+            XCTAssertTrue((chart.value as? String)?.contains("87%") == true)
+            self.captureScreen(app, name: "v070 quota pace \(language)")
+            app.terminate()
+        }
+    }
+
+    @MainActor
+    func testVersionUpdateShowsReleaseNotesAndSetupGuideOnDemand() {
         let app = XCUIApplication()
         app.launchArguments = [
             "UI_TEST_PREVIEW_DATA",
@@ -39,7 +80,7 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
-    func testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes() throws {
+    func testChoosingDemoFromSetupGuideDismissesFirstLaunchReleaseNotes() {
         let app = XCUIApplication()
         app.launchArguments = [
             "UI_TEST_PREVIEW_DATA",

@@ -1,6 +1,6 @@
 # iOS 2.4.0 实施设计
 
-Status: `ready`
+Status: `in-progress`
 
 Goal已确认单版本方案；本文件细化下一阶段，不声明已实现。iOS目标2.4.0 (227)，所有target同步；只有一个MobileReleaseNotesCatalog版本块，四语言同时补齐。
 

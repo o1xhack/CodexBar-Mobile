@@ -1128,8 +1128,10 @@ enum ProviderSnapshotMerger {
                           entry.resetsAt?.timeIntervalSince1970.isFinite ?? true
                     else { continue }
                     observationsByName[series.name, default: []].append(PublishedUtilizationObservation(
-                        entry: entry, windowMinutes: series.windowMinutes,
-                        publishedAt: history.publishedAt, deviceID: history.deviceID))
+                        entry: entry,
+                        windowMinutes: series.windowMinutes,
+                        publishedAt: history.publishedAt,
+                        deviceID: history.deviceID))
                 }
             }
         }

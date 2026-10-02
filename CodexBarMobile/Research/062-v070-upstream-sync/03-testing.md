@@ -159,3 +159,32 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 2026-10-01 再次 devicectl read-only inventory：physical iPhone Air connected；physical iPhone 17 Pro Max unavailable。其余可用 iPhone/iPad 均 simulated，不能算第二台真实 iPhone。未连接或安装任何设备。本轮 Simulator install/query/sample 仍 live，不能据此声称启动成功；另外启动 ios-ui-build-final（generic Simulator build-for-testing，无启动/安装）以验证完整旧 schema fixture 和四语言 UI 当前最终输入的编译，日志待终态。
 
 独立 matrix review 核对所有 17 个源码 hashes 对应各自真实 old/new source，只删 module self-import，无旧新算法混用；建议补 account-native summary 直接断言，现已增加 Kimi 12 tokens / unavailable，而不是只验证 quota。r3 exit0，再次完整 16 masks / 64 reads / 32 merge processes。移除 writer 仅验证无状态 reduction，尚不证明 SwiftData tombstone 或 CloudKit 删除收敛。
+
+`ios-ui-build-final.log` exit0，TEST BUILD SUCCEEDED；generic Simulator arm64/x86_64 当前主应用、extensions、全部 unit/UI tests 编译完成。之后调整的是行换行与既有字符串同内容格式；不更改运行逻辑。`ios-final-tests-r6` 使用该构建在新专用 iOS26.5 Simulator 7216E120-B46B-43D5-A78C-93A096A3D5A3 运行最新完整 migration/UI 与既有 consumer/CWL/presentation/widget totals gate，尚待终态；并未取消 r4/r5 或把等待等同失败。
+
+
+## iOS 显示边界与测试启动诊断更新
+
+- `MobileDisplayPreferences` 对真实超额用量仍显示 140%，remaining 为 0%；仅进度条限制到 0...1。`Int(exactly:)` 避免极大 finite 值转换 trap，NaN/±Infinity 的完整 label 为既有四语言 `Usage unavailable`，不会拼接 used/left。UsageCard 同步 finite guard，新增双模式回归断言。
+- `overage-pure/build-r2.log` / `run-r2.log` 均 exit0：将当前真实 formatter 源码与 Shared models 编译并实际运行，覆盖 0 / 0.5 / 78 / 100 / 140 / 1e30 / NaN / ±Infinity。只移除同 module 的 import；这是 macOS pure formatter 验证，不代替 iOS runtime。`ios-overage-typecheck-r3.log` exit0，使用当前真实 CodexBarSync framework、iOS 17 deployment target 和 Simulator SDK。r2 typecheck 因误用 -I 而找不到 framework module 失败；改为 -F 后通过，没有修改实现。
+- 定向 `ios-changed-all-lint-r4.json` 覆盖 26 个本轮 Swift 文件：SwiftLint exit2，824 个报告全部落在 1d7ff545c 对照的未修改行，新增行零报告。分类详见 `ios-changed-lint-classification-r4.json`；不能称整个 iOS 目录 lint 零违规。修复新增 multiline arguments，并缩短五条英文 release note key；全部四语言 translated，`ios-localized-final-r2.log` 的 381 source keys 全匹配。最新独立 reviewer 对 formatter/card finite guard、边界测试与 release note 四语言映射审查 clean，仅源码/JSON 审查。
+- `frozen-consumer-matrix-r4.log` exit0：最终 merger 换行后重新编译真实旧/新源，16 masks、64 wire reads、32 consumer merges 全通过；r4 source-manifest 对应本轮最终 merger 字节。仍只证明 wire+merge 阶段，不证明缓存、UI、Production/APNs 或真实四设备收敛。
+- 最新 r6 的实际 Session log 显示：testmanagerd 控制连接成功；20:23:12 开始安装，20:23:31 安装完成并发出 launch request，随后尚无测试 App PID / stdout / terminal。launchctl 只见 testmanagerd，未见主应用进程；这只能定位到 launch 阶段，不确认原因。r4/r5/r6 的 xcodebuild PID 64477 / 70255 / 84611 均 live，未因 observation timeout 终止或重启。
+- sim-use 0.14.0 read-only inventory 确认专用 iOS26.5 Simulator booted；ui 预检返回 `No translation object returned for simulator`。这不是系统 permission dialog 的已验证证据；未进行坐标操作、未操作真实手机。专用 UI、host CoreSimulator 与 runningboardd 限定日志未取得可解释的错误。没有关闭其他项目 Simulator 或重启全局服务。
+- 后续新增 formatter 与 note key 输入通过独立 `ios-display-final` DerivedData 重新 build-for-testing，session5065 / `ios-display-build-final.log` 尚待终态；不覆盖或修改当前 r6 的旧构建目录。r6 不包含后加入的 formatter 测试，因此即使其通过，仍需最终当前输入测试。
+
+
+`ios-display-build-final.log` exit0、TEST BUILD SUCCEEDED；主应用、extensions 和所有测试目标编译通过。因为本次英文 key 收尾发生在该 build 开始之后，另在停止修改源码后执行同 DerivedData 的 incremental `ios-display-build-stable.log`，用于固定最终输入，现已 exit0 / TEST BUILD SUCCEEDED；不在 r6 运行目录写入。
+
+系统调试授权调查仅取得间接证据：`DevToolsSecurity -status` 为 disabled，SecurityAgent PID60124 live；CUA 的 Xcode 只读界面未显示调试弹窗，而读取 SecurityAgent 被工具安全策略明确禁止。未启用 Developer Tools、未操作系统授权窗口或获取密码。这不是已确认的根因；已请用户在本机检查是否有 Developer Tools Access 授权提示，等待其观察/处理反馈。源码与构建工作继续，不把此状态当作 iOS tests failure 或 pass。
+
+
+## 磁盘迁移与 publication 重启的独立运行证据
+
+`consumer-mac-runtime-r1/build-r3.log` / `run-r3.log` 均 exit0：完整五实体 legacy migration 和 opposing device clocks 的 publication disk reopening 两项测试的全部断言实际通过。独立 reviewer 核对 25 个当前 production 副本 hashes、完整 LegacyV230Ledger 与两原方法一致；17+5 个 expect 与 3+2 个 require 全部保留。断言只转换为 precondition 与 throwing require，未替换生产存储、factory、merger 算法。
+
+可重复入口：`tools/check_consumer_disk.py --scratch /Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070/<fresh-run>`。`consumer-mac-runtime-repro.log` / `consumer-mac-runtime-repro/{build.log,run.log}` 全部 exit0。入口重新从当前原测试提取两方法和旧 schema、冻结当前真实 production 文件，并记录 test/harness/source SHA 与 compile-command。仅移除同 module import，SwiftData 操作使用 SSD 自有 UUID fixture 路径、cloudKitDatabase.none 和显式 factory URL；没有读取真实 iOS app store 或 Keychain、没有 CloudKit 网络调用。publication upsert 的 cost hook 会读取命令行进程 UserDefaults.standard 的 cwlEnabled 开关，不能声称完全没有 defaults 读取；不调用 app-group migration 或共享 store singleton。
+
+此结果是 **macOS SwiftData 运行证据**，补强旧 schema 数据保留与新 publication 字段的实际磁盘读写，不证明 iOS 版本的 SwiftData runtime、UI 或 16 组设备/cache/APNs gate 已通过。首轮 harness compile 使用不存在的 CocoaError code 失败；改为自身 synthetic NSError 后编译运行通过，未修改任何生产文件或削弱断言。
+
+截至本 checkpoint：iOS 2.4.0 (227) feature/presentation/localization/source 已实现，最终 generic Simulator 编译通过；本地保存代码供后续运行验证与 review，不将 checkpoint 当 release 或 Code Complete。r4/r5/r6 仍 live，UI/完整 iOS runtime/实际多设备收敛待证据；不 push、不开 PR、不 merge、不签名公证或创建 Mac draft。

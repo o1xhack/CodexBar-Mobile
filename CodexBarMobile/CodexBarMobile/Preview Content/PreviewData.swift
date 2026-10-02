@@ -100,6 +100,22 @@ enum PreviewData {
                 windowMinutes: 300,
                 resetsAt: Date().addingTimeInterval(3600 * 4.5),
                 resetDescription: nil),
+        ],
+        utilizationHistory: [
+            SyncUtilizationSeries(name: "session", windowMinutes: 300, entries: [
+                .init(
+                    capturedAt: Date().addingTimeInterval(-3600),
+                    usedPercent: 7,
+                    resetsAt: Date().addingTimeInterval(3600 * 2.5)),
+                .init(
+                    capturedAt: Date().addingTimeInterval(-1800),
+                    usedPercent: 9,
+                    resetsAt: Date().addingTimeInterval(3600 * 2.5)),
+                .init(
+                    capturedAt: Date().addingTimeInterval(-600),
+                    usedPercent: 11,
+                    resetsAt: Date().addingTimeInterval(3600 * 2.5)),
+            ]),
         ])
 
     static let cursorProvider = ProviderUsageSnapshot(
@@ -220,28 +236,28 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-90),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.04,
-            sessionTokens: 1_200,
+            sessionTokens: 1200,
             last30DaysCostUSD: 1.40,
             last30DaysTokens: 320_000,
-            daily: makeDaily(baseCost: 0.05, tokenBase: 9_000, modelMix: [("kiro-sonnet", 1.0)])),
+            daily: makeDaily(baseCost: 0.05, tokenBase: 9000, modelMix: [("kiro-sonnet", 1.0)])),
         rateWindows: [
             SyncRateWindow(
                 id: "overage",
                 label: "Overage",
                 usedPercent: 24,
-                windowMinutes: 43_200,
-                resetsAt: Date().addingTimeInterval(86_400 * 11),
+                windowMinutes: 43200,
+                resetsAt: Date().addingTimeInterval(86400 * 11),
                 resetDescription: nil),
         ],
         kiroCredits: SyncKiroCredits(
             planName: "Pro",
             creditsUsed: 320,
-            creditsTotal: 1_000,
+            creditsTotal: 1000,
             creditsPercent: 32,
             bonusUsed: 45,
             bonusTotal: 200,
             bonusExpiryDays: 19,
-            resetsAt: Date().addingTimeInterval(86_400 * 11)),
+            resetsAt: Date().addingTimeInterval(86400 * 11)),
         details: [
             SyncProviderDetailSection(
                 title: "Usage",
@@ -268,10 +284,13 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-120),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.55,
-            sessionTokens: 12_000,
+            sessionTokens: 12000,
             last30DaysCostUSD: 19.10,
             last30DaysTokens: 5_300_000,
-            daily: makeDaily(baseCost: 0.80, tokenBase: 180_000, modelMix: [("anthropic.claude-3-5-sonnet", 0.75), ("amazon.titan", 0.25)])),
+            daily: makeDaily(
+                baseCost: 0.80,
+                tokenBase: 180_000,
+                modelMix: [("anthropic.claude-3-5-sonnet", 0.75), ("amazon.titan", 0.25)])),
         bedrockCost: SyncBedrockCost(
             monthlySpendUSD: 19.10,
             monthlyBudgetUSD: 50.0,
@@ -298,10 +317,10 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-60),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.06,
-            sessionTokens: 2_400,
+            sessionTokens: 2400,
             last30DaysCostUSD: 1.20,
             last30DaysTokens: 200_000,
-            daily: makeDaily(baseCost: 0.08, tokenBase: 6_800, modelMix: [("kimi-k2-instruct", 1.0)])),
+            daily: makeDaily(baseCost: 0.08, tokenBase: 6800, modelMix: [("kimi-k2-instruct", 1.0)])),
         moonshotBalance: SyncMoonshotBalance(
             balanceAmount: 58.40,
             balanceCurrency: "CNY",
@@ -321,13 +340,13 @@ enum PreviewData {
                 label: "Session",
                 usedPercent: 28,
                 windowMinutes: 300,
-                resetsAt: Date().addingTimeInterval(3_600 * 3),
+                resetsAt: Date().addingTimeInterval(3600 * 3),
                 resetDescription: "in 3h"),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 42,
-                windowMinutes: 10_080,
-                resetsAt: Date().addingTimeInterval(86_400 * 4),
+                windowMinutes: 10080,
+                resetsAt: Date().addingTimeInterval(86400 * 4),
                 resetDescription: "in 4 days"),
             accountEmail: "dev-mock@zai.test",
             loginMethod: "API",
@@ -339,10 +358,10 @@ enum PreviewData {
                 modelSeries: [
                     SyncZaiModelSeries(
                         modelName: "glm-4.6",
-                        tokens: (0..<24).map { ($0 % 4 == 0) ? Int.random(in: 1_500...6_000) : nil }),
+                        tokens: (0..<24).map { ($0 % 4 == 0) ? Int.random(in: 1500...6000) : nil }),
                     SyncZaiModelSeries(
                         modelName: "glm-4.6-plus",
-                        tokens: (0..<24).map { ($0 % 3 == 1) ? Int.random(in: 800...3_000) : nil }),
+                        tokens: (0..<24).map { ($0 % 3 == 1) ? Int.random(in: 800...3000) : nil }),
                 ]))
     }()
 
@@ -358,22 +377,22 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-180),
         costSummary: nil,
         openAIAPIDashboard: SyncOpenAIAPIDashboard(
-            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4_201, totalTokens: 1_234_567),
-            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1_103, totalTokens: 312_000),
-            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45_321),
+            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4201, totalTokens: 1_234_567),
+            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1103, totalTokens: 312_000),
+            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45321),
             dailyBuckets: (1...30).map { day in
                 SyncOpenAIDailyBucket(
                     dayKey: String(format: "2026-04-%02d", day),
                     costUSD: Double.random(in: 0.5...8.0),
                     requests: Int.random(in: 50...300),
-                    inputTokens: Int.random(in: 1_000...50_000),
-                    cachedInputTokens: Int.random(in: 0...10_000),
-                    outputTokens: Int.random(in: 200...10_000),
-                    totalTokens: Int.random(in: 1_200...60_000))
+                    inputTokens: Int.random(in: 1000...50000),
+                    cachedInputTokens: Int.random(in: 0...10000),
+                    outputTokens: Int.random(in: 200...10000),
+                    totalTokens: Int.random(in: 1200...60000))
             },
             topModels: [
-                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2_100, totalTokens: 800_000, costUSD: 0),
-                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1_400, totalTokens: 380_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2100, totalTokens: 800_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1400, totalTokens: 380_000, costUSD: 0),
                 SyncOpenAIModelBreakdown(modelName: "gpt-4o-mini", requests: 540, totalTokens: 110_000, costUSD: 0),
             ],
             topLineItems: [
@@ -388,8 +407,8 @@ enum PreviewData {
         primary: SyncRateWindow(
             label: "Weekly",
             usedPercent: 35,
-            windowMinutes: 10_080,
-            resetsAt: Date().addingTimeInterval(86_400 * 4),
+            windowMinutes: 10080,
+            resetsAt: Date().addingTimeInterval(86400 * 4),
             resetDescription: "in 4 days"),
         secondary: nil,
         accountEmail: "primary-mock@antigravity.test",
@@ -399,8 +418,14 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-45),
         antigravityAccounts: SyncMultiAccountList(
             accounts: [
-                SyncMultiAccountEntry(email: "primary-mock@antigravity.test", isActive: true, expiresAt: Date().addingTimeInterval(3_600 * 12)),
-                SyncMultiAccountEntry(email: "alt-mock@antigravity.test", isActive: false, expiresAt: Date().addingTimeInterval(3_600 * 36)),
+                SyncMultiAccountEntry(
+                    email: "primary-mock@antigravity.test",
+                    isActive: true,
+                    expiresAt: Date().addingTimeInterval(3600 * 12)),
+                SyncMultiAccountEntry(
+                    email: "alt-mock@antigravity.test",
+                    isActive: false,
+                    expiresAt: Date().addingTimeInterval(3600 * 36)),
             ],
             activeIndex: 0))
 

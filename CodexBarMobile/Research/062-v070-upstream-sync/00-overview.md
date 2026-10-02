@@ -27,4 +27,8 @@ v0.70.0：Codex/Claude quota burndown、16 个品牌 accents；Mistral event/zon
 
 Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 准备。禁止 origin push、merge、tag publish、live release、TestFlight upload。实际凭证使用与 schema deploy 按 Goal 暂停确认。GitHub draft 不能让 CLI 隐式创建远程 tag；先核对可用无 tag-publish 路径再创建。仅本地打包不等同 GitHub draft 完成。
 
-Mac上游合并、bridge审计/实现和本地独立review已完成对应checkpoint；最新全树lint通过，完整Mac回归mac-full-r5已exit0（1520 selections /137组全部首轮通过），双架构Release compiler预检及现有iOS consumer编译/153项定向基线测试通过。iOS实现、最终测试矩阵、签名公证/draft与最终review尚未完成；不得将文档或编译单项视为Goal完成。
+Mac上游合并、bridge审计/实现和本地独立review已完成对应checkpoint；最新全树lint通过，完整Mac回归mac-full-r5已exit0（1520 selections /137组全部首轮通过），双架构Release compiler预检及现有iOS consumer编译/153项定向基线测试通过。iOS 数据持久化、实际采样的 quota pace 图、monthly blocking、模型名展示、provider 呈现与四语言发布说明已实现；当前为 2.4.0 (227)。完整旧 schema fixture 与 UI tests 已经过 generic Simulator 编译，但 migration、四语言运行截图和最终 runtime gate 仍待测试终态。最终测试矩阵、签名公证/draft与最终review尚未完成；不得将文档或编译单项视为Goal完成。
+
+## 用户调整执行顺序
+
+用户明确要求先完成 iOS 实现、本地测试、兼容验证与 review，再考虑 Mac draft；此前凭据确认不再阻断 iOS 阶段。GitHub PR + CR 的 push 授权正在确认，未得到明确回复前不 push、不开 PR；merge、发布凭据与正式发布仍分别等待授权。原 Goal 全部交付范围保留。

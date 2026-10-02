@@ -4,7 +4,7 @@ import SwiftUI
 struct UsageCardView: View {
     let label: String
     let window: SyncRateWindow
-    var providerID: String? = nil
+    var providerID: String?
     var tintColor: Color = .blue
     var percentageAccessibilityIdentifier: String?
     /// Quota warning thresholds expressed as **remaining percent**, as
@@ -77,8 +77,33 @@ struct UsageCardView: View {
                     }
                 }
 
-            // Reset info
-            if let resetsAt = self.window.resetsAt {
+            if self.presentation.isBlocked {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(String(localized: "Monthly quota exhausted"))
+                        .font(.caption.bold()).foregroundStyle(.red)
+                    if let raw = self.presentation.rawUsedPercent {
+                        Text(String(localized: "Observed window use") + ": " + raw.formatted(
+                            .number.precision(.fractionLength(0...1))) + "%")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        if self.presentation.hasExpiredObservation(at: context.date) {
+                            Text(String(localized: "Waiting for an updated Mac snapshot."))
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else if let reset = self.presentation.resetDate {
+                            Text(String(localized: "Monthly quota resets") + " " + reset.formatted(
+                                .relative(presentation: .named)))
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text(String(localized: "Reset time unavailable"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }.accessibilityIdentifier("usage.monthly-blocked")
+            }
+
+            // A blocked lane's reset belongs to the monthly availability pool.
+            if !self.presentation.isBlocked, let resetsAt = self.presentation.resetDate {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.caption)
@@ -86,7 +111,7 @@ struct UsageCardView: View {
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)
-            } else if let description = self.window.resetDescription {
+            } else if !self.presentation.isBlocked, let description = self.window.resetDescription {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.caption)
@@ -104,7 +129,7 @@ struct UsageCardView: View {
 
     @ViewBuilder
     private var percentageLabel: some View {
-        if self.window.usageKnown {
+        if self.window.usageKnown, self.window.usedPercent.isFinite {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(self.displayMode.percentageValueText(for: self.window))
@@ -132,6 +157,10 @@ struct UsageCardView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: true, vertical: false)
         }
+    }
+
+    private var presentation: UsageWindowPresentation {
+        UsageWindowPresentation(window: self.window)
     }
 
     private var displayMode: UsagePercentDisplayMode {
@@ -164,7 +193,7 @@ struct UsageCardView: View {
         guard self.window.usageKnown else { return false }
         guard self.quotaWarningsEnabled else { return false }
         guard let maxMarker = self.markerUsedPercents.max() else { return false }
-        return Int(self.window.usedPercent.rounded()) >= maxMarker
+        return self.window.usedPercent.isFinite && self.window.usedPercent.rounded() >= Double(maxMarker)
     }
 
     private var usageColor: Color {

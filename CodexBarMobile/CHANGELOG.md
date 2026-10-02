@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.4.0 (227)] — Upstream v0.69–v0.70 companion update
+
+### Added
+- Add observation-based Codex and Claude quota burndown charts, bounded to the current reset cycle and actual Mac capture time.
+- Explain Kimi monthly blocking separately from raw short-window consumption; expired cached observations do not restore access.
+- Preserve and display observed model names for token-only daily usage through multi-Mac merge, local ledger and Token Activity.
+
+### Changed
+- Align sixteen fallback provider accents with upstream v0.70 while preserving synced overrides and light/dark readability.
+
+### Fixed
+- Preserve actual utilization observations and declines instead of synthesizing hourly averages; reject invalid/future observations before selecting the current lane duration.
+- Bound utilization chart gap expansion and reject invalid timestamp-to-integer conversions.
+- Filter native Claude live-only reset-credit inventory out of legacy cached details, preserving plugin-defined details.
+
 ## [2.3.0 (226)] — Upstream v0.67–v0.68 companion update
 
 ### Added

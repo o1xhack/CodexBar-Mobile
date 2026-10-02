@@ -105,15 +105,15 @@ struct ProviderColorPaletteTests {
 
     // MARK: - iOS 1.5.0 · Abacus + Mistral additions
 
-    @Test("Abacus AI resolves to its warm brown tone")
+    @Test("Abacus AI follows the v0.70 purple brand color")
     func abacusIsBrown() {
-        let expected = UIColor(red: 0.55, green: 0.37, blue: 0.24, alpha: 1)
+        let expected = UIColor(red: 129.0 / 255, green: 78.0 / 255, blue: 232.0 / 255, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "abacus")).isApproximately(expected))
     }
 
-    @Test("Mistral resolves to its vibrant red")
+    @Test("Mistral follows the v0.70 orange brand color")
     func mistralIsRed() {
-        let expected = UIColor(red: 0.90, green: 0.22, blue: 0.27, alpha: 1)
+        let expected = UIColor(red: 0.82577103, green: 0.26554206, blue: 0.13277103, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "mistral")).isApproximately(expected))
     }
 
@@ -205,15 +205,15 @@ struct ProviderColorPaletteTests {
         #expect(UIColor(ProviderColorPalette.color(for: "windsurf")).isApproximately(expected))
     }
 
-    @Test("Codebuff resolves to olive")
+    @Test("Codebuff follows the v0.70 green brand color")
     func codebuffIsOlive() {
-        let expected = UIColor(red: 0.50, green: 0.55, blue: 0.20, alpha: 1)
+        let expected = UIColor(red: 0.00000000, green: 0.53089906, blue: 0.31021161, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "codebuff")).isApproximately(expected))
     }
 
     @Test("DeepSeek resolves to royal blue")
     func deepseekIsRoyalBlue() {
-        let expected = UIColor(red: 0.30, green: 0.42, blue: 1.0, alpha: 1)
+        let expected = UIColor(red: 0.29275945, green: 0.40682158, blue: 0.96572599, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "deepseek")).isApproximately(expected))
     }
 
@@ -235,9 +235,9 @@ struct ProviderColorPaletteTests {
         #expect(UIColor(ProviderColorPalette.color(for: "doubao")).isApproximately(expected))
     }
 
-    @Test("Command Code resolves to slate gray")
+    @Test("Command Code follows the v0.70 purple brand color")
     func commandcodeIsSlate() {
-        let expected = UIColor(red: 0.40, green: 0.45, blue: 0.54, alpha: 1)
+        let expected = UIColor(red: 0.54901961, green: 0.30588235, blue: 0.86666667, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "commandcode")).isApproximately(expected))
     }
 
@@ -253,9 +253,10 @@ struct ProviderColorPaletteTests {
         #expect(UIColor(ProviderColorPalette.color(for: "crof")).isApproximately(expected))
     }
 
-    @Test("Venice resolves to plum")
+    @Test("Venice follows the v0.70 blue brand color")
     func veniceIsPlum() {
-        let expected = UIColor(red: 0.55, green: 0.35, blue: 0.55, alpha: 1)
+        // WCAG luminance ceiling 0.18 preserves the blue hue on white cards.
+        let expected = UIColor(red: 0.19929830, green: 0.47499428, blue: 0.73408207, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "venice")).isApproximately(expected))
     }
 
@@ -366,9 +367,9 @@ struct ProviderColorPaletteTests {
 
     // MARK: - iOS 1.12.0 · Devin catch-up
 
-    @Test("Devin resolves to blue-green")
+    @Test("Devin follows the v0.70 blue brand color")
     func devinIsBlueGreen() {
-        let expected = UIColor(red: 0.18, green: 0.68, blue: 0.57, alpha: 1)
+        let expected = UIColor(red: 0.17418413, green: 0.44079250, blue: 0.90646846, alpha: 1)
         #expect(UIColor(ProviderColorPalette.color(for: "devin")).isApproximately(expected))
     }
 

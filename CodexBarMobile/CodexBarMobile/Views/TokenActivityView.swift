@@ -221,6 +221,13 @@ private struct TokenActivityCharts: View {
                             series: item))
                             .monospacedDigit()
                     }.font(.caption)
+                    if let names = item.days.first(where: { $0.dayKey == selectedDay })?.modelsUsed,
+                       !names.isEmpty
+                    {
+                        Text(String(localized: "Observed models") + ": " + names.joined(separator: ", "))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("token-observed-models")
+                    }
                 }
             }
             if self.failed {
