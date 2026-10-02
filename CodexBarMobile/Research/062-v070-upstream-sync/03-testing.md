@@ -251,3 +251,12 @@ r1 harness把throwing fetch放进precondition autoclosure导致compile失败；�
 
 
 最终 r4（包含新增独立语义断言与格式清理）终态exit0，16cases/96进程全通过；每个进程log明确 `OS: Version 26.5 (Build 23F77)`。两个版本各25源SHA、缓存harness SHA、冻结四wire副本SHA全部重新核对一致；artifact-manifest保存二进制、脚本、source/matrix与96份日志SHA。SwiftFormat lint与该harness SwiftLint均exit0/无warning。r2为较弱的初次冷/live一致性证据，r3/r4进一步独立断言Codex24→12 tokens、Kimi12 tokens、unknown cost、有效100%/25%及20天/1天reset；new-reader额外断言raw blocker与Fictitious model名单。旧reader不能访问新字段的断言仅在NEW_CACHE编译条件内，这是原legacy数据模型边界，不是生产算法替换。各reader都用相同当前toolchain重编旧/新源码；不是运行已发布旧app二进制，仍有旧二进制/历史升级路径差异的残余风险。
+
+
+## Widget 原始矩阵与截图适配（2026-10-01）
+
+本轮 ProviderColorPalette 被 Widget 实际使用，适用 RELEASE-CHECKLIST:26。`ios-widget-tests-r1`链接原始 CodexBarWidgetRenderMatrixTests.o 与当前生产对象，在自有iOS26.5 Simulator运行 XCTestSuite；原始6方法中5通过，视觉附件方法因独立runner禁用activities抛NSInternalInconsistencyException，terminal exit1。保留完整失败，不称标准XCTest全部通过。平台vtool为IOSSIMULATOR/min17/sdk27，运行OS26.5(23F77)。
+
+`ios-widget-tests-r2`仅将原测试的XCTAttachment/add四行替换为同一UIImage的PNG持久化；不改循环、fixture、production view或断言，额外断言PNG编码/写入成功。#sourceLocation保留真实原路径供footer源断言。adapter-manifest记录精确before/after、原始与适配源码SHA；所有原始production/test对象SHA核对仍匹配，编译命令和artifact-manifest保留。编译首次缺Swift XCTest overlay的-I路径，补platform Developer/usr/lib后链接通过；warning记录原样保留。
+
+r2 terminal exit0，6方法/0 failures：主Widget128 mode×family×style×scheme×rendering组合、error/noData/syncing12组合、activity4states×4families×2schemes×2rendering64组合、loaded视觉12张、removed/duplicate4组合，共220次离屏渲染；footer居中源断言也通过。12原始PNG已保存并查看contact sheet，各family的Light/Dark/tinted可见对比与内容。此为原始断言+附件存储适配的替代证据，不是标准Xcode XCTest活动系统通过，不是SpringBoard截图。真实Home Screen编辑面板/配置选项/切换mode、真实App导航/可交互/VoiceOver仍未完成。

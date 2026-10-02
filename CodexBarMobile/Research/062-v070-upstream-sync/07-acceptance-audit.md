@@ -23,7 +23,7 @@ Source checkpoint: `577ceb90aa1cb37e68e996ead44aa10fc41cc48e`
 
 RELEASE-CHECKLIST第26行：触及 mode/color style 或 WidgetKit rendering 时必须跑 CodexBarWidgetRenderMatrixTests 与真实 SpringBoard gate。ProviderColorPalette虽放在app Models，却被 CodexBarWidgetShared/WidgetActivityView.swift:111 和 CodexBarWidgetView.swift:992调用；本轮品牌颜色改变会影响Colorful Widget。因此本轮适用，不能以Widget布局文件未改判为不适用。
 
-已有313项包含WidgetSnapshotBuilder，只证明数据构建。仍需原始Widget渲染矩阵的 mode×family×style×light/dark×fullColor/accented，以及状态分支；真实SpringBoard必须打开编辑面板、核对选项、切换mode并截图。离屏矩阵即使通过也不等同真实Home Screen。
+已有313项包含WidgetSnapshotBuilder，只证明数据构建。本轮另运行原始Widget矩阵：5/6方法通过，附件方法因独立runner activities禁用失败；仅将附件保存改为PNG后6/6方法通过、220次离屏渲染、12截图已查看。证据为ios-widget-tests-r1/r2，完整边界见03-testing。该替代证据不等同标准Xcode XCTest全部通过。真实SpringBoard仍须打开编辑面板、核对选项、切换mode并截图；离屏矩阵不等同真实Home Screen。
 
 ## UI 与进程状态
 
