@@ -112,3 +112,9 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 为提前验证Mac→iOS Shared改动，使用XcodeBuildMCP build_sim compile-only：source `bc26b3512`、xcodegen按现有project.yml生成；Debug/iOS27 Simulator，独立DerivedData `BuildScratch/upstream-v070/ios-baseline`，CODE_SIGNING_ALLOWED=NO、jobs2，未安装/启动App。Build succeeded，51.3秒；日志已复制至`ios-baseline-build.log`。产物Info.plist确认为现有2.3.0 (226)，未提前变更2.4.0版本/说明。App、Shared framework、push/widget extensions编译通过；两处CloudSyncManager save unused warning是现有代码诊断，没有编译错误。
 
 该证据仅为现有consumer编译兼容；不是新iOS功能完成、单元测试通过、四语言UI渲染、真实CloudKit同步或16组合矩阵证据。新iOS实施仍按05设计继续，最终新版本须重新build/test。
+
+## iOS Shared consumer 定向基线测试
+
+XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKitMergeTests、WidgetSnapshotBuilderTests；原工程2.3.0(226)、source `62afccdd2`、iOS27 booted Simulator、CODE_SIGNING_ALLOWED=NO、parallel-testing=NO。unit host经源码确认使用PreviewData，跳过同步观察/通知注册；测试使用合成payload，未访问实体iPhone或真实CloudKit。结果SUCCEEDED，61.877秒，153 passed /0 failed /0 skipped。包含未知未来字段/legacy JSON、账号隔离、多Mac费用合并、KVS fallback、widget Today totals与Cost dashboard parity及既有Today cost old/new合成矩阵。
+
+证据：`ios-baseline-tests-r1.log`、`ios-baseline-tests-r1-summary.json`、`ios-baseline/tests-r1.xcresult`。工具默认生成的本次自有prepared test bundle已移至`ios-baseline/baseline-r1.xctestproducts`，后续可显式引用SSD路径；不更改其它tool-managed产物。该结果仅覆盖既有consumer基线与此四suite，不等于新2.4.0功能、完整iOS测试、真实sync或本轮16组合矩阵完成。
