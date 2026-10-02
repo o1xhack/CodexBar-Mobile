@@ -51,7 +51,7 @@ struct QuotaBurndownSection: View {
                                     y: .value(String(localized: "Remaining"), sample.remainingPercent),
                                     series: .value(String(localized: "Series"), String(localized: "Even pace")))
                                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.secondary)
                             }
                             ForEach(Array(lane.model.samples.enumerated()), id: \.offset) { _, sample in
                                 if lane.model.samples.count > 1 {
@@ -71,6 +71,28 @@ struct QuotaBurndownSection: View {
                         }
                         .chartXScale(domain: lane.model.start...lane.model.reset)
                         .chartYScale(domain: 0...100)
+                        .chartXAxis {
+                            AxisMarks(values: [0.2, 0.5, 0.8].map { fraction in
+                                lane.model.start.addingTimeInterval(
+                                    lane.model.reset.timeIntervalSince(lane.model.start) * fraction)
+                            }) { value in
+                                AxisGridLine()
+                                AxisValueLabel(centered: false, anchor: .top) {
+                                    if let date = value.as(Date.self) {
+                                        if lane.model.reset.timeIntervalSince(lane.model.start) <= 12 * 3600 {
+                                            Text(date, format: .dateTime.hour().minute())
+                                        } else if lane.model.reset.timeIntervalSince(lane.model.start) <= 48 * 3600 {
+                                            VStack(spacing: 2) {
+                                                Text(date, format: .dateTime.month(.defaultDigits).day())
+                                                Text(date, format: .dateTime.hour().minute())
+                                            }
+                                        } else {
+                                            Text(date, format: .dateTime.month(.defaultDigits).day())
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         .chartLegend(.hidden)
                         .chartYAxis {
                             AxisMarks(values: [0, 50, 100]) { value in

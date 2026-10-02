@@ -220,3 +220,18 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 
 
 standalone 证据独立审计完成：当前 compile-command 的 106 个链接对象与 object-manifest 集合及 hashes 全匹配，14 个 test/support 对象全部存在，没有漏加载或断言改写。reviewer 接受其作为实际 iOS Simulator 单元证据，明确不替代 App 生命周期/UI/实体设备 gate。按审计建议将 r2 命令、对象/source/resource manifests、Runner/Notification 源、build/run log 与真实可执行产物冻结于 ios-testing-standalone/frozen-r2，freeze-manifest 逐文件 SHA；built app 与 clone 本地化/asset 资源 hashes 相同。r1 的 manifest 已被 r2 覆盖，不把 r2 manifest 倒推绑定 r1。prototype 的缺失 test object 静默跳过已改为明确失败，当前所有所选对象齐全。源文件 mtime 均不晚于其匹配的编译对象；当前 source hashes 记录于 provenance。
+
+
+## 实际 SwiftUI 组件渲染与刻度修复（2026-10-01）
+
+sim-use UI preflight 再次 exit1：`No translation object returned for simulator ... likely ... fullscreen dialog`。此错误仅证明 UI channel 不可读，不能证明具体系统授权弹窗；不绕过 SecurityAgent、不执行 tap/swipe，不把预检失败算 UI pass。先前请求用户检查调试授权仍未回复。
+
+使用真实 Xcode production objects 与 `@testable import CodexBarMobile`，在自有 iOS26.5 Simulator 通过 ImageRenderer 渲染 **真实 QuotaBurndownSection**，使用原 PreviewData.claudeProvider 与真实 ProviderColorPalette。4语言 × light/dark ×320/393pt，共16原始PNG，逐语言查看 contact sheet 并检查窄屏原图。这是离屏组件布局证据，不是独立仿制视图；未启动真实 AppDelegate、CloudKit 或 app store。源/对象/产物/图片 hashes 与命令/run exit 见 ios-render-standalone/{compile-command,render-results,render-provenance,image-manifest}.json。原图已保存 before-axis-fix，存在默认日期长文本截断，且 hierarchical .secondary 被 Chart series 渲染为蓝色，与灰色图例不一致。
+
+修复只涉及 production chart：周期内20/50/80%三个参考刻度、显式 top anchor 居中标签；<=12h 显示 locale 时间，<=48h 显示两行数字月/日和时间，较长周期显示数字月/日。保留完整真实 start...reset domain、理想线端点和所有实际采样；参考刻度不声称周期起止。使用显式 Color.secondary 使灰色 guide 与 legend 一致。没有新用户文案；原2.4.0四语言额度图表说明覆盖此细节，技术 CHANGELOG 补充修复。
+
+首轮紧凑格式仍在末端 truncate，进一步使用内部三刻度与 top anchor 后，四语言窄屏标签完整。ios-axis-build-r3.log exit0 / TEST BUILD SUCCEEDED；该 view SwiftFormat lint 和 SwiftLint 均 exit0。四语言生产渲染各 exit0，灰色 guide/实际品牌色、实际采样、刻度和图例可见，明暗及两宽度无发现截断。compile 有已记录 incompatible-sysroot warning，部分 render log 有 IOSurfaceClientSetSurfaceNotify warning；实际PNG已读取，不把仅输出路径当渲染通过。
+
+另在 ios-render-24h 渲染明确虚构24小时原生primary fixture，UTC captured 2026-10-01T22、reset2026-10-02T12，跨本地午夜；四语言×明暗×两宽度共16PNG、四个进程exit0，窄屏四语言原图均看到完整两行日期/时间。补覆盖12–48h显示分支；不将虚构周期当真实provider能力。来源与证据同样保存 render-provenance.json。
+
+最终 view 编译后原始 Swift Testing 重链接运行 run-axis-final.log exit0 / **313 tests in15 suites passed**；freeze于 ios-testing-standalone/frozen-axis-final，包含原对象/source SHA、命令、runner、events和产物。独立源码review clean，reviewer实际检查日语窄屏图，并建议的24h fixture已补。iOS27复验仍是live进程，停在颜色测试，未见终态且未取消重启；不据此认定真实App bug或系统版本兼容pass。真实App四语言导航/可交互/VoiceOver与多设备CloudKit/APNs gate仍未闭环，PR/CR/merge/Mac draft未执行。
