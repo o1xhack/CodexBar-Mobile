@@ -204,3 +204,19 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 修复复查又发现两个相关 Codex 边界：原始 Session label 与已分类 weekly/monthly 历史不一致，以及两 native slots 同 role 时重复画图。现统一为纯 `MobileQuotaBurndown.nativeLanes(for:)` projection，绑定真实 window、seriesName、标题与稳定 native slot ID；Codex 同 role secondary 优先，正反输入完整 projection 相等，按 role 标题 Session/Weekly/Monthly；Claude 保留 native 源 label。Section 仅消费该 projection，不另算分类、winner 或标题。scoped extras 没有独立生产 history，因此排除趋势，原 quota cards 仍展示其当前数据。
 
 新增第五项回归检查 canonical 标题、window 数、secondary 30% winner 与完整数组正反一致。最终 `quota-lane-pure/{build-r4.log,run-r4.log}` exit0，五原方法所有断言真实运行通过；最终 model/test/harness hashes 见 source-manifest-r4.json。`ios-lane-fix-build-r3.log` exit0 / TEST BUILD SUCCEEDED；`ios-lane-fix-lint-r4.log` 三文件零违规。独立复查该模型、view 与 fixtures clean，没有剩余功能阻塞；仍需修复 commit 后 exact-head 确认。这个 pure 结果是 macOS，未将仍 live 的 Simulator r4/r5/r6 算作最终 runtime 通过。
+
+
+## 实际 iOS 单元运行（642748a79，2026-10-01）
+
+标准 XCTest r4/r5/r6 仍为 live launch wait，未算通过、未因等待取消重启。使用 Testing.framework 原生 `__swiftPMEntryPoint` 直接链接最终 ios-display-final 的原始 arm64 生产/测试对象，在自有 Simulator 7216E120-B46B-43D5-A78C-93A096A3D5A3 通过 simctl spawn 启动。进程报告 iOS Version 26.5 (Build 23F77)，vtool 确认 IOSSIMULATOR / minos17 / sdk27。没有修改原测试或断言，没有更改 debugger 权限或操作 SecurityAgent。
+
+证据位于 BuildScratch/CodexBar/upstream-v070/ios-testing-standalone：build_runner.py、compile-command.json、object-manifest.json、runtime-evidence.json 保存命令、对象 hashes、当前 source/resources hashes、HEAD 和 runner hash。runner 克隆真实 built app 的资源并使用自身 local.codexbar.v070.unitrunner bundle ID；排除 CodexBarMobileApp.o 避免真实 app 启动逻辑，原样提取该文件 Notification.Name extension 并在 CodexBarMobile module 中重编以满足 SyncedUsageData 符号。TMPDIR 为自有 SSD BuildScratch 目录。没有替换存储、merger、presentation 或测试实现。
+
+首轮因 notification 符号缺失链接失败；补入真实 extension 后 build exit0。clang incompatible-sysroot warning 仍存在，已以产物平台与实际运行 OS 核对，不隐去 warning。run.log exit0 / 296 tests in 12 suites passed；最终 run-r2.log exit0 / **313 tests in 15 suites passed**。包含 V070ConsumerData、V070Presentation、MobileDisplayFormatting、CloudKitMerge、TokenActivity、CWLWriter/Aggregate/Seed/Migration、ProviderColorPalette、WidgetSnapshotBuilder、V045/V066 presentation ，其中 palette 文件同时包含 ProviderColorContrastTests，V045 文件同时包含 V049ProviderDetailPresentationTests。TestFixtures 只提供原始 fixture。全部原始 Swift Testing 断言实际执行。
+
+此前 consumer-ios-spawn/{build.log,run.log} 与 quota-lane-ios-spawn/{build.log,run.log} 均 exit0：真实完整旧 schema migration/publication disk reopen 和五个 canonical lane 原方法；这些 runner 使用已记录的断言转换。最终原始 Swift Testing 对象运行提供更强的 iOS runtime 证据。
+
+此结果证明本轮相关 iOS 单元运行通过，覆盖 SwiftData 实际磁盘迁移、UIColor、四语言固定文案与 provider/Widget 数据模型；不证明四语言真实 App 导航、图表可见/可交互、VoiceOver、完整 light/dark 布局或 16 组实体设备 CloudKit/APNs 收敛。四语言 UI test 尚未成功启动，多设备缺项仍按前述矩阵记录替代验证和风险。独立 reviewer 正在核对 runner 来源与证据边界，不据此宣称整个 Goal 完成。
+
+
+standalone 证据独立审计完成：当前 compile-command 的 106 个链接对象与 object-manifest 集合及 hashes 全匹配，14 个 test/support 对象全部存在，没有漏加载或断言改写。reviewer 接受其作为实际 iOS Simulator 单元证据，明确不替代 App 生命周期/UI/实体设备 gate。按审计建议将 r2 命令、对象/source/resource manifests、Runner/Notification 源、build/run log 与真实可执行产物冻结于 ios-testing-standalone/frozen-r2，freeze-manifest 逐文件 SHA；built app 与 clone 本地化/asset 资源 hashes 相同。r1 的 manifest 已被 r2 覆盖，不把 r2 manifest 倒推绑定 r1。prototype 的缺失 test object 静默跳过已改为明确失败，当前所有所选对象齐全。源文件 mtime 均不晚于其匹配的编译对象；当前 source hashes 记录于 provenance。
