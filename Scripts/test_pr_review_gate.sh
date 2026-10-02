@@ -194,4 +194,63 @@ jq '.reviewThreads.pageInfo.hasNextPage = true' "$FIXTURES/truncated.json" \
 mv "$FIXTURES/truncated.tmp" "$FIXTURES/truncated.json"
 expect_fail truncated
 
+
+# Independent reviews are owner-published completed agent reports, never flat comments.
+independent_body=$'Codex independent subthread review\nReviewed commit: `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`\nReviewer: /root/release_review\nResult: clean\nReport: Research/062-release/review.md\nReport SHA256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+independent=$(jq -nc --arg body "$independent_body" '[{
+  author:{login:"o1xhack"},state:"COMMENTED",body:$body,
+  submittedAt:"2026-08-17T00:00:08Z",
+  commit:{oid:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},comments:{nodes:[]}
+}]')
+write_fixture independent-clean "$independent" '[]' '[]'
+expect_pass independent-clean
+
+for variation in forged-author mismatched-body-head stale-commit missing-reviewer missing-report missing-hash short-body-head inline-finding pending-state contradictory-result; do
+  varied=$(jq -c --arg variation "$variation" '
+    if $variation == "forged-author" then .[0].author.login = "someone-else"
+    elif $variation == "mismatched-body-head" then .[0].body |= gsub("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    elif $variation == "stale-commit" then .[0].commit.oid = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    elif $variation == "missing-reviewer" then .[0].body |= gsub("Reviewer: /root/release_review"; "Reviewer: ")
+    elif $variation == "missing-report" then .[0].body |= gsub("Report: Research/062-release/review.md"; "Report: ")
+    elif $variation == "missing-hash" then .[0].body |= gsub("Report SHA256: [c]+"; "Report SHA256: ")
+    elif $variation == "short-body-head" then .[0].body |= gsub("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; "aaaaaaaaaa")
+    elif $variation == "inline-finding" then .[0].comments.nodes = [{body:"[P1] Actual review finding"}]
+    elif $variation == "pending-state" then .[0].state = "PENDING"
+    elif $variation == "contradictory-result" then .[0].body += "\nResult: findings"
+    else error("Unknown fixture") end' <<< "$independent")
+  write_fixture "independent-$variation" "$varied" '[]' '[]'
+  expect_fail "independent-$variation"
+done
+
+independent_comment=$(jq -c '[.[] | {author,body,createdAt:.submittedAt}]' <<< "$independent")
+write_fixture independent-flat-comment '[]' "$independent_comment" '[]'
+expect_fail independent-flat-comment
+write_fixture independent-unresolved "$independent" '[]' "$unresolved"
+expect_fail independent-unresolved
+write_fixture independent-request-in-flight "$independent" \
+  '[{"author":{"login":"o1xhack"},"body":"@codex review","createdAt":"2026-08-17T00:00:09Z"}]' '[]'
+expect_fail independent-request-in-flight
+
+later_bot_finding=$(jq -c '.[0].submittedAt = "2026-08-17T00:00:09Z"' <<< "$footerless_finding")
+combined=$(jq -nc --argjson independent "$independent" --argjson later "$later_bot_finding" '$independent + $later')
+write_fixture independent-later-bot-finding "$combined" '[]' '[]'
+expect_fail independent-later-bot-finding
+write_fixture independent-sixth-no-audit \
+  "$(jq -nc --argjson prior "$six_reviews" --argjson independent "$independent" '$prior + $independent')" '[]' '[]'
+expect_fail independent-sixth-no-audit
+write_fixture independent-sixth-with-audit \
+  "$(jq -nc --argjson prior "$six_reviews" --argjson independent "$independent" '$prior + $independent')" \
+  "[$audit_comment]" '[]'
+expect_pass independent-sixth-with-audit
+
+for variation in draft closed truncated-reviews truncated-inline; do
+  jq --arg variation "$variation" '
+    if $variation == "draft" then .isDraft = true
+    elif $variation == "closed" then .state = "CLOSED"
+    elif $variation == "truncated-reviews" then .reviews.pageInfo.hasNextPage = true
+    else .reviews.nodes[0].comments.pageInfo.hasNextPage = true end' \
+    "$FIXTURES/independent-clean.json" > "$FIXTURES/independent-$variation.json"
+  expect_fail "independent-$variation"
+done
+
 echo "PR review gate tests passed."

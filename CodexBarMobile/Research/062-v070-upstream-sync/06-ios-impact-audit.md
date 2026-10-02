@@ -1,6 +1,8 @@
 # 上游变化与 iOS 数据通道逐项审计
 
-Status: `in-progress`
+Status: `done`（本地数据通道审计；发布与实体gate见07）
+
+下表保留早期逐项审计过程，当时的“runtime待证”等文字不是最终状态。最终本地证据为03的r7完整916 tests/1012 runs、r16专项、r19 Release及10的reset/pace r21；16组合是替代wire/merger/cache证据，实体四设备与Production/APNs未验证。
 
 | 上游变更 | 已审计代码路径 | iOS 判断 / 下一步 |
 |---|---|---|

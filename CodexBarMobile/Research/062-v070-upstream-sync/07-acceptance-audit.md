@@ -46,3 +46,9 @@ iOS全部适用本地gate → 获准push/PR → current-head CR清洁/全thread 
 ## r19补充Release编译预检
 
 此前未覆盖的新WidgetOptions Release配置现已完成generic iPhoneOS编译，exit0；实际五bundle2.4.0(227)、arm64及dSYM一致，12份intent语言资源与源值一致。没有签名、archive/export或发行物安装证明；详细范围与warning见03的r19段。产品输入未修改。
+
+## 2026-10-02 用户授权与 PR handoff
+
+用户明确授权push、子线程独立CR轮次、合并后Mac draft及iOS TestFlight/ASC2.4资料，不提交App Review、不公开Mac/appcast。已push并创建PR #167。由于远端Codex bot额度耗尽，采用用户指定的独立Codex子线程审查；GitHub原始审查记录绑定完整head、reviewer及report hash，保留未解决线程和CI gate。review/merge结果以后续真实回读为准。
+
+ASC当前2.3.0是PENDING_DEVELOPER_RELEASE；Apple POST创建2.4.0返回409 ENTITY_ERROR.RELATIONSHIP.INVALID，明确当前状态不允许新版本。不能把2.3.0发布视为本次授权；2.4四语言说明先保存在AppStoreMetadata/2.4.0，TestFlight上传独立推进。用户的处理选择待回复。
