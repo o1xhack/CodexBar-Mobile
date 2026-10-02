@@ -64,6 +64,8 @@ final class DailyCostPoint {
     /// so the iOS estimated-badge (P5) still works under CWL.
     var isEstimated: Bool?
 
+    /// Observed names are independent of priced breakdowns; nil for older stores.
+    var modelsUsedData: Data?
     /// Encoded `[SyncCostBreakdown]` — preserves `isEstimated`,
     /// `standardCostUSD` / `priorityCostUSD` / `standardTokens` /
     /// `priorityTokens` (gap A Codex standard/fast split). Decoded on read.
@@ -92,6 +94,7 @@ final class DailyCostPoint {
         tokenCountIsKnown: Bool? = nil,
         costIsKnown: Bool? = nil,
         isEstimated: Bool? = nil,
+        modelsUsedData: Data? = nil,
         modelBreakdownsData: Data? = nil,
         serviceBreakdownsData: Data? = nil,
         lastUpdated: Date)
@@ -114,6 +117,7 @@ final class DailyCostPoint {
         self.tokenCountIsKnown = tokenCountIsKnown
         self.costIsKnown = costIsKnown
         self.isEstimated = isEstimated
+        self.modelsUsedData = modelsUsedData
         self.modelBreakdownsData = modelBreakdownsData
         self.serviceBreakdownsData = serviceBreakdownsData
         self.lastUpdated = lastUpdated

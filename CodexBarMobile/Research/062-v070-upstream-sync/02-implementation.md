@@ -47,3 +47,13 @@ lint-r6.log全树exit0：portable/JS/SwiftFormat/SwiftLint/i18n/parser-version�
 2026-10-01 `mac-full-r5.log`终态exit0，1520 selections /137组全部首轮成功、无重试/timeout；运行源码checkpoint `bc26b3512`，后续HEAD至`07080d7d2`只改Research，Sources/Tests/Shared/Package/WidgetExtension/version.env输入diff为空。最新lint-r9通过；独立组合review `07080d7d2` clean（未发现代码阻塞）。先前三轮失败均在03记录，已逐项修正并在本轮完整运行通过。
 
 Mac universal Release compiler与dSYM/minOS预检、iOS现有consumer基线编译/定向153tests通过，均有03证据。Mac签名、公证、Production packaged entitlements、真实ZIP/dSYM资产和tagless draft仍未执行，凭据使用需Goal要求的用户确认。iOS2.4.0功能/版本/说明/最终测试与本轮16矩阵仍未完成。
+
+## iOS consumer 实施 checkpoint（未完成验收）
+
+iOS 已实现真实 capturedAt 的额度趋势、Kimi monthly blocking 原始消耗说明及过期等待状态、native Claude 旧库存过滤、观察模型名贯穿多 Mac merger/TokenActivity/本地 ledger、16 个上游品牌色浅深色适配和 Antigravity 分组周期标签。所有 target 开发版本为 2.4.0 (227)，CHANGELOG 与同版本单一 in-app notes 已补四语言；没有上传或声明发行。
+
+历史合并不再平均同小时百分比，保留真实采样和下降段；在 duration 选择前拒绝未来/非有限观察。单客户端历史图限制 gap 展开到最近 90 点，避免极端时间生成巨大数组。独立 review 修复 secondary/tertiary lane 映射、cost 日历边界时钟误用、亮色白底对比和 hyphen alias。
+
+最新 review 又发现 publication metadata 在 SwiftData cold start 丢失，会使同 capture 的赢家在重启前后改变；已补 DeviceRecord optional publication JSON，正在补反向 writer clocks 的 disk reopen 测试。DailyCostPoint optional modelsUsedData 的 nil-field backfill 已测，但不等同于旧 schema 迁移；现增加冻结 pre-v0.70 entity 的真正磁盘升级测试，结果待验证。
+
+用户更正顺序：先完成 iOS 与本地验证，再走 PR/CR，之后考虑 Mac draft。远端 push/merge 仍没有明确授权；不执行这些操作。

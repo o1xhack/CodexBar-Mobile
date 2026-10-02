@@ -66,6 +66,7 @@ enum ProviderSnapshotMerger {
         var sourceAppVersions: [String?] = []
         var sourceDeviceIDs: [String] = []
         var sourceSyncTimestamps: [Date] = []
+        var sourceHistoryTimestamps: [Date] = []
         for snapshot in snapshots {
             let providers = providersForSnapshot(snapshot)
             allProviders.append(contentsOf: providers)
@@ -73,6 +74,12 @@ enum ProviderSnapshotMerger {
             let deviceID = snapshot.deviceID ?? "legacy:\(snapshot.deviceName)"
             sourceDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
             sourceSyncTimestamps.append(contentsOf: providers.map { snapshot.publicationTimestamp(for: $0) })
+            sourceHistoryTimestamps.append(contentsOf: providers.map {
+                // Legacy writers lack per-provider publication metadata. Their
+                // enclosing sync publication still bounds stored observations.
+                snapshot.providerPublicationTimestamps[SyncedUsageSnapshot.providerPublicationKey(for: $0)]
+                    ?? snapshot.syncTimestamp
+            })
         }
 
         let effectiveIdentifiers: [[String]] = allProviders.map(Self.effectiveIdentifiers(for:))
@@ -135,6 +142,7 @@ enum ProviderSnapshotMerger {
                         sourceAppVersions: indices.map { sourceAppVersions[$0] },
                         sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
                         sourceSyncTimestamps: indices.map { sourceSyncTimestamps[$0] },
+                        sourceHistoryTimestamps: indices.map { sourceHistoryTimestamps[$0] },
                         sumLocalCosts: sumLocalCostsAcrossDevices),
                     sortIdentity,
                     indices.map { sourceSyncTimestamps[$0] }.max() ?? sourceSyncTimestamps[indices[0]]))
@@ -377,6 +385,12 @@ enum ProviderSnapshotMerger {
             return base.rateWindows
         }
 
+        if base.providerID == "kimi", base.rateWindows.contains(where: { $0.blockingQuota != nil }) {
+            // Availability and raw quota metadata belong to one observation.
+            // Older writers must not append a lane suggesting access is available.
+            return base.rateWindows
+        }
+
         var merged = base.rateWindows
         var seenLabels = Set(merged.compactMap(Self.normalizedRateWindowLabel))
         for entry in entries.sorted(by: { $0.lastUpdated > $1.lastUpdated }) {
@@ -463,10 +477,12 @@ enum ProviderSnapshotMerger {
         sourceAppVersions: [String?],
         sourceDeviceIDs: [String],
         sourceSyncTimestamps: [Date],
+        sourceHistoryTimestamps: [Date],
         sumLocalCosts: Bool = true) -> ProviderUsageSnapshot
     {
         precondition(entries.count == sourceDeviceIDs.count)
         precondition(entries.count == sourceSyncTimestamps.count)
+        precondition(entries.count == sourceHistoryTimestamps.count)
         let baseIndex = entries.indices.max { lhs, rhs in
             if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
                 return entries[lhs].lastUpdated < entries[rhs].lastUpdated
@@ -489,7 +505,11 @@ enum ProviderSnapshotMerger {
         }
 
         let mergedUtilization = Self.mergeUtilizationHistories(
-            entries.compactMap(\.utilizationHistory))
+            entries.indices.compactMap { index in
+                entries[index].utilizationHistory.map {
+                    (series: $0, publishedAt: sourceHistoryTimestamps[index], deviceID: sourceDeviceIDs[index])
+                }
+            })
 
         return ProviderUsageSnapshot(
             providerID: base.providerID,
@@ -963,6 +983,7 @@ enum ProviderSnapshotMerger {
         var requests: Int = 0
         var requestsUnknown = false
         var tokensUnknown = false
+        var modelsUsed: Set<String> = []
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var isEstimated = false
@@ -971,6 +992,7 @@ enum ProviderSnapshotMerger {
         var sawUnavailableCost = false
 
         mutating func ingest(_ point: SyncDailyPoint) {
+            self.modelsUsed.formUnion(point.modelsUsed ?? [])
             self.costUSD += point.costUSD
             let (tokens, tokenOverflow) = self.totalTokens.addingReportingOverflow(point.totalTokens)
             self.totalTokens = tokenOverflow ? self.totalTokens : tokens
@@ -1014,7 +1036,8 @@ enum ProviderSnapshotMerger {
                 isEstimated: self.isEstimated ? true : nil,
                 costIsKnown: forceUnavailable ? false : self.mergedCostIsKnown,
                 requestCount: forceUnavailable || self.requestsUnknown ? nil : self.requests,
-                tokenCountIsKnown: !forceUnavailable && !self.tokensUnknown)
+                tokenCountIsKnown: !forceUnavailable && !self.tokensUnknown,
+                modelsUsed: self.modelsUsed.isEmpty ? nil : self.modelsUsed.sorted())
         }
 
         private var mergedCostIsKnown: Bool? {
@@ -1084,90 +1107,70 @@ enum ProviderSnapshotMerger {
         }
     }
 
+    private struct PublishedUtilizationObservation {
+        let entry: SyncUtilizationEntry
+        let windowMinutes: Int
+        let publishedAt: Date
+        let deviceID: String
+    }
+
     private static func mergeUtilizationHistories(
-        _ histories: [[SyncUtilizationSeries]]) -> [SyncUtilizationSeries]?
+        _ histories: [(series: [SyncUtilizationSeries], publishedAt: Date, deviceID: String)])
+        -> [SyncUtilizationSeries]?
     {
-        let allSeries = histories.flatMap(\.self)
-        guard !allSeries.isEmpty else { return nil }
-
-        var entriesByName: [String: [SyncUtilizationEntry]] = [:]
-        var freshestWindowByName: [String: (capturedAt: Date, windowMinutes: Int)] = [:]
-
-        for series in allSeries {
-            entriesByName[series.name, default: []].append(contentsOf: series.entries)
-            if let latestCaptured = series.entries.map(\.capturedAt).max() {
-                let current = freshestWindowByName[series.name]
-                if current == nil || latestCaptured > current!.capturedAt {
-                    freshestWindowByName[series.name] = (latestCaptured, series.windowMinutes)
+        var observationsByName: [String: [PublishedUtilizationObservation]] = [:]
+        for history in histories where history.publishedAt.timeIntervalSince1970.isFinite {
+            for series in history.series where series.windowMinutes > 0 {
+                for entry in series.entries {
+                    guard entry.capturedAt.timeIntervalSince1970.isFinite,
+                          entry.capturedAt <= history.publishedAt,
+                          entry.usedPercent.isFinite, (0...100).contains(entry.usedPercent),
+                          entry.resetsAt?.timeIntervalSince1970.isFinite ?? true
+                    else { continue }
+                    observationsByName[series.name, default: []].append(PublishedUtilizationObservation(
+                        entry: entry, windowMinutes: series.windowMinutes,
+                        publishedAt: history.publishedAt, deviceID: history.deviceID))
                 }
-            } else if freshestWindowByName[series.name] == nil {
-                freshestWindowByName[series.name] = (.distantPast, series.windowMinutes)
             }
         }
 
         var result: [SyncUtilizationSeries] = []
-        for (name, entries) in entriesByName {
-            let deduped = Self.dedupByHour(entries)
-            guard !deduped.isEmpty else { continue }
-            let windowMinutes = freshestWindowByName[name]?.windowMinutes ?? 0
-            result.append(SyncUtilizationSeries(
-                name: name,
-                windowMinutes: windowMinutes,
-                entries: deduped))
-        }
-
-        result.sort { lhs, rhs in
-            let order = ["session": 0, "weekly": 1, "opus": 2]
-            return (order[lhs.name] ?? 99) < (order[rhs.name] ?? 99)
-        }
-
-        return result.isEmpty ? nil : result
-    }
-
-    private static func dedupByHour(_ entries: [SyncUtilizationEntry]) -> [SyncUtilizationEntry] {
-        guard !entries.isEmpty else { return [] }
-
-        let hourInterval: TimeInterval = 3600
-
-        struct BucketKey: Hashable {
-            let hourSlot: Int
-            let resetEpoch: Int
-        }
-
-        var buckets: [BucketKey: (totalPercent: Double, count: Int, latestReset: Date?, latestCaptured: Date)] = [:]
-
-        for entry in entries {
-            let hourSlot = Int(floor(entry.capturedAt.timeIntervalSince1970 / hourInterval))
-            let resetEpoch = entry.resetsAt.map { Int(floor($0.timeIntervalSince1970 / hourInterval)) } ?? -1
-            let key = BucketKey(hourSlot: hourSlot, resetEpoch: resetEpoch)
-
-            if var bucket = buckets[key] {
-                bucket.totalPercent += entry.usedPercent
-                bucket.count += 1
-                if entry.capturedAt > bucket.latestCaptured {
-                    bucket.latestCaptured = entry.capturedAt
-                    bucket.latestReset = entry.resetsAt ?? bucket.latestReset
+        for (name, observations) in observationsByName {
+            // One real observation per capture timestamp. A later publication
+            // wins conflicts; stable device identity breaks ties. This agrees
+            // with the per-series/capture key used by local persistence.
+            let sorted = observations.sorted { lhs, rhs in
+                if lhs.entry.capturedAt != rhs.entry.capturedAt {
+                    return lhs.entry.capturedAt < rhs.entry.capturedAt
                 }
-                buckets[key] = bucket
-            } else {
-                buckets[key] = (
-                    totalPercent: entry.usedPercent,
-                    count: 1,
-                    latestReset: entry.resetsAt,
-                    latestCaptured: entry.capturedAt)
+                if lhs.publishedAt != rhs.publishedAt { return lhs.publishedAt < rhs.publishedAt }
+                if lhs.deviceID != rhs.deviceID { return lhs.deviceID < rhs.deviceID }
+                if lhs.windowMinutes != rhs.windowMinutes { return lhs.windowMinutes < rhs.windowMinutes }
+                if lhs.entry.resetsAt != rhs.entry.resetsAt {
+                    return (lhs.entry.resetsAt ?? .distantPast) < (rhs.entry.resetsAt ?? .distantPast)
+                }
+                return lhs.entry.usedPercent < rhs.entry.usedPercent
             }
+            var byCapture: [Date: PublishedUtilizationObservation] = [:]
+            for observation in sorted {
+                byCapture[observation.entry.capturedAt] = observation
+            }
+            guard let freshest = sorted.last else { continue }
+            // Durations cannot be mixed: doing so reinterprets old reset
+            // cycles as current ones. Keep the freshest observed lane duration.
+            let entries = byCapture.values
+                .filter { $0.windowMinutes == freshest.windowMinutes }
+                .map(\.entry).sorted { $0.capturedAt < $1.capturedAt }
+            result.append(SyncUtilizationSeries(
+                name: name, windowMinutes: freshest.windowMinutes, entries: entries))
         }
-
-        return buckets.keys
-            .sorted { $0.hourSlot < $1.hourSlot || ($0.hourSlot == $1.hourSlot && $0.resetEpoch < $1.resetEpoch) }
-            .map { key in
-                let bucket = buckets[key]!
-                let avg = bucket.totalPercent / Double(bucket.count)
-                return SyncUtilizationEntry(
-                    capturedAt: bucket.latestCaptured,
-                    usedPercent: min(100, max(0, avg)),
-                    resetsAt: bucket.latestReset)
-            }
+        let order = ["session": 0, "weekly": 1, "opus": 2]
+        result.sort { lhs, rhs in
+            let left = order[lhs.name] ?? 99
+            let right = order[rhs.name] ?? 99
+            return left == right ? lhs.name < rhs.name : left < right
+        }
+        return result.isEmpty ? nil : result
     }
 }
 

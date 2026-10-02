@@ -215,6 +215,7 @@ enum CostLedgerService {
                 tokenCountIsKnown: point.tokenCountIsKnown,
                 costIsKnown: point.costIsKnown,
                 isEstimated: point.isEstimated,
+                modelsUsed: point.modelsUsed,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
                 lastUpdated: costUpdatedAt,
@@ -245,6 +246,7 @@ enum CostLedgerService {
         tokenCountIsKnown: Bool? = nil,
         costIsKnown: Bool? = nil,
         isEstimated: Bool?,
+        modelsUsed: [String]? = nil,
         modelBreakdowns: [SyncCostBreakdown],
         serviceBreakdowns: [SyncCostBreakdown],
         lastUpdated: Date,
@@ -261,6 +263,8 @@ enum CostLedgerService {
             predicate: #Predicate { $0.compositeKey == key })
 
         let enc = encoder ?? CloudSyncConstants.makeJSONEncoder()
+        let names = Set(modelsUsed ?? []).sorted()
+        let modelsUsedData = names.isEmpty ? nil : try? enc.encode(names)
         let modelData: Data? = modelBreakdowns.isEmpty
             ? nil
             : try? enc.encode(modelBreakdowns)
@@ -291,6 +295,7 @@ enum CostLedgerService {
                existing.tokenCountIsKnown != tokenCountIsKnown ||
                existing.costIsKnown != costIsKnown ||
                existing.isEstimated != isEstimated ||
+               existing.modelsUsedData != modelsUsedData ||
                existing.modelBreakdownsData != modelData ||
                existing.serviceBreakdownsData != serviceData
             {
@@ -299,6 +304,7 @@ enum CostLedgerService {
                 existing.tokenCountIsKnown = tokenCountIsKnown
                 existing.costIsKnown = costIsKnown
                 existing.isEstimated = isEstimated
+                existing.modelsUsedData = modelsUsedData
                 existing.modelBreakdownsData = modelData
                 existing.serviceBreakdownsData = serviceData
                 return
@@ -314,6 +320,7 @@ enum CostLedgerService {
             existing.tokenCountIsKnown = tokenCountIsKnown
             existing.costIsKnown = costIsKnown
             existing.isEstimated = isEstimated
+            existing.modelsUsedData = modelsUsedData
             existing.modelBreakdownsData = modelData
             existing.serviceBreakdownsData = serviceData
             existing.lastUpdated = lastUpdated
@@ -331,6 +338,7 @@ enum CostLedgerService {
                 tokenCountIsKnown: tokenCountIsKnown,
                 costIsKnown: costIsKnown,
                 isEstimated: isEstimated,
+                modelsUsedData: modelsUsedData,
                 modelBreakdownsData: modelData,
                 serviceBreakdownsData: serviceData,
                 lastUpdated: lastUpdated)
@@ -377,6 +385,7 @@ enum CostLedgerService {
                     existing.tokenCountIsKnown = legacy.tokenCountIsKnown
                     existing.costIsKnown = legacy.costIsKnown
                     existing.isEstimated = legacy.isEstimated
+                    existing.modelsUsedData = legacy.modelsUsedData
                     existing.modelBreakdownsData = legacy.modelBreakdownsData
                     existing.serviceBreakdownsData = legacy.serviceBreakdownsData
                     existing.lastUpdated = legacy.lastUpdated
@@ -439,6 +448,7 @@ enum CostLedgerService {
                     target.tokenCountIsKnown = source.tokenCountIsKnown
                     target.costIsKnown = source.costIsKnown
                     target.isEstimated = source.isEstimated
+                    target.modelsUsedData = source.modelsUsedData
                     target.modelBreakdownsData = source.modelBreakdownsData
                     target.serviceBreakdownsData = source.serviceBreakdownsData
                     target.lastUpdated = source.lastUpdated
@@ -835,6 +845,7 @@ enum CostLedgerService {
                     tokenCountIsKnown: point.tokenCountIsKnown,
                     costIsKnown: point.costIsKnown,
                     isEstimated: point.isEstimated,
+                    modelsUsed: point.modelsUsed,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
                     lastUpdated: costUpdatedAt,
@@ -891,6 +902,8 @@ enum CostLedgerService {
                     return true
                 }
                 if existing.lastUpdated == costUpdatedAt {
+                    let names = Set(point.modelsUsed ?? []).sorted()
+                    let modelsUsedData = names.isEmpty ? nil : try? encoder.encode(names)
                     let modelData = point.modelBreakdowns.isEmpty
                         ? nil
                         : try? encoder.encode(point.modelBreakdowns)
@@ -906,6 +919,7 @@ enum CostLedgerService {
                         || existing.tokenCountIsKnown != point.tokenCountIsKnown
                         || existing.costIsKnown != point.costIsKnown
                         || existing.isEstimated != point.isEstimated
+                        || existing.modelsUsedData != modelsUsedData
                         || existing.modelBreakdownsData != modelData
                         || existing.serviceBreakdownsData != serviceData
                     {
@@ -1213,6 +1227,7 @@ enum CostLedgerService {
         let tokenCountIsKnown: Bool?
         let costIsKnown: Bool?
         let isEstimated: Bool?
+        let modelsUsed: [String]
         let modelBreakdowns: [SyncCostBreakdown]
         let serviceBreakdowns: [SyncCostBreakdown]
 
@@ -1233,6 +1248,7 @@ enum CostLedgerService {
             self.tokenCountIsKnown = row.totalTokens < 0 ? false : row.tokenCountIsKnown
             self.costIsKnown = row.costIsKnown
             self.isEstimated = row.isEstimated
+            self.modelsUsed = row.modelsUsedData.flatMap { try? decoder.decode([String].self, from: $0) } ?? []
             self.modelBreakdowns = Self.decodeBreakdowns(row.modelBreakdownsData, decoder: decoder)
             self.serviceBreakdowns = Self.decodeBreakdowns(row.serviceBreakdownsData, decoder: decoder)
         }
@@ -1265,6 +1281,7 @@ enum CostLedgerService {
                 tokenCountIsKnown: dayAccumulator.mergedTokenCountIsKnown,
                 costIsKnown: dayAccumulator.mergedCostIsKnown,
                 isEstimated: dayAccumulator.isEstimated ? true : nil,
+                modelsUsed: dayAccumulator.modelsUsed.sorted(),
                 modelBreakdowns: dayAccumulator.modelBreakdownsArray,
                 serviceBreakdowns: dayAccumulator.serviceBreakdownsArray)
         }
@@ -1280,6 +1297,7 @@ enum CostLedgerService {
             tokenCountIsKnown: Bool?,
             costIsKnown: Bool?,
             isEstimated: Bool?,
+            modelsUsed: [String],
             modelBreakdowns: [SyncCostBreakdown],
             serviceBreakdowns: [SyncCostBreakdown])
         {
@@ -1293,6 +1311,7 @@ enum CostLedgerService {
             self.tokenCountIsKnown = tokenCountIsKnown
             self.costIsKnown = costIsKnown
             self.isEstimated = isEstimated
+            self.modelsUsed = modelsUsed
             self.modelBreakdowns = modelBreakdowns
             self.serviceBreakdowns = serviceBreakdowns
         }
@@ -1314,10 +1333,12 @@ enum CostLedgerService {
         var sawKnownCost = false
         var sawUnknownCost = false
         var sawUnavailableCost = false
+        var modelsUsed: Set<String> = []
         var modelBreakdowns: [String: CostBreakdownAccumulator] = [:]
         var serviceBreakdowns: [String: CostBreakdownAccumulator] = [:]
 
         mutating func ingest(_ point: AggregatedDailyCostPoint) {
+            self.modelsUsed.formUnion(point.modelsUsed)
             self.costUSD += point.costUSD
             self.totalTokens = SyncCounterMath.saturatingSum([self.totalTokens, point.totalTokens])
             self.sawUnknownTokens = self.sawUnknownTokens || point.tokenCountIsKnown == false || point.totalTokens < 0
@@ -1359,7 +1380,8 @@ enum CostLedgerService {
                 serviceBreakdowns: self.serviceBreakdownsArray,
                 isEstimated: self.isEstimated ? true : nil,
                 costIsKnown: self.mergedCostIsKnown,
-                tokenCountIsKnown: self.mergedTokenCountIsKnown)
+                tokenCountIsKnown: self.mergedTokenCountIsKnown,
+                modelsUsed: self.modelsUsed.isEmpty ? nil : self.modelsUsed.sorted())
         }
 
         var mergedTokenCountIsKnown: Bool? {

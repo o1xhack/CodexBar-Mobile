@@ -4,13 +4,13 @@ Status: `in-progress`
 
 | 上游变更 | 已审计代码路径 | iOS 判断 / 下一步 |
 |---|---|---|
-| #4048 Claude saved limit resets | ClaudeRateLimitResetCreditsSnapshot.detailSections → UsageSnapshot.details → SyncCoordinator.mapDetails | 上游测试明确cached/synced不得复活库存。已在native Claude通用details发布前过滤live row，普通row/chart和plugin保留；Mac实时支持，iOS无权威refresh入口不展示库存。新iOS还需过滤旧缓存；不新增持久化观察模型 |
-| #4085 quota burndown | QuotaBurndownModel → PlanUtilizationSeriesHistory；SyncCoordinator.makeUtilizationHistory → SyncUtilizationSeries | 既有 capturedAt/usedPercent/resetsAt/windowMinutes 已足够；iOS 需新增 recorded remaining-quota chart，当前尚未实现，不添加 CK字段。不能用 iPhone 当前时间伪造新 capture |
-| #4091 Kimi 月池 blocking | Kimi descriptor.menuCard.blockingQuota → MenuCardView.blockingQuotaMetrics | 已实现native bridge effective窗口+optional raw blockingQuota metadata，旧iOS primary/secondary与rateWindows同源；旧版不会宣称短reset恢复。新iOS需独立blocked状态与raw消耗展示。测试和消费者/多Mac合并审计尚待完成 |
+| #4048 Claude saved limit resets | ClaudeRateLimitResetCreditsSnapshot.detailSections → UsageSnapshot.details → SyncCoordinator.mapDetails | 上游测试明确cached/synced不得复活库存。已在native Claude通用details发布前过滤live row，普通row/chart和plugin保留；Mac实时支持，iOS无权威refresh入口不展示库存。新iOS已过滤旧缓存，native-only policy 测试通过，最终整轮测试待验证；不新增持久化观察模型 |
+| #4085 quota burndown | QuotaBurndownModel → PlanUtilizationSeriesHistory；SyncCoordinator.makeUtilizationHistory → SyncUtilizationSeries | 既有 capturedAt/usedPercent/resetsAt/windowMinutes 已足够；iOS 需新增 recorded remaining-quota chart，已实现 capturedAt 模型与图表、独立刷新时钟；242 项复测仍有 1 项颜色 golden 失败，不添加 CK字段。不能用 iPhone 当前时间伪造新 capture |
+| #4091 Kimi 月池 blocking | Kimi descriptor.menuCard.blockingQuota → MenuCardView.blockingQuotaMetrics | 已实现native bridge effective窗口+optional raw blockingQuota metadata，旧iOS primary/secondary与rateWindows同源；旧版不会宣称短reset恢复。新iOS已实现独立blocked状态与raw消耗展示、过期不自行解封。对应测试通过，最终兼容矩阵仍待完成 |
 | #4084 Antigravity Starter/grouped weekly | AntigravityQuotaSummaryParser/RemoteUsageFetcher → RateWindow + extraRateWindows → syncRateWindow | 现有 period/windowMinutes/reset/usageKnown 可携带；尚待逐窗口 parser/mapper/render 回归确认，无证据前不标支持完整 |
 | #4093 Grok billing outage token history | UsageStore+GrokLocalSessions → CostUsageTokenSnapshot → SyncCoordinator.makeCostSummary | 独立 review 确认 narrower projection 丢 producer calendar/metadata；已修正 Gregorian producer calendar、bucketTimeZoneIdentifier/windowEndDayKey/partial/reportingPeriod，待测试 |
 | #4052/#4092 partial costs/cache reuse | CostUsageFetcher → historyCoverageIsEstablished/historyScanIsPartial → sync cost | 目前生产 partial 均 coverage=false，没有发现已可达误标完整；桥接统一 historyIsFullyScanned，旧 wire coverage=false继续限定 lower bound，无新增schema；待测试 |
-| #4056 observed Grok model names | GrokLocalSessionScanner → daily.modelsUsed → cost chart | 新增optional SyncDailyPoint.modelsUsed，三个生产daily mapper均转发token-only观察模型名，reporting-period复用daily；尚待最新定向测试与iOS展示消费 |
+| #4056 observed Grok model names | GrokLocalSessionScanner → daily.modelsUsed → cost chart | 新增optional SyncDailyPoint.modelsUsed，三个生产daily mapper均转发token-only观察模型名，reporting-period复用daily；已补 merger/ledger/TokenActivity 与观察名展示；token-only 多 Mac union、nil backfill/reopen 通过；真正旧 schema migration 待验证 |
 | #4075 provider accents | ProviderDescriptor branding → Mac；iOS ProviderColorPalette builtin fallback | 新 Mac 的 plugin icon tint与内建 branding通道不同；需核对16 palette变更与iOS fallback/light-dark readable gate |
 | #4072/#4076 Mistral Monthly Plan/pricing | MistralUsageSnapshot/UsageFetcher → named window/costSummary | 月窗口既有label/period可携带，event-zone-tier计价在Mac完成；需mapper/tests回归 |
 | #4059/#4098 bundled migration | Notion/ZoomMate/LongCat plugin result → generic details、rateWindows、providerAmount | 既有schema支持；需补足新通用label四语言，确认over-quota/history/fuel-pack不丢失 |
@@ -22,3 +22,7 @@ Status: `in-progress`
 ## 当前 CloudKit 判断
 
 截至当前 Shared新增optional JSON blockingQuota与modelsUsed；CloudConstants与providerPayloadVersion=1未变，无新record type/field/index/query/subscription。初步 NO_DEPLOY，必须在最终iOS/bridge实现完成后对最后published tag重跑审计，当前不是最终release结论。Production实际读写、APNs、双Mac与双iPhone矩阵尚未执行。
+
+## 当前树 CloudKit 审计复核
+
+2026-10-01 重新从 GitHub release list 读取最后 published tag：`v0.68.0.1-mobile.2.3.0`（2026-09-30T07:13:40Z），没有把 draft 当基线。对该 tag 到当前 working tree 的 Shared/Sources/iOS 生产代码审计：CloudConstants diff 为空，record type/zone/index/query/subscription/payload-version 新增关键词无命中。新增 blockingQuota/modelsUsed 是 opaque JSON 内 optional decodeIfPresent；DeviceRecord publication blob 与 DailyCostPoint modelsUsedData 是纯本地 SwiftData 字段。结论 `NO_DEPLOY`，未调用 Dashboard/cktool deploy。iOS 源 entitlements 与 Mac package 脚本均明确 Production；这只是源码配置证据，不替代尚未生成的签名发行工件检查或 Production 实际读写。后续若变更 wire/schema/release 输入，重新审计。

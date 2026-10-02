@@ -124,3 +124,28 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 `mac-full-r5.log`已终态exit0：1520 discovered/selected selections、137 selected groups、137 first-pass successful groups、0 failed、0 retries、0 timeouts。discovery9.7秒、execution1308.6秒、total1318.3秒。运行源码checkpoint `bc26b3512`；其后仅Research变化，当前Sources/Tests/Shared/Package/WidgetExtension/version.env inputs diff为空。缓存定价组、ProcessEnvironmentStorageTests、ProviderArchitectureGatekeeperTests在同一完整运行中通过；没有删除失败测试、放宽断言或使用定向pass替代完整gate。
 
 完整runner包括安全test_environment、Mac/Core/CLI/Plugin回归；native proof与live-provider opt-in fixture的既有skip/known-issue策略保持，不能据此宣称真实账号/实体设备QA完成。结合lint-r9、universal Release compiler预检及独立checkpoint review clean，Mac源码准备gate通过。签名/公证/生产entitlements资产验收和GitHub草稿尚无证据；iOS新功能与16矩阵仍pending。
+
+## iOS consumer 复测记录（2026-10-01）
+
+日志与 xcresult 均位于本页上述 BuildScratch 目录。
+
+- ios-consumer-build-r1：exit65，新测试缺必填 reset 参数；修正后 build-r2 exit0，TEST BUILD SUCCEEDED。
+- ios-consumer-tests-r1：exit65，174 tests / 7 suites，15 issues；历史 fixture 使用未来 capture 却较旧 publication，另有旧 window-duration union 预期。实现分离 history publication 与 cost 时间语义，修正 fixture 的真实 observation/publication 时间关系。
+- ios-consumer-tests-r2：exit65，240 tests / 9 suites，6 issues；颜色旧 golden 两项、hyphen alias 四项。数据与新增展示测试通过不代表整轮通过。
+- ios-consumer-tests-r3：exit65，242 tests / 9 suites，1 issue；Venice golden 未反映新增白底 luminance ceiling，已用独立 WCAG 算法更新预期。
+- ios-consumer-tests-r4：运行中，尚无终态；不得作为通过证据。开始后新增真正旧 schema migration 与 publication cold-start 修复，r4 即使通过也不覆盖这些后续输入。
+- lint-r10：exit0；随后增加 publication/migration 修复，最终树仍须重跑 lint。
+
+上述都是 Simulator / synthetic fixture 验证，不证明 Production CloudKit、APNs 或完整四设备收敛。现有 frozen-wire 16 组合是编解码阶段替代证据，仍需 consumer merger/cache/render 的逐格补充，不能替换全部 canonical gate。
+
+- lint-r11：exit1，102 process-cleanup tests / 1 failure / 1 skip；失败是 success fixture 在 drain 时尚未退出，断言 None != 0。单独重跑同一 test：lint-r11-process-focused.log exit0，fixture child terminated/sentinel alive，未修改 runner 或缩弱断言；全 lint-r12 已启动，终态待查，不能以 focused pass 替代全 lint。
+- ios-consumer-tests-r5：使用专用 Simulator `D86C3D2C-7A29-43C6-9B22-5B61902B794B` 与隔离 ios-consumer-final DerivedData 验证新增 publication 与 old-ledger migration。r4 原 Simulator 同时被另一项目使用，进程仍 live，未因观察等待而重启或终止。r5 是新增源码验证，非重复 r4 结果。
+
+## 数据层本地提交前状态
+
+- lint-r12 exit0：2749 文件零违规，381 literal source keys 全部匹配 catalog、全语言 translated；后续完整旧 schema fixture 与 UI visibility/preview 历史扩展不在该开始时输入内，另外新增文件定向 lint-r4 exit0 / 4 文件零违规。
+- 数据层六个生产文件在 ios-consumer-tests-r5 已经过 SwiftCompile、link 与 app Validate，未见编译错误；xcodebuild 仍在 test launch 阶段，尚无 tests terminal。不能把编译阶段当 test pass。
+- 新完整旧 schema fixture、UI 测试和 synthetic demo history 尚需下一轮实际 build/test；UI 数据为 synthetic，不访问用户 provider/CloudKit。
+- r4/session11533、r5/session17532 均 live；专用 Simulator app-container 查询也未返回，诊断句柄97447与进程 sample 19272 仍待查询。未因 observation timeout 取消或重启任何 live run，也未重启全局 CoreSimulator。
+
+本地保存 consumer 数据层 checkpoint；包含 actual-observation history merge、token-only 模型名流转与 publication 持久化，尚未完成 migration/runtime release gate，不执行 push/PR/merge/draft。
