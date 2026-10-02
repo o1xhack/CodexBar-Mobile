@@ -175,6 +175,8 @@ enum SwiftDataBridge {
             in: context)
         device.providerPublicationTimestampsData = try CloudSyncConstants.makeJSONEncoder()
             .encode(snapshot.providerPublicationTimestamps)
+        device.providerQuotaSourcesData = try CloudSyncConstants.makeJSONEncoder()
+            .encode(snapshot.providerQuotaSources)
 
         // Build the set of composite keys present in this snapshot. Anything on the
         // existing DeviceRecord that is NOT in this set has been removed upstream
@@ -589,6 +591,9 @@ enum SwiftDataBridge {
                 notificationPushEnabled: nil,
                 providerPublicationTimestamps: device.providerPublicationTimestampsData.flatMap {
                     try? decoder.decode([String: Date].self, from: $0)
+                } ?? [:],
+                providerQuotaSources: device.providerQuotaSourcesData.flatMap {
+                    try? decoder.decode([String: SyncProviderQuotaSource].self, from: $0)
                 } ?? [:]))
         }
 

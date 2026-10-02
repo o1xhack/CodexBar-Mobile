@@ -37,6 +37,8 @@ final class DeviceRecord {
     var lastSyncAt: Date
     /// Optional per-provider publication clocks; old stores retain legacy fallback.
     var providerPublicationTimestampsData: Data?
+    /// Original quota writers; optional for lightweight migration of old caches.
+    var providerQuotaSourcesData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \ProviderSnapshotModel.device)
     var providers: [ProviderSnapshotModel] = []
@@ -52,6 +54,7 @@ final class DeviceRecord {
         self.appVersion = appVersion
         self.lastSyncAt = lastSyncAt
         self.providerPublicationTimestampsData = nil
+        self.providerQuotaSourcesData = nil
     }
 }
 

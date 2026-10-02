@@ -1705,8 +1705,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
 
 /// Reader-local provenance for one selected quota observation. Alias reduction
 /// must retain the original writer, including an explicitly unknown version.
-/// This is not Mac wire data; raw writers are persisted and reduced again on read.
-public struct SyncProviderQuotaSource: Sendable, Equatable {
+/// This is not Mac wire data; the reader caches it beside raw per-writer records.
+public struct SyncProviderQuotaSource: Codable, Sendable, Equatable {
     public let appVersion: String?
     public let publicationTimestamp: Date
     public let deviceID: String
@@ -1739,8 +1739,8 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     /// new iOS readers can keep unchanged provider records from appearing as
     /// fresh when a sibling provider publishes a newer delta.
     public let providerPublicationTimestamps: [String: Date]
-    /// In-memory quota provenance carried through alias and cross-device merges.
-    /// Kept out of Codable just like publication metadata. Never persist a
+    /// Reader-local quota provenance carried through alias and cross-device merges.
+    /// Kept out of snapshot Codable and cached separately. Never persist a
     /// derived alias snapshot in place of its original per-writer records.
     public let providerQuotaSources: [String: SyncProviderQuotaSource]
 

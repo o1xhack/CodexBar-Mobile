@@ -667,9 +667,11 @@ struct V070ConsumerDataTests {
         let device = try #require(devices.first)
         #expect(devices.count == 1 && device.deviceName == "Fixture Legacy Mac")
         #expect(device.providerPublicationTimestampsData == nil)
+        #expect(device.providerQuotaSourcesData == nil)
         #expect(device.providers.count == 1 && device.providers.first?.providerID == "codex")
         let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
         #expect(restored.first?.providerPublicationTimestamps == [:])
+        #expect(restored.first?.providerQuotaSources == [:])
         #expect(restored.first?.syncTimestamp == self.captured)
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(rows.count == 1)
@@ -1198,6 +1200,83 @@ extension V070ConsumerDataTests {
                 })
                 #expect(final.primary == other.providers[0].primary)
                 #expect(final.rateWindows == other.providers[0].rateWindows)
+            }
+        }
+    }
+
+    @Test @MainActor
+    func `Envelope Kimi provenance survives disk reopen alias collapse and cross device merge`() throws {
+        let base = URL(fileURLWithPath: "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070")
+        guard FileManager.default.fileExists(atPath: base.path),
+              FileManager.default.isWritableFile(atPath: base.path),
+              base.resolvingSymlinksInPath().path.hasPrefix("/Volumes/StudioSSD/")
+        else { throw CocoaError(.fileNoSuchFile) }
+        let root = base.appendingPathComponent("quota-source-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("Store.sqlite")
+        let blocker = self.snapshot(
+            device: "fixture-blocker",
+            history: [],
+            windows: self.kimiWindows(blocked: true),
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        for version in ["0.68.0.1", nil] {
+            let raw = self.snapshot(
+                device: "fixture-mixed",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: version)
+            let sibling = self.snapshot(device: "fixture-mixed", history: [], appVersion: "0.70.0.1")
+            func envelope(_ snapshot: SyncedUsageSnapshot, publication: Double) -> ProviderUsageEnvelope {
+                ProviderUsageEnvelope(
+                    deviceID: "fixture-mixed",
+                    deviceName: "Fixture Mixed Writer",
+                    appVersion: snapshot.appVersion,
+                    mobileVersion: nil,
+                    syncTimestamp: self.captured.addingTimeInterval(publication),
+                    notificationPushEnabled: nil,
+                    provider: snapshot.providers[0])
+            }
+            let envelopes = [envelope(raw, publication: 70), envelope(sibling, publication: 100)]
+            for records in [envelopes, Array(envelopes.reversed())] {
+                let sources = CloudSyncManager.reconstructSnapshots(envelopesByDeviceID: ["fixture-mixed": records])
+                let live = try #require(sources.first)
+                #expect(live.appVersion == "0.70.0.1")
+                let key = SyncedUsageSnapshot.providerPublicationKey(for: raw.providers[0])
+                let provenance = try #require(live.providerQuotaSources[key])
+                #expect(provenance.appVersion == version)
+                #expect(provenance.publicationTimestamp == self.captured.addingTimeInterval(70))
+                #expect(provenance.deviceID == "fixture-mixed")
+                do {
+                    let opened = ModelContainerFactory.openContainer(at: store)
+                    #expect(opened.isPersistent)
+                    try SwiftDataBridge.upsert(deviceSnapshots: sources, into: ModelContext(opened.container))
+                }
+                let opened = ModelContainerFactory.openContainer(at: store)
+                #expect(opened.isPersistent)
+                let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: ModelContext(opened.container))
+                let cold = try #require(restored.first)
+                #expect(cold.providerQuotaSources == live.providerQuotaSources)
+                let aliasSibling = self.snapshot(
+                    device: "fixture-new-alias",
+                    history: [],
+                    appVersion: "0.71.0",
+                    publishedAt: self.captured.addingTimeInterval(200))
+                for first in [live, cold] {
+                    for aliases in [[first, aliasSibling], [aliasSibling, first]] {
+                        let collapsed = try self.collapseAliases(aliases)
+                        for inputs in [[collapsed, blocker], [blocker, collapsed]] {
+                            let final = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs)?.providers.first {
+                                $0.providerID == "kimi"
+                            })
+                            #expect(final.primary == blocker.providers[0].primary)
+                            #expect(final.rateWindows == blocker.providers[0].rateWindows)
+                        }
+                    }
+                }
             }
         }
     }

@@ -1961,6 +1961,17 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 },
                 uniquingKeysWith: max)
 
+            let providerQuotaSources = Dictionary(
+                envelopes.filter { $0.provider.providerID == "kimi" }.map { envelope in
+                    (SyncedUsageSnapshot.providerPublicationKey(for: envelope.provider), SyncProviderQuotaSource(
+                        appVersion: envelope.appVersion,
+                        publicationTimestamp: envelope.syncTimestamp,
+                        deviceID: envelope.deviceID))
+                },
+                uniquingKeysWith: { lhs, rhs in
+                    lhs.publicationTimestamp < rhs.publicationTimestamp ? rhs : lhs
+                })
+
             snapshots.append(SyncedUsageSnapshot(
                 providers: providers,
                 syncTimestamp: latestEnvelope.syncTimestamp,
@@ -1969,7 +1980,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 appVersion: latestEnvelope.appVersion,
                 mobileVersion: latestEnvelope.mobileVersion,
                 notificationPushEnabled: latestEnvelope.notificationPushEnabled,
-                providerPublicationTimestamps: providerPublicationTimestamps))
+                providerPublicationTimestamps: providerPublicationTimestamps,
+                providerQuotaSources: providerQuotaSources))
         }
         snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
         return snapshots
