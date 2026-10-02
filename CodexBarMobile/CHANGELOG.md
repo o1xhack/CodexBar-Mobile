@@ -13,6 +13,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Align sixteen fallback provider accents with upstream v0.70 while preserving synced overrides and light/dark readability.
 
 ### Fixed
+- Restore per-widget mode, color and ordered provider selection through SiriKit configuration. Keep an explicit replacement notice for legacy status widgets; re-add them to use the new configuration format.
 - Preserve actual utilization observations and declines instead of synthesizing hourly averages; reject invalid/future observations before selecting the current lane duration.
 - Bound utilization chart gap expansion and reject invalid timestamp-to-integer conversions.
 - Keep quota chart date/time ticks legible on narrow screens, match the steady-use guide to its legend in light and dark modes, and retain each chart’s accessibility identifier within the section.

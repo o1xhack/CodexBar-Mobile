@@ -1,6 +1,6 @@
 import Intents
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 @main
 struct CodexBarWidgetsBundle: WidgetBundle {
@@ -8,6 +8,7 @@ struct CodexBarWidgetsBundle: WidgetBundle {
         CodexBarTokenActivitySingleWidget()
         CodexBarTokenActivityComparisonWidget()
         CodexBarStatusWidget()
+        CodexBarLegacyStatusWidget()
     }
 }
 
@@ -16,8 +17,8 @@ struct CodexBarTokenActivitySingleWidget: Widget {
         IntentConfiguration(
             kind: WidgetActivityKind.single,
             intent: SelectTokenActivityIntent.self,
-            provider: WidgetActivitySingleProvider()
-        ) { entry in
+            provider: WidgetActivitySingleProvider())
+        { entry in
             WidgetActivityView(entry: entry)
         }
         .configurationDisplayName("Token Activity")
@@ -32,8 +33,8 @@ struct CodexBarTokenActivityComparisonWidget: Widget {
         IntentConfiguration(
             kind: WidgetActivityKind.comparison,
             intent: CompareTokenActivityIntent.self,
-            provider: WidgetActivityComparisonProvider()
-        ) { entry in
+            provider: WidgetActivityComparisonProvider())
+        { entry in
             WidgetActivityView(entry: entry)
         }
         .configurationDisplayName("Token Activity Comparison")
@@ -43,15 +44,37 @@ struct CodexBarTokenActivityComparisonWidget: Widget {
     }
 }
 
-struct CodexBarStatusWidget: Widget {
+struct CodexBarLegacyStatusWidget: Widget {
     private let kind = "CodexBarStatusWidget"
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
-            kind: kind,
+            kind: self.kind,
             intent: CodexBarWidgetConfigurationIntent.self,
-            provider: CodexBarWidgetProvider()
-        ) { entry in
+            provider: CodexBarWidgetProvider())
+        { _ in
+            VStack {
+                Text(String(localized: "Add this widget again"))
+                Text(
+                    String(
+                        localized: "Remove this older widget, add CodexBar Widget again, and choose its settings."))
+            }
+            .containerBackground(.background, for: .widget)
+        }
+        .configurationDisplayName("CodexBar Widget (Legacy)")
+        .description("View synced provider usage, cost, and sync health.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
+    }
+}
+
+struct CodexBarStatusWidget: Widget {
+    var body: some WidgetConfiguration {
+        IntentConfiguration(
+            kind: "CodexBarStatusWidgetV2",
+            intent: SelectStatusWidgetIntent.self,
+            provider: CodexBarStatusTimelineProvider())
+        { entry in
             CodexBarWidgetView(entry: entry)
         }
         .configurationDisplayName("CodexBar Widget")

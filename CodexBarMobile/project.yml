@@ -90,6 +90,27 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: true
         SKIP_INSTALL: true
 
+  CodexBarMobileWidgetOptions:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CodexBarMobileWidgetOptions
+      - path: CodexBarWidgetShared/WidgetProviderCatalogue.swift
+      - path: CodexBarWidgetShared
+        excludes:
+          - "**/*.swift"
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.widgetoptions
+        MARKETING_VERSION: "2.4.0"
+        CURRENT_PROJECT_VERSION: "227"
+        DEVELOPMENT_TEAM: 3TUERHN53E
+        INFOPLIST_FILE: CodexBarMobileWidgetOptions/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CodexBarMobileWidgetOptions/WidgetOptions.entitlements
+        APPLICATION_EXTENSION_API_ONLY: true
+        SKIP_INSTALL: true
+
   CodexBarMobile:
     type: application
     platform: iOS
@@ -104,6 +125,7 @@ targets:
       - target: CodexBarSync
       - target: CodexBarMobilePushExtension
       - target: CodexBarMobileWidgets
+      - target: CodexBarMobileWidgetOptions
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile

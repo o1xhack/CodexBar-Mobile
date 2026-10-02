@@ -1,0 +1,22 @@
+/* Status widget configuration labels. */
+"CBStatusStatusWidgetModeTitle" = "Widget Type";
+"CBStatusStatusWidgetModeunknown" = "Unknown";
+"CBStatusStatusWidgetModeoverview" = "Overview";
+"CBStatusStatusWidgetModeproviderFocus" = "Provider Focus";
+"CBStatusStatusWidgetModetodayCost" = "Today Cost";
+"CBStatusStatusWidgetModesyncHealth" = "Sync Health";
+"CBStatusStatusWidgetColorStyleTitle" = "Color Style";
+"CBStatusStatusWidgetColorStyleunknown" = "Unknown";
+"CBStatusStatusWidgetColorStylemono" = "Mono";
+"CBStatusStatusWidgetColorStylecolorful" = "Colorful";
+"CBStatusTitle" = "CodexBar Widget";
+"CBStatusDescription" = "View synced provider usage, cost, and sync health.";
+"CBStatusmode" = "Widget Type";
+"CBStatuscolorStyle" = "Color Style";
+"CBStatusproviders" = "Providers";
+"CBStatusProviderType" = "Provider";
+
+"CBStatusprovider1" = "Provider 1";
+"CBStatusprovider2" = "Provider 2";
+"CBStatusprovider3" = "Provider 3";
+"CBStatusprovider4" = "Provider 4";

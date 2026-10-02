@@ -4649,6 +4649,7 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Keep model names with daily token history, even when cost is unavailable."),
                     String(
                         localized: "Updated provider colors stay readable in light and dark modes."),
+                    String(localized: "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

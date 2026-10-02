@@ -1,0 +1,22 @@
+/* Status widget configuration labels. */
+"CBStatusStatusWidgetModeTitle" = "小组件类型";
+"CBStatusStatusWidgetModeunknown" = "未知";
+"CBStatusStatusWidgetModeoverview" = "概览";
+"CBStatusStatusWidgetModeproviderFocus" = "服务商详情";
+"CBStatusStatusWidgetModetodayCost" = "今日费用";
+"CBStatusStatusWidgetModesyncHealth" = "同步状态";
+"CBStatusStatusWidgetColorStyleTitle" = "颜色样式";
+"CBStatusStatusWidgetColorStyleunknown" = "未知";
+"CBStatusStatusWidgetColorStylemono" = "单色";
+"CBStatusStatusWidgetColorStylecolorful" = "彩色";
+"CBStatusTitle" = "CodexBar 小组件";
+"CBStatusDescription" = "查看已同步的服务商用量、费用和同步状态。";
+"CBStatusmode" = "小组件类型";
+"CBStatuscolorStyle" = "颜色样式";
+"CBStatusproviders" = "服务商";
+"CBStatusProviderType" = "服务商";
+
+"CBStatusprovider1" = "服务商 1";
+"CBStatusprovider2" = "服务商 2";
+"CBStatusprovider3" = "服务商 3";
+"CBStatusprovider4" = "服务商 4";

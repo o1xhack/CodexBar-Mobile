@@ -1,6 +1,10 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Add this widget again": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Add this widget again"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "重新添加此小组件"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "重新加入此小工具"}}, "ja": {"stringUnit": {"state": "translated", "value": "このウィジェットを追加し直してください"}}}},
+    "Remove this older widget, add CodexBar Widget again, and choose its settings.": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "Remove this older widget, add CodexBar Widget again, and choose its settings."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "移除此旧小组件，然后重新添加 CodexBar 小组件以恢复配置功能。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "移除此舊小工具，然後重新加入 CodexBar 小工具以恢復設定功能。"}}, "ja": {"stringUnit": {"state": "translated", "value": "古いウィジェットを削除し、CodexBar ウィジェットを追加し直すと設定を利用できます。"}}}},
+    "CodexBar Widget (Legacy)": {"localizations": {"en": {"stringUnit": {"state": "translated", "value": "CodexBar Widget (Legacy)"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "CodexBar 小组件（旧版）"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "CodexBar 小工具（舊版）"}}, "ja": {"stringUnit": {"state": "translated", "value": "CodexBar ウィジェット（旧版）"}}}},
+    "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "小组件的模式、颜色样式和服务商选择现已生效。请移除旧版 CodexBar 小组件并重新添加。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "小工具的模式、顏色樣式和服務商選擇現已生效。請移除舊版 CodexBar 小工具並重新加入。"}}, "ja": {"stringUnit": {"state": "translated", "value": "ウィジェットの種類、配色、プロバイダーの設定が反映されるようになりました。古い CodexBar ウィジェットを削除し、追加し直してください。"}}}},
     "Series": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Series"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "序列"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "序列"}}, "ja": {"stringUnit": {"state": "translated", "value": "系列"}}}},
     "CodexBar 2.4 adds quota pace charts and clearer usage details from Mac.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "CodexBar 2.4 adds quota pace charts and clearer usage details from Mac."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "CodexBar 2.4 新增额度消耗趋势图，让 Mac 同步的用量信息更清晰。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "CodexBar 2.4 新增額度消耗趨勢圖，讓 Mac 同步的用量資訊更清晰。"}}, "ja": {"stringUnit": {"state": "translated", "value": "CodexBar 2.4 ではクォータ消費の推移グラフを追加し、Mac からの使用状況をより分かりやすく表示します。"}}}},
     "Track Codex and Claude quota usage until reset, with a steady-use guide.": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Track Codex and Claude quota usage until reset, with a steady-use guide."}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "查看 Codex 和 Claude 当前重置周期内的实际额度消耗，并参考均匀消耗线。"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "查看 Codex 和 Claude 目前重設週期內的實際額度消耗，並參考均勻消耗線。"}}, "ja": {"stringUnit": {"state": "translated", "value": "Codex と Claude の現在のリセット期間に記録された使用状況を、一定ペースの目安と比較できます。"}}}},
@@ -8932,13 +8936,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Provider"
+            "value": "服务商"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Provider"
+            "value": "服務商"
           }
         }
       }
