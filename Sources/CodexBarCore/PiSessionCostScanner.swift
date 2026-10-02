@@ -27,7 +27,7 @@ enum PiSessionCostScanner {
         var calendar: Calendar
         var refreshMinIntervalSeconds: TimeInterval = 60
         var forceRescan: Bool = false
-        var environment: [String: String]
+        @ProcessEnvironment var environment: [String: String]
         var workingDirectory: URL?
         var workingDirectories: [URL]
         var processContexts: [PiSessionProcessContext]

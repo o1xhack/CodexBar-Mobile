@@ -15,7 +15,7 @@ public struct MiniMaxUsageFetcher: Sendable {
         let cookie: String
         let authorizationToken: String?
         let region: MiniMaxAPIRegion
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let transport: any ProviderHTTPTransport
     }
 

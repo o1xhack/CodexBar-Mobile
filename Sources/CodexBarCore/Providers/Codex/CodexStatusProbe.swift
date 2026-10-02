@@ -65,7 +65,7 @@ public struct CodexStatusProbe {
     public var codexBinary: String = "codex"
     public var timeout: TimeInterval = Self.defaultTimeoutSeconds
     public var keepCLISessionsAlive: Bool = false
-    public var environment: [String: String] = ProcessInfo.processInfo.environment
+    @ProcessEnvironment public var environment: [String: String] = ProcessInfo.processInfo.environment
 
     public init() {}
 

@@ -107,7 +107,37 @@ enum ProviderColorPalette {
     /// so we don't accidentally collapse two distinct providers back into the
     /// same color.
     static func color(for providerIdentifier: String) -> Color {
-        self.readable(self.brandColor(for: providerIdentifier))
+        self.readable(
+            self.brandColor(for: providerIdentifier),
+            adjustsLightMode: self.updatedBrandHex(for: providerIdentifier) != nil)
+    }
+
+    static let upstreamV070BrandTints: [String: String] = [
+        "abacus": "814EE8",
+        "amp": "F34E3F",
+        "augment": "1AA049",
+        "bedrock": "01A88D",
+        "clinepass": "5487C8",
+        "codebuff": "00FF95",
+        "commandcode": "8C4EDD",
+        "cursor": "F54E00",
+        "deepseek": "4D6BFE",
+        "devin": "317CFF",
+        "kiro": "9046FF",
+        "longcat": "29E154",
+        "mistral": "FF5229",
+        "neuralwatt": "D55934",
+        "sub2api": "14B8A6",
+        "venice": "3C8FDD",
+    ]
+
+    private static func updatedBrandHex(for identifier: String) -> String? {
+        let normalized = identifier.lowercased().replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        guard !normalized.contains("xkiro") else { return nil }
+        guard let key = self.upstreamV070BrandTints.keys.sorted().first(where: { normalized.contains($0) })
+        else { return nil }
+        return self.upstreamV070BrandTints[key]
     }
 
     private static func brandColor(for providerIdentifier: String) -> Color {
@@ -126,6 +156,10 @@ enum ProviderColorPalette {
         }
         if normalized.contains("aixy") {
             return Color(red: 0.07, green: 0.21, blue: 0.34)
+        }
+
+        if let hex = self.updatedBrandHex(for: providerIdentifier), let color = self.color(fromHex: hex) {
+            return color
         }
 
         // Specific new providers from upstream v0.20 — these come first

@@ -1,0 +1,22 @@
+/* Status widget configuration labels. */
+"CBStatusStatusWidgetModeTitle" = "ウィジェットの種類";
+"CBStatusStatusWidgetModeunknown" = "不明";
+"CBStatusStatusWidgetModeoverview" = "概要";
+"CBStatusStatusWidgetModeproviderFocus" = "プロバイダー詳細";
+"CBStatusStatusWidgetModetodayCost" = "今日のコスト";
+"CBStatusStatusWidgetModesyncHealth" = "同期状況";
+"CBStatusStatusWidgetColorStyleTitle" = "配色";
+"CBStatusStatusWidgetColorStyleunknown" = "不明";
+"CBStatusStatusWidgetColorStylemono" = "モノクロ";
+"CBStatusStatusWidgetColorStylecolorful" = "カラー";
+"CBStatusTitle" = "CodexBar ウィジェット";
+"CBStatusDescription" = "同期されたプロバイダーの使用量、コスト、同期状況を確認できます。";
+"CBStatusmode" = "ウィジェットの種類";
+"CBStatuscolorStyle" = "配色";
+"CBStatusproviders" = "プロバイダー";
+"CBStatusProviderType" = "プロバイダー";
+
+"CBStatusprovider1" = "プロバイダー 1";
+"CBStatusprovider2" = "プロバイダー 2";
+"CBStatusprovider3" = "プロバイダー 3";
+"CBStatusprovider4" = "プロバイダー 4";

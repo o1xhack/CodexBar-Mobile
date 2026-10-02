@@ -93,16 +93,28 @@ enum AntigravityLocalReader {
     }
 
     /// Antigravity records routing variants of a vendor model (`-tiered`, `-low`, `-thinking`)
-    /// that bill at the base model's public price. The alias stays provider-local so shared
-    /// Claude pricing keeps reporting unknown Claude variants as unpriced.
+    /// that bill at the base model's public price, and product aliases that name no catalogued
+    /// model at all. The alias stays provider-local so shared Claude pricing keeps reporting
+    /// unknown Claude variants as unpriced.
     static func pricingBaseModelID(for model: String) -> String? {
         let lowered = model.lowercased()
+        if let alias = self.pricingModelAliases[lowered] { return alias }
         guard let suffix = self.routingVariantSuffixes.first(where: lowered.hasSuffix) else { return nil }
         let base = String(model.dropLast(suffix.count))
-        return base.isEmpty ? nil : base
+        return base.isEmpty ? nil : self.pricingModelAliases[base.lowercased()] ?? base
     }
 
     private static let routingVariantSuffixes = ["-tiered", "-low", "-thinking"]
+
+    /// Gemini 3.1 Pro is catalogued only as `gemini-3.1-pro-preview`. Antigravity records it under
+    /// its product aliases and effort tiers; ccusage's Antigravity adapter maps the same IDs.
+    private static let pricingModelAliases = [
+        "gemini-pro-default": "gemini-3.1-pro-preview",
+        "gemini-pro-agent": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro-high": "gemini-3.1-pro-preview",
+        "gemini-3.1-pro-low": "gemini-3.1-pro-preview",
+    ]
 
     static func checkedAdd(_ lhs: Int, _ rhs: Int) -> Int? {
         let (result, overflow) = lhs.addingReportingOverflow(rhs)

@@ -118,6 +118,7 @@ public enum GrokLocalSessionScanner {
             byAdding: .day,
             value: -(boundedLookbackDays - 1),
             to: startOfToday) ?? startOfToday
+        let lookbackEnd = calendar.date(byAdding: .day, value: 1, to: startOfToday) ?? now
         var sessionCount = 0
         var totalTokens = 0
         var lastSessionAt: Date?
@@ -130,7 +131,7 @@ public enum GrokLocalSessionScanner {
             guard url.lastPathComponent == "signals.json" else { continue }
             let attrs = try? url.resourceValues(forKeys: [.contentModificationDateKey])
             let mtime = attrs?.contentModificationDate ?? Date.distantPast
-            guard mtime >= lookbackCutoff else { continue }
+            guard mtime >= lookbackCutoff, mtime < lookbackEnd else { continue }
 
             guard let data = try? Data(contentsOf: url),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -205,7 +206,7 @@ public enum GrokLocalSessionScanner {
         }
     }
 
-    static func dayKey(for date: Date, calendar: Calendar) -> String? {
+    package static func dayKey(for date: Date, calendar: Calendar) -> String? {
         var gregorian = Calendar(identifier: .gregorian)
         gregorian.timeZone = calendar.timeZone
         let components = gregorian.dateComponents([.year, .month, .day], from: date)

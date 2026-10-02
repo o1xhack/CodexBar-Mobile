@@ -31,7 +31,7 @@ struct ProviderPluginOptionalAdmissionTests {
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
                 optionalCollectionBudget: .seconds(2),
-                beforeHTTPAttempt: { try await Task.sleep(for: .seconds(3)) }),
+                beforeHTTPAttempt: { _ in try await Task.sleep(for: .seconds(3)) }),
             engine: engine)
         #expect(try await runtime.fetchUsage().identity?.loginMethod == "ready")
     }

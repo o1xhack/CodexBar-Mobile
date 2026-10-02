@@ -57,7 +57,7 @@ struct LimitResetCreditsPresentation: Equatable {
         count == 1 ? L("1 available") : String(format: L("%d available"), count)
     }
 
-    private static func make(
+    fileprivate static func make(
         expirations: [Date?],
         resetStyle: ResetTimeDisplayStyle,
         now: Date) -> LimitResetCreditsPresentation?
@@ -153,6 +153,13 @@ extension UsageMenuCardView.Model {
             guard let resetCredits = input.snapshot?.grokResetCredits else { return nil }
             return LimitResetCreditsPresentation.make(
                 snapshot: resetCredits,
+                resetStyle: input.resetTimeDisplayStyle,
+                now: input.now)
+        case .claude:
+            guard input.showOptionalCreditsAndExtraUsage else { return nil }
+            guard let resetCredits = input.snapshot?.claudeResetCredits else { return nil }
+            return LimitResetCreditsPresentation.make(
+                expirations: resetCredits.availableExpirations(at: input.now),
                 resetStyle: input.resetTimeDisplayStyle,
                 now: input.now)
         default:

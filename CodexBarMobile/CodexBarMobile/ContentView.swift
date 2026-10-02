@@ -4636,7 +4636,29 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.3.0", status: String(localized: "Latest"),
+            version: "2.4.0",
+            status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.4 adds quota pace charts and clearer usage details from Mac."),
+            sections: [
+                .init(title: String(localized: "What's New"), items: [
+                    String(
+                        localized: "Track Codex and Claude quota usage with a steady-use guide, exact reset times, and pace estimates in your iPhone language."),
+                    String(
+                        localized: "See Kimi monthly blocks and short-window usage. Cached data waits for Mac sync."),
+                    String(
+                        localized: "Keep model names with daily token history, even when cost is unavailable."),
+                    String(
+                        localized: "Updated provider colors stay readable in light and dark modes."),
+                    String(localized: "Widget settings now work for every mode, color style, and provider selection. Remove older CodexBar widgets and add them again."),
+                ]),
+                .init(title: String(localized: "Required Mac version"), items: [
+                    String(
+                        localized: "Update CodexBar on Mac to 0.70.0.1 or later for new quota and model data."),
+                ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "2.3.0",
+            status: "",
             summary: String(
                 localized: "CodexBar 2.3 brings the latest Mac updates to iPhone, with clearer provider quotas and cost windows."),
             sections: [

@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 062 | v0.69.0–v0.70.0 single upstream sync (#166) + iOS 2.4.0 | `in-progress` | Mac merge/bridge and focused tests ready; full regression running; signed draft, iOS implementation and compatibility matrix pending | [062-v070-upstream-sync/00-overview.md](062-v070-upstream-sync/00-overview.md) | 2026-10-01 |
 | 059 | v0.67.0–v0.68.0 single upstream sync (#150/#151 closed) + iOS 2.3.0 | `done` | Mac live signed/notarized; full CI and 18 assets verified. iOS local only; 16 substituted combinations, no physical fleet/Production run | [059-v068-upstream-sync/00-overview.md](059-v068-upstream-sync/00-overview.md) | 2026-09-30 |
 | 058 | iOS 2.2.0 widget redesign and configurable Token Activity heatmaps | `done` | Build 222 `VALID` and bound; 2.2.0 submitted for App Review (`WAITING_FOR_REVIEW`, `MANUAL`); physical iPhone QA pending | [058-ios-220-widget-redesign.md](058-ios-220-widget-redesign.md) | 2026-09-28 |
 | 057 | PR #140/#148 provider tint contrast in light and dark appearance | `done` | iOS 2.1.0 (213) `VALID` and `WAITING_FOR_REVIEW` with manual release; 16-case physical fleet matrix substituted | [057-provider-tint-contrast/00-design.md](057-provider-tint-contrast/00-design.md) | 2026-09-25 |

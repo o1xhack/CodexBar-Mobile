@@ -22,6 +22,12 @@ Keychain holds runtime cookie caches, browser Safe Storage access, and provider 
 - The directory is created if missing.
 - Writes on macOS and Linux create a `0600` file inside a private `0700` staging directory beside the destination before writing any bytes, then sync and atomically replace the destination. Failed writes preserve the previous file and remove staging.
 
+A missing, zero-byte, or JSON-whitespace-only file (spaces, tabs, carriage returns, and line feeds) means no
+configuration. Reads use defaults without creating or rewriting the file; the next settings save writes valid JSON.
+If the running app sees a blank file, it retains its in-memory settings just as it does when the file is removed.
+Non-empty malformed JSON still reports a decode error in the CLI, blocks usage and config edits, and is not
+replaced by `loadOrCreateDefault()`.
+
 ## Root shape
 ```json
 {
@@ -310,6 +316,8 @@ explicitly exported and imported. Import does not modify `config.json` or iCloud
 ### Menu bar controls
 
 In **Settings → Menu Bar**, inactive combined-icon controls use dimmed labels. Their titles and explanations remain readable and available to VoiceOver; label styling follows each control's enabled state, including stacked-icon restrictions. The layout size and gap controls remain independent of Merge Icons.
+
+The open menu's persistent **Refresh** row uses a text label aligned with the other actions, without a decorative icon. Click the row, press **⌘R**, or use its VoiceOver button action to refresh.
 
 ### Provider switcher shortcuts
 

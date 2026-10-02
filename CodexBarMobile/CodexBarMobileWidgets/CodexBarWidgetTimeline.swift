@@ -30,6 +30,10 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
         for configuration: CodexBarWidgetConfigurationIntent,
         in _: Context
     ) async -> Timeline<CodexBarWidgetEntry> {
+        await Self.makeTimeline(configuration: configuration)
+    }
+
+    static func makeTimeline(configuration: CodexBarWidgetConfigurationIntent) async -> Timeline<CodexBarWidgetEntry> {
         let now = Date()
         #if DEBUG
         Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "overview").notice(

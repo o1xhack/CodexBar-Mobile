@@ -35,7 +35,7 @@ actor CodexCLISession {
     private var startedAt: Date?
     private var ptyRows: UInt16 = 0
     private var ptyCols: UInt16 = 0
-    private var sessionEnvironment: [String: String]?
+    @ProcessEnvironment private var sessionEnvironment: [String: String]?
     private var sessionArguments: [String] = []
     private var sessionWorkingDirectory: URL?
 
@@ -43,7 +43,7 @@ actor CodexCLISession {
         let timeout: TimeInterval
         let rows: UInt16
         let cols: UInt16
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let extraArgs: [String]
         let workingDirectory: URL?
     }

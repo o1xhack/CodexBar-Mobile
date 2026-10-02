@@ -66,6 +66,8 @@ struct MistralUsageEntry: Codable {
     let billingMetric: String?
     let billingDisplayName: String?
     let billingGroup: String?
+    let apiZone: String?
+    let serviceTier: String?
     let timestamp: String?
     let value: Int?
     let valuePaid: Int?
@@ -77,6 +79,8 @@ struct MistralUsageEntry: Codable {
         case billingMetric = "billing_metric"
         case billingDisplayName = "billing_display_name"
         case billingGroup = "billing_group"
+        case apiZone = "api_zone"
+        case serviceTier = "service_tier"
         case valuePaid = "value_paid"
     }
 }
@@ -85,6 +89,8 @@ struct MistralPrice: Codable {
     let eventType: String?
     let billingMetric: String?
     let billingGroup: String?
+    let apiZone: String?
+    let serviceTier: String?
     let price: String?
 
     enum CodingKeys: String, CodingKey {
@@ -92,6 +98,8 @@ struct MistralPrice: Codable {
         case eventType = "event_type"
         case billingMetric = "billing_metric"
         case billingGroup = "billing_group"
+        case apiZone = "api_zone"
+        case serviceTier = "service_tier"
     }
 }
 

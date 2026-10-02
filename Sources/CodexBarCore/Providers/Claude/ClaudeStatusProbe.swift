@@ -81,7 +81,7 @@ public struct ClaudeStatusProbe: Sendable {
     public var claudeBinary: String = "claude"
     public var timeout: TimeInterval = 20.0
     public var keepCLISessionsAlive: Bool = false
-    public var environment: [String: String] = ProcessInfo.processInfo.environment
+    @ProcessEnvironment public var environment: [String: String] = ProcessInfo.processInfo.environment
     // Claude's interactive process binds account state at launch. Cross-refresh reuse is permitted only because the
     // session actor also requires the hashed config-root + active-account scope to match.
     static let accountScopedSessionReuseEnabled = true

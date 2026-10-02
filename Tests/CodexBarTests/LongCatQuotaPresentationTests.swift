@@ -10,13 +10,19 @@ struct LongCatQuotaPresentationTests {
     private static let now = Date(timeIntervalSince1970: 1_790_000_000)
 
     private func snapshot(hasExpiry: Bool) -> UsageSnapshot {
-        LongCatUsageSnapshot(
-            totalQuota: 1000,
-            usedQuota: 250,
-            fuelPackTotal: 500,
-            fuelPackRemaining: 200,
-            nearestFuelExpiry: hasExpiry ? Self.now.addingTimeInterval(7200) : nil,
-            updatedAt: Self.now).toUsageSnapshot()
+        UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: "250/1000"),
+            secondary: RateWindow(
+                usedPercent: 60,
+                windowMinutes: nil,
+                resetsAt: hasExpiry ? Self.now.addingTimeInterval(7200) : nil,
+                resetDescription: "Fuel pack: 200/500"),
+            updatedAt: Self.now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .longcat,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: nil))
     }
 
     private func model(_ snapshot: UsageSnapshot) throws -> UsageMenuCardView.Model {

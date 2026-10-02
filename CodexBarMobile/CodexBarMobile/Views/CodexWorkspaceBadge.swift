@@ -1,15 +1,14 @@
 import CodexBarSync
 import SwiftUI
 
-/// Codex workspace + weekly pace badge on the Codex detail page. Only
-/// rendered when `ProviderUsageSnapshot.codexWorkspace` is non-nil —
-/// today Mac doesn't yet populate this lane (see SyncCoordinator
-/// `mapCodexWorkspace` stub), so the view stays dormant. The hook is
-/// in place so once Mac lands the workspace/pace plumbing the badge
-/// lights up without an iOS rebuild.
+/// Codex workspace data stays verbatim; pace copy belongs to the iPhone locale.
 struct CodexWorkspaceBadge: View {
+    @Environment(\.locale) private var locale
+    @State private var showsPaceExplanation = false
+    var window: SyncRateWindow?
     let context: SyncCodexWorkspaceContext
     let tintColor: Color
+    var referenceDate: Date = .now
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -24,15 +23,26 @@ struct CodexWorkspaceBadge: View {
                     Spacer()
                 }
             }
-            if let label = context.weeklyPaceLabel, !label.isEmpty {
+            if let pace = CodexPacePresentation(
+                context: self.context, window: self.window, referenceDate: self.referenceDate)
+            {
                 HStack(spacing: 6) {
                     Image(systemName: self.paceIconName)
                         .font(.caption)
                         .foregroundStyle(self.paceColor)
-                    Text(label)
+                    Text(verbatim: pace.summary(locale: self.locale))
                         .font(.caption.bold())
                         .foregroundStyle(self.paceColor)
-                    Spacer()
+                        .accessibilityIdentifier("codex-pace-summary")
+                    Button {
+                        self.showsPaceExplanation = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .padding(8)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "About the weekly pace estimate"))
+                    .accessibilityIdentifier("codex-pace-info")
                 }
             }
         }
@@ -41,7 +51,16 @@ struct CodexWorkspaceBadge: View {
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.secondary.opacity(0.08)))
-        .accessibilityElement(children: .combine)
+        .alert(String(localized: "Weekly pace estimate"), isPresented: self.$showsPaceExplanation) {
+            Button(String(localized: "OK"), role: .cancel) {}
+        } message: {
+            Text(
+                String(
+                    // Keep the complete localization key available to string extraction.
+                    // swiftlint:disable:next line_length
+                    localized: "Points compare used quota with even use. Forecasts assume the latest Mac average rate continues. At least 1.5× means 50% faster use could still last until reset. This is an estimate, not a guarantee."))
+        }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("codex-workspace-badge")
     }
 

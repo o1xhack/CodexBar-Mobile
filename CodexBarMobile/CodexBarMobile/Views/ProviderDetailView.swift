@@ -84,8 +84,12 @@ struct ProviderDetailView: View {
 
     /// Multi-account init — preferred path from the post-merge,
     /// post-grouping Usage list.
-    init(group: ProviderAccountGroup, costReferenceDate: Date = Date(),
-         sourceSnapshots: [SyncedUsageSnapshot] = [], isDemoMode: Bool = false) {
+    init(
+        group: ProviderAccountGroup,
+        costReferenceDate: Date = Date(),
+        sourceSnapshots: [SyncedUsageSnapshot] = [],
+        isDemoMode: Bool = false)
+    {
         self.group = group
         self.sourceSnapshots = sourceSnapshots
         self.isDemoMode = isDemoMode
@@ -290,9 +294,22 @@ struct ProviderDetailView: View {
                 }
                 if self.provider.providerID == "codex",
                    let codexWorkspace = self.provider.codexWorkspace,
-                   (codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceLabel?.isEmpty == false)
+                   codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceDelta != nil
                 {
-                    CodexWorkspaceBadge(context: codexWorkspace, tintColor: self.providerColor)
+                    TimelineView(.periodic(from: .now, by: 60)) { clock in
+                        let referenceDate = self.isDemoMode ? self.costReferenceDate : clock.date
+                        let window = CodexPacePresentation.window(for: self.provider)
+                        if codexWorkspace.workspaceName?.isEmpty == false ||
+                            CodexPacePresentation(
+                                context: codexWorkspace, window: window, referenceDate: referenceDate) != nil
+                        {
+                            CodexWorkspaceBadge(
+                                window: window,
+                                context: codexWorkspace,
+                                tintColor: self.providerColor,
+                                referenceDate: referenceDate)
+                        }
+                    }
                 }
                 if self.provider.providerID == "codex",
                    let resetCredits = self.provider.codexResetCredits,
@@ -327,6 +344,13 @@ struct ProviderDetailView: View {
                         budget: budget,
                         providerID: self.provider.providerID,
                         tintColor: self.providerColor)
+                }
+
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    QuotaBurndownSection(
+                        provider: self.provider,
+                        tintColor: self.providerColor,
+                        referenceDate: self.isDemoMode ? self.costReferenceDate : context.date)
                 }
 
                 // Utilization history chart
@@ -396,7 +420,6 @@ struct ProviderDetailView: View {
     /// `MockProviderBanner` in spirit (so users hitting the detail page
     /// directly without seeing the global banner still understand) but
     /// scoped to this single provider.
-    @ViewBuilder
     private var mockBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "testtube.2")
@@ -405,7 +428,8 @@ struct ProviderDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This is mock data")
                     .font(.caption.bold())
-                Text("Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
+                Text(
+                    "Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -446,8 +470,7 @@ struct ProviderDetailView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
+                .fill(Color.secondary.opacity(0.08)))
     }
 
     // MARK: - Primary usage section
@@ -818,7 +841,7 @@ struct ProviderDetailView: View {
     }
 
     static func dailyAxisDayKeys(for daily: [SyncDailyPoint]) -> [String] {
-        Self.sortedDailyPoints(daily).enumerated().compactMap { index, point in
+        self.sortedDailyPoints(daily).enumerated().compactMap { index, point in
             index.isMultiple(of: 7) ? point.dayKey : nil
         }
     }
@@ -843,7 +866,7 @@ struct ProviderDetailView: View {
     }
 
     static func chartScrollInitialDayKey(daily: [SyncDailyPoint]) -> String {
-        let startIndex = max(0, daily.count - chartVisibleDays)
+        let startIndex = max(0, daily.count - self.chartVisibleDays)
         return daily[startIndex].dayKey
     }
 

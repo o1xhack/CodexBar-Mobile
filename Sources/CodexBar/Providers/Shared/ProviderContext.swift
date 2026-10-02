@@ -11,7 +11,7 @@ struct ProviderPresentationContext {
 struct ProviderAvailabilityContext {
     let provider: UsageProvider
     let settings: SettingsStore
-    let environment: [String: String]
+    @ProcessEnvironment private(set) var environment: [String: String]
 }
 
 struct ProviderSourceLabelContext {

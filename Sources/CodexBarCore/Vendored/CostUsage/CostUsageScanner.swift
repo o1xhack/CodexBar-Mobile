@@ -2104,13 +2104,7 @@ enum CostUsageScanner {
         }
 
         static func isInRange(dayKey: String, since: String, until: String) -> Bool {
-            if dayKey < since {
-                return false
-            }
-            if dayKey > until {
-                return false
-            }
-            return true
+            dayKey >= since && dayKey <= until
         }
     }
 
@@ -2289,23 +2283,18 @@ enum CostUsageScanner {
             ?? self.dayKeyFromParsedISO(timestamp, calendar: calendar)
     }
 
-    private static func codexPriorityTurnKeysChanged(
+    static func codexPriorityTurnKeysChanged(
         old: [String: String]?,
         new: [String: String],
         range: CostUsageDayRange) -> Bool
     {
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-            where old?[dayKey] != new[dayKey]
-        {
-            return true
+        Set((old ?? [:]).keys).union(new.keys).contains { dayKey in
+            CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
+                && old?[dayKey] != new[dayKey]
         }
-        return false
     }
 
-    private static func changedPriorityTurnIDs(
+    static func changedPriorityTurnIDs(
         old: [String: [String]]?,
         new: [String: [String]],
         oldKeys: [String: String]?,
@@ -2313,10 +2302,8 @@ enum CostUsageScanner {
         range: CostUsageDayRange) -> Set<String>
     {
         var out = Set<String>()
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
+        for dayKey in Set((old ?? [:]).keys).union(new.keys)
+            where CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
         {
             let oldIDs = Set(old?[dayKey] ?? [])
             let newIDs = Set(new[dayKey] ?? [])
@@ -2328,18 +2315,17 @@ enum CostUsageScanner {
         return out
     }
 
-    private static func mergePriorityTurnKeys(
-        existing: [String: String]?,
-        new: [String: String],
+    /// Priority metadata is sparse; enumerating empty calendar days makes All history unbounded work.
+    static func mergePriorityDayValues<Value>(
+        existing: [String: Value]?,
+        new: [String: Value],
         range: CostUsageDayRange,
         retainedSinceKey: String,
-        retainedUntilKey: String) -> [String: String]?
+        retainedUntilKey: String) -> [String: Value]?
     {
         var out = existing ?? [:]
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
+        for dayKey in Set(out.keys).union(new.keys)
+            where CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
         {
             out[dayKey] = new[dayKey]
         }
@@ -2380,27 +2366,6 @@ enum CostUsageScanner {
         }
         out.merge(new) { _, replacement in replacement }
         return out
-    }
-
-    private static func mergePriorityTurnIDsByDay(
-        existing: [String: [String]]?,
-        new: [String: [String]],
-        range: CostUsageDayRange,
-        retainedSinceKey: String,
-        retainedUntilKey: String) -> [String: [String]]?
-    {
-        var out = existing ?? [:]
-        for dayKey in self.dayKeys(
-            sinceKey: range.scanSinceKey,
-            untilKey: range.scanUntilKey,
-            calendar: range.calendar)
-        {
-            out[dayKey] = new[dayKey] ?? []
-        }
-        out = out.filter { key, _ in
-            CostUsageDayRange.isInRange(dayKey: key, since: retainedSinceKey, until: retainedUntilKey)
-        }
-        return out.isEmpty ? nil : out
     }
 
     private static func sha256Hex(_ data: Data) -> String {
@@ -2503,29 +2468,6 @@ enum CostUsageScanner {
     private static func localStartOfDay(_ dayKey: String, calendar: Calendar) -> Date? {
         let calendar = CostUsageDayRange.localGregorianCalendar(matching: calendar)
         return self.parseDayKey(dayKey, calendar: calendar).map { calendar.startOfDay(for: $0) }
-    }
-
-    private static func dayKeys(
-        sinceKey: String,
-        untilKey: String,
-        calendar: Calendar = .current) -> [String]
-    {
-        let calendar = CostUsageDayRange.localGregorianCalendar(matching: calendar)
-        guard let since = self.parseDayKey(sinceKey, calendar: calendar),
-              self.parseDayKey(untilKey, calendar: calendar) != nil
-        else { return sinceKey <= untilKey ? [sinceKey] : [] }
-
-        var out: [String] = []
-        var cursor = since
-        while CostUsageDayRange.dayKey(from: cursor, calendar: calendar) <= untilKey {
-            out.append(CostUsageDayRange.dayKey(from: cursor, calendar: calendar))
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            if next <= cursor {
-                break
-            }
-            cursor = next
-        }
-        return out
     }
 
     private static func listCodexRecentlyModifiedFilesRecursive(root: URL, modifiedSince: Date) -> [URL] {
@@ -6361,13 +6303,13 @@ enum CostUsageScanner {
                     retainedUntilKey: retainedUntilKey)
             }
             if plan.hasPriorityMetadata {
-                cache.codexPriorityTurnKeys = Self.mergePriorityTurnKeys(
+                cache.codexPriorityTurnKeys = Self.mergePriorityDayValues(
                     existing: shouldRetainWiderWindow ? cache.codexPriorityTurnKeys : nil,
                     new: plan.priorityTurnKeys,
                     range: range,
                     retainedSinceKey: retainedSinceKey,
                     retainedUntilKey: retainedUntilKey)
-                cache.codexPriorityTurnIDsByDay = Self.mergePriorityTurnIDsByDay(
+                cache.codexPriorityTurnIDsByDay = Self.mergePriorityDayValues(
                     existing: shouldRetainWiderWindow ? cache.codexPriorityTurnIDsByDay : nil,
                     new: plan.priorityTurnIDsByDay,
                     range: range,

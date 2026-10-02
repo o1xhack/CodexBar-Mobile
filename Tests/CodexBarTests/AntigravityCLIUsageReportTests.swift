@@ -189,6 +189,7 @@ extension AntigravityCLIHTTPSFetchStrategyTests {
         let fixture = try Self.printExecutable("""
         [ "$*" = '-p /usage --output-format json --print-timeout 90s' ] || exit 9
         [ "$PWD" != "$HOME" ] || exit 10
+        [ -n "$CODEXBAR_PROBE_OWNER" ] || exit 12
         [ -z "${ANTIGRAVITY_OAUTH_CREDENTIALS_JSON+x}" ] || exit 11
         /bin/cat <<'REPORT'
         \(report)

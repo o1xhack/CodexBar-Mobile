@@ -4,6 +4,16 @@ import Testing
 @testable import CodexBarCore
 
 struct BrowserCookieImportSupportTests {
+    @Test
+    func `empty session iterators let the plugin classify missing credentials`() throws {
+        let sessions: [String] = try BrowserCookieImportSupport.collectSessions(
+            from: [.chrome],
+            missingError: nil,
+            logger: { _ in },
+            load: { _ in [] })
+        #expect(sessions.isEmpty)
+    }
+
     @Test(arguments: [
         UsageProvider.copilot,
         .grok,

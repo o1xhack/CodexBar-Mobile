@@ -53,7 +53,7 @@
       hostOptions.bodyJSON = JSON.stringify(opts.body);
       if (hostOptions.bodyJSON === undefined) throw new TypeError("postJSON body is not JSON-serializable");
     }
-    for (const key of ["headers", "timeoutSeconds", "retryPolicy", "openRouterManagementAuth"]) {
+    for (const key of ["headers", "timeoutSeconds", "retryPolicy", "openRouterManagementAuth", "cookieSession"]) {
       if (opts[key] !== undefined) hostOptions[key] = opts[key];
     }
     return hostOptions;
@@ -126,6 +126,9 @@
   ctx.browser = Object.freeze({
     availability(domain) {
       return host.cookieAvailability(String(domain));
+    },
+    acceptCookie(domain, session) {
+      host.acceptCookie(String(domain), String(session.id));
     },
     rejectCookie(domain, session) {
       host.rejectCookie(String(domain), session === undefined ? "" : String(session.id));

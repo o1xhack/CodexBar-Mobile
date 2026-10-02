@@ -47,7 +47,7 @@ struct CostHistoryChartMenuView: View {
         }
     }
 
-    private struct DetailRow: Identifiable {
+    struct DetailRow: Identifiable {
         let id: String
         let title: String
         let subtitle: String?
@@ -779,7 +779,7 @@ struct CostHistoryChartMenuView: View {
                     bucketTimeZoneIdentifier: bucketTimeZoneIdentifier) != nil
             }
         }
-        let breakdowns = visibleEntries.compactMap(\.modelBreakdowns)
+        let breakdowns = visibleEntries.map(self.displayBreakdownItems)
         let maxRows = breakdowns.map(\.count).max() ?? 0
         let hasModeDetails = breakdowns.joined().contains(where: self.hasModeSubtitle)
         return DetailLayout(
@@ -1031,23 +1031,31 @@ struct CostHistoryChartMenuView: View {
         if parts.isEmpty { parts.append("—") }
         let primary = "\(dayLabel): \(parts.joined(separator: " · "))"
             + UsageFormatter.incompleteUsageSuffix(point.incompleteRequestCount)
-        return DetailContent(primary: primary, rows: self.breakdownRows(key: key, model: model))
+        return DetailContent(
+            primary: primary, rows: self.breakdownRows(entry: model.entriesByDateKey[key], barColor: model.barColor))
     }
 
-    private func breakdownRows(key: String, model: Model) -> [DetailRow] {
-        guard let entry = model.entriesByDateKey[key] else { return [] }
-        guard let breakdown = entry.modelBreakdowns, !breakdown.isEmpty else { return [] }
-
-        return Self.orderedBreakdownItems(breakdown)
+    func breakdownRows(entry: DailyEntry?, barColor: Color) -> [DetailRow] {
+        guard let entry else { return [] }
+        return Self.displayBreakdownItems(entry)
             .enumerated()
             .map { index, item in
                 DetailRow(
                     id: "\(item.modelName)-\(index)",
                     title: UsageFormatter.modelDisplayName(item.modelName),
-                    subtitle: self.modelBreakdownTotalSubtitle(item),
+                    subtitle: entry.modelBreakdowns?.isEmpty == false ? self.modelBreakdownTotalSubtitle(item) : nil,
                     modeSubtitle: self.modelBreakdownModeSubtitle(item),
-                    accentColor: model.barColor.opacity(Self.breakdownAccentOpacity(for: index)))
+                    accentColor: barColor.opacity(Self.breakdownAccentOpacity(for: index)))
             }
+    }
+
+    private static func displayBreakdownItems(_ entry: DailyEntry) -> [CostUsageDailyReport.ModelBreakdown] {
+        if let breakdown = entry.modelBreakdowns, !breakdown.isEmpty { return self.orderedBreakdownItems(breakdown) }
+        // Names are display-only; the source has not supplied per-model token or cost totals.
+        let names = Set((entry.modelsUsed ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+        return names.filter { !$0.isEmpty }.sorted().map {
+            CostUsageDailyReport.ModelBreakdown(modelName: $0, costUSD: nil, totalTokens: nil)
+        }
     }
 
     static func orderedBreakdownItems(
@@ -1093,23 +1101,16 @@ struct CostHistoryChartMenuView: View {
     }
 
     private func modelBreakdownModeSubtitle(_ item: CostUsageDailyReport.ModelBreakdown) -> String? {
-        var parts: [String] = []
-        if let standardCost = item.standardCostUSD {
-            var standardPart = "\(L("Std")) \(self.costString(standardCost))"
-            if let standardTokens = item.standardTokens {
-                standardPart += " · \(UsageFormatter.tokenCountString(standardTokens))"
+        let parts = [
+            (L("Std"), item.standardCostUSD, item.standardTokens),
+            (L("Fast"), item.priorityCostUSD, item.priorityTokens),
+        ].compactMap { label, cost, tokens in
+            cost.map { value in
+                "\(label) \(self.costString(value))"
+                    + (tokens.map { " · \(UsageFormatter.tokenCountString($0))" } ?? "")
             }
-            parts.append(standardPart)
         }
-        if let priorityCost = item.priorityCostUSD {
-            var priorityPart = "\(L("Fast")) \(self.costString(priorityCost))"
-            if let priorityTokens = item.priorityTokens {
-                priorityPart += " · \(UsageFormatter.tokenCountString(priorityTokens))"
-            }
-            parts.append(priorityPart)
-        }
-        guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: " / ")
+        return parts.isEmpty ? nil : parts.joined(separator: " / ")
     }
 
     private func costString(_ value: Double) -> String {
@@ -1200,6 +1201,17 @@ extension CostHistoryChartMenuView {
         let priorityCostBitPattern: UInt64?
         let standardTokens: Int?
         let priorityTokens: Int?
+
+        init(_ item: CostUsageDailyReport.ModelBreakdown) {
+            self.modelName = item.modelName
+            self.costBitPattern = item.costUSD.map(\.bitPattern)
+            self.totalTokens = item.totalTokens
+            self.incompleteRequestCount = item.incompleteRequestCount
+            self.standardCostBitPattern = item.standardCostUSD.map(\.bitPattern)
+            self.priorityCostBitPattern = item.priorityCostUSD.map(\.bitPattern)
+            self.standardTokens = item.standardCostUSD == nil ? nil : item.standardTokens
+            self.priorityTokens = item.priorityCostUSD == nil ? nil : item.priorityTokens
+        }
     }
 
     struct VisibleProjectFingerprint: Equatable {
@@ -1288,17 +1300,7 @@ extension CostHistoryChartMenuView {
                     outputTokens: session.outputTokens,
                     totalTokens: session.totalTokens,
                     costBitPattern: session.costUSD.map(\.bitPattern),
-                    models: session.modelBreakdowns.map { item in
-                        VisibleModelBreakdownFingerprint(
-                            modelName: item.modelName,
-                            costBitPattern: item.costUSD.map(\.bitPattern),
-                            totalTokens: item.totalTokens,
-                            incompleteRequestCount: item.incompleteRequestCount,
-                            standardCostBitPattern: item.standardCostUSD.map(\.bitPattern),
-                            priorityCostBitPattern: item.priorityCostUSD.map(\.bitPattern),
-                            standardTokens: item.standardCostUSD == nil ? nil : item.standardTokens,
-                            priorityTokens: item.priorityCostUSD == nil ? nil : item.priorityTokens)
-                    })
+                    models: session.modelBreakdowns.map(VisibleModelBreakdownFingerprint.init))
             })
     }
 
@@ -1308,17 +1310,7 @@ extension CostHistoryChartMenuView {
             totalTokens: entry.totalTokens,
             requestCount: entry.requestCount,
             costBitPattern: entry.costUSD.map(\.bitPattern),
-            modelBreakdowns: self.orderedBreakdownItems(entry.modelBreakdowns ?? []).map { item in
-                VisibleModelBreakdownFingerprint(
-                    modelName: item.modelName,
-                    costBitPattern: item.costUSD.map(\.bitPattern),
-                    totalTokens: item.totalTokens,
-                    incompleteRequestCount: item.incompleteRequestCount,
-                    standardCostBitPattern: item.standardCostUSD.map(\.bitPattern),
-                    priorityCostBitPattern: item.priorityCostUSD.map(\.bitPattern),
-                    standardTokens: item.standardCostUSD == nil ? nil : item.standardTokens,
-                    priorityTokens: item.priorityCostUSD == nil ? nil : item.priorityTokens)
-            })
+            modelBreakdowns: self.displayBreakdownItems(entry).map(VisibleModelBreakdownFingerprint.init))
     }
 
     static func _defaultSelectedDateKeyForTesting(provider: UsageProvider, daily: [DailyEntry]) -> String? {

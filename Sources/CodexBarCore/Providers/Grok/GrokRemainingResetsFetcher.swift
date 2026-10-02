@@ -365,151 +365,43 @@ enum GrokRemainingResetsFetcher {
     }
 
     private static func parseMessage(_ data: Data, now: Date) -> ParsedMessage? {
-        let bytes = [UInt8](data)
+        guard let fields = GrokProtobufField.fields(in: Array(data)) else { return nil }
         var tokens: [GrokRemainingReset] = []
         var containsTokenRecord = false
-        var index = 0
-        while index < bytes.count {
-            guard let key = Self.readVarint(bytes, index: &index), key != 0 else { return nil }
-            let fieldNumber = key >> 3
-            let wireType = key & 0x07
-            switch wireType {
-            case 0:
-                guard Self.readVarint(bytes, index: &index) != nil else { return nil }
-            case 1:
-                guard index + 8 <= bytes.count else { return nil }
-                index += 8
-            case 2:
-                guard let length = Self.readVarint(bytes, index: &index),
-                      length <= UInt64(bytes.count - index)
-                else {
-                    return nil
-                }
-                let start = index
-                let end = index + Int(length)
-                if fieldNumber == 10 {
-                    containsTokenRecord = true
-                    guard let parsed = Self.parseToken(Data(bytes[start..<end]), now: now) else {
-                        return nil
-                    }
-                    if let token = parsed.token {
-                        tokens.append(token)
-                    }
-                }
-                index = end
-            case 5:
-                guard index + 4 <= bytes.count else { return nil }
-                index += 4
-            default:
-                return nil
-            }
+        for field in fields where field.number == 10 {
+            guard let message = field.message else { continue }
+            containsTokenRecord = true
+            guard let parsed = Self.parseToken(Data(message), now: now) else { return nil }
+            if let token = parsed.token { tokens.append(token) }
         }
         return ParsedMessage(tokens: tokens, containsTokenRecord: containsTokenRecord)
     }
 
     private static func parseToken(_ data: Data, now: Date) -> ParsedToken? {
-        let bytes = [UInt8](data)
+        guard let fields = GrokProtobufField.fields(in: Array(data)) else { return nil }
         var tokenID = ""
         var grantedAt: Date?
         var expiresAt: Date?
-        var index = 0
-        while index < bytes.count {
-            guard let key = Self.readVarint(bytes, index: &index), key != 0 else { return nil }
-            let fieldNumber = key >> 3
-            let wireType = key & 0x07
-            switch wireType {
-            case 0:
-                guard Self.readVarint(bytes, index: &index) != nil else { return nil }
-            case 1:
-                guard index + 8 <= bytes.count else { return nil }
-                index += 8
-            case 2:
-                guard let length = Self.readVarint(bytes, index: &index),
-                      length <= UInt64(bytes.count - index)
-                else {
-                    return nil
-                }
-                let start = index
-                let end = index + Int(length)
-                let payload = Data(bytes[start..<end])
-                if fieldNumber == 10 {
-                    tokenID = String(data: payload, encoding: .utf8) ?? ""
-                } else if fieldNumber == 20 {
-                    grantedAt = Self.timestamp(from: payload)
-                } else if fieldNumber == 30 {
-                    expiresAt = Self.timestamp(from: payload)
-                }
-                index = end
-            case 5:
-                guard index + 4 <= bytes.count else { return nil }
-                index += 4
-            default:
-                return nil
+        for field in fields {
+            guard let message = field.message else { continue }
+            let payload = Data(message)
+            switch field.number {
+            case 10: tokenID = String(data: payload, encoding: .utf8) ?? ""
+            case 20: grantedAt = Self.timestamp(from: payload)
+            case 30: expiresAt = Self.timestamp(from: payload)
+            default: break
             }
         }
         guard !tokenID.isEmpty, let expiresAt else { return nil }
         guard expiresAt > now else { return ParsedToken(token: nil) }
-        return ParsedToken(token: GrokRemainingReset(
-            tokenID: tokenID,
-            grantedAt: grantedAt,
-            expiresAt: expiresAt))
+        return ParsedToken(token: GrokRemainingReset(tokenID: tokenID, grantedAt: grantedAt, expiresAt: expiresAt))
     }
 
     private static func timestamp(from data: Data) -> Date? {
-        let bytes = [UInt8](data)
-        var index = 0
-        while index < bytes.count {
-            let fieldStart = index
-            guard let key = Self.readVarint(bytes, index: &index), key != 0 else {
-                index = fieldStart + 1
-                continue
-            }
-            let fieldNumber = key >> 3
-            let wireType = key & 0x07
-            switch wireType {
-            case 0:
-                if let value = Self.readVarint(bytes, index: &index),
-                   fieldNumber == 1,
-                   value >= 1_700_000_000,
-                   value <= 2_100_000_000
-                {
-                    return Date(timeIntervalSince1970: TimeInterval(value))
-                }
-            case 1:
-                guard index + 8 <= bytes.count else { return nil }
-                index += 8
-            case 2:
-                guard let length = Self.readVarint(bytes, index: &index),
-                      length <= UInt64(bytes.count - index)
-                else {
-                    return nil
-                }
-                index += Int(length)
-            case 5:
-                guard index + 4 <= bytes.count else { return nil }
-                index += 4
-            default:
-                return nil
-            }
-        }
-        return nil
-    }
-
-    private static func readVarint(_ bytes: [UInt8], index: inout Int) -> UInt64? {
-        var value: UInt64 = 0
-        var shift: UInt64 = 0
-        while index < bytes.count {
-            let byte = bytes[index]
-            index += 1
-            value |= UInt64(byte & 0x7F) << shift
-            if byte & 0x80 == 0 {
-                return value
-            }
-            shift += 7
-            if shift > 63 {
-                return nil
-            }
-        }
-        return nil
+        guard let fields = GrokProtobufField.fields(in: Array(data)),
+              let seconds = fields.first(where: {
+                  $0.number == 1 && $0.varint.map { (1_700_000_000...2_100_000_000).contains($0) } == true
+              })?.varint else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(seconds))
     }
 }

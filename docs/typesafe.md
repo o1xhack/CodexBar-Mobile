@@ -27,8 +27,10 @@ stale action ID. The read-only action sends `Origin`, `Next-Action`, `Cookie`, a
 `text/x-component` result.
 Discovery stops at the first matching chunk and preserves transient request errors when no action is found. Large credit lists show a bounded set of rows plus an additional-credit count; the reported balance and spending totals stay unchanged.
 
-Like other balance-only providers, the header shows `Balance $x`; the Billing rows show cycle spend, the plan label,
-and non-zero credits with their expiration month/day. With the inline cost summary enabled, spend and balance move into
+Like other balance-only providers, the header and menu bar show the balance (`Balance $x` and `$x`). The menu bar's
+automatic percentage and explicit Balance tokens use the same balance, including in the layout preview.
+The Billing rows show cycle spend, the plan label, and non-zero credits with their expiration month/day.
+With the inline cost summary enabled, spend and balance move into
 the pay-as-you-go card. Credit expiration and the API's `resetsInDays` are not quota resets. Malformed required billing
 numbers are parsing failures, while 401/403, redirects/login landings, rate limits, and transient server errors keep
 their distinct authentication or availability classifications.

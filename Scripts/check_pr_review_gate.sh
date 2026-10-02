@@ -10,7 +10,7 @@ Usage:
   Scripts/check_pr_review_gate.sh --fixture <pull-request.json>
 
 The gate passes only when Codex has reported a clean review for the current PR
-head, every review thread is explicitly resolved, and review rounds above five
+head (connector or explicitly authorized independent subthread), every review thread is explicitly resolved, and review rounds above five
 have a pre-sixth architecture-audit comment tied to the then-current reviewed head.
 EOF
 }
@@ -88,6 +88,28 @@ fi
 summary=$(jq -c '
   def is_codex:
     ((.author.login // "") | test("^chatgpt-codex-connector(\\[bot\\])?$"));
+  def is_independent_review:
+    ((.author.login // "") == "o1xhack")
+      and ((.body // "") | test("(?m)^Codex independent subthread review[ \\t]*$"));
+  def independent_review_oid:
+    (.body // ""
+      | try capture("(?m)^Reviewed commit: `(?<oid>[0-9a-f]{40})`[ \\t]*$").oid catch null);
+  def has_single_independent_field($name):
+    ([((.body // "") | match("(?m)^" + $name + ":.*$"; "g"))] | length) == 1;
+  def is_independent_clean:
+    (.body // "") as $body
+    | ((.state == "COMMENTED") or (.state == "APPROVED"))
+      and (independent_review_oid == .commit.oid)
+      and ($body | test("(?m)^Reviewer: /root/[a-z0-9_]+(/[a-z0-9_]+)*[ \\t]*$"))
+      and ($body | test("(?m)^Result: clean[ \\t]*$"))
+      and ($body | test("(?m)^Report: [^ \\t\\r\\n][^\\r\\n]*$"))
+      and ($body | test("(?m)^Report SHA256: [0-9a-f]{64}[ \\t]*$"))
+      and has_single_independent_field("Reviewed commit")
+      and has_single_independent_field("Reviewer")
+      and has_single_independent_field("Result")
+      and has_single_independent_field("Report")
+      and has_single_independent_field("Report SHA256")
+      and (((.comments.nodes // []) | length) == 0);
   def reviewed_oid:
     (.body // ""
       | (try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null) // null);
@@ -131,7 +153,11 @@ summary=$(jq -c '
       | reviewed_oid as $rawOid
       | {oid: normalize_oid($rawOid; $fullOids), at: .createdAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $commentEvents
-  | ($reviewEvents + $commentEvents) as $allReviewEvents
+  | [(.reviews.nodes // [])[]
+      | select(is_independent_review)
+      | {oid: .commit.oid, at: .submittedAt, clean: is_independent_clean}
+      | select(.oid != null and .at != null)] as $independentReviewEvents
+  | ($reviewEvents + $commentEvents + $independentReviewEvents) as $allReviewEvents
   | ($allReviewEvents
       | group_by(.oid)
       | map(min_by(.at))

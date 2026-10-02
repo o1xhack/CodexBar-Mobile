@@ -58,8 +58,8 @@ struct DirectoryMetadataScanBudgetTests {
         #expect(results == ["first.jsonl", "last.jsonl"])
     }
 
-    @Test
-    func `entry fetched after the deadline is not retained`() throws {
+    @Test(arguments: [0.149, 0.15, 0.151])
+    func `adaptive entry retention honors the injected deadline`(elapsed: TimeInterval) throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("DirectoryMetadataScanBudgetTests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -69,17 +69,17 @@ struct DirectoryMetadataScanBudgetTests {
         var budget = DirectoryMetadataScanBudget(
             maxEntryCount: 1,
             maxDepth: 1,
-            timeLimit: 1,
+            timeLimit: SessionScanConfig().adaptiveDirectoryScanBudget,
             startedAt: startedAt)
         var clockReads = 0
 
         let files = budget.files(in: root, clock: {
             clockReads += 1
-            return startedAt.addingTimeInterval(clockReads < 3 ? 0 : 2)
+            return startedAt.addingTimeInterval(clockReads < 3 ? 0 : elapsed)
         })
 
         #expect(clockReads == 3)
-        #expect(files.isEmpty)
+        #expect(files.count == (elapsed < 0.15 ? 1 : 0))
     }
 
     @Test(arguments: [false, true])

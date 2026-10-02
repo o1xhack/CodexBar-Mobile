@@ -147,7 +147,8 @@ enum TokenActivity {
                 costUSD: 0,
                 totalTokens: point.totalTokens,
                 costIsKnown: false,
-                tokenCountIsKnown: point.tokenCountIsKnown)
+                tokenCountIsKnown: point.tokenCountIsKnown,
+                modelsUsed: point.modelsUsed)
         }
     }
 
@@ -160,8 +161,14 @@ enum TokenActivity {
                     alreadyAggregated ? max(0, $0.totalTokens) : self.knownTokens($0) ?? 0
                 }),
                 costIsKnown: false,
-                tokenCountIsKnown: values.allSatisfy { self.knownTokens($0) != nil })
+                tokenCountIsKnown: values.allSatisfy { self.knownTokens($0) != nil },
+                modelsUsed: Self.observedModels(values))
         }.sorted { $0.dayKey < $1.dayKey }
+    }
+
+    private static func observedModels(_ days: [SyncDailyPoint]) -> [String]? {
+        let names = Set(days.flatMap { $0.modelsUsed ?? [] }).sorted()
+        return names.isEmpty ? nil : names
     }
 
     static func recordedTokens(_ day: SyncDailyPoint?, series: TokenActivitySeries) -> Int? {

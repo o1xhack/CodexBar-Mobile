@@ -46,16 +46,61 @@ struct AbacusPluginTests {
         #expect(usage.identity?.loginMethod == (failure == "date" ? "Pro" : nil))
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
-    func `billing timeout is bounded to five seconds on both engines`(engine: ProviderPluginEngineKind) async throws {
-        let runtime = try Self.runtime(engine, billingFailure: "slow")
-        let start = ContinuousClock.now
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
+    func `five second billing deadline cancels pending billing and retains credits`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let (starts, started) = AsyncStream<Void>.makeStream()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+        let (budgets, budgetObserved) = AsyncStream<Duration>.makeStream()
+        defer {
+            started.finish()
+            release.finish()
+            cancelled.finish()
+            budgetObserved.finish()
+        }
+        let runtime = try BundledPluginTestSupport.runtime(
+            "abacus",
+            engine: engine,
+            transport: ProviderHTTPTransportHandler { request in
+                #expect(request.httpMethod == "GET")
+                #expect(request.timeoutInterval == 15)
+                return Self.response(request, body: Self.points)
+            },
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                waitForOptionalDeadline: { _, budget in
+                    #expect(budget == .seconds(5))
+                    // Expire collection only after billing is waiting before its independent request timer.
+                    var iterator = starts.makeAsyncIterator()
+                    #expect(await iterator.next() != nil)
+                    budgetObserved.yield(budget)
+                },
+                beforeHTTPAttempt: { request in
+                    guard request.httpMethod == "POST" else { return }
+                    #expect(request.url?.path == "/api/_getBillingInfo")
+                    #expect(request.timeoutInterval == 5)
+                    started.yield()
+                    for await _ in pending {}
+                    cancelled.yield(Task.isCancelled)
+                    cancelled.finish()
+                    throw CancellationError()
+                }))
         let usage = try await runtime.fetchUsage(cookieResolver: Self.cookie)
-        let elapsed = start.duration(to: .now)
+        budgetObserved.finish()
+        var observedBudgets: [Duration] = []
+        for await budget in budgets {
+            observedBudgets.append(budget)
+        }
+        #expect(observedBudgets == [.seconds(5)])
         #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.resetDescription == "250 / 1,000 credits")
         #expect(usage.primary?.resetsAt == nil)
-        #expect(elapsed >= .seconds(4))
-        #expect(elapsed < .seconds(9))
+        #expect(usage.primary?.windowMinutes == 43200)
+        #expect(usage.identity?.loginMethod == nil)
+        var iterator = cancellations.makeAsyncIterator()
+        #expect(await iterator.next() == true)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -122,11 +167,13 @@ struct AbacusPluginTests {
         #expect(try await strategy.fetch(context).usage.primary?.usedPercent == 25)
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
     func `slow first candidate leaves time for a successful second candidate`(
         engine: ProviderPluginEngineKind) async throws
     {
         let sessions = Sessions()
+        let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+        defer { cancelled.finish() }
         let requestTimeout = 2.0
         let bundle = try #require(CodexBarCoreResources.bundle)
         let url = try #require(bundle.url(forResource: "abacus", withExtension: "js"))
@@ -137,7 +184,12 @@ struct AbacusPluginTests {
                 #expect(request.timeoutInterval == requestTimeout)
                 if request.httpMethod == "POST" { return Self.response(request, body: Self.billing) }
                 if request.value(forHTTPHeaderField: "Cookie") == "session=stale" {
-                    try await Task.sleep(for: .seconds(30))
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                    } catch {
+                        cancelled.yield(Task.isCancelled)
+                        throw error
+                    }
                 } else {
                     try await Task.sleep(for: .seconds(1.5))
                 }
@@ -145,15 +197,14 @@ struct AbacusPluginTests {
             },
             timeout: AbacusProviderDescriptor.refreshTimeout(for: requestTimeout),
             engine: engine)
-        let start = ContinuousClock.now
         let usage = try await runtime.fetchUsage(
             settings: ["REQUEST_TIMEOUT": String(requestTimeout)],
             cookieSessionResolver: { _, _ in sessions.next() },
             cookieSessionInvalidator: { _, id in sessions.reject(id) })
         #expect(usage.primary?.usedPercent == 25)
         #expect(sessions.rejected.isEmpty)
-        #expect(start.duration(to: .now) >= .seconds(3))
-        #expect(start.duration(to: .now) < .seconds(12))
+        var iterator = cancellations.makeAsyncIterator()
+        #expect(await iterator.next() == true)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -208,7 +259,6 @@ struct AbacusPluginTests {
                     case "auth": return Self.response(request, body: #"{"success":false,"error":"session expired"}"#)
                     case "json": return Self.response(request, body: "<html>error</html>")
                     case "timeout": throw URLError(.timedOut)
-                    case "slow": try await Task.sleep(for: .seconds(30))
                     default: break
                     }
                     let date = billingFailure == "date" ? "not-a-date" : reset

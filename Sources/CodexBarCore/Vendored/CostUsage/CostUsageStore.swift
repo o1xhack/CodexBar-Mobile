@@ -83,6 +83,8 @@ actor CostUsageStore {
         "1bd2d8ec2fd2dcf2", // Pre-marker v0.52 candidate; only provider-design comments changed afterward.
         "834522608c1b0457", // Published 0.49.2.1 mobile producer; persisted rows remain compatible.
         "8b9bc662426a8aab", // Published 0.54.0.1 mobile producer; rows remain compatible.
+        "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
+        "98de5f52231e524e", // 0.68.0 rows and checkpoints survive sparse priority-day reconciliation.
         "9972dad7f7aeff21", // Direct-fork baseline corrections use bounded parser-revision migration.
         "4dd9e5769818370a", // Linux Priority trace support preserves native rows and checkpoints.
         "03e43d1217789d16", // Fork baseline corrections use bounded native parser-revision migration.

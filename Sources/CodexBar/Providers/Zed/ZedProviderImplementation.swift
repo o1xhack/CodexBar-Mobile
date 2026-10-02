@@ -27,12 +27,13 @@ struct ZedProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [ProviderSettingsFieldDescriptor(
-            id: "zed-cookie",
-            title: "Zed cookie",
-            subtitle: "Paste the Cookie request header from zed.dev.",
+        let field = ZedProviderDescriptor.spec.webSource!.field
+        return [ProviderSettingsFieldDescriptor(
+            id: field.id,
+            title: field.title,
+            subtitle: field.subtitle,
             kind: .secure,
-            placeholder: "Cookie: …",
+            placeholder: field.placeholder,
             binding: context.binding(\.zedCookieHeader),
             actions: [],
             isVisible: { context.settings.zedCookieSource == .manual })]

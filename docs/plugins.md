@@ -102,7 +102,7 @@ defineProvider({
 - `name`: trimmed display name, 1–80 UTF-8 bytes.
 - `icon` (optional): `{monogram, tint}`. `monogram` is 1–3 characters; `tint` is `#RRGGBB`. The fallback is the first
   letter of `name` with a neutral tint. File/SVG icons are not supported.
-- `topLevel` (optional): set to `true` to give an enabled plugin its own provider-switcher tab. The default is `false`.
+- `topLevel` (optional, default `true`): gives an enabled plugin its own provider-switcher tab when Merge Icons is on. Set to `false` to keep an appended card.
 - `endpoints`: 1–16 declared network origins. A fixed endpoint is a normalized HTTPS origin such as
   `https://api.example.com` (no path, query, fragment, or user info). A settings-derived endpoint is
   `{setting: "BASE_URL", policy: "https"}`, `{setting: "BASE_URL", policy: "https-or-loopback-http"}`, or
@@ -401,9 +401,10 @@ built-in provider.
 
 ## Provider switcher tabs
 
-Set `topLevel: true` in the manifest to give an enabled plugin its own tab when **Merge Icons** is enabled. The tab uses
-the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins using the original
-appended-card placement. With Merge Icons disabled, plugins retain appended-card placement.
+Enabled user plugins get their own tab by default when **Merge Icons** is enabled; the manifest can omit `topLevel`.
+The tab uses the manifest name and icon. Selecting it shows that plugin’s usage followed by any enabled plugins with
+explicit `topLevel: false`, which keeps the appended-card placement under provider tabs and Overview. With Merge Icons
+disabled, all plugins retain appended-card placement regardless of `topLevel`.
 
 A single plugin works without a redundant switcher, and multiple plugin tabs work even with no built-in providers
 enabled. Refresh and Cmd-R refresh the selected plugin; each card’s refresh button targets that card. Completed
@@ -411,10 +412,66 @@ refreshes update visible plugin cards, and repeated requests for the same plugin
 Overview continues to summarize built-in providers. This setting changes placement only: it grants no additional host
 capabilities and does not change network approval.
 
+## Over-quota snapshots
+
+`snapshotPolicy: {percent: "preserve-overage"}` explicitly preserves finite `usedPercent` values above 100 in all rate
+windows, including extra windows. Negative values still become zero, and nonfinite/non-numeric values are rejected.
+The default policy (`"clamp"`) remains 0–100. Notion opts in because its allowance endpoint reports meaningful overages;
+`ctx.pct` remains clamped, so a preserving plugin computes its own ratio.
+
 ## Browser session cache
 
+Bundled providers may declare `cookiePolicy: { selection: "request-url", cache: "nonpersistent" }` alongside
+`browser-cookies` and `cookieDomains`. This policy imports declared domains together as one candidate per browser
+profile. It never reads or writes the persistent cookie cache. The default `imports: "app-interactive"` requires a
+user-initiated app refresh. `imports: "access-gated"` delegates import admission to the existing browser access gate,
+including explicit CLI cookie refreshes and already-authorized, strictly no-UI background reads. Notion and ZoomMate
+declare this policy to preserve their native source behavior. The caller's interaction and explicit-retry scope follow
+the importer across engine callbacks; background calls do not gain interactive authorization. Manual headers remain
+usable in the CLI; Off disables both sources.
+
+With this policy, `ctx.browser.sessions(domain)` exposes only the candidate's `id`, source label, and origin.
+The header and cookie records remain in Swift, and `ctx.browser.cookieHeader` is denied. Pass the candidate ID as
+`cookieSession: session.id` in any GET or POST options. The host selects unexpired cookies for the request URL,
+honors host-only/domain scope, Secure, and encoded path boundaries, and retains duplicate names in longest-path-first
+order. Manual headers remain bound to their originating host. Unknown, rejected, or previous-fetch IDs fail closed;
+scripts cannot combine this option with a Cookie or Host override.
+
+The production transport uses an ephemeral session without ambient cookies, credentials, or response caching.
+Same-origin HTTPS redirects reselect cookies for each hop through that same matcher; cross-origin redirects are
+rejected. User-installed plugins cannot request these policies.
+
+`cache: "validated-single-entry"` opts into one host-owned cache row for the whole profile, including paired hosts.
+Imported candidates are not persisted until the script calls `ctx.browser.acceptCookie(domain, session)` at its
+validation boundary: ZoomMate does so after a successful bootstrap, Notion after a successful allowance response.
+The call cannot accept unknown, rejected, previous-fetch, or wrong-origin IDs. Cache writes and rejection compare
+against the observed entry, so late requests cannot overwrite or erase a replacement session. Interactive cookie
+refreshes stage the single replacement and commit it only when the refresh succeeds; failure leaves the old entry intact.
+Legacy plain headers and paired `headersByHost` entries are read by the host and upgraded on validation. No cookies
+are copied into plugin storage. Candidates expose an opaque `cacheKey`, derived from the canonical credential rather
+than the per-fetch ID. For this persistence policy, `ctx.cache` is process-memory-only JSON state shared across runtime
+instances within the provider namespace (128 entries, 128-byte keys, 16 KiB values, maximum 24-hour TTL). ZoomMate
+uses that key to reuse readable-expiry bearers until 60 seconds before expiry; bearer tokens are never persisted.
+
+`selection: "ranked-source-domains"` also requires an ordered `sourceDomains` list drawn from `cookieDomains`.
+The host selects each cookie name from the highest-ranked source within one profile, binds the result to the declared
+request host, and then uses the existing URL matcher. `requiredCookies` admits only candidates containing all listed
+names. Notion ranks `app.notion.com`, `www.notion.com`, `notion.com`, `www.notion.so`, and `notion.so`, requiring `token_v2`.
+Ranked source domains authorize that explicit legacy-to-current-host migration; scripts still receive no cookie values.
+
+An optional `sessionFile: {tokenField: "tokenV2", cookieName: "token_v2"}` declares migration of the provider's existing
+`<provider-id>-session.json` file. It cannot name an arbitrary path and requires ranked, single-origin, validated
+persistence. The host reads this candidate first in background contexts, writes the compatible file after validation,
+and conditionally clears the observed file when rejected. File write-back participates in interactive refresh commit
+and rollback and never runs after a failed cookie-cache commit. Files retain owner-only permissions.
+
+`missingCookies: "omit"` allows a declared HTTPS destination to receive a request with no matching cookie; the default
+is `"reject"`. ZoomMate needs omission for bearer-only manual captures and failover to a sibling host lacking a leaf
+cookie. This never forwards the first host's cookie to its sibling and never permits undeclared destinations.
+Qwen Cloud's cross-origin dashboard navigation remains outside this contract.
+
 Bundled plugins that declare multiple cookie domains use separate Keychain-backed cache scopes for each requested
-domain. Single-domain plugins retain their existing provider cache. Automatic imports query only the requested domain;
+domain under the default header policy. Single-domain plugins retain their existing provider cache. Automatic imports query only the requested domain;
 the default browser is Chrome, with existing provider browser-order overrides preserved. Manual headers bypass the
 cache and browser import, and Off fails before either is accessed.
 
@@ -443,3 +500,17 @@ Bundled scripts own requests, error classification, and snapshot mapping; Swift 
 | [Zed](zed.md) | Swift discovers editor settings and Keychain credentials. Opt-in browser billing uses only the declared `zed.dev` cookie session, never editor credentials. |
 | [Aixy](aixy.md) | TypeScript maps key-scoped usage and budgets; the host validates the configured gateway origin and supplies the API key. |
 | [Raycast](raycast.md) | `ctx.browser.sessions` retries candidates for declared `raycast.com` / `www.raycast.com` domains. The broker prefers exact-host cookies over same-name parent cookies and excludes sibling/lookalike hosts. |
+
+## Native adapters with declarative registration
+
+Hugging Face, Nous, Fireworks, xAI, Venice, and Zed also declare `PluginProviderSpec` values. Hugging Face keeps its
+serialized, retained script runtime and CLI-token reader. Nous keeps Hermes credential validation and diagnostics;
+Fireworks keeps account-slug projection and its typed result-persistence policy. xAI shares the API-key and workspace
+fields, with provider-owned team-ID validation. Venice and Zed share their cookie-field declarations while retaining
+native source selection and app settings, including Zed's default-Off browser policy.
+
+The spec accepts typed status-page, token-cost, settings-section, and plugin-result-policy options. These contracts are
+also needed by the remaining OpenAI API, OpenRouter, Moonshot, and z.ai descriptors; their distinct branding, config
+normalization, credit, and pacing contracts still require a separate migration. Native fetch-plan and credential
+adapters remain provider-owned, as with ClinePass. A metadata migration must not replace a retained runtime or broaden
+credential discovery merely to use the default script builder.

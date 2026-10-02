@@ -110,6 +110,71 @@ struct TokenPlanMonthlyWindowTests {
     }
 
     @Test(arguments: [false, true])
+    func `Qwen Individual monthly usage parses inside the DataV2 envelope`(wrapped: Bool) throws {
+        // Issue #3905's Individual-plan response wraps the usage object in
+        // data.DataV2.data as stringified JSON; the reported diagnostic keys
+        // (code, data, httpStatusCode, requestId, successResponse at the top
+        // and DataV2, api, errorCode, errorMsg, httpStatus, success inside
+        // data) are reproduced so this covers the real envelope, not a flat
+        // stand-in. The reporter omitted the inner nesting, so both the bare
+        // usage object and the documented .data.DataV2.data.data wrapper are
+        // exercised.
+        let usageJSON = #"{"per1MonthPercentage":8.690073333333334e-7,"per1MonthResetTime":1790611200000}"#
+        let innerJSON = wrapped ? #"{"success":true,"data":\#(usageJSON)}"# : usageJSON
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "code": 0,
+            "httpStatusCode": 200,
+            "requestId": "req-3905",
+            "successResponse": true,
+            "data": [
+                "DataV2": ["data": innerJSON],
+                "api": "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage",
+                "errorCode": NSNull(),
+                "errorMsg": NSNull(),
+                "httpStatus": 200,
+                "success": true,
+            ],
+        ])
+        let usage = try QwenCloudUsageParser.parseUsageSnapshot(
+            from: payload,
+            now: Self.now).toUsageSnapshot()
+        #expect(abs((usage.primary?.usedPercent ?? 0) - 8.690073333333334e-5) < 1e-10)
+        #expect(usage.primary?.windowMinutes == 43200)
+        #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_790_611_200))
+        #expect(usage.secondary == nil)
+        #expect(usage.tertiary == nil)
+        #expect(usage.extraRateWindows == nil)
+        #expect(usage.identity?.providerID == .qwencloud)
+    }
+
+    @Test
+    func `Qwen Individual envelope without usage keeps the reported diagnostic`() throws {
+        // Same #3905 envelope with no usage windows inside DataV2.data: the
+        // legacy fallback must keep producing the reported "Missing token plan
+        // data" diagnostic instead of a generic parse failure.
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "code": 0,
+            "httpStatusCode": 200,
+            "requestId": "req-3905",
+            "successResponse": true,
+            "data": [
+                "DataV2": ["data": #"{"success":true,"data":{}}"#],
+                "api": "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage",
+                "errorCode": NSNull(),
+                "errorMsg": NSNull(),
+                "httpStatus": 200,
+                "success": true,
+            ],
+        ])
+        let expectedError = QwenCloudUsageError.parseFailed(
+            "Missing token plan data (topKeys=code,data,httpStatusCode,requestId,successResponse"
+                + " dataKeys=DataV2,api,errorCode,errorMsg,httpStatus,success)")
+        #expect(throws: expectedError) {
+            try QwenCloudUsageParser.parseUsageSnapshot(from: payload, now: Self.now)
+        }
+    }
+
+    @Test(arguments: [false, true])
     @MainActor
     func `menu shows monthly labels and mixed windows`(mixed: Bool) throws {
         let payload = mixed

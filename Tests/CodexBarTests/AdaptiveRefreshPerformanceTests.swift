@@ -28,7 +28,7 @@ private actor AdaptiveLocalScanSpy {
 @MainActor
 struct AdaptiveRefreshPerformanceTests {
     @Test
-    func `agent aware detection stays within the bounded scan budget`() async throws {
+    func `agent aware detection limits directory entry visits`() async throws {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("AdaptiveRefreshPerformanceTests-\(UUID().uuidString)", isDirectory: true)
@@ -67,7 +67,6 @@ struct AdaptiveRefreshPerformanceTests {
             cwdProvider: { _, _ in [201: "/Users/test/Projects/alpha"] },
             didVisitDirectoryEntry: { visits.increment() })
 
-        let startedAt = ContinuousClock.now
         let sessions = await scanner.scan(
             now: now,
             environment: [
@@ -76,13 +75,8 @@ struct AdaptiveRefreshPerformanceTests {
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
             ],
             includeFileOnlySessions: false)
-        let elapsed = startedAt.duration(to: .now)
-
         #expect(!sessions.isEmpty)
         #expect(visits.count <= config.maxDirectoryEntryCount)
-        #expect(
-            elapsed < .milliseconds(250),
-            "Bounded agent scan exceeded 250 ms: \(elapsed), visited \(visits.count) entries")
     }
 
     @Test

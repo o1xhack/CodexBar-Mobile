@@ -246,6 +246,41 @@ jobs:
             printf '| Runs lint-macos | `%s` |\n' "$RUNS_LINT_MACOS"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  swift-build-macos-compatibility:
+    needs: changes
+    if: ${{ needs.changes.outputs.macos-tests == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+
+      - name: Select Xcode 26.3
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+          echo "DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer" >> "$GITHUB_ENV"
+          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.3* ]]
+          /usr/bin/xcodebuild -version
+
+      - name: Restore SwiftPM build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-macos15-xcode26.3-arm64-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            swiftpm-macos15-xcode26.3-arm64-
+
+      - name: Build app, CLI, and tests with Swift 6.2
+        run: |
+          set -euo pipefail
+          swift --version
+          swift build --build-tests
+
   lint-build-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -253,6 +288,7 @@ jobs:
       - changes
       - lint
       - swift-test-macos
+      - swift-build-macos-compatibility
       - build-linux-cli
       - build-linux-musl-cli
     if: ${{ always() && !cancelled() && needs.changes.result != 'skipped' }}
@@ -270,7 +306,8 @@ jobs:
             "${{ needs.swift-test-macos.result }}" \
             "${{ needs.changes.outputs.linux-tests }}" \
             "${{ needs.build-linux-cli.result }}" \
-            "${{ needs.build-linux-musl-cli.result }}"
+            "${{ needs.build-linux-musl-cli.result }}" \
+            "${{ needs.swift-build-macos-compatibility.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -570,7 +607,9 @@ jobs:
         run: swift build -c release --product CodexBarCLI --static-swift-stdlib
 
       - name: Swift Test (Linux only)
-        run: swift test --no-parallel
+        run: |
+          source Scripts/test_environment.sh
+          swift test --no-parallel
 
       - name: Smoke test CodexBarCLI
         shell: bash

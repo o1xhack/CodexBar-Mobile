@@ -1,0 +1,80 @@
+fcaffd75a docs: update appcast for 0.70.0
+001ed11d4 chore(release): prepare 0.70.0
+b2b4823b2 test(plugins): make optional POST cancellation checks deterministic (#4113)
+ed7e7c2da test(plugins): make optional request deadline checks deterministic (#4111)
+0291dcdc0 fix(ui): verify spend dashboard header layout
+2db68ee85 fix(process): keep ownership cleanup responsive under load (#4108)
+ee6a89d90 fix(security): redact remaining stored process environments (#4106)
+27d78fc88 Price aliased Antigravity and Codex models
+bd77ea6a7 chore: start 0.69.1 development
+48ded68da docs: update appcast for 0.69.0
+b43357549 chore(release): prepare 0.69.0
+14bdca166 feat(plugins): move Notion and ZoomMate to validated cookie sessions (#4098)
+c15a962be fix(security): redact fetcher environments and scrub test environments (#4097)
+b4885d028 docs(changelog): place burndown entry beside existing menu changes
+b73186a7f fix(history): share quota burndown labels and chart preparation
+21fd29877 test(pricing): isolate aliased model rate coverage
+9ee7a3514 test(pricing): distinguish historical and catalog Pi costs
+122051e01 fix(pricing): preserve Sol rates across the August cutoff
+d81f1878a fix(mistral): preserve explicit Monthly Plan picker choices
+7508e656c fix(mistral): verify billing price dimensions and share aggregation
+40ecce627 fix(app): retain task isolation during session teardown
+fdf411599 refactor(pi): share root canonicalization and verify root identity
+c33760ecc fix(widgets): retain eligible readings per provider (#4095)
+1060f3493 fix(refresh): detect the nested ChatGPT Codex app-server (#4090)
+9013fd81b fix(codex): reread fresh credentials and invalidate stale plan evidence (#4088)
+03f4b6888 fix(grok): publish local token history when billing is unavailable (#4093)
+e9b2823d6 fix(providers): clarify Kimi and z.ai quota availability (#4091)
+daffd77b3 fix(cost): compact and reuse Claude cache artifacts (#4092)
+6dcac3df4 fix(kimi): clarify stale CLI credential recovery (#4086)
+62acfd8ea fix(antigravity): group OAuth quotas and parse Starter weekly quotas (#4084)
+66004975a fix(keychain): bound validation stalls and recover Claude caches (#4089)
+2b455a5da fix(codex): refresh validated cost snapshots during catch-up (#4087)
+3dad9dabb fix(menu-bar): validate preserved status item positions (#4082)
+610c39123 fix(config): treat blank config files as absent (#4081)
+a5252e24c feat(plugins): host cookie jar and LongCat plugin cutover (#4059)
+fb7d4a914 Price aliased Antigravity, Codex models
+a3a6f4d1a ci: build tests with Xcode 26.3 and fix Swift 6.2 type-check timeouts (#4079)
+f6d5c96ef Keep upgraded Codex quota windows consistent across menu charts
+32119dae7 Keep recorded quota context clear without hiding usage history
+579f68406 refactor(plugins): declare six more plugin providers through specs (#4062)
+6ae8c7c11 Reap Antigravity leftovers only while the process identity still matches
+cda264c29 feat(plugins): give user plugins their own tab by default (#4074)
+190dbfcac Note the Antigravity reap fix in the changelog as #4077.
+231bbef9c Antigravity: reap MCP servers left behind by the usage probe
+7555d3994 Revert "fix(mistral): let layout editor percentages override a stored Monthly Plan"
+3d0979a17 fix(mistral): let layout editor percentages override a stored Monthly Plan
+6fd10ece5 docs(changelog): link Mistral pricing PR
+4b148e060 test: scope the icon-style picker rule to percentage choices
+38d47ef8c fix(mistral): price billing usage by event type, zone, and tier
+0a781410a fix(mistral): keep metric-only picker choices valid without a percentage
+d20aed7b4 Update Kimi accent color
+980324d7d fix(mistral): keep the shared picker footer
+fc7efc16c fix(mistral): show the metric picker in every menu bar style
+bb0ed315c Update provider branding color palettes
+96aff3865 docs(changelog): link Mistral Monthly Plan picker PR
+47c383fac fix(mistral): offer Monthly Plan in the menu bar metric picker
+ac80ba8f0 fix(app): drop isolated deinit from AgentSessionsStore
+1a765e078 fix(pi): preserve directory marker when canonicalizing missing roots
+c6779306a Improve spend dashboard header layout
+fb7547a4c test(cost): register 0.68.0 parser hash in predecessor set
+899f04617 test(cost): register 0.68.0 parser hash in predecessor set
+7a279fa06 Make active quota depletion visible in the menu bar
+046da1336 fix(cost): adopt 0.68.0 caches across sparse priority-day reconciliation
+a207418d4 test(cost): avoid UTC aliases in cache invalidation fixture
+1fc12cdf7 fix(cli): use hex spec colors for Xcode 26 release builds (#4058)
+9bcab5803 fix(claude): preserve Web usage when reset queries are rejected
+5493d54ad fix(history): share observed model name rows
+ca85f2d66 chore: start 0.68.1 development
+f07c91cd0 Remove refresh icon from persistent menu row
+5d85dff8b Show Grok model names in token history
+741f5cbe1 fix(cost): reuse unchanged Claude cache artifacts across scans
+aed4eec3b fix(cost): keep priced Claude spend when a Pi scan is incomplete
+646106a5a fix(typesafe): show the credit balance in the menu bar
+f423cde92 test(qwen): cover Individual monthly DataV2 envelope
+68916f986 Keep Claude Web usage when the reset opt-in is rejected
+8d76a4205 Show Claude limit resets from the Web source
+92a0d9668 chore: update CodexParserHash
+77f703fb6 fix(codex): clamp string generation in dayKeys to avoid infinite looping
+5aa521311 fix(codex): clamp all-history budgeted scans to first partition date
+d0a11a4aa feat(grok): decode the product breakdown on the grok.com billing path

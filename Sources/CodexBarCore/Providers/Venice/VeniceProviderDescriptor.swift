@@ -1,7 +1,9 @@
 import Foundation
 
 public enum VeniceProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    public static let descriptor = Self.spec.makeDescriptor(
+        credentials: Self.credentials,
+        fetchPlan: Self.fetchPlan())
     private static let credentials = ProviderCredentialAdapter.apiKey(
         environmentKey: VeniceSettingsReader.apiKeyEnvironmentKey,
         resolve: VeniceSettingsReader.apiKey,
@@ -18,55 +20,26 @@ public enum VeniceProviderDescriptor {
         // that would be mislabeled as that account.
         selectedAccountSourceModeResolver: { base, account, _ in account == nil ? base : .api })
 
-    static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
-            id: .venice,
+    public static let spec = PluginProviderSpec(
+        id: .venice,
+        displayName: "Venice",
+        sessionLabel: "Balance",
+        weeklyLabel: "Balance",
+        debugLogUnavailableMessage: "Venice debug log not yet implemented",
+        dashboardURL: "https://venice.ai/settings/api",
+        color: ProviderColor(hex: 0x3C8FDD),
+        confetti: [0x0E2942, 0xF7F5ED, 0x3C8FDD],
+        widgetColor: ProviderColor(hex: 0x3399FF),
+        noDataMessage: "Venice per-day cost history is not available via API.",
+        aliases: ["ven"],
+        webSource: .init(
             settingsSection: .init(VeniceProviderSettingsKey.self, cookieSettings: VeniceProviderSettings.self),
-            credentials: self.credentials,
-            metadata: ProviderMetadata(
-                id: .venice,
-                displayName: "Venice",
-                sessionLabel: "Balance",
-                weeklyLabel: "Balance",
-                opusLabel: nil,
-                supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show Venice usage",
-                cliName: "venice",
-                defaultEnabled: false,
-                widgetSelectable: false,
-                isPrimaryProvider: false,
-                usesAccountFallback: false,
-                debugLogUnavailableMessage: "Venice debug log not yet implemented",
-                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
-                    reason: "Preserve Chrome web sessions without unrelated Keychain prompts"),
-                dashboardURL: "https://venice.ai/settings/api",
-                statusPageURL: nil,
-                statusLinkURL: nil),
-            branding: ProviderBranding(
-                iconStyle: .init(provider: .venice),
-                iconResourceName: "ProviderIcon-venice",
-                color: ProviderColor(red: 0.2, green: 0.6, blue: 1.0),
-                confettiPalette: [
-                    ProviderColor(hex: 0x0E2942),
-                    ProviderColor(hex: 0xF7F5ED),
-                    ProviderColor(hex: 0x3C8FDD),
-                ]),
-            tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Venice per-day cost history is not available via API." }),
-            fetchPlan: self.fetchPlan(),
-            cli: ProviderCLIConfig(
-                name: "venice",
-                aliases: ["ven"],
-                versionDetector: nil,
-                // Automatic mode resolves through the API-key script without
-                // touching the browser, so Linux must not reject it just
-                // because an explicit web source exists. Explicit web stays
-                // unsupported off macOS via the strategy itself.
-                browserSupportExemption: { sourceMode, _, _ in sourceMode == .auto }))
-    }
+            browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
+                reason: "Preserve Chrome web sessions without unrelated Keychain prompts"),
+            mode: .sessionOrAPI,
+            // Auto uses the API key; only explicit web mode requires browser support.
+            browserSupportExemption: { sourceMode, _, _ in sourceMode == .auto },
+            field: .init(id: "venice-cookie", title: "", subtitle: "", placeholder: "Cookie: …")))
 
     private static func fetchPlan() -> ProviderFetchPlan {
         ProviderFetchPlan(

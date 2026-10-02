@@ -3,7 +3,7 @@ import Foundation
 extension AntigravityLocalReader {
     struct Context: Sendable {
         let home: URL
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
 
         init(environment: [String: String]) {
             self.environment = environment

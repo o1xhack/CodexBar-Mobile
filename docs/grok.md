@@ -158,7 +158,8 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      above. This keeps billing visible when
      `grok agent stdio` returns `Method not found`.
 5) **Local session signals** (informational fallback)
-   - Walks `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` files (last 30 days).
+   - Quota fetches scan `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` for the last 30 local calendar days,
+     including today. Files dated outside that window are excluded so daily buckets and aggregate totals agree.
    - Aggregates `totalTokensBeforeCompaction`, `contextTokensUsed`, `modelsUsed`,
      and the most recent session timestamp.
 
@@ -256,6 +257,25 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
     entry, or a non-array value, drops the whole breakdown. That way a partial
     list can't pass the sum check as if it were complete. It never changes the
     credit total or period. Reset-credit enrichment preserves the breakdown.
+  - The grok.com `GetGrokCreditsConfig` fallback carries the same shares as
+    repeated `[1, 7]` entries: `{1: product id, 2: float percent}`, where an
+    omitted percent means 0. Browser-cookie and bearer-gRPC answers therefore
+    show the breakdown too, for example when `grok login` has expired and
+    `~/.grok/auth.json` is gone.
+    - Only ids verified against live CLI-proxy samples are named: 2 = `GrokBuild`
+      and 4 = `GrokChat`.
+    - The shares are decoded only when the aggregate is `[1, 1]` and the response
+      is one complete raw message or a single complete, uncompressed data frame.
+      Duplicate config aggregates or repeated id/percentage fields drop the breakdown.
+    - The same all-or-nothing and add-up checks apply. An unnamed id with a
+      nonzero share, a malformed or duplicate entry, or a mismatched sum drops the
+      breakdown. An unnamed id with a zero share is skipped.
+    - Billing, product shares, and reset coupons share one wire reader. Varints
+      stop after ten bytes, reject overflow, and length-delimited reads cannot
+      exceed the enclosing message. Reserved or compressed gRPC frame flags are
+      rejected. Malformed data never qualifies for product shares or implicit zero.
+    - The menu rows and `codexbar usage --json` use the same `usage.details`
+      section; the breakdown adds no secondary quota window.
 - **Usage-limit reset coupons**:
   - From `GetRemainingResets`, not from `/v1/billing?format=credits`.
   - Shown as a `Limit Reset Credits` detail row (`1 available`, next expiry).
@@ -288,12 +308,24 @@ CodexBar aggregates these into a `GrokLocalSessionSummary` (session count, total
 tokens, last session time, primary model, per-day token buckets) and exposes it for
 diagnostics even when the RPC path is unavailable.
 
+The token-history chart lists the observed models for the selected day. These
+rows contain names only: local signals do not provide a per-model token or cost
+split, so the chart keeps the token total at the day level. The same fallback
+applies to other providers whose daily history contains names without a breakdown.
+
 Those local daily token buckets also feed the shared Usage & Spend catalog so an
 enabled Grok subscription is counted instead of omitted. SuperGrok/X Premium+
 credits remain a quota window on the usage bar; they are never converted into
 dollars. Local session scans run on the dedicated background usage-scan queue;
 menu cards and spend views reuse the already-published snapshot instead of
 walking the session directory whenever they render.
+
+Wider dashboard ranges retain the scan's actual coverage instead of marking all of its token history unknown.
+For example, a 30-day scan still contributes its tokens in a 60-day view; older days remain unscanned.
+
+If remote billing fails, readable local sessions still update Usage & Spend and shared cards, including when CodexBar
+retains an older quota snapshot. The quota keeps its original timestamp; refreshed local tokens do not imply a fresh
+quota response. Results from a refresh whose account or configuration changed are discarded.
 
 `costUsage` is live-only data and is intentionally omitted from `codexbar usage`
 JSON and persisted usage snapshots. Its absence in JSON does not establish that

@@ -157,7 +157,7 @@ struct PiFamilySessionScanner: Sendable {
     struct ScanInput: Sendable {
         let processes: [AgentProcessRecord]
         let cwdByPID: [Int32: String]
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
         let host: String
         let config: SessionScanConfig
@@ -270,7 +270,7 @@ struct PiFamilySessionScanner: Sendable {
                     cwd: processCWD)
                 for root in roots {
                     guard directoryBudget.hasTimeRemaining() else { break }
-                    let canonicalRoot = Self.canonicalURL(root.url)
+                    let canonicalRoot = OMPSessionRootResolver.canonicalURL(root.url)
                     let rootKey = "\(dialect.rawValue):\(root.layout):\(canonicalRoot.path)"
                     let rootRecords: [PiFamilySessionRecord]
                     if let cached = recordsByRoot[rootKey] {
@@ -292,10 +292,10 @@ struct PiFamilySessionScanner: Sendable {
                               !recordCWD.isEmpty,
                               Self.standardizedPath(recordCWD) == processStandardizedCWD
                         else { return false }
-                        return !usedRecordURLs.contains(Self.canonicalURL(candidate.url).path)
+                        return !usedRecordURLs.contains(OMPSessionRootResolver.canonicalURL(candidate.url).path)
                     }) {
                         record = candidate
-                        usedRecordURLs.insert(Self.canonicalURL(candidate.url).path)
+                        usedRecordURLs.insert(OMPSessionRootResolver.canonicalURL(candidate.url).path)
                         break
                     }
                 }
@@ -414,7 +414,7 @@ struct PiFamilySessionScanner: Sendable {
         let cwdURLs = (configuredCWDs.isEmpty ? [URL(
             fileURLWithPath: FileManager.default.currentDirectoryPath,
             isDirectory: true)] : configuredCWDs)
-            .map(Self.canonicalURL)
+            .map(OMPSessionRootResolver.canonicalURL)
         let uniqueCWDs = cwdURLs.reduce(into: [URL]()) { result, url in
             guard !result.contains(where: { $0.path == url.path }) else { return }
             result.append(url)
@@ -428,7 +428,7 @@ struct PiFamilySessionScanner: Sendable {
         var outputIndexByPath: [String: Int] = [:]
 
         func appendCostRoot(_ root: CostSessionRoot) {
-            let canonical = Self.canonicalURL(root.url)
+            let canonical = OMPSessionRootResolver.canonicalURL(root.url)
             let candidate = CostSessionRoot(
                 url: canonical,
                 missingIsKnownEmpty: root.missingIsKnownEmpty,
@@ -547,7 +547,7 @@ struct PiFamilySessionScanner: Sendable {
                 continue
             }
             for root in roots {
-                let canonical = Self.canonicalURL(root.url)
+                let canonical = OMPSessionRootResolver.canonicalURL(root.url)
                 appendCostRoot(CostSessionRoot(
                     url: canonical,
                     missingIsKnownEmpty: root.missingIsKnownEmpty,
@@ -598,7 +598,7 @@ struct PiFamilySessionScanner: Sendable {
         guard let home = homeURL(environment) else { return nil }
         // Provider-specific by design: Pi and OMP keep their default histories under distinct home directories.
         let directory = dialect == .pi ? ".pi" : ".omp"
-        return Self.canonicalURL(
+        return OMPSessionRootResolver.canonicalURL(
             home
                 .appendingPathComponent(directory, isDirectory: true)
                 .appendingPathComponent("agent", isDirectory: true)
@@ -757,10 +757,11 @@ struct PiFamilySessionScanner: Sendable {
         let base = if selectorIsCWDIndependent {
             ""
         } else {
-            ":base=" + self.canonicalURL(URL(fileURLWithPath: resolvingDirectory, isDirectory: true)).path
+            ":base=" + OMPSessionRootResolver.canonicalURL(
+                URL(fileURLWithPath: resolvingDirectory, isDirectory: true)).path
         }
         let homeEvidence = home.map { ":home=" + Data($0.utf8).base64EncodedString() } ?? ""
-        return "settings:" + self.canonicalURL(settingsURL).path + base + homeEvidence
+        return "settings:" + OMPSessionRootResolver.canonicalURL(settingsURL).path + base + homeEvidence
     }
 
     static func retainedSettingsRootResolution(retentionKey: String) -> RetainedSettingsRootResolution {
@@ -841,7 +842,7 @@ struct PiFamilySessionScanner: Sendable {
                 return .unavailable
             }
             return .resolved(
-                url: Self.canonicalURL(url),
+                url: OMPSessionRootResolver.canonicalURL(url),
                 retentionKey: Self.settingsRetentionKey(
                     settingsURL,
                     sessionDirectory: sessionDirectory,
@@ -857,7 +858,7 @@ struct PiFamilySessionScanner: Sendable {
         let grandparent = parent.deletingLastPathComponent()
         // Project settings live at <project>/.pi/settings.json. Global settings use the
         // separate <home>/.pi/agent/settings.json layout and never reach this helper.
-        return self.canonicalURL(grandparent).path
+        return OMPSessionRootResolver.canonicalURL(grandparent).path
     }
 
     private static func ompSessionRoots(
@@ -932,7 +933,7 @@ struct PiFamilySessionScanner: Sendable {
         var resolvedRoots = OMPSessionRootResolver.resolvedSessionRoots(
             environment: safeEnvironment,
             baseDirectory: baseDirectory).map { root in
-            let canonical = Self.canonicalURL(root.url)
+            let canonical = OMPSessionRootResolver.canonicalURL(root.url)
             let defaultRootIsKnownEmpty = !processHasExplicitSelection &&
                 !Self.hasExplicitCostRootSelection(dialect: .omp, environment: environment) &&
                 Self.defaultCostSessionRoot(for: .omp, environment: environment) == canonical
@@ -958,7 +959,7 @@ struct PiFamilySessionScanner: Sendable {
 
         var seen = Set<String>()
         let roots: [SessionRoot] = resolvedRoots.compactMap { root in
-            let canonical = Self.canonicalURL(root.url)
+            let canonical = OMPSessionRootResolver.canonicalURL(root.url)
             guard seen.insert(canonical.path).inserted else { return nil }
             return SessionRoot(
                 url: canonical,
@@ -1121,13 +1122,13 @@ struct PiFamilySessionScanner: Sendable {
 
         var roots: [SessionRoot] = []
         var isComplete = true
-        let canonicalProfilesDirectory = Self.canonicalURL(profilesDirectory)
+        let canonicalProfilesDirectory = OMPSessionRootResolver.canonicalURL(profilesDirectory)
         for profile in profiles {
             guard roots.count < 64 else {
                 isComplete = false
                 break
             }
-            let canonicalProfile = Self.canonicalURL(profile)
+            let canonicalProfile = OMPSessionRootResolver.canonicalURL(profile)
             guard OMPSessionRootResolver.isWithin(
                 root: canonicalProfilesDirectory,
                 candidate: canonicalProfile)
@@ -1258,7 +1259,7 @@ struct PiFamilySessionScanner: Sendable {
     {
         let fileManager = FileManager.default
         var records: [PiFamilySessionRecord] = []
-        let canonicalRoot = Self.canonicalURL(root)
+        let canonicalRoot = OMPSessionRootResolver.canonicalURL(root)
 
         guard directoryBudget.hasTimeRemaining() else { return [] }
         let projectDirectories: [URL]
@@ -1268,7 +1269,7 @@ struct PiFamilySessionScanner: Sendable {
         case .projectDirectories:
             let directories = directoryBudget.childDirectories(in: canonicalRoot, fileManager: fileManager)
             projectDirectories = directoryBudget.compactMapWhileTimeRemains(directories) { directory in
-                let canonical = Self.canonicalURL(directory)
+                let canonical = OMPSessionRootResolver.canonicalURL(directory)
                 return OMPSessionRootResolver.isWithin(root: canonicalRoot, candidate: canonical) ? canonical : nil
             }.sorted { $0.path < $1.path }
         }
@@ -1278,7 +1279,7 @@ struct PiFamilySessionScanner: Sendable {
             let entries = directoryBudget.files(in: projectDirectory, fileManager: fileManager)
             let files = directoryBudget.compactMapWhileTimeRemains(entries) { entry -> URL? in
                 guard entry.pathExtension == "jsonl" else { return nil }
-                let file = Self.canonicalURL(entry)
+                let file = OMPSessionRootResolver.canonicalURL(entry)
                 guard OMPSessionRootResolver.isWithin(root: canonicalRoot, candidate: file),
                       Self.isDirectFile(in: file, projectDirectory: projectDirectory)
                 else { return nil }
@@ -1314,7 +1315,7 @@ struct PiFamilySessionScanner: Sendable {
                 return lhs.url.path < rhs.url.path
             }
             .filter {
-                seenURLs.insert(Self.canonicalURL($0.url).path).inserted &&
+                seenURLs.insert(OMPSessionRootResolver.canonicalURL($0.url).path).inserted &&
                     seenIDs.insert($0.id).inserted
             }
     }
@@ -1327,10 +1328,6 @@ struct PiFamilySessionScanner: Sendable {
         guard let cwd, !cwd.isEmpty else { return nil }
         let name = URL(fileURLWithPath: cwd).standardizedFileURL.lastPathComponent
         return name.isEmpty ? nil : name
-    }
-
-    private static func canonicalURL(_ url: URL) -> URL {
-        url.standardizedFileURL.resolvingSymlinksInPath().standardizedFileURL
     }
 
     private static func isDirectFile(in file: URL, projectDirectory: URL) -> Bool {

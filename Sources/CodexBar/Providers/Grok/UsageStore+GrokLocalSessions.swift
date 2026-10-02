@@ -10,20 +10,22 @@ extension UsageStore {
             ?? (providerSnapshot == nil ? self.tokenSnapshotPublications[.grok]?.snapshot : nil)
         guard let published else { return nil }
         let days = max(1, historyDays)
-        guard published.historyDays != days else { return published }
+        // Wider views retain the scan's actual coverage; only narrower views need projection.
+        guard days < published.historyDays else { return published }
 
-        let calendar = Calendar.current
+        let calendar = CostUsageBucketTimeZone.calendar(
+            identifier: published.bucketTimeZoneIdentifier ?? TimeZone.current.identifier)
         let today = calendar.startOfDay(for: published.updatedAt)
         guard let start = calendar.date(byAdding: .day, value: -(days - 1), to: today),
-              let firstDay = Self.grokLocalDayKey(for: start, calendar: calendar),
-              let lastDay = Self.grokLocalDayKey(for: today, calendar: calendar)
+              let firstDay = GrokLocalSessionScanner.dayKey(for: start, calendar: calendar),
+              let lastDay = GrokLocalSessionScanner.dayKey(for: today, calendar: calendar)
         else { return nil }
         let daily = published.daily.filter { $0.date >= firstDay && $0.date <= lastDay }
         guard !daily.isEmpty else { return nil }
         let tokens = daily.compactMap(\.totalTokens)
         let requests = daily.compactMap(\.requestCount)
 
-        return CostUsageTokenSnapshot(
+        var projected = CostUsageTokenSnapshot(
             sessionTokens: published.sessionTokens,
             sessionCostUSD: published.sessionCostUSD,
             sessionRequests: published.sessionRequests,
@@ -32,8 +34,9 @@ extension UsageStore {
             last30DaysRequests: requests.isEmpty ? nil : requests.reduce(0, +),
             currencyCode: published.currencyCode,
             historyDays: days,
-            historyCoverageIsEstablished: published.historyCoverageIsEstablished && published.historyDays >= days,
-            historyLabel: published.historyLabel,
+            historyCoverageIsEstablished: published.historyCoverageIsEstablished,
+            historyScanIsPartial: published.historyScanIsPartial,
+            historyLabel: nil,
             meteredCostUSD: published.meteredCostUSD,
             costProvenance: published.costProvenance,
             credentialScopeFingerprint: published.credentialScopeFingerprint,
@@ -41,8 +44,12 @@ extension UsageStore {
             projects: published.projects,
             sessions: published.sessions,
             hourly: published.hourly,
+            bucketTimeZoneIdentifier: published.bucketTimeZoneIdentifier,
+            windowEndDayKey: published.windowEndDayKey,
             quotaSlices: published.quotaSlices,
             updatedAt: published.updatedAt)
+        projected.reportingPeriod = .rolling(days: days)
+        return projected
     }
 
     func loadGrokLocalTokenSnapshot(historyDays: Int) async throws -> CostUsageTokenSnapshot? {
@@ -50,11 +57,5 @@ extension UsageStore {
             env: self.environmentBase,
             lookbackDays: historyDays)
         return summary.toCostUsageTokenSnapshot(historyDays: historyDays)
-    }
-
-    private static func grokLocalDayKey(for date: Date, calendar: Calendar) -> String? {
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
-        return String(format: "%04d-%02d-%02d", year, month, day)
     }
 }

@@ -161,6 +161,8 @@ public enum SubprocessRunner {
         standardInput: Any? = nil,
         currentDirectoryURL: URL? = nil,
         acceptsNonZeroExit: Bool = false,
+        // Mark this invocation so even detached descendants can be reaped after it exits.
+        reapDescendants: Bool = false,
         label: String) async throws -> SubprocessResult
     {
         guard FileManager.default.isExecutableFile(atPath: binary) else {
@@ -169,6 +171,11 @@ public enum SubprocessRunner {
 
         let start = Date()
         let binaryName = URL(fileURLWithPath: binary).lastPathComponent
+        func logMetadata(duration: TimeInterval, exitCode: Int32? = nil) -> [String: String] {
+            var metadata = ["label": label, "binary": binaryName, "duration_ms": "\(Int(duration * 1000))"]
+            if let exitCode { metadata["status"] = "\(exitCode)" }
+            return metadata
+        }
         self.log.debug(
             "Subprocess start",
             metadata: ["label": label, "binary": binaryName, "timeout": "\(timeout)"])
@@ -176,7 +183,10 @@ public enum SubprocessRunner {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
         process.arguments = arguments
-        process.environment = environment
+        let ownership = reapDescendants ? ProcessOwnershipReaper() : nil
+        process.environment = ownership
+            .map { environment.merging([ProcessOwnershipReaper.environmentKey: $0.marker]) { _, new in new } } ??
+            environment
         process.currentDirectoryURL = currentDirectoryURL
 
         let stdoutPipe = Pipe()
@@ -210,7 +220,8 @@ public enum SubprocessRunner {
         stderrCapture.start()
 
         let pid = process.processIdentifier
-        let processGroup: pid_t? = setpgid(pid, pid) == 0 ? pid : nil
+        let processGroup: pid_t? = setpgid(pid, pid) == 0 || getpgid(pid) == pid ? pid : nil
+        defer { ownership?.reap(processGroup: processGroup) }
 
         let exitCodeTask = Task<Int32, Never> {
             await termination.wait()
@@ -253,11 +264,7 @@ public enum SubprocessRunner {
             if killedByTimeout.isSet {
                 self.log.warning(
                     "Subprocess timed out",
-                    metadata: [
-                        "label": label,
-                        "binary": binaryName,
-                        "duration_ms": "\(Int(duration * 1000))",
-                    ])
+                    metadata: logMetadata(duration: duration))
                 throw SubprocessRunnerError.timedOut(label)
             }
 
@@ -280,33 +287,19 @@ public enum SubprocessRunner {
                 let duration = Date().timeIntervalSince(start)
                 self.log.warning(
                     "Subprocess failed",
-                    metadata: [
-                        "label": label,
-                        "binary": binaryName,
-                        "status": "\(exitCode)",
-                        "duration_ms": "\(Int(duration * 1000))",
-                    ])
+                    metadata: logMetadata(duration: duration, exitCode: exitCode))
                 throw SubprocessRunnerError.nonZeroExit(code: exitCode, stderr: stderr)
             }
 
             self.log.debug(
                 "Subprocess exit",
-                metadata: [
-                    "label": label,
-                    "binary": binaryName,
-                    "status": "\(exitCode)",
-                    "duration_ms": "\(Int(duration * 1000))",
-                ])
+                metadata: logMetadata(duration: duration, exitCode: exitCode))
             return SubprocessResult(stdout: stdout, stderr: stderr)
         } catch {
             let duration = Date().timeIntervalSince(start)
             self.log.warning(
                 "Subprocess error",
-                metadata: [
-                    "label": label,
-                    "binary": binaryName,
-                    "duration_ms": "\(Int(duration * 1000))",
-                ])
+                metadata: logMetadata(duration: duration))
             // Safety net: ensure the process is dead (may already be killed by timeout timer).
             self.terminateProcess(process, processGroup: processGroup)
             exitCodeTask.cancel()

@@ -58,7 +58,11 @@ defineProvider({
     for await (const session of ctx.browser.sessions(domain)) {
       clearCookie = false;
       try {
-        const headers = { Cookie: session.header, Accept: "application/json", "Content-Type": "application/json" };
+        const headers = {
+          Cookie: session.header ?? "",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        };
         const response = await ctx.http.getWithOptional(
           `https://${domain}/api/_getOrganizationComputePoints`,
           {

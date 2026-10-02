@@ -101,7 +101,7 @@ struct PreparedPromotionContextBuilder {
     let workspaceResolver: any ManagedCodexWorkspaceResolving
     let snapshotLoader: any CodexAccountReconciliationSnapshotLoading
     let authMaterialReader: any CodexAuthMaterialReading
-    let baseEnvironment: [String: String]
+    @ProcessEnvironment private(set) var baseEnvironment: [String: String]
     let fileManager: FileManager
 
     func build(targetID: UUID) async throws -> PreparedPromotionContext {

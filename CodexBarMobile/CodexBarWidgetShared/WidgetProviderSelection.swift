@@ -29,27 +29,7 @@ struct WidgetProviderQuery: EntityQuery {
             }
         }
         #endif
-        return catalogue
-    }
-}
-
-enum WidgetProviderCatalogue {
-    static func fileURL() -> URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.o1xhack.codexbar")?
-            .appendingPathComponent("widget-provider-catalogue-v1.json")
-    }
-
-    static func read(from url: URL? = fileURL()) throws -> [WidgetProviderEntity] {
-        guard let url, FileManager.default.fileExists(atPath: url.path) else { return [] }
-        return try JSONDecoder().decode([WidgetProviderEntity].self, from: Data(contentsOf: url))
-    }
-
-    static func write(_ providers: [WidgetProviderEntity], to url: URL? = fileURL()) throws {
-        guard let url else { return }
-        var seen = Set<String>()
-        let unique = providers.filter { seen.insert($0.id).inserted }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        try JSONEncoder().encode(unique).write(to: url, options: .atomic)
+        return catalogue.map { WidgetProviderEntity(id: $0.id, name: $0.name) }
     }
 }
 

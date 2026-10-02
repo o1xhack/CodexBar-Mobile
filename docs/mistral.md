@@ -50,8 +50,11 @@ For the console request, CodexBar forwards only the `csrftoken` and `ory_session
 
 - **Included API** shows the subscription allowance's used percentage, used / total / remaining amount, and reset time.
 - The optional **Monthly Plan** window shows the separate Vibe Code allowance with the same details.
-- API spend is computed from billed units (`value_paid`, falling back to `value`) and the pricing table. Token totals
+- API spend is computed from billed units (`value_paid`, falling back to `value`) and the pricing table. Each unit takes
+  the price with the same event type, metric, group, API zone, and service tier; the table lists one metric under
+  several of these, and audio-second and priority prices are far higher than standard token prices. Token totals
   and daily buckets use consumed units (`value`, falling back to `value_paid`), so plan-covered usage still counts.
+  Legacy tables that omit both API zone and service tier use the unqualified price for the same event type, metric, and group.
 - Token totals include API completions, Le Chat, and Vibe Code completions from the billing usage response.
 - Daily usage buckets feed the inline usage dashboard.
 - The provider card can show credit balance when the credits endpoint returns it.
@@ -65,7 +68,10 @@ For the console request, CodexBar forwards only the `csrftoken` and `ory_session
 
 ## Widgets
 
-Usage widgets follow Mistral's menu bar metric preference:
+Usage widgets follow the **Menu bar metric** picker in Mistral's provider settings. The picker appears in every menu bar
+style, so Critters and Meter bars users can still pick the widget allowance. Choosing a percentage metric pins
+Mistral’s layout against later global layout edits. Without a percentage, the picker changes only the stored metric
+and keeps following the global layout:
 
 - **Automatic** and **Included API** show only the API allowance, preserving the existing default.
 - **Monthly Plan** shows only the Vibe allowance, falling back to Included API when the plan is missing or unknown.

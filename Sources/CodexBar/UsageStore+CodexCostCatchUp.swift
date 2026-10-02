@@ -9,7 +9,7 @@ private struct CodexCostCatchUpContext {
     let providerConfigRevision: UInt64
     let costUsageSettingsRevision: UInt64
     let includePiSessions: Bool
-    let environment: [String: String]
+    @ProcessEnvironment private(set) var environment: [String: String]
     let piHistoryScopeGeneration: UInt64
 }
 
@@ -179,7 +179,7 @@ extension UsageStore {
                         context: context,
                         phase: nextStatus.pending ? .indexing : .complete)
                     status = nextStatus
-                    if status.pending, !publishedCurrentWindow,
+                    if status.pending,
                        let publishedStatus = try await self.publishAvailableCodexCostCatchUpSnapshot(context: context)
                     {
                         publishedCurrentWindow = true

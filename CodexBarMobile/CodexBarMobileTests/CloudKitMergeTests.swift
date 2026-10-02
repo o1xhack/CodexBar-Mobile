@@ -3380,14 +3380,14 @@ struct CloudKitMergeTests {
         let twoHoursAgo = Date().addingTimeInterval(-7200)
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeCodexWithSession(
-                lastUpdated: self.olderDate,
+                lastUpdated: twoHoursAgo,
                 windowMinutes: 300,
                 entries: [SyncUtilizationEntry(
                     capturedAt: twoHoursAgo, usedPercent: 25, resetsAt: nil)]),
         ])
         let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             self.makeCodexWithSession(
-                lastUpdated: self.newerDate,
+                lastUpdated: hourAgo,
                 // Different windowMinutes — pre-fix, this created a SECOND
                 // "session" series that downstream code could pick instead.
                 windowMinutes: 180,
@@ -3401,9 +3401,9 @@ struct CloudKitMergeTests {
         // The newer Mac's windowMinutes wins (180), because its entry was
         // captured more recently.
         #expect(sessions.first?.windowMinutes == 180)
-        // Both devices' entries survive the union.
+        // The old duration must not be interpreted as the new reset period.
         let entryCount = sessions.first?.entries.count ?? 0
-        #expect(entryCount == 2)
+        #expect(entryCount == 1)
     }
 
     // MARK: - notificationPushEnabled merge (Build 78)
@@ -3688,7 +3688,7 @@ struct CloudKitMergeTests {
         let now = Date()
         let macARealData = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeCodexWithSession(
-                lastUpdated: self.newerDate,
+                lastUpdated: now,
                 entries: [
                     SyncUtilizationEntry(
                         capturedAt: now.addingTimeInterval(-3600),
@@ -3702,7 +3702,7 @@ struct CloudKitMergeTests {
         ])
         let macBEmpty = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             self.makeCodexWithSession(
-                lastUpdated: self.olderDate,
+                lastUpdated: now.addingTimeInterval(-7200),
                 entries: []),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macARealData, macBEmpty]))
@@ -3763,12 +3763,7 @@ struct CloudKitMergeTests {
 
     @Test
     func `Merged utilization with bursty 30-day Codex: union size, peaks preserved, order monotonic`() throws {
-        // Two Macs each sample hourly for 30 days. Mac A samples at :00 of
-        // the hour, Mac B at :30 — so every real hour has TWO entries going
-        // in, one from each Mac. `dedupByHour` must average them (0 from one
-        // + 16 from the other at peak hour → 8%). Pre-fix a bursty merge
-        // could silently drop one device's entries on hash collision; this
-        // test would fail if that regressed.
+        // Distinct real samples from both Macs survive even within one hour.
         let anchor = Date(timeIntervalSince1970: 1_745_500_000)
         let macA = SyncedUsageSnapshot(
             providers: [ProviderUsageSnapshot(
@@ -3779,7 +3774,9 @@ struct CloudKitMergeTests {
                 utilizationHistory: [self.burstySessionSeries(
                     anchor: anchor, daysCount: 30, peakHour: 14,
                     peakPercent: 16, deviceOffsetMinutes: 0)])],
-            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+            syncTimestamp: anchor.addingTimeInterval(86400),
+            deviceName: "Mac A",
+            deviceID: "uuid-a")
         let macB = SyncedUsageSnapshot(
             providers: [ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
@@ -3789,27 +3786,23 @@ struct CloudKitMergeTests {
                 utilizationHistory: [self.burstySessionSeries(
                     anchor: anchor, daysCount: 30, peakHour: 14,
                     peakPercent: 16, deviceOffsetMinutes: 30)])],
-            syncTimestamp: anchor, deviceName: "Mac B", deviceID: "uuid-b")
+            syncTimestamp: anchor.addingTimeInterval(86400),
+            deviceName: "Mac B",
+            deviceID: "uuid-b")
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let codex = try #require(merged.providers.first { $0.providerID == "codex" })
         let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
 
-        // Both devices' entries land in the same hour buckets; dedup averages
-        // them. We expect ~24 hourly entries * 30 days = 720 buckets.
-        #expect(session.entries.count == 720)
+        #expect(session.entries.count == 1440)
 
         // Entries are sorted by capturedAt monotonically.
         let sorted = session.entries.map(\.capturedAt).sorted()
         #expect(session.entries.map(\.capturedAt) == sorted)
 
-        // Each peak-hour bucket averages Mac A's 16% and Mac B's 0%-at-that-
-        // minute (since Mac B's :30 sample is still at peakHour in the same
-        // calendar hour) → both are 16% → average is 16%. Find the peak
-        // entries and confirm they're 16%, not 0% (that would indicate the
-        // bursty-merge regression).
+        // Both actual peak observations survive; no synthetic average.
         let peakValues = session.entries.filter { $0.usedPercent > 0 }.map(\.usedPercent)
-        #expect(peakValues.count == 30) // one peak per day
+        #expect(peakValues.count == 60) // two actual peaks per day
         #expect(peakValues.allSatisfy { $0 == 16 })
     }
 
@@ -3854,10 +3847,14 @@ struct CloudKitMergeTests {
         // per-resetEpoch separation across the combined entries.
         let macA = SyncedUsageSnapshot(
             providers: [provider(entries: [preReset, postReset])],
-            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+            syncTimestamp: anchor.addingTimeInterval(86400),
+            deviceName: "Mac A",
+            deviceID: "uuid-a")
         let macB = SyncedUsageSnapshot(
             providers: [provider(entries: [preReset, postReset])],
-            syncTimestamp: anchor, deviceName: "Mac B", deviceID: "uuid-b")
+            syncTimestamp: anchor.addingTimeInterval(86400),
+            deviceName: "Mac B",
+            deviceID: "uuid-b")
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let codex = try #require(merged.providers.first { $0.providerID == "codex" })
@@ -3874,17 +3871,7 @@ struct CloudKitMergeTests {
 
     @Test
     func `Merged utilization with disordered input across two Macs produces hour-sorted output`() throws {
-        // Two Macs, each with their entries deliberately shuffled. `dedupByHour`
-        // (only invoked when providers.count > 1) sorts the bucketed output by
-        // hourSlot. This pins that behavior: the merge path — when actually
-        // exercised — produces monotonic time order from arbitrary input order.
-        //
-        // NOTE: single-device passthrough (providers.count == 1) intentionally
-        // returns the original `ProviderUsageSnapshot` as-is and does NOT dedup
-        // or sort entries — that's fine because downstream consumers
-        // (`UtilizationHistoryView.buildPeriodPoints`) bucket into dictionaries
-        // rather than assuming sorted input. Pinning this test on the
-        // multi-device path, since that's where dedup order matters.
+        // Multi-device merge preserves actual samples in time order.
         let base = Date(timeIntervalSince1970: 1_745_500_000)
         func disorderedEntries(offsetMinutes: Int) -> [SyncUtilizationEntry] {
             (0..<10).shuffled().map { i in
@@ -3906,19 +3893,20 @@ struct CloudKitMergeTests {
         }
         let macA = SyncedUsageSnapshot(
             providers: [provider(entries: disorderedEntries(offsetMinutes: 0))],
-            syncTimestamp: base, deviceName: "Mac A", deviceID: "uuid-a")
+            syncTimestamp: base.addingTimeInterval(10 * 3600),
+            deviceName: "Mac A",
+            deviceID: "uuid-a")
         let macB = SyncedUsageSnapshot(
             providers: [provider(entries: disorderedEntries(offsetMinutes: 30))],
-            syncTimestamp: base, deviceName: "Mac B", deviceID: "uuid-b")
+            syncTimestamp: base.addingTimeInterval(10 * 3600),
+            deviceName: "Mac B",
+            deviceID: "uuid-b")
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let codex = try #require(merged.providers.first { $0.providerID == "codex" })
         let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
 
-        // Both devices' entries for each hour merge into one bucket (same
-        // hourSlot), dedup averages them. Output: 10 hour buckets in sorted
-        // order.
-        #expect(session.entries.count == 10)
+        #expect(session.entries.count == 20)
         let captures = session.entries.map(\.capturedAt)
         #expect(captures == captures.sorted())
     }
@@ -3952,7 +3940,9 @@ struct CloudKitMergeTests {
                 lastUpdated: thirtyDaysAgo,
                 utilizationHistory: [SyncUtilizationSeries(
                     name: "session", windowMinutes: 300, entries: oldEntries)])],
-            syncTimestamp: thirtyDaysAgo, deviceName: "Mac A", deviceID: "uuid-a")
+            syncTimestamp: thirtyDaysAgo.addingTimeInterval(5 * 3600),
+            deviceName: "Mac A",
+            deviceID: "uuid-a")
         let macB = SyncedUsageSnapshot(
             providers: [ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
@@ -3994,7 +3984,9 @@ struct CloudKitMergeTests {
                 lastUpdated: anchor,
                 utilizationHistory: [SyncUtilizationSeries(
                     name: "session", windowMinutes: 300, entries: entries)])],
-            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+            syncTimestamp: anchor.addingTimeInterval(86400),
+            deviceName: "Mac A",
+            deviceID: "uuid-a")
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA]))
         let codex = try #require(merged.providers.first { $0.providerID == "codex" })

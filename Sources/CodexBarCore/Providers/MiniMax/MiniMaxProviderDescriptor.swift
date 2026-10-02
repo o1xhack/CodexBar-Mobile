@@ -327,7 +327,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
 
     private struct FetchContext {
         let region: MiniMaxAPIRegion
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let includeBillingHistory: Bool
     }
 

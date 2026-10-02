@@ -52,7 +52,7 @@ actor ClaudeCLISession {
     private struct SessionIdentity: Equatable {
         let binaryPath: String
         let accountScope: String?
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
     }
 
     private struct CaptureRequest {
@@ -60,7 +60,7 @@ actor ClaudeCLISession {
         let binary: String
         let accountScope: String?
         let timeout: TimeInterval
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let idleTimeout: TimeInterval?
         let stopOnSubstrings: [String]
         let stopWhenNormalized: (@Sendable (String) -> Bool)?

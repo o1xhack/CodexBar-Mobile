@@ -321,6 +321,29 @@ struct ProviderPluginCookieBrokerTests {
             importer: importer)
     }
 
+    @Test
+    func `nonpersistent jars neither read overwrite nor clear the provider cache`() throws {
+        try self.isolated {
+            CookieHeaderCache.store(provider: .longcat, cookieHeader: "session=old", sourceLabel: "Synthetic cached")
+            let expected = try #require(CookieHeaderCache.load(provider: .longcat))
+            let broker = ProviderPluginCookieBroker(
+                provider: .longcat,
+                domains: ["longcat.chat"],
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                batches: { _, _ in Issue.record("Legacy importer must not run"); return nil },
+                jarImporter: { [.init(header: "", source: "Synthetic import", origin: "", records: [])] })
+            #expect(try broker.nextSession(domain: "longcat.chat", cachedOnly: true) == nil)
+            let session = try #require(try broker.nextSession(domain: "longcat.chat"))
+            #expect(session.source == "Synthetic import")
+            broker.rejectCookie(domain: "longcat.chat", id: session.id)
+            #expect(try broker.nextSession(domain: "longcat.chat") == nil)
+            let actual = try #require(CookieHeaderCache.load(provider: .longcat))
+            #expect(actual.cookieHeader == expected.cookieHeader)
+            #expect(actual.storedAt == expected.storedAt)
+            #expect(actual.sourceLabel == expected.sourceLabel)
+        }
+    }
+
     private func isolated(_ body: () throws -> Void) rethrows {
         try KeychainCacheStore.withImplicitTestStoreForTesting {
             try KeychainCacheStore.withServiceOverrideForTesting("plugin-cookies-\(UUID().uuidString)") {

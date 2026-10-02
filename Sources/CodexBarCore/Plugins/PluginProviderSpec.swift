@@ -38,12 +38,16 @@ public struct PluginProviderSpec: Sendable {
     public var usesDetailBackedWindow = false
     public let dashboardURL: String?
     public var subscriptionDashboardURL: String?
+    public var statusPageURL: String?
     public var statusLinkURL: String?
     public let color: ProviderColor
     public let confetti: [UInt32]
     public var widgetColor: ProviderColor?
     public var progressColorStyle: ProviderBranding.ProgressColorStyle = .brand
     public let noDataMessage: String
+    public var supportsTokenCost = false
+    public var settingsSection: ProviderSettingsSectionRegistration?
+    public var pluginResultPolicy = ProviderPluginResultPolicy()
     public var environmentKey: String = ""
     public var environmentAliases: [String] = []
     public var apiKeyDebugLabel: String?
@@ -105,7 +109,7 @@ public struct PluginProviderSpec: Sendable {
             browserCookieOrder: self.webSource?.browserCookieOrder,
             dashboardURL: self.dashboardURL,
             subscriptionDashboardURL: self.subscriptionDashboardURL,
-            statusPageURL: nil,
+            statusPageURL: self.statusPageURL,
             statusLinkURL: self.statusLinkURL)
         let fetchPlan: ProviderFetchPlan = fetchPlan ?? ProviderFetchPlan(
             sourceModes: self.webSource?.sourceModes ?? [.auto, .api],
@@ -123,8 +127,9 @@ public struct PluginProviderSpec: Sendable {
         return ProviderDescriptor(
             id: self.id,
             menuBarMetrics: self.menuBarMetrics,
-            settingsSection: self.webSource?.settingsSection,
+            settingsSection: self.settingsSection ?? self.webSource?.settingsSection,
             credentials: credentials ?? self.makeCredentials(),
+            pluginResultPolicy: self.pluginResultPolicy,
             config: ProviderConfigCapabilities(
                 workspaceIDValidationOrder: self.config.workspaceIDValidationOrder,
                 supportsEnterpriseHost: self.endpoint != nil || self.config.supportsEnterpriseHost),
@@ -136,7 +141,8 @@ public struct PluginProviderSpec: Sendable {
                 confettiPalette: self.confetti.map { ProviderColor(hex: $0) },
                 widgetColor: self.widgetColor,
                 progressColorStyle: self.progressColorStyle),
-            tokenCost: ProviderTokenCostConfig(supportsTokenCost: false, noDataMessage: { self.noDataMessage }),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: self.supportsTokenCost, noDataMessage: { self.noDataMessage }),
             presentation: self.presentation,
             fetchPlan: fetchPlan,
             cli: cli)

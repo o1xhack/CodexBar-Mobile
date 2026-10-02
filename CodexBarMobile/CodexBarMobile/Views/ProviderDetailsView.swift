@@ -49,7 +49,7 @@ enum ProviderDetailLocalization {
         "Premium weekly",
         "Professional voices", "Project", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
-        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Shared",
+        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Session", "Shared",
         "Rest of organization", "Reviews", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
         "Spend history", "Spending limit", "Spent", "Spent this month", "Stored", "Subscription",
         "Subscription credits", "Team credits", "Top-up credits",
@@ -498,8 +498,24 @@ struct ProviderDetailsView: View {
     let sections: [SyncProviderDetailSection]
     let tintColor: Color
 
+    static func visibleSections(
+        providerID: String, sections: [SyncProviderDetailSection]) -> [SyncProviderDetailSection]
+    {
+        guard providerID == "claude" else { return sections }
+        return sections.compactMap { section in
+            let rows = section.rows.filter { $0.label != "Limit Reset Credits" }
+            if rows.count == section.rows.count { return section }
+            guard !rows.isEmpty || section.chart != nil else { return nil }
+            return SyncProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
+        }
+    }
+
+    private var visibleSections: [SyncProviderDetailSection] {
+        Self.visibleSections(providerID: self.providerID, sections: self.sections)
+    }
+
     var body: some View {
-        ForEach(Array(self.sections.enumerated()), id: \.offset) { index, section in
+        ForEach(Array(self.visibleSections.enumerated()), id: \.offset) { index, section in
             VStack(alignment: .leading, spacing: 12) {
                 if let title = section.title {
                     Text(ProviderDetailLocalization.localized(title, providerID: self.providerID))

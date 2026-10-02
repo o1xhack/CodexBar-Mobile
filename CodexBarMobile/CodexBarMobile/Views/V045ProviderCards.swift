@@ -35,6 +35,7 @@ enum ProviderWindowLabel {
         case "Weekly": "v045_window_weekly"
         case "Monthly": "v045_window_monthly"
         case "Monthly Plan": "Monthly Plan"
+        case "Fuel Pack": "Fuel Pack"
         case "Monthly Bobcoins": "v049_window_monthly_bobcoins"
         case "Additional": "v045_window_additional"
         case "5 hour limit": "v045_window_5_hour_limit"
@@ -58,7 +59,13 @@ enum ProviderWindowLabel {
         period: SyncRateWindowPeriod? = nil,
         locale: Locale = .current) -> String
     {
-        if providerID == "raycast", period == .monthly, (label == nil || label == "Additional") {
+        if providerID == "antigravity", let label {
+            for (suffix, key) in [(" weekly", "Weekly"), (" 5-hour", "5-hour")] where label.hasSuffix(suffix) {
+                let group = String(label.dropLast(suffix.count))
+                return group + " · " + MobileLocalizedString.value(key, defaultValue: key, locale: locale)
+            }
+        }
+        if providerID == "raycast", period == .monthly, label == nil || label == "Additional" {
             return MobileLocalizedString.value("Monthly", defaultValue: "Monthly", locale: locale)
         }
         if providerID == "aixy",
@@ -143,6 +150,8 @@ enum ProviderWindowLabel {
             return MobileLocalizedString.value("v045_window_monthly", defaultValue: "Monthly", locale: locale)
         case "Monthly Plan":
             return MobileLocalizedString.value("Monthly Plan", defaultValue: "Monthly Plan", locale: locale)
+        case "Fuel Pack":
+            return MobileLocalizedString.value("Fuel Pack", defaultValue: "Fuel Pack", locale: locale)
         case "v049_window_monthly_bobcoins":
             return MobileLocalizedString.value(
                 "v049_window_monthly_bobcoins",

@@ -108,7 +108,7 @@ final class CodexAccountPromotionService {
     private let activeSourceWriter: any CodexActiveSourceWriting
     private let accountScopedRefresher: any CodexAccountScopedRefreshing
     private let daemon: CodexAppServerDaemon
-    private let baseEnvironment: [String: String]
+    @ProcessEnvironment private var baseEnvironment: [String: String]
     private let fileManager: FileManager
 
     init(

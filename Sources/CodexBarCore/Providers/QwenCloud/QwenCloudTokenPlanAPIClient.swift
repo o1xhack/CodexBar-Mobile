@@ -16,7 +16,7 @@ struct QwenCloudTokenPlanAPIClient: Sendable {
     struct Context: Sendable {
         let secToken: String
         let secTokenSource: String
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let apiCookieHeader: String
         let dashboardURL: URL
     }

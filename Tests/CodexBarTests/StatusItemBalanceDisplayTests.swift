@@ -1448,11 +1448,18 @@ extension StatusItemBalanceDisplayTests {
         }
     }
 
-    @Test
-    func `stored Poe icon and percent layout shows point balance in status item and preview`() {
+    @Test(arguments: [
+        (UsageProvider.poe, "Balance: 512 points", "512 points"),
+        (UsageProvider.typesafe, "Balance: $4.98", "$4.98"),
+    ])
+    func `stored balance-only icon and percent layout shows balance in status item and preview`(
+        provider: UsageProvider,
+        loginMethod: String,
+        balance: String)
+    {
         let settings = self.makeSettings(
-            suiteName: "StatusItemBalanceDisplayTests-poe-layout-balance",
-            provider: .poe)
+            suiteName: "StatusItemBalanceDisplayTests-\(provider.rawValue)-layout-balance",
+            provider: provider)
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
         settings.setMenuBarLayout(layout, for: nil)
         let (store, controller) = self.makeStoreAndController(settings: settings)
@@ -1462,24 +1469,24 @@ extension StatusItemBalanceDisplayTests {
             secondary: nil,
             updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
-                providerID: .poe,
+                providerID: provider.instanceID,
                 accountEmail: nil,
                 accountOrganization: nil,
-                loginMethod: "Balance: 512 points"))
+                loginMethod: loginMethod))
 
-        store._setSnapshotForTesting(snapshot, provider: .poe)
-        store._setErrorForTesting(nil, provider: .poe)
+        store._setSnapshotForTesting(snapshot, provider: provider)
+        store._setErrorForTesting(nil, provider: provider)
 
         let statusItemData = controller.menuBarLayoutRenderData(
-            provider: .poe,
+            provider: provider,
             snapshot: snapshot,
             warningFlash: false)
         let previewData = MenuBarLayoutPreview(
             layout: layout,
-            provider: .poe,
+            provider: provider,
             settings: settings,
             store: store)
-            .liveData(provider: .poe, snapshot: snapshot)
+            .liveData(provider: provider, snapshot: snapshot)
 
         for data in [statusItemData, previewData] {
             let rendered = MenuBarLayoutRenderer().render(
@@ -1496,8 +1503,8 @@ extension StatusItemBalanceDisplayTests {
                     now: Date()))
 
             #expect(data.automatic == nil)
-            #expect(data.automaticText == "512 points")
-            #expect(rendered.attributedTitle.string.hasSuffix("512 points"))
+            #expect(data.automaticText == balance)
+            #expect(rendered.attributedTitle.string.hasSuffix(balance))
         }
     }
 

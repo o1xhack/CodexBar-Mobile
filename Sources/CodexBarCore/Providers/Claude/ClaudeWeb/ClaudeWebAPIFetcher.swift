@@ -17,6 +17,24 @@ enum ClaudeWebHTTPTransport {
         #endif
         return ProviderHTTPClient.shared
     }
+
+    /// For the usage response, whose `cedar_ember` block carries grant identifiers. The shared client's disk
+    /// URLCache would keep the raw body; this client stores nothing.
+    static var uncached: any ProviderHTTPTransport {
+        #if DEBUG
+        if let override = self.overrideForTesting {
+            return override
+        }
+        #endif
+        return self.uncachedClient
+    }
+
+    private static let uncachedClient: ProviderHTTPClient = {
+        let configuration = ProviderHTTPClient.defaultConfiguration()
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return ProviderHTTPClient(session: ProviderHTTPClient.sharedSession(configuration: configuration))
+    }()
 }
 
 enum ClaudeWebPrepaidCreditsRequest {
@@ -174,6 +192,7 @@ public enum ClaudeWebAPIFetcher {
         public let opusPercentUsed: Double?
         public let extraRateWindows: [NamedRateWindow]
         public fileprivate(set) var extraUsageCost: ProviderCostSnapshot?
+        public let resetCredits: ClaudeRateLimitResetCreditsSnapshot?
         public fileprivate(set) var accountOrganization: String?
         public fileprivate(set) var accountOrganizationID: String?
         public fileprivate(set) var accountEmail: String?
@@ -197,7 +216,8 @@ public enum ClaudeWebAPIFetcher {
             accountOrganizationID: String? = nil,
             accountEmail: String?,
             loginMethod: String?,
-            hasLiveSessionWindow: Bool = true)
+            hasLiveSessionWindow: Bool = true,
+            resetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil)
         {
             self.sessionPercentUsed = sessionPercentUsed
             self.sessionResetsAt = sessionResetsAt
@@ -211,6 +231,7 @@ public enum ClaudeWebAPIFetcher {
             self.accountEmail = accountEmail
             self.loginMethod = loginMethod
             self.hasLiveSessionWindow = hasLiveSessionWindow
+            self.resetCredits = resetCredits
         }
     }
 
@@ -594,26 +615,53 @@ extension ClaudeWebAPIFetcher {
         logger: ((String) -> Void)? = nil,
         renewalTracker: ClaudeWebSessionKeyRenewalTracker? = nil) async throws -> WebUsageData
     {
-        let url = URL(string: "\(baseURL)/organizations/\(orgId)/usage")!
+        // `cedar_ember=1` asks this usage response to include limit-reset grants in a `cedar_ember` block.
+        var (data, httpResponse) = try await self.requestUsage(
+            orgId: orgId,
+            sessionKey: sessionKey,
+            includeResets: true)
+        renewalTracker?.observe(response: httpResponse)
+        logger?("Usage API status: \(httpResponse.statusCode)")
+
+        if !Self.usageStatusesKeptWithResetOptIn.contains(httpResponse.statusCode),
+           !(httpResponse.statusCode == 403 && self.isCloudflareChallenge(response: httpResponse, data: data))
+        {
+            // A surface-specific 403 may reject only the opt-in. Retry the original usage request once;
+            // expired sessions, rate limits, and Cloudflare challenges retain their normal handling.
+            (data, httpResponse) = try await self.requestUsage(
+                orgId: orgId,
+                sessionKey: sessionKey,
+                includeResets: false)
+            renewalTracker?.observe(response: httpResponse)
+            logger?("Usage API status without reset opt-in: \(httpResponse.statusCode)")
+        }
+
+        if httpResponse.statusCode == 200 {
+            return try self.parseUsageResponse(data, logger: logger)
+        }
+        throw self.fetchError(response: httpResponse, data: data)
+    }
+
+    private static let usageStatusesKeptWithResetOptIn: Set<Int> = [200, 401, 429]
+
+    private static func requestUsage(
+        orgId: String,
+        sessionKey: String,
+        includeResets: Bool) async throws -> (Data, HTTPURLResponse)
+    {
+        let query = includeResets ? "?cedar_ember=1" : ""
+        let url = URL(string: "\(baseURL)/organizations/\(orgId)/usage\(query)")!
         var request = URLRequest(url: url)
         request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpMethod = "GET"
         request.timeoutInterval = 15
 
-        let (data, response) = try await ClaudeWebHTTPTransport.current.data(for: request)
-
+        let (data, response) = try await ClaudeWebHTTPTransport.uncached.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw FetchError.invalidResponse
         }
-        renewalTracker?.observe(response: httpResponse)
-
-        logger?("Usage API status: \(httpResponse.statusCode)")
-
-        if httpResponse.statusCode == 200 {
-            return try self.parseUsageResponse(data, logger: logger)
-        }
-        throw self.fetchError(response: httpResponse, data: data)
+        return (data, httpResponse)
     }
 
     private static func fetchError(response: HTTPURLResponse, data: Data) -> FetchError {
@@ -684,6 +732,7 @@ extension ClaudeWebAPIFetcher {
             logger?("Usage API extra window key matched: routines=\(sourceKey)")
         }
         let extraUsageCost = ClaudeWebExtraUsageCost.parse(from: json["extra_usage"])
+        let resetCredits = Self.parseResetCredits(from: json["cedar_ember"])
 
         return WebUsageData(
             sessionPercentUsed: resolvedSessionPercent,
@@ -696,7 +745,19 @@ extension ClaudeWebAPIFetcher {
             accountOrganization: nil,
             accountEmail: nil,
             loginMethod: nil,
-            hasLiveSessionWindow: hasLiveSessionWindow)
+            hasLiveSessionWindow: hasLiveSessionWindow,
+            resetCredits: resetCredits)
+    }
+
+    /// Anything unreadable in the `cedar_ember` block yields no inventory and leaves the usage windows intact.
+    private static func parseResetCredits(from value: Any?) -> ClaudeRateLimitResetCreditsSnapshot? {
+        guard let block = value as? [String: Any],
+              (block["grants"] as? [Any])?.count ?? 0 <= ClaudeLimitResetStatusResponse.maximumGrantRecords,
+              JSONSerialization.isValidJSONObject(block),
+              let data = try? JSONSerialization.data(withJSONObject: block),
+              let status = try? JSONDecoder().decode(ClaudeLimitResetStatusResponse.self, from: data)
+        else { return nil }
+        return status.snapshot(updatedAt: Date())
     }
 
     private static func percentValue(from value: Any?) -> Double? {

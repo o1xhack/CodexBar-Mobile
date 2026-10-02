@@ -52,7 +52,7 @@ enum BrowserCookieProfiles {
     }
 
     private static func recordKey(_ record: BrowserCookieRecord) -> String {
-        "\(record.name)|\(record.domain)|\(record.path)"
+        "\(record.name)|\(record.domain)|\(record.path)|\(record.scope)"
     }
 
     private static func shouldReplace(existing: BrowserCookieRecord, candidate: BrowserCookieRecord) -> Bool {

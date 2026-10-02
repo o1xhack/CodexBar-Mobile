@@ -10,6 +10,8 @@ linux_tests_required="${5:-}"
 linux_glibc_result="${6-<missing>}"
 linux_musl_result="${7-<missing>}"
 
+macos_compatibility_result="${8-<missing>}"
+
 if [[ "$lint_result" != "success" ]]; then
   printf 'lint job finished with %s\n' "${lint_result:-<empty>}" >&2
   exit 1
@@ -45,6 +47,15 @@ case "${linux_tests_required}:${linux_glibc_result}:${linux_musl_result}" in
     printf 'Linux test gate/result mismatch: required=%s glibc=%s musl=%s\n' \
       "${linux_tests_required:-<empty>}" "${linux_glibc_result:-<empty>}" \
       "${linux_musl_result:-<empty>}" >&2
+    exit 1
+    ;;
+esac
+
+case "${macos_tests_required}:${macos_compatibility_result}" in
+  true:success|false:skipped) ;;
+  *)
+    printf 'Swift 6.2 compatibility gate/result mismatch: required=%s result=%s\n' \
+      "$macos_tests_required" "$macos_compatibility_result" >&2
     exit 1
     ;;
 esac

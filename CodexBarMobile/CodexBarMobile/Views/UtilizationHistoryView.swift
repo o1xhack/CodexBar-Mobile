@@ -158,19 +158,24 @@ struct UtilizationHistoryView: View {
     }
 
     /// Groups raw entries into period-aligned points.
-    private static func buildPeriodPoints(from series: SyncUtilizationSeries) -> [DisplayPoint] {
+    static func buildPeriodPoints(from series: SyncUtilizationSeries) -> [DisplayPoint] {
         guard !series.entries.isEmpty, series.windowMinutes > 0 else { return [] }
 
         let windowSeconds = Double(series.windowMinutes) * 60
-        let latestReset = series.entries.compactMap(\.resetsAt).max()
+        let validEntries = series.entries.filter {
+            $0.capturedAt.timeIntervalSince1970.isFinite
+                && $0.usedPercent.isFinite && (0...100).contains($0.usedPercent)
+                && ($0.resetsAt?.timeIntervalSince1970.isFinite ?? true)
+        }
+        let latestReset = validEntries.compactMap(\.resetsAt).max()
 
         var bestByPeriod: [Int: (date: Date, usedPercent: Double)] = [:]
 
-        for entry in series.entries {
+        for entry in validEntries {
             let boundary: Date
             if let reset = entry.resetsAt ?? latestReset {
                 let diff = reset.timeIntervalSince(entry.capturedAt)
-                let periodIndex = Int(floor(diff / windowSeconds))
+                guard let periodIndex = Int(exactly: floor(diff / windowSeconds)) else { continue }
                 boundary = reset.addingTimeInterval(-Double(periodIndex) * windowSeconds)
             } else {
                 let epoch = entry.capturedAt.timeIntervalSince1970
@@ -178,7 +183,8 @@ struct UtilizationHistoryView: View {
                 boundary = Date(timeIntervalSince1970: slot)
             }
 
-            let periodKey = Int(boundary.timeIntervalSince1970 / windowSeconds)
+            guard let periodKey = Int(exactly: (boundary.timeIntervalSince1970 / windowSeconds).rounded(.towardZero))
+            else { continue }
 
             if let existing = bestByPeriod[periodKey] {
                 if entry.usedPercent > existing.usedPercent {
@@ -198,7 +204,11 @@ struct UtilizationHistoryView: View {
         var points: [DisplayPoint] = []
         var idx = 0
 
-        for key in minKey ... maxKey {
+        // Bound gap expansion before allocating. A corrupt timestamp must not
+        // create billions of padding points only to discard them afterwards.
+        let (lastWindowStart, overflow) = maxKey.subtractingReportingOverflow(89)
+        let firstVisibleKey = overflow ? minKey : max(minKey, lastWindowStart)
+        for key in firstVisibleKey...maxKey {
             if let observed = bestByPeriod[key] {
                 points.append(DisplayPoint(
                     id: idx, date: observed.date,
@@ -231,14 +241,14 @@ struct UtilizationHistoryView: View {
     /// Result always has at least windowSize items (or more for scrollable).
     private static func rightAlignPoints(_ data: [DisplayPoint], windowSize: Int) -> [DisplayPoint] {
         if data.count >= windowSize {
-            return data  // Enough data, scrolling handles the rest
+            return data // Enough data, scrolling handles the rest
         }
 
         // Pad left with empty slots
         let paddingCount = windowSize - data.count
         var result: [DisplayPoint] = []
 
-        for i in 0 ..< paddingCount {
+        for i in 0..<paddingCount {
             result.append(DisplayPoint(
                 id: i, date: nil,
                 usedPercent: 0, isObserved: false, isPadding: true))
@@ -286,12 +296,12 @@ struct UtilizationHistoryView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
         }
-        .chartYScale(domain: 0 ... 100)
+        .chartYScale(domain: 0...100)
         .chartYAxis(.hidden)
         // Widen the trailing edge by 1 slot so the rightmost bar + label get
         // fully painted when the chart is scrolled to the right edge (fixed-width
         // BarMarks clip at the chartXVisibleDomain boundary otherwise).
-        .chartXScale(domain: 0 ... max(points.count, self.windowSize))
+        .chartXScale(domain: 0...max(points.count, self.windowSize))
         .chartXAxis {
             // `desiredCount: 4` → ~4 date labels across 30 bars. Lower
             // (2-3) feels sparse on a 10pt-bar chart; higher (5+) crowds

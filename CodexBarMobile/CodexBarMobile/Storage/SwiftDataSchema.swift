@@ -35,6 +35,8 @@ final class DeviceRecord {
     var deviceName: String
     var appVersion: String?
     var lastSyncAt: Date
+    /// Optional per-provider publication clocks; old stores retain legacy fallback.
+    var providerPublicationTimestampsData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \ProviderSnapshotModel.device)
     var providers: [ProviderSnapshotModel] = []
@@ -49,6 +51,7 @@ final class DeviceRecord {
         self.deviceName = deviceName
         self.appVersion = appVersion
         self.lastSyncAt = lastSyncAt
+        self.providerPublicationTimestampsData = nil
     }
 }
 

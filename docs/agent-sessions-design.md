@@ -48,6 +48,8 @@ Settings → Menu → Agent Sessions → **Stay Awake** is off by default and lo
 
 The assertion releases at the next scan with no process-backed sessions, immediately on disablement or quit, and through macOS on a crash. Stale scans cannot reacquire it after disablement or shutdown; failed acquisitions retry on the next scan. Stay Awake can use battery power. It cannot wake a Mac or prevent display, explicit, or lid-close sleep, and has no timer, grace period, or always-on mode.
 
+Final store teardown cancels its tasks and releases an owned assertion on the thread that drops the last reference, without a main-actor cleanup hop. Live state changes remain on the main actor; teardown uses Sendable task handles and the thread-safe assertion-release closure.
+
 ## Non-goals
 
 Historical browsing/analytics, cloud chat/task sessions, permission-waiting state, exact tmux pane focus, a persistent remote daemon, and treating either upstream on-disk dialect as a public compatibility guarantee are out of scope.

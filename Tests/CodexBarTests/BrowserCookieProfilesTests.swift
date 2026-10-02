@@ -77,6 +77,28 @@ struct BrowserCookieProfilesTests {
             records: records)
     }
 
+    @Test
+    func `host-only and domain cookies survive merging with identical names and paths`() throws {
+        let records = [BrowserCookieScope.hostOnly, .domain].map { scope in
+            BrowserCookieRecord(
+                domain: "example.test",
+                name: "session",
+                path: "/",
+                value: "\(scope)",
+                expires: nil,
+                isSecure: true,
+                isHTTPOnly: true,
+                scope: scope)
+        }
+        let profile = try #require(BrowserCookieProfiles.merge([
+            Self.source("fixture", label: "Fixture", kind: .primary, records: records),
+        ]).first)
+        #expect(profile.records.count == 2)
+        let jar = profile.records.map(ProviderPluginCookieRecord.init)
+        let url = try #require(URL(string: "https://sub.example.test/api"))
+        #expect(ProviderPluginCookieRecord.header(jar, for: url) == "session=domain")
+    }
+
     private static func cookie(
         _ name: String,
         value: String,

@@ -53,7 +53,7 @@ final class AgentSessionsStore {
     private let remoteFetch: RemoteFetch
     private let remoteFetcher: RemoteSessionFetcher
     private let powerAssertion: AgentSessionPowerAssertion
-    private var powerAssertionID: UInt32?
+    private nonisolated(unsafe) var powerAssertionID: UInt32? // Read last in deinit: its getter escapes self.
     private let periodicSleep: PeriodicSleep
     @ObservationIgnored private var localPeriodicTask: Task<Void, Never>?
     @ObservationIgnored private var remotePeriodicTask: Task<Void, Never>?
@@ -113,12 +113,12 @@ final class AgentSessionsStore {
         self.periodicSleep = periodicSleep
     }
 
-    isolated deinit {
-        if let powerAssertionID { self.powerAssertion.release(powerAssertionID) }
+    deinit {
         self.localPeriodicTask?.cancel()
         self.remotePeriodicTask?.cancel()
         self.localImmediateTask?.cancel()
         self.remoteImmediateTask?.cancel()
+        if let powerAssertionID { self.powerAssertion.release(powerAssertionID) }
     }
 
     var totalCount: Int {

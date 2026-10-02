@@ -115,7 +115,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     }
 
     private struct AttemptConfiguration {
-        let environment: [String: String]
+        @ProcessEnvironment private(set) var environment: [String: String]
         let profileIdentifier: String
         let interaction: ProviderInteraction
         let readStrategy: ClaudeOAuthKeychainReadStrategy

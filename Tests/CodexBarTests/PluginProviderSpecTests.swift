@@ -20,6 +20,12 @@ struct PluginProviderSpecTests {
         .synthetic, .chutes, .v0, .elevenlabs, .neuralwatt, .clawrouter,
         .aixy, .bifrost, .deepgram, .llmproxy, .litellm, .sub2api, .llmman,
         .helmcode, .hyper, .manus, .perplexity, .qoder, .raycast, .sakana, .t3chat,
+        .huggingface, .nous, .fireworks, .xai, .venice, .zed,
+    ]
+
+    private static let isolatedEnvironment = [
+        "HF_HOME": "/__codexbar_plugin_glue_b4_fixture__/hf",
+        "HERMES_HOME": "/__codexbar_plugin_glue_b4_fixture__/hermes",
     ]
 
     private struct DerivedProvider: Decodable, Equatable {
@@ -30,6 +36,7 @@ struct PluginProviderSpecTests {
         let fields: [String]
         let availability: [Bool]
         let environmentAvailability: [[Bool]]
+        let supportsTokenCost: Bool
         let enterpriseHost: Bool
         let workspaceOrder: Int?
         let projectToken: String
@@ -47,7 +54,7 @@ struct PluginProviderSpecTests {
             let availability = ["", "  ", "fixture-key"].map { value in
                 fixture.settings[providerConfig: provider, field: .apiKey] = value
                 return implementation.isAvailable(context: .init(
-                    provider: provider, settings: fixture.settings, environment: [:]))
+                    provider: provider, settings: fixture.settings, environment: Self.isolatedEnvironment))
             }
             fixture.settings[providerConfig: provider, field: .apiKey] = ""
             var config = ProviderConfig(id: provider.instanceID, apiKey: "fixture-key", workspaceID: "fixture-project")
@@ -60,11 +67,14 @@ struct PluginProviderSpecTests {
             let invalid = descriptor.credentials?.applyConfig(base: [:], config: config) ?? [:]
             var environmentAvailability: [[Bool]] = []
             for environment in [[:], keyOnly, projected, invalid] {
-                let context = ProviderCutoverTestSupport.context(environment: environment)
+                let context = ProviderCutoverTestSupport.context(
+                    environment: Self.isolatedEnvironment.merging(environment) { _, value in value })
                 let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(context)
                 await environmentAvailability.append([
                     implementation.isAvailable(context: .init(
-                        provider: provider, settings: fixture.settings, environment: environment)),
+                        provider: provider,
+                        settings: fixture.settings,
+                        environment: Self.isolatedEnvironment.merging(environment) { _, value in value })),
                     strategies.first?.isAvailable(context) ?? false,
                 ])
             }
@@ -80,6 +90,7 @@ struct PluginProviderSpecTests {
                 fields: fields.map { $0.kind == .secure ? "secure" : "plain" },
                 availability: availability,
                 environmentAvailability: environmentAvailability,
+                supportsTokenCost: descriptor.tokenCost.supportsTokenCost,
                 enterpriseHost: descriptor.config.supportsEnterpriseHost,
                 workspaceOrder: descriptor.config.workspaceIDValidationOrder,
                 projectToken: descriptor.credentials?.resolveToken(kind: .projectID, environment: projected)?
@@ -211,5 +222,31 @@ extension PluginProviderSpecTests {
         let values = try #require(LiteLLMProviderDescriptor.spec.scriptValues(ProviderCutoverTestSupport.context(
             environment: ["LITELLM_API_KEY": "fixture-key", "LITELLM_BASE_URL": "https://fixture.example.com"])))
         #expect(values.settings["LITELLM_MODEL_USAGE_ENABLED"] == "false")
+    }
+}
+
+extension PluginProviderSpecTests {
+    @Test
+    func `native credential adapters and retained runtimes survive descriptor construction`() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("fixture-file-token\n".utf8).write(to: root.appendingPathComponent("token"))
+        let environment = ["HF_HOME": root.path]
+        let fixture = try ProviderSettingsDescriptorTests().makeSettingsFixture(suite: "PluginSpec-native-adapter")
+        let implementation = try #require(ProviderCatalog.implementation(for: .huggingface))
+        #expect(implementation.isAvailable(context: .init(
+            provider: .huggingface, settings: fixture.settings, environment: environment)))
+        let descriptor = HuggingFaceProviderDescriptor.descriptor
+        #expect(descriptor.credentials?.resolveToken(environment: environment)?.token == "fixture-file-token")
+        let context = ProviderCutoverTestSupport.context(environment: environment)
+        let first = try #require(await descriptor.fetchPlan.pipeline.resolveStrategies(context).first
+            as? HuggingFaceScriptFetchStrategy)
+        let second = try #require(await descriptor.fetchPlan.pipeline.resolveStrategies(context).first
+            as? HuggingFaceScriptFetchStrategy)
+        #expect(first === second)
+        #expect(await first.isAvailable(context))
+        let nous = await NousProviderDescriptor.descriptor.fetchPlan.pipeline.resolveStrategies(context)
+        #expect(nous.first is NousAPIFetchStrategy)
     }
 }

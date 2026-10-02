@@ -179,7 +179,7 @@ struct ProviderPluginTransportTests {
             timeout: 0.2,
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
-                beforeHTTPAttempt: { try await Task.sleep(for: .seconds(30)) }),
+                beforeHTTPAttempt: { _ in try await Task.sleep(for: .seconds(30)) }),
             transport: ProviderHTTPTransportHandler { _ in
                 Issue.record("Transport must not run after the fetch deadline")
                 throw URLError(.badURL)
@@ -201,7 +201,7 @@ struct ProviderPluginTransportTests {
             body: "await ctx.http.get('https://example.com');",
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
-                beforeHTTPAttempt: {
+                beforeHTTPAttempt: { _ in
                     continuation.yield("waiting")
                     do { try await Task.sleep(for: .seconds(30)) } catch {
                         continuation.yield("cancelled")
@@ -227,7 +227,7 @@ struct ProviderPluginTransportTests {
             body: "await ctx.http.get('https://example.com');",
             contextOptions: ProviderPluginContextOptions(
                 optionalRequestTimeoutSeconds: nil,
-                beforeHTTPAttempt: { throw URLError(.badURL) }))
+                beforeHTTPAttempt: { _ in throw URLError(.badURL) }))
         await #expect(throws: URLError(.badURL)) { try await runtime.fetchUsage() }
     }
 

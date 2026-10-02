@@ -88,9 +88,9 @@ enum WidgetActivityPublisher {
         Self.publish(projection)
     }
 
-    static func catalogueEntities(from providers: [ProviderUsageSnapshot]) -> [WidgetProviderEntity] {
+    static func catalogueEntities(from providers: [ProviderUsageSnapshot]) -> [WidgetProviderRecord] {
         providers.filter { !$0.isProviderLevelCostEnvelope }.map {
-            WidgetProviderEntity(id: $0.providerID, name: $0.providerName)
+            WidgetProviderRecord(id: $0.providerID, name: $0.providerName)
         }
     }
 
@@ -98,7 +98,7 @@ enum WidgetActivityPublisher {
     /// the last successful catalogue available while data is being recovered.
     static func catalogueUpdate(
         snapshot: SyncedUsageSnapshot?,
-        syncStatus: SyncStatus) -> [WidgetProviderEntity]?
+        syncStatus: SyncStatus) -> [WidgetProviderRecord]?
     {
         if let snapshot {
             return self.catalogueEntities(from: MockProviderDetector.filteredProviders(from: snapshot))
