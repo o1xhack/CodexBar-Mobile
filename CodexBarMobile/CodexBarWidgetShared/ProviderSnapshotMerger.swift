@@ -150,8 +150,7 @@ enum ProviderSnapshotMerger {
                 let quotaSources = indices.map { sourceQuotaSources[$0] }
                 let merged = self.mergeProviderEntries(
                     group,
-                    sourceAppVersions: indices.map { sourceAppVersions[$0] },
-                    sourceQuotaSources: quotaSources,
+                    sourceWriters: (appVersions: indices.map { sourceAppVersions[$0] }, quotaSources: quotaSources),
                     sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
                     sourceSyncTimestamps: indices.map { sourceSyncTimestamps[$0] },
                     sourceHistoryTimestamps: indices.map { sourceHistoryTimestamps[$0] },
@@ -586,13 +585,14 @@ enum ProviderSnapshotMerger {
 
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
-        sourceAppVersions: [String?],
-        sourceQuotaSources: [SyncProviderQuotaSource],
+        sourceWriters: (appVersions: [String?], quotaSources: [SyncProviderQuotaSource]),
         sourceDeviceIDs: [String],
         sourceSyncTimestamps: [Date],
         sourceHistoryTimestamps: [Date],
         sumLocalCosts: Bool = true) -> (provider: ProviderUsageSnapshot, quotaSourceIndex: Int)
     {
+        let sourceAppVersions = sourceWriters.appVersions
+        let sourceQuotaSources = sourceWriters.quotaSources
         precondition(entries.count == sourceDeviceIDs.count)
         precondition(entries.count == sourceSyncTimestamps.count)
         precondition(entries.count == sourceQuotaSources.count)

@@ -573,7 +573,8 @@ enum SwiftDataBridge {
                     subscriptionRenewsAt: row.subscriptionRenewsAt,
                     rateWindows: rateWindows,
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
-                    perplexityCredits: perplexityCredits))
+                    perplexityCredits: perplexityCredits,
+                    accountRecordKey: row.accountRecordKey))
             }
 
             // Skip devices that have no provider rows — they're placeholders from
