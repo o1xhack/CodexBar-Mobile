@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.4.0 (227)] — Upstream v0.69–v0.70 companion update
+## [2.4.0 (228)] — Upstream v0.69–v0.70 companion update
 
 ### Added
 - Add observation-based Codex and Claude quota burndown charts, bounded to the current reset cycle and actual Mac capture time.
@@ -13,6 +13,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Align sixteen fallback provider accents with upstream v0.70 while preserving synced overrides and light/dark readability.
 
 ### Fixed
+- Preserve Kimi monthly blocking across later pre-v0.70 or unknown-writer refreshes; only a newer block-capable observation may clear it.
 - Show exact local reset dates (`M.d HH:mm`) beside quota countdowns, and render Codex pace estimates in the iPhone language from numeric observations rather than Mac-localized text. Explain percentage-point differences and the conditional headroom estimate.
 - Restore per-widget mode, color and ordered provider selection through SiriKit configuration. Keep an explicit replacement notice for legacy status widgets; re-add them to use the new configuration format.
 - Preserve actual utilization observations and declines instead of synthesizing hourly averages; reject invalid/future observations before selecting the current lane duration.

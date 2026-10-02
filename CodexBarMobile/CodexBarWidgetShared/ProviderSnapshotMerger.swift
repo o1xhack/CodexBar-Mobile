@@ -472,6 +472,96 @@ enum ProviderSnapshotMerger {
         return label.lowercased()
     }
 
+    /// Only a block-capable Kimi writer can authoritatively clear monthly exhaustion.
+    /// Explicit metadata proves capability even when writer version is unavailable.
+    private static func kimiQuotaBaseIndex(
+        _ entries: [ProviderUsageSnapshot],
+        sourceAppVersions: [String?],
+        sourceSyncTimestamps: [Date],
+        sourceDeviceIDs: [String]) -> Int?
+    {
+        guard entries.first?.providerID == "kimi" else { return nil }
+        let capable = entries.indices.filter { index in
+            let entry = entries[index]
+            if ([entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows)
+                .contains(where: { $0.blockingQuota != nil })
+            {
+                return true
+            }
+            if Self.kimiMonthlyBlocker(entry) != nil { return true }
+            let windows = [entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows
+            guard !entry.isError,
+                  windows.contains(where: {
+                      $0.id == "kimi-monthly" && $0.usageKnown && !$0.isSyntheticPlaceholder &&
+                          $0.usedPercent.isFinite && (0..<100).contains($0.usedPercent)
+                  }),
+                  let version = sourceAppVersions[index]
+            else { return false }
+            let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+            guard parts.count >= 3,
+                  parts.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { (48...57).contains($0) } && Int($0) != nil })
+            else { return false }
+            return !Self.semverLessThan(version, "0.70.0")
+        }
+        return capable.max { lhs, rhs in
+            if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
+                return entries[lhs].lastUpdated < entries[rhs].lastUpdated
+            }
+            if sourceSyncTimestamps[lhs] != sourceSyncTimestamps[rhs] {
+                return sourceSyncTimestamps[lhs] < sourceSyncTimestamps[rhs]
+            }
+            return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
+        }
+    }
+
+    /// Legacy writers can prove exhaustion even though they cannot prove an authoritative clear.
+    private static func kimiMonthlyBlocker(_ entry: ProviderUsageSnapshot) -> SyncRateWindow? {
+        ([entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows).first {
+            $0.id == "kimi-monthly" && $0.usageKnown && !$0.isSyntheticPlaceholder &&
+                $0.usedPercent.isFinite && $0.usedPercent >= 100 &&
+                ($0.resetsAt.map { $0 > entry.lastUpdated } ?? true)
+        }
+    }
+
+    /// Apply the same longer-pool availability semantics as the Mac to legacy raw observations.
+    private static func kimiEffectiveWindow(
+        _ window: SyncRateWindow,
+        blocker: SyncRateWindow?,
+        capturedAt: Date) -> SyncRateWindow
+    {
+        guard let blocker, window.usageKnown, !window.isSyntheticPlaceholder,
+              window.blockingQuota == nil,
+              (window.windowMinutes ?? 300) < (blocker.windowMinutes ?? 43200)
+        else { return window }
+        let ownExhausted = window.usedPercent >= 100 && (window.resetsAt.map { $0 > capturedAt } ?? true)
+        let reset: Date? = if ownExhausted {
+            if let ownReset = window.resetsAt, let monthlyReset = blocker.resetsAt {
+                max(ownReset, monthlyReset)
+            } else {
+                nil
+            }
+        } else {
+            blocker.resetsAt
+        }
+        return SyncRateWindow(
+            id: window.id,
+            label: window.label,
+            usedPercent: 100,
+            usageKnown: window.usageKnown,
+            windowMinutes: window.windowMinutes,
+            period: window.period,
+            resetsAt: reset,
+            resetDescription: !ownExhausted && reset == nil ? blocker.resetDescription : nil,
+            nextRegenPercent: nil,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "kimi-monthly",
+                rawUsedPercent: window.usedPercent,
+                rawResetsAt: window.resetsAt,
+                rawResetDescription: window.resetDescription,
+                rawNextRegenPercent: window.nextRegenPercent))
+    }
+
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
         sourceAppVersions: [String?],
@@ -489,7 +579,13 @@ enum ProviderSnapshotMerger {
             }
             return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
         }!
-        let base = entries[baseIndex]
+        let kimiQuotaIndex = Self.kimiQuotaBaseIndex(
+            entries,
+            sourceAppVersions: sourceAppVersions,
+            sourceSyncTimestamps: sourceSyncTimestamps,
+            sourceDeviceIDs: sourceDeviceIDs)
+        let base = entries[kimiQuotaIndex ?? baseIndex]
+        let kimiBlocker = kimiQuotaIndex != nil ? Self.kimiMonthlyBlocker(base) : nil
         let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
         let costState: (summary: SyncCostSummary?, cleared: Bool?) = if isLocalCost, sumLocalCosts {
             if let summary = self.mergeCostSummaries(entries, sourceSyncTimestamps: sourceSyncTimestamps) {
@@ -514,8 +610,12 @@ enum ProviderSnapshotMerger {
         return ProviderUsageSnapshot(
             providerID: base.providerID,
             providerName: base.providerName,
-            primary: base.primary,
-            secondary: base.secondary,
+            primary: base.primary.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: base.lastUpdated)
+            },
+            secondary: base.secondary.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: base.lastUpdated)
+            },
             accountEmail: base.accountEmail,
             loginMethod: Self.mergedLoginMethod(
                 entries,
@@ -531,7 +631,9 @@ enum ProviderSnapshotMerger {
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionExpiresAt),
             subscriptionRenewsAt: Self.latestNonNil(
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionRenewsAt),
-            rateWindows: Self.mergedRateWindows(entries, base: base),
+            rateWindows: kimiQuotaIndex != nil ? base.rateWindows.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: base.lastUpdated)
+            } : Self.mergedRateWindows(entries, base: base),
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.perplexityCredits),
             accountIdentities: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountIdentities),
