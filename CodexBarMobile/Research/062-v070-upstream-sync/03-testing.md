@@ -296,3 +296,19 @@ scroll-only r2终态exit65，仍不能定位lane ID，因此viewport不是完整
 sim-use 当前已恢复，可读取与操作自有 iOS26.5 Simulator 7216E120。通过真实 Gallery 添加 medium 主 Widget，打开编辑面板查看 Overview / Provider Focus / Today Cost / Sync Health 四选项，切换为 Sync Health 后关闭再重开，值仍为同步健康。Token Activity 的实际 source picker 也从全部切换 Codex。截图及日志 SHA 见 springboard-evidence-r1.json。此处证明配置入口与持久化通过，不代表 timeline/主 Widget 展示通过。
 
 主 Widget 在 Home 仍显示 overview placeholder；同 extension 的 Token Activity 则返回 noData。系统日志明确主 Widget INAppIntent linkAction XPC4097、Unable to get LNAction、No AppIntent in timeline(for:with:)、CHSError1101。未观察到预期即时返回 simulatorMock 的 timeline 成功记录。当前 UITest artifact 使用 CODE_SIGNING_ALLOWED=NO，appex 无签名 entitlements，Token App Group lookup 也报告 client is not entitled；这只是下一项签名/运行环境鉴别线索，尚未证明根因，不能认定 Simulator 整体故障或生产代码缺陷。未重启全局 Simulator、未删除数据、未触碰实体设备或发布凭证。SpringBoard gate 继续未完成。
+
+## Xcode 模拟器权限与 mode 恢复对照（2026-10-01）
+
+手工签名实验 ios-simulator-adhoc-r1 保留相同源码/资源/metadata，仅将展开的设备 entitlements 写入 ad-hoc 签名；codesign 静态验证通过但系统启动拒绝，launchd 日志为 restricted entitlements / OS_REASON_CODESIGNING。此实验在 extension 启动前失败，不能解释原 LNAction 故障。
+
+随后使用独立 ios-widget-signed-build-r1 DerivedData、标准 xcodebuild CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- -packageAuthorizationProvider netrc 构建，session99962终态exit0 / BUILD SUCCEEDED。实际身份 Sign to Run Locally，无真实证书/Keychain/发布凭证。Xcode 将 Production CloudKit/app-group 等模拟权限放入 Simulated.xcent 与 Mach-O __TEXT 区段，普通签名 xcent 为空；不能仅凭 codesign -d 为空认定这种产物缺模拟权限。安装后主Widget已到达 provider 的 Overview configuration 日志、timeline成功并显示 simulatorMock，原 XPC 空timeline阻塞已越过。未进行 Production 网络验证。
+
+实际选 Sync Health 后 Home 仍显示 overview；为鉴别参数恢复与缓存，仅临时扩展 DEBUG notice 记录 mode/colorStyle/providerCount，其他代码不改，诊断源码保存 widget-timeline-diagnostic.swift。诊断 build session82932 exit0；系统 serializedParameters 为 syncHealth 和后续 todayCost，实际 timeline 入口却均 mode=overview/colorStyle=mono/providerCount=0。模式显示 gate 仍失败，不把 timeline success 当作配置已生效。source/二进制/metadata/截图/log SHA 见 widget-mode-diagnostic-evidence-r1.json。
+
+[Apple Developer Forums thread834793](https://developer.apple.com/forums/thread/834793) 有 SDK27 构建后配置保持默认的相似开发者报告，Apple 工程师回复此行为非预期并请提交反馈；该报告是鉴别线索，不能单独证明本轮相同根因。两 target metadata 的四 mode 定义完整且一致。当前另一套已安装 Xcode27.2beta2 仅通过单命令 DEVELOPER_DIR、独立 ios-widget-xcode272-r1 做同输入对照；不切换全局工具链、不下载工具、不据尚未完成构建称通过。
+
+### Xcode27.2 对照终态
+
+同临时 DEBUG trace 输入的 Xcode27.2beta2 构建 session64022终态exit0 / BUILD SUCCEEDED，安装到同一自有iOS26.5 Simulator。真实编辑面板保留旧 todayCost 选择，实际切换 syncHealth 后系统日志 serialized mode=syncHealth；timeline入口仍 overview/mono/0，并重复to-0.0 AppEnum runtime warning。Home实际截图仍overview四provider。widget-xcode272-evidence-r1.json记录工具链、输入、产物和截图/log SHA。该版本对照未修复参数恢复；不把beta构建当发布工具链，也不据两工具链同样失败断言系统根因。
+
+临时 DEBUG trace 已精确恢复为原源码；两个诊断产物和trace副本保留在scratch，不混称其为正式发布二进制。下一项安全鉴别为独立最小项目的纯enum与同enum+optional AppEntity array对照，保留生产providers完整范围，禁止通过删除参数/改旧raw IDs/全局defaults绕过per-widget配置。

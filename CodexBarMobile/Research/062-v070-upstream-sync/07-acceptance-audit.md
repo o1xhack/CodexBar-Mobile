@@ -14,7 +14,7 @@ Source checkpoint: `9974283e26e2ebc620468ccd0a2df85cc68603c9`
 | 4 Mac→iOS数据准备 | Shared optional blocking/modelsUsed；真实old/new wire+merger+cache；CloudConstants/schema audit | 已实现；Production/APNs实际同步未验证 |
 | 5 单版本/version | version.env 0.70.0.1/161.1/2.3.0；四iOS targets 2.4.0(227) | 已配置；正式签名来源再核对 |
 | 6 Mac构建/回归/CloudKit/draft | mac-full-r5、unsigned universal/dSYM预检、NO_DEPLOY静态审计 | draft/签名/公证/Gatekeeper/资产回读未完成 |
-| 7 iOS功能/notes/本地化/测试 | 02/05/06、CHANGELOG、单2.4 release block；原始313/15 iOS26.5 passed；32生产图表离屏图 | 实现与定向runtime通过；最终axis输入iOS27原始313/15也exit0；标准Widget6方法和真实App四语言quota UI均通过；SpringBoard配置持久化通过但timeline占位/XPC错误待查；人工VoiceOver未完成 |
+| 7 iOS功能/notes/本地化/测试 | 02/05/06、CHANGELOG、单2.4 release block；原始313/15 iOS26.5 passed；32生产图表离屏图 | 实现与定向runtime通过；最终axis输入iOS27原始313/15也exit0；标准Widget6方法和真实App四语言quota UI均通过；SpringBoard配置持久化/timeline生成已通过，但模式恢复为默认overview待查；人工VoiceOver未完成 |
 | 8 16 old/new兼容组合 | 03全16行substituted；冻结wire64 reads/32 merges；frozen-ios-cache-r4 32stores/96processes exit0 | 替代验证完成，未等同实体2Mac×2iPhone、CloudKit/APNs或真实UI |
 | 9 循环review/零阻塞 | 本地 exact9974283e2 review clean | GitHub PR/CR尚未创建；local不能代替remote exact-head review |
 | 10 证据/链接/状态 | Research保持in-progress，各artifact source/hash/log证明 | PR/draft链接不存在，不虚构；后续实际结果再回写 |
@@ -27,7 +27,7 @@ RELEASE-CHECKLIST第26行：触及 mode/color style 或 WidgetKit rendering 时�
 
 ## UI 与进程状态
 
-历史等待授权的旧 PID 均已退出，用户已报告处理密码提示。最终 axis 输入 iOS27 原始313项 exit0；标准 Widget 六方法通过；四语言真实 App quota UI exit0。sim-use 已恢复，自有 Simulator 真实配置持久化验证通过；主 Widget timeline 仍因 AppIntent XPC 错误返回空 view collection，不能宣称 SpringBoard gate 通过。具体证据与边界见03最新段落。
+历史等待授权的旧 PID 均已退出，用户已报告处理密码提示。最终 axis 输入 iOS27 原始313项 exit0；标准 Widget 六方法通过；四语言真实 App quota UI exit0。sim-use 已恢复，自有 Simulator 真实配置持久化验证通过；标准Xcode临时签名模拟器产物已能生成主Widget timeline；但选非默认mode后入口仍为overview，不能宣称 SpringBoard mode显示gate通过。具体证据与边界见03最新段落。
 
 ## 远端与发布顺序
 
