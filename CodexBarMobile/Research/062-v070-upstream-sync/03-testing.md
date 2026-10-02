@@ -2,7 +2,7 @@
 
 Status: `in-progress`
 
-当前 Mac 完整回归已通过；iOS 原始313单元与生产组件离屏渲染已通过。16组合已有冻结旧/新 wire、真实合并与独立磁盘缓存替代证据；真实 App UI、实体 CloudKit/APNs、GitHub PR/CR 与 Mac draft 仍未完成。历史段落按发生顺序保留，旧 pending 不代表当前结果。
+当前 Mac 完整回归已通过；iOS 原始313单元与生产组件离屏渲染已通过。16组合已有冻结旧/新 wire、真实合并与独立磁盘缓存替代证据；真实 App 四语言 quota UI 已通过；SpringBoard timeline、人工 VoiceOver、实体 CloudKit/APNs、GitHub PR/CR 与 Mac draft 仍未完成。历史段落按发生顺序保留，旧 pending 不代表当前结果。
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
@@ -290,3 +290,9 @@ ios-widget-ui-after-auth-r1终态exit65，真实xcresult summary为6 passed /1 f
 scroll-only r2终态exit65，仍不能定位lane ID，因此viewport不是完整根因。外层VStack的section identifier传播到子节点（初次log标题被解析为quota-burndown-section）；显式accessibilityElement(children:.contain)建立section container，保留Chart各自ID/label/value与子元素，不使用combine/ignore吞并图表。r3按当前修改源码编译，终态exit0 / TEST SUCCEEDED；xcresult1 passed/0 failed/0 skipped，四语言循环全部完成：preview模式真实App启动、Claude导航、滚动、lane0 exists/hittable/frame>0/localized label/87%value。四张标准App screenshot已export并逐张查看；source/summary/log/attachment SHA见ios-quota-ui-contain-r3-evidence.json。截图显示真实生产图表，非ImageRenderer；仍是虚构preview数据，不证明live账户/CloudKit或人工VoiceOver。
 
 代码静态review clean；两Swift文件format lint 0/2需改。新改动只是section辅助功能分组和严格测试定位顺序；模型/缓存/merger源码未改。Widget原六方法标准XCTest已在after-auth-r1全部通过并生成12附件。真实SpringBoard编辑配置/切换mode、实体Production/APNs以及GitHubPR/CR、merge和Macdraft仍未完成。sim-use入口此前错误不等同Simulator整体故障，标准XCTest已实际证明正常启动/导航/图表访问。
+
+## 实际 SpringBoard 配置与 timeline 鉴别（2026-10-01）
+
+sim-use 当前已恢复，可读取与操作自有 iOS26.5 Simulator 7216E120。通过真实 Gallery 添加 medium 主 Widget，打开编辑面板查看 Overview / Provider Focus / Today Cost / Sync Health 四选项，切换为 Sync Health 后关闭再重开，值仍为同步健康。Token Activity 的实际 source picker 也从全部切换 Codex。截图及日志 SHA 见 springboard-evidence-r1.json。此处证明配置入口与持久化通过，不代表 timeline/主 Widget 展示通过。
+
+主 Widget 在 Home 仍显示 overview placeholder；同 extension 的 Token Activity 则返回 noData。系统日志明确主 Widget INAppIntent linkAction XPC4097、Unable to get LNAction、No AppIntent in timeline(for:with:)、CHSError1101。未观察到预期即时返回 simulatorMock 的 timeline 成功记录。当前 UITest artifact 使用 CODE_SIGNING_ALLOWED=NO，appex 无签名 entitlements，Token App Group lookup 也报告 client is not entitled；这只是下一项签名/运行环境鉴别线索，尚未证明根因，不能认定 Simulator 整体故障或生产代码缺陷。未重启全局 Simulator、未删除数据、未触碰实体设备或发布凭证。SpringBoard gate 继续未完成。
