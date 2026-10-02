@@ -823,6 +823,7 @@ final class SyncCoordinator {
         _ sections: [ProviderDetailSection],
         provider: UsageProvider) -> [SyncProviderDetailSection]
     {
+        // Provider-specific by design: native Claude reset-credit inventory is live-only and must not persist on iOS.
         guard provider == .claude else { return self.mapDetails(sections) }
         return self.mapDetails(sections).compactMap { section -> SyncProviderDetailSection? in
             let rows = section.rows.filter { $0.label != "Limit Reset Credits" }

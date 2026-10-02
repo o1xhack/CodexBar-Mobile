@@ -94,3 +94,13 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 `mac-release-preflight-r1.log`终态exit0，692.99秒。命令`swift build -c release --arch arm64 --arch x86_64 --scratch-path /Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070/mac-release-preflight --jobs 2`，TMPDIR在本轮SSD scratch。独立构建不修改完整测试的.build；compiler module-cache-path均在此scratch的out/Intermediates.noindex/SwiftExplicitPrecompiledModules。
 
 `mac-release-preflight-artifacts.json`记录source commit `c0343b3a2`对应完整SHA、3个product SHA256/UUID。CodexBar、CodexBarCLI、CodexBarWidget的lipo实际均为arm64+x86_64，otool两slice的LC_BUILD_VERSION实际minos均14.0，dSYM UUID与binary逐项匹配。构建日志的Xcode SDK x86_64 deprecation warning没有改变实际最低系统版本。此证据仅证明Release compiler与universal/dSYM，不是Developer ID签名、打包、公证或GitHub draft证据；未读取/使用发布凭证，也未运行binary触发真实provider或Keychain。完整mac-full-r4仍在执行。
+
+## Mac r4 终态与 provider 架构说明
+
+`mac-full-r4.log`终态exit1：1520 selections /137 groups，101组首轮成功、1组失败、整组重试未恢复、无timeout，discovery19.4秒、execution1263.8秒。`ProcessEnvironmentStorageTests`本轮通过，确认Alibaba存储脱敏修正；本次唯一finding为`ProviderArchitectureGatekeeperTests`在`SyncCoordinator.mapSyncedDetails`的Claude专属过滤没有紧邻construct的明确设计理由。函数doc comment已说明live-only，但gate要求精确`// Provider-specific by design: <specific reason>`格式。
+
+紧邻Claude guard补充明确理由：native Claude reset-credit inventory仅可实时使用，不能持久存入iOS。没有改动过滤行为、新增例外或放宽架构检测；定向架构与两桥接suite(`mac-architecture-r1.log`)及最新全树lint(`lint-r9.log`)验证中。r4未完成其余35组，不能称全量通过。
+
+候选tag `v0.70.0.1-mobile.2.3.0`只读查询返回release not found（BuildScratch/draft-candidate-readback.stderr），尚未创建草稿。正式创建前再次回读防止并发重复。
+
+`mac-architecture-r1.log`终态exit0，53 tests /3 suites，6.643秒；包含全架构gate与Claude库存/Kimi阻塞桥接，单文件SwiftFormat/SwiftLint零违规。`lint-r9.log`仍执行中；下一轮完整`mac-full-r5.log`继续原默认137组，不用定向测试替代全量。
