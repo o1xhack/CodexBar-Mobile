@@ -2220,11 +2220,29 @@ struct CostDashboardInsights: Sendable {
             let resolvedTodayCost = todayTotals.displayCostUSD
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
-            let fallbackSyncPoints = costSummary.reportingPeriodDaily.filter {
+            var fallbackSyncPoints = costSummary.reportingPeriodDaily.filter {
                 guard let offset = costSummary.costDayOffset(for: $0.dayKey, from: now) else {
                     return false
                 }
                 return offset >= -(aggregation.windowDays - 1) && offset <= 0
+            }
+            let producerTodayKey = costSummary.costDayKey(for: now)
+            let sessionDayKey = costSummary.sessionDayKey ?? costSummary.sourceDayKey ??
+                costSummary.costDayKey(for: costSummary.sourceUpdatedAt ?? provider.lastUpdated)
+            // A qualified session can fill an absent Today row, but cannot
+            // replace a dated row or stand in for an unrelated period headline.
+            if !costSummary.reportingPeriodDaily.isEmpty,
+               sessionDayKey == producerTodayKey,
+               !costSummary.hasInvalidBucketTimeZoneIdentifier,
+               !costSummary.reportingPeriodDaily.contains(where: { $0.dayKey == producerTodayKey }),
+               resolvedTodayCost != nil || todayTotals.tokens != nil
+            {
+                fallbackSyncPoints.append(SyncDailyPoint(
+                    dayKey: producerTodayKey,
+                    costUSD: todayCost,
+                    totalTokens: todayTokens,
+                    costIsKnown: resolvedTodayCost != nil,
+                    tokenCountIsKnown: todayTotals.tokens != nil))
             }
             let providerDailyPoints = fallbackSyncPoints.compactMap(Self.dailyPoint)
             let availableFallbackPoints = fallbackSyncPoints.filter { $0.costIsKnown != false }

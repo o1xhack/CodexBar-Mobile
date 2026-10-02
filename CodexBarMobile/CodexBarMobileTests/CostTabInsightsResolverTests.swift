@@ -406,6 +406,95 @@ struct CostTabInsightsResolverTests {
         #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-recent"])
     }
 
+    @Test(arguments: [1, 7, 30, 90, 365], [false, true])
+    func `Missing provider daily totals include qualified Today exactly once`(
+        windowDays: Int, hasTodayRow: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T02:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        var points = [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)]
+        if hasTodayRow {
+            points.append(SyncDailyPoint(dayKey: "2026-10-02", costUSD: 3, totalTokens: 30, costIsKnown: true))
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: points, historyDays: 30,
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", sessionDayKey: "2026-10-02",
+            bucketTimeZoneIdentifier: "Asia/Tokyo", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: now, deviceName: "Mac", deviceID: "mac-A")
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: self.emptyAggregation(windowDays: windowDays), snapshot: snapshot,
+            now: now, calendar: calendar)
+        let todayCost = hasTodayRow ? 3.0 : 2.0
+        let todayTokens = hasTodayRow ? 30 : 20
+        let earlierCost = windowDays == 1 ? 0.0 : 4.0
+        let earlierTokens = windowDays == 1 ? 0 : 40
+        #expect(insights.total30DayCost == earlierCost + todayCost)
+        #expect(insights.total30DayTokens == earlierTokens + todayTokens)
+        #expect(insights.totalTodayCost == todayCost)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == earlierCost + todayCost)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.totalTokens } == earlierTokens + todayTokens)
+        #expect(insights.dailyPoints.filter { $0.dayKey == "2026-10-01" }.count == 1)
+        #expect(insights.dailyPoints.first(where: { $0.dayKey == "2026-10-01" })?.costUSD == todayCost)
+    }
+
+    @Test
+    func `Stale session does not fill missing Today in local daily fallback`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)],
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", sessionDayKey: "2026-10-01",
+            bucketTimeZoneIdentifier: "UTC", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: self.emptyAggregation(windowDays: 7),
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now)
+        #expect(insights.total30DayCost == 4)
+        #expect(insights.total30DayTokens == 40)
+        #expect(insights.totalTodayCostIsKnown == false)
+        #expect(insights.dailyPoints.count == 1)
+    }
+
+    @Test(arguments: [false, true])
+    func `Legacy session requires a current producer observation before filling daily history`(
+        isCurrentObservation: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        let yesterday = now.addingTimeInterval(-86400)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)],
+            bucketTimeZoneIdentifier: "UTC")
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: isCurrentObservation ? now : yesterday, costSummary: summary)
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: self.emptyAggregation(windowDays: 7),
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now)
+        #expect(insights.total30DayCost == (isCurrentObservation ? 6 : 4))
+        #expect(insights.total30DayTokens == (isCurrentObservation ? 60 : 40))
+        #expect(insights.dailyPoints.count == (isCurrentObservation ? 2 : 1))
+        #expect(insights.dailyPoints.contains { $0.dayKey == "2026-10-02" } == isCurrentObservation)
+    }
+
     @Test
     func `Ledger refresh signature changes when the local day changes`() {
         let snapshot = SyncedUsageSnapshot(

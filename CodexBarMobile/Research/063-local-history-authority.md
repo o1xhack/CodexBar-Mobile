@@ -99,12 +99,28 @@ Branch: `fix/local-history-sync-authority`
   Air 原设置为 Match Mac，本项 Local 365 为独立模拟器 QA 模式，不能称已更改 Air 设置。
 - Mac focused r5：107 tests / 4 suites pass。全量 r4 前101组通过，第102组因新增 provider-specific
   判断缺少架构标记而停止；补充明确的设备/账号范围理由后 gatekeeper 48 tests pass，
-  按同一1520 selection/137 group manifest继续102–137组，不将初次失败隐藏为一次全绿。
+  按同一1520 selection/137 group manifest继续102–137组。第122组的三条旧 dashboard
+  补缺断言已改为设备/账号来源分离并验证官方数据保留，定向21 tests pass后继续至137组，
+  所有1520 selections / 137 groups均已完成，不将初次失败隐藏为一次全绿。
   所有测试环境禁用真实 Keychain。
 - 纳入 PR168 已推送的 writer provenance 修复后，r39 iOS：936 tests pass、0 skip/failed，
   r40 generic Release BUILD SUCCEEDED。PR169 第一轮远端 CR 又确认 SnapshotCache 重建
-  丢失 per-provider metadata 的 P1；正在修补实际 full/delta/replay/filter 链，最终 head 需重新验证。
-- 公开 GitHub CR 已恢复；本修复 PR169 已创建并通过首次 PR Fast Checks。
+  丢失 per-provider metadata 的 P1；已修补 full/delta/replay/filter 链与磁盘读回，
+  并保留旧 quota 的独立观察时间及错误来源，避免最新普通 snapshot 错误提升旧额度的可信度。
+- PR169 第二轮远端 CR 的两条 P2 已修复：空账本路径缺少 producer Today dated row 时，
+  有效 session Today 与同窗每日数据一起汇总，已有 Today 不重复，过期 session 不补缺；
+  子线程额外发现 legacy 无日期 session 可重复投影旧金额，现按 source/provider observation
+  的 producer day 校验，增加旧/当前 observation 参数化回归；
+  fleet fetch/push 成功只清同方向、操作开始前的错误，本轮解析及部分保存/删除失败继续保留。
+- r44及最终r46 iOS：940 tests pass、0 failed/skip，含四语言 UI、1/7/30/90/365跨时区
+  Today回归与legacy session日期校验；r45 generic iOS Release BUILD SUCCEEDED。
+  Mac同步/协调器/费用相关198 tests / 19 suites pass，
+  其中错误恢复定向55 tests通过；全量lint r6零violation及全部本地化审计通过。
+- r44最终源码再次在独立模拟器读取两台旧手机只读数据库备份，365天金额、Tokens、active days
+  均与各自保留账本一致；未用真实手机安装或线上CloudKit结果替代这项副本证据。
+- 公开 GitHub CR 已恢复；依赖PR168在 exact head cb9079596c9f3ddaa7c5e3d962e0e7f46448833b
+  经5轮CR、4条thread全resolved、review gate及Fast Checks通过后合并。本修复PR169需在
+  本次P2修复推送后的新head完成远端复审，不能继承旧head的通过结论。
 - Mac debug bundle打包与代码签名验证通过；CUA读取已安装与隔离测试应用持续 timeoutReached，
   因此没有完成Mac设置实际切换/滚动的渲染或卡顿验收。已请求用户提供具体复现操作。
 
