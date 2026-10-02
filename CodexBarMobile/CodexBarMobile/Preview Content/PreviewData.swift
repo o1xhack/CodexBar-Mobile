@@ -151,7 +151,14 @@ enum PreviewData {
             limitAmount: 120.0,
             currencyCode: "USD",
             period: "Monthly",
-            resetsAt: Date().addingTimeInterval(3600 * 24 * 9)))
+            resetsAt: Date().addingTimeInterval(3600 * 24 * 9)),
+        codexWorkspace: SyncCodexWorkspaceContext(
+            workspaceID: nil,
+            workspaceName: nil,
+            weeklyPaceDelta: -0.164,
+            // Deliberately a different producer language: the reader must not display this copy.
+            weeklyPaceLabel: "节奏：余量 16% · 持续到重置 · 1.5 倍余量",
+            updatedAt: Date().addingTimeInterval(-300)))
 
     static let openRouterProvider = ProviderUsageSnapshot(
         providerID: "openrouter",

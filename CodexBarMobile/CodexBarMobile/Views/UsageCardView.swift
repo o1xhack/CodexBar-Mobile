@@ -2,6 +2,7 @@ import CodexBarSync
 import SwiftUI
 
 struct UsageCardView: View {
+    @Environment(\.locale) private var locale
     let label: String
     let window: SyncRateWindow
     var providerID: String?
@@ -91,9 +92,7 @@ struct UsageCardView: View {
                             Text(String(localized: "Waiting for an updated Mac snapshot."))
                                 .font(.caption).foregroundStyle(.secondary)
                         } else if let reset = self.presentation.resetDate {
-                            Text(String(localized: "Monthly quota resets") + " " + reset.formatted(
-                                .relative(presentation: .named)))
-                                .font(.caption).foregroundStyle(.secondary)
+                            self.resetDateRow(reset, prefix: String(localized: "Monthly quota resets"))
                         } else {
                             Text(String(localized: "Reset time unavailable"))
                                 .font(.caption).foregroundStyle(.secondary)
@@ -104,13 +103,7 @@ struct UsageCardView: View {
 
             // A blocked lane's reset belongs to the monthly availability pool.
             if !self.presentation.isBlocked, let resetsAt = self.presentation.resetDate {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.caption)
-                    Text("\(String(localized: "Resets")) \(resetsAt.formatted(.relative(presentation: .named)))")
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
+                self.resetDateRow(resetsAt, prefix: String(localized: "Resets"))
             } else if !self.presentation.isBlocked, let description = self.window.resetDescription {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
@@ -125,6 +118,44 @@ struct UsageCardView: View {
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 8)
+    }
+
+    private func resetDateRow(_ date: Date, prefix: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                self.resetCountdown(date, prefix: prefix)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 8)
+                self.absoluteResetTime(date)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                self.resetCountdown(date, prefix: prefix)
+                HStack {
+                    Spacer(minLength: 0)
+                    self.absoluteResetTime(date)
+                }
+            }
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private func resetCountdown(_ date: Date, prefix: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "clock.arrow.circlepath")
+                .accessibilityHidden(true)
+            Text(verbatim: prefix + " " + date.formatted(.relative(presentation: .named).locale(self.locale)))
+        }
+        .font(.caption)
+    }
+
+    private func absoluteResetTime(_ date: Date) -> some View {
+        Text(verbatim: QuotaResetDateText.compact(date))
+            .font(.caption2.monospacedDigit())
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityLabel(String(
+                format: String(localized: "Resets at %@"),
+                date.formatted(.dateTime.year().month(.wide).day().hour().minute().locale(self.locale))))
+            .accessibilityIdentifier("usage.reset.absolute")
     }
 
     @ViewBuilder

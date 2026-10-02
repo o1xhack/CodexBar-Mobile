@@ -294,9 +294,22 @@ struct ProviderDetailView: View {
                 }
                 if self.provider.providerID == "codex",
                    let codexWorkspace = self.provider.codexWorkspace,
-                   codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceLabel?.isEmpty == false
+                   codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceDelta != nil
                 {
-                    CodexWorkspaceBadge(context: codexWorkspace, tintColor: self.providerColor)
+                    TimelineView(.periodic(from: .now, by: 60)) { clock in
+                        let referenceDate = self.isDemoMode ? self.costReferenceDate : clock.date
+                        let window = CodexPacePresentation.window(for: self.provider)
+                        if codexWorkspace.workspaceName?.isEmpty == false ||
+                            CodexPacePresentation(
+                                context: codexWorkspace, window: window, referenceDate: referenceDate) != nil
+                        {
+                            CodexWorkspaceBadge(
+                                window: window,
+                                context: codexWorkspace,
+                                tintColor: self.providerColor,
+                                referenceDate: referenceDate)
+                        }
+                    }
                 }
                 if self.provider.providerID == "codex",
                    let resetCredits = self.provider.codexResetCredits,
@@ -415,7 +428,8 @@ struct ProviderDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This is mock data")
                     .font(.caption.bold())
-                Text("Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
+                Text(
+                    "Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

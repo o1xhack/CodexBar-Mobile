@@ -56,6 +56,48 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testResetDatesAndCodexPaceUseTheReaderLanguage() {
+        XCUIDevice.shared.orientation = .portrait
+        for (language, fragment, explanation) in [
+            ("en", "16 percentage points below even pace", "Weekly pace estimate"),
+            ("zh-Hans", "低 16 个百分点", "每周用量估算"),
+            ("zh-Hant", "低 16 個百分點", "每週用量估算"),
+            ("ja", "16 ポイント低い", "週間使用ペースの推定"),
+        ] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "UI_TEST_PREVIEW_DATA", "UI_TEST_SKIP_ONBOARDING", "UI_TEST_RESET_DEFAULTS",
+                "-cwlEnabled", "NO", "-AppleLanguages", "(\(language))", "-AppleLocale", language,
+            ]
+            app.launch()
+            let provider = app.buttons["provider-group-codex"]
+            XCTAssertTrue(provider.waitForExistence(timeout: 10))
+            for _ in 0..<6 where !provider.isHittable {
+                app.swipeUp()
+            }
+            provider.tap()
+            XCTAssertTrue(app.navigationBars["Codex"].waitForExistence(timeout: 5))
+            let absolute = app.staticTexts.matching(identifier: "usage.reset.absolute").firstMatch
+            XCTAssertTrue(absolute.waitForExistence(timeout: 5))
+            XCTAssertTrue(absolute.isHittable)
+            let pace = app.staticTexts["codex-pace-summary"]
+            for _ in 0..<10 where !pace.isHittable {
+                app.swipeUp()
+            }
+            XCTAssertTrue(pace.waitForExistence(timeout: 5))
+            XCTAssertTrue(pace.label.contains(fragment))
+            if language == "en" { XCTAssertFalse(pace.label.contains("节奏")) }
+            self.captureScreen(app, name: "Reset dates and Codex pace \(language)")
+            let info = app.buttons["codex-pace-info"]
+            XCTAssertTrue(info.isHittable)
+            info.tap()
+            XCTAssertTrue(app.alerts[explanation].waitForExistence(timeout: 5))
+            self.captureScreen(app, name: "Pace explanation \(language)")
+            app.terminate()
+        }
+    }
+
+    @MainActor
     func testVersionUpdateShowsReleaseNotesAndSetupGuideOnDemand() {
         let app = XCUIApplication()
         app.launchArguments = [

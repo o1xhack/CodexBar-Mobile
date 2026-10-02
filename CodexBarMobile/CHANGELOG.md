@@ -13,6 +13,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Align sixteen fallback provider accents with upstream v0.70 while preserving synced overrides and light/dark readability.
 
 ### Fixed
+- Show exact local reset dates (`M.d HH:mm`) beside quota countdowns, and render Codex pace estimates in the iPhone language from numeric observations rather than Mac-localized text. Explain percentage-point differences and the conditional headroom estimate.
 - Restore per-widget mode, color and ordered provider selection through SiriKit configuration. Keep an explicit replacement notice for legacy status widgets; re-add them to use the new configuration format.
 - Preserve actual utilization observations and declines instead of synthesizing hourly averages; reject invalid/future observations before selecting the current lane duration.
 - Bound utilization chart gap expansion and reject invalid timestamp-to-integer conversions.

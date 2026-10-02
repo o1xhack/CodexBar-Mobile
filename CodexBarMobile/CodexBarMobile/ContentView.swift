@@ -4642,7 +4642,7 @@ private enum MobileReleaseNotesCatalog {
             sections: [
                 .init(title: String(localized: "What's New"), items: [
                     String(
-                        localized: "Track Codex and Claude quota usage until reset, with a steady-use guide."),
+                        localized: "Track Codex and Claude quota usage with a steady-use guide, exact reset times, and pace estimates in your iPhone language."),
                     String(
                         localized: "See Kimi monthly blocks and short-window usage. Cached data waits for Mac sync."),
                     String(

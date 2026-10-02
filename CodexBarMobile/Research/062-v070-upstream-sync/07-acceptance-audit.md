@@ -2,7 +2,7 @@
 
 Status: `in-progress`
 Date: 2026-10-02
-Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 production inputs match frozen `status-slots-r16-inputs.json`. Subsequent acceptance-summary corrections are documentation only.
+Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 production inputs match frozen `status-slots-r16-inputs.json`. 后续用户要求的重置时刻与节奏文案改动已改变iOS产品源码；旧192项manifest及r19 Release仅证明之前检查点，不能作为新源码发布证据。新改动验证见10-ios-reset-and-pace.md。
 
 本表保持完整 Goal 范围。证据均位于 StudioSSD BuildScratch/CodexBar/upstream-v070 或本 Research；local、离屏、替代矩阵、实体和远端 gate 分别记录。
 
