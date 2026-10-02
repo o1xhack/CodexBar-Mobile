@@ -158,7 +158,9 @@ struct SnapshotCache: Sendable {
                 self.perProviderQuotaSourcesByDevice[envelope.deviceID, default: [:]][key] = SyncProviderQuotaSource(
                     appVersion: envelope.appVersion,
                     publicationTimestamp: envelope.syncTimestamp,
-                    deviceID: envelope.deviceID)
+                    deviceID: envelope.deviceID,
+                    capturedAt: envelope.provider.lastUpdated,
+                    isError: envelope.provider.isError)
             }
 
             self.updateMetadata(from: envelope)
@@ -209,7 +211,9 @@ struct SnapshotCache: Sendable {
                 self.perProviderQuotaSourcesByDevice[envelope.deviceID, default: [:]][key] = SyncProviderQuotaSource(
                     appVersion: envelope.appVersion,
                     publicationTimestamp: envelope.syncTimestamp,
-                    deviceID: envelope.deviceID)
+                    deviceID: envelope.deviceID,
+                    capturedAt: envelope.provider.lastUpdated,
+                    isError: envelope.provider.isError)
             }
 
             self.updateMetadata(from: envelope)
@@ -300,7 +304,9 @@ struct SnapshotCache: Sendable {
                                 ?? SyncProviderQuotaSource(
                                     appVersion: nil,
                                     publicationTimestamp: providerPublicationTimestamps[key] ?? snapshotTimestamp,
-                                    deviceID: deviceID)
+                                    deviceID: deviceID,
+                                    capturedAt: provider.lastUpdated,
+                                    isError: provider.isError)
                             return (key, source)
                         },
                         uniquingKeysWith: { first, _ in first })))

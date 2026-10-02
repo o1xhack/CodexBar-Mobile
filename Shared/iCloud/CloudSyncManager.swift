@@ -1966,7 +1966,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                     (SyncedUsageSnapshot.providerPublicationKey(for: envelope.provider), SyncProviderQuotaSource(
                         appVersion: envelope.appVersion,
                         publicationTimestamp: envelope.syncTimestamp,
-                        deviceID: envelope.deviceID))
+                        deviceID: envelope.deviceID,
+                        capturedAt: envelope.provider.lastUpdated,
+                        isError: envelope.provider.isError))
                 },
                 uniquingKeysWith: { lhs, rhs in
                     lhs.publicationTimestamp < rhs.publicationTimestamp ? rhs : lhs

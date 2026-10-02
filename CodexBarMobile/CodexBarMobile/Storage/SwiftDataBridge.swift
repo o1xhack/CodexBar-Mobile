@@ -596,7 +596,9 @@ enum SwiftDataBridge {
                     quotaSources[key] = SyncProviderQuotaSource(
                         appVersion: nil,
                         publicationTimestamp: publications[key] ?? device.lastSyncAt,
-                        deviceID: device.deviceID)
+                        deviceID: device.deviceID,
+                        capturedAt: provider.lastUpdated,
+                        isError: provider.isError)
                 }
             }
 
