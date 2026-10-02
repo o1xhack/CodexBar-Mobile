@@ -462,3 +462,11 @@ review确认generated协议defaultProvider1–4为optional，缺实现不能直�
 发布清单的多账号专项命令通过安全test_environment执行：明确unset live Keychain opt-in，TMPDIR指向SSD，`swift test --skip-build --filter 'AccountIdentity|MultiAccount|DualZoneReader'`终态exit0，128 tests/12 suites通过；mac-account-gate-r18.log保留完整结果。DualZoneReader位于iOS target，不能把这个Mac过滤器当该suite证据。另从r7标准xcresult测试树逐项读回7个AccountIdentity/MultiAccount/DualZoneReader suites，共65 test-case节点均Passed，其中DualZoneReader10项；ios-account-gate-readback-r18.json记录节点与结果。这是旧r7证据覆盖复核，不宣称在r18重跑iOS全量测试。
 
 当前CI policy与fork README guards exit0；changelog-to-html 0.70.0.1实际提取fork Highlights/Changed/Fixed和Mobile2.3.0标题，非上游技术段。MOBILE_VERSION保持已发配套2.3.0，未上传的iOS2.4.0不作为已发版本。GitHub只读回读：唯一open upstream-sync仍为#166，最新published稳定release仍为v0.70.0，前两版v0.69.0/v0.68.0；本分支PR列表为空。未push/PR/merge/tag/签名公证/Mac draft/TestFlight。
+
+## r19 iPhoneOS Release 编译及实际产物预检（2026-10-02）
+
+新options target此前只有Debug/Simulator证据，本轮补完整generic iOS Release编译。源commit30a41cf87c949a18984d6c357ed1df553da692bd、192输入与r16冻结SHA一致；SSD挂载UUID与可写/realpath预检通过。`xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj -scheme CodexBarMobile -configuration Release -destination 'generic/platform=iOS' -derivedDataPath <scratch>/ios-release-preflight-r19 -resultBundlePath <scratch>/ios-release-preflight-r19.xcresult -packageAuthorizationProvider netrc CODE_SIGNING_ALLOWED=NO -jobs 2 build`终态exit0 / BUILD SUCCEEDED。session88649正常结束，没有重启或取消。
+
+实际App内嵌Push/Widgets/WidgetOptions三extension及CodexBarSync.framework；五bundle均2.4.0(227)、arm64，五binary UUID与各自Release dSYM逐项一致。App/Widgets/Options×四语言共12份编译WidgetStatus.strings解码后与当前源逐键逐值一致，每份20键；Options四语言Not selected也与xcstrings源值一致。App包60文件SHA与bundle/binary/dSYM/version/resource核对记录于ios-release-preflight-r19-artifacts.json，192输入及源码commit另存-inputs.json。首次核对误把22行源文件当22键导致检查失败；改为源strings解码比对后通过，未改任何产品资源。
+
+构建零error diagnostics、有7条warning，主要为Shared CloudSyncManager既有未使用save返回值和无AppIntents依赖target的metadata extraction skipped，完整行保留manifest/log；不称零warning构建。本轮只证明Release编译与上述静态实际产物条件，签名关闭，不是archive、export、上传、可安装发行物、真实CloudKit/APNs或Release runtime验收。未读发布凭证、未操作实体设备、未push/PR/merge/tag/Mac draft/TestFlight。下一步remote handoff仍等待Goal要求的用户明确授权。

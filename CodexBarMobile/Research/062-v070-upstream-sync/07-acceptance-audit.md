@@ -14,7 +14,7 @@ Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 p
 | 4 Mac→iOS数据准备 | Shared optional blocking/modelsUsed；真实old/new wire+merger+cache；CloudConstants/schema audit | 已实现；Production/APNs实际同步未验证 |
 | 5 单版本/version | version.env 0.70.0.1/161.1/2.3.0；五iOS targets 2.4.0(227) | 已配置；正式签名来源再核对 |
 | 6 Mac构建/回归/CloudKit/draft | mac-full-r5、unsigned universal/dSYM预检、NO_DEPLOY静态审计 | draft/签名/公证/Gatekeeper/资产回读未完成 |
-| 7 iOS功能/notes/本地化/测试 | 02/05/06/09、CHANGELOG、单2.4 release block；r7完整916tests/1012runs零失败，r16 focused51/66零失败；标准Widget6方法、真实App四语言quota UI、生产四模式两样式/0–4槽/双实例/四尺寸、四语言配置资源与实际界面见03逐轮范围 | 生产SiriKit四槽修复已实现，非默认配置可消费；r17繁体medium六组固定等待/滚动/同不同ID/Home与outside退出对照均通过，配置截图读回及Home内容经人工核对；保留r15/r16偶发无法载入的未知原因风险，不宣称根因已修复。人工VoiceOver及实体同步仍未验证 |
+| 7 iOS功能/notes/本地化/测试 | 02/05/06/09、CHANGELOG、单2.4 release block；r7完整916tests/1012runs零失败，r16 focused51/66零失败；r19 unsigned iPhoneOS Release五bundle编译/版本/arm64/dSYM及12份intent语言资源核对通过；标准Widget6方法、真实App四语言quota UI、生产四模式两样式/0–4槽/双实例/四尺寸、四语言配置资源与实际界面见03逐轮范围 | 生产SiriKit四槽修复已实现，非默认配置可消费；r17繁体medium六组固定等待/滚动/同不同ID/Home与outside退出对照均通过，配置截图读回及Home内容经人工核对；保留r15/r16偶发无法载入的未知原因风险，不宣称根因已修复。人工VoiceOver及实体同步仍未验证 |
 | 8 16 old/new兼容组合 | 03全16行substituted；冻结wire64 reads/32 merges；frozen-ios-cache-r4 32stores/96processes exit0 | 替代验证完成，未等同实体2Mac×2iPhone、CloudKit/APNs或真实UI |
 | 9 循环review/零阻塞 | 本地exact9974283e2及四槽迁移/翻译/默认值新增diff review clean；产品检查点55fdc080d已提交，本地exact-head审查无新源码阻塞；验收摘要文档修正单独记录 | GitHub PR/CR尚未创建；local不能代替remote exact-head review |
 | 10 证据/链接/状态 | Research保持in-progress，各artifact source/hash/log证明 | PR/draft链接不存在，不虚构；后续实际结果再回写 |
@@ -42,3 +42,7 @@ iOS全部适用本地gate → 获准push/PR → current-head CR清洁/全thread 
 ## r18补充核验
 
 安全Mac多账号专项128 tests/12 suites终态通过；r7标准xcresult中7个iOS多账号/双zone suites共65 case节点Passed，含DualZoneReader10项。当前CI policy/fork README guard和fork changelog HTML提取通过。具体命令、来源及范围见03的r18段。产品及文档检查点本地review clean；尚无push/PR授权和远端PR，后续用户明确授权后才执行remote handoff，Mac draft仍按既定顺序等待。
+
+## r19补充Release编译预检
+
+此前未覆盖的新WidgetOptions Release配置现已完成generic iPhoneOS编译，exit0；实际五bundle2.4.0(227)、arm64及dSYM一致，12份intent语言资源与源值一致。没有签名、archive/export或发行物安装证明；详细范围与warning见03的r19段。产品输入未修改。
