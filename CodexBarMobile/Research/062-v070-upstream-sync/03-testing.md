@@ -104,3 +104,11 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 候选tag `v0.70.0.1-mobile.2.3.0`只读查询返回release not found（BuildScratch/draft-candidate-readback.stderr），尚未创建草稿。正式创建前再次回读防止并发重复。
 
 `mac-architecture-r1.log`终态exit0，53 tests /3 suites，6.643秒；包含全架构gate与Claude库存/Kimi阻塞桥接，单文件SwiftFormat/SwiftLint零违规。`lint-r9.log`仍执行中；下一轮完整`mac-full-r5.log`继续原默认137组，不用定向测试替代全量。
+
+`lint-r9.log`终态exit0：2749 Swift files零违规，367 source keys四语言齐全，安全/脚本/CI/parser guards全部通过。mac-full-r5保持原进程运行中。
+
+## iOS consumer 基线构建
+
+为提前验证Mac→iOS Shared改动，使用XcodeBuildMCP build_sim compile-only：source `bc26b3512`、xcodegen按现有project.yml生成；Debug/iOS27 Simulator，独立DerivedData `BuildScratch/upstream-v070/ios-baseline`，CODE_SIGNING_ALLOWED=NO、jobs2，未安装/启动App。Build succeeded，51.3秒；日志已复制至`ios-baseline-build.log`。产物Info.plist确认为现有2.3.0 (226)，未提前变更2.4.0版本/说明。App、Shared framework、push/widget extensions编译通过；两处CloudSyncManager save unused warning是现有代码诊断，没有编译错误。
+
+该证据仅为现有consumer编译兼容；不是新iOS功能完成、单元测试通过、四语言UI渲染、真实CloudKit同步或16组合矩阵证据。新iOS实施仍按05设计继续，最终新版本须重新build/test。
