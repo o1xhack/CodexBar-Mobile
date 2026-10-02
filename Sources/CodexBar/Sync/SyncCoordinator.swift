@@ -2256,6 +2256,7 @@ final class SyncCoordinator {
         // Codex's local history is device-scoped; web dashboard costs are
         // account-scoped. Filling local gaps with account totals would charge
         // the same activity again when iOS adds reports from multiple Macs.
+        // Provider-specific by design: Codex account-wide dashboard rows cannot fill device-local cost history.
         let serviceBreakdownsByDay = canPublishDashboardRows && provider != .codex
             ? self.dashboardServiceBreakdowns(for: provider)
             : [:]

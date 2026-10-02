@@ -97,8 +97,16 @@ Branch: `fix/local-history-sync-authority`
   两者不再被同一组 incoming headline 统一替换为更小金额。实际私人金额和截图仅在本机
   BuildScratch 保存，不上传公开 PR。未修改实体手机或原始备份。
   Air 原设置为 Match Mac，本项 Local 365 为独立模拟器 QA 模式，不能称已更改 Air 设置。
-- Mac focused r3：107 tests / 4 suites pass；全量 Mac r4 正在运行。测试环境禁用真实 Keychain。
-- 公开 GitHub CR 已恢复。PR 168 本轮有新的 alias provider provenance findings，隔离线程正在修复。
+- Mac focused r5：107 tests / 4 suites pass。全量 r4 前101组通过，第102组因新增 provider-specific
+  判断缺少架构标记而停止；补充明确的设备/账号范围理由后 gatekeeper 48 tests pass，
+  按同一1520 selection/137 group manifest继续102–137组，不将初次失败隐藏为一次全绿。
+  所有测试环境禁用真实 Keychain。
+- 纳入 PR168 已推送的 writer provenance 修复后，r39 iOS：936 tests pass、0 skip/failed，
+  r40 generic Release BUILD SUCCEEDED。PR169 第一轮远端 CR 又确认 SnapshotCache 重建
+  丢失 per-provider metadata 的 P1；正在修补实际 full/delta/replay/filter 链，最终 head 需重新验证。
+- 公开 GitHub CR 已恢复；本修复 PR169 已创建并通过首次 PR Fast Checks。
+- Mac debug bundle打包与代码签名验证通过；CUA读取已安装与隔离测试应用持续 timeoutReached，
+  因此没有完成Mac设置实际切换/滚动的渲染或卡顿验收。已请求用户提供具体复现操作。
 
 ### 真实设备与兼容性证据边界
 
