@@ -267,3 +267,10 @@ r2 terminal exit0，6方法/0 failures：主Widget128 mode×family×style×schem
 用户报告已输入密码。此前iOS27独立Swift Testing runner PID99312已不存在，run-ios27.log实际终态为313 tests/15 suites passed after1887.226s，运行OS27.0(24A434)。ios27-terminal-evidence.json保存log SHA和证据边界；原launch记录指向frozen-r2，不能当作后来axis-final输入在iOS27通过。历史shell session已不可读取，未虚构shell exit0。此前三个xcodebuild PID也均已不存在，但r6 xcresult缺Info.plist，仍无标准XCTest pass证据；sample PID已消失且未生成堆栈文件。没有据进程消失重启任务。
 
 DevToolsSecurity仍报告disabled。本机manpage说明：普通系统在一个login session首次使用Apple debugger/performance analysis工具检查用户进程时会请求管理员授权；enable改变的是免额外密码策略。disabled并不证明刚输入的单次授权失败，也不能单独确定本轮UI阻塞根因。Simulator ui复检terminal exit1，再次返回No translation object returned for simulator，无成功screen证据；不宣称真实App/SpringBoard恢复。用户无需向agent提供密码，未改变全局授权策略。
+
+
+## 最终 axis 输入 iOS27 复验
+
+历史313项通过后，旧进程确实退出且用户已处理密码提示；启动独立ios27-axis-final-r1，链接frozen-axis-final所有生产/原测试对象，逐个SHA匹配。仅Runner的event输出路径与bundle ID改变，clone当前真实app资源，没有替换原Swift Testing断言。保存compile-command/object/source/binary/artifact manifests。iOS27.0(24A434)运行terminal exit0，313 tests/15 suites passed after2.851s。当前最终图表输入在iOS26.5和iOS27均有原始单元通过证据；仍不证明真实App或系统Widget行为。
+
+旧标准XCTest三PID已缺失且无完整result，因环境变化后重新从ios-display-final启动Widget六方法+四语言quota UI test，session26117/PID17111，result ios-widget-ui-after-auth-r1.xcresult。本次没有重启live run；当前仍live且没有测试终态，不称pass。未进行sim-use坐标操作；SpringBoard配置gate继续未完成。

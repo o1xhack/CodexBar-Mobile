@@ -14,7 +14,7 @@ Source checkpoint: `577ceb90aa1cb37e68e996ead44aa10fc41cc48e`
 | 4 Mac→iOS数据准备 | Shared optional blocking/modelsUsed；真实old/new wire+merger+cache；CloudConstants/schema audit | 已实现；Production/APNs实际同步未验证 |
 | 5 单版本/version | version.env 0.70.0.1/161.1/2.3.0；四iOS targets 2.4.0(227) | 已配置；正式签名来源再核对 |
 | 6 Mac构建/回归/CloudKit/draft | mac-full-r5、unsigned universal/dSYM预检、NO_DEPLOY静态审计 | draft/签名/公证/Gatekeeper/资产回读未完成 |
-| 7 iOS功能/notes/本地化/测试 | 02/05/06、CHANGELOG、单2.4 release block；原始313/15 iOS26.5 passed；32生产图表离屏图 | 实现与定向runtime通过；真实App UI与Widget gate未完成；iOS27复验仍live |
+| 7 iOS功能/notes/本地化/测试 | 02/05/06、CHANGELOG、单2.4 release block；原始313/15 iOS26.5 passed；32生产图表离屏图 | 实现与定向runtime通过；真实App UI与Widget gate未完成；最终axis输入iOS27原始313/15也exit0；标准Widget/UI仍live |
 | 8 16 old/new兼容组合 | 03全16行substituted；冻结wire64 reads/32 merges；frozen-ios-cache-r4 32stores/96processes exit0 | 替代验证完成，未等同实体2Mac×2iPhone、CloudKit/APNs或真实UI |
 | 9 循环review/零阻塞 | 本地 exact577ceb90a review clean | GitHub PR/CR尚未创建；local不能代替remote exact-head review |
 | 10 证据/链接/状态 | Research保持in-progress，各artifact source/hash/log证明 | PR/draft链接不存在，不虚构；后续实际结果再回写 |
