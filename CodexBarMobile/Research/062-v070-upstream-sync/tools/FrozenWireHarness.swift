@@ -8,6 +8,58 @@ struct Harness {
     static func main() throws {
         let args = CommandLine.arguments
         guard args.count == 4 else { fatalError("mode, path, device required") }
+        if args[1] == "merge" {
+            let envelopes = try args[2...3].map {
+                try CloudSyncConstants.makeJSONDecoder().decode(
+                    ProviderUsageEnvelope.self, from: Data(contentsOf: URL(fileURLWithPath: $0)))
+            }
+            let snapshots = envelopes.map { envelope in
+                let localTokens = ProviderUsageSnapshot(
+                    providerID: "codex",
+                    providerName: "Synthetic Codex",
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: nil,
+                    loginMethod: nil,
+                    statusMessage: nil,
+                    isError: false,
+                    lastUpdated: envelope.provider.lastUpdated,
+                    costSummary: envelope.provider.costSummary)
+                return SyncedUsageSnapshot(
+                    providers: [envelope.provider, localTokens],
+                    syncTimestamp: envelope.syncTimestamp,
+                    deviceName: envelope.deviceName,
+                    deviceID: envelope.deviceID)
+            }
+            for sources in [snapshots, Array(snapshots.reversed())] {
+                guard let merged = ProviderSnapshotMerger.mergeSnapshots(sources),
+                      let kimi = merged.providers.first(where: { $0.providerID == "kimi" }),
+                      let codex = merged.providers.first(where: { $0.providerID == "codex" })
+                else { fatalError("Both fixture providers must survive the merge") }
+                precondition(merged.providers.count == 2)
+                // Equal capture times resolve deterministically to writer mac-b.
+                precondition(kimi.primary?.usedPercent == envelopes[1].provider.primary?.usedPercent)
+                precondition(kimi.primary?.resetsAt == envelopes[1].provider.primary?.resetsAt)
+                precondition(kimi.rateWindows.first?.usedPercent == kimi.primary?.usedPercent)
+                precondition(kimi.costSummary?.daily.first?.totalTokens == 12)
+                precondition(kimi.costSummary?.daily.first?.costIsKnown == false)
+                precondition(codex.costSummary?.daily.first?.totalTokens == 24)
+                precondition(codex.costSummary?.daily.first?.costIsKnown == false)
+                #if NEW_WIRE
+                precondition(kimi.primary?.blockingQuota == envelopes[1].provider.primary?.blockingQuota)
+                let expectedNames = envelopes.flatMap { $0.provider.costSummary?.daily.first?.modelsUsed ?? [] }
+                precondition(codex.costSummary?.daily.first?.modelsUsed ==
+                    (expectedNames.isEmpty ? nil : Array(Set(expectedNames)).sorted()))
+                #endif
+            }
+            // Removed devices must not reappear from the previous reduction.
+            let retained = ProviderSnapshotMerger.mergeSnapshots([snapshots[0]])
+            precondition(retained?.deviceName == "Synthetic mac-a")
+            precondition(retained?.providers.first(where: { $0.providerID == "codex" })?
+                .costSummary?.daily.first?.totalTokens == 12)
+            print("PASS: real consumer merge, stable order, blocked availability, local token sum, removed writer")
+            return
+        }
         let url = URL(fileURLWithPath: args[2])
         if args[1] == "write" {
             var window = SyncRateWindow(

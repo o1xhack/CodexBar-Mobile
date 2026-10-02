@@ -40,6 +40,7 @@ paths = [p for p in paths if p.endswith(".swift") and (
     p.startswith("Shared/Models/") or p in [
         "Shared/iCloud/CloudConstants.swift", "Shared/iCloud/AccountIdentityNormalize.swift",
         "Shared/Utilities/EmailRedaction.swift"])]
+paths.append("CodexBarMobile/CodexBarWidgetShared/ProviderSnapshotMerger.swift")
 manifest = {
     "oldRef": args.old_ref,
     "oldCommit": git("rev-parse", args.old_ref + "^{commit}").decode().strip(),
@@ -52,7 +53,10 @@ for path in paths:
     for kind, data in [("old", old), ("new", new)]:
         output = root / kind / path
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(data)
+        # Compile model and consumer sources in one synthetic module. Removing
+        # the self-import changes module wiring only, not merge implementation.
+        compiled_data = data.replace(b"import CodexBarSync\n", b"")
+        output.write_bytes(compiled_data)
     manifest["files"].append({
         "path": path, "oldSHA256": hashlib.sha256(old).hexdigest(),
         "newSHA256": hashlib.sha256(new).hexdigest()})
@@ -92,10 +96,21 @@ for mask in range(16):
             if result.returncode:
                 (root / "matrix-wire.log").write_text("\n".join(lines))
                 raise SystemExit(result.returncode)
+        command = [str(root / (reader + "-wire")), "merge",
+                   str(root / (versions[0] + "-mac-a.json")),
+                   str(root / (versions[1] + "-mac-b.json"))]
+        result = subprocess.run(command, capture_output=True, text=True, env=env)
+        lines.append(f"mask={mask} {phone} {reader}-reader two-writer merge: "
+                     f"exit={result.returncode}\n{result.stdout}{result.stderr}")
+        operations.append({"phone": phone, "reader": reader, "operation": "two-writer-merge",
+                           "exitCode": result.returncode})
+        if result.returncode:
+            (root / "matrix-wire.log").write_text("\n".join(lines))
+            raise SystemExit(result.returncode)
     cases.append({"case": mask + 1, "mask": mask, "versions": versions,
-                  "stage": "frozen-shared-wire-only", "readOperations": operations, "result": "pass"})
+                  "stage": "frozen-shared-wire-and-consumer-merge", "readOperations": operations, "result": "pass"})
 (root / "matrix-wire.log").write_text("\n".join(lines))
 (root / "matrix-wire.json").write_text(json.dumps({
-    "scope": "serialization only; no merge, SwiftData, UI, CloudKit, APNs or physical device evidence",
+    "scope": "serialization and real old/new pure consumer merge; no SwiftData, UI, CloudKit, APNs or physical device evidence",
     "cases": cases}, indent=2))
-print("PASS: 16 wire-only masks, 64 independent reader processes, four device envelopes")
+print("PASS: 16 masks, 64 wire reads and 32 real old/new consumer merge processes")

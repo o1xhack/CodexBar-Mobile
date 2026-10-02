@@ -6,22 +6,22 @@ Status: `in-progress`
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
-| 1 | old | old | old | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 2 | old | old | old | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 3 | old | old | new | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 4 | old | old | new | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 5 | old | new | old | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 6 | old | new | old | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 7 | old | new | new | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 8 | old | new | new | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 9 | new | old | old | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 10 | new | old | old | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 11 | new | old | new | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 12 | new | old | new | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 13 | new | new | old | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 14 | new | new | old | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 15 | new | new | new | old | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
-| 16 | new | new | new | new | pending | 未验证 | 尚待测试；不可推断 Production 收敛或 silent push |
+| 1 | old | old | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 1 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 2 | old | old | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 2 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 3 | old | old | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 3 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 4 | old | old | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 4 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 5 | old | new | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 5 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 6 | old | new | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 6 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 7 | old | new | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 7 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 8 | old | new | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 8 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 9 | new | old | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 9 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 10 | new | old | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 10 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 11 | new | old | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 11 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 12 | new | old | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 12 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 13 | new | new | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 13 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 14 | new | new | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 14 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 15 | new | new | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 15 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 16 | new | new | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 16 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
 
 ## 当前命令证据
 
@@ -149,3 +149,13 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 - r4/session11533、r5/session17532 均 live；专用 Simulator app-container 查询也未返回，诊断句柄97447与进程 sample 19272 仍待查询。未因 observation timeout 取消或重启任何 live run，也未重启全局 CoreSimulator。
 
 本地保存 consumer 数据层 checkpoint；包含 actual-observation history merge、token-only 模型名流转与 publication 持久化，尚未完成 migration/runtime release gate，不执行 push/PR/merge/draft。
+
+## 16 组合 wire + consumer merge 替代证据
+
+`frozen-consumer-matrix-r3.log` exit0；真实旧发行 tag `v0.68.0.1-mobile.2.3.0` 的 Shared model 和 ProviderSnapshotMerger、当前树对应源码分别编译为两个独立 reader executable。每组两 reader 各运行两 writer envelope decode/roundtrip、一次双 writer merge，共 64 read + 32 merge process，全部通过。每次 merge 同时验证正/反输入顺序、Kimi legacy/effective availability 与 reset、account-native summary、两个虚构本地 Codex token contribution 的 24-token 汇总和 cost unavailable；新 reader 检查 optional blocking metadata/model-name union；删除 writer 后只剩 12-token contribution。旧 reader 使用真实旧 merger，未模拟旧策略。fixture Codex token contribution 从虚构 envelope summary 构造，没有真实账户读写。
+
+真实硬件不足且当前 Simulator test launch 未取得结果；因此表格仅把 wire+merge 阶段标 substituted，不能推断完整 matrix gate 已通过。SwiftData cache、UI render、Production records/APNs 与两手机实际收敛仍未证明。每个旧/新源码 SHA 与 harness SHA、oldCommit/newCommit 见 `frozen-consumer-matrix-r3/source-manifest.json`；编译仅移除同 module 自引用 import，不改算法。首轮 r1 在 mask0 的 retained.deviceID 断言失败：production merged snapshot 正常为 nil，测试错误要求 mac-a；改为检查保留 deviceName 与 12 token，r2 全部通过。未修改生产代码迎合 harness。
+
+2026-10-01 再次 devicectl read-only inventory：physical iPhone Air connected；physical iPhone 17 Pro Max unavailable。其余可用 iPhone/iPad 均 simulated，不能算第二台真实 iPhone。未连接或安装任何设备。本轮 Simulator install/query/sample 仍 live，不能据此声称启动成功；另外启动 ios-ui-build-final（generic Simulator build-for-testing，无启动/安装）以验证完整旧 schema fixture 和四语言 UI 当前最终输入的编译，日志待终态。
+
+独立 matrix review 核对所有 17 个源码 hashes 对应各自真实 old/new source，只删 module self-import，无旧新算法混用；建议补 account-native summary 直接断言，现已增加 Kimi 12 tokens / unavailable，而不是只验证 quota。r3 exit0，再次完整 16 masks / 64 reads / 32 merge processes。移除 writer 仅验证无状态 reduction，尚不证明 SwiftData tombstone 或 CloudKit 删除收敛。
