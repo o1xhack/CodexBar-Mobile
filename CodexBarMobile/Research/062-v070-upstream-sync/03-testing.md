@@ -312,3 +312,20 @@ sim-use 当前已恢复，可读取与操作自有 iOS26.5 Simulator 7216E120。
 同临时 DEBUG trace 输入的 Xcode27.2beta2 构建 session64022终态exit0 / BUILD SUCCEEDED，安装到同一自有iOS26.5 Simulator。真实编辑面板保留旧 todayCost 选择，实际切换 syncHealth 后系统日志 serialized mode=syncHealth；timeline入口仍 overview/mono/0，并重复to-0.0 AppEnum runtime warning。Home实际截图仍overview四provider。widget-xcode272-evidence-r1.json记录工具链、输入、产物和截图/log SHA。该版本对照未修复参数恢复；不把beta构建当发布工具链，也不据两工具链同样失败断言系统根因。
 
 临时 DEBUG trace 已精确恢复为原源码；两个诊断产物和trace副本保留在scratch，不混称其为正式发布二进制。下一项安全鉴别为独立最小项目的纯enum与同enum+optional AppEntity array对照，保留生产providers完整范围，禁止通过删除参数/改旧raw IDs/全局defaults绕过per-widget配置。
+
+## 独立最小项目排除业务与枚举列表因素（2026-10-01）
+
+证据目录：BuildScratch/CodexBar/upstream-v070/widget-parameter-probe-r1。诊断 App 不含 CloudKit、账号、App Group 或生产业务，只显示 timeline 实际接收的参数。所有实验只安装到自有 7216E120 iOS26.5，使用 Xcode27.0 的本地 ad-hoc Simulator 签名。
+
+| 实验 | 构建终态 | 系统保存值 | 实际 timeline 值 | 证据 |
+| --- | --- | --- | --- | --- |
+| mixed-r3，Plain intent 无 entity，但 bundle 另含 Entity intent | exit0 | syncHealth | overview | frozen-mixed-r3/manifest.json，plain-log.txt、plain-sync-home.png |
+| plain-only-r4，整个 bundle 删除全部 entity/query/entity intent/widget | exit0，session24447 | todayCost | overview | frozen-plain-only-r4/manifest.json |
+| caseiterable-r5，仅显式 CaseIterable conformance | exit0，session78850 | syncHealth | overview | frozen-caseiterable-r5/manifest.json |
+| explicit-values-r6，固定四项 allCases 和 supportedValues，打印 runtime allCases | exit0，session71284 | providerFocus | overview | frozen-explicit-values-r6/manifest.json |
+
+r6 实际 allCases=overview,providerFocus,todayCost,syncHealth，仍出现 to-0.0 warning 与默认参数。此证据排除“必须存在 AppEntity 才失败”和“实际枚举列表缺少选项”这两条窄假设；不证明 Simulator 整体故障，也不能将 warning 的内部来源归因于业务 enum。r4/r5/r6 均保存构建输入、实际 artifact SHA、截图和系统/provider 日志；r3 保存源代码及实际 UI/log，未在其二进制被覆盖后伪造 artifact provenance。
+
+r4 覆盖安装时 sim-use 检测旧诊断 app PID42215 消失，立即停止下一步界面操作并核对日志。plain-only-install-process.log 记录 installcoordinationd 主动请求终止该 PID、terminate_with_reason success 与随后安装完成；属于安装替换终止，未当作 App 崩溃或系统故障。工具 baseline 在确认安装终止后重置。
+
+生产 Widget 源码未因这些实验改变；所有模式、颜色及 provider 选择能力保留。下一步采用 09-widget-configuration-repair.md 中的完整迁移原型验证，不继续堆叠已被否定的 enum 列举补丁。真实 SpringBoard 主 Widget 参数生效 gate 仍失败，iOS/PR/CR/Mac draft 不称完成。
