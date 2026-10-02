@@ -118,3 +118,9 @@ v0.70.0精确tag commit `fcaffd75ace3790cca3b768ae3fd3293281692ce`的22 check ru
 XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKitMergeTests、WidgetSnapshotBuilderTests；原工程2.3.0(226)、source `62afccdd2`、iOS27 booted Simulator、CODE_SIGNING_ALLOWED=NO、parallel-testing=NO。unit host经源码确认使用PreviewData，跳过同步观察/通知注册；测试使用合成payload，未访问实体iPhone或真实CloudKit。结果SUCCEEDED，61.877秒，153 passed /0 failed /0 skipped。包含未知未来字段/legacy JSON、账号隔离、多Mac费用合并、KVS fallback、widget Today totals与Cost dashboard parity及既有Today cost old/new合成矩阵。
 
 证据：`ios-baseline-tests-r1.log`、`ios-baseline-tests-r1-summary.json`、`ios-baseline/tests-r1.xcresult`。工具默认生成的本次自有prepared test bundle已移至`ios-baseline/baseline-r1.xctestproducts`，后续可显式引用SSD路径；不更改其它tool-managed产物。该结果仅覆盖既有consumer基线与此四suite，不等于新2.4.0功能、完整iOS测试、真实sync或本轮16组合矩阵完成。
+
+## 最终完整 Mac 回归通过
+
+`mac-full-r5.log`已终态exit0：1520 discovered/selected selections、137 selected groups、137 first-pass successful groups、0 failed、0 retries、0 timeouts。discovery9.7秒、execution1308.6秒、total1318.3秒。运行源码checkpoint `bc26b3512`；其后仅Research变化，当前Sources/Tests/Shared/Package/WidgetExtension/version.env inputs diff为空。缓存定价组、ProcessEnvironmentStorageTests、ProviderArchitectureGatekeeperTests在同一完整运行中通过；没有删除失败测试、放宽断言或使用定向pass替代完整gate。
+
+完整runner包括安全test_environment、Mac/Core/CLI/Plugin回归；native proof与live-provider opt-in fixture的既有skip/known-issue策略保持，不能据此宣称真实账号/实体设备QA完成。结合lint-r9、universal Release compiler预检及独立checkpoint review clean，Mac源码准备gate通过。签名/公证/生产entitlements资产验收和GitHub草稿尚无证据；iOS新功能与16矩阵仍pending。

@@ -20,14 +20,22 @@ Status: `in-progress`
 
 ## 执行时设置
 
-PATH使用Homebrew Python3.14；TMPDIR与CODEXBAR_RELEASE_STAGE_BASE均位于`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070`。不运行`--finalize`，不设置RUN_SWIFT_TEST=1重跑裸swift test；本轮完整测试通过repo安全test_environment与suite runner验证。
+PATH使用Homebrew Python3.14；TMPDIR与CODEXBAR_RELEASE_STAGE_BASE均位于`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070`。不运行`--finalize`，不设置RUN_SWIFT_TEST=1重跑裸swift test；本轮完整测试已使用repo安全test_environment与suite runner验证通过（mac-full-r5 exit0，137组全部首轮通过）。
 
 脚本顶部会加载本地Sparkle/全局ASC凭证，并使用Developer ID签名、公证。Goal要求遇到发布凭证先询问，因此当前未调用release.sh或sign-and-notarize.sh，也未读取凭证内容。完成当前Mac测试、草稿说明和发布输入核对后，再请求这一具体凭证使用范围。独立review与GitHub PR gate不同，draft不是公开release，issue保持open。
 
 ## 仍待证明
 
-完整Mac回归终态；universal Release构建；签名/公证/Production entitlements与Gatekeeper验收；ZIP/dSYM对应及SHA256；tagless GitHub draft URL、asset digest/size回读；candidate appcast签名/URL/length验证（不发布现有feed）。
+签名打包流程中的universal Release构建；签名/公证/Production entitlements与Gatekeeper验收；ZIP/dSYM对应及SHA256；tagless GitHub draft URL、asset digest/size回读；candidate appcast签名/URL/length验证（不发布现有feed）。
 
 ## 发布配置预检
 
 2026-10-01 universal Release compiler预检通过，source `c0343b3a2`；三个实际product均arm64+x86_64/minOS14.0且dSYM UUID匹配（详情见03-testing与BuildScratch/mac-release-preflight-artifacts.json）。尚未生成可安装签名bundle或draft，不把预检当作发布完成；正式脚本仍需完整Mac回归通过与Goal规定的凭据使用确认。
+
+## 凭据使用前 gate
+
+完整Mac回归mac-full-r5 exit0（1520 selections、137/137组、0 retries/timeouts）；lint-r9 pass；组合review `07080d7d2` clean。Changelog finalized与appcast monotonic再次验证通过，candidate release只读查询不存在。正式创建前仍再次回读同tag；`--draft-no-tag-push`避免tag创建/推送与旧draft删除。
+
+打包launch smoke已审计：合成HOME/config，sandbox deny network与真实用户/repo读取，SWIFT_TESTING和Keychain-disable隔离，resource probes与6秒liveness仅作用本次PID，不进行真实provider probe。
+
+下一步请求本机Developer ID签名证书、全局ASC公证API凭据及Sparkle密钥的具体使用授权，限本轮0.70.0.1 /161.1 /Mobile2.3.0的签名、公证、候选appcast验证及tagless GitHub draft。未读/用凭据，未生成签名资产或draft；不会据本次确认执行live发布、feed push、tag publish或TestFlight。

@@ -41,3 +41,9 @@ Scripts/release.sh已支持DRAFT_NO_TAG_PUSH=1：GitHub draft先用mobile-dev作
 Grok模型观察补齐：SyncDailyPoint新增optional modelsUsed，native、plugin、Mistral三个生产daily mapper均转发entry.modelsUsed；token-only模型不伪造cost breakdown。独立只读审查确认所有生产路径覆盖、reporting-period复用和新旧optional解码兼容，新增wire roundtrip/旧JSON断言。
 
 lint-r6.log全树exit0：portable/JS/SwiftFormat/SwiftLint/i18n/parser-version均通过；随后modelsUsed细化的三份文件定向SwiftLint零违规。桥接r1因Core内部makeSection在app不可见失败，改为过滤已经映射的SyncProviderDetailSection；r2构建和11 tests/4 suites通过，之后集成与models测试扩展仍待最新r4。
+
+## 最新 Mac 验收 checkpoint
+
+2026-10-01 `mac-full-r5.log`终态exit0，1520 selections /137组全部首轮成功、无重试/timeout；运行源码checkpoint `bc26b3512`，后续HEAD至`07080d7d2`只改Research，Sources/Tests/Shared/Package/WidgetExtension/version.env输入diff为空。最新lint-r9通过；独立组合review `07080d7d2` clean（未发现代码阻塞）。先前三轮失败均在03记录，已逐项修正并在本轮完整运行通过。
+
+Mac universal Release compiler与dSYM/minOS预检、iOS现有consumer基线编译/定向153tests通过，均有03证据。Mac签名、公证、Production packaged entitlements、真实ZIP/dSYM资产和tagless draft仍未执行，凭据使用需Goal要求的用户确认。iOS2.4.0功能/版本/说明/最终测试与本轮16矩阵仍未完成。
