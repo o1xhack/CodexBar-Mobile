@@ -2,26 +2,26 @@
 
 Status: `in-progress`
 
-已执行初次Mac构建和定向测试；最终完整测试、iOS验证和设备矩阵尚未完成。下面pending不是pass。
+当前 Mac 完整回归已通过；iOS 原始313单元与生产组件离屏渲染已通过。16组合已有冻结旧/新 wire、真实合并与独立磁盘缓存替代证据；真实 App UI、实体 CloudKit/APNs、GitHub PR/CR 与 Mac draft 仍未完成。历史段落按发生顺序保留，旧 pending 不代表当前结果。
 
 | Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
 |---:|---|---|---|---|---|---|---|
-| 1 | old | old | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 1 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 2 | old | old | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 2 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 3 | old | old | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 3 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 4 | old | old | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 4 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 5 | old | new | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 5 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 6 | old | new | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 6 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 7 | old | new | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 7 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 8 | old | new | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 8 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 9 | new | old | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 9 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 10 | new | old | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 10 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 11 | new | old | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 11 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 12 | new | old | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 12 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 13 | new | new | old | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 13 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 14 | new | new | old | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 14 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 15 | new | new | new | old | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 15 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
-| 16 | new | new | new | new | substituted（wire + merge） | frozen-consumer-matrix-r3/matrix-wire.json case 16 | 缺真实四设备；SwiftData/UI/Production/APNs 未验证 |
+| 1 | old | old | old | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 1 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 2 | old | old | old | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 2 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 3 | old | old | new | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 3 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 4 | old | old | new | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 4 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 5 | old | new | old | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 5 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 6 | old | new | old | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 6 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 7 | old | new | new | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 7 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 8 | old | new | new | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 8 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 9 | new | old | old | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 9 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 10 | new | old | old | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 10 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 11 | new | old | new | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 11 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 12 | new | old | new | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 12 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 13 | new | new | old | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 13 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 14 | new | new | old | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 14 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 15 | new | new | new | old | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 15 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
+| 16 | new | new | new | new | substituted（wire + merge + iOS disk） | frozen-consumer-matrix-r4/matrix-wire.json + frozen-ios-cache-r4/matrix-cache.json case 16 | 缺真实四设备；独立冷缓存/ghost prune通过，UI/Production/APNs未验证 |
 
 ## 当前命令证据
 
@@ -235,3 +235,19 @@ sim-use UI preflight 再次 exit1：`No translation object returned for simulato
 另在 ios-render-24h 渲染明确虚构24小时原生primary fixture，UTC captured 2026-10-01T22、reset2026-10-02T12，跨本地午夜；四语言×明暗×两宽度共16PNG、四个进程exit0，窄屏四语言原图均看到完整两行日期/时间。补覆盖12–48h显示分支；不将虚构周期当真实provider能力。来源与证据同样保存 render-provenance.json。
 
 最终 view 编译后原始 Swift Testing 重链接运行 run-axis-final.log exit0 / **313 tests in15 suites passed**；freeze于 ios-testing-standalone/frozen-axis-final，包含原对象/source SHA、命令、runner、events和产物。独立源码review clean，reviewer实际检查日语窄屏图，并建议的24h fixture已补。iOS27复验仍是live进程，停在颜色测试，未见终态且未取消重启；不据此认定真实App bug或系统版本兼容pass。真实App四语言导航/可交互/VoiceOver与多设备CloudKit/APNs gate仍未闭环，PR/CR/merge/Mac draft未执行。
+
+
+## 冻结真实旧/新 iOS 磁盘缓存16组合（2026-10-01）
+
+`tools/check_frozen_cache.py` 与 `FrozenCacheHarness.swift` 将已发布旧commit `616701b95122c94e106299d18ac6a83c61850d94` 和当前真实25个源码文件分别编译为 arm64 iOS Simulator cache runner。包含完整5实体schema、ModelContainerFactory、SwiftDataBridge、CostLedgerService、TokenActivity与实际旧/新ProviderSnapshotMerger；仅移除同module import，不重写缓存算法或schema。工具使用已通过冻结wire测试的四个旧/新writer JSON，并在开始时核对17个旧/新wire源SHA，防止源漂移。source-manifest、旧/新compile-command与artifact-manifest记录冻结来源/输入/二进制 hashes。
+
+运行 `check_frozen_cache.py --scratch .../frozen-ios-cache-r4 --wire-root .../frozen-consumer-matrix-r4 --simulator 7216E120-B46B-43D5-A78C-93A096A3D5A3`，终态 exit0。16 masks、32独立phone缓存、96次分别启动的iOS进程全部通过。每phone依次：write原per-device snapshots→新进程read-prune先冷读完整两writer再移除B→第三进程read-retained验证没有B复活。不是同一进程的内存读取，也没有复用phone A/B store。每次明确断言 opened.isPersistent，不能以memory fallback替代。
+
+冷读逐device断言独立ID/name、两个provider、primary/rateWindows、capture和完整costSummary与当前reader的原输入一致；按正反cache顺序调用真实merger，完整provider projection与live合并相等。删B后实际DeviceRecord=1、ProviderSnapshotModel=2，第三进程重开仍仅A。旧reader按真实旧类型忽略新optional metadata/model names，同时effective blocked百分比/monthly reset与未知金额/token值保留；新reader保存其能够解析的新字段。不把旧客户端恢复不存在字段作为成功条件。
+
+两个runner经vtool确认IOSSIMULATOR/minos17/sdk27，执行设备为自有iOS26.5 Simulator。CloudKitDatabase.none +显式SSD SQLite URL；仅使用合成writer数据，不读真实store/Keychain/CloudKit。传入-cwlEnabled YES作为命令行测试配置，不写真实app设置；未独立断言ledger hook/rows或aggregate，不把provider缓存pass扩展为ledger聚合pass。SQLite及临时路径全部在BuildScratch。未验证增量CK变更token/subscription/APNs、真实fallback优先级、跨phone网络收敛或UI；删除断言针对Device/provider cache，不声称历史ledger被删除。旧cache→新schema upgrade由前述完整冻结schema单元测试覆盖，当前矩阵每phone固定reader版本，并不冒充16组合都执行了upgrade。
+
+r1 harness把throwing fetch放进precondition autoclosure导致compile失败；改为先fetch再断言，r2旧/新compile均exit0，未修改生产或减弱谓词。顶表16行已补强为wire+merge+iOS disk substituted；本轮未获得可用2Mac×2iPhone实体环境，因此继续明确UI/Production/APNs残余风险，不将模拟器缓存视为实体全链路pass。UI预检与iOS27旧job仍未终态。
+
+
+最终 r4（包含新增独立语义断言与格式清理）终态exit0，16cases/96进程全通过；每个进程log明确 `OS: Version 26.5 (Build 23F77)`。两个版本各25源SHA、缓存harness SHA、冻结四wire副本SHA全部重新核对一致；artifact-manifest保存二进制、脚本、source/matrix与96份日志SHA。SwiftFormat lint与该harness SwiftLint均exit0/无warning。r2为较弱的初次冷/live一致性证据，r3/r4进一步独立断言Codex24→12 tokens、Kimi12 tokens、unknown cost、有效100%/25%及20天/1天reset；new-reader额外断言raw blocker与Fictitious model名单。旧reader不能访问新字段的断言仅在NEW_CACHE编译条件内，这是原legacy数据模型边界，不是生产算法替换。各reader都用相同当前toolchain重编旧/新源码；不是运行已发布旧app二进制，仍有旧二进制/历史升级路径差异的残余风险。
