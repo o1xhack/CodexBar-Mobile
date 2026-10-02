@@ -1710,11 +1710,23 @@ public struct SyncProviderQuotaSource: Codable, Sendable, Equatable {
     public let appVersion: String?
     public let publicationTimestamp: Date
     public let deviceID: String
+    /// Independent of the provider's freshest plan/account metadata timestamp.
+    public let capturedAt: Date?
+    /// Error state of the quota observation, independent of newer metadata errors.
+    public let isError: Bool?
 
-    public init(appVersion: String?, publicationTimestamp: Date, deviceID: String) {
+    public init(
+        appVersion: String?,
+        publicationTimestamp: Date,
+        deviceID: String,
+        capturedAt: Date? = nil,
+        isError: Bool? = nil)
+    {
         self.appVersion = appVersion
         self.publicationTimestamp = publicationTimestamp
         self.deviceID = deviceID
+        self.capturedAt = capturedAt
+        self.isError = isError
     }
 }
 
