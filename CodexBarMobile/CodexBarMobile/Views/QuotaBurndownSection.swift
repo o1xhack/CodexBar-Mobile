@@ -20,11 +20,9 @@ struct QuotaBurndownSection: View {
             self.lanes = []
             return
         }
-        let windows = provider.rateWindows.isEmpty ? [provider.primary, provider.secondary].compactMap(\.self)
-            : provider.rateWindows
-        self.lanes = windows.enumerated().compactMap { index, window in
-            let label = window.label ?? (index == 0 ? "Session" : "Weekly")
-            guard let name = MobileQuotaBurndown.historySeriesName(for: window, index: index) else { return nil }
+        self.lanes = MobileQuotaBurndown.nativeLanes(for: provider).compactMap { lane in
+            let window = lane.window
+            let name = lane.seriesName
             let series = provider.utilizationHistory?.first {
                 $0.name == name && $0.windowMinutes == window.windowMinutes
             }
@@ -34,7 +32,7 @@ struct QuotaBurndownSection: View {
                 capturedAt: provider.lastUpdated,
                 referenceDate: referenceDate)
             else { return nil }
-            return Lane(id: index, label: label, model: model)
+            return Lane(id: lane.index, label: lane.label, model: model)
         }
     }
 

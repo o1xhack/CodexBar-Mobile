@@ -2,7 +2,7 @@
 
 Status: `in-progress`
 
-Goal已确认单版本方案；本文件细化下一阶段，不声明已实现。iOS目标2.4.0 (227)，所有target同步；只有一个MobileReleaseNotesCatalog版本块，四语言同时补齐。
+Goal已确认单版本方案；本文件记录已实施设计，源码与编译已完成，运行/渲染验收仍进行中。iOS目标2.4.0 (227)，所有target同步；只有一个MobileReleaseNotesCatalog版本块，四语言同时补齐。
 
 ## Kimi 与实时库存
 
@@ -30,7 +30,7 @@ xcodegen后build/test，独立widget snapshot totals gate，模型/mapper/ledger
 
 独立review与源码核对发现两个需要在下一阶段一并修正的历史重建问题；这是实施要求，不把设计尚未落地当作已通过。
 
-- `CodexBarWidgetShared/ProviderSnapshotMerger.swift` 的 `mergeUtilizationHistories` / `dedupByHour` 目前同hour/reset把usedPercent平均后配latestCaptured，形成未真实观察的点，也抹掉额度下降。burndown必须保留真实采样；按窗口时长和reset周期组织，保留真实最新采样及下降分段，不用平均值假冒真实点。在Int(floor(timestamp))转换前拒绝nonfinite/超出Int范围时间，不只在chart model末端过滤。覆盖同小时高→低、不同窗口周期、输入排序、未来/非有限值与多writer测试。
+- `CodexBarWidgetShared/ProviderSnapshotMerger.swift` 的 `mergeUtilizationHistories` / `dedupByHour` 实施前曾同hour/reset把usedPercent平均后配latestCaptured，形成未真实观察的点，也抹掉额度下降。burndown必须保留真实采样；按窗口时长和reset周期组织，保留真实最新采样及下降分段，不用平均值假冒真实点。在Int(floor(timestamp))转换前拒绝nonfinite/超出Int范围时间，不只在chart model末端过滤。覆盖同小时高→低、不同窗口周期、输入排序、未来/非有限值与多writer测试。
 - `mergedRateWindows` 按label union时会补入旧writer缺失短lane；最新monthly blocked observation必须作为同一采样的可用性依据，不从另一周期较旧月池拼接阻塞metadata，也不以手机当前时间自动解封。覆盖最新blocked缺短lane、较旧可用lane、旧writer缺metadata、reset过期与多个account互不污染。
 
 模型名应确定性去重排序，与成本是否known相互独立。`DailyCostPoint` 新optional `modelsUsedData` 需贯穿`CostLedgerService.upsertDayPoint` equal-time差异、ownership迁移/seed/row比较、`AggregatedDailyCostPoint`、`DayAccumulator.toDailyPoint`；`ProviderSnapshotMerger.DailyCostAccumulator` 与 `TokenActivity.snapshotDays/combine` 同样保留。旧库nil、同timestamp新增模型名、unknown cost token-only、多Mac合并、重启读取均应测试，不能创建虚假的priced modelBreakdowns。

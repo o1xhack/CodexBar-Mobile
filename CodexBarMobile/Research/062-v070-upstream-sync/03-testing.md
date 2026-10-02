@@ -188,3 +188,19 @@ XcodeBuildMCP test_sim选择SyncModelTests、AccountIdentityMergeTests、CloudKi
 此结果是 **macOS SwiftData 运行证据**，补强旧 schema 数据保留与新 publication 字段的实际磁盘读写，不证明 iOS 版本的 SwiftData runtime、UI 或 16 组设备/cache/APNs gate 已通过。首轮 harness compile 使用不存在的 CocoaError code 失败；改为自身 synthetic NSError 后编译运行通过，未修改任何生产文件或削弱断言。
 
 截至本 checkpoint：iOS 2.4.0 (227) feature/presentation/localization/source 已实现，最终 generic Simulator 编译通过；本地保存代码供后续运行验证与 review，不将 checkpoint 当 release 或 Code Complete。r4/r5/r6 仍 live，UI/完整 iOS runtime/实际多设备收敛待证据；不 push、不开 PR、不 merge、不签名公证或创建 Mac draft。
+
+
+## 完整 review 发现的 quota 历史同源问题
+
+独立 reviewer 在确切 3cff48ff9 找到功能阻塞：按任意 id/label 的 weekly/opus 子串或 period 映射，会将 Claude `claude-weekly-scoped-<model>` 专属额度接到账户级 weekly/opus 历史；同 reset/duration 下仍是不同额度。生产 `UsageStore+PlanUtilization` 只记录三个 native roles，不记录 scoped extras。
+
+已取消子串/period 作为同源证明：Claude 仅 native primary/secondary/tertiary 对应 session/weekly/opus；legacy nil ID 使用原始 slot，unknown extras 不画借来的历史。Codex 的两个 native slots 按 `CodexConsumerProjection.classifyRateWindow` 相同的 300/10080/43200 分钟规则匹配 session/weekly/monthly，其它时长按 native slot fallback。模型专属用量仍由既有 quota cards 展示；没有独立生产 history 的 extras 不创建趋势。旧 primary 缺失时保留 secondary index1，避免 compact 后错误接到 session。
+
+新增四项独立 pure 回归方法覆盖真实 scoped Sonnet/Opus extras、weekly/opus label、tertiary Weekly label 与 weekly period、Codex swapped/native durations 和 legacy secondary。`quota-lane-pure/{build-r2.log,run-r2.log}` exit0，提取原测试全部断言并调用真实当前模型，不模拟算法；source/tests/harness SHA 见 source-manifest-r2.json。三文件 `ios-lane-fix-lint-r2.log` 零违规；`ios-lane-fix-build-r2.log` exit0 / TEST BUILD SUCCEEDED。首个新增测试 build 因 initializer argument 顺序写错失败，已修正并重新构建，不修改实际 API 或减弱断言。此处纯回归运行于 macOS，iOS编译证据不代替iOS runtime。
+
+修复后独立 review 待结果。此前 r4/r5/r6 仍 live，但不含本次 mapper 修复或最终全部输入，不能作为最终测试 pass。尚无授权进行 push/PR/merge/发布凭据或 Mac draft。
+
+
+修复复查又发现两个相关 Codex 边界：原始 Session label 与已分类 weekly/monthly 历史不一致，以及两 native slots 同 role 时重复画图。现统一为纯 `MobileQuotaBurndown.nativeLanes(for:)` projection，绑定真实 window、seriesName、标题与稳定 native slot ID；Codex 同 role secondary 优先，正反输入完整 projection 相等，按 role 标题 Session/Weekly/Monthly；Claude 保留 native 源 label。Section 仅消费该 projection，不另算分类、winner 或标题。scoped extras 没有独立生产 history，因此排除趋势，原 quota cards 仍展示其当前数据。
+
+新增第五项回归检查 canonical 标题、window 数、secondary 30% winner 与完整数组正反一致。最终 `quota-lane-pure/{build-r4.log,run-r4.log}` exit0，五原方法所有断言真实运行通过；最终 model/test/harness hashes 见 source-manifest-r4.json。`ios-lane-fix-build-r3.log` exit0 / TEST BUILD SUCCEEDED；`ios-lane-fix-lint-r4.log` 三文件零违规。独立复查该模型、view 与 fixtures clean，没有剩余功能阻塞；仍需修复 commit 后 exact-head 确认。这个 pure 结果是 macOS，未将仍 live 的 Simulator r4/r5/r6 算作最终 runtime 通过。

@@ -99,7 +99,7 @@ struct V070PresentationTests {
                 windowMinutes: 10080,
                 resetsAt: nil,
                 resetDescription: nil)
-            #expect(MobileQuotaBurndown.historySeriesName(for: window, index: index) == expected)
+            #expect(MobileQuotaBurndown.historySeriesName(for: window, index: index, providerID: "claude") == expected)
         }
         let unknown = SyncRateWindow(
             id: "fixture-extra",
@@ -108,7 +108,102 @@ struct V070PresentationTests {
             windowMinutes: 60,
             resetsAt: nil,
             resetDescription: nil)
-        #expect(MobileQuotaBurndown.historySeriesName(for: unknown, index: 3) == nil)
+        #expect(MobileQuotaBurndown.historySeriesName(for: unknown, index: 3, providerID: "claude") == nil)
+    }
+
+    @Test func `Codex native slots follow producer duration classification`() {
+        for (id, minutes, expected) in [
+            ("primary", 10080, "weekly"),
+            ("secondary", 300, "session"),
+            ("primary", 43200, "monthly"),
+        ] {
+            let window = SyncRateWindow(
+                id: id,
+                usedPercent: 30,
+                windowMinutes: minutes,
+                resetsAt: nil,
+                resetDescription: nil)
+            #expect(MobileQuotaBurndown.historySeriesName(
+                for: window, index: 0, providerID: "codex") == expected)
+        }
+    }
+
+    @Test func `Codex graph titles and duplicate-role winners match producer classification`() {
+        func window(_ id: String, minutes: Int, used: Double) -> SyncRateWindow {
+            .init(
+                id: id,
+                label: "Session",
+                usedPercent: used,
+                windowMinutes: minutes,
+                resetsAt: nil,
+                resetDescription: nil)
+        }
+        func provider(_ windows: [SyncRateWindow]) -> ProviderUsageSnapshot {
+            .init(
+                providerID: "codex",
+                providerName: "Fixture Provider",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.captured,
+                rateWindows: windows)
+        }
+        let weekly = window("primary", minutes: 10080, used: 10)
+        let secondaryWeekly = window("secondary", minutes: 10080, used: 30)
+        #expect(MobileQuotaBurndown.nativeLanes(for: provider([weekly, secondaryWeekly]))
+            == MobileQuotaBurndown.nativeLanes(for: provider([secondaryWeekly, weekly])))
+        for windows in [[weekly, secondaryWeekly], [secondaryWeekly, weekly]] {
+            let lanes = MobileQuotaBurndown.nativeLanes(for: provider(windows))
+            #expect(lanes.count == 1)
+            #expect(lanes.first?.seriesName == "weekly")
+            #expect(lanes.first?.label == "Weekly")
+            #expect(lanes.first?.window.usedPercent == 30)
+        }
+        let monthly = MobileQuotaBurndown.nativeLanes(for: provider([
+            window("primary", minutes: 43200, used: 15),
+        ]))
+        #expect(monthly.first?.label == "Monthly")
+        #expect(monthly.first?.seriesName == "monthly")
+    }
+
+    @Test func `Legacy secondary without an ID retains its native weekly role`() {
+        let secondary = SyncRateWindow(
+            usedPercent: 30,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        #expect(MobileQuotaBurndown.historySeriesName(for: secondary, index: 1, providerID: "claude") == "weekly")
+    }
+
+    @Test func `Model-scoped weekly extras cannot borrow native quota history`() {
+        for (id, label) in [
+            ("claude-weekly-scoped-sonnet", "Sonnet only"),
+            ("claude-weekly-scoped-opus", "Opus only"),
+            ("claude-web-weekly", "Weekly"),
+            ("fixture-opus-extra", "Opus"),
+        ] {
+            let extra = SyncRateWindow(
+                id: id,
+                label: label,
+                usedPercent: 30,
+                windowMinutes: 10080,
+                period: .weekly,
+                resetsAt: self.captured.addingTimeInterval(1800),
+                resetDescription: nil)
+            #expect(MobileQuotaBurndown.historySeriesName(for: extra, index: 3, providerID: "claude") == nil)
+        }
+        let tertiary = SyncRateWindow(
+            id: "tertiary",
+            label: "Weekly",
+            usedPercent: 30,
+            windowMinutes: 10080,
+            period: .weekly,
+            resetsAt: nil,
+            resetDescription: nil)
+        #expect(MobileQuotaBurndown.historySeriesName(for: tertiary, index: 2, providerID: "claude") == "opus")
     }
 
     @Test func `Burndown uses capture time and latest declining segment without future samples`() throws {

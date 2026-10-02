@@ -14,25 +14,76 @@ struct MobileQuotaBurndown: Equatable, Sendable {
     let samples: [Sample]
     let ideal: [Sample]
 
-    static func historySeriesName(for window: SyncRateWindow, index: Int) -> String? {
-        let id = window.id?.lowercased() ?? ""
-        let label = window.label?.lowercased() ?? ""
-        if id.contains("opus") || label.contains("opus") { return "opus" }
-        if window.period == .weekly || id.contains("weekly") || label.contains("week") { return "weekly" }
-        if id == "tertiary" { return "opus" }
-        if id == "secondary" || label.contains("sonnet") { return "weekly" }
-        if id == "primary" || window.period == .session || id.contains("session") || label.contains("session") {
-            return "session"
+    struct NativeLane: Equatable, Sendable {
+        let index: Int
+        let nativeIndex: Int
+        let label: String
+        let seriesName: String
+        let window: SyncRateWindow
+    }
+
+    private static func nativeIndex(for window: SyncRateWindow, index: Int) -> Int? {
+        guard let id = window.id?.lowercased() else { return (0...2).contains(index) ? index : nil }
+        switch id {
+        case "primary": return 0
+        case "secondary": return 1
+        case "tertiary": return 2
+        default: return nil
         }
-        if window.id == nil {
-            switch index {
-            case 0: return "session"
-            case 1: return "weekly"
-            case 2: return "opus"
-            default: break
+    }
+
+    static func nativeLanes(for provider: ProviderUsageSnapshot) -> [NativeLane] {
+        let windows: [(index: Int, window: SyncRateWindow)] = if provider.rateWindows.isEmpty {
+            [provider.primary, provider.secondary].enumerated().compactMap { index, window in
+                window.map { (index: index, window: $0) }
+            }
+        } else {
+            provider.rateWindows.enumerated().map { (index: $0.offset, window: $0.element) }
+        }
+        var winners: [String: NativeLane] = [:]
+        for (index, window) in windows {
+            guard let slot = self.nativeIndex(for: window, index: index),
+                  let name = self.historySeriesName(for: window, index: index, providerID: provider.providerID)
+            else { continue }
+            let label: String = if provider.providerID == "codex" {
+                switch name {
+                case "weekly": "Weekly"
+                case "monthly": "Monthly"
+                default: "Session"
+                }
+            } else {
+                window.label ?? (slot == 0 ? "Session" : slot == 1 ? "Weekly" : "Opus")
+            }
+            // Codex's producer resolves same-role native slots in favor of secondary.
+            if let winner = winners[name], winner.nativeIndex > slot { continue }
+            winners[name] = NativeLane(
+                index: slot, nativeIndex: slot, label: label, seriesName: name, window: window)
+        }
+        return ["session", "weekly", "opus", "monthly"].compactMap { winners[$0] }
+    }
+
+    static func historySeriesName(
+        for window: SyncRateWindow, index: Int, providerID: String) -> String?
+    {
+        // Extra-window labels and periods do not establish a shared history.
+        guard let nativeIndex = self.nativeIndex(for: window, index: index) else { return nil }
+        if providerID == "codex" {
+            guard (0...1).contains(nativeIndex) else { return nil }
+            // Mirrors CodexConsumerProjection's native-slot classification.
+            switch window.windowMinutes {
+            case 300: return "session"
+            case 10080: return "weekly"
+            case 43200: return "monthly"
+            default: return nativeIndex == 0 ? "session" : "weekly"
             }
         }
-        return nil
+        guard providerID == "claude" else { return nil }
+        switch nativeIndex {
+        case 0: return "session"
+        case 1: return "weekly"
+        case 2: return "opus"
+        default: return nil
+        }
     }
 
     init?(
