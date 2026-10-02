@@ -260,3 +260,10 @@ r1 harness把throwing fetch放进precondition autoclosure导致compile失败；�
 `ios-widget-tests-r2`仅将原测试的XCTAttachment/add四行替换为同一UIImage的PNG持久化；不改循环、fixture、production view或断言，额外断言PNG编码/写入成功。#sourceLocation保留真实原路径供footer源断言。adapter-manifest记录精确before/after、原始与适配源码SHA；所有原始production/test对象SHA核对仍匹配，编译命令和artifact-manifest保留。编译首次缺Swift XCTest overlay的-I路径，补platform Developer/usr/lib后链接通过；warning记录原样保留。
 
 r2 terminal exit0，6方法/0 failures：主Widget128 mode×family×style×scheme×rendering组合、error/noData/syncing12组合、activity4states×4families×2schemes×2rendering64组合、loaded视觉12张、removed/duplicate4组合，共220次离屏渲染；footer居中源断言也通过。12原始PNG已保存并查看contact sheet，各family的Light/Dark/tinted可见对比与内容。此为原始断言+附件存储适配的替代证据，不是标准Xcode XCTest活动系统通过，不是SpringBoard截图。真实Home Screen编辑面板/配置选项/切换mode、真实App导航/可交互/VoiceOver仍未完成。
+
+
+## 用户处理密码提示后的运行终态（2026-10-01）
+
+用户报告已输入密码。此前iOS27独立Swift Testing runner PID99312已不存在，run-ios27.log实际终态为313 tests/15 suites passed after1887.226s，运行OS27.0(24A434)。ios27-terminal-evidence.json保存log SHA和证据边界；原launch记录指向frozen-r2，不能当作后来axis-final输入在iOS27通过。历史shell session已不可读取，未虚构shell exit0。此前三个xcodebuild PID也均已不存在，但r6 xcresult缺Info.plist，仍无标准XCTest pass证据；sample PID已消失且未生成堆栈文件。没有据进程消失重启任务。
+
+DevToolsSecurity仍报告disabled。本机manpage说明：普通系统在一个login session首次使用Apple debugger/performance analysis工具检查用户进程时会请求管理员授权；enable改变的是免额外密码策略。disabled并不证明刚输入的单次授权失败，也不能单独确定本轮UI阻塞根因。Simulator ui复检terminal exit1，再次返回No translation object returned for simulator，无成功screen证据；不宣称真实App/SpringBoard恢复。用户无需向agent提供密码，未改变全局授权策略。
