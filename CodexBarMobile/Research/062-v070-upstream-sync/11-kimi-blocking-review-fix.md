@@ -1,0 +1,15 @@
+# 已合并PR的Kimi新旧writer封锁修复
+
+状态：in-progress。用户明确要求继续修复PR167合并后远端Codex返回的P1，并@Codex循环到无问题。
+
+远端审查d27dc9d861在2026-10-02 20:32:57UTC返回，晚于20:30:32合并。独立CR漏掉旧Mac观察时间更晚的方向，原clean报告被此P1推翻，保留为历史，不继续据此发布。两发布进程树已停止；iOS227归档完成、export阶段被停止，ASC当前没有227 build；Mac尚未生成draft。后续使用新build228，旧包不作为最终发布输入。
+
+修复：Kimi从可证明blocking能力的writer选择完整quota observation；显式blocking metadata可证明能力，严格数值appVersion>=0.70.0且成功观察到有效、非合成、usageKnown且usedPercent<100的kimi-monthly月池，才能证明clear能力。只返回weekly/session不能解封。按capture、publication、deviceID仲裁；blocked和cleared均不拼回旧lanes。quota数据及其时间来自同一来源，cost仍独立选择。未知/旧/畸形版本不清除限制，手机跨reset也不解封。
+
+回归覆盖新旧输入顺序、较新旧writer、capable clear、nil version显式metadata、相同capture的publication仲裁及原有consumer tests。最终以新PR当前head的远端Codex结果、所有thread解决、绿检查再合并；本地独立CR只是补充，不替代此次明确要求的远端结果。
+
+初次r26的publication测试数据缺少providerPublicationTimestamps，四个断言失败；修正fixture后r27为136tests/3suites通过。随后补充只读review发现月池optional查询失败仍可返回weekly，首版clear逻辑不足；r28加入明确月池观察要求及缺失/未知/合成/已耗尽/NaN回归。这些前轮通过不作为最终修复证据。
+
+r28完整927tests通过后，补充review确认反向组合：旧Mac实际也发kimi-monthly，因此较新的明确monthly100可以证明封锁，不能被较早capable clear丢弃。最终选择同时承认positive blocking evidence与capable clear，按capture/publication仲裁；对旧raw耗尽观察投影与Mac一致的effective短周期封锁，保留raw metadata。r29覆盖反向组合。
+
+最终r29专项138tests/3suites通过（含consumer、CloudKitMerge、WidgetSnapshotBuilder）；changed tests strict SwiftLint与两个changed文件SwiftFormat通过。Merger整文件strict lint仍包含原有大type/function/tuple等违规，本次不扩大修复到未变行；新增helper及变更行无新lint问题。补充独立review当前diff无可证实问题，远端CR仍需新PR实际结果。

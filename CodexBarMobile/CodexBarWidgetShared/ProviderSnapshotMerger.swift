@@ -64,6 +64,7 @@ enum ProviderSnapshotMerger {
         let providersForSnapshot = providerFilter ?? { $0.providers }
         var allProviders: [ProviderUsageSnapshot] = []
         var sourceAppVersions: [String?] = []
+        var sourceQuotaSources: [SyncProviderQuotaSource] = []
         var sourceDeviceIDs: [String] = []
         var sourceSyncTimestamps: [Date] = []
         var sourceHistoryTimestamps: [Date] = []
@@ -74,6 +75,15 @@ enum ProviderSnapshotMerger {
             let deviceID = snapshot.deviceID ?? "legacy:\(snapshot.deviceName)"
             sourceDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
             sourceSyncTimestamps.append(contentsOf: providers.map { snapshot.publicationTimestamp(for: $0) })
+            sourceQuotaSources.append(contentsOf: providers.map { provider in
+                snapshot.providerQuotaSources[SyncedUsageSnapshot.providerPublicationKey(for: provider)]
+                    ?? SyncProviderQuotaSource(
+                        appVersion: snapshot.appVersion,
+                        publicationTimestamp: snapshot.publicationTimestamp(for: provider),
+                        deviceID: deviceID,
+                        capturedAt: provider.lastUpdated,
+                        isError: provider.isError)
+            })
             sourceHistoryTimestamps.append(contentsOf: providers.map {
                 // Legacy writers lack per-provider publication metadata. Their
                 // enclosing sync publication still bounds stored observations.
@@ -127,25 +137,31 @@ enum ProviderSnapshotMerger {
             groupedIndices[root, default: []].append(idx)
         }
 
-        var mergedProviders: [(provider: ProviderUsageSnapshot, sortIdentity: String, publicationTimestamp: Date)] = []
+        var mergedProviders: [(
+            provider: ProviderUsageSnapshot, sortIdentity: String,
+            publicationTimestamp: Date, quotaSource: SyncProviderQuotaSource)] = []
         for (_, indices) in groupedIndices {
             let group = indices.map { allProviders[$0] }
             let sortIdentity = Set(indices.flatMap { effectiveIdentifiers[$0] })
                 .sorted()
                 .joined(separator: "|")
             if group.count == 1 {
-                mergedProviders.append((group[0], sortIdentity, sourceSyncTimestamps[indices[0]]))
+                let index = indices[0]
+                mergedProviders.append((group[0], sortIdentity, sourceSyncTimestamps[index], sourceQuotaSources[index]))
             } else {
-                mergedProviders.append((
-                    self.mergeProviderEntries(
-                        group,
-                        sourceAppVersions: indices.map { sourceAppVersions[$0] },
-                        sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
-                        sourceSyncTimestamps: indices.map { sourceSyncTimestamps[$0] },
-                        sourceHistoryTimestamps: indices.map { sourceHistoryTimestamps[$0] },
-                        sumLocalCosts: sumLocalCostsAcrossDevices),
-                    sortIdentity,
-                    indices.map { sourceSyncTimestamps[$0] }.max() ?? sourceSyncTimestamps[indices[0]]))
+                let quotaSources = indices.map { sourceQuotaSources[$0] }
+                let merged = self.mergeProviderEntries(
+                    group,
+                    sourceWriters: (appVersions: indices.map { sourceAppVersions[$0] }, quotaSources: quotaSources),
+                    sourceDeviceIDs: indices.map { sourceDeviceIDs[$0] },
+                    sourceSyncTimestamps: indices.map { sourceSyncTimestamps[$0] },
+                    sourceHistoryTimestamps: indices.map { sourceHistoryTimestamps[$0] },
+                    sumLocalCosts: sumLocalCostsAcrossDevices)
+                let quotaSource = quotaSources[merged.quotaSourceIndex]
+                // Provider metadata/history publication stays independent of the
+                // selected quota's original publication carried in quotaSource.
+                let publication = indices.map { sourceSyncTimestamps[$0] }.max() ?? sourceSyncTimestamps[indices[0]]
+                mergedProviders.append((merged.provider, sortIdentity, publication, quotaSource))
             }
         }
 
@@ -191,7 +207,12 @@ enum ProviderSnapshotMerger {
             appVersion: appVersion,
             mobileVersion: mobileVersion,
             notificationPushEnabled: pushEnabled,
-            providerPublicationTimestamps: providerPublicationTimestamps)
+            providerPublicationTimestamps: providerPublicationTimestamps,
+            providerQuotaSources: Dictionary(
+                mergedProviders.filter { $0.provider.providerID == "kimi" }.map {
+                    (SyncedUsageSnapshot.providerPublicationKey(for: $0.provider), $0.quotaSource)
+                },
+                uniquingKeysWith: { first, _ in first }))
     }
 
     static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {
@@ -472,16 +493,111 @@ enum ProviderSnapshotMerger {
         return label.lowercased()
     }
 
+    /// Only a block-capable Kimi writer can authoritatively clear monthly exhaustion.
+    /// Explicit metadata proves capability even when writer version is unavailable.
+    private static func kimiQuotaBaseIndex(
+        _ entries: [ProviderUsageSnapshot],
+        sourceQuotaSources: [SyncProviderQuotaSource]) -> Int?
+    {
+        guard entries.first?.providerID == "kimi" else { return nil }
+        let captures = entries.indices.map { sourceQuotaSources[$0].capturedAt ?? entries[$0].lastUpdated }
+        let capable = entries.indices.filter { index in
+            let entry = entries[index]
+            if ([entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows)
+                .contains(where: { $0.blockingQuota != nil })
+            {
+                return true
+            }
+            if Self.kimiMonthlyBlocker(entry, capturedAt: captures[index]) != nil { return true }
+            let windows = [entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows
+            guard !(sourceQuotaSources[index].isError ?? entry.isError),
+                  windows.contains(where: {
+                      $0.id == "kimi-monthly" && $0.usageKnown && !$0.isSyntheticPlaceholder &&
+                          $0.usedPercent.isFinite && (0..<100).contains($0.usedPercent)
+                  }),
+                  let version = sourceQuotaSources[index].appVersion
+            else { return false }
+            let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+            guard parts.count >= 3,
+                  parts.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { (48...57).contains($0) } && Int($0) != nil })
+            else { return false }
+            return !Self.semverLessThan(version, "0.70.0")
+        }
+        return capable.max { lhs, rhs in
+            if captures[lhs] != captures[rhs] {
+                return captures[lhs] < captures[rhs]
+            }
+            if sourceQuotaSources[lhs].publicationTimestamp != sourceQuotaSources[rhs].publicationTimestamp {
+                return sourceQuotaSources[lhs].publicationTimestamp < sourceQuotaSources[rhs].publicationTimestamp
+            }
+            return sourceQuotaSources[lhs].deviceID < sourceQuotaSources[rhs].deviceID
+        }
+    }
+
+    /// Legacy writers can prove exhaustion even though they cannot prove an authoritative clear.
+    private static func kimiMonthlyBlocker(
+        _ entry: ProviderUsageSnapshot,
+        capturedAt: Date) -> SyncRateWindow?
+    {
+        ([entry.primary, entry.secondary].compactMap(\.self) + entry.rateWindows).first {
+            $0.id == "kimi-monthly" && $0.usageKnown && !$0.isSyntheticPlaceholder &&
+                $0.usedPercent.isFinite && $0.usedPercent >= 100 &&
+                ($0.resetsAt.map { $0 > capturedAt } ?? true)
+        }
+    }
+
+    /// Apply the same longer-pool availability semantics as the Mac to legacy raw observations.
+    private static func kimiEffectiveWindow(
+        _ window: SyncRateWindow,
+        blocker: SyncRateWindow?,
+        capturedAt: Date) -> SyncRateWindow
+    {
+        guard let blocker, window.usageKnown, !window.isSyntheticPlaceholder,
+              window.blockingQuota == nil,
+              (window.windowMinutes ?? 300) < (blocker.windowMinutes ?? 43200)
+        else { return window }
+        let ownExhausted = window.usedPercent >= 100 && (window.resetsAt.map { $0 > capturedAt } ?? true)
+        let reset: Date? = if ownExhausted {
+            if let ownReset = window.resetsAt, let monthlyReset = blocker.resetsAt {
+                max(ownReset, monthlyReset)
+            } else {
+                nil
+            }
+        } else {
+            blocker.resetsAt
+        }
+        return SyncRateWindow(
+            id: window.id,
+            label: window.label,
+            usedPercent: 100,
+            usageKnown: window.usageKnown,
+            windowMinutes: window.windowMinutes,
+            period: window.period,
+            resetsAt: reset,
+            resetDescription: !ownExhausted && reset == nil ? blocker.resetDescription : nil,
+            nextRegenPercent: nil,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "kimi-monthly",
+                rawUsedPercent: window.usedPercent,
+                rawResetsAt: window.resetsAt,
+                rawResetDescription: window.resetDescription,
+                rawNextRegenPercent: window.nextRegenPercent))
+    }
+
     private static func mergeProviderEntries(
         _ entries: [ProviderUsageSnapshot],
-        sourceAppVersions: [String?],
+        sourceWriters: (appVersions: [String?], quotaSources: [SyncProviderQuotaSource]),
         sourceDeviceIDs: [String],
         sourceSyncTimestamps: [Date],
         sourceHistoryTimestamps: [Date],
-        sumLocalCosts: Bool = true) -> ProviderUsageSnapshot
+        sumLocalCosts: Bool = true) -> (provider: ProviderUsageSnapshot, quotaSourceIndex: Int)
     {
+        let sourceAppVersions = sourceWriters.appVersions
+        let sourceQuotaSources = sourceWriters.quotaSources
         precondition(entries.count == sourceDeviceIDs.count)
         precondition(entries.count == sourceSyncTimestamps.count)
+        precondition(entries.count == sourceQuotaSources.count)
         precondition(entries.count == sourceHistoryTimestamps.count)
         let baseIndex = entries.indices.max { lhs, rhs in
             if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
@@ -489,7 +605,15 @@ enum ProviderSnapshotMerger {
             }
             return sourceDeviceIDs[lhs] < sourceDeviceIDs[rhs]
         }!
+        let kimiQuotaIndex = Self.kimiQuotaBaseIndex(
+            entries,
+            sourceQuotaSources: sourceQuotaSources)
         let base = entries[baseIndex]
+        let quotaIndex = kimiQuotaIndex ?? baseIndex
+        let quotaBase = entries[quotaIndex]
+        let quotaCapturedAt = sourceQuotaSources[quotaIndex].capturedAt ?? quotaBase.lastUpdated
+        let kimiBlocker = kimiQuotaIndex != nil
+            ? Self.kimiMonthlyBlocker(quotaBase, capturedAt: quotaCapturedAt) : nil
         let isLocalCost = Self.usesLocalCostMerge(providerID: base.providerID)
         let costState: (summary: SyncCostSummary?, cleared: Bool?) = if isLocalCost, sumLocalCosts {
             if let summary = self.mergeCostSummaries(entries, sourceSyncTimestamps: sourceSyncTimestamps) {
@@ -511,11 +635,15 @@ enum ProviderSnapshotMerger {
                 }
             })
 
-        return ProviderUsageSnapshot(
+        return (ProviderUsageSnapshot(
             providerID: base.providerID,
             providerName: base.providerName,
-            primary: base.primary,
-            secondary: base.secondary,
+            primary: quotaBase.primary.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: quotaCapturedAt)
+            },
+            secondary: quotaBase.secondary.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: quotaCapturedAt)
+            },
             accountEmail: base.accountEmail,
             loginMethod: Self.mergedLoginMethod(
                 entries,
@@ -531,7 +659,9 @@ enum ProviderSnapshotMerger {
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionExpiresAt),
             subscriptionRenewsAt: Self.latestNonNil(
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionRenewsAt),
-            rateWindows: Self.mergedRateWindows(entries, base: base),
+            rateWindows: kimiQuotaIndex != nil ? quotaBase.rateWindows.map {
+                Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: quotaCapturedAt)
+            } : Self.mergedRateWindows(entries, base: base),
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.perplexityCredits),
             accountIdentities: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountIdentities),
@@ -572,7 +702,7 @@ enum ProviderSnapshotMerger {
             providerIconMonogram: Self.latestNonNil(
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconMonogram),
             providerIconTintHex: Self.latestNonNil(
-                entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconTintHex))
+                entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconTintHex)), kimiQuotaIndex ?? baseIndex)
     }
 
     /// Select non-additive cost data by the cost source's own freshness.

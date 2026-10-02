@@ -145,7 +145,8 @@ enum DeviceSnapshotResolver {
             appVersion: merged.appVersion,
             mobileVersion: merged.mobileVersion,
             notificationPushEnabled: merged.notificationPushEnabled,
-            providerPublicationTimestamps: merged.providerPublicationTimestamps)
+            providerPublicationTimestamps: merged.providerPublicationTimestamps,
+            providerQuotaSources: merged.providerQuotaSources)
     }
 
     private struct AliasEdge: Hashable {

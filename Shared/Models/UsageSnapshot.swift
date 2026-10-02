@@ -1703,6 +1703,33 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     }
 }
 
+/// Reader-local provenance for one selected quota observation. Alias reduction
+/// must retain the original writer, including an explicitly unknown version.
+/// This is not Mac wire data; the reader caches it beside raw per-writer records.
+public struct SyncProviderQuotaSource: Codable, Sendable, Equatable {
+    public let appVersion: String?
+    public let publicationTimestamp: Date
+    public let deviceID: String
+    /// Independent of the provider's freshest plan/account metadata timestamp.
+    public let capturedAt: Date?
+    /// Error state of the quota observation, independent of newer metadata errors.
+    public let isError: Bool?
+
+    public init(
+        appVersion: String?,
+        publicationTimestamp: Date,
+        deviceID: String,
+        capturedAt: Date? = nil,
+        isError: Bool? = nil)
+    {
+        self.appVersion = appVersion
+        self.publicationTimestamp = publicationTimestamp
+        self.deviceID = deviceID
+        self.capturedAt = capturedAt
+        self.isError = isError
+    }
+}
+
 /// Full sync payload pushed from Mac to iOS via iCloud.
 public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     public let providers: [ProviderUsageSnapshot]
@@ -1724,6 +1751,10 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     /// new iOS readers can keep unchanged provider records from appearing as
     /// fresh when a sibling provider publishes a newer delta.
     public let providerPublicationTimestamps: [String: Date]
+    /// Reader-local quota provenance carried through alias and cross-device merges.
+    /// Kept out of snapshot Codable and cached separately. Never persist a
+    /// derived alias snapshot in place of its original per-writer records.
+    public let providerQuotaSources: [String: SyncProviderQuotaSource]
 
     private enum CodingKeys: String, CodingKey {
         case providers, syncTimestamp, deviceName, deviceID, appVersion
@@ -1749,7 +1780,8 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         appVersion: String? = nil,
         mobileVersion: String? = nil,
         notificationPushEnabled: Bool? = nil,
-        providerPublicationTimestamps: [String: Date] = [:])
+        providerPublicationTimestamps: [String: Date] = [:],
+        providerQuotaSources: [String: SyncProviderQuotaSource] = [:])
     {
         self.providers = providers
         self.syncTimestamp = syncTimestamp
@@ -1759,6 +1791,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.mobileVersion = mobileVersion
         self.notificationPushEnabled = notificationPushEnabled
         self.providerPublicationTimestamps = providerPublicationTimestamps
+        self.providerQuotaSources = providerQuotaSources
     }
 
     public init(from decoder: Decoder) throws {
@@ -1776,6 +1809,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
             ?? container.decodeIfPresent(String.self, forKey: .syncVersion)
         self.notificationPushEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationPushEnabled)
         self.providerPublicationTimestamps = [:]
+        self.providerQuotaSources = [:]
     }
 
     public func encode(to encoder: Encoder) throws {

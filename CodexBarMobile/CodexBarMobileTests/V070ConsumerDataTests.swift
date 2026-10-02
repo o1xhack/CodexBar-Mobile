@@ -13,26 +13,37 @@ struct V070ConsumerDataTests {
         history: [SyncUtilizationSeries],
         windows: [SyncRateWindow] = [],
         updatedAt: Date? = nil,
-        providerID: String = "codex") -> SyncedUsageSnapshot
+        providerID: String = "codex",
+        appVersion: String? = nil,
+        publishedAt: Date? = nil,
+        accountRecordKey: String? = nil,
+        accountEmail: String? = "fixture@example.invalid",
+        loginMethod: String? = nil,
+        isError: Bool = false) -> SyncedUsageSnapshot
     {
         let provider = ProviderUsageSnapshot(
             providerID: providerID,
             providerName: "Fixture Provider",
             primary: windows.first,
             secondary: nil,
-            accountEmail: "fixture@example.invalid",
-            loginMethod: nil,
+            accountEmail: accountEmail,
+            loginMethod: loginMethod,
             statusMessage: nil,
-            isError: false,
+            isError: isError,
             lastUpdated: updatedAt ?? self.captured,
             rateWindows: windows,
-            utilizationHistory: history)
+            utilizationHistory: history,
+            accountRecordKey: accountRecordKey)
         return SyncedUsageSnapshot(
             providers: [provider],
-            syncTimestamp: max(
+            syncTimestamp: publishedAt ?? max(
                 updatedAt ?? self.captured, self.captured.addingTimeInterval(120)),
             deviceName: device,
-            deviceID: device)
+            deviceID: device,
+            appVersion: appVersion,
+            providerPublicationTimestamps: publishedAt.map {
+                [SyncedUsageSnapshot.providerPublicationKey(for: provider): $0]
+            } ?? [:])
     }
 
     @Test func `Same-hour declines and distinct reset cycles retain actual observations`() throws {
@@ -131,6 +142,292 @@ struct V070ConsumerDataTests {
         let merged = try #require(ProviderSnapshotMerger.mergeSnapshots([older, newer]))
         #expect(merged.providers.first?.rateWindows == [blocked])
         #expect(merged.providers.first?.primary == blocked)
+    }
+
+    @Test func `Later legacy and unknown Kimi writers cannot clear a capable monthly block`() throws {
+        let blocked = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly",
+                rawUsedPercent: 25,
+                rawResetsAt: nil,
+                rawResetDescription: nil,
+                rawNextRegenPercent: 5))
+        let available = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 10,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        for version in ["0.68.0.1", "0.69.0", "unknown", "", "0.70..1", "0.70.0-beta", nil] {
+            let new = self.snapshot(
+                device: "fixture-block-capable",
+                history: [],
+                windows: [blocked],
+                providerID: "kimi",
+                appVersion: "0.70.0.1")
+            let old = self.snapshot(
+                device: "fixture-legacy",
+                history: [],
+                windows: [available],
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: version)
+            for sources in [[new, old], [old, new]] {
+                let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(sources))
+                let provider = try #require(merged.providers.first)
+                #expect(provider.primary == blocked)
+                #expect(provider.rateWindows == [blocked])
+                #expect(provider.lastUpdated == old.providers[0].lastUpdated)
+                let key = SyncedUsageSnapshot.providerPublicationKey(for: provider)
+                #expect(merged.providerQuotaSources[key]?.capturedAt == self.captured)
+            }
+        }
+    }
+
+    @Test func `A later capable Kimi observation clears every stale blocked lane`() throws {
+        let blocked = SyncRateWindow(
+            label: "Monthly",
+            usedPercent: 100,
+            windowMinutes: 43200,
+            resetsAt: nil,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly",
+                rawUsedPercent: 25,
+                rawResetsAt: nil,
+                rawResetDescription: nil,
+                rawNextRegenPercent: nil))
+        let available = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 20,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        let monthly = SyncRateWindow(
+            id: "kimi-monthly",
+            label: "Monthly",
+            usedPercent: 50,
+            windowMinutes: 43200,
+            resetsAt: nil,
+            resetDescription: nil)
+        let old = self.snapshot(
+            device: "fixture-blocked",
+            history: [],
+            windows: [blocked],
+            providerID: "kimi",
+            appVersion: nil)
+        let clear = self.snapshot(
+            device: "fixture-clear",
+            history: [],
+            windows: [available, monthly],
+            updatedAt: self.captured.addingTimeInterval(60),
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        for sources in [[old, clear], [clear, old]] {
+            let provider = try #require(ProviderSnapshotMerger.mergeSnapshots(sources)?.providers.first)
+            #expect(provider.primary == available)
+            #expect(provider.rateWindows == [available, monthly])
+        }
+    }
+
+    @Test func `Kimi equal capture authority uses publication before device identity`() throws {
+        let block = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly",
+                rawUsedPercent: 25,
+                rawResetsAt: nil,
+                rawResetDescription: nil,
+                rawNextRegenPercent: nil))
+        let clear = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 20,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        let monthly = SyncRateWindow(
+            id: "kimi-monthly",
+            label: "Monthly",
+            usedPercent: 50,
+            windowMinutes: 43200,
+            resetsAt: nil,
+            resetDescription: nil)
+        let a = self.snapshot(
+            device: "fixture-z",
+            history: [],
+            windows: [block],
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured)
+        let b = self.snapshot(
+            device: "fixture-a",
+            history: [],
+            windows: [clear, monthly],
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(60))
+        for sources in [[a, b], [b, a]] {
+            let provider = try #require(ProviderSnapshotMerger.mergeSnapshots(sources)?.providers.first)
+            #expect(provider.primary == clear)
+            #expect(provider.rateWindows == [clear, monthly])
+        }
+    }
+
+    @Test func `A modern writer missing a valid unexhausted monthly observation cannot clear a block`() throws {
+        let block = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly",
+                rawUsedPercent: 25,
+                rawResetsAt: nil,
+                rawResetDescription: nil,
+                rawNextRegenPercent: nil))
+        let weekly = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 20,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        let old = self.snapshot(
+            device: "fixture-blocked",
+            history: [],
+            windows: [block],
+            providerID: "kimi")
+        let invalidMonthly: [SyncRateWindow?] = [
+            nil,
+            .init(
+                id: "kimi-monthly",
+                usedPercent: 0,
+                usageKnown: false,
+                windowMinutes: 43200,
+                resetsAt: nil,
+                resetDescription: nil),
+            .init(
+                id: "kimi-monthly",
+                usedPercent: 0,
+                windowMinutes: 43200,
+                resetsAt: nil,
+                resetDescription: nil,
+                isSyntheticPlaceholder: true),
+            .init(
+                id: "kimi-monthly",
+                usedPercent: 100,
+                windowMinutes: 43200,
+                resetsAt: self.captured.addingTimeInterval(-60),
+                resetDescription: nil),
+            .init(
+                id: "kimi-monthly",
+                usedPercent: .nan,
+                windowMinutes: 43200,
+                resetsAt: nil,
+                resetDescription: nil),
+        ]
+        for monthly in invalidMonthly {
+            let modern = self.snapshot(
+                device: "fixture-incomplete",
+                history: [],
+                windows: [weekly] + [monthly].compactMap(\.self),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: "0.70.0.1")
+            for sources in [[old, modern], [modern, old]] {
+                let provider = try #require(ProviderSnapshotMerger.mergeSnapshots(sources)?.providers.first)
+                #expect(provider.primary == block)
+                #expect(provider.rateWindows == [block])
+            }
+        }
+    }
+
+    @Test func `Later legacy monthly exhaustion overrides an earlier capable clear and preserves raw quota`() throws {
+        let weekly = SyncRateWindow(
+            id: "primary",
+            label: "Weekly",
+            usedPercent: 20,
+            windowMinutes: 10080,
+            resetsAt: self.captured.addingTimeInterval(3600),
+            resetDescription: nil)
+        let clearMonthly = SyncRateWindow(
+            id: "kimi-monthly",
+            label: "Monthly",
+            usedPercent: 50,
+            windowMinutes: 43200,
+            resetsAt: self.captured.addingTimeInterval(86400),
+            resetDescription: nil)
+        let exhausted = SyncRateWindow(
+            id: "kimi-monthly",
+            label: "Monthly",
+            usedPercent: 100,
+            windowMinutes: 43200,
+            resetsAt: self.captured.addingTimeInterval(86400),
+            resetDescription: nil)
+        let modern = self.snapshot(
+            device: "fixture-capable",
+            history: [],
+            windows: [weekly, clearMonthly],
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        let legacy = self.snapshot(
+            device: "fixture-legacy",
+            history: [],
+            windows: [weekly, exhausted],
+            updatedAt: self.captured.addingTimeInterval(60),
+            providerID: "kimi",
+            appVersion: "0.68.0.1")
+        for sources in [[modern, legacy], [legacy, modern]] {
+            let provider = try #require(ProviderSnapshotMerger.mergeSnapshots(sources)?.providers.first)
+            #expect(provider.primary?.usedPercent == 100)
+            #expect(provider.primary?.resetsAt == exhausted.resetsAt)
+            #expect(provider.primary?.blockingQuota?.rawUsedPercent == weekly.usedPercent)
+            #expect(provider.rateWindows.last == exhausted)
+            #expect(provider.lastUpdated == legacy.providers[0].lastUpdated)
+        }
+    }
+
+    @Test func `Kimi authority survives wire persistence and legacy only data stays available`() throws {
+        let blocked = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly",
+                rawUsedPercent: 25,
+                rawResetsAt: nil,
+                rawResetDescription: nil,
+                rawNextRegenPercent: nil))
+        let available = SyncRateWindow(
+            label: "Weekly", usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil)
+        let capable = self.snapshot(
+            device: "fixture-capable",
+            history: [],
+            windows: [blocked],
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        let legacy = self.snapshot(
+            device: "fixture-legacy",
+            history: [],
+            windows: [available],
+            updatedAt: self.captured.addingTimeInterval(60),
+            providerID: "kimi",
+            appVersion: "0.68.0.1")
+        let stored = try JSONEncoder().encode([capable, legacy])
+        let reopened = try JSONDecoder().decode([SyncedUsageSnapshot].self, from: stored)
+        #expect(ProviderSnapshotMerger.mergeSnapshots(reopened)?.providers.first?.primary == blocked)
+        #expect(ProviderSnapshotMerger.mergeSnapshots([legacy])?.providers.first?.primary == available)
     }
 
     @Test func `Token-only model observations survive combination without invented prices`() throws {
@@ -378,9 +675,11 @@ struct V070ConsumerDataTests {
         let device = try #require(devices.first)
         #expect(devices.count == 1 && device.deviceName == "Fixture Legacy Mac")
         #expect(device.providerPublicationTimestampsData == nil)
+        #expect(device.providerQuotaSourcesData == nil)
         #expect(device.providers.count == 1 && device.providers.first?.providerID == "codex")
         let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
         #expect(restored.first?.providerPublicationTimestamps == [:])
+        #expect(restored.first?.providerQuotaSources == [:])
         #expect(restored.first?.syncTimestamp == self.captured)
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(rows.count == 1)
@@ -756,4 +1055,468 @@ private enum LegacyV230Ledger {
             "\(deviceID)|\(providerID)|\(accountRecordKey ?? accountEmail ?? "_")|\(dayKey)"
         }
     }
+}
+
+// MARK: - Alias quota provenance regression
+
+extension V070ConsumerDataTests {
+    private func kimiWindows(blocked: Bool) -> [SyncRateWindow] {
+        [
+            SyncRateWindow(
+                id: "kimi-weekly",
+                label: "Weekly",
+                usedPercent: blocked ? 100 : 20,
+                windowMinutes: 10080,
+                resetsAt: self.captured.addingTimeInterval(86400),
+                resetDescription: nil,
+                blockingQuota: blocked ? SyncBlockingQuota(
+                    windowID: "kimi-monthly",
+                    rawUsedPercent: 25,
+                    rawResetsAt: self.captured.addingTimeInterval(3600),
+                    rawResetDescription: nil,
+                    rawNextRegenPercent: nil) : nil),
+            SyncRateWindow(
+                id: "kimi-monthly",
+                label: "Monthly",
+                usedPercent: blocked ? 100 : 50,
+                windowMinutes: 43200,
+                resetsAt: self.captured.addingTimeInterval(86400),
+                resetDescription: nil),
+        ]
+    }
+
+    private func collapseAliases(_ snapshots: [SyncedUsageSnapshot]) throws -> SyncedUsageSnapshot {
+        let ids = snapshots.compactMap(\.deviceID)
+        let event = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: ids[0],
+            relatedDeviceIDs: Array(ids.dropFirst()),
+            confirmedFromDeviceID: "fixture-phone")
+        let resolution = DeviceSnapshotResolver.resolveDeviceSnapshots(
+            snapshots,
+            lifecycleEvents: [event])
+        #expect(resolution.activeSnapshots.count == 1)
+        return try #require(resolution.activeSnapshots.first)
+    }
+
+    @Test func `Alias sibling versions cannot promote a legacy or unknown Kimi writer`() throws {
+        let blockedWindows = self.kimiWindows(blocked: true)
+        let blocker = self.snapshot(
+            device: "fixture-capable",
+            history: [],
+            windows: blockedWindows,
+            providerID: "kimi",
+            appVersion: "0.70.0.1")
+        for version in ["0.68.0.1", "unknown", nil] {
+            let legacy = self.snapshot(
+                device: "fixture-legacy",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: version)
+            let sibling = self.snapshot(
+                device: "fixture-modern-sibling",
+                history: [],
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(240))
+            for aliases in [[legacy, sibling], [sibling, legacy]] {
+                let collapsed = try self.collapseAliases(aliases)
+                #expect(collapsed.appVersion == (version == "unknown" ? "unknown" : "0.70.0.1"))
+                let kimi = try #require(collapsed.providers.first { $0.providerID == "kimi" })
+                let provenance = try #require(collapsed.providerQuotaSources[
+                    SyncedUsageSnapshot.providerPublicationKey(for: kimi),
+                ])
+                #expect(provenance.appVersion == version)
+                for inputs in [[collapsed, blocker], [blocker, collapsed]] {
+                    let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs))
+                    let final = try #require(merged.providers.first { $0.providerID == "kimi" })
+                    #expect(final.primary == blockedWindows[0])
+                    #expect(final.rateWindows == blockedWindows)
+                    #expect(final.lastUpdated == self.captured.addingTimeInterval(60))
+                    let key = SyncedUsageSnapshot.providerPublicationKey(for: final)
+                    #expect(merged.providerQuotaSources[key]?.capturedAt == self.captured)
+                }
+            }
+        }
+    }
+
+    @Test func `Alias collapse keeps the selected Kimi quota publication for both block and clear`() throws {
+        for firstBlocked in [false, true] {
+            let selected = self.snapshot(
+                device: "fixture-selected-z",
+                history: [],
+                windows: self.kimiWindows(blocked: firstBlocked),
+                providerID: "kimi",
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(10))
+            let legacy = self.snapshot(
+                device: "fixture-later-legacy",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: "0.68.0.1",
+                publishedAt: self.captured.addingTimeInterval(100))
+            let later = self.snapshot(
+                device: "fixture-capable-a",
+                history: [],
+                windows: self.kimiWindows(blocked: !firstBlocked),
+                providerID: "kimi",
+                appVersion: "0.70.0.1",
+                publishedAt: self.captured.addingTimeInterval(20))
+            for aliases in [[selected, legacy], [legacy, selected]] {
+                let collapsed = try self.collapseAliases(aliases)
+                let kimi = try #require(collapsed.providers.first)
+                #expect(collapsed.publicationTimestamp(for: kimi) == self.captured.addingTimeInterval(100))
+                let key = SyncedUsageSnapshot.providerPublicationKey(for: kimi)
+                #expect(collapsed.providerQuotaSources[key]?.publicationTimestamp
+                    == self.captured.addingTimeInterval(10))
+                #expect(collapsed.providerQuotaSources[key]?.capturedAt == self.captured)
+                for inputs in [[collapsed, later], [later, collapsed]] {
+                    let reduced = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs))
+                    let final = try #require(reduced.providers.first)
+                    #expect(final.primary == later.providers[0].primary)
+                    #expect(final.rateWindows == later.providers[0].rateWindows)
+                    #expect(reduced.publicationTimestamp(for: final) == self.captured.addingTimeInterval(100))
+                    #expect(reduced.providerQuotaSources[key]?.publicationTimestamp
+                        == self.captured.addingTimeInterval(20))
+                    #expect(reduced.providerQuotaSources[key]?.capturedAt == self.captured)
+                }
+            }
+        }
+    }
+
+    @Test func `Alias canonical identity cannot replace the quota writer tie breaker`() throws {
+        let selected = self.snapshot(
+            device: "fixture-quota-a",
+            history: [],
+            windows: self.kimiWindows(blocked: true),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(10))
+        let sibling = self.snapshot(
+            device: "fixture-canonical-z",
+            history: [],
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(100))
+        let other = self.snapshot(
+            device: "fixture-quota-b",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(10))
+        for aliases in [[selected, sibling], [sibling, selected]] {
+            let collapsed = try self.collapseAliases(aliases)
+            #expect(collapsed.deviceID == "fixture-canonical-z")
+            for inputs in [[collapsed, other], [other, collapsed]] {
+                let final = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs)?.providers.first {
+                    $0.providerID == "kimi"
+                })
+                #expect(final.primary == other.providers[0].primary)
+                #expect(final.rateWindows == other.providers[0].rateWindows)
+            }
+        }
+    }
+
+    @Test @MainActor
+    func `Envelope Kimi provenance survives disk reopen alias collapse and cross device merge`() throws {
+        let base = URL(fileURLWithPath: "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070")
+        guard FileManager.default.fileExists(atPath: base.path),
+              FileManager.default.isWritableFile(atPath: base.path),
+              base.resolvingSymlinksInPath().path.hasPrefix("/Volumes/StudioSSD/")
+        else { throw CocoaError(.fileNoSuchFile) }
+        let root = base.appendingPathComponent("quota-source-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = root.appendingPathComponent("Store.sqlite")
+        let blocker = self.snapshot(
+            device: "fixture-blocker",
+            history: [],
+            windows: self.kimiWindows(blocked: true),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            accountRecordKey: "opaque-kimi-account")
+        for version in ["0.68.0.1", nil] {
+            let raw = self.snapshot(
+                device: "fixture-mixed",
+                history: [],
+                windows: self.kimiWindows(blocked: false),
+                updatedAt: self.captured.addingTimeInterval(60),
+                providerID: "kimi",
+                appVersion: version,
+                accountRecordKey: "opaque-kimi-account")
+            let sibling = self.snapshot(device: "fixture-mixed", history: [], appVersion: "0.70.0.1")
+            func envelope(_ snapshot: SyncedUsageSnapshot, publication: Double) -> ProviderUsageEnvelope {
+                ProviderUsageEnvelope(
+                    deviceID: "fixture-mixed",
+                    deviceName: "Fixture Mixed Writer",
+                    appVersion: snapshot.appVersion,
+                    mobileVersion: nil,
+                    syncTimestamp: self.captured.addingTimeInterval(publication),
+                    notificationPushEnabled: nil,
+                    provider: snapshot.providers[0])
+            }
+            let envelopes = [envelope(raw, publication: 70), envelope(sibling, publication: 100)]
+            for records in [envelopes, Array(envelopes.reversed())] {
+                let sources = CloudSyncManager.reconstructSnapshots(envelopesByDeviceID: ["fixture-mixed": records])
+                let live = try #require(sources.first)
+                var fullCache = SnapshotCache()
+                fullCache.replaceFromFullFetch(perProviderSnapshots: sources, legacySnapshots: nil)
+                var deltaCache = SnapshotCache()
+                deltaCache.applyDelta(upserted: records, deletedRecordNames: [])
+                var replayCache = SnapshotCache()
+                replayCache.replacePerProviderFromReplay(records)
+                let cached = try [fullCache, deltaCache, replayCache].map {
+                    try #require($0.buildDeviceSnapshots().first)
+                }
+                #expect(cached.allSatisfy { $0.providerQuotaSources == live.providerQuotaSources })
+                let siblingRecord = "fixture-mixed|" + SnapshotCache.compositeKey(for: sibling.providers[0])
+                let filtered = SyncedUsageData.snapshotsFilteringDeletedProvidersForIncrementalPersistence(
+                    [live], deletedRecordNames: [siblingRecord])
+                #expect(filtered.first?.providerQuotaSources == live.providerQuotaSources)
+                deltaCache.applyDelta(upserted: [], deletedRecordNames: [siblingRecord])
+                #expect(deltaCache.buildDeviceSnapshots().first?.providerQuotaSources == live.providerQuotaSources)
+                let quotaRecord = "fixture-mixed|" + SnapshotCache.compositeKey(for: raw.providers[0])
+                deltaCache.applyDelta(upserted: [], deletedRecordNames: [quotaRecord])
+                #expect(deltaCache.perProviderQuotaSourcesByDevice["fixture-mixed"] == nil)
+                #expect(deltaCache.buildDeviceSnapshots().isEmpty)
+
+                #expect(live.appVersion == "0.70.0.1")
+                let key = SyncedUsageSnapshot.providerPublicationKey(for: raw.providers[0])
+                let provenance = try #require(live.providerQuotaSources[key])
+                #expect(provenance.appVersion == version)
+                #expect(provenance.publicationTimestamp == self.captured.addingTimeInterval(70))
+                #expect(provenance.deviceID == "fixture-mixed")
+                do {
+                    let opened = ModelContainerFactory.openContainer(at: store)
+                    #expect(opened.isPersistent)
+                    try SwiftDataBridge.upsert(
+                        deviceSnapshots: fullCache.buildDeviceSnapshots(),
+                        into: ModelContext(opened.container))
+                }
+                let opened = ModelContainerFactory.openContainer(at: store)
+                #expect(opened.isPersistent)
+                let restored = try SwiftDataBridge.readAllDeviceSnapshots(from: ModelContext(opened.container))
+                let cold = try #require(restored.first)
+                #expect(cold.providerQuotaSources == live.providerQuotaSources)
+                #expect(cold.providers.first { $0.providerID == "kimi" }?.accountRecordKey == "opaque-kimi-account")
+                let context = ModelContext(opened.container)
+                let device = try #require(try context.fetch(FetchDescriptor<DeviceRecord>()).first)
+                device.providerQuotaSourcesData = nil
+                try context.save()
+                let legacyCache = try #require(try SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+                #expect(legacyCache.appVersion == "0.70.0.1")
+                #expect(legacyCache.providerQuotaSources[key]?.appVersion == nil)
+                #expect(legacyCache.providerQuotaSources[key]?.publicationTimestamp == provenance.publicationTimestamp)
+                let aliasSibling = self.snapshot(
+                    device: "fixture-new-alias",
+                    history: [],
+                    appVersion: "0.71.0",
+                    publishedAt: self.captured.addingTimeInterval(200))
+                for first in [live, cold, legacyCache] + cached + filtered {
+                    for aliases in [[first, aliasSibling], [aliasSibling, first]] {
+                        let collapsed = try self.collapseAliases(aliases)
+                        for inputs in [[collapsed, blocker], [blocker, collapsed]] {
+                            let final = try #require(ProviderSnapshotMerger.mergeSnapshots(inputs)?.providers.first {
+                                $0.providerID == "kimi"
+                            })
+                            #expect(final.primary == blocker.providers[0].primary)
+                            #expect(final.rateWindows == blocker.providers[0].rateWindows)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    func `Quota provenance filters stale identities and ignores empty sibling observations`() throws {
+        let active = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            providerID: "kimi",
+            appVersion: "0.68.0.1",
+            accountRecordKey: "opaque-active")
+        let stale = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            updatedAt: self.captured.addingTimeInterval(-40 * 86400),
+            providerID: "kimi",
+            appVersion: "0.71.0",
+            accountRecordKey: "opaque-stale",
+            accountEmail: nil)
+        let activeKey = SyncedUsageSnapshot.providerPublicationKey(for: active.providers[0])
+        let staleKey = SyncedUsageSnapshot.providerPublicationKey(for: stale.providers[0])
+        let source = SyncProviderQuotaSource(
+            appVersion: "0.68.0.1",
+            publicationTimestamp: active.syncTimestamp,
+            deviceID: "fixture-cache",
+            capturedAt: active.providers[0].lastUpdated,
+            isError: false)
+        let legacy = SyncedUsageSnapshot(
+            providers: active.providers + stale.providers,
+            syncTimestamp: active.syncTimestamp,
+            deviceName: "fixture-cache",
+            deviceID: "fixture-cache",
+            appVersion: "0.71.0",
+            providerQuotaSources: [activeKey: source,
+            staleKey: SyncProviderQuotaSource(
+                appVersion: "0.71.0",
+                publicationTimestamp: stale.syncTimestamp,
+                deviceID: "fixture-cache",
+                capturedAt: stale.providers[0].lastUpdated,
+                isError: false)])
+        for perProvider in [false, true] {
+            var cache = SnapshotCache()
+            cache.replaceFromFullFetch(
+                perProviderSnapshots: perProvider ? [legacy] : nil,
+                legacySnapshots: perProvider ? nil : [legacy])
+            let result = try #require(cache.buildDeviceSnapshots().first)
+            #expect(result.providers.count == 1)
+            #expect(result.providerQuotaSources == [activeKey: source])
+        }
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [legacy],
+            legacySnapshots: nil)
+        let empty = self.snapshot(
+            device: "fixture-cache",
+            history: [],
+            providerID: "kimi",
+            appVersion: "0.71.0",
+            accountRecordKey: "opaque-active")
+        cache.applyDelta(upserted: [ProviderUsageEnvelope(
+            deviceID: "fixture-cache",
+            deviceName: "fixture-cache",
+            appVersion: "0.71.0",
+            mobileVersion: nil,
+            syncTimestamp: self.captured.addingTimeInterval(1000),
+            notificationPushEnabled: nil,
+            provider: empty.providers[0])],
+            deletedRecordNames: [])
+        #expect(cache.buildDeviceSnapshots().first?.providerQuotaSources == [activeKey: source])
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(legacy)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            SyncedUsageSnapshot.self,
+            from: encoded)
+        #expect(decoded.providerQuotaSources.isEmpty)
+        #expect(decoded.providers == legacy.providers)
+    }
+
+    @Test @MainActor
+    func `Fresh Kimi plan metadata does not promote the retained quota capture through cache and disk`() throws {
+        let base = URL(fileURLWithPath: "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v070")
+        guard FileManager.default.fileExists(atPath: base.path),
+              FileManager.default.isWritableFile(atPath: base.path),
+              base.resolvingSymlinksInPath().path.hasPrefix("/Volumes/StudioSSD/")
+        else { throw CocoaError(.fileNoSuchFile) }
+        let root = base.appendingPathComponent("quota-metadata-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = self.snapshot(
+            device: "fixture-old",
+            history: [],
+            windows: self.kimiWindows(blocked: true),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(10),
+            accountRecordKey: "opaque-account",
+            loginMethod: "Fixture Old Plan")
+        let fresh = self.snapshot(
+            device: "fixture-fresh",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            updatedAt: self.captured.addingTimeInterval(120),
+            providerID: "kimi",
+            appVersion: "0.68.0.1",
+            publishedAt: self.captured.addingTimeInterval(130),
+            accountRecordKey: "opaque-account",
+            loginMethod: "Fixture Fresh Plan",
+            isError: true)
+        let other = self.snapshot(
+            device: "fixture-other",
+            history: [],
+            windows: self.kimiWindows(blocked: false),
+            updatedAt: self.captured.addingTimeInterval(60),
+            providerID: "kimi",
+            appVersion: "0.70.0.1",
+            publishedAt: self.captured.addingTimeInterval(70),
+            accountRecordKey: "opaque-account",
+            loginMethod: "Fixture Intermediate Plan")
+        let envelopes = [old, fresh].map { snapshot in
+            ProviderUsageEnvelope(
+                deviceID: snapshot.deviceID!,
+                deviceName: snapshot.deviceName,
+                appVersion: snapshot.appVersion,
+                mobileVersion: nil,
+                syncTimestamp: snapshot.syncTimestamp,
+                notificationPushEnabled: nil,
+                provider: snapshot.providers[0])
+        }
+        for inputs in [envelopes, Array(envelopes.reversed())] {
+            let sources = CloudSyncManager.reconstructSnapshots(
+                envelopesByDeviceID: Dictionary(grouping: inputs, by: \.deviceID))
+            var full = SnapshotCache()
+            full.replaceFromFullFetch(perProviderSnapshots: sources, legacySnapshots: nil)
+            var delta = SnapshotCache()
+            delta.applyDelta(upserted: inputs, deletedRecordNames: [])
+            var replay = SnapshotCache()
+            replay.replacePerProviderFromReplay(inputs)
+            for cache in [full, delta, replay] {
+                let live = cache.buildDeviceSnapshots()
+                let url = root.appendingPathComponent("Store.sqlite")
+                do {
+                    let opened = ModelContainerFactory.openContainer(at: url)
+                    #expect(opened.isPersistent)
+                    try SwiftDataBridge.upsert(deviceSnapshots: live, into: ModelContext(opened.container))
+                }
+                let opened = ModelContainerFactory.openContainer(at: url)
+                #expect(opened.isPersistent)
+                let cold = try SwiftDataBridge.readAllDeviceSnapshots(from: ModelContext(opened.container))
+                for snapshots in [live, cold] {
+                    for aliases in [snapshots, Array(snapshots.reversed())] {
+                        let collapsed = try self.collapseAliases(aliases)
+                        let kimi = try #require(collapsed.providers.first)
+                        let key = SyncedUsageSnapshot.providerPublicationKey(for: kimi)
+                        #expect(kimi.loginMethod == "Fixture Fresh Plan")
+                        #expect(kimi.lastUpdated == fresh.providers[0].lastUpdated)
+                        #expect(kimi.rateWindows == old.providers[0].rateWindows)
+                        #expect(kimi.accountRecordKey == "opaque-account")
+                        #expect(collapsed.providerQuotaSources[key]?.capturedAt == self.captured)
+                        #expect(collapsed.publicationTimestamp(for: kimi) == fresh.syncTimestamp)
+                        for reduction in [[collapsed, other], [other, collapsed]] {
+                            let result = try #require(ProviderSnapshotMerger.mergeSnapshots(reduction))
+                            let final = try #require(result.providers.first)
+                            #expect(final.loginMethod == "Fixture Fresh Plan")
+                            #expect(final.lastUpdated == fresh.providers[0].lastUpdated)
+                            #expect(final.accountEmail == fresh.providers[0].accountEmail)
+                            #expect(final.accountRecordKey == "opaque-account")
+                            #expect(final.rateWindows == other.providers[0].rateWindows)
+                            #expect(result.providerQuotaSources[key]?.capturedAt == other.providers[0].lastUpdated)
+                            #expect(result.providerQuotaSources[key]?.publicationTimestamp == other.syncTimestamp)
+                            #expect(result.providerQuotaSources[key]?.isError == false)
+                            let olderBlock = self.snapshot(
+                                device: "fixture-older-block",
+                                history: [],
+                                windows: self.kimiWindows(blocked: true),
+                                updatedAt: self.captured.addingTimeInterval(30),
+                                providerID: "kimi",
+                                appVersion: "0.70.0.1",
+                                accountRecordKey: "opaque-account")
+                            let repeated = try #require(ProviderSnapshotMerger.mergeSnapshots([result, olderBlock]))
+                            #expect(repeated.providers.first?.rateWindows == other.providers[0].rateWindows)
+                        }
+                    }
+                }
+            }
+        }
+        let legacySource = Data(#"{"appVersion":"0.70.0.1","publicationTimestamp":0,"deviceID":"fixture"}"#.utf8)
+        let decoded = try JSONDecoder().decode(SyncProviderQuotaSource.self, from: legacySource)
+        #expect(decoded.capturedAt == nil)
+    }
+
 }

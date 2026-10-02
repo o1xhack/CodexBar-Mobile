@@ -37,6 +37,9 @@ struct SnapshotCache: Sendable {
     /// independent freshness.
     var perProviderPublicationTimestampsByDevice: [String: [String: Date]] = [:]
 
+    /// Original per-provider quota writer metadata, independent of device metadata.
+    var perProviderQuotaSourcesByDevice: [String: [String: SyncProviderQuotaSource]] = [:]
+
     /// Legacy-zone monolithic snapshots. Keyed `deviceID → snapshot`.
     /// Populated ONLY by full CKQuery on `DeviceSnapshotsZone`/default zone.
     /// Untouched by silent-push-driven incremental refreshes (since silent
@@ -86,6 +89,7 @@ struct SnapshotCache: Sendable {
         if let perProviderSnapshots {
             self.perProviderByDevice.removeAll(keepingCapacity: true)
             self.perProviderPublicationTimestampsByDevice.removeAll(keepingCapacity: true)
+            self.perProviderQuotaSourcesByDevice.removeAll(keepingCapacity: true)
 
             // Populate per-provider bucket. Each snapshot represents one device's
             // worth of envelopes. Composite key groups providers within the device.
@@ -95,14 +99,17 @@ struct SnapshotCache: Sendable {
                 guard let deviceID = snapshot.deviceID else { continue }
                 var byComposite: [String: ProviderUsageSnapshot] = [:]
                 var publicationTimestamps: [String: Date] = [:]
+                var quotaSources: [String: SyncProviderQuotaSource] = [:]
                 for provider in snapshot.providers where !Self.isGhost(provider) {
                     let key = Self.compositeKey(for: provider)
                     byComposite[key] = provider
                     publicationTimestamps[key] = snapshot.publicationTimestamp(for: provider)
+                    quotaSources[key] = snapshot.providerQuotaSources[key]
                 }
                 guard !byComposite.isEmpty else { continue }
                 self.perProviderByDevice[deviceID] = byComposite
                 self.perProviderPublicationTimestampsByDevice[deviceID] = publicationTimestamps
+                self.perProviderQuotaSourcesByDevice[deviceID] = quotaSources
                 self.deviceMetadata[deviceID] = Metadata(
                     deviceName: snapshot.deviceName,
                     appVersion: snapshot.appVersion,
@@ -147,6 +154,14 @@ struct SnapshotCache: Sendable {
             var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[envelope.deviceID] ?? [:]
             publicationTimestamps[key] = envelope.syncTimestamp
             self.perProviderPublicationTimestampsByDevice[envelope.deviceID] = publicationTimestamps
+            if envelope.provider.providerID == "kimi" {
+                self.perProviderQuotaSourcesByDevice[envelope.deviceID, default: [:]][key] = SyncProviderQuotaSource(
+                    appVersion: envelope.appVersion,
+                    publicationTimestamp: envelope.syncTimestamp,
+                    deviceID: envelope.deviceID,
+                    capturedAt: envelope.provider.lastUpdated,
+                    isError: envelope.provider.isError)
+            }
 
             self.updateMetadata(from: envelope)
         }
@@ -162,9 +177,11 @@ struct SnapshotCache: Sendable {
             byComposite.removeValue(forKey: composite)
             var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[deviceID] ?? [:]
             publicationTimestamps.removeValue(forKey: composite)
+            self.perProviderQuotaSourcesByDevice[deviceID]?.removeValue(forKey: composite)
             if byComposite.isEmpty {
                 self.perProviderByDevice.removeValue(forKey: deviceID)
                 self.perProviderPublicationTimestampsByDevice.removeValue(forKey: deviceID)
+                self.perProviderQuotaSourcesByDevice.removeValue(forKey: deviceID)
             } else {
                 self.perProviderByDevice[deviceID] = byComposite
                 self.perProviderPublicationTimestampsByDevice[deviceID] = publicationTimestamps
@@ -181,6 +198,7 @@ struct SnapshotCache: Sendable {
     mutating func replacePerProviderFromReplay(_ envelopes: [ProviderUsageEnvelope]) {
         self.perProviderByDevice.removeAll(keepingCapacity: true)
         self.perProviderPublicationTimestampsByDevice.removeAll(keepingCapacity: true)
+        self.perProviderQuotaSourcesByDevice.removeAll(keepingCapacity: true)
         for envelope in envelopes where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             let key = Self.compositeKey(for: envelope.provider)
@@ -189,6 +207,14 @@ struct SnapshotCache: Sendable {
             var publicationTimestamps = self.perProviderPublicationTimestampsByDevice[envelope.deviceID] ?? [:]
             publicationTimestamps[key] = envelope.syncTimestamp
             self.perProviderPublicationTimestampsByDevice[envelope.deviceID] = publicationTimestamps
+            if envelope.provider.providerID == "kimi" {
+                self.perProviderQuotaSourcesByDevice[envelope.deviceID, default: [:]][key] = SyncProviderQuotaSource(
+                    appVersion: envelope.appVersion,
+                    publicationTimestamp: envelope.syncTimestamp,
+                    deviceID: envelope.deviceID,
+                    capturedAt: envelope.provider.lastUpdated,
+                    isError: envelope.provider.isError)
+            }
 
             self.updateMetadata(from: envelope)
         }
@@ -270,7 +296,20 @@ struct SnapshotCache: Sendable {
                     appVersion: meta?.appVersion,
                     mobileVersion: meta?.mobileVersion,
                     notificationPushEnabled: meta?.notificationPushEnabled,
-                    providerPublicationTimestamps: providerPublicationTimestamps))
+                    providerPublicationTimestamps: providerPublicationTimestamps,
+                    providerQuotaSources: Dictionary(
+                        providers.filter { $0.providerID == "kimi" }.map { provider in
+                            let key = Self.compositeKey(for: provider)
+                            let source = self.perProviderQuotaSourcesByDevice[deviceID]?[key]
+                                ?? SyncProviderQuotaSource(
+                                    appVersion: nil,
+                                    publicationTimestamp: providerPublicationTimestamps[key] ?? snapshotTimestamp,
+                                    deviceID: deviceID,
+                                    capturedAt: provider.lastUpdated,
+                                    isError: provider.isError)
+                            return (key, source)
+                        },
+                        uniquingKeysWith: { first, _ in first })))
             } else if let legacy = self.legacyByDevice[deviceID] {
                 result.append(Self.filterSnapshotProviders(legacy))
             }
@@ -313,7 +352,8 @@ struct SnapshotCache: Sendable {
             appVersion: snapshot.appVersion,
             mobileVersion: snapshot.mobileVersion,
             notificationPushEnabled: snapshot.notificationPushEnabled,
-            providerPublicationTimestamps: filteredPublicationTimestamps)
+            providerPublicationTimestamps: filteredPublicationTimestamps,
+            providerQuotaSources: snapshot.providerQuotaSources.filter { filtered[$0.key] != nil })
     }
 
     /// Drop per-provider entries that are almost certainly orphan / stale
