@@ -329,3 +329,11 @@ r6 实际 allCases=overview,providerFocus,todayCost,syncHealth，仍出现 to-0.
 r4 覆盖安装时 sim-use 检测旧诊断 app PID42215 消失，立即停止下一步界面操作并核对日志。plain-only-install-process.log 记录 installcoordinationd 主动请求终止该 PID、terminate_with_reason success 与随后安装完成；属于安装替换终止，未当作 App 崩溃或系统故障。工具 baseline 在确认安装终止后重置。
 
 生产 Widget 源码未因这些实验改变；所有模式、颜色及 provider 选择能力保留。下一步采用 09-widget-configuration-repair.md 中的完整迁移原型验证，不继续堆叠已被否定的 enum 列举补丁。真实 SpringBoard 主 Widget 参数生效 gate 仍失败，iOS/PR/CR/Mac draft 不称完成。
+
+### SiriKit 全配置原型首次实际生效
+
+独立 widget-sirikit-full-probe-r1 已创建 App/Widget/动态选项 extension 三 target，intent 类型包含四模式、两样式和 INObject provider 数组。xcodegen + Xcode27.0 标准本地签名构建 session2967 终态exit0 / BUILD SUCCEEDED；无 CloudKit、真实账号或 App Group，动态 catalogue 只有虚构 A/B/C/D。
+
+安装到同一自有 iOS26.5，在实际 SpringBoard 添加 medium Widget，打开配置菜单：动态列表 A/B/C/D 可见，选择 B、syncHealth、colorful。options extension 日志证明被系统调用，timeline-r1.log 最终 mode=4,color=2,ids=B；对应生成 enum 4=syncHealth、2=colorful。final-config-B-r1.png 与已等待稳定的 home-health-color-B-settled-r1.png 实际一致；较早 home-health-color-B-r1.png 截到关闭编辑动画中的旧图，保留且不作为最终通过证据。初始默认 mode1/color1/空列表也有实际 Home/log。evidence-r1.json 保存三 target 输入、build log、全部截图/log 与实际 artifact SHA。
+
+这证明此 Simulator 中 SiriKit 的动态 provider+mode/style 参数恢复路径可用；不是生产主 Widget 修复，也不是全部配置/多实例/迁移矩阵通过。尚需剩余模式、四 provider、独立实例、生产接入、本地化、旧新 kind 升级与回归。

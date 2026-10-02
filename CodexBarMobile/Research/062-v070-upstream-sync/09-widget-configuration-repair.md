@@ -1,6 +1,6 @@
 # 主 Widget 配置参数恢复修复
 
-状态：in-progress（原型验证；生产实现尚未完成）
+状态：in-progress（原型首个实际组合通过；生产实现尚未完成）
 
 ## 问题与证据
 
@@ -41,4 +41,4 @@ Research/058-ios-220-widget-redesign.md 的实际历史记录表明 Token Activi
 
 ## 仍未完成
 
-独立 SiriKit 全配置原型、生产修复、新旧配置迁移验证以及真实主 Widget Home 参数验收。仍有安全可执行工作，Goal 保持 active。
+原型已构建并在同一 iOS26.5 实际验证默认组合及 syncHealth/colorful/provider B：系统动态列表、timeline 与稳定 Home 均一致，证据见 03-testing.md。尚需原型剩余模式、四项选择、多实例与边界，以及生产修复、新旧配置迁移、四语言和真实主 Widget Home 验收。仍有安全可执行工作，Goal 保持 active。
