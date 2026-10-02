@@ -469,4 +469,4 @@ review确认generated协议defaultProvider1–4为optional，缺实现不能直�
 
 实际App内嵌Push/Widgets/WidgetOptions三extension及CodexBarSync.framework；五bundle均2.4.0(227)、arm64，五binary UUID与各自Release dSYM逐项一致。App/Widgets/Options×四语言共12份编译WidgetStatus.strings解码后与当前源逐键逐值一致，每份20键；Options四语言Not selected也与xcstrings源值一致。App包60文件SHA与bundle/binary/dSYM/version/resource核对记录于ios-release-preflight-r19-artifacts.json，192输入及源码commit另存-inputs.json。首次核对误把22行源文件当22键导致检查失败；改为源strings解码比对后通过，未改任何产品资源。
 
-构建零error diagnostics、有7条warning，主要为Shared CloudSyncManager既有未使用save返回值和无AppIntents依赖target的metadata extraction skipped，完整行保留manifest/log；不称零warning构建。本轮只证明Release编译与上述静态实际产物条件，签名关闭，不是archive、export、上传、可安装发行物、真实CloudKit/APNs或Release runtime验收。未读发布凭证、未操作实体设备、未push/PR/merge/tag/Mac draft/TestFlight。下一步remote handoff仍等待Goal要求的用户明确授权。
+构建零error diagnostics、有5个warning diagnostics（7条匹配日志行，其中2条为重复插图），主要为Shared CloudSyncManager既有未使用save返回值和无AppIntents依赖target的metadata extraction skipped，完整行保留manifest/log；不称零warning构建。本轮只证明Release编译与上述静态实际产物条件，签名关闭，不是archive、export、上传、可安装发行物、真实CloudKit/APNs或Release runtime验收。未读发布凭证、未操作实体设备、未push/PR/merge/tag/Mac draft/TestFlight。下一步remote handoff仍等待Goal要求的用户明确授权。
