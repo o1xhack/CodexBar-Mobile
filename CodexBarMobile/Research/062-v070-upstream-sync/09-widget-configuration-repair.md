@@ -1,6 +1,6 @@
 # 主 Widget 配置参数恢复修复
 
-状态：in-progress（生产 SiriKit 接入已编译并通过 focused tests；实际编辑、迁移与四语言验收进行中）
+状态：in-progress（生产接入、分范围实际编辑/迁移/四语言与r17受控路径验证通过；保留早期偶发失败未知原因风险，远端review及发布尚未执行）
 
 ## 问题与证据
 
@@ -49,12 +49,12 @@ Research/058-ios-220-widget-redesign.md 的实际历史记录表明 Token Activi
 | 0–4、顺序、重复、清空 | r7/r8实际生产配置，8个adapter tests；未知ID/空catalogue是单元证据 |
 | 两个独立实例 | r8双向编辑与桌面核对，r12冷加载保留 |
 | 四个尺寸 | r12 small/large、r13 iPad extraLarge、此前medium；小/大/超大仅overview/mono实际布局，完整渲染分支由既有render matrix tests覆盖 |
-| 四语言配置 | r12简中、r15日文/英文/繁体字段与picker实际显示；繁体一次同ID空选退出失败，可靠性复测待r16 |
+| 四语言配置 | r12简中、r15日文/英文/繁体字段与picker实际显示；r15/r16两次配置面板退出失败原因未知，r17六组固定等待/滚动/同不同ID/Home与outside路径通过，不宣称根因修复 |
 | 旧新kind升级 | 生产SiriKit接入初期有旧包摆放→升级→legacy提示→仅自有fixture移除/重加证据；之后r10/r12实例保留，旧kind不静默转换 |
-| 编译、单元、lint | r7完整916 tests/1012 runs零失败；r10翻译后构建、r15 audit-i18n及r16 root lint通过；handler默认值补全的新r16 build已通过，focused test与实际复验进行中 |
-| review与handoff | 迁移及翻译本地review clean；默认值新增差异review clean。尚未最终commit exact-head确认，不是remote PR CR gate |
+| 编译、单元、lint | r7完整916 tests/1012 runs零失败；r10翻译后构建、r15 audit-i18n及r16 root lint通过；handler默认值补全的新r16 build已通过，focused 51 tests/66 runs终态通过；r17实际受控复验六组通过，默认查询1003未再观察到 |
+| review与handoff | 迁移及翻译本地review clean；默认值新增差异review clean。产品检查点55fdc080dc5b228d811e34a3969ed49b5a6fec95 exact-head本地复核无源码阻塞，192/192产品输入与r16冻结来源一致；本次摘要文档修正另作检查点，不是remote PR CR gate |
 
-当前待闭环：繁体同ID空选/退出可靠性、新产物默认值日志、focused test终态、最终来源提交与review；PR+CR、merge、Mac draft保持用户指定顺序和授权边界。
+当前边界：早期两次配置面板失败根因未知，若再出现需捕获完整会话/request ID；r17受控路径通过且旧证据保留。实体同步及人工VoiceOver未验证。PR+CR、merge、Mac draft保持用户指定顺序和授权边界，最终文档修正来源继续本地复核。
 
 ## 生产接入与 r3 review 修复（2026-10-01）
 

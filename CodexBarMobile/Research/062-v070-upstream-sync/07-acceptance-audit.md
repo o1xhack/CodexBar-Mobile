@@ -2,7 +2,7 @@
 
 Status: `in-progress`
 Date: 2026-10-02
-Source checkpoint: `45a6a42666bd2378e4a355d07694732a25a567b2` plus uncommitted status-widget migration; production inputs frozen in `status-slots-r16-inputs.json`.
+Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 production inputs match frozen `status-slots-r16-inputs.json`. Subsequent acceptance-summary corrections are documentation only.
 
 本表保持完整 Goal 范围。证据均位于 StudioSSD BuildScratch/CodexBar/upstream-v070 或本 Research；local、离屏、替代矩阵、实体和远端 gate 分别记录。
 
@@ -16,7 +16,7 @@ Source checkpoint: `45a6a42666bd2378e4a355d07694732a25a567b2` plus uncommitted s
 | 6 Mac构建/回归/CloudKit/draft | mac-full-r5、unsigned universal/dSYM预检、NO_DEPLOY静态审计 | draft/签名/公证/Gatekeeper/资产回读未完成 |
 | 7 iOS功能/notes/本地化/测试 | 02/05/06/09、CHANGELOG、单2.4 release block；r7完整916tests/1012runs零失败，r16 focused51/66零失败；标准Widget6方法、真实App四语言quota UI、生产四模式两样式/0–4槽/双实例/四尺寸、四语言配置资源与实际界面见03逐轮范围 | 生产SiriKit四槽修复已实现，非默认配置可消费；r17繁体medium六组固定等待/滚动/同不同ID/Home与outside退出对照均通过，配置截图读回及Home内容经人工核对；保留r15/r16偶发无法载入的未知原因风险，不宣称根因已修复。人工VoiceOver及实体同步仍未验证 |
 | 8 16 old/new兼容组合 | 03全16行substituted；冻结wire64 reads/32 merges；frozen-ios-cache-r4 32stores/96processes exit0 | 替代验证完成，未等同实体2Mac×2iPhone、CloudKit/APNs或真实UI |
-| 9 循环review/零阻塞 | 本地exact9974283e2及四槽迁移/翻译/默认值新增diff review clean；当前最终来源未提交 | GitHub PR/CR尚未创建；local不能代替remote exact-head review |
+| 9 循环review/零阻塞 | 本地exact9974283e2及四槽迁移/翻译/默认值新增diff review clean；产品检查点55fdc080d已提交，本地exact-head审查无新源码阻塞；验收摘要文档修正单独记录 | GitHub PR/CR尚未创建；local不能代替remote exact-head review |
 | 10 证据/链接/状态 | Research保持in-progress，各artifact source/hash/log证明 | PR/draft链接不存在，不虚构；后续实际结果再回写 |
 
 ## 新发现的 Widget 渲染前置条件
