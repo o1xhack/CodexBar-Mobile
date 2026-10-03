@@ -2232,8 +2232,7 @@ struct CostDashboardInsights: Sendable {
                 costSummary.costDayKey(for: costSummary.sourceUpdatedAt ?? provider.lastUpdated)
             // A qualified session can fill an absent Today row, but cannot
             // replace a dated row or stand in for an unrelated period headline.
-            if !costSummary.reportingPeriodDaily.isEmpty,
-               sessionDayKey == producerTodayKey,
+            if sessionDayKey == producerTodayKey,
                !costSummary.hasInvalidBucketTimeZoneIdentifier,
                !costSummary.reportingPeriodDaily.contains(where: { $0.dayKey == producerTodayKey }),
                resolvedTodayCost != nil || todayTotals.tokens != nil
@@ -2258,10 +2257,14 @@ struct CostDashboardInsights: Sendable {
                 calendar: calendar,
                 pointsUseReaderCalendar: false)
             let fallbackDailyTokens = SyncCounterMath.saturatingSum(fallbackSyncPoints.map { max(0, $0.totalTokens) })
-            let resolvedCost = fallbackSyncPoints.isEmpty ? periodFallback.costUSD : fallbackDailyCost ?? 0
-            let resolvedCostIsKnown = fallbackSyncPoints.isEmpty
-                ? periodFallback.costIsKnown : fallbackDailyCoverageIsComplete
-            let resolvedTokens = fallbackSyncPoints.isEmpty ? periodFallback.tokens : fallbackDailyTokens
+            let usePeriodHeadline = Self.canUseUndatedPeriodHeadline(
+                costSummary, windowDays: aggregation.windowDays, now: now)
+            let resolvedCost = usePeriodHeadline && periodFallback.costIsKnown
+                ? periodFallback.costUSD : fallbackDailyCost ?? periodFallback.costUSD
+            let resolvedCostIsKnown = (usePeriodHeadline && periodFallback.costIsKnown) ||
+                (!fallbackSyncPoints.isEmpty && fallbackDailyCoverageIsComplete)
+            let resolvedTokens = usePeriodHeadline && costSummary.reportingPeriodTokens != nil
+                ? periodFallback.tokens : fallbackDailyTokens
             guard resolvedCostIsKnown || resolvedTodayCost != nil ||
                 resolvedTokens > 0 ||
                 costSummary.reportingPeriodCostUSD != nil ||
@@ -2352,7 +2355,7 @@ struct CostDashboardInsights: Sendable {
         now: Date = Date(),
         calendar: Calendar = .current) -> (costUSD: Double, tokens: Int, costIsKnown: Bool)
     {
-        let ledgerCostIsKnown = Self.dailyPointsCoverSelectedWindow(
+        let ledgerCostIsKnown = !rollup.dailyPoints.isEmpty && Self.dailyPointsCoverSelectedWindow(
             rollup.dailyPoints,
             summary: provider.costSummary,
             windowDays: windowDays,
@@ -2374,6 +2377,23 @@ struct CostDashboardInsights: Sendable {
         var tokens = rollup.totalTokens
         var costIsKnown = ledgerCostIsKnown
 
+        guard Self.canUseUndatedPeriodHeadline(summary, windowDays: windowDays, now: now) else {
+            return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
+        }
+
+        if let summaryCost = summary.reportingPeriodCostUSD {
+            costUSD = summaryCost
+            costIsKnown = true
+        }
+        tokens = summary.reportingPeriodTokens ?? tokens
+
+        return (costUSD, tokens, costIsKnown)
+    }
+
+    private static func canUseUndatedPeriodHeadline(
+        _ summary: SyncCostSummary, windowDays: Int, now: Date) -> Bool
+    {
+        guard summary.reportingPeriodDaily.isEmpty else { return false }
         // The legacy last30 fields can only stand in for this selected range
         // when their semantics are unambiguous. `historyDays` is coverage
         // metadata, not a reporting-period identifier: in particular, a
@@ -2389,17 +2409,9 @@ struct CostDashboardInsights: Sendable {
               !summary.hasInvalidBucketTimeZoneIdentifier,
               summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true,
               hasMatchingModernPeriod || hasMatchingLegacyPeriod
-        else {
-            return (rollup.totalCostUSD, rollup.totalTokens, ledgerCostIsKnown)
-        }
+        else { return false }
 
-        if let summaryCost = summary.reportingPeriodCostUSD {
-            costUSD = summaryCost
-            costIsKnown = true
-        }
-        tokens = summary.reportingPeriodTokens ?? tokens
-
-        return (costUSD, tokens, costIsKnown)
+        return true
     }
 
     private static func dailyPointsCoverSelectedWindow(

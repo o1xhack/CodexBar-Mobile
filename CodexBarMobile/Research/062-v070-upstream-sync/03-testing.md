@@ -491,3 +491,20 @@ active days各自稳定；实际金额与截图仅保留私有SSD scratch，不�
 16组合以fixture、reader/cache流水线、旧数据库副本代替，真实生产CloudKit时序尚未验证。
 PR168已在exact-head clean/gate/Fast Checks通过后合并；PR169需要本次最新修复的新head
 再完成远端CR。整体Goal仍in-progress，未因源码通过宣称Mac draft或TestFlight已完成。
+
+## PR169 第四轮 CR：session-only 与缺值语义补充（2026-10-02）
+
+移除「必须已有 dated daily」才能补 Today 的限制。空账本且只有有效 session Today 时，
+所选历史窗口包含这个日期点；有完整匹配周期 headline 时金额与 Token 分别保留各自 headline，
+不会把整个周期降为单日。已有 Today 不重复，过期 observation、无效时区、clear cutoff 仍生效。
+完整 scan metadata 不能将缺失 USD 认证为已知 $0；明确 USD 0 与缺失金额分别测试。
+
+最终 r57 标准 xcodebuild：944 tests pass、0 failed/skip，含四语言 UI；新增
+1/7/30/90/365 × session-only/双字段/token-only/unmatched，以及 nil USD/明确零值矩阵。
+r52 原「只有汇总」fixture 误含 session，r53 新 fixture 用 reader 日期配 producer UTC 导致失败，
+均按真实语义修正测试后重跑；r56 捕获了空账本 nil USD 被 coverage 认证为零的实际漏洞，
+修正后 r57 全量通过。独立只读源码复查 clean。
+Mac 源码未再变更，沿用 db4c150 的 200 tests / 19 suites；实体 Mac 卡顿与生产多设备时序
+仍未验收。PR169 需推送新 head 后完成第五轮远端 CR，不能继承前一 head 的审查结果。
+
+最终源码 generic iOS Release r58 BUILD SUCCEEDED；全量 lint r10 exit 0，四语言与 source key 审计通过。
