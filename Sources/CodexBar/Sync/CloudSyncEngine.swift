@@ -6,6 +6,7 @@ import CodexBarCore
 import CodexBarSync
 import Foundation
 import Observation
+import os
 import Security
 
 enum SyncAvailability: Equatable, Sendable {
@@ -84,6 +85,26 @@ struct CloudSyncErrorRecovery {
     mutating func recover(scope: CloudSyncErrorScope, startedAt revision: UInt64, succeeded: Bool) {
         guard succeeded, let failure = self.failures[scope], failure.revision <= revision else { return }
         self.failures[scope] = nil
+    }
+}
+
+/// Each engine owns one lease. Invalidation and a MainActor success commit
+/// share the same short lock, so stopping an engine cannot race a queued commit.
+final class CloudSyncEngineLease: Sendable {
+    private let active = OSAllocatedUnfairLock(initialState: true)
+
+    func invalidate() {
+        self.active.withLock { $0 = false }
+    }
+
+    @MainActor
+    func finishDeviceDeletion(state: CloudSyncState, startedAt revision: UInt64, pushedAt: Date) {
+        // The closure never escapes or suspends; MainActor isolation stays intact.
+        self.active.withLockUnchecked { active in
+            guard active else { return }
+            state.status.lastSuccessfulPushAt = pushedAt
+            state.finishErrorRecovery(scope: .push, startedAt: revision, succeeded: true)
+        }
     }
 }
 
@@ -917,6 +938,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private nonisolated let delegateEventQueue = CloudSyncDelegateEventQueue()
     private var persistenceEnvelope: CloudSyncPersistence.Envelope
     private var engine: CKSyncEngine?
+    private var engineLease: CloudSyncEngineLease?
     private var desiredRecords: [CKRecord.ID: CKRecord] = [:]
     private var enabled = false
     private var configPushTask: Task<Void, Never>?
@@ -986,6 +1008,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     func setEnabled(_ enabled: Bool) async {
         self.enabled = enabled
         guard enabled else {
+            self.engineLease?.invalidate()
             await self.stopEngine(clearPersistence: false)
             return
         }
@@ -1101,6 +1124,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 
     func stop() async {
         self.enabled = false
+        self.engineLease?.invalidate()
         await self.stopEngine(clearPersistence: false)
     }
 
@@ -1129,7 +1153,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             delegate: self)
         configuration.automaticallySync = true
         let engine = CKSyncEngine(configuration)
+        self.engineLease?.invalidate()
         self.engine = engine
+        self.engineLease = CloudSyncEngineLease()
         await self.rehydrateFleetStateIfNeeded()
         engine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
         return true
@@ -1640,6 +1666,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     }
 
     private func stopEngine(clearPersistence: Bool) async {
+        self.engineLease?.invalidate()
+        self.engineLease = nil
         self.configPushTask?.cancel()
         self.snapshotPushTask?.cancel()
         self.periodicFetchTask?.cancel()
@@ -2089,7 +2117,7 @@ extension CloudSyncEngine {
     }
 
     func removeDevice(_ deviceID: String) async {
-        guard self.enabled, let engine = self.engine else { return }
+        guard self.enabled, let engine = self.engine, let lease = self.engineLease else { return }
         var deletionCheckpoint: UInt64?
         let failure = await CloudSyncDeviceRemoval.run {
             guard self.engine === engine else { return }
@@ -2112,8 +2140,7 @@ extension CloudSyncEngine {
         } didDelete: {
             guard self.enabled, self.engine === engine, let deletionCheckpoint else { return }
             await MainActor.run {
-                self.state.status.lastSuccessfulPushAt = Date()
-                self.state.finishErrorRecovery(scope: .push, startedAt: deletionCheckpoint, succeeded: true)
+                lease.finishDeviceDeletion(state: self.state, startedAt: deletionCheckpoint, pushedAt: Date())
             }
         }
         if let failure, self.engine === engine {

@@ -222,3 +222,20 @@ iOS 2.4.0 (230) 完整测试 945 项通过、0 failed/skipped；全量 lint、23
 新 PR exact-head 远端 CR、合并及发布仍待结果。新候选 Mac MOBILE_VERSION 将配对 2.4.0；Mac Draft 只在该 iOS beta
 完成后创建，保持用户要求的先 iOS 后 Mac Draft 顺序。ASC 实时读回确认 2.3.0 已是
 READY_FOR_SALE，之前 PENDING_DEVELOPER_RELEASE 的版本创建阻塞已消失。
+
+
+## PR170 追加 CR：跨 MainActor 提交的引擎生命周期（2026-10-02）
+
+第二次远端审查指出，删除成功回调在等待 MainActor 期间仍可能被停止/替换引擎，
+因此 await 之前的 enabled/engine 检查不能保证真正提交状态时仍有效。
+每个引擎现在持有独立且不可重新激活的 lease，停止流程在任何 await 之前失效，
+替换引擎也先失效旧 lease。MainActor 的删除成功提交在同一短锁内检查有效性、
+记录成功时间并恢复此前的 push 错误；锁内没有 await。原有 error revision 判断保留，
+新错误仍不会被旧成功清除。
+
+确定性测试把提交排在 MainActor 后续任务中，在让出执行权之前失效旧 lease，
+验证错误和成功时间保持不变；替换场景另验证新 lease 能正常提交。原有六种删除
+情形改为调用实际生产提交方法。独立只读审查核对该生命周期设计。
+最终增量聚焦回归 65 tests / 2 suites 通过，0 failed；全量 lint 和最终改动文件的
+格式/严格 SwiftLint 通过。iOS 源码未变，沿用本候选 945 项通过结果。独立复查 clean。
+exact-head 远端 CR 尚待结果，不将本地验证视为发布 gate 已通过。

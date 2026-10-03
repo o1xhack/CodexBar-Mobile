@@ -22,6 +22,7 @@ struct CloudSyncSettingsTests {
     func `Direct deletion success recovers only earlier push errors before confirmation`(scenario: String) async {
         struct SyntheticDeletionError: Error {}
         let state = CloudSyncState()
+        let lease = CloudSyncEngineLease()
         state.recordError("Old synthetic push failed", scope: .push)
         if scenario == "old-fetch-failure" {
             state.recordError("Old synthetic fetch failed", scope: .fetch)
@@ -50,8 +51,7 @@ struct CloudSyncSettingsTests {
                 return
             }
             completions += 1
-            state.status.lastSuccessfulPushAt = pushedAt
-            state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: true)
+            lease.finishDeviceDeletion(state: state, startedAt: checkpoint, pushedAt: pushedAt)
         }
         let succeeded = scenario != "no-op" && scenario != "delete-failure"
         #expect(completions == (succeeded ? 1 : 0))
@@ -68,6 +68,34 @@ struct CloudSyncSettingsTests {
             #expect(failure?.scope == .push)
         } else {
             #expect(failure == nil)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `a queued deletion commit cannot recover errors after its engine lease is invalidated`(
+        replacement: Bool) async
+    {
+        let state = CloudSyncState()
+        let oldLease = CloudSyncEngineLease()
+        state.recordError("Old synthetic push failed", scope: .push)
+        let checkpoint = state.errorRevision
+        let previousPush = Date(timeIntervalSince1970: 500)
+        state.status.lastSuccessfulPushAt = previousPush
+        // This task cannot enter MainActor until this synchronous segment yields.
+        let delayedCommit = Task { @MainActor in
+            oldLease.finishDeviceDeletion(
+                state: state, startedAt: checkpoint, pushedAt: Date(timeIntervalSince1970: 1000))
+        }
+        oldLease.invalidate()
+        let newLease = replacement ? CloudSyncEngineLease() : nil
+        await delayedCommit.value
+        #expect(state.status.lastSuccessfulPushAt == previousPush)
+        #expect(state.status.lastError == "Old synthetic push failed")
+        if let newLease {
+            let newPush = Date(timeIntervalSince1970: 2000)
+            newLease.finishDeviceDeletion(state: state, startedAt: state.errorRevision, pushedAt: newPush)
+            #expect(state.status.lastSuccessfulPushAt == newPush)
+            #expect(state.status.lastError == nil)
         }
     }
 
