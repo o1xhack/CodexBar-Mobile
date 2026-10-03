@@ -4905,7 +4905,7 @@ private enum MobileReleaseNotesCatalog {
                     String(
                         localized: "Use Edit Order to sort cards by name or by the next weekly reset, or drag them into your own order."),
                     String(
-                        localized: "These layout settings stay on this iPhone and don't change your Mac."),
+                        localized: "These layout settings stay on this device and don't change your Mac."),
                 ]),
             ]),
         ReleaseNotesVersion(

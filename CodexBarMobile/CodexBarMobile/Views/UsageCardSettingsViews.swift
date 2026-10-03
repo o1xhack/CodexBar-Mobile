@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Per-provider settings opened from the detail view's `…` menu. Every provider
 /// gets this entry so later per-provider options have a home. Everything here
-/// is stored on this iPhone only.
+/// is stored on this device only.
 struct ProviderSettingsView: View {
     let group: ProviderAccountGroup
     @ObservedObject var store: UsageCardPreferencesStore
@@ -42,7 +42,7 @@ struct ProviderSettingsView: View {
 
                 Section {
                     Label(
-                        String(localized: "Saved on this iPhone only. Not synced to your Mac."),
+                        String(localized: "Saved on this device only. Not synced to your Mac."),
                         systemImage: "iphone")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

@@ -187,7 +187,7 @@ final class UsageCardOrganizationUITests: XCTestCase {
         XCTAssertTrue(expand.waitForExistence(timeout: 5))
         XCTAssertFalse(expand.isEnabled)
         XCTAssertTrue(app.staticTexts["Only one account of this provider is synced right now."].exists)
-        XCTAssertTrue(app.staticTexts["Saved on this iPhone only. Not synced to your Mac."].exists)
+        XCTAssertTrue(app.staticTexts["Saved on this device only. Not synced to your Mac."].exists)
         app.buttons["provider-settings-done"].tap()
     }
 
