@@ -258,3 +258,12 @@ exact-head 远端 CR 尚待结果，不将本地验证视为发布 gate 已通�
 直接整体 Mac 测试存在其他套件的计时/隔离失败，未认定通过；改用仓库 CI 同款
 逐套件隔离完整回归，仍在运行。首个应用路径信任失败用例独立隔离复跑通过，
 不因此将其余失败自动归为 flake。远端 CR 与完整发布 gate 未完成前不发布。
+
+
+## 最终回归与 beta/Draft 交付（2026-10-03）
+
+PR170 最终 head 99e9c6622bda6d6264ff64d7c57ef58cbc85ac7f 远端 CR clean、0 unresolved；Fast 和独立运行的 review gate 通过后，使用 match-head 安全合并为 afdb6a23095d37a15638cc10e981791726d9f1d0。
+
+最终 Mac 按仓库 Scripts/test.sh 逐套件隔离的六个 shard 全部 exit0，合计 1520 selections、无重试/超时；证据 mac-full-test-acceptance.json 和 lease-recovery-full-isolated-shard-0..5.log。直接整体进程的失败记录保留，未认定通过。Mac 源码输入从 8842fc97 至发行 afdb6a230 未变。
+
+iOS 2.4.0 (230) 从 clean reviewed merge afdb6a230 archive/upload；VALID、内部 IN_BETA_TESTING，ASC 2.4.0 选择该 build、四语言及审核资料完成且不提交审核。随后 Mac 0.70.0.1 Mobile 2.4.0 完成签名、公证和 Draft；来源/资产/界面边界见 Research 062 的 04 与 11。合并后 Final CI 仍在运行；正式公开发布不在授权范围。

@@ -3,7 +3,19 @@
 Status: `in-progress`
 Date: 2026-10-01
 
-## 权威范围与分支
+## 当前授权与交付状态（2026-10-03）
+
+用户后续明确授权 push、PR/CR、合并、凭证使用、iOS TestFlight/ASC 2.4.0 准备和 Mac Draft；执行顺序为 iOS 完成后再做 Mac Draft。下方早期禁止 push/upload 的段落是历史状态，已被本次明确授权取代。未授权 App Review、Mac 正式公开发布或 appcast 更新。
+
+最终功能修复由 PR #168、#169、#170 合并；#169 的合并 gate 失误及后续修复完整保留在 Research 063。PR #170 当前 head `99e9c6622bda6d6264ff64d7c57ef58cbc85ac7f` 远端 Codex CR clean、0 unresolved，review gate/Fast Checks 通过后安全合并。发行源码为 `afdb6a23095d37a15638cc10e981791726d9f1d0`。
+
+iOS **2.4.0 (230)** 已 VALID、内部 TestFlight `IN_BETA_TESTING`。ASC 2.4.0 已创建，选中 230，四语言更新说明、继承截图和审核资料完成，状态 `PREPARE_FOR_SUBMISSION` / MANUAL；未提交审核。2.3.0 现为 READY_FOR_SALE，早期创建 2.4 的阻塞已消失，非本任务公开发布操作。
+
+Mac **0.70.0.1 / 161.1 / Mobile 2.4.0**（实际构建 `161.1.2.4.0`）已签名、公证并创建 GitHub Draft，见 04；Studio 已安装最终签名包。Mac 全量逐套件隔离回归 1520 selections 全部通过；iOS 完整单元 945 项、最终资源聚焦 27 项及实际四语言 UI 1 项分别通过。
+
+合并后 Final CI [37103373939](https://github.com/o1xhack/CodexBar-Mobile/actions/runs/37103373939) 仍在运行，不能认定通过。实体 2 Mac × 2 iPhone 全矩阵、人工 VoiceOver 和 Production/APNs 时序仍未完整验证，保留原替代证据边界。Draft 不关闭 #166。
+
+## 历史研究范围与分支
 
 基线为最新 origin/mobile-dev `322865d30b7f9611effe08648c76e461446c63e4`，version.env 为 v0.68.0 / 2026-09-27。2026-10-01 GitHub Releases 核对：v0.69.0（2026-09-28）和 v0.70.0（2026-09-30）均已正式发布。全部 open upstream-sync issue 只有 [#166](https://github.com/o1xhack/CodexBar-Mobile/issues/166)，自动化仅列 v0.69.0；本轮涵盖其全部范围并一次同步到正式最新 v0.70.0，不拆版本。
 
@@ -19,11 +31,11 @@ v0.70.0：Codex/Claude quota burndown、16 个品牌 accents；Mistral event/zon
 
 全部原文见 upstream-v069.json、upstream-v070.json。完整非 merge commit 清单见 upstream-commits.txt；重点 PR #4048/#4059/#4098/#4091/#4084/#4085/#4075/#4106/#4076/#4094/#4108 必须逐项检查源代码与 iOS 数据路径。
 
-## 版本方案
+## 初始版本方案（历史，最终版本见上文）
 
 上游 v0.70.0 version.env 为 0.70.0 / 161。本轮 Mac 0.70.0.1 / 161.1；iOS 候选 2.4.0 (227)，四个 target 一起更新。docs/versioning.md 顶部四段规则优先于下方仍残留的旧决策树。Mac MOBILE_VERSION 暂保留最新已发布 Mac 配套 2.3.0，Sparkle 为 161.1.2.3.0，候选 draft tag 名 v0.70.0.1-mobile.2.3.0；分支 mobile.2.4.0 表示本轮 iOS 开发目标，不声明它已经 ship。若用户后续确认本轮 Mac 也配套 2.4.0，再在签名前统一最终值，不另拆本轮上游版本。
 
-## 授权与未完成项
+## 早期授权与未完成项（历史）
 
 Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 准备。禁止 origin push、merge、tag publish、live release、TestFlight upload。实际凭证使用与 schema deploy 按 Goal 暂停确认。GitHub draft 不能让 CLI 隐式创建远程 tag；先核对可用无 tag-publish 路径再创建。仅本地打包不等同 GitHub draft 完成。
 
@@ -31,6 +43,6 @@ Goal 已确认本方案的调研、实现、本地测试、review 和 Mac draft 
 
 验收发现 ProviderColorPalette 同时被 WidgetActivityView 与 CodexBarWidgetView 使用，因此触发 Widget render matrix 和真实 SpringBoard gate；313项中的 WidgetSnapshotBuilder 不能代替渲染测试。现已补原始矩阵5/6方法通过，以及仅适配附件持久化后的6/6方法、220次离屏渲染与12张视觉图；标准XCTest附件现已生成，真实SpringBoard gate仍未完成，详见03。最终axis输入在iOS27复验313项/15 suites exit0；标准Widget原六方法全部通过，真实App四语言quota UI在修复辅助功能容器后exit0；人工VoiceOver未完成；实际SpringBoard配置已验证持久化，标准Xcode模拟器签名构建已能生成timeline，但主Widget非默认mode恢复仍待查。最新本地 review clean 不等同 GitHub PR/CR。PR、merge、签名公证和 Mac draft 均未执行，Goal 保持 in-progress。逐项验收见07-acceptance-audit.md。
 
-## 用户调整执行顺序
+## 早期用户调整执行顺序（历史）
 
 用户明确要求先完成 iOS 实现、本地测试、兼容验证与 review，再考虑 Mac draft；此前凭据确认不再阻断 iOS 阶段。GitHub PR + CR 的 push 授权正在确认，未得到明确回复前不 push、不开 PR；merge、发布凭据与正式发布仍分别等待授权。原 Goal 全部交付范围保留。

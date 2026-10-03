@@ -4,6 +4,8 @@ Status: `in-progress`
 Date: 2026-10-02
 Product source checkpoint: `55fdc080dc5b228d811e34a3969ed49b5a6fec95`; all 192 production inputs match frozen `status-slots-r16-inputs.json`. 后续用户要求的重置时刻与节奏文案改动已改变iOS产品源码；旧192项manifest及r19 Release仅证明之前检查点，不能作为新源码发布证据。新改动验证见10-ios-reset-and-pace.md。
 
+本表是早期验收快照；当前授权和最终版本以 00 顶部、04 和 11 为准。早期禁止 TF 等边界已经用户后续明确授权取代。
+
 本表保持完整 Goal 范围。证据均位于 StudioSSD BuildScratch/CodexBar/upstream-v070 或本 Research；local、离屏、替代矩阵、实体和远端 gate 分别记录。
 
 | Goal 项 | 当前证据 | 判定与剩余工作 |
@@ -31,7 +33,7 @@ RELEASE-CHECKLIST第26行：触及 mode/color style 或 WidgetKit rendering 时�
 
 r7完整单元与r16相关回归均为标准Xcode终态通过。r7/r10/r16有不同冻结来源：r10仅两项中文文案修复；r16仅options默认值补全，不把旧UI证据倒推为r16全部复跑。实体2Mac×2iPhone、CloudKit/APNs、人工VoiceOver仍保持未验证边界。
 
-## 远端与发布顺序
+## 早期远端与发布顺序（历史）
 
 iOS全部适用本地gate → 获准push/PR → current-head CR清洁/全thread resolved/PR Fast Checks → review gate → 获准merge → 适用Final CI与正式来源核对 → 获准凭证/tag范围后Mac draft。不得执行live release或TF，不因自动Goal继续而扩大授权。#166只关联，不用closing keyword，draft阶段保持open。
 
@@ -52,3 +54,10 @@ iOS全部适用本地gate → 获准push/PR → current-head CR清洁/全thread 
 用户明确授权push、子线程独立CR轮次、合并后Mac draft及iOS TestFlight/ASC2.4资料，不提交App Review、不公开Mac/appcast。已push并创建PR #167。由于远端Codex bot额度耗尽，采用用户指定的独立Codex子线程审查；GitHub原始审查记录绑定完整head、reviewer及report hash，保留未解决线程和CI gate。review/merge结果以后续真实回读为准。
 
 ASC当前2.3.0是PENDING_DEVELOPER_RELEASE；Apple POST创建2.4.0返回409 ENTITY_ERROR.RELATIONSHIP.INVALID，明确当前状态不允许新版本。不能把2.3.0发布视为本次授权；2.4四语言说明先保存在AppStoreMetadata/2.4.0，TestFlight上传独立推进。用户的处理选择待回复。
+
+
+## 2026-10-03 最终交付回读
+
+后续用户授权已执行：PR170 exact-head CR clean、0 unresolved、Fast/review gate passed，合并来源 afdb6a230；iOS 2.4.0 (230) VALID、内部 TestFlight 可用；ASC 2.4.0 已绑定该 build 并准备四语言说明、截图与更新的审核备注，未提交审核。旧 2.3.0 已 READY_FOR_SALE，早期 409 阻塞不再存在。
+
+Mac 0.70.0.1 Mobile 2.4.0 已签名、公证和 GitHub Draft，见 04。最终 Mac 完整隔离回归 1520 selections 全部通过；iOS 945 单元、27 最终资源聚焦和 1 四语言真实 UI 分开记录。Final CI 尚在运行，不能宣称通过；实际发布来源、资产与 Studio QA 见 11。实体全矩阵/APNs/VoiceOver 风险继续保留。
