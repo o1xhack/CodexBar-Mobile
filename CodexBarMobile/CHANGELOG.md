@@ -2,6 +2,18 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.5.0 (231)] — Usage card organization
+
+### Added
+- Expand multi-account providers into one Usage card per account (issue #154). Off by default and set per provider from the new provider settings sheet; account cards open a single-account detail.
+- Add a `…` menu to every provider detail page with Pin to Top / Unpin and Provider Settings; cards can also be pinned from their context menu. Pinned cards show in their own section above the rest.
+- Add Edit Order to the Usage page: pinned and other cards are separate sections. Default order sorts each section by name A–Z, Z–A, or soonest weekly reset (cards without one follow by name); manual order supports dragging in both sections.
+
+### Changed
+- Card layout preferences are stored only in this iPhone's UserDefaults as versioned JSON (`usageCardPreferences.v1`); nothing is written to CloudKit/KVS or reaches the Mac. Widgets, Cost and share cards keep their existing order. Demo mode uses an in-memory copy.
+- Account cards are keyed by local identity anchors that union every record key and authenticated identity they have matched, so pins and manual positions survive record-key flips across Macs, label renames and added accounts.
+- Upgrading keeps the existing Mac provider order (manual mode with no stored order); switching from a default rule to manual starts from the order currently shown.
+
 ## [2.4.0 (230)] — Upstream v0.69–v0.70 companion update
 
 ### Added

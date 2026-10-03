@@ -51,6 +51,13 @@ enum ProviderDetailPresentationPolicy {
     }
 }
 
+/// Actions behind the detail view's `…` menu (Research/064).
+struct ProviderDetailCardMenu {
+    let isPinned: Bool
+    let onTogglePin: () -> Void
+    let onOpenSettings: () -> Void
+}
+
 struct ProviderDetailView: View {
     /// All accounts for the provider whose row the user tapped. When
     /// `group.hasMultipleAccounts`, a segmented control at the top of
@@ -64,6 +71,9 @@ struct ProviderDetailView: View {
     let costReferenceDate: Date
     var sourceSnapshots: [SyncedUsageSnapshot] = []
     var isDemoMode = false
+    /// iOS 2.5 — the `…` menu (provider settings + pin). nil outside the
+    /// Usage list, where there is no card to pin.
+    var cardMenu: ProviderDetailCardMenu?
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -88,11 +98,13 @@ struct ProviderDetailView: View {
         group: ProviderAccountGroup,
         costReferenceDate: Date = Date(),
         sourceSnapshots: [SyncedUsageSnapshot] = [],
-        isDemoMode: Bool = false)
+        isDemoMode: Bool = false,
+        cardMenu: ProviderDetailCardMenu? = nil)
     {
         self.group = group
         self.sourceSnapshots = sourceSnapshots
         self.isDemoMode = isDemoMode
+        self.cardMenu = cardMenu
         self.costReferenceDate = costReferenceDate
     }
 
@@ -382,6 +394,31 @@ struct ProviderDetailView: View {
             if self.isMockProvider {
                 ToolbarItem(placement: .topBarTrailing) {
                     MockBadgeView()
+                }
+            }
+            if let menu = self.cardMenu {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            menu.onTogglePin()
+                        } label: {
+                            if menu.isPinned {
+                                Label(String(localized: "Unpin"), systemImage: "pin.slash")
+                            } else {
+                                Label(String(localized: "Pin to Top"), systemImage: "pin")
+                            }
+                        }
+                        .accessibilityIdentifier("provider-menu-pin")
+                        Button {
+                            menu.onOpenSettings()
+                        } label: {
+                            Label(String(localized: "Provider Settings"), systemImage: "slider.horizontal.3")
+                        }
+                        .accessibilityIdentifier("provider-menu-settings")
+                    } label: {
+                        Label(String(localized: "More Actions"), systemImage: "ellipsis")
+                    }
+                    .accessibilityIdentifier("provider-more-menu")
                 }
             }
         }

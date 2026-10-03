@@ -1,6 +1,6 @@
 # 064 — iOS 2.5.0：多账号独立卡片、置顶与排序
 
-状态：draft（Goal 已定义，待调研与实现）
+状态：done（已实现并验证，见 `01-research.md`、`02-implementation.md`、`03-testing.md`）
 
 ## Goal
 

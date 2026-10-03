@@ -30,13 +30,16 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.showRemainingUsage)
             defaults.removeObject(forKey: "onboardingSeenVersion")
             defaults.removeObject(forKey: "releaseNotesSeenVersion")
+            defaults.removeObject(forKey: UsageCardPreferencesStore.defaultsKey)
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {
             UserDefaults.standard.set(currentVersion, forKey: "releaseNotesSeenVersion")
         }
 
-        if arguments.contains("UI_TEST_PREVIEW_DATA") || MobileTestLaunch.isUnitTestHost {
+        if arguments.contains("UI_TEST_MULTI_ACCOUNT_DATA") {
+            _usageData = State(initialValue: PreviewData.makeMultiAccountUsageData())
+        } else if arguments.contains("UI_TEST_PREVIEW_DATA") || MobileTestLaunch.isUnitTestHost {
             _usageData = State(initialValue: PreviewData.makeSyncedUsageData())
         } else {
             _usageData = State(initialValue: SyncedUsageData())

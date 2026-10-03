@@ -53,6 +53,10 @@ struct ContentView: View {
     @State private var layoutContainerSize: CGSize = .zero
     @State private var selectedTab: MobileRootTab
     @State private var isWidgetSettingsPresented = false
+    /// Usage card expansion, pins and order (Research/064). Demo mode uses an
+    /// in-memory store so trying the demo never changes the real layout.
+    @StateObject private var liveCardPreferences = UsageCardPreferencesStore.live()
+    @StateObject private var demoCardPreferences = UsageCardPreferencesStore.inMemory()
     /// Shared evaluation instant for Usage-list/detail cost surfaces. It moves
     /// at the earliest reader or producer midnight even without a CloudKit
     /// push, preventing an open detail screen from retaining yesterday's
@@ -222,7 +226,8 @@ struct ContentView: View {
             UsageTab(
                 usageData: self.usageData,
                 isDemoMode: self.$isDemoMode,
-                costReferenceDate: self.costReferenceDate)
+                costReferenceDate: self.costReferenceDate,
+                cardPreferences: self.isDemoMode ? self.demoCardPreferences : self.liveCardPreferences)
                 .toolbar(trailingNavigation ? .hidden : .visible, for: .tabBar)
                 .tag(MobileRootTab.usage)
                 .tabItem {
@@ -320,9 +325,22 @@ private struct UsageTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     let costReferenceDate: Date
+    @ObservedObject var cardPreferences: UsageCardPreferencesStore
     @Environment(\.mobileAdaptiveLayout) private var layout
-    @State private var selectedProviderID: String?
+    /// Selected card key (`UsageCardKey`): a provider card or, for expanded
+    /// providers, one account card.
+    @State private var selectedCardKey: String?
+    /// Provider of the selected card, remembered separately because an
+    /// account card's key can vanish (account gone, anchor absorbed after a
+    /// confirmed linkage) while the provider is still on screen.
+    @State private var selectedCardProviderID: String?
     @State private var compactColumn: NavigationSplitViewColumn = .sidebar
+    @State private var isSortEditorPresented = false
+    @State private var settingsProviderID: String?
+    /// "Now" for weekly-reset ordering. Advanced by `sortClockKey`'s task at
+    /// each upcoming weekly reset, so a reset that passes while the app stays
+    /// open re-sorts the list without waiting for the next data refresh.
+    @State private var sortReferenceDate = Date()
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -331,26 +349,89 @@ private struct UsageTab: View {
         return self.usageData.snapshot
     }
 
+    private var groups: [ProviderAccountGroup] {
+        guard let snapshot = self.displaySnapshot else { return [] }
+        return MockProviderDetector.filteredProviders(from: snapshot)
+            .filter { !$0.isProviderLevelCostEnvelope }
+            .groupedByProvider()
+    }
+
+    private var cards: [UsageCard] {
+        UsageCardBuilder.cards(groups: self.groups, preferences: self.cardPreferences.preferences)
+    }
+
+    private var arrangedCards: [UsageCard] {
+        let arranged = UsageCardOrdering.arrangedCards(
+            self.cards,
+            preferences: self.cardPreferences.preferences,
+            now: self.sortReferenceDate)
+        return arranged.pinned + arranged.others
+    }
+
+    private var sortsByWeeklyReset: Bool {
+        self.cardPreferences.preferences.usesDefaultSort
+            && self.cardPreferences.preferences.defaultSortRule == .weeklyReset
+    }
+
+    private var sortClockKey: String {
+        guard self.sortsByWeeklyReset else { return "off" }
+        let resets = self.cards
+            .map { "\($0.id)=\(UsageCardOrdering.weeklyResetDate(for: $0.snapshot, now: self.sortReferenceDate)?.timeIntervalSince1970 ?? 0)" }
+            .joined(separator: ",")
+        return "weekly|\(resets)"
+    }
+
+    /// Wakes at the next weekly reset among the cards (capped at six hours)
+    /// and advances `sortReferenceDate`, which re-sorts the list.
+    private func runSortClock() async {
+        self.sortReferenceDate = Date()
+        guard self.sortsByWeeklyReset else { return }
+        while !Task.isCancelled {
+            let now = Date()
+            let next = self.cards
+                .compactMap { UsageCardOrdering.weeklyResetDate(for: $0.snapshot, now: now) }
+                .min()
+            guard let next else { return }
+            let delay = min(max(1, next.timeIntervalSince(now) + 1), 6 * 3600)
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self.sortReferenceDate = Date()
+        }
+    }
+
+    /// Changes whenever the cards or their anchors could change, so expanded
+    /// accounts get anchors persisted as soon as new data arrives.
+    private var anchorReconcileKey: String {
+        let expanded = self.cardPreferences.preferences.expandedProviderIDs.sorted().joined(separator: ",")
+        let accounts = self.groups
+            .filter { self.cardPreferences.preferences.isExpanded($0.providerID) }
+            .flatMap { $0.accounts.map { UsageAccountIdentity.tokens(for: $0).sorted().joined(separator: "+") } }
+            .joined(separator: ",")
+        let linkages = self.usageData.providerLinkages.map { "\($0.recordID)\($0.unmerge)" }.sorted()
+        return "\(self.isDemoMode)|\(expanded)|\(accounts)|\(linkages.joined(separator: ","))"
+    }
+
     var body: some View {
         NavigationSplitView(preferredCompactColumn: self.$compactColumn) {
             Group {
-                if let snapshot = self.displaySnapshot {
-                    if MockProviderDetector.filteredProviders(from: snapshot)
-                        .filter({ !$0.isProviderLevelCostEnvelope }).isEmpty
-                    {
+                if self.displaySnapshot != nil {
+                    if self.groups.isEmpty {
                         EmptyStateView(
                             title: "No Providers Enabled",
                             message: "Enable providers in CodexBar on your Mac to see usage data here.",
                             systemImage: "slider.horizontal.3")
-                    } else {
+                    } else if let snapshot = self.displaySnapshot {
                         ProviderListView(
                             snapshot: snapshot,
                             usageData: self.usageData,
                             isDemoMode: self.isDemoMode,
                             costReferenceDate: self.costReferenceDate,
-                            selectedProviderID: self.selectedProviderID,
-                            onSelect: { id in
-                                self.selectedProviderID = id
+                            sortReferenceDate: self.sortReferenceDate,
+                            cardPreferences: self.cardPreferences,
+                            cards: self.cards,
+                            selectedCardKey: self.selectedCardKey,
+                            onSelect: { key in
+                                self.select(key)
                                 self.compactColumn = .detail
                             })
                     }
@@ -374,37 +455,93 @@ private struct UsageTab: View {
                         }
                     }
                 }
+                if !self.groups.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            self.isSortEditorPresented = true
+                        } label: {
+                            Label(String(localized: "Edit Order"), systemImage: "arrow.up.arrow.down")
+                        }
+                        .accessibilityIdentifier("usage-edit-order")
+                    }
+                }
             }
         } detail: {
             NavigationStack {
-                if let snapshot = self.displaySnapshot {
-                    let groups = MockProviderDetector.filteredProviders(from: snapshot)
-                        .filter { !$0.isProviderLevelCostEnvelope }.groupedByProvider()
-                    if let group = groups.first(where: { $0.providerID == self.selectedProviderID })
-                        ?? (self.layout.usesListDetail ? groups.first : nil)
-                    {
-                        ProviderDetailView(
-                            group: group,
-                            costReferenceDate: self.costReferenceDate,
-                            sourceSnapshots: self.usageData.deviceSnapshots,
-                            isDemoMode: self.isDemoMode)
-                            .id(group.providerID)
-                    }
+                let arranged = self.arrangedCards
+                if let card = arranged.first(where: { $0.id == self.selectedCardKey })
+                    ?? (self.layout.usesListDetail ? arranged.first : nil)
+                {
+                    ProviderDetailView(
+                        group: card.detailGroup,
+                        costReferenceDate: self.costReferenceDate,
+                        sourceSnapshots: self.usageData.deviceSnapshots,
+                        isDemoMode: self.isDemoMode,
+                        cardMenu: ProviderDetailCardMenu(
+                            isPinned: self.cardPreferences.preferences.isPinned(card.id),
+                            onTogglePin: {
+                                self.cardPreferences.setPinned(
+                                    !self.cardPreferences.preferences.isPinned(card.id),
+                                    cardKey: card.id,
+                                    displayedOrder: arranged.map(\.id))
+                            },
+                            onOpenSettings: { self.settingsProviderID = card.providerID }))
+                        .id(card.id)
                 }
             }
         }
         .task(id: self.layout.usesListDetail) {
-            if self.layout.usesListDetail, self.selectedProviderID == nil,
-               let snapshot = self.displaySnapshot,
-               let first = MockProviderDetector.filteredProviders(from: snapshot)
-                   .filter({ !$0.isProviderLevelCostEnvelope }).groupedByProvider().first
+            if self.layout.usesListDetail, self.selectedCardKey == nil,
+               let first = self.arrangedCards.first
             {
-                self.selectedProviderID = first.providerID
+                self.select(first.id)
                 self.compactColumn = .detail
             }
         }
+        .task(id: self.sortClockKey) {
+            await self.runSortClock()
+        }
+        .task(id: self.anchorReconcileKey) {
+            self.cardPreferences.reconcileAnchors(
+                groups: self.groups,
+                linkages: self.isDemoMode ? [] : self.usageData.providerLinkages)
+        }
+        .onChange(of: self.cards.map(\.id)) { _, _ in
+            self.keepSelectionWhenCardsChange()
+        }
+        .sheet(isPresented: self.$isSortEditorPresented) {
+            UsageSortEditorView(cards: self.cards, now: self.sortReferenceDate, store: self.cardPreferences)
+        }
+        .sheet(item: Binding(
+            get: { self.settingsProviderID.flatMap { id in self.groups.first { $0.providerID == id } } },
+            set: { if $0 == nil { self.settingsProviderID = nil } }))
+        { group in
+            ProviderSettingsView(group: group, store: self.cardPreferences)
+        }
         .navigationSplitViewStyle(.balanced)
         .environment(\.horizontalSizeClass, self.layout.usesListDetail ? .regular : .compact)
+    }
+
+    private func select(_ key: String) {
+        self.selectedCardKey = key
+        self.selectedCardProviderID = self.cards.first { $0.id == key }?.providerID
+    }
+
+    /// The card set changes on expand/collapse, sync refreshes, removed
+    /// accounts and anchor absorption. Keep the detail on the same provider
+    /// when the selected card is gone; if the whole provider is gone, return
+    /// a compact layout to the list instead of leaving a blank detail column
+    /// (list-detail layouts fall back to the first card on their own).
+    private func keepSelectionWhenCardsChange() {
+        let resolution = UsageCardSelection.resolve(
+            selectedKey: self.selectedCardKey,
+            selectedProviderID: self.selectedCardProviderID,
+            arranged: self.arrangedCards)
+        self.selectedCardKey = resolution.key
+        self.selectedCardProviderID = resolution.providerID
+        if resolution.providerGone, !self.layout.usesListDetail {
+            self.compactColumn = .sidebar
+        }
     }
 }
 
@@ -415,7 +552,11 @@ private struct ProviderListView: View {
     let usageData: SyncedUsageData
     let isDemoMode: Bool
     let costReferenceDate: Date
-    var selectedProviderID: String?
+    let sortReferenceDate: Date
+    @ObservedObject var cardPreferences: UsageCardPreferencesStore
+    /// Source-ordered cards from `UsageCardBuilder`.
+    let cards: [UsageCard]
+    var selectedCardKey: String?
     let onSelect: (String) -> Void
     @Environment(\.mobileAdaptiveLayout) private var layout
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
@@ -460,112 +601,47 @@ private struct ProviderListView: View {
         // Live linkages — used to expose an Unmerge context menu on cards
         // that originated from a confirmed merge group.
         let activeLinkagesByProviderID = Dictionary(
-            grouping: self.usageData.providerLinkages.filter { !$0.unmerge },
+            grouping: UsageCardLinkages.effective(self.usageData.providerLinkages),
             by: \.providerID)
-        // Phase G — group by providerID so multi-account providers
-        // (Codex × 3, OpenAI × 2 admins, Claude × 2 sessions, etc.) show
-        // as ONE row in the Usage list instead of N. Tapping the row
-        // navigates to ProviderDetailView which renders the segmented
-        // account tab bar at the top, matching Mac UX. Cross-Mac
-        // same-account merging already happened in `mergeSnapshots`
-        // upstream of this grouping, so each group's accounts are all
-        // distinct (no duplicates within).
-        let groups = liveProviders.groupedByProvider()
+        // Phase G grouped multi-account providers into one card; iOS 2.5
+        // lets the user expand chosen providers back into one card per
+        // account and orders everything through `UsageCardOrdering`
+        // (pinned section first). Cross-Mac same-account merging already
+        // happened upstream in `mergeSnapshots`.
+        let arranged = UsageCardOrdering.arrangedCards(
+            self.cards,
+            preferences: self.cardPreferences.preferences,
+            now: self.sortReferenceDate)
+        let displayedOrder = (arranged.pinned + arranged.others).map(\.id)
         let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filteredGroups = query.isEmpty ? groups : groups.filter { group in
-            group.representative.providerName.localizedCaseInsensitiveContains(query)
-                || group.providerID.localizedCaseInsensitiveContains(query)
+        let matches: (UsageCard) -> Bool = { card in
+            query.isEmpty
+                || card.snapshot.providerName.localizedCaseInsensitiveContains(query)
+                || card.providerID.localizedCaseInsensitiveContains(query)
         }
+        let pinnedCards = arranged.pinned.filter(matches)
+        let otherCards = arranged.others.filter(matches)
         return ScrollView {
             LazyVStack(spacing: 16) {
                 MockProviderBanner(snapshot: self.snapshot)
-                LazyVGrid(
-                    columns: Array(
-                        repeating: GridItem(.flexible(), spacing: 16, alignment: .top),
-                        count: self.layout.providerColumns),
-                    alignment: .leading,
-                    spacing: 16)
-                {
-                    ForEach(filteredGroups) { group in
-                        // Within-group linkage candidate: surface on the
-                        // group row if ANY account in the group has one
-                        // (typically the legacy/missing-identity card).
-                        // User confirms once, the underlying union-find
-                        // collapses the candidate pair into one snapshot,
-                        // and on next render the group shrinks by one.
-                        let candidate: MultiAccountLinkageCandidate? = {
-                            for account in group.accounts {
-                                if let c = candidatesByLegacyKey[account.cardIdentityKey],
-                                   !self.dismissedCandidateKeys.contains(c.hashKey)
-                                {
-                                    return c
-                                }
-                            }
-                            return nil
-                        }()
-                        let activeLinkage = activeLinkagesByProviderID[group.providerID]?.first
-                        Button {
-                            self.isSearching = false
-                            self.onSelect(group.providerID)
-                        } label: {
-                            if self.layout.usesListDetail, candidate == nil, activeLinkage == nil {
-                                HStack(spacing: 10) {
-                                    Circle().fill(ProviderColorPalette.color(for: group.representative))
-                                        .frame(width: 10, height: 10)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(group.representative.providerName).font(.headline)
-                                        if let email = ProviderUsageView.visibleAccountEmail(
-                                            group.representative.accountEmail,
-                                            hidePersonalInfo: self.hidePersonalInfo)
-                                        {
-                                            Text(email).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                                        }
-                                    }
-                                    Spacer()
-                                    if self.selectedProviderID == group.providerID {
-                                        Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
-                                    }
-                                }
-                                .padding(12)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    self.selectedProviderID == group.providerID
-                                        ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06),
-                                    in: RoundedRectangle(cornerRadius: 12))
-                                .contentShape(Rectangle())
-                            } else {
-                                ProviderUsageView(
-                                    provider: group.representative,
-                                    costReferenceDate: self.costReferenceDate,
-                                    duplicateOrdinal: nil,
-                                    accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
-                                    linkageCandidate: candidate,
-                                    activeLinkage: activeLinkage,
-                                    onConfirmMerge: { c in
-                                        Task { @MainActor in
-                                            await self.usageData.confirmLinkage(
-                                                providerID: c.named.providerID,
-                                                linkedIdentifiers: c.linkedIdentifiers)
-                                        }
-                                    },
-                                    onDismissMergeCandidate: { c in
-                                        self.dismissedCandidateKeys.insert(c.hashKey)
-                                    },
-                                    onRevokeLinkage: { linkage in
-                                        Task { @MainActor in
-                                            await self.usageData.revokeLinkage(
-                                                providerID: linkage.providerID,
-                                                linkedIdentifiers: linkage.linkedIdentifiers)
-                                        }
-                                    })
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("provider-group-\(group.providerID)")
+                if !pinnedCards.isEmpty {
+                    self.sectionHeader(String(localized: "Pinned"), identifier: "usage-section-pinned")
+                    self.cardGrid(
+                        pinnedCards,
+                        candidatesByLegacyKey: candidatesByLegacyKey,
+                        activeLinkagesByProviderID: activeLinkagesByProviderID,
+                        displayedOrder: displayedOrder)
+                    if !otherCards.isEmpty {
+                        self.sectionHeader(String(localized: "Other Cards"), identifier: "usage-section-others")
                     }
                 }
+                self.cardGrid(
+                    otherCards,
+                    candidatesByLegacyKey: candidatesByLegacyKey,
+                    activeLinkagesByProviderID: activeLinkagesByProviderID,
+                    displayedOrder: displayedOrder)
 
-                if filteredGroups.isEmpty {
+                if pinnedCards.isEmpty, otherCards.isEmpty {
                     EmptyStateView(
                         title: "No matching providers",
                         message: "No provider matches your search. Try a different name.",
@@ -589,6 +665,7 @@ private struct ProviderListView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 24)
+            .animation(.default, value: displayedOrder)
         }
         .refreshable {
             await self.usageData.refresh()
@@ -599,6 +676,147 @@ private struct ProviderListView: View {
             isPresented: self.$isSearching,
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text("Search providers"))
+    }
+
+    private func sectionHeader(_ title: String, identifier: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier(identifier)
+    }
+
+    private func cardGrid(
+        _ cards: [UsageCard],
+        candidatesByLegacyKey: [String: MultiAccountLinkageCandidate],
+        activeLinkagesByProviderID: [String: [ProviderAccountLinkage]],
+        displayedOrder: [String]) -> some View
+    {
+        LazyVGrid(
+            columns: Array(
+                repeating: GridItem(.flexible(), spacing: 16, alignment: .top),
+                count: self.layout.providerColumns),
+            alignment: .leading,
+            spacing: 16)
+        {
+            ForEach(cards) { card in
+                // Within-card linkage candidate: surface on the card if ANY
+                // account it shows has one (typically the legacy/missing-
+                // identity card). User confirms once, the underlying
+                // union-find collapses the candidate pair into one snapshot,
+                // and on next render the group shrinks by one.
+                let candidate: MultiAccountLinkageCandidate? = {
+                    for account in card.detailGroup.accounts {
+                        if let c = candidatesByLegacyKey[account.cardIdentityKey],
+                           !self.dismissedCandidateKeys.contains(c.hashKey)
+                        {
+                            return c
+                        }
+                    }
+                    return nil
+                }()
+                let activeLinkage = UsageCardPresentation.activeLinkage(for: card, in: activeLinkagesByProviderID)
+                let isPinned = self.cardPreferences.preferences.isPinned(card.id)
+                Button {
+                    self.isSearching = false
+                    self.onSelect(card.id)
+                } label: {
+                    if self.layout.usesListDetail, candidate == nil, activeLinkage == nil {
+                        HStack(spacing: 10) {
+                            Circle().fill(ProviderColorPalette.color(for: card.snapshot))
+                                .frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(card.snapshot.providerName).font(.headline)
+                                if let subtitle = UsageCardPresentation.accountSubtitle(
+                                    for: card,
+                                    hidePersonalInfo: self.hidePersonalInfo)
+                                {
+                                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                            if isPinned {
+                                Image(systemName: "pin.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityLabel(Text("Pinned"))
+                            }
+                            if self.selectedCardKey == card.id {
+                                Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
+                            }
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            self.selectedCardKey == card.id
+                                ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06),
+                            in: RoundedRectangle(cornerRadius: 12))
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                self.cardPreferences.setPinned(
+                                    !isPinned,
+                                    cardKey: card.id,
+                                    displayedOrder: displayedOrder)
+                            } label: {
+                                if isPinned {
+                                    Label(String(localized: "Unpin"), systemImage: "pin.slash")
+                                } else {
+                                    Label(String(localized: "Pin to Top"), systemImage: "pin")
+                                }
+                            }
+                        }
+                    } else {
+                        ProviderUsageView(
+                            provider: card.snapshot,
+                            costReferenceDate: self.costReferenceDate,
+                            duplicateOrdinal: card.accountOrdinal,
+                            accountCount: card.isAccountCard || !card.providerGroup.hasMultipleAccounts
+                                ? nil : card.providerGroup.accounts.count,
+                            isPinned: isPinned,
+                            linkageCandidate: candidate,
+                            activeLinkage: activeLinkage,
+                            onConfirmMerge: { c in
+                                Task { @MainActor in
+                                    await self.usageData.confirmLinkage(
+                                        providerID: c.named.providerID,
+                                        linkedIdentifiers: c.linkedIdentifiers)
+                                }
+                            },
+                            onDismissMergeCandidate: { c in
+                                self.dismissedCandidateKeys.insert(c.hashKey)
+                            },
+                            onRevokeLinkage: { linkage in
+                                Task { @MainActor in
+                                    await self.usageData.revokeLinkage(
+                                        providerID: linkage.providerID,
+                                        linkedIdentifiers: linkage.linkedIdentifiers)
+                                }
+                            },
+                            onTogglePin: {
+                                self.cardPreferences.setPinned(
+                                    !isPinned,
+                                    cardKey: card.id,
+                                    displayedOrder: displayedOrder)
+                            })
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(Self.accessibilityIdentifier(for: card))
+            }
+        }
+    }
+
+    /// Provider cards keep the pre-2.5 identifier; account cards add their
+    /// 1-based position so UI tests can address each one.
+    static func accessibilityIdentifier(for card: UsageCard) -> String {
+        if let ordinal = card.accountOrdinal {
+            return "provider-account-card-\(card.providerID)-\(ordinal)"
+        }
+        return "provider-group-\(card.providerID)"
     }
 }
 
@@ -4683,8 +4901,24 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.4.0",
+            version: "2.5.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.5 lets you organize the Usage page your way."),
+            sections: [
+                .init(title: String(localized: "What's New"), items: [
+                    String(
+                        localized: "Show each account as its own card. Turn it on for each provider from the … menu on its page."),
+                    String(
+                        localized: "Pin important cards to the top from the … menu, or touch and hold a card."),
+                    String(
+                        localized: "Use Edit Order to sort cards by name or by the next weekly reset, or drag them into your own order."),
+                    String(
+                        localized: "These layout settings stay on this device and don't change your Mac."),
+                ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "2.4.0",
+            status: "",
             summary: String(localized: "CodexBar 2.4 adds quota pace charts and clearer usage details from Mac."),
             sections: [
                 .init(title: String(localized: "What's New"), items: [

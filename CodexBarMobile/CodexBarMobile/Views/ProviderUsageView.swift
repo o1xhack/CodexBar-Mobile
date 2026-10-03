@@ -21,6 +21,8 @@ struct ProviderUsageView: View {
     /// the provider name so the user knows "tap → see N tabs". `nil`
     /// for single-account groups (suppress badge).
     var accountCount: Int?
+    /// iOS 2.5 — the card is pinned to the top of the Usage list.
+    var isPinned = false
     /// Optional linkage candidate when this card is part of a
     /// cross-version-detected pair (Research/019 §7). When non-nil and
     /// `onConfirmMerge` is provided, the card renders an inline prompt
@@ -34,6 +36,8 @@ struct ProviderUsageView: View {
     var onConfirmMerge: ((MultiAccountLinkageCandidate) -> Void)?
     var onDismissMergeCandidate: ((MultiAccountLinkageCandidate) -> Void)?
     var onRevokeLinkage: ((ProviderAccountLinkage) -> Void)?
+    /// iOS 2.5 — pin/unpin from the card's context menu. nil hides the item.
+    var onTogglePin: (() -> Void)?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
 
     /// True when this is a synthetic mock provider injected by Mac's
@@ -147,6 +151,17 @@ struct ProviderUsageView: View {
         }
         .modifier(ProviderCardBackgroundModifier(isMock: self.isMockProvider))
         .contextMenu {
+            if let onTogglePin = self.onTogglePin {
+                Button {
+                    onTogglePin()
+                } label: {
+                    if self.isPinned {
+                        Label(String(localized: "Unpin"), systemImage: "pin.slash")
+                    } else {
+                        Label(String(localized: "Pin to Top"), systemImage: "pin")
+                    }
+                }
+            }
             if let active = self.activeLinkage, let onRevoke = self.onRevokeLinkage {
                 Button(role: .destructive) {
                     onRevoke(active)
@@ -184,6 +199,14 @@ struct ProviderUsageView: View {
                 }
 
                 Spacer()
+
+                if self.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(Text("Pinned"))
+                        .accessibilityIdentifier("provider-card-pinned-\(self.provider.providerID)")
+                }
 
                 if self.provider.isError {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -261,6 +284,13 @@ struct ProviderUsageView: View {
     static func visibleAccountEmail(_ email: String?, hidePersonalInfo: Bool) -> String? {
         guard let email, !email.isEmpty else { return nil }
         return MobilePersonalInfoRedactor.redactEmail(email, isEnabled: hidePersonalInfo)
+    }
+
+    /// Organization/workspace subtitle under the same personal-info policy.
+    static func visibleOrganization(_ organization: String?, hidePersonalInfo: Bool) -> String? {
+        guard let organization, !organization.isEmpty else { return nil }
+        return MobilePersonalInfoRedactor.redactEmails(in: organization, isEnabled: hidePersonalInfo)
+            ?? organization
     }
 
     // MARK: - Linkage prompt (Research/019 §7 + §9)

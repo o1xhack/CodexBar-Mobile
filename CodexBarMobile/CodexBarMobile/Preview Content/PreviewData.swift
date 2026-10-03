@@ -447,6 +447,71 @@ enum PreviewData {
         appVersion: "0.26.2",
         mobileVersion: "1.7.0")
 
+    /// Extra accounts for the multi-account UI tests (Research/064): two more
+    /// Codex accounts and a second Claude account, each with its own
+    /// authenticated identity and weekly reset.
+    static func extraAccount(
+        providerID: String,
+        providerName: String,
+        email: String,
+        plan: String,
+        sessionUsed: Double,
+        weeklyUsed: Double,
+        weeklyResetHours: Double) -> ProviderUsageSnapshot
+    {
+        let windows = [
+            SyncRateWindow(
+                label: "Session",
+                usedPercent: sessionUsed,
+                windowMinutes: 300,
+                resetsAt: Date().addingTimeInterval(3600 * 3),
+                resetDescription: nil),
+            SyncRateWindow(
+                label: "Weekly",
+                usedPercent: weeklyUsed,
+                windowMinutes: 10080,
+                resetsAt: Date().addingTimeInterval(3600 * weeklyResetHours),
+                resetDescription: nil),
+        ]
+        return ProviderUsageSnapshot(
+            providerID: providerID,
+            providerName: providerName,
+            primary: windows[0],
+            secondary: windows[1],
+            accountEmail: email,
+            loginMethod: plan,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date().addingTimeInterval(-300),
+            rateWindows: windows,
+            accountIdentities: ["\(providerID):email:\(email)"],
+            accountRecordKey: "preview-\(providerID)-\(email)")
+    }
+
+    static let multiAccountSnapshot = SyncedUsageSnapshot(
+        providers: sampleSnapshot.providers + [
+            extraAccount(
+                providerID: "codex", providerName: "Codex", email: "work@example.com",
+                plan: "Business", sessionUsed: 42, weeklyUsed: 61, weeklyResetHours: 30),
+            extraAccount(
+                providerID: "codex", providerName: "Codex", email: "side@example.com",
+                plan: "Plus", sessionUsed: 8, weeklyUsed: 12, weeklyResetHours: 120),
+            extraAccount(
+                providerID: "claude", providerName: "Claude", email: "team@example.com",
+                plan: "Team", sessionUsed: 55, weeklyUsed: 33, weeklyResetHours: 50),
+        ],
+        syncTimestamp: sampleSnapshot.syncTimestamp,
+        deviceName: sampleSnapshot.deviceName,
+        appVersion: sampleSnapshot.appVersion,
+        mobileVersion: sampleSnapshot.mobileVersion)
+
+    @MainActor
+    static func makeMultiAccountUsageData() -> SyncedUsageData {
+        let data = SyncedUsageData(hydrateFromPersistence: false)
+        data.snapshot = self.multiAccountSnapshot
+        return data
+    }
+
     @MainActor
     static func makeSyncedUsageData() -> SyncedUsageData {
         let data = SyncedUsageData(hydrateFromPersistence: false)
