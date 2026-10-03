@@ -228,12 +228,13 @@ After pushed commits for CodexBar Mobile, update Todoist if the tools are availa
 - Required label: `CodexBar-Mobile`
 - Add `Bug` for bug/crash/fix work.
 - Add `商业化` for paid/member-facing work.
-- Board columns: `Backlog` → `Next` → `In Progress` → `Code Complete` → `QA`. There is no `Release` column (removed 2026-09-25).
+- Board columns: `Backlog` → `Next` → `In Progress` → `Code Complete` → `QA` → `Release`.
 - Keep `Next` short: only the picks queued to start soon; other candidates stay in `Backlog`.
 - Move active work to `In Progress`.
 - After pushed code is complete, move it to `Code Complete`; do not mark complete.
 - Move it to `QA` for human QA/TestFlight/user validation.
-- Only mark done (in `QA`) after user confirmation or verified release truth.
+- After QA passes, move it to `Release` when it is submitted to App Review or a release is published.
+- Only mark done (in `Release`) after user confirmation or verified release truth (for example App Store `READY_FOR_SALE` or a live GitHub release).
 
 Comment format:
 
