@@ -6,6 +6,31 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testCostScopeExplanationInFourLanguages() {
+        for (language, expected) in [
+            ("en", "Showing the latest Mac reports."),
+            ("zh-Hans", "显示 Mac 最新报告。"),
+            ("zh-Hant", "顯示 Mac 最新報告。"),
+            ("ja", "Mac の最新レポートを表示しています。"),
+        ] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "UI_TEST_PREVIEW_DATA", "UI_TEST_SKIP_ONBOARDING", "UI_TEST_RESET_DEFAULTS",
+                "-cwlEnabled", "NO", "-AppleLanguages", "(\(language))", "-AppleLocale", language,
+            ]
+            app.launch()
+            let cost = app.tabBars.buttons.element(boundBy: 1)
+            XCTAssertTrue(cost.waitForExistence(timeout: 10))
+            cost.tap()
+            let explanation = app.staticTexts["cost-data-scope"]
+            XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+            XCTAssertTrue(explanation.label.hasPrefix(expected))
+            self.captureScreen(app, name: "Cost data scope \(language)")
+            app.terminate()
+        }
+    }
+
+    @MainActor
     func testV070QuotaPaceRendersInFourLanguages() {
         XCUIDevice.shared.orientation = .portrait
         for (language, title) in [

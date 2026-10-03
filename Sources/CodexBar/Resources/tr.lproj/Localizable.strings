@@ -1716,3 +1716,7 @@
 "Shared" = "Paylaşılan";
 "Hard" = "Kesin";
 "Monitor" = "İzleme";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac ayar eşzamanlaması iPhone kullanım eşzamanlamasından ayrıdır. Burada görünmesi için her Mac’te etkinleştirin. Maliyet geçmişi yerel kalır.";
+
+"Cached data from" = "Önbelleğe alınan veri tarihi:";

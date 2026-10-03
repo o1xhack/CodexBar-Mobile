@@ -1717,3 +1717,9 @@
 "Shared" = "Shared";
 "Hard" = "Hard";
 "Monitor" = "Monitor";
+
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local.";
+
+
+"Cached data from" = "Cached data from";

@@ -22,6 +22,69 @@ struct SyncStatus: Equatable, Sendable {
     var lastSuccessfulPushAt: Date?
 }
 
+enum CloudSyncErrorScope: Hashable, Sendable {
+    case fetch
+    case push
+}
+
+/// Device removal reads the fleet before deleting and reads it again afterward.
+/// Keep failures tied to the actual operation, including the final confirmation fetch.
+enum CloudSyncDeviceRemoval {
+    struct Failure {
+        let error: any Error
+        let scope: CloudSyncErrorScope
+    }
+
+    static func run(
+        isolation: isolated (any Actor)? = #isolation,
+        fetch: () async throws -> Void,
+        delete: () async throws -> Bool) async -> Failure?
+    {
+        do {
+            try await fetch()
+        } catch {
+            return Failure(error: error, scope: .fetch)
+        }
+        do {
+            guard try await delete() else { return nil }
+        } catch {
+            return Failure(error: error, scope: .push)
+        }
+        do {
+            try await fetch()
+        } catch {
+            return Failure(error: error, scope: .fetch)
+        }
+        return nil
+    }
+}
+
+/// A successful operation only recovers older errors in its own direction.
+/// Errors reported while that operation is running survive its completion.
+struct CloudSyncErrorRecovery {
+    private struct Failure {
+        let revision: UInt64
+        let message: String
+    }
+
+    private(set) var revision: UInt64 = 0
+    private var failures: [CloudSyncErrorScope: Failure] = [:]
+
+    var message: String? {
+        self.failures.values.max { $0.revision < $1.revision }?.message
+    }
+
+    mutating func record(_ message: String, scope: CloudSyncErrorScope) {
+        self.revision += 1
+        self.failures[scope] = Failure(revision: self.revision, message: message)
+    }
+
+    mutating func recover(scope: CloudSyncErrorScope, startedAt revision: UInt64, succeeded: Bool) {
+        guard succeeded, let failure = self.failures[scope], failure.revision <= revision else { return }
+        self.failures[scope] = nil
+    }
+}
+
 @MainActor
 @Observable
 final class CloudSyncState {
@@ -30,6 +93,31 @@ final class CloudSyncState {
     var fleetDevices: [String: DeviceSyncPayload] = [:]
     var fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:]
     var removeDeviceHandler: ((String) async -> Void)?
+    var refreshHandler: (() async -> Void)?
+    private(set) var isRefreshing = false
+    @ObservationIgnored private var errorRecovery = CloudSyncErrorRecovery()
+
+    var errorRevision: UInt64 {
+        self.errorRecovery.revision
+    }
+
+    func recordError(_ message: String, scope: CloudSyncErrorScope) {
+        self.errorRecovery.record(message, scope: scope)
+        self.status.lastError = self.errorRecovery.message
+    }
+
+    func finishErrorRecovery(scope: CloudSyncErrorScope, startedAt revision: UInt64, succeeded: Bool) {
+        self.errorRecovery.recover(scope: scope, startedAt: revision, succeeded: succeeded)
+        self.status.lastError = self.errorRecovery.message
+    }
+
+    func requestRefresh() async {
+        guard !self.isRefreshing, let refreshHandler else { return }
+        self.isRefreshing = true
+        defer { self.isRefreshing = false }
+        await refreshHandler()
+    }
+
     @ObservationIgnored private var removingDevices: Set<String> = []
 
     func requestDeviceRemoval(_ deviceID: String) async {
@@ -832,6 +920,11 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     private var configPushTask: Task<Void, Never>?
     private var snapshotPushTask: Task<Void, Never>?
     private var periodicFetchTask: Task<Void, Never>?
+    private var fetchRecoveryCheckpoint: UInt64?
+    private var pushRecoveryCheckpoint: UInt64?
+    private var fetchHadSuccessfulResponse = false
+    private var pushHadSuccessfulResponse = false
+    private var pushHadFailure = false
     private var lastSnapshotPushAt: Date?
     private var pendingSnapshots: [AccountSnapshotSyncPayload] = []
     private var pendingSnapshotAuthoritativeProviders: Set<ProviderInstanceID> = []
@@ -944,7 +1037,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.startPeriodicFetchTimer()
             self.scheduleFetchChanges(scopedToSyncZone: !initialized)
         } catch {
-            await self.record(error: error)
+            await self.record(error: error, scope: .push)
         }
     }
 
@@ -989,7 +1082,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             } catch is CancellationError {
                 return
             } catch {
-                await self?.record(error: error)
+                await self?.record(error: error, scope: .push)
             }
         }
     }
@@ -1000,7 +1093,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
             await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
         } catch {
-            await self.record(error: error)
+            await self.record(error: error, scope: .fetch)
         }
     }
 
@@ -1167,7 +1260,52 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
     }
 
+    private func processErrorRecoveryEvent(_ event: CKSyncEngine.Event) async -> Bool {
+        switch event {
+        case .willFetchChanges:
+            self.fetchRecoveryCheckpoint = await MainActor.run { self.state.errorRevision }
+            self.fetchHadSuccessfulResponse = false
+        case let .didFetchRecordZoneChanges(changes):
+            if let error = changes.error {
+                await self.record(error: error, scope: .fetch)
+            } else {
+                self.fetchHadSuccessfulResponse = true
+            }
+        case .didFetchChanges:
+            if let checkpoint = self.fetchRecoveryCheckpoint {
+                let succeeded = self.fetchHadSuccessfulResponse
+                await MainActor.run {
+                    self.state.finishErrorRecovery(scope: .fetch, startedAt: checkpoint, succeeded: succeeded)
+                }
+            }
+            self.fetchRecoveryCheckpoint = nil
+        case .willSendChanges:
+            self.pushRecoveryCheckpoint = await MainActor.run { self.state.errorRevision }
+            self.pushHadSuccessfulResponse = false
+            self.pushHadFailure = false
+        case .didSendChanges:
+            if let checkpoint = self.pushRecoveryCheckpoint {
+                let succeeded = self.pushHadSuccessfulResponse && !self.pushHadFailure
+                await MainActor.run {
+                    self.state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: succeeded)
+                }
+            }
+            self.pushRecoveryCheckpoint = nil
+        case let .sentDatabaseChanges(changes):
+            self.pushHadSuccessfulResponse = self.pushHadSuccessfulResponse ||
+                !changes.savedZones.isEmpty || !changes.deletedZoneIDs.isEmpty
+            for error in changes.failedZoneSaves.map(\.error) + Array(changes.failedZoneDeletes.values) {
+                self.pushHadFailure = true
+                await self.record(error: error, scope: .push)
+            }
+        default:
+            return false
+        }
+        return true
+    }
+
     private func processEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
+        if await self.processErrorRecoveryEvent(event) { return }
         switch event {
         case let .stateUpdate(update):
             self.persistenceEnvelope.stateSerialization = update.stateSerialization
@@ -1182,12 +1320,21 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 await self.stopEngine(clearPersistence: true)
             }
         case let .fetchedRecordZoneChanges(changes):
+            self.fetchHadSuccessfulResponse = true
             await self.applyFetchedRecords(changes.modifications.map(\.record))
             let deletedRecordNames = changes.deletions.map(\.recordID.recordName)
             await self.removeDeletedRecordsFromCaches(deletedRecordNames)
             self.persistEnvelope()
             await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
         case let .sentRecordZoneChanges(changes):
+            self.pushHadSuccessfulResponse = self.pushHadSuccessfulResponse ||
+                !changes.savedRecords.isEmpty || !changes.deletedRecordIDs.isEmpty ||
+                changes.failedRecordDeletes.values.contains { $0.code == .unknownItem }
+            if !changes.failedRecordSaves.isEmpty ||
+                changes.failedRecordDeletes.values.contains(where: { $0.code != .unknownItem })
+            {
+                self.pushHadFailure = true
+            }
             if !changes.savedRecords.isEmpty || !changes.deletedRecordIDs.isEmpty {
                 self.quotaRetryState.reset()
             }
@@ -1220,6 +1367,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 }
             }
         case let .fetchedDatabaseChanges(changes):
+            self.fetchHadSuccessfulResponse = true
             if changes.deletions.contains(where: { $0.zoneID == Self.zoneID }) {
                 syncEngine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
             }
@@ -1252,7 +1400,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         }
     }
 
-    func applyFetchedRecords(_ records: [CKRecord]) async {
+    func applyFetchedRecords(_ records: [CKRecord], errorScope: CloudSyncErrorScope = .fetch) async {
         if records.contains(where: { self.schemaVersion($0) > CodexBarSyncSchema.currentVersion }) {
             await MainActor.run { self.state.status.needsAppUpdate = true }
             for record in records {
@@ -1279,7 +1427,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                     break
                 }
             } catch {
-                await self.record(error: error)
+                await self.record(error: error, scope: errorScope)
             }
         }
     }
@@ -1379,7 +1527,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             self.scheduleRetry(recordID: failure.record.recordID, after: retry)
         case .serverRecordChanged:
             guard let server = failure.error.serverRecord else {
-                await self.record(error: failure.error)
+                await self.record(error: failure.error, scope: .push)
                 self.pendingSaveHashes.removeValue(forKey: failure.record.recordID.recordName)
                 return
             }
@@ -1392,7 +1540,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             if resetEncryptedData {
                 self.recreateZoneAndRequeue(failure.record, syncEngine: syncEngine)
             } else {
-                await self.record(error: failure.error)
+                await self.record(error: failure.error, scope: .push)
                 self.skipTerminalReplacementSave(failure)
             }
         }
@@ -1417,7 +1565,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
                 try await engine.sendChanges(.init(scope: .recordIDs([recordID])))
             } catch {
-                await self?.record(error: error)
+                await self?.record(error: error, scope: .push)
             }
         }
     }
@@ -1449,7 +1597,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             syncEngine.state.remove(pendingRecordZoneChanges: [.saveRecord(server.recordID)])
             self.desiredRecords.removeValue(forKey: server.recordID)
             self.pendingSaveHashes.removeValue(forKey: server.recordID.recordName)
-            await self.applyFetchedRecords([server])
+            await self.applyFetchedRecords([server], errorScope: .push)
         }
     }
 
@@ -1471,7 +1619,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
             try await engine.fetchChanges()
             await MainActor.run { self.state.status.lastSuccessfulFetchAt = Date() }
         } catch {
-            await self.record(error: error)
+            await self.record(error: error, scope: .fetch)
         }
     }
 
@@ -1610,9 +1758,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         await MainActor.run { self.state.availability = availability }
     }
 
-    private func record(error: Error) async {
+    private func record(error: Error, scope: CloudSyncErrorScope) async {
         self.logger.error("iCloud sync failed: \(error)")
-        await MainActor.run { self.state.status.lastError = error.localizedDescription }
+        await MainActor.run { self.state.recordError(error.localizedDescription, scope: scope) }
     }
 
     private static func deviceModel() -> String {
@@ -1940,25 +2088,25 @@ extension CloudSyncEngine {
 
     func removeDevice(_ deviceID: String) async {
         guard self.enabled, let engine = self.engine else { return }
-        do {
+        let failure = await CloudSyncDeviceRemoval.run {
+            guard self.engine === engine else { return }
             try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
             await self.delegateEventQueue.drain()
+        } delete: {
             let names = await MainActor.run {
                 self.state.status.needsAppUpdate ? [] : self.state.recordNames(
                     removing: deviceID, currentDeviceID: self.settings.macFleetSyncDeviceID)
             }
-            guard self.engine === engine, !names.isEmpty else { return }
+            guard self.engine === engine, !names.isEmpty else { return false }
             let result = try await engine.database.modifyRecords(
                 saving: [], deleting: names.map { self.recordID(named: $0) }, atomically: true)
             for deletion in result.deleteResults.values {
                 try deletion.get()
             }
-            guard self.engine === engine else { return }
-            try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
-            await self.delegateEventQueue.drain()
-        } catch {
-            guard self.engine === engine else { return }
-            await self.record(error: error)
+            return self.engine === engine
+        }
+        if let failure, self.engine === engine {
+            await self.record(error: failure.error, scope: failure.scope)
         }
     }
 
@@ -2062,7 +2210,7 @@ extension CloudSyncEngine {
         await self.removeDeletedRecordsFromCaches(
             CloudSyncSnapshotMigration.confirmedMissingDeleteNames(failures))
         for error in CloudSyncSnapshotMigration.reportableFailedDeletes(failures) {
-            await self.record(error: error)
+            await self.record(error: error, scope: .push)
         }
         let liveNames = CloudSyncSnapshotMigration.liveSnapshotRecordNames(
             pendingRecordNames: self.pendingSnapshots.map(\.recordName) +
@@ -2147,7 +2295,7 @@ extension CloudSyncEngine {
             } catch is CancellationError {
                 return
             } catch {
-                await self?.record(error: error)
+                await self?.record(error: error, scope: .push)
             }
         }
     }
@@ -2305,7 +2453,7 @@ extension CloudSyncEngine {
             self.lastSnapshotPushAt = Date()
             self.persistEnvelope()
         } catch {
-            await self.record(error: error)
+            await self.record(error: error, scope: .push)
         }
     }
 }

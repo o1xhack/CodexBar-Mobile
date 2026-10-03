@@ -85,6 +85,8 @@ struct MobilePane: View {
 
                 Spacer(minLength: 0)
             }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

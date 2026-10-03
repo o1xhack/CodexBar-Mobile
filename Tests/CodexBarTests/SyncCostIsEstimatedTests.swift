@@ -304,7 +304,7 @@ struct SyncCostIsEstimatedTests {
     }
 
     @Test
-    func `SyncCoordinator timestamps service-backed Today cost from the dashboard source`() async throws {
+    func `SyncCoordinator does not fill missing local Today from account dashboard`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboard-source-time")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -351,16 +351,17 @@ struct SyncCostIsEstimatedTests {
         await coordinator.pushCurrentSnapshot()
 
         let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
-        let today = try #require(summary.daily.first(where: { $0.dayKey == Self.dayKey(for: dashboardUpdatedAt) }))
-        #expect(today.costUSD == 2)
-        #expect(today.costIsKnown == true)
+        #expect(summary.daily.map(\.dayKey) == [Self.dayKey(for: tokenUpdatedAt)])
+        #expect(summary.daily.first?.costUSD == 1)
+        #expect(summary.daily.first?.serviceBreakdowns.isEmpty == true)
+        #expect(store.openAIDashboard?.usageBreakdown.first?.totalCreditsUsed == 2)
         #expect(summary.sourceUpdatedAt == tokenUpdatedAt)
         #expect(summary.sourceDayKey == Self.dayKey(for: tokenUpdatedAt))
         #expect(summary.sessionDayKey == Self.dayKey(for: tokenUpdatedAt))
     }
 
     @Test
-    func `SyncCoordinator preserves the oldest contributing dashboard freshness`() async throws {
+    func `SyncCoordinator local freshness ignores older account dashboard rows`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboard-does-not-redate-session")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -417,8 +418,10 @@ struct SyncCostIsEstimatedTests {
         await coordinator.pushCurrentSnapshot()
 
         let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
-        #expect(summary.sourceUpdatedAt == dashboardBreakdownUpdatedAt)
-        #expect(summary.sourceDayKey == dashboardDayKey)
+        #expect(summary.sourceUpdatedAt == tokenUpdatedAt)
+        #expect(summary.sourceDayKey == oldDayKey)
+        #expect(summary.daily.map(\.dayKey) == [oldDayKey])
+        #expect(summary.daily.first?.costUSD == 1)
         #expect(summary.sessionDayKey == oldDayKey)
         #expect(summary.sessionCostUSD == 1)
     }
@@ -538,7 +541,7 @@ struct SyncCostIsEstimatedTests {
     }
 
     @Test
-    func `SyncCoordinator publishes dashboard-only rows in their captured calendar`() async throws {
+    func `SyncCoordinator keeps dashboard-only rows outside device cost history`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboard-only-calendar")
         settings.iCloudSyncEnabled = true
         settings.costUsageBucketTimeZoneIdentifier = "UTC"
@@ -570,12 +573,10 @@ struct SyncCostIsEstimatedTests {
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
         await coordinator.pushCurrentSnapshot()
 
-        let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
-        #expect(summary.bucketTimeZoneIdentifier == "America/Los_Angeles")
-        #expect(summary.sourceDayKey == "2026-08-21")
-        #expect(summary.daily.map(\.dayKey) == ["2026-08-21"])
-        #expect(summary.daily.first?.costUSD == 2)
-        #expect(summary.daily.first?.serviceBreakdowns.first?.label == "Codex Run")
+        let provider = try #require(mock.lastSnapshot?.providers.first)
+        #expect(provider.costSummary == nil)
+        #expect(store.openAIDashboard?.usageBreakdown.first?.day == "2026-08-21")
+        #expect(store.openAIDashboard?.usageBreakdown.first?.totalCreditsUsed == 2)
     }
 
     @Test

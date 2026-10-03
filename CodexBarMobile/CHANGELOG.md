@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.4.0 (228)] — Upstream v0.69–v0.70 companion update
+## [2.4.0 (229)] — Upstream v0.69–v0.70 companion update
 
 ### Added
 - Add observation-based Codex and Claude quota burndown charts, bounded to the current reset cycle and actual Mac capture time.
@@ -13,6 +13,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Align sixteen fallback provider accents with upstream v0.70 while preserving synced overrides and light/dark readability.
 
 ### Fixed
+- Keep saved Local History daily costs and tokens authoritative even when a new Mac report uses the same reporting period; preserve valid same-day repricing and include a date-qualified session Today exactly once when its daily row is absent. Separate device-local estimates from account dashboard costs and explain multi-Mac overlap limits.
 - Preserve Kimi monthly blocking across later pre-v0.70 or unknown-writer refreshes; only a newer block-capable observation may clear it.
 - Show exact local reset dates (`M.d HH:mm`) beside quota countdowns, and render Codex pace estimates in the iPhone language from numeric observations rather than Mac-localized text. Explain percentage-point differences and the conditional headroom estimate.
 - Restore per-widget mode, color and ordered provider selection through SiriKit configuration. Keep an explicit replacement notice for legacy status widgets; re-add them to use the new configuration format.

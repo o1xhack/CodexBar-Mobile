@@ -12,6 +12,129 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CloudSyncSettingsTests {
     @Test
+    func `manual fleet refresh is bounded and preserves newly reported failures`() async {
+        let state = CloudSyncState()
+        state.recordError("Old synthetic error", scope: .fetch)
+        var calls = 0
+        state.refreshHandler = {
+            calls += 1
+            #expect(state.status.lastError == "Old synthetic error")
+            await state.requestRefresh()
+            state.recordError("Synthetic record apply failed", scope: .fetch)
+        }
+        await state.requestRefresh()
+        #expect(calls == 1)
+        #expect(!state.isRefreshing)
+        #expect(state.status.lastError == "Synthetic record apply failed")
+    }
+
+    @Test
+    func `successful automatic fetch recovers old fetch errors but preserves failed pushes`() {
+        let state = CloudSyncState()
+        state.recordError("Synthetic push failed", scope: .push)
+        state.recordError("Synthetic fetch failed", scope: .fetch)
+        let checkpoint = state.errorRevision
+        state.finishErrorRecovery(scope: .fetch, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == "Synthetic push failed")
+        state.finishErrorRecovery(scope: .push, startedAt: state.errorRevision, succeeded: true)
+        #expect(state.status.lastError == nil)
+    }
+
+    @Test
+    func `partial save or delete batches cannot recover an earlier push error`() {
+        let state = CloudSyncState()
+        state.recordError("Synthetic push failed", scope: .push)
+        let checkpoint = state.errorRevision
+        state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: false)
+        #expect(state.status.lastError == "Synthetic push failed")
+        state.recordError("Synthetic delete failed", scope: .push)
+        state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == "Synthetic delete failed")
+        state.finishErrorRecovery(scope: .push, startedAt: state.errorRevision, succeeded: true)
+        #expect(state.status.lastError == nil)
+    }
+
+    @Test
+    func `an overlapping successful push never recovers a newer fetch error`() {
+        let state = CloudSyncState()
+        state.recordError("Synthetic push failed", scope: .push)
+        let checkpoint = state.errorRevision
+        state.recordError("Synthetic fetch failed", scope: .fetch)
+        state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == "Synthetic fetch failed")
+    }
+
+    @Test
+    func `a fetched record decoding failure survives successful transport completion`() async throws {
+        let fixture = try self.makeFixture("fetch-record-error-recovery")
+        let state = CloudSyncState()
+        let engine = CloudSyncEngine(
+            settings: fixture.store,
+            state: state,
+            persistence: self.makePersistence("fetch-record-error-recovery"),
+            initialConfiguration: fixture.store.configSnapshot,
+            initialPreferences: fixture.store.syncedPreferences,
+            initialIncludeSecrets: false)
+        state.recordError("Old synthetic fetch failed", scope: .fetch)
+        let checkpoint = state.errorRevision
+        let record = CKRecord(recordType: SyncRecordType.preferences.rawValue, recordID: CKRecord.ID(
+            recordName: PreferencesSyncPayload.recordName, zoneID: CloudSyncEngine.zoneID))
+        record["payload"] = "{not valid synthetic JSON}" as CKRecordValue
+        await engine.applyFetchedRecords([record])
+        let applyError = try #require(state.status.lastError)
+        #expect(applyError != "Old synthetic fetch failed")
+        state.finishErrorRecovery(scope: .fetch, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == applyError)
+
+        let retryCheckpoint = state.errorRevision
+        record["payload"] = try CanonicalSyncJSON.string(
+            PreferencesSyncPayload(preferences: fixture.store.syncedPreferences)) as CKRecordValue
+        await engine.applyFetchedRecords([record])
+        state.finishErrorRecovery(scope: .fetch, startedAt: retryCheckpoint, succeeded: true)
+        #expect(state.status.lastError == nil)
+    }
+
+    @Test(arguments: [0, 1, 2])
+    func `device removal failures retain the direction of the failed operation`(failedStage: Int) async throws {
+        struct SyntheticRemovalError: Error {}
+        let state = CloudSyncState()
+        var stage = 0
+        var completedDeletes = 0
+        let failure = try #require(await CloudSyncDeviceRemoval.run {
+            defer { stage += 1 }
+            if stage == failedStage { throw SyntheticRemovalError() }
+        } delete: {
+            defer { stage += 1 }
+            if stage == failedStage { throw SyntheticRemovalError() }
+            completedDeletes += 1
+            return true
+        })
+        #expect(failure.error is SyntheticRemovalError)
+        let expectedScope: CloudSyncErrorScope = failedStage == 1 ? .push : .fetch
+        #expect(failure.scope == expectedScope)
+        #expect(completedDeletes == (failedStage == 2 ? 1 : 0))
+        state.recordError("Synthetic removal failure", scope: failure.scope)
+        let checkpoint = state.errorRevision
+        let otherScope: CloudSyncErrorScope = expectedScope == .fetch ? .push : .fetch
+        state.finishErrorRecovery(scope: otherScope, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == "Synthetic removal failure")
+        state.finishErrorRecovery(scope: expectedScope, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == nil)
+    }
+
+    @Test
+    func `device removal skips confirmation fetch when deletion is no longer applicable`() async {
+        var fetches = 0
+        let failure = await CloudSyncDeviceRemoval.run {
+            fetches += 1
+        } delete: {
+            false
+        }
+        #expect(failure == nil)
+        #expect(fetches == 1)
+    }
+
+    @Test
     func `fleet sync uses the fork CloudKit container and state namespace`() {
         #expect(CloudSyncEngine.containerIdentifier == CloudSyncConstants.containerIdentifier)
         #expect(CloudSyncEngine.containerIdentifier == "iCloud.com.o1xhack.codexbar")

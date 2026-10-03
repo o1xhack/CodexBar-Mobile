@@ -1744,3 +1744,9 @@
 "Shared" = "共用";
 "Hard" = "硬性";
 "Monitor" = "監控";
+
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac 設定同步與 iPhone 用量同步獨立。在每台 Mac 上開啟後，這裡才會顯示該裝置。費用歷史保留在本機。";
+
+
+"Cached data from" = "快取資料時間：";

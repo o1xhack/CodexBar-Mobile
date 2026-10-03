@@ -470,3 +470,58 @@ review确认generated协议defaultProvider1–4为optional，缺实现不能直�
 实际App内嵌Push/Widgets/WidgetOptions三extension及CodexBarSync.framework；五bundle均2.4.0(227)、arm64，五binary UUID与各自Release dSYM逐项一致。App/Widgets/Options×四语言共12份编译WidgetStatus.strings解码后与当前源逐键逐值一致，每份20键；Options四语言Not selected也与xcstrings源值一致。App包60文件SHA与bundle/binary/dSYM/version/resource核对记录于ios-release-preflight-r19-artifacts.json，192输入及源码commit另存-inputs.json。首次核对误把22行源文件当22键导致检查失败；改为源strings解码比对后通过，未改任何产品资源。
 
 构建零error diagnostics、有5个warning diagnostics（7条匹配日志行，其中2条为重复插图），主要为Shared CloudSyncManager既有未使用save返回值和无AppIntents依赖target的metadata extraction skipped，完整行保留manifest/log；不称零warning构建。本轮只证明Release编译与上述静态实际产物条件，签名关闭，不是archive、export、上传、可安装发行物、真实CloudKit/APNs或Release runtime验收。未读发布凭证、未操作实体设备、未push/PR/merge/tag/Mac draft/TestFlight。下一步remote handoff仍等待Goal要求的用户明确授权。
+
+## PR169 本地历史与同步恢复补充回归（2026-10-02）
+
+本轮保留iOS 2.4.0，统一build229。详见[063本地历史排查](../063-local-history-authority.md)，
+包括16组合的substituted证据与残余风险；原上游同步证据不代表这次修复已经在实体机部署。
+新Shared类型仅为reader/cache来源信息，未新增Mac CloudKit field/type/index，代码审计NO_DEPLOY。
+
+r50标准xcodebuild：941 tests pass、0 failed/skip，含四语言UI、1/7/30/90/365 Today补缺、
+legacy session日期校验、旧/新producer metadata × 保存/实时history状态矩阵。
+Mac最终同步/协调器/费用过滤200 tests / 19 suites pass，设置/错误恢复专项57 tests pass；
+此前全量1520 selections / 137 groups按记录完成，旧架构标记与dashboard混用断言的初次失败
+已经复测并完成剩余manifest，不冒称单次全绿。所有测试禁用真实Keychain。
+全量lint r8与独立子线程审查通过；generic iOS Release r51 BUILD SUCCEEDED。
+新fixture的r48/r49编译参数顺序失败已修复并完整重跑r50。
+
+两台手机只读SQLite+WAL备份在独立模拟器按生产reader完整365天账本验收，金额、Tokens、
+active days各自稳定；实际金额与截图仅保留私有SSD scratch，不上传公开fixture。
+实体Mac设置渲染/卡顿检查因CUA持续timeoutReached未完成；两Mac两iPhone仍为旧版，
+16组合以fixture、reader/cache流水线、旧数据库副本代替，真实生产CloudKit时序尚未验证。
+PR168已在exact-head clean/gate/Fast Checks通过后合并；PR169需要本次最新修复的新head
+再完成远端CR。整体Goal仍in-progress，未因源码通过宣称Mac draft或TestFlight已完成。
+
+## PR169 第四轮 CR：session-only 与缺值语义补充（2026-10-02）
+
+移除「必须已有 dated daily」才能补 Today 的限制。空账本且只有有效 session Today 时，
+所选历史窗口包含这个日期点；有完整匹配周期 headline 时金额与 Token 分别保留各自 headline，
+不会把整个周期降为单日。已有 Today 不重复，过期 observation、无效时区、clear cutoff 仍生效。
+完整 scan metadata 不能将缺失 USD 认证为已知 $0；明确 USD 0 与缺失金额分别测试。
+
+最终 r57 标准 xcodebuild：944 tests pass、0 failed/skip，含四语言 UI；新增
+1/7/30/90/365 × session-only/双字段/token-only/unmatched，以及 nil USD/明确零值矩阵。
+r52 原「只有汇总」fixture 误含 session，r53 新 fixture 用 reader 日期配 producer UTC 导致失败，
+均按真实语义修正测试后重跑；r56 捕获了空账本 nil USD 被 coverage 认证为零的实际漏洞，
+修正后 r57 全量通过。独立只读源码复查 clean。
+Mac 源码未再变更，沿用 db4c150 的 200 tests / 19 suites；实体 Mac 卡顿与生产多设备时序
+仍未验收。PR169 需推送新 head 后完成第五轮远端 CR，不能继承前一 head 的审查结果。
+
+最终源码 generic iOS Release r58 BUILD SUCCEEDED；全量 lint r10 exit 0，四语言与 source key 审计通过。
+
+## PR169 第五轮 CR：统一 Local History 生产入口（2026-10-02）
+
+第五轮远端 P2 指出：生产 CostTabInsightsResolver 在 empty/nil aggregation 且未 clear 时
+直接调用 snapshot initializer，绕过刚补的 session fallback。前一轮 helper-only 测试不能证明
+页面入口正确。已先在第六轮前发布四字段架构审计，停止按空/非空 displayData 切换数据范围：
+Local History 始终调用 scoped fromLedger，尚未加载 aggregation 时创建选定窗口的空 aggregation；
+Match Mac、关闭本地历史、Demo 才走 snapshot。注入 clock/calendar，六类 daily/session/metadata/
+缺失金额矩阵都经过生产 resolver，session/headline 加入 nil/loaded-empty 两种状态。
+
+r59 首次编译因 Swift Testing 不支持三个 arguments collection 失败，改为两集合加 tuple shape；
+r60 完整回归 944 tests pass、0 failed/skip，含四语言 UI；原始 Swift Testing 动态展开 889 tests /
+56 suites，与 xcresult 官方 test count 口径不同。r61 generic Release BUILD SUCCEEDED。
+独立只读源码复查 clean。PR168 合并后 Final CI 37076651555 全部通过。
+仍不将 Mac 实际卡顿或实体生产同步列为完成；本 PR 待新 head 第六轮远端 CR。
+
+全量 lint r11 exit 0，全部本地化审计通过；r60 最终二进制再次在独立模拟器读取两台手机的只读数据库副本，365天金额、Tokens、active days各自保持一致，未修改实体手机及源备份。私有截图留在 SSD scratch。

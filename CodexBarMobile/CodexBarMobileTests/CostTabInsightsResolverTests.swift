@@ -89,7 +89,7 @@ struct CostTabInsightsResolverTests {
     }
 
     @Test
-    func `Empty ledger without clear falls back to synced snapshot`() {
+    func `Empty local ledger without clear uses scoped dated snapshot fallback`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [self.provider(cost: 12, tokens: 1200)],
             syncTimestamp: self.now,
@@ -406,6 +406,205 @@ struct CostTabInsightsResolverTests {
         #expect(Set(insights.modelRows.map(\.label)) == ["codex-model", "claude-recent"])
     }
 
+    @Test(arguments: [1, 7, 30, 90, 365], [false, true])
+    func `Missing provider daily totals include qualified Today exactly once`(
+        windowDays: Int, hasTodayRow: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T02:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        var points = [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)]
+        if hasTodayRow {
+            points.append(SyncDailyPoint(dayKey: "2026-10-02", costUSD: 3, totalTokens: 30, costIsKnown: true))
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: points, historyDays: 30,
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", sessionDayKey: "2026-10-02",
+            bucketTimeZoneIdentifier: "Asia/Tokyo", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: now, deviceName: "Mac", deviceID: "mac-A")
+        let insights = try self.resolveLocalInsights(
+            aggregation: self.emptyAggregation(windowDays: windowDays), snapshot: snapshot,
+            now: now, calendar: calendar)
+        let todayCost = hasTodayRow ? 3.0 : 2.0
+        let todayTokens = hasTodayRow ? 30 : 20
+        let earlierCost = windowDays == 1 ? 0.0 : 4.0
+        let earlierTokens = windowDays == 1 ? 0 : 40
+        #expect(insights.total30DayCost == earlierCost + todayCost)
+        #expect(insights.total30DayTokens == earlierTokens + todayTokens)
+        #expect(insights.totalTodayCost == todayCost)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.costUSD } == earlierCost + todayCost)
+        #expect(insights.dailyPoints.reduce(0) { $0 + $1.totalTokens } == earlierTokens + todayTokens)
+        #expect(insights.dailyPoints.filter { $0.dayKey == "2026-10-01" }.count == 1)
+        #expect(insights.dailyPoints.first(where: { $0.dayKey == "2026-10-01" })?.costUSD == todayCost)
+    }
+
+    @Test
+    func `Stale session does not fill missing Today in local daily fallback`() throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)],
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", sessionDayKey: "2026-10-01",
+            bucketTimeZoneIdentifier: "UTC", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let insights = try self.resolveLocalInsights(
+            aggregation: self.emptyAggregation(windowDays: 7),
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now)
+        #expect(insights.total30DayCost == 4)
+        #expect(insights.total30DayTokens == 40)
+        #expect(insights.totalTodayCostIsKnown == false)
+        #expect(insights.dailyPoints.count == 1)
+    }
+
+    @Test(arguments: [false, true])
+    func `Legacy session requires a current producer observation before filling daily history`(
+        isCurrentObservation: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        let yesterday = now.addingTimeInterval(-86400)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: [SyncDailyPoint(dayKey: "2026-10-01", costUSD: 4, totalTokens: 40, costIsKnown: true)],
+            bucketTimeZoneIdentifier: "UTC")
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: isCurrentObservation ? now : yesterday, costSummary: summary)
+        let insights = try self.resolveLocalInsights(
+            aggregation: self.emptyAggregation(windowDays: 7),
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now)
+        #expect(insights.total30DayCost == (isCurrentObservation ? 6 : 4))
+        #expect(insights.total30DayTokens == (isCurrentObservation ? 60 : 40))
+        #expect(insights.dailyPoints.count == (isCurrentObservation ? 2 : 1))
+        #expect(insights.dailyPoints.contains { $0.dayKey == "2026-10-02" } == isCurrentObservation)
+    }
+
+    @Test(arguments: ["legacy", "valid", "invalid", "incomplete", "incomparable"], [false, true])
+    func `Live daily fallback validates producer metadata without invalidating saved ledger`(
+        metadata: String, hasSavedLedger: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let points = (0..<7).map { offset in
+            SyncDailyPoint(
+                dayKey: SyncCostSummary.iso8601DayKey(for: now.addingTimeInterval(Double(-offset) * 86400)),
+                costUSD: 2, totalTokens: 20, costIsKnown: true)
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 14, last30DaysTokens: 140,
+            daily: points, historyDays: 7,
+            reportingPeriod: metadata == "legacy" ? nil : "rolling:7",
+            sourceUpdatedAt: now,
+            bucketTimeZoneIdentifier: metadata == "invalid" ? "Not/A-Time-Zone" :
+                (metadata == "legacy" ? nil : "UTC"),
+            historyCoverageIsEstablished: metadata == "incomplete" ? false : nil,
+            historyWindowIsComparable: metadata == "incomparable" ? false : nil)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let aggregation = CostLedgerAggregation(
+            windowDays: 7, totalCostUSD: hasSavedLedger ? 14 : 0,
+            totalTokens: hasSavedLedger ? 140 : 0, activeDayCount: hasSavedLedger ? 7 : 0,
+            providerRollups: hasSavedLedger ? ["codex|_": CostLedgerProviderRollup(
+                providerID: "codex", accountEmail: nil, totalCostUSD: 14, totalTokens: 140,
+                dailyPoints: points, modelBreakdowns: [], serviceBreakdowns: [])] : [:],
+            dailyPoints: hasSavedLedger ? points : [], modelMix: [], serviceMix: [])
+        let insights = try self.resolveLocalInsights(
+            aggregation: aggregation,
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now, calendar: calendar)
+        let isInvalidLiveSource = !hasSavedLedger && metadata == "invalid"
+        #expect(insights.total30DayCost == (isInvalidLiveSource ? 0 : 14))
+        #expect(insights.total30DayTokens == (isInvalidLiveSource ? 0 : 140))
+        #expect(insights.total30DayCostIsKnown ==
+            (hasSavedLedger || metadata == "legacy" || metadata == "valid"))
+        #expect(insights.dailyPoints.count == (isInvalidLiveSource ? 0 : 7))
+    }
+
+    @Test(arguments: [1, 7, 30, 90, 365],
+          ["session-only", "cost-and-tokens", "tokens-only", "unmatched"].flatMap { headline in
+              [false, true].map { (headline, $0) }
+          })
+    func `Session-only Today fills history without replacing a matching period headline`(
+        windowDays: Int, shape: (String, Bool)) throws
+    {
+        let (headline, hasLoadedAggregation) = shape
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: headline == "cost-and-tokens" || headline == "unmatched" ? 17 : nil,
+            last30DaysTokens: headline == "session-only" ? nil : 170,
+            daily: [], historyDays: windowDays,
+            reportingPeriod: headline == "unmatched" ? "all" : "rolling:\(windowDays)",
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", sessionDayKey: "2026-10-02",
+            bucketTimeZoneIdentifier: "UTC", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let insights = try self.resolveLocalInsights(
+            aggregation: hasLoadedAggregation ? self.emptyAggregation(windowDays: windowDays) : nil,
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now, calendar: calendar, windowDays: windowDays)
+        let useCostHeadline = headline == "cost-and-tokens"
+        let useTokenHeadline = useCostHeadline || headline == "tokens-only"
+        #expect(insights.total30DayCost == (useCostHeadline ? 17 : 2))
+        #expect(insights.total30DayTokens == (useTokenHeadline ? 170 : 20))
+        #expect(insights.total30DayCostIsKnown == (useCostHeadline || windowDays == 1))
+        #expect(insights.totalTodayCost == 2)
+        #expect(insights.providerRows.first?.thirtyDayCost == (useCostHeadline ? 17 : 2))
+        #expect(insights.dailyPoints.count == 1)
+        #expect(insights.dailyPoints.first?.costUSD == 2)
+        #expect(insights.dailyPoints.first?.totalTokens == 20)
+    }
+
+    @Test(arguments: [1, 7, 30, 90, 365], [false, true])
+    func `Complete headline distinguishes missing cost from explicit zero`(windowDays: Int, hasExplicitZero: Bool) throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil, sessionTokens: nil,
+            last30DaysCostUSD: hasExplicitZero ? 0 : nil, last30DaysTokens: 170,
+            daily: [], historyDays: windowDays, reportingPeriod: "rolling:\(windowDays)",
+            sourceUpdatedAt: now, bucketTimeZoneIdentifier: "UTC",
+            historyCoverageIsEstablished: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let insights = try self.resolveLocalInsights(
+            aggregation: self.emptyAggregation(windowDays: windowDays),
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now)
+        #expect(insights.total30DayCost == 0)
+        #expect(insights.total30DayCostIsKnown == hasExplicitZero)
+        #expect(insights.total30DayTokens == 170)
+        #expect(insights.dailyPoints.isEmpty)
+    }
+
     @Test
     func `Ledger refresh signature changes when the local day changes`() {
         let snapshot = SyncedUsageSnapshot(
@@ -636,15 +835,15 @@ struct CostTabInsightsResolverTests {
     }
 
     @Test
-    func `Summary-only snapshot after clear can still fill missing ledger provider`() {
+    func `summary only after clear cannot fill a different local history window`() {
         let clearTime = self.now
-        let freshSummaryOnly = self.provider(
-            id: "claude",
-            name: "Claude",
-            cost: 14,
-            tokens: 1400,
+        let freshSummaryOnly = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
             lastUpdated: clearTime.addingTimeInterval(60),
-            includeDaily: false)
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil, sessionTokens: nil,
+                last30DaysCostUSD: 14, last30DaysTokens: 1400, daily: [], historyDays: 30))
         let snapshot = SyncedUsageSnapshot(
             providers: [freshSummaryOnly],
             syncTimestamp: self.now,
@@ -658,9 +857,35 @@ struct CostTabInsightsResolverTests {
             isDemoMode: false,
             localHistoryClearedAt: clearTime)
 
-        #expect(insights?.total30DayCost == 14)
+        #expect(insights?.total30DayCost == 0)
         #expect(insights?.providerRows.map(\.provider.providerID) == ["claude"])
         #expect(insights?.dailyPoints.isEmpty == true)
+    }
+
+    @Test
+    func `Fresh session after clear fills Today without restoring an unrelated period`() throws {
+        let now = Date()
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 99, last30DaysTokens: 990,
+            daily: [], historyDays: 30, reportingPeriod: "rolling:30",
+            sourceUpdatedAt: now,
+            bucketTimeZoneIdentifier: "UTC", sessionCostIsKnown: true)
+        let provider = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            ledgerAggregation: self.emptyAggregation(windowDays: 90),
+            isLedgerEnabled: true, isDemoMode: false,
+            localHistoryClearedAt: now.addingTimeInterval(-60)))
+        #expect(insights.total30DayCost == 2)
+        #expect(insights.total30DayTokens == 20)
+        #expect(insights.totalTodayCost == 2)
+        #expect(insights.total30DayCostIsKnown == false)
+        #expect(insights.dailyPoints.count == 1)
     }
 
     @Test
@@ -688,6 +913,24 @@ struct CostTabInsightsResolverTests {
             localHistoryClearedAt: clearTime)
 
         #expect(insights == nil)
+    }
+
+    private func resolveLocalInsights(
+        aggregation: CostLedgerAggregation?,
+        snapshot: SyncedUsageSnapshot,
+        now: Date,
+        calendar: Calendar = .current,
+        windowDays: Int? = nil) throws -> CostDashboardInsights
+    {
+        try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: nil,
+            ledgerWindowDays: windowDays ?? aggregation?.windowDays,
+            now: now,
+            calendar: calendar))
     }
 
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {

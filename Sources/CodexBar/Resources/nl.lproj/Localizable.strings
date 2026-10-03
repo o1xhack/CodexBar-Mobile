@@ -1712,3 +1712,7 @@
 "Shared" = "Gedeeld";
 "Hard" = "Streng";
 "Monitor" = "Monitoren";
+
+"Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Synchronisatie van Mac-instellingen staat los van iPhone-gebruikssynchronisatie. Schakel dit op elke Mac in om die hier te tonen. Kostengeschiedenis blijft lokaal.";
+
+"Cached data from" = "Gegevens in cache van";
