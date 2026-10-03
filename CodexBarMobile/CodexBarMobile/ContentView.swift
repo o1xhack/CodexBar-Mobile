@@ -775,34 +775,22 @@ enum CostTabInsightsResolver {
         isLedgerEnabled: Bool,
         isDemoMode: Bool,
         localHistoryClearedAt: Date?,
-        ledgerWindowDays: Int? = nil) -> CostDashboardInsights?
+        ledgerWindowDays: Int? = nil,
+        now: Date = Date(),
+        calendar: Calendar = .current) -> CostDashboardInsights?
     {
         let usesLocalLedger = isLedgerEnabled && !isDemoMode && (ledgerWindowDays.map { $0 > 0 } ?? true)
+        // The selected mode establishes authority, even while its ledger is empty
+        // or loading. Never switch Local History to account/snapshot period scope.
         let insights = if usesLocalLedger {
-            if let aggregation = ledgerAggregation {
-                if aggregation.hasDisplayData {
-                    CostDashboardInsights.fromLedger(
-                        aggregation: aggregation,
-                        snapshot: snapshot,
-                        snapshotFallbackCutoff: localHistoryClearedAt)
-                } else if localHistoryClearedAt != nil {
-                    CostDashboardInsights.fromLedger(
-                        aggregation: aggregation,
-                        snapshot: snapshot,
-                        snapshotFallbackCutoff: localHistoryClearedAt)
-                } else {
-                    CostDashboardInsights(snapshot: snapshot)
-                }
-            } else if localHistoryClearedAt != nil {
-                CostDashboardInsights.fromLedger(
-                    aggregation: self.emptyAggregation(windowDays: ledgerWindowDays ?? 30),
-                    snapshot: snapshot,
-                    snapshotFallbackCutoff: localHistoryClearedAt)
-            } else {
-                CostDashboardInsights(snapshot: snapshot)
-            }
+            CostDashboardInsights.fromLedger(
+                aggregation: ledgerAggregation ?? self.emptyAggregation(windowDays: ledgerWindowDays ?? 30),
+                snapshot: snapshot,
+                snapshotFallbackCutoff: localHistoryClearedAt,
+                now: now,
+                calendar: calendar)
         } else {
-            CostDashboardInsights(snapshot: snapshot)
+            CostDashboardInsights(snapshot: snapshot, now: now, calendar: calendar)
         }
         return insights.hasDisplayData ? insights : nil
     }

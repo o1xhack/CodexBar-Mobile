@@ -508,3 +508,20 @@ Mac 源码未再变更，沿用 db4c150 的 200 tests / 19 suites；实体 Mac �
 仍未验收。PR169 需推送新 head 后完成第五轮远端 CR，不能继承前一 head 的审查结果。
 
 最终源码 generic iOS Release r58 BUILD SUCCEEDED；全量 lint r10 exit 0，四语言与 source key 审计通过。
+
+## PR169 第五轮 CR：统一 Local History 生产入口（2026-10-02）
+
+第五轮远端 P2 指出：生产 CostTabInsightsResolver 在 empty/nil aggregation 且未 clear 时
+直接调用 snapshot initializer，绕过刚补的 session fallback。前一轮 helper-only 测试不能证明
+页面入口正确。已先在第六轮前发布四字段架构审计，停止按空/非空 displayData 切换数据范围：
+Local History 始终调用 scoped fromLedger，尚未加载 aggregation 时创建选定窗口的空 aggregation；
+Match Mac、关闭本地历史、Demo 才走 snapshot。注入 clock/calendar，六类 daily/session/metadata/
+缺失金额矩阵都经过生产 resolver，session/headline 加入 nil/loaded-empty 两种状态。
+
+r59 首次编译因 Swift Testing 不支持三个 arguments collection 失败，改为两集合加 tuple shape；
+r60 完整回归 944 tests pass、0 failed/skip，含四语言 UI；原始 Swift Testing 动态展开 889 tests /
+56 suites，与 xcresult 官方 test count 口径不同。r61 generic Release BUILD SUCCEEDED。
+独立只读源码复查 clean。PR168 合并后 Final CI 37076651555 全部通过。
+仍不将 Mac 实际卡顿或实体生产同步列为完成；本 PR 待新 head 第六轮远端 CR。
+
+全量 lint r11 exit 0，全部本地化审计通过；r60 最终二进制再次在独立模拟器读取两台手机的只读数据库副本，365天金额、Tokens、active days各自保持一致，未修改实体手机及源备份。私有截图留在 SSD scratch。

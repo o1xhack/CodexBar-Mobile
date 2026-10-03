@@ -89,7 +89,7 @@ struct CostTabInsightsResolverTests {
     }
 
     @Test
-    func `Empty ledger without clear falls back to synced snapshot`() {
+    func `Empty local ledger without clear uses scoped dated snapshot fallback`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [self.provider(cost: 12, tokens: 1200)],
             syncTimestamp: self.now,
@@ -429,7 +429,7 @@ struct CostTabInsightsResolverTests {
             lastUpdated: now, costSummary: summary)
         let snapshot = SyncedUsageSnapshot(
             providers: [provider], syncTimestamp: now, deviceName: "Mac", deviceID: "mac-A")
-        let insights = CostDashboardInsights.fromLedger(
+        let insights = try self.resolveLocalInsights(
             aggregation: self.emptyAggregation(windowDays: windowDays), snapshot: snapshot,
             now: now, calendar: calendar)
         let todayCost = hasTodayRow ? 3.0 : 2.0
@@ -458,7 +458,7 @@ struct CostTabInsightsResolverTests {
             providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
             accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
             lastUpdated: now, costSummary: summary)
-        let insights = CostDashboardInsights.fromLedger(
+        let insights = try self.resolveLocalInsights(
             aggregation: self.emptyAggregation(windowDays: 7),
             snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
                                           deviceName: "Mac", deviceID: "mac-A"),
@@ -484,7 +484,7 @@ struct CostTabInsightsResolverTests {
             providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
             accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
             lastUpdated: isCurrentObservation ? now : yesterday, costSummary: summary)
-        let insights = CostDashboardInsights.fromLedger(
+        let insights = try self.resolveLocalInsights(
             aggregation: self.emptyAggregation(windowDays: 7),
             snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
                                           deviceName: "Mac", deviceID: "mac-A"),
@@ -528,7 +528,7 @@ struct CostTabInsightsResolverTests {
                 providerID: "codex", accountEmail: nil, totalCostUSD: 14, totalTokens: 140,
                 dailyPoints: points, modelBreakdowns: [], serviceBreakdowns: [])] : [:],
             dailyPoints: hasSavedLedger ? points : [], modelMix: [], serviceMix: [])
-        let insights = CostDashboardInsights.fromLedger(
+        let insights = try self.resolveLocalInsights(
             aggregation: aggregation,
             snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
                                           deviceName: "Mac", deviceID: "mac-A"),
@@ -541,10 +541,14 @@ struct CostTabInsightsResolverTests {
         #expect(insights.dailyPoints.count == (isInvalidLiveSource ? 0 : 7))
     }
 
-    @Test(arguments: [1, 7, 30, 90, 365], ["session-only", "cost-and-tokens", "tokens-only", "unmatched"])
+    @Test(arguments: [1, 7, 30, 90, 365],
+          ["session-only", "cost-and-tokens", "tokens-only", "unmatched"].flatMap { headline in
+              [false, true].map { (headline, $0) }
+          })
     func `Session-only Today fills history without replacing a matching period headline`(
-        windowDays: Int, headline: String) throws
+        windowDays: Int, shape: (String, Bool)) throws
     {
+        let (headline, hasLoadedAggregation) = shape
         let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .gmt
@@ -560,11 +564,11 @@ struct CostTabInsightsResolverTests {
             providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
             accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
             lastUpdated: now, costSummary: summary)
-        let insights = CostDashboardInsights.fromLedger(
-            aggregation: self.emptyAggregation(windowDays: windowDays),
+        let insights = try self.resolveLocalInsights(
+            aggregation: hasLoadedAggregation ? self.emptyAggregation(windowDays: windowDays) : nil,
             snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
                                           deviceName: "Mac", deviceID: "mac-A"),
-            now: now, calendar: calendar)
+            now: now, calendar: calendar, windowDays: windowDays)
         let useCostHeadline = headline == "cost-and-tokens"
         let useTokenHeadline = useCostHeadline || headline == "tokens-only"
         #expect(insights.total30DayCost == (useCostHeadline ? 17 : 2))
@@ -590,7 +594,7 @@ struct CostTabInsightsResolverTests {
             providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
             accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
             lastUpdated: now, costSummary: summary)
-        let insights = CostDashboardInsights.fromLedger(
+        let insights = try self.resolveLocalInsights(
             aggregation: self.emptyAggregation(windowDays: windowDays),
             snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
                                           deviceName: "Mac", deviceID: "mac-A"),
@@ -909,6 +913,24 @@ struct CostTabInsightsResolverTests {
             localHistoryClearedAt: clearTime)
 
         #expect(insights == nil)
+    }
+
+    private func resolveLocalInsights(
+        aggregation: CostLedgerAggregation?,
+        snapshot: SyncedUsageSnapshot,
+        now: Date,
+        calendar: Calendar = .current,
+        windowDays: Int? = nil) throws -> CostDashboardInsights
+    {
+        try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot,
+            ledgerAggregation: aggregation,
+            isLedgerEnabled: true,
+            isDemoMode: false,
+            localHistoryClearedAt: nil,
+            ledgerWindowDays: windowDays ?? aggregation?.windowDays,
+            now: now,
+            calendar: calendar))
     }
 
     private func emptyAggregation(windowDays: Int) -> CostLedgerAggregation {
