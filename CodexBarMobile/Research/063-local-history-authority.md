@@ -1,8 +1,8 @@
 # Local History 汇总权威性与真实多设备同步排查
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-10-02
-Branch: `fix/local-history-sync-authority`
+Branch: `fix/local-history-review-followup`
 
 ## 范围
 
@@ -193,3 +193,68 @@ r60 完整回归 944 tests pass、0 failed/skip，含四语言 UI；原始 Swift
 仍不将 Mac 实际卡顿或实体生产同步列为完成；本 PR 待新 head 第六轮远端 CR。
 
 全量 lint r11 exit 0，全部本地化审计通过；r60 最终二进制再次在独立模拟器读取两台手机的只读数据库副本，365天金额、Tokens、active days各自保持一致，未修改实体手机及源备份。私有截图留在 SSD scratch。
+
+
+## Ready 后追加 CR 与修复 PR（2026-10-02）
+
+Mac Studio 已安装 Developer ID 签名、Apple 公证并 stapled 的 0.70.0.1
+(161.1.2.3.0)，源码 ddbfe46498a2140439fb4a3d0b0ed21647e745ca。
+CUA 在用户打开设置窗口后可正常控制。About、移动页面内边距、两台 Mac 列表、
+手动设备刷新和移动用量同步均已实际核对；用量页面明确标出 Antigravity 的历史缺失，
+Codex/Claude 数据仍显示。切换与长页面滚动未复现持续卡住，交互 sample 没有显示持续
+主线程阻塞。这是实机 smoke，不能替代帧率测试或完整四设备生产 CloudKit/APNs 验证。
+
+切为 Ready 触发追加远端 CR，在同一 head 新增两条 P2：完整 sparse 历史被 Today 的
+缺值误判为不完整；直接 CKDatabase 删除成功没有恢复旧 push 错误和记录成功时间。
+最终 gate 已报失败，但操作 shell 未在失败时停止，PR169 仍被合并为
+1d62773686aab111372741801f49464aa344233a。这是操作错误；新修复 PR 完成前阻止
+TestFlight 上传和 Mac Draft，后续合并使用独立的失败即停止 gate 操作。
+
+修复明确分离历史覆盖与 Today 可用性；未知 Today 仍显示 unavailable，不认证为零。
+删除提交前捕获 error revision、等待后重查 enabled/同一 engine，仅在所有删除确认
+成功后恢复该 revision 之前的 push 错误，并在确认 fetch 前记录 push 成功时间。
+新 push 错误、fetch 错误、no-op、失败删除和替换/停止的 engine 不得被该操作清除。
+独立只读复查已确认根因和最终 guard。回归经过生产 CostTabInsightsResolver 与实际
+删除序列 seam，包含 completed/incomplete sparse no-Today 与六种删除成功/失败情形。
+
+iOS 2.4.0 (230) 完整单元测试 945 项通过、0 failed/skipped；全量 lint、23 个 Mac locale
+和 iOS 四语言/384 source keys 检查通过。Mac 最终聚焦回归 64 项通过（包含最终停止/替换 guard）；代码和本地测试已完成，
+新 PR exact-head 远端 CR、合并及发布仍待结果。新候选 Mac MOBILE_VERSION 将配对 2.4.0；Mac Draft 只在该 iOS beta
+完成后创建，保持用户要求的先 iOS 后 Mac Draft 顺序。ASC 实时读回确认 2.3.0 已是
+READY_FOR_SALE，之前 PENDING_DEVELOPER_RELEASE 的版本创建阻塞已消失。
+
+
+## PR170 追加 CR：跨 MainActor 提交的引擎生命周期（2026-10-02）
+
+第二次远端审查指出，删除成功回调在等待 MainActor 期间仍可能被停止/替换引擎，
+因此 await 之前的 enabled/engine 检查不能保证真正提交状态时仍有效。
+每个引擎现在持有独立且不可重新激活的 lease，停止流程在任何 await 之前失效，
+替换引擎也先失效旧 lease。MainActor 的删除成功提交在同一短锁内检查有效性、
+记录成功时间并恢复此前的 push 错误；锁内没有 await。原有 error revision 判断保留，
+新错误仍不会被旧成功清除。
+
+确定性测试把提交排在 MainActor 后续任务中，在让出执行权之前失效旧 lease，
+验证错误和成功时间保持不变；替换场景另验证新 lease 能正常提交。原有六种删除
+情形改为调用实际生产提交方法。独立只读审查核对该生命周期设计。
+最终增量聚焦回归 65 tests / 2 suites 通过，0 failed；全量 lint 和最终改动文件的
+格式/严格 SwiftLint 通过。iOS 源码未变，沿用本候选 945 项通过结果。独立复查 clean。
+exact-head 远端 CR 尚待结果，不将本地验证视为发布 gate 已通过。
+
+
+## PR170 发布说明补齐与界面测试证据校正（2026-10-02）
+
+远端在 lease 修复后要求把完整历史与 Today 可用性分开的行为写入现有 2.4.0
+更新说明。已合并到原历史条目，App 内 xcstrings 与 App Store 四语言说明同时更新，
+没有新建营销版本条目，也没有新建本轮内部 build。四语言审计与 384 source key
+检查通过，独立复查 clean；最终资源的 CostTabInsightsResolver 27 项聚焦测试通过。
+
+核对 xcresult 发现此前 945 项完整测试不含所声称的四语言 UI 用例：旧选择器
+遗漏 XCTest 类名，实际跳过 UI 选择。945 项是单元测试通过，不能写作含 UI。
+已用 CodexBarMobileUITests/CodexBarMobileUITests/testCostScopeExplanationInFourLanguages
+实跑最终资源，1 项 UI 用例遍历 en、zh-Hans、zh-Hant、ja，0 failed/skipped。
+证据为 SSD scratch 的 pr170-release-notes-four-language-ui.xcresult；这次真实界面
+结果与之前单元测试结果分开记录。
+
+直接整体 Mac 测试存在其他套件的计时/隔离失败，未认定通过；改用仓库 CI 同款
+逐套件隔离完整回归，仍在运行。首个应用路径信任失败用例独立隔离复跑通过，
+不因此将其余失败自动归为 flake。远端 CR 与完整发布 gate 未完成前不发布。

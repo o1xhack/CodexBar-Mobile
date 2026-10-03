@@ -7,6 +7,41 @@ import Testing
 struct CostTabInsightsResolverTests {
     private let now = Date()
 
+    @Test(arguments: [true, false])
+    func `Sparse ledger history completeness is independent of missing Today`(completed: Bool) throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let point = SyncDailyPoint(dayKey: "2026-10-01", costUSD: 8, totalTokens: 800, costIsKnown: true)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: 8, last30DaysTokens: 800,
+            daily: [point], historyDays: 30, reportingPeriod: "rolling:30",
+            sourceUpdatedAt: now, sourceDayKey: "2026-10-02", bucketTimeZoneIdentifier: "UTC",
+            historyCoverageIsEstablished: completed)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Synthetic Ledger", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: now, deviceName: "Synthetic Mac", deviceID: "mac-A")
+        let aggregation = CostLedgerAggregation(
+            windowDays: 7, totalCostUSD: 8, totalTokens: 800, activeDayCount: 1,
+            providerRollups: ["codex|_": CostLedgerProviderRollup(
+                providerID: "codex", accountEmail: nil, totalCostUSD: 8, totalTokens: 800,
+                dailyPoints: [point], modelBreakdowns: [], serviceBreakdowns: [])],
+            dailyPoints: [point], modelMix: [], serviceMix: [])
+        let insights = try #require(CostTabInsightsResolver.make(
+            snapshot: snapshot, ledgerAggregation: aggregation, isLedgerEnabled: true,
+            isDemoMode: false, localHistoryClearedAt: nil, ledgerWindowDays: 7,
+            now: now, calendar: calendar))
+
+        #expect(insights.total30DayCost == 8)
+        #expect(insights.hasIncompleteCostData == !completed)
+        #expect(insights.historyCostIsLowerBound == !completed)
+        #expect(!insights.providerRows[0].todayCostIsKnown)
+        #expect(!insights.totalTodayCostIsKnown)
+    }
+
     @Test
     func `Empty ledger after clear does not fall back to stale synced cost summary`() {
         let snapshot = SyncedUsageSnapshot(

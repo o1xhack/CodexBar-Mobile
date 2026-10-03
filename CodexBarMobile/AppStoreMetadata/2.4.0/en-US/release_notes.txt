@@ -1,4 +1,5 @@
 • Follow Codex and Claude quota usage with charts based on synced observations, exact reset dates, and pace estimates in your iPhone language.
 • Understand when Kimi’s monthly quota prevents use, even if the short-window quota still has room.
+• Keep saved daily costs and tokens when Mac refreshes, with clearer local and multi-Mac estimates. Show complete history correctly even when today's data is unavailable.
 • Choose up to four providers for each status widget, in your preferred order, with independent mode and color settings. Existing status widgets need to be removed and added again; Token Activity widgets keep working.
 • See observed model names in token activity and refreshed provider colors.
