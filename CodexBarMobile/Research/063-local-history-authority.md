@@ -217,7 +217,7 @@ TestFlight 上传和 Mac Draft，后续合并使用独立的失败即停止 gate
 独立只读复查已确认根因和最终 guard。回归经过生产 CostTabInsightsResolver 与实际
 删除序列 seam，包含 completed/incomplete sparse no-Today 与六种删除成功/失败情形。
 
-iOS 2.4.0 (230) 完整测试 945 项通过、0 failed/skipped；全量 lint、23 个 Mac locale
+iOS 2.4.0 (230) 完整单元测试 945 项通过、0 failed/skipped；全量 lint、23 个 Mac locale
 和 iOS 四语言/384 source keys 检查通过。Mac 最终聚焦回归 64 项通过（包含最终停止/替换 guard）；代码和本地测试已完成，
 新 PR exact-head 远端 CR、合并及发布仍待结果。新候选 Mac MOBILE_VERSION 将配对 2.4.0；Mac Draft 只在该 iOS beta
 完成后创建，保持用户要求的先 iOS 后 Mac Draft 顺序。ASC 实时读回确认 2.3.0 已是
@@ -239,3 +239,22 @@ READY_FOR_SALE，之前 PENDING_DEVELOPER_RELEASE 的版本创建阻塞已消失
 最终增量聚焦回归 65 tests / 2 suites 通过，0 failed；全量 lint 和最终改动文件的
 格式/严格 SwiftLint 通过。iOS 源码未变，沿用本候选 945 项通过结果。独立复查 clean。
 exact-head 远端 CR 尚待结果，不将本地验证视为发布 gate 已通过。
+
+
+## PR170 发布说明补齐与界面测试证据校正（2026-10-02）
+
+远端在 lease 修复后要求把完整历史与 Today 可用性分开的行为写入现有 2.4.0
+更新说明。已合并到原历史条目，App 内 xcstrings 与 App Store 四语言说明同时更新，
+没有新建营销版本条目，也没有新建本轮内部 build。四语言审计与 384 source key
+检查通过，独立复查 clean；最终资源的 CostTabInsightsResolver 27 项聚焦测试通过。
+
+核对 xcresult 发现此前 945 项完整测试不含所声称的四语言 UI 用例：旧选择器
+遗漏 XCTest 类名，实际跳过 UI 选择。945 项是单元测试通过，不能写作含 UI。
+已用 CodexBarMobileUITests/CodexBarMobileUITests/testCostScopeExplanationInFourLanguages
+实跑最终资源，1 项 UI 用例遍历 en、zh-Hans、zh-Hant、ja，0 failed/skipped。
+证据为 SSD scratch 的 pr170-release-notes-four-language-ui.xcresult；这次真实界面
+结果与之前单元测试结果分开记录。
+
+直接整体 Mac 测试存在其他套件的计时/隔离失败，未认定通过；改用仓库 CI 同款
+逐套件隔离完整回归，仍在运行。首个应用路径信任失败用例独立隔离复跑通过，
+不因此将其余失败自动归为 flake。远端 CR 与完整发布 gate 未完成前不发布。

@@ -4693,7 +4693,7 @@ private enum MobileReleaseNotesCatalog {
                     String(
                         localized: "See Kimi monthly blocks and short-window usage. Cached data waits for Mac sync."),
                     String(
-                        localized: "Keep saved daily costs and tokens when Mac refreshes, with clearer explanations of local history and multi-Mac estimates."),
+                        localized: "Keep saved daily costs and tokens when Mac refreshes, with clearer local and multi-Mac estimates. Show complete history correctly even when today's data is unavailable."),
                     String(
                         localized: "Keep model names with daily token history, even when cost is unavailable."),
                     String(
