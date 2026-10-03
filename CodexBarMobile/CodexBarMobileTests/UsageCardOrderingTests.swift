@@ -534,6 +534,41 @@ struct UsageCardOrderingTests {
         #expect(preferences.accountAnchors.contains { $0.id == "offline" })
     }
 
+    @Test
+    func `a vanished selection moves to the same provider or reports it gone`() {
+        var preferences = UsageCardPreferences()
+        preferences.expandedProviderIDs = ["codex"]
+        let groups = [
+            Self.snapshot("codex", identities: ["codex:email:a"], recordKey: "ra"),
+            Self.snapshot("codex", identities: ["codex:email:b"], recordKey: "rb"),
+            Self.snapshot("claude", email: "c@x.com"),
+        ].groupedByProvider()
+        let cards = UsageCardBuilder.cards(groups: groups, preferences: preferences)
+
+        // Still present: unchanged.
+        #expect(UsageCardSelection.resolve(selectedKey: cards[1].id, selectedProviderID: "codex", arranged: cards)
+            == .init(key: cards[1].id, providerID: "codex", providerGone: false))
+        // Account card gone after a refresh: first remaining card of Codex.
+        let refreshed = cards.filter { $0.id != cards[1].id }
+        #expect(UsageCardSelection.resolve(
+            selectedKey: cards[1].id,
+            selectedProviderID: "codex",
+            arranged: refreshed) == .init(key: cards[0].id, providerID: "codex", providerGone: false))
+        // Collapsed: the provider card replaces the account card.
+        preferences.expandedProviderIDs = []
+        let collapsed = UsageCardBuilder.cards(groups: groups, preferences: preferences)
+        #expect(UsageCardSelection.resolve(
+            selectedKey: cards[0].id,
+            selectedProviderID: "codex",
+            arranged: collapsed).key == "provider:codex")
+        // Whole provider gone.
+        let withoutCodex = collapsed.filter { $0.providerID != "codex" }
+        #expect(UsageCardSelection.resolve(
+            selectedKey: "provider:codex",
+            selectedProviderID: "codex",
+            arranged: withoutCodex) == .init(key: nil, providerID: nil, providerGone: true))
+    }
+
     // MARK: Persistence
 
     @MainActor

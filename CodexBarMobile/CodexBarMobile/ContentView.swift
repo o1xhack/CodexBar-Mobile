@@ -330,6 +330,10 @@ private struct UsageTab: View {
     /// Selected card key (`UsageCardKey`): a provider card or, for expanded
     /// providers, one account card.
     @State private var selectedCardKey: String?
+    /// Provider of the selected card, remembered separately because an
+    /// account card's key can vanish (account gone, anchor absorbed after a
+    /// confirmed linkage) while the provider is still on screen.
+    @State private var selectedCardProviderID: String?
     @State private var compactColumn: NavigationSplitViewColumn = .sidebar
     @State private var isSortEditorPresented = false
     @State private var settingsProviderID: String?
@@ -427,7 +431,7 @@ private struct UsageTab: View {
                             cards: self.cards,
                             selectedCardKey: self.selectedCardKey,
                             onSelect: { key in
-                                self.selectedCardKey = key
+                                self.select(key)
                                 self.compactColumn = .detail
                             })
                     }
@@ -490,7 +494,7 @@ private struct UsageTab: View {
             if self.layout.usesListDetail, self.selectedCardKey == nil,
                let first = self.arrangedCards.first
             {
-                self.selectedCardKey = first.id
+                self.select(first.id)
                 self.compactColumn = .detail
             }
         }
@@ -502,8 +506,8 @@ private struct UsageTab: View {
                 groups: self.groups,
                 linkages: self.isDemoMode ? [] : self.usageData.providerLinkages)
         }
-        .onChange(of: self.cardPreferences.preferences.expandedProviderIDs) { _, _ in
-            self.keepSelectionAfterExpansionChange()
+        .onChange(of: self.cards.map(\.id)) { _, _ in
+            self.keepSelectionWhenCardsChange()
         }
         .sheet(isPresented: self.$isSortEditorPresented) {
             UsageSortEditorView(cards: self.cards, now: self.sortReferenceDate, store: self.cardPreferences)
@@ -518,21 +522,25 @@ private struct UsageTab: View {
         .environment(\.horizontalSizeClass, self.layout.usesListDetail ? .regular : .compact)
     }
 
-    /// Expanding or collapsing replaces the selected provider/account card;
-    /// keep the detail on the same provider instead of dropping to nothing.
-    private func keepSelectionAfterExpansionChange() {
-        guard let selected = self.selectedCardKey else { return }
-        let cards = self.cards
-        guard !cards.contains(where: { $0.id == selected }) else { return }
-        let previousProviderID: String? = if selected.hasPrefix(UsageCardKey.providerPrefix) {
-            String(selected.dropFirst(UsageCardKey.providerPrefix.count))
-        } else {
-            self.cardPreferences.preferences.accountAnchors
-                .first { UsageCardKey.account(anchorID: $0.id) == selected }?.providerID
-        }
-        guard let providerID = previousProviderID else { return }
-        if let replacement = self.arrangedCards.first(where: { $0.providerID == providerID }) {
-            self.selectedCardKey = replacement.id
+    private func select(_ key: String) {
+        self.selectedCardKey = key
+        self.selectedCardProviderID = self.cards.first { $0.id == key }?.providerID
+    }
+
+    /// The card set changes on expand/collapse, sync refreshes, removed
+    /// accounts and anchor absorption. Keep the detail on the same provider
+    /// when the selected card is gone; if the whole provider is gone, return
+    /// a compact layout to the list instead of leaving a blank detail column
+    /// (list-detail layouts fall back to the first card on their own).
+    private func keepSelectionWhenCardsChange() {
+        let resolution = UsageCardSelection.resolve(
+            selectedKey: self.selectedCardKey,
+            selectedProviderID: self.selectedCardProviderID,
+            arranged: self.arrangedCards)
+        self.selectedCardKey = resolution.key
+        self.selectedCardProviderID = resolution.providerID
+        if resolution.providerGone, !self.layout.usesListDetail {
+            self.compactColumn = .sidebar
         }
     }
 }

@@ -228,3 +228,38 @@ enum UsageCardOrdering {
             arrangement.others.compactMap { byKey[$0] })
     }
 }
+
+// MARK: - Selection
+
+/// Keeps the Usage detail selection valid when the card set changes
+/// (expand/collapse, sync refresh, removed account, absorbed anchor).
+enum UsageCardSelection {
+    struct Resolution: Equatable {
+        let key: String?
+        let providerID: String?
+        /// The selected provider is gone entirely; compact layouts should
+        /// return to the list instead of showing an empty detail column.
+        let providerGone: Bool
+    }
+
+    /// `arranged` is the display order; the first card of the same provider
+    /// replaces a vanished selection.
+    static func resolve(
+        selectedKey: String?,
+        selectedProviderID: String?,
+        arranged: [UsageCard]) -> Resolution
+    {
+        guard let selectedKey else {
+            return Resolution(key: nil, providerID: nil, providerGone: false)
+        }
+        if let card = arranged.first(where: { $0.id == selectedKey }) {
+            return Resolution(key: card.id, providerID: card.providerID, providerGone: false)
+        }
+        if let selectedProviderID,
+           let replacement = arranged.first(where: { $0.providerID == selectedProviderID })
+        {
+            return Resolution(key: replacement.id, providerID: selectedProviderID, providerGone: false)
+        }
+        return Resolution(key: nil, providerID: nil, providerGone: true)
+    }
+}
