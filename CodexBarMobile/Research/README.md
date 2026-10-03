@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 064 | iOS 2.5.0 多账号独立卡片、Provider 三点菜单置顶与 Usage 排序（issue #154） | `draft` | Goal 已定义，待调研与实现 | [064-ios-250-account-cards-pin-sort/00-goal.md](064-ios-250-account-cards-pin-sort/00-goal.md) | 2026-10-03 |
 | 063 | Local History 显示权威性与真实多设备同步排查 | `done` | PR168/170 修复已 reviewed merge；Mac 1520 隔离回归、iOS 945 单元/27 聚焦/1 四语言 UI 通过；实体全矩阵边界保留 | [063-local-history-authority.md](063-local-history-authority.md) | 2026-10-02 |
 | 062 | v0.69.0–v0.70.0 single upstream sync (#166) + iOS 2.4.0 | `in-progress` | Mac signed Draft and iOS 2.4.0 (230) internal TestFlight/ASC preparation complete; Final CI and final installed-window recheck pending; 16 compatibility cases substituted, physical fleet/APNs/VoiceOver unverified | [062-v070-upstream-sync/00-overview.md](062-v070-upstream-sync/00-overview.md) | 2026-10-01 |
 | 059 | v0.67.0–v0.68.0 single upstream sync (#150/#151 closed) + iOS 2.3.0 | `done` | Mac live signed/notarized; full CI and 18 assets verified. iOS local only; 16 substituted combinations, no physical fleet/Production run | [059-v068-upstream-sync/00-overview.md](059-v068-upstream-sync/00-overview.md) | 2026-09-30 |
