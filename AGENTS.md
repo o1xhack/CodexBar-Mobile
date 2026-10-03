@@ -342,7 +342,6 @@ Languages: English (`en`), Simplified Chinese (`zh-Hans`), Traditional Chinese (
 
 | Path | Purpose |
 |------|---------|
-| `CLAUDE.md` | Project overview + pointers |
 | `AGENTS.md` | This file — repo routing and quality gates |
 | `.agents/skills/codexbar-git-workflow/SKILL.md` | Git/GitHub branch, commit, push, PR, and handoff workflow |
 | `CodexBarMobile/Research/` | Feature research docs |

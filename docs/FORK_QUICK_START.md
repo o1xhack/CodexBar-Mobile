@@ -37,8 +37,7 @@ The primary addition is **CodexBar Mobile** — an iOS app that syncs usage data
 
 | Path | Purpose |
 |------|---------|
-| `CLAUDE.md` | Project overview + Todoist integration rules |
-| `AGENTS.md` | Complete 7-step development workflow |
+| `AGENTS.md` | Agent rules + 7-step development workflow (Claude Code and Codex both read it) |
 | `CodexBarMobile/` | iOS app (Xcode project via xcodegen) |
 | `Shared/` | Shared sync layer (Mac + iOS) |
 | `docs/RELEASING-MOBILE.md` | Mac release workflow for the fork |
