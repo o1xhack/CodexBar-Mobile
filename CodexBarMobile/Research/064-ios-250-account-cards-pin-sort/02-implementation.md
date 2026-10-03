@@ -10,8 +10,8 @@
 | `Models/UsageCardOrdering.swift` | `UsageCard`、`UsageCardBuilder`（provider 分组 → 卡片，展开的 provider 拆成账号卡片），以及排序纯函数 `UsageCardOrdering.arrange` 和 weekly reset 计算 |
 | `Models/UsageCardPreferencesStore.swift` | `ObservableObject`：live 版写 `UserDefaults`，demo 版只在内存；带降级保护 |
 | `Views/UsageCardSettingsViews.swift` | `ProviderSettingsView`（服务设置）、`UsageSortEditorView`（编辑排序）、`UsageCardPresentation`（账号副标题） |
-| `CodexBarMobileTests/UsageCardOrderingTests.swift` | 24 个单元测试 |
-| `CodexBarMobileUITests/UsageCardOrganizationUITests.swift` | 3 个 UI 测试 |
+| `CodexBarMobileTests/UsageCardOrderingTests.swift` | 34 个单元测试 |
+| `CodexBarMobileUITests/UsageCardOrganizationUITests.swift` | 4 个 UI 测试（含 iPhone/iPad 截图用例） |
 
 ## 修改
 
@@ -24,7 +24,7 @@
 - `Views/ProviderUsageView.swift`：新增置顶图标、长按菜单里的置顶/取消置顶，以及 `visibleOrganization` 这个辅助方法。账号卡片通过 `duplicateOrdinal` 显示“Codex 2”这样的兜底副标题。
 - `CodexBarMobileApp.swift`：`UI_TEST_RESET_DEFAULTS` 会同时清除卡片偏好；新增启动参数 `UI_TEST_MULTI_ACCOUNT_DATA`。
 - `Preview Content/PreviewData.swift`：新增 `multiAccountSnapshot`，在原有演示数据上额外加 2 个 Codex 账号和 1 个 Claude 账号。只在 UI 测试启动参数下使用，原演示数据不变。
-- `Localizable.xcstrings`：新增 26 条四语言文案（21 条界面文字和 5 条更新说明）。
+- `Localizable.xcstrings`：新增 27 条四语言文案（22 条界面文字和 5 条更新说明）。
 - `project.yml`：所有 target 的版本改为 2.5.0 (231)。
 - `CHANGELOG.md`：新增 2.5.0 (231) 条目。
 
