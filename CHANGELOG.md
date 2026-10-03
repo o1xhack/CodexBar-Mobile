@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.70.0.1 — 2026-10-01
+## 0.70.0.1 — 2026-10-02
 
 ### Highlights
 
-- iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates.
+- iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates. Successful direct Mac removal clears only earlier upload errors and records its push time, preserving fetch failures and newer upload failures.
 
 - Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.
 - Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.

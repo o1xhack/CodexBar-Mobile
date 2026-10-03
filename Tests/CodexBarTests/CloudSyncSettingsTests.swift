@@ -11,6 +11,66 @@ import Testing
 // the fork's configuration/snapshot reconciliation cases in one audit surface.
 // swiftlint:disable:next type_body_length
 struct CloudSyncSettingsTests {
+    @Test(arguments: [
+        "success",
+        "new-push-failure",
+        "old-fetch-failure",
+        "confirmation-failure",
+        "no-op",
+        "delete-failure",
+    ])
+    func `Direct deletion success recovers only earlier push errors before confirmation`(scenario: String) async {
+        struct SyntheticDeletionError: Error {}
+        let state = CloudSyncState()
+        state.recordError("Old synthetic push failed", scope: .push)
+        if scenario == "old-fetch-failure" {
+            state.recordError("Old synthetic fetch failed", scope: .fetch)
+        }
+        var checkpoint: UInt64?
+        var fetches = 0
+        var completions = 0
+        let pushedAt = Date(timeIntervalSince1970: 1000)
+        let failure = await CloudSyncDeviceRemoval.run {
+            fetches += 1
+            if fetches == 2 {
+                #expect(state.status.lastSuccessfulPushAt == pushedAt)
+                if scenario == "confirmation-failure" { throw SyntheticDeletionError() }
+            }
+        } delete: {
+            if scenario == "no-op" { return false }
+            checkpoint = state.errorRevision
+            if scenario == "delete-failure" { throw SyntheticDeletionError() }
+            if scenario == "new-push-failure" {
+                state.recordError("New synthetic push failed", scope: .push)
+            }
+            return true
+        } didDelete: {
+            guard let checkpoint else {
+                Issue.record("Successful deletion must have a revision checkpoint")
+                return
+            }
+            completions += 1
+            state.status.lastSuccessfulPushAt = pushedAt
+            state.finishErrorRecovery(scope: .push, startedAt: checkpoint, succeeded: true)
+        }
+        let succeeded = scenario != "no-op" && scenario != "delete-failure"
+        #expect(completions == (succeeded ? 1 : 0))
+        #expect(state.status.lastSuccessfulPushAt == (succeeded ? pushedAt : nil))
+        switch scenario {
+        case "new-push-failure": #expect(state.status.lastError == "New synthetic push failed")
+        case "old-fetch-failure": #expect(state.status.lastError == "Old synthetic fetch failed")
+        case "no-op", "delete-failure": #expect(state.status.lastError == "Old synthetic push failed")
+        default: #expect(state.status.lastError == nil)
+        }
+        if scenario == "confirmation-failure" {
+            #expect(failure?.scope == .fetch)
+        } else if scenario == "delete-failure" {
+            #expect(failure?.scope == .push)
+        } else {
+            #expect(failure == nil)
+        }
+    }
+
     @Test
     func `manual fleet refresh is bounded and preserves newly reported failures`() async {
         let state = CloudSyncState()

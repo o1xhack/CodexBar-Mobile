@@ -38,7 +38,8 @@ enum CloudSyncDeviceRemoval {
     static func run(
         isolation: isolated (any Actor)? = #isolation,
         fetch: () async throws -> Void,
-        delete: () async throws -> Bool) async -> Failure?
+        delete: () async throws -> Bool,
+        didDelete: () async -> Void = {}) async -> Failure?
     {
         do {
             try await fetch()
@@ -50,6 +51,7 @@ enum CloudSyncDeviceRemoval {
         } catch {
             return Failure(error: error, scope: .push)
         }
+        await didDelete()
         do {
             try await fetch()
         } catch {
@@ -2088,6 +2090,7 @@ extension CloudSyncEngine {
 
     func removeDevice(_ deviceID: String) async {
         guard self.enabled, let engine = self.engine else { return }
+        var deletionCheckpoint: UInt64?
         let failure = await CloudSyncDeviceRemoval.run {
             guard self.engine === engine else { return }
             try await engine.fetchChanges(.init(scope: .zoneIDs([Self.zoneID])))
@@ -2098,12 +2101,20 @@ extension CloudSyncEngine {
                     removing: deviceID, currentDeviceID: self.settings.macFleetSyncDeviceID)
             }
             guard self.engine === engine, !names.isEmpty else { return false }
+            deletionCheckpoint = await MainActor.run { self.state.errorRevision }
+            guard self.enabled, self.engine === engine else { return false }
             let result = try await engine.database.modifyRecords(
                 saving: [], deleting: names.map { self.recordID(named: $0) }, atomically: true)
             for deletion in result.deleteResults.values {
                 try deletion.get()
             }
-            return self.engine === engine
+            return self.enabled && self.engine === engine
+        } didDelete: {
+            guard self.enabled, self.engine === engine, let deletionCheckpoint else { return }
+            await MainActor.run {
+                self.state.status.lastSuccessfulPushAt = Date()
+                self.state.finishErrorRecovery(scope: .push, startedAt: deletionCheckpoint, succeeded: true)
+            }
         }
         if let failure, self.engine === engine {
             await self.record(error: failure.error, scope: failure.scope)

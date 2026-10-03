@@ -1,8 +1,8 @@
 # Local History 汇总权威性与真实多设备同步排查
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-10-02
-Branch: `fix/local-history-sync-authority`
+Branch: `fix/local-history-review-followup`
 
 ## 范围
 
@@ -193,3 +193,32 @@ r60 完整回归 944 tests pass、0 failed/skip，含四语言 UI；原始 Swift
 仍不将 Mac 实际卡顿或实体生产同步列为完成；本 PR 待新 head 第六轮远端 CR。
 
 全量 lint r11 exit 0，全部本地化审计通过；r60 最终二进制再次在独立模拟器读取两台手机的只读数据库副本，365天金额、Tokens、active days各自保持一致，未修改实体手机及源备份。私有截图留在 SSD scratch。
+
+
+## Ready 后追加 CR 与修复 PR（2026-10-02）
+
+Mac Studio 已安装 Developer ID 签名、Apple 公证并 stapled 的 0.70.0.1
+(161.1.2.3.0)，源码 ddbfe46498a2140439fb4a3d0b0ed21647e745ca。
+CUA 在用户打开设置窗口后可正常控制。About、移动页面内边距、两台 Mac 列表、
+手动设备刷新和移动用量同步均已实际核对；用量页面明确标出 Antigravity 的历史缺失，
+Codex/Claude 数据仍显示。切换与长页面滚动未复现持续卡住，交互 sample 没有显示持续
+主线程阻塞。这是实机 smoke，不能替代帧率测试或完整四设备生产 CloudKit/APNs 验证。
+
+切为 Ready 触发追加远端 CR，在同一 head 新增两条 P2：完整 sparse 历史被 Today 的
+缺值误判为不完整；直接 CKDatabase 删除成功没有恢复旧 push 错误和记录成功时间。
+最终 gate 已报失败，但操作 shell 未在失败时停止，PR169 仍被合并为
+1d62773686aab111372741801f49464aa344233a。这是操作错误；新修复 PR 完成前阻止
+TestFlight 上传和 Mac Draft，后续合并使用独立的失败即停止 gate 操作。
+
+修复明确分离历史覆盖与 Today 可用性；未知 Today 仍显示 unavailable，不认证为零。
+删除提交前捕获 error revision、等待后重查 enabled/同一 engine，仅在所有删除确认
+成功后恢复该 revision 之前的 push 错误，并在确认 fetch 前记录 push 成功时间。
+新 push 错误、fetch 错误、no-op、失败删除和替换/停止的 engine 不得被该操作清除。
+独立只读复查已确认根因和最终 guard。回归经过生产 CostTabInsightsResolver 与实际
+删除序列 seam，包含 completed/incomplete sparse no-Today 与六种删除成功/失败情形。
+
+iOS 2.4.0 (230) 完整测试 945 项通过、0 failed/skipped；全量 lint、23 个 Mac locale
+和 iOS 四语言/384 source keys 检查通过。Mac 最终聚焦回归 64 项通过（包含最终停止/替换 guard）；代码和本地测试已完成，
+新 PR exact-head 远端 CR、合并及发布仍待结果。新候选 Mac MOBILE_VERSION 将配对 2.4.0；Mac Draft 只在该 iOS beta
+完成后创建，保持用户要求的先 iOS 后 Mac Draft 顺序。ASC 实时读回确认 2.3.0 已是
+READY_FOR_SALE，之前 PENDING_DEVELOPER_RELEASE 的版本创建阻塞已消失。

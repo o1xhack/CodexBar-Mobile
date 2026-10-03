@@ -1885,7 +1885,8 @@ struct CostDashboardInsights: Sendable {
     var hasIncompleteCostData: Bool {
         (!self.hasComparableHistoryTotals && self.canDisplayDailyHistory) || self.providerRows.contains {
             if $0.dailyPointsUseReaderCalendar {
-                return !$0.thirtyDayCostIsKnown || !$0.todayCostIsKnown ||
+                // Today availability is independent of certified historical coverage.
+                return !$0.thirtyDayCostIsKnown ||
                     $0.dailyPoints.contains(where: { $0.costIsKnown == false })
             }
             return !$0.thirtyDayCostIsKnown ||
