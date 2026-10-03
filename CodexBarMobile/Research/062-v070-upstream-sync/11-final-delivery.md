@@ -25,7 +25,7 @@ Archive 来源 afdb6a230 与审查源码/资源/版本一致，五 bundle 全部
 
 ASC build `3e1942ed-2a7b-4359-a78d-7eaef8385a5c`，VALID；Internal group `eb0df43e-af6b-42ad-a429-efe2f5478702` 包含 230，internal `IN_BETA_TESTING`。实体手机未由本次流程安装 230，TestFlight 可用不等同已装机。
 
-ASC 2.4.0 version `fe49ae08-79b4-49c8-946a-92b2f625f8d6`，PREPARE_FOR_SUBMISSION / MANUAL，绑定 230；四语言 what's new 和 beta notes、继承截图 hash、原描述/关键词/链接/联系人回读一致。审核备注原有旧版本说明已更新为 2.4；独立审查发现 Settings 的 Setup Guide 没有 Demo 回调，已改为首次说明点 Done → Home 等待同步页的 View Demo，并重新 apply/readback 确认。文案保存在 AppStoreMetadata/2.4.0/review_notes.txt。未提交 App Review 或外部 beta review。
+ASC 2.4.0 version `fe49ae08-79b4-49c8-946a-92b2f625f8d6`，PREPARE_FOR_SUBMISSION / MANUAL，绑定 230；四语言 what's new 和 beta notes、继承截图 hash、原描述/关键词/链接/联系人回读一致。审核备注原有旧版本说明已更新为 2.4；独立审查发现 Settings 的 Setup Guide 没有 Demo 回调，已改为首次说明点 Done → Usage 等待同步页的 View Demo，并重新 apply/readback 确认。文案保存在 AppStoreMetadata/2.4.0/review_notes.txt。未提交 App Review 或外部 beta review。
 
 图标三层验证：源码 opaque 1024 图标、archive 编译 120 图标、Apple 处理后的 152 iconAssetToken 在 Aside 可见一致。私有 provenance 和完整回读位于 SSD scratch：ios230-archive-source.json、asc-230-beta-and-version-final.json、asc-240-final-preparation.json。
 
