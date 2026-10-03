@@ -495,6 +495,52 @@ struct CostTabInsightsResolverTests {
         #expect(insights.dailyPoints.contains { $0.dayKey == "2026-10-02" } == isCurrentObservation)
     }
 
+    @Test(arguments: ["legacy", "valid", "invalid", "incomplete", "incomparable"], [false, true])
+    func `Live daily fallback validates producer metadata without invalidating saved ledger`(
+        metadata: String, hasSavedLedger: Bool) throws
+    {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let points = (0..<7).map { offset in
+            SyncDailyPoint(
+                dayKey: SyncCostSummary.iso8601DayKey(for: now.addingTimeInterval(Double(-offset) * 86400)),
+                costUSD: 2, totalTokens: 20, costIsKnown: true)
+        }
+        let summary = SyncCostSummary(
+            sessionCostUSD: 2, sessionTokens: 20,
+            last30DaysCostUSD: 14, last30DaysTokens: 140,
+            daily: points, historyDays: 7,
+            reportingPeriod: metadata == "legacy" ? nil : "rolling:7",
+            sourceUpdatedAt: now,
+            bucketTimeZoneIdentifier: metadata == "invalid" ? "Not/A-Time-Zone" :
+                (metadata == "legacy" ? nil : "UTC"),
+            historyCoverageIsEstablished: metadata == "incomplete" ? false : nil,
+            historyWindowIsComparable: metadata == "incomparable" ? false : nil)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: now, costSummary: summary)
+        let aggregation = CostLedgerAggregation(
+            windowDays: 7, totalCostUSD: hasSavedLedger ? 14 : 0,
+            totalTokens: hasSavedLedger ? 140 : 0, activeDayCount: hasSavedLedger ? 7 : 0,
+            providerRollups: hasSavedLedger ? ["codex|_": CostLedgerProviderRollup(
+                providerID: "codex", accountEmail: nil, totalCostUSD: 14, totalTokens: 140,
+                dailyPoints: points, modelBreakdowns: [], serviceBreakdowns: [])] : [:],
+            dailyPoints: hasSavedLedger ? points : [], modelMix: [], serviceMix: [])
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation,
+            snapshot: SyncedUsageSnapshot(providers: [provider], syncTimestamp: now,
+                                          deviceName: "Mac", deviceID: "mac-A"),
+            now: now, calendar: calendar)
+        let isInvalidLiveSource = !hasSavedLedger && metadata == "invalid"
+        #expect(insights.total30DayCost == (isInvalidLiveSource ? 0 : 14))
+        #expect(insights.total30DayTokens == (isInvalidLiveSource ? 0 : 140))
+        #expect(insights.total30DayCostIsKnown ==
+            (hasSavedLedger || metadata == "legacy" || metadata == "valid"))
+        #expect(insights.dailyPoints.count == (isInvalidLiveSource ? 0 : 7))
+    }
+
     @Test
     func `Ledger refresh signature changes when the local day changes`() {
         let snapshot = SyncedUsageSnapshot(

@@ -2221,7 +2221,8 @@ struct CostDashboardInsights: Sendable {
             let todayCost = resolvedTodayCost ?? 0
             let todayTokens = todayTotals.tokens ?? 0
             var fallbackSyncPoints = costSummary.reportingPeriodDaily.filter {
-                guard let offset = costSummary.costDayOffset(for: $0.dayKey, from: now) else {
+                guard !costSummary.hasInvalidBucketTimeZoneIdentifier,
+                      let offset = costSummary.costDayOffset(for: $0.dayKey, from: now) else {
                     return false
                 }
                 return offset >= -(aggregation.windowDays - 1) && offset <= 0
@@ -2410,6 +2411,18 @@ struct CostDashboardInsights: Sendable {
         pointsUseReaderCalendar: Bool) -> Bool
     {
         guard windowDays > 0 else { return false }
+        // Live producer rows still require valid source metadata. Saved
+        // reader-calendar ledger rows are independent of newer summaries.
+        if !pointsUseReaderCalendar, let summary {
+            guard summary.reportingPeriodHistoryCoverageIsEstablished != false,
+                  summary.reportingPeriodHistoryWindowIsComparable != false,
+                  !summary.hasIncompleteHistoricalCostCoverage(at: now),
+                  !summary.hasInvalidBucketTimeZoneIdentifier,
+                  summary.reportingPeriodCoverage.map({ $0.unpriced == 0 && $0.unmetered == 0 }) ?? true
+            else {
+                return false
+            }
+        }
         let today = calendar.startOfDay(for: now)
         let formatter = Self.dayKeyFormatter(calendar: calendar)
         let windowPoints = points.compactMap { point -> (offset: Int, isKnown: Bool)? in

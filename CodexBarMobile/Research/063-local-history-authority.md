@@ -121,6 +121,14 @@ Branch: `fix/local-history-sync-authority`
 - 公开 GitHub CR 已恢复；依赖PR168在 exact head cb9079596c9f3ddaa7c5e3d962e0e7f46448833b
   经5轮CR、4条thread全resolved、review gate及Fast Checks通过后合并。本修复PR169需在
   本次P2修复推送后的新head完成远端复审，不能继承旧head的通过结论。
+- PR169第三轮远端CR再发现实时daily绕过producer metadata guard，以及removeDevice确认fetch
+  失败误记push。已恢复仅实时fallback的metadata校验，无效时区不会投影进费用/Token每日窗口；
+  保存账本不继承新summary的无效metadata。5种legacy/valid/invalid/incomplete/incomparable
+  ×保存/未保存状态回归覆盖旧/新payload。设备删除三阶段fetch/delete/fetch分别记方向，
+  所有record(error:)调用显式指定scope；57个设置/同步测试及200 tests / 19 suites通过。
+- 最终r50 iOS：941 tests pass、0 failed/skip，r51 generic Release BUILD SUCCEEDED。
+  r48/r49在新fixture的initializer参数顺序上
+  编译失败，已修正后完整重跑，不将失败轮算为通过。全量lint r8与独立子线程审查通过。
 - Mac debug bundle打包与代码签名验证通过；CUA读取已安装与隔离测试应用持续 timeoutReached，
   因此没有完成Mac设置实际切换/滚动的渲染或卡顿验收。已请求用户提供具体复现操作。
 

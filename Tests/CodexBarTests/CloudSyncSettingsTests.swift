@@ -94,6 +94,46 @@ struct CloudSyncSettingsTests {
         #expect(state.status.lastError == nil)
     }
 
+    @Test(arguments: [0, 1, 2])
+    func `device removal failures retain the direction of the failed operation`(failedStage: Int) async throws {
+        struct SyntheticRemovalError: Error {}
+        let state = CloudSyncState()
+        var stage = 0
+        var completedDeletes = 0
+        let failure = try #require(await CloudSyncDeviceRemoval.run {
+            defer { stage += 1 }
+            if stage == failedStage { throw SyntheticRemovalError() }
+        } delete: {
+            defer { stage += 1 }
+            if stage == failedStage { throw SyntheticRemovalError() }
+            completedDeletes += 1
+            return true
+        })
+        #expect(failure.error is SyntheticRemovalError)
+        let expectedScope: CloudSyncErrorScope = failedStage == 1 ? .push : .fetch
+        #expect(failure.scope == expectedScope)
+        #expect(completedDeletes == (failedStage == 2 ? 1 : 0))
+        state.recordError("Synthetic removal failure", scope: failure.scope)
+        let checkpoint = state.errorRevision
+        let otherScope: CloudSyncErrorScope = expectedScope == .fetch ? .push : .fetch
+        state.finishErrorRecovery(scope: otherScope, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == "Synthetic removal failure")
+        state.finishErrorRecovery(scope: expectedScope, startedAt: checkpoint, succeeded: true)
+        #expect(state.status.lastError == nil)
+    }
+
+    @Test
+    func `device removal skips confirmation fetch when deletion is no longer applicable`() async {
+        var fetches = 0
+        let failure = await CloudSyncDeviceRemoval.run {
+            fetches += 1
+        } delete: {
+            false
+        }
+        #expect(failure == nil)
+        #expect(fetches == 1)
+    }
+
     @Test
     func `fleet sync uses the fork CloudKit container and state namespace`() {
         #expect(CloudSyncEngine.containerIdentifier == CloudSyncConstants.containerIdentifier)
