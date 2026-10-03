@@ -3,6 +3,43 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.70.0.1</title>
+            <pubDate>Sat, 03 Oct 2026 08:42:35 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>161.1.2.4.0</sparkle:version>
+            <sparkle:shortVersionString>0.70.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.70.0.1-Mobile 2.4.0</h2>
+<h3>Highlights</h3>
+<ul>
+<li>iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates. Successful direct Mac removal clears only earlier upload errors and records its push time, preserving fetch failures and newer upload failures.</li>
+</ul>
+<ul>
+<li>Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.</li>
+<li>Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.</li>
+<li>Grok keeps local token history available during billing outages and includes observed model names. Partial cost scans remain clearly incomplete instead of appearing fully accounted for.</li>
+<li>Mistral offers Monthly Plan in the menu bar and uses event, API zone, and service tier when calculating costs; updated model aliases and published pricing improve other cost estimates.</li>
+<li>Refreshed provider colors and bundled Notion, ZoomMate, and LongCat integrations preserve their provider-specific quota, credit, and usage details.</li>
+<li>Widget snapshots retain each provider's last good result, Codex handles plan upgrades and catch-up more reliably, and process cleanup stays responsive on busy machines.</li>
+<li>Diagnostics redact stored process environments throughout the app, CLI, provider contexts, and session scanners.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sync upstream v0.69.0 and v0.70.0 in one fork release, retaining the complete upstream provider, cost, quota burndown, widget, process cleanup, and environment-redaction changes listed below.</li>
+<li>Preserve fork CloudKit Production publishing, account ownership fences, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.</li>
+<li>Kimi mobile snapshots publish effective availability when the monthly pool blocks shorter quotas; optional metadata retains the original observed usage and reset for newer mobile clients.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Keep Grok token-history projections aligned with the producer time zone, requested reporting period, and partial-history metadata; sync observed model names even when token usage has no known cost.</li>
+<li>Keep partial cost scans marked as lower bounds on legacy and current mobile payloads; invalidate semantic parser caches while retaining compatible published cache predecessors.</li>
+<li>Exclude Claude live-only reset inventory from persistent mobile detail rows to prevent stale redemption availability after cache restore.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.70.0.1-mobile.2.4.0/CodexBar-0.70.0.1-mobile.2.4.0.zip" length="80734318" type="application/octet-stream" sparkle:edSignature="6l+0bjK+WC0obsH1p/6nzIb1dt6wvxGPEAVcpDDDORL27E7j7VOuigWA4sUYTNBtd6ShKDjrQBz1ZjQmgI6lBg=="/>
+        </item>
+        <item>
             <title>0.68.0.1</title>
             <pubDate>Wed, 30 Sep 2026 00:13:38 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -60,36 +97,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.66.0.1-mobile.2.1.0/CodexBar-0.66.0.1-mobile.2.1.0.zip" length="82467812" type="application/octet-stream" sparkle:edSignature="vy/xSRNHazaMpyVPRwBNNmA93XwH1toEXs7pY1YndaEuOgTmGt4+Ng9RiSE3SLpchAI3+18b+3KhuEaDNYjbBg=="/>
-        </item>
-        <item>
-            <title>0.58.0.1</title>
-            <pubDate>Thu, 10 Sep 2026 14:35:10 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>141.1.1.23.0</sparkle:version>
-            <sparkle:shortVersionString>0.58.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.58.0.1-Mobile 1.23.0</h2>
-<h3>Added</h3>
-<ul>
-<li>Daily activity: inspect requests, tokens, and spending by day on Mac, with the selected time zone and clear unavailable values. iPhone receives daily request counts in the current Mac sync window.</li>
-<li>Mac menus: choose visible usage rows, session or weekly percentages, explicit reset clocks/countdowns, and compact account reset labels; hover daily cost bars for details.</li>
-<li>Mobile sync: send purchased Codex credit balances and monthly limits with their own observation times, preserving confirmed zero balances and freshness across Macs that provide observation timestamps.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>One upstream train: include every upstream release from v0.56.1 through v0.58.0 in Mac 0.58.0.1 (Sparkle 141.1.1.23.0). The accompanying iOS candidate is 1.24.0 (198).</li>
-<li>Cost history: retain upstream faster parsing, incremental catch-up, cross-launch report reuse, safe token aggregation, and model-pricing fixes while preserving fork estimate provenance and compatible stored history.</li>
-<li>Updates: include Sparkle 2.9.6 archive and package-signature hardening.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Provider data: include Codex account/reset/permission fixes, Claude credential and timestamp corrections, host-scoped Copilot Enterprise identities, Antigravity raw quota/history fixes, Kiro regional overage handling, and the remaining upstream provider improvements.</li>
-<li>iPhone balances: correctly parse Moonshot RMB/grouped/zero/negative amounts; display credits as units and preserve Ollama monthly-credit labels.</li>
-<li>Reliability: preserve cancelled-login child-process cleanup, very large timeout safety, unknown costs/counts, source time zones, Production CloudKit, fork CI, versioning, signing, and download identity.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.58.0.1-mobile.1.23.0/CodexBar-0.58.0.1-mobile.1.23.0.zip" length="76821031" type="application/octet-stream" sparkle:edSignature="StLtGfBDFs1h3XX01GNzg+TTg0uq4fwLrjIWGMmdRFcwLkrs0fvibFsX7xIRYlQnV3xcbX5Kv9DWLSTiVXJZAw=="/>
         </item>
         <item>
             <title>0.14.0</title>
