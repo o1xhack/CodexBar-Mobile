@@ -400,7 +400,10 @@ struct UsageCardOrderingTests {
     func `stable identities outrank shared record slots`() {
         #expect(UsageAccountIdentity.score(
             account: ["c:email:a", "c:record:1"],
-            anchor: ["c:email:a"]) == 100)
+            anchor: ["c:email:a"]) == 110)
+        #expect(UsageAccountIdentity.score(
+            account: ["c:account:x", "c:record:1"],
+            anchor: ["c:account:x", "c:record:1"]) == 101)
         #expect(UsageAccountIdentity.score(
             account: ["c:email:a", "c:record:1"],
             anchor: ["c:email:b", "c:record:1"]) == 0)
