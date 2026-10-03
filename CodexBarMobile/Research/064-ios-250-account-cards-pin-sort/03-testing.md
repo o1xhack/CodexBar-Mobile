@@ -116,8 +116,17 @@
 
 修复内容包括：账号卡片的撤销合并只作用于自身；weekly 排序改用独立时钟；锚点改为全局匹配和分权重打分；合并记录驱动的锚点并入（只认生效的合并）；“More Actions”改用独立 key；iPad 侧栏行支持长按置顶；收起时只上提可见账号的置顶。
 
+## PR 与合并
+
+- PR #172 两轮 Codex 审查：
+  - 第 1 轮：1 条 P2，选中的卡片在刷新、账号消失或锚点并入后变成空白详情页。修复方式是监听卡片集合的变化，并抽出 `UsageCardSelection.resolve`，加上单测。
+  - 第 2 轮：在 `fb32df66f` 上没有意见。
+- `Scripts/check_pr_review_gate.sh 172` 通过：rounds=2，unresolved=0。PR Fast Checks 通过。
+- 在最终提交 `fb32df66f` 上跑全量：Swift Testing 925 项，XCTest 单元 55 项，UI 23 项（6 项条件跳过），0 失败。2 个 iPad 布局测试在 iPad 上补跑后通过。
+- 2026-10-03 合并进 `mobile-dev`，merge commit 是 `1ebd058e1`。Todoist 任务已移到 QA。
+
 ## 未做 / 后续
 
-- 没有推送、没有开 PR、没有上传 TestFlight（目标文件里不包含这些）。
+- 还没有上传 TestFlight，也没有提交审核。
 - 发布前要核对 App Store Connect 上 2.4.0 是否已正式上架。如果没有，按惯例把 2.4.0 的应用内更新说明并入 2.5.0。
 - 用户有多个真实账号时，最好在真机上再验证一次多账号展开（例如 issue #154 的提交者场景）。
