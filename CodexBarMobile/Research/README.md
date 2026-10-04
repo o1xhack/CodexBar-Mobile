@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 066 | 设置页“联系”和“我的更多 App”（开发者一栏加邮件联系和作品列表，跳转规则 App Store → 官网 → GitHub） | `done` | 2.5.0 (234)；UI 测试和模拟器验证 | [066-settings-contact-more-apps.md](066-settings-contact-more-apps.md) | 2026-10-04 |
 | 065 | Quota pace 数据来源与小组件可行性（配速改为 iOS 本地按 Mac 观测时间计算并覆盖所有 provider；新增额度消耗趋势小组件） | `done` | 2.5.0 (233) PR #174；234 改为独立“额度消耗趋势”小组件并从小组件库隐藏旧版（SiriKit 小组件的配置结构在添加时存死）；944 单测、23 UI（6 条件跳过）、iPad 补跑、渲染矩阵与真实 SpringBoard 验证；多 Mac 观测锚点为已知局限 | [065-quota-pace-source-and-widget.md](065-quota-pace-source-and-widget.md) | 2026-10-03 |
 | 064 | iOS 2.5.0 多账号独立卡片、Provider 三点菜单置顶与 Usage 排序（issue #154） | `done` | 2.5.0 (231) PR #172 两轮 Codex CR 后合并（1ebd058e1）；925+55 单测、23 UI（6 条件跳过，iPad 2 项补跑通过）；iPhone Air 真机真实数据验证；默认 A→Z（PR #173，3 轮 CR）；TestFlight 232 VALID（71e12b6fb），未提交审核 | [064-ios-250-account-cards-pin-sort/00-goal.md](064-ios-250-account-cards-pin-sort/00-goal.md) | 2026-10-03 |
 | 063 | Local History 显示权威性与真实多设备同步排查 | `done` | PR168/170 修复已 reviewed merge；Mac 1520 隔离回归、iOS 945 单元/27 聚焦/1 四语言 UI 通过；实体全矩阵边界保留 | [063-local-history-authority.md](063-local-history-authority.md) | 2026-10-02 |

@@ -560,6 +560,38 @@ final class CodexBarMobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsDeveloperContactAndMoreApps() {
+        let app = self.makeApp()
+        app.launch()
+        app.tabBars.buttons["Setting"].tap()
+        let contact = app.descendants(matching: .any)["settings-contact-email"].firstMatch
+        let moreApps = app.descendants(matching: .any)["settings-more-apps"].firstMatch
+        // More Apps sits below Contact; scroll until it clears the tab bar.
+        for _ in 0..<6 where !(moreApps.exists && moreApps.isHittable) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(contact.exists)
+        XCTAssertTrue(app.staticTexts["codexbar@yuxiaow.com"].exists)
+        XCTAssertTrue(moreApps.isHittable)
+        moreApps.tap()
+        XCTAssertTrue(app.navigationBars["More Apps"].waitForExistence(timeout: 5))
+        for id in ["coffee-it", "photo-status", "scrobble-bridge", "telegram-watch"] {
+            XCTAssertTrue(app.descendants(matching: .any)["more-apps-\(id)"].firstMatch.exists, id)
+        }
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Settings more apps"
+        shot.lifetime = .keepAlways
+        add(shot)
+        let lastPlugin = app.descendants(matching: .any)["more-apps-obsidian-sync-trakt"].firstMatch
+        for _ in 0..<4 where !(lastPlugin.exists && lastPlugin.isHittable) {
+            app.swipeUp()
+        }
+        for id in ["obsidian-chatting", "obsidian-daily-note-plus", "obsidian-sync-todoist", "obsidian-sync-trakt"] {
+            XCTAssertTrue(app.descendants(matching: .any)["more-apps-\(id)"].firstMatch.exists, id)
+        }
+    }
+
+    @MainActor
     func testTokenActivityOverviewScrollsAndSelectsDay() throws {
         let app = self.makeApp()
         // Preview snapshots are intentionally not persisted to the real ledger.

@@ -3223,7 +3223,7 @@ private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
 // MARK: - Setting Tab
 
 private struct SettingsTab: View {
-    private enum Destination: Hashable { case about, notes, usage, cost, widgets, developer }
+    private enum Destination: Hashable { case about, notes, usage, cost, widgets, developer, moreApps }
     @Environment(\.mobileAdaptiveLayout) private var layout
     @State private var selection: Destination?
     @State private var compactColumn: NavigationSplitViewColumn = .sidebar
@@ -3296,6 +3296,43 @@ private struct SettingsTab: View {
                             Image(systemName: "person.fill")
                         }
                     }
+
+                    Link(destination: Self.contactEmailURL) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Contact")
+                                    .fontWeight(.medium)
+                                Text(verbatim: Self.contactEmail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "envelope.fill")
+                        }
+                    }
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = Self.contactEmail
+                        } label: {
+                            Label("Copy Email Address", systemImage: "doc.on.doc")
+                        }
+                    }
+                    .accessibilityIdentifier("settings-contact-email")
+
+                    NavigationLink(value: Destination.moreApps) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("More Apps")
+                                    .fontWeight(.medium)
+                                Text("Apps and projects I've built")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "square.stack.3d.up.fill")
+                        }
+                    }
+                    .accessibilityIdentifier("settings-more-apps")
                 }
 
                 Section("Developer") {
@@ -3371,6 +3408,7 @@ private struct SettingsTab: View {
                 case .cost: CostSettingsView(usageData: self.usageData)
                 case .widgets: WidgetSettingsView(usageData: self.usageData)
                 case .developer: DeveloperToolsView(usageData: self.usageData)
+                case .moreApps: MoreAppsView()
                 case nil: EmptyView()
                 }
             }
@@ -3378,6 +3416,9 @@ private struct SettingsTab: View {
         .navigationSplitViewStyle(.balanced)
         .environment(\.horizontalSizeClass, self.layout.usesListDetail ? .regular : .compact)
     }
+
+    private static let contactEmail = "codexbar@yuxiaow.com"
+    private static let contactEmailURL = URL(string: "mailto:codexbar@yuxiaow.com")!
 
     private var mobileVersionSummary: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -4918,6 +4959,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Quota pace now covers Claude and other providers with daily, weekly, or monthly limits, calculated on your iPhone from the latest Mac data."),
                     String(
                         localized: "Add the new Quota pace widget to see remaining quota, pace, and the usage trend at a glance."),
+                    String(
+                        localized: "Contact the developer or browse more apps from Settings."),
                 ]),
             ]),
         ReleaseNotesVersion(
