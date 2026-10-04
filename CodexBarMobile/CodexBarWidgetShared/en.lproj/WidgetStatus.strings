@@ -26,3 +26,7 @@
 "CBPaceDescription" = "See whether a provider's quota lasts until it resets.";
 "CBPacecolorStyle" = "Color Style";
 "CBPaceprovider" = "Provider";
+
+/* Build 233 status widgets keep their schema; keep these labels translated. */
+"CBStatusStatusWidgetModequotaPace" = "Quota pace";
+"CBStatuspaceProvider" = "Provider";

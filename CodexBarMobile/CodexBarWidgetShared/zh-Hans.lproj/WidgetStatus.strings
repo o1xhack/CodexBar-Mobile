@@ -26,3 +26,7 @@
 "CBPaceDescription" = "查看服务商的额度能否撑到重置。";
 "CBPacecolorStyle" = "颜色样式";
 "CBPaceprovider" = "服务商";
+
+/* Build 233 status widgets keep their schema; keep these labels translated. */
+"CBStatusStatusWidgetModequotaPace" = "额度消耗趋势";
+"CBStatuspaceProvider" = "服务商";

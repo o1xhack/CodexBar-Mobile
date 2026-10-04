@@ -218,7 +218,7 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 
 **实现**：
 - `WidgetStatus.intentdefinition`：`StatusWidgetMode` 去掉 `quotaPace`，`SelectStatusWidget` 去掉 `paceProvider`（参数 tag 不复用）。新增意图 `SelectQuotaPaceWidget`，只有“颜色样式”和“服务商”两个参数；服务商选项和主小组件一样，由 `CodexBarMobileWidgetOptions` 的 `IntentHandler` 动态提供，`Info.plist` 的 `IntentsSupported` 也加上了这个意图。
-- 新小组件 `CodexBarQuotaPaceWidget`（kind `CodexBarQuotaPaceWidget`），四个尺寸，渲染沿用原来的 `quotaPace` 视图。在 233 上添加的 CodexBar 小组件，因为配置结构已经存死，编辑面板里仍会列出“额度消耗趋势”类型和“服务商”参数（服务商没有选项，类型名在中日文下显示英文）。选了也只回退成概览（枚举原始值 5）。只有 TestFlight 用户会遇到，处理办法是移除后重新添加；本地审查讨论过手写 ObjC 方法兼容这个旧参数，为一个 TestFlight 版本不值得，没有做。
+- 新小组件 `CodexBarQuotaPaceWidget`（kind `CodexBarQuotaPaceWidget`），四个尺寸，渲染沿用原来的 `quotaPace` 视图。在 233 上添加的 CodexBar 小组件，因为配置结构已经存死，编辑面板里仍会列出“额度消耗趋势”类型和“服务商”参数（服务商没有选项；这两个旧文案 key 保留了四语言翻译，Codex 审查要求）。选了也只回退成概览（枚举原始值 5）。只有 TestFlight 用户会遇到，处理办法是移除后重新添加；本地审查讨论过手写 ObjC 方法兼容这个旧参数，为一个 TestFlight 版本不值得，没有做。
 - 旧版小组件（kind `CodexBarStatusWidget`）加上 `.disfavoredLocations`，覆盖主屏、锁屏、待机、Mac 上的 iPhone 小组件，iOS 26 起还有 CarPlay。在模拟器上验证过：小组件库里 CodexBar 从 9 页变成 6 页，已经放在主屏上的旧版小组件仍然显示“重新添加此小组件”的提示。
 - 版本 2.5.0 (234)，CHANGELOG 已更新。App 内更新说明本来写的就是“添加新的额度消耗趋势小组件”，不用改。
 - **验收**（模拟器 iPhone 18 Pro，iOS 27，build 234）：小组件库里 CodexBar 依次是 Token 活动（小、中）、Token 活动对比（大）、CodexBar 小组件（小、中、大）、额度消耗趋势（小、中、大），旧版不再出现。添加中尺寸“额度消耗趋势”后，自动选了 Claude；编辑面板只有“颜色样式”和“服务商”，改选 Codex 后正常渲染。新添加的 CodexBar 小组件类型只有 4 项。覆盖安装后，编辑面板的参数名会暂时显示英文，重启后恢复中文，这是系统的本地化缓存（升级 232→233 时主小组件也出现过）。截图：`springboard-upgrade-232-keeps-four-types.jpg`、`springboard-pace-widget-config.jpg`、`springboard-pace-widget-medium.jpg`、`springboard-status-widget-four-types.jpg`。

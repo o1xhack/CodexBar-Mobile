@@ -26,3 +26,7 @@
 "CBPaceDescription" = "プロバイダーのクォータがリセットまで持つかを確認します。";
 "CBPacecolorStyle" = "配色";
 "CBPaceprovider" = "プロバイダー";
+
+/* Build 233 status widgets keep their schema; keep these labels translated. */
+"CBStatusStatusWidgetModequotaPace" = "クォータ消費の推移";
+"CBStatuspaceProvider" = "プロバイダー";
