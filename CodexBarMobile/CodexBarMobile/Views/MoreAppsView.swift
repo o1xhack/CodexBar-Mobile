@@ -32,6 +32,7 @@ struct MoreAppsView: View {
                             Image(systemName: "arrow.up.right")
                                 .font(.caption)
                                 .foregroundStyle(Color(.tertiaryLabel))
+                                .accessibilityHidden(true)
                         }
                     }
                     .accessibilityIdentifier("more-apps-\(item.id)")
@@ -52,6 +53,13 @@ struct MoreAppsView: View {
 }
 
 struct MoreAppItem: Identifiable {
+    enum Icon {
+        /// The project's own app icon, bundled in the asset catalog.
+        case asset(String)
+        /// A neutral symbol for projects without an app icon of their own.
+        case symbol(String, Color)
+    }
+
     enum Destination {
         case appStore
         case website
@@ -69,7 +77,7 @@ struct MoreAppItem: Identifiable {
     let id: String
     let name: String
     let summary: LocalizedStringResource?
-    let iconAsset: String?
+    let icon: Icon?
     let destination: Destination
     let url: URL
 
@@ -78,28 +86,28 @@ struct MoreAppItem: Identifiable {
             id: "coffee-it",
             name: "Coffee It",
             summary: "Track your daily caffeine with 200+ coffee options and Apple Health.",
-            iconAsset: "MoreAppCoffeeIt",
+            icon: .asset("MoreAppCoffeeIt"),
             destination: .appStore,
             url: URL(string: "https://apps.apple.com/app/id1216049514")!),
         MoreAppItem(
             id: "photo-status",
             name: "Photo Status",
             summary: "See which iCloud Photos originals are missing from your device and download them.",
-            iconAsset: "MoreAppPhotoStatus",
+            icon: .asset("MoreAppPhotoStatus"),
             destination: .appStore,
             url: URL(string: "https://apps.apple.com/app/id6784043470")!),
         MoreAppItem(
             id: "scrobble-bridge",
             name: "Scrobble Bridge",
             summary: "Sync your YouTube Music listening history to Last.fm with a local-first Mac app.",
-            iconAsset: "MoreAppScrobbleBridge",
+            icon: .asset("MoreAppScrobbleBridge"),
             destination: .website,
             url: URL(string: "https://scrobble-bridge.o1xhack.com")!),
         MoreAppItem(
             id: "telegram-watch",
             name: "Telegram Watch",
             summary: "An open-source, self-hosted Telegram monitor that sends periodic reports.",
-            iconAsset: "MoreAppTelegramWatch",
+            icon: .symbol("paperplane.fill", Color(red: 0.13, green: 0.6, blue: 0.88)),
             destination: .github,
             url: URL(string: "https://github.com/o1xhack/telegram-watch")!),
     ]
@@ -116,7 +124,7 @@ struct MoreAppItem: Identifiable {
             id: id,
             name: name,
             summary: nil,
-            iconAsset: nil,
+            icon: nil,
             destination: .website,
             url: URL(string: "https://community.obsidian.md/plugins/\(slug)")!)
     }
@@ -127,17 +135,8 @@ private struct MoreAppRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let iconAsset = self.item.iconAsset {
-                Image(iconAsset)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(.quaternary, lineWidth: 0.5)
-                    }
-                    .accessibilityHidden(true)
+            if let icon = self.item.icon {
+                MoreAppIcon(icon: icon)
             }
 
             VStack(alignment: .leading, spacing: 3) {
@@ -158,11 +157,44 @@ private struct MoreAppRow: View {
             HStack(spacing: 3) {
                 Text(self.item.destination.title)
                 Image(systemName: "arrow.up.right")
+                    .accessibilityHidden(true)
             }
             .font(.caption)
             .foregroundStyle(.tint)
+            .lineLimit(1)
+            .fixedSize()
+            .layoutPriority(1)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+}
+
+private struct MoreAppIcon: View {
+    let icon: MoreAppItem.Icon
+
+    private let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+
+    var body: some View {
+        Group {
+            switch self.icon {
+            case let .asset(name):
+                Image(name)
+                    .resizable()
+                    .scaledToFill()
+            case let .symbol(name, color):
+                Image(systemName: name)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(color.gradient)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .clipShape(self.shape)
+        .overlay {
+            self.shape.strokeBorder(Color(.separator), lineWidth: 0.5)
+        }
+        .accessibilityHidden(true)
     }
 }

@@ -3329,7 +3329,7 @@ private struct SettingsTab: View {
                                     .foregroundStyle(.secondary)
                             }
                         } icon: {
-                            Image(systemName: "square.grid.2x2.fill")
+                            Image(systemName: "square.stack.3d.up.fill")
                         }
                     }
                     .accessibilityIdentifier("settings-more-apps")

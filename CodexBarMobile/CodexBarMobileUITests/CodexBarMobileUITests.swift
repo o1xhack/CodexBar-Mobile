@@ -565,13 +565,13 @@ final class CodexBarMobileUITests: XCTestCase {
         app.launch()
         app.tabBars.buttons["Setting"].tap()
         let contact = app.descendants(matching: .any)["settings-contact-email"].firstMatch
-        for _ in 0..<6 where !(contact.exists && contact.isHittable) {
+        let moreApps = app.descendants(matching: .any)["settings-more-apps"].firstMatch
+        // More Apps sits below Contact; scroll until it clears the tab bar.
+        for _ in 0..<6 where !(moreApps.exists && moreApps.isHittable) {
             app.swipeUp()
         }
         XCTAssertTrue(contact.exists)
         XCTAssertTrue(app.staticTexts["codexbar@yuxiaow.com"].exists)
-
-        let moreApps = app.descendants(matching: .any)["settings-more-apps"].firstMatch
         XCTAssertTrue(moreApps.isHittable)
         moreApps.tap()
         XCTAssertTrue(app.navigationBars["More Apps"].waitForExistence(timeout: 5))
