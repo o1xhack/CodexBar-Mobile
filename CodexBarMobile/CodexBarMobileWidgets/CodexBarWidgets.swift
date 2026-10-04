@@ -8,6 +8,7 @@ struct CodexBarWidgetsBundle: WidgetBundle {
         CodexBarTokenActivitySingleWidget()
         CodexBarTokenActivityComparisonWidget()
         CodexBarStatusWidget()
+        CodexBarQuotaPaceWidget()
         CodexBarLegacyStatusWidget()
     }
 }
@@ -64,6 +65,11 @@ struct CodexBarLegacyStatusWidget: Widget {
         .configurationDisplayName("CodexBar Widget (Legacy)")
         .description("View synced provider usage, cost, and sync health.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+        // Kept only so widgets placed before 2.4.0 explain how to re-add
+        // themselves; hidden from the gallery so it is never picked anew.
+        .disfavoredLocations(
+            [.homeScreen, .lockScreen, .standBy, .iPhoneWidgetsOnMac],
+            for: [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
         .contentMarginsDisabled()
     }
 }
@@ -79,6 +85,22 @@ struct CodexBarStatusWidget: Widget {
         }
         .configurationDisplayName("CodexBar Widget")
         .description("View synced provider usage, cost, and sync health.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
+    }
+}
+
+struct CodexBarQuotaPaceWidget: Widget {
+    var body: some WidgetConfiguration {
+        IntentConfiguration(
+            kind: "CodexBarQuotaPaceWidget",
+            intent: SelectQuotaPaceWidgetIntent.self,
+            provider: QuotaPaceTimelineProvider())
+        { entry in
+            CodexBarWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Quota pace")
+        .description("See whether a provider's quota lasts until it resets.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
         .contentMarginsDisabled()
     }

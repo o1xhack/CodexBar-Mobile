@@ -29,6 +29,7 @@
 			<key>IntentsSupported</key>
 			<array>
 				<string>SelectStatusWidgetIntent</string>
+				<string>SelectQuotaPaceWidgetIntent</string>
 			</array>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>

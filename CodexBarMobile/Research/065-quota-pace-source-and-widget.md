@@ -1,6 +1,6 @@
 # 065 — Quota pace 数据来源与小组件可行性
 
-状态：done（已实现并验证，见第 5–7 节；PR #174 于 2026-10-03 合并到 `mobile-dev`，merge commit `4652e3cc5`，Final CI 通过；TestFlight 2.5.0 (233) 已上传）
+状态：done（已实现并验证，见第 5–7 节；PR #174 于 2026-10-03 合并到 `mobile-dev`，merge commit `4652e3cc5`，Final CI 通过；TestFlight 2.5.0 (233) 已上传；233 真机反馈后改成独立小组件，见第 8 节）
 日期：2026-10-03
 相关：iOS 2.4.0 新增的 Quota pace（配额走势图）和 Codex 配速条；Research/064（2.5.0）
 
@@ -203,3 +203,22 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 **已知局限**：多台 Mac 合并时，Kimi 的额度窗口、Claude 从较旧 Mac 补进来的窗口，和 `lastUpdated` 可能不是同一台 Mac 的观测。误差约为两台 Mac 的同步时间差除以窗口时长（差 1 小时，周窗口约 0.6 个百分点）。Codex 不在这类合并逻辑里，不受影响。2.4 版的走势图用的也是同一个锚点。要彻底解决，需要在共享的同步数据里给每个窗口带上观测时间，这要改 `Shared/`，所以留到以后 Mac 和 iOS 一起发版时再做。
 
 **已知局限 2（Codex 第 5 轮后的架构审视）**：Mac 是根据 `UsageSnapshot` 的原生槽位（primary/secondary/tertiary）和 `ProviderPaceCapability` 来选 pace 窗口的。同步数据里这两样都没有：`rateWindows` 不标记哪个是原生槽位、哪个是附加窗口，也不带每个服务商的 pace 规则。所以 iOS 只能靠 id、位置和服务商 id 去推断。这些规则现在都集中在 `QuotaPace.window(for:)` 和 `duration(of:providerID:capturedAt:)` 两处，每条服务商规则都有一个单测对应：Codex Spark / Claude 模型分项不算原生槽位，各服务商的自然月规则，Grok 不带时长的周额度池，没给时长的窗口按声明的 `period` 推算（Raycast 月度额度、没有开始时间的 Aixy 预算；Mac 端这两个服务商不显示 pace，iOS 按“全部本地算”的决定照样算），OpenCodeGo 的估算用量不算，Kimi 只有附加窗口时不出 pace，Aixy 原生槽位用自定义 id 时按位置识别。Mac 新增带自定义 id 的原生槽位或新的时长规则时，iOS 要跟着补。根本的解决办法是让 Mac 在同步数据里给每个窗口标出槽位类型（`native`/`extra`）和算好的 pace 时长，这同样要改 `Shared/`，所以和上面一样，留到 Mac 和 iOS 一起发版时再做。
+
+## 8. 233 真机反馈后的调整（build 234）
+
+**问题**：233 装到真机后，之前已经放在主屏上的 CodexBar 小组件（新版，不是旧版），在“编辑小组件”里看不到“额度消耗趋势”。
+
+**模拟器复现**（iPhone 18 Pro，iOS 27）：装 232，添加 CodexBar 小组件，确认类型列表只有 4 项；覆盖安装 233，类型列表仍然是 4 项。重启模拟器、改一次颜色样式并保存，也还是 4 项。在 233 上新添加的小组件能看到新类型。反过来，用 233 开发版添加的小组件，装回 232 再重启，类型列表里仍然有 “Quota pace”。233 安装包里三个 bundle 的 `WidgetStatus.intentdefinition` 都已经包含 `quotaPace`。
+
+**结论**：SiriKit `IntentConfiguration` 的小组件在添加的那一刻，就把当时的配置结构（枚举值和参数）存进这个小组件，之后不跟着 App 更新。所以给已有的小组件加新类型或新参数，老小组件都看不到，用户只能移除后重新添加。这个限制对以后所有 SiriKit 小组件的改动都适用。
+
+**用户决定**：
+1. “额度消耗趋势”拆成独立小组件，不再作为 CodexBar 小组件的一个类型。
+2. 旧版小组件从小组件库隐藏。
+
+**实现**：
+- `WidgetStatus.intentdefinition`：`StatusWidgetMode` 去掉 `quotaPace`，`SelectStatusWidget` 去掉 `paceProvider`（参数 tag 不复用）。新增意图 `SelectQuotaPaceWidget`，只有“颜色样式”和“服务商”两个参数；服务商选项和主小组件一样，由 `CodexBarMobileWidgetOptions` 的 `IntentHandler` 动态提供，`Info.plist` 的 `IntentsSupported` 也加上了这个意图。
+- 新小组件 `CodexBarQuotaPaceWidget`（kind `CodexBarQuotaPaceWidget`），四个尺寸，渲染沿用原来的 `quotaPace` 视图。在 233 上被设成配速类型的 CodexBar 小组件（枚举原始值 5）回退成概览，只有 TestFlight 用户会遇到。
+- 旧版小组件（kind `CodexBarStatusWidget`）加上 `.disfavoredLocations`，覆盖主屏、锁屏、待机和 Mac 上的 iPhone 小组件。在模拟器上验证过：小组件库里 CodexBar 从 9 页变成 6 页，已经放在主屏上的旧版小组件仍然显示“重新添加此小组件”的提示。
+- 版本 2.5.0 (234)，CHANGELOG 已更新。App 内更新说明本来写的就是“添加新的额度消耗趋势小组件”，不用改。
+- **验收**（模拟器 iPhone 18 Pro，iOS 27，build 234）：小组件库里 CodexBar 依次是 Token 活动（小、中）、Token 活动对比（大）、CodexBar 小组件（小、中、大）、额度消耗趋势（小、中、大），旧版不再出现。添加中尺寸“额度消耗趋势”后，自动选了 Claude；编辑面板只有“颜色样式”和“服务商”，改选 Codex 后正常渲染。新添加的 CodexBar 小组件类型只有 4 项。覆盖安装后，编辑面板的参数名会暂时显示英文，重启后恢复中文，这是系统的本地化缓存（升级 232→233 时主小组件也出现过）。截图：`springboard-upgrade-232-keeps-four-types.jpg`、`springboard-pace-widget-config.jpg`、`springboard-pace-widget-medium.jpg`、`springboard-status-widget-four-types.jpg`。

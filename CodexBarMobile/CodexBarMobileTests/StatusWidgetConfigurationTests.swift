@@ -3,13 +3,12 @@ import Testing
 @testable import CodexBarMobile
 
 struct StatusWidgetConfigurationTests {
-    @Test func `All five modes and both styles map to the existing renderer`() {
+    @Test func `All four modes and both styles map to the existing renderer`() {
         let modes: [(StatusWidgetMode, CodexBarWidgetMode)] = [
             (.overview, .overview),
             (.providerFocus, .providerFocus),
             (.todayCost, .todayCost),
             (.syncHealth, .syncHealth),
-            (.quotaPace, .quotaPace),
         ]
         for (input, expected) in modes {
             for style in [StatusWidgetColorStyle.mono, .colorful] {
@@ -23,20 +22,31 @@ struct StatusWidgetConfigurationTests {
         }
     }
 
-    @Test func `Quota pace reads only its own provider parameter`() {
+    @Test func `The quota pace widget reads its own provider and color style`() {
+        let intent = SelectQuotaPaceWidgetIntent()
+        intent.colorStyle = .colorful
+        intent.provider = StatusWidgetProvider(identifier: "claude", display: "Claude")
+        let result = StatusWidgetConfigurationAdapter.configuration(from: intent)
+        #expect(result.mode == .quotaPace)
+        #expect(result.colorStyle == .colorful)
+        #expect(result.providers?.map(\.id) == ["claude"])
+
+        // Unset or "Not selected" picks a provider automatically.
+        let automatic = SelectQuotaPaceWidgetIntent()
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: automatic).providers?.isEmpty == true)
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: automatic).colorStyle == .mono)
+        automatic.provider = StatusWidgetProvider(
+            identifier: StatusWidgetProviderChoice.emptyIdentifier,
+            display: "Not selected")
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: automatic).providers?.isEmpty == true)
+    }
+
+    @Test func `A status widget never renders quota pace`() {
+        // Build 233 offered quota pace as status widget mode 5; such widgets
+        // fall back to the overview now that quota pace is its own widget.
         let intent = SelectStatusWidgetIntent()
-        intent.mode = .quotaPace
-        intent.provider1 = StatusWidgetProvider(identifier: "codex", display: "Codex")
-        intent.paceProvider = StatusWidgetProvider(identifier: "claude", display: "Claude")
-        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.map(\.id) == ["claude"])
-
-        intent.paceProvider = nil
-        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.isEmpty == true)
-
-        // Overview keeps ignoring the pace parameter.
-        intent.mode = .overview
-        intent.paceProvider = StatusWidgetProvider(identifier: "claude", display: "Claude")
-        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.map(\.id) == ["codex"])
+        intent.mode = StatusWidgetMode(rawValue: 5) ?? .unknown
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).mode == .overview)
     }
 
     @Test func `Unknown enum values preserve automatic defaults`() {

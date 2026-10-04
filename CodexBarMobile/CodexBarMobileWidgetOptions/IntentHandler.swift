@@ -1,6 +1,6 @@
 import Intents
 
-final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling {
+final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, SelectQuotaPaceWidgetIntentHandling {
     override func handler(for intent: INIntent) -> Any { self }
 
     func defaultProvider1(for intent: SelectStatusWidgetIntent) -> StatusWidgetProvider? {
@@ -19,7 +19,7 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling {
         self.emptyChoice()
     }
 
-    func defaultPaceProvider(for intent: SelectStatusWidgetIntent) -> StatusWidgetProvider? {
+    func defaultProvider(for intent: SelectQuotaPaceWidgetIntent) -> StatusWidgetProvider? {
         self.emptyChoice()
     }
 
@@ -51,8 +51,8 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling {
         self.provideOptions(with: completion)
     }
 
-    func providePaceProviderOptionsCollection(
-        for intent: SelectStatusWidgetIntent,
+    func provideProviderOptionsCollection(
+        for intent: SelectQuotaPaceWidgetIntent,
         with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
     {
         self.provideOptions(with: completion)
