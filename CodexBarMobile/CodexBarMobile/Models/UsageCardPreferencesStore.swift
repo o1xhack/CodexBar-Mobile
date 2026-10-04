@@ -8,6 +8,8 @@ import Foundation
 @MainActor
 final class UsageCardPreferencesStore: ObservableObject {
     static let defaultsKey = "usageCardPreferences.v1"
+    /// Same key as `ContentView`'s release-notes `@AppStorage` marker.
+    static let releaseNotesSeenKey = "releaseNotesSeenVersion"
 
     @Published private(set) var preferences: UsageCardPreferences
 
@@ -16,6 +18,33 @@ final class UsageCardPreferencesStore: ObservableObject {
     init(defaults: UserDefaults?) {
         self.defaults = defaults
         self.preferences = Self.load(from: defaults)
+        self.persistSchemaMigrationIfNeeded()
+    }
+
+    /// Writes migrated older-schema data back once, so the migration runs a
+    /// single time. When it moved a build 231 manual order to the name A to Z
+    /// default, the release-notes marker is cleared: 231 and 232 share version
+    /// 2.5.0, and those testers must see the note about the new default.
+    private func persistSchemaMigrationIfNeeded() {
+        guard let defaults = self.defaults,
+              let data = defaults.data(forKey: Self.defaultsKey),
+              let stored = try? JSONDecoder().decode(MigrationProbe.self, from: data),
+              (stored.schemaVersion ?? 1) < UsageCardPreferences.currentSchemaVersion,
+              // Only a complete decode of the old payload may replace it; a
+              // malformed one fell back to defaults and must stay untouched.
+              let migrated = try? JSONDecoder().decode(UsageCardPreferences.self, from: data),
+              migrated == self.preferences,
+              let encoded = try? JSONEncoder().encode(migrated)
+        else { return }
+        defaults.set(encoded, forKey: Self.defaultsKey)
+        if stored.usesDefaultSort == false, self.preferences.usesDefaultSort {
+            defaults.removeObject(forKey: Self.releaseNotesSeenKey)
+        }
+    }
+
+    private struct MigrationProbe: Decodable {
+        let schemaVersion: Int?
+        let usesDefaultSort: Bool?
     }
 
     static func live() -> UsageCardPreferencesStore {

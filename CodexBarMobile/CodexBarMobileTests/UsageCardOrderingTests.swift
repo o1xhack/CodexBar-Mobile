@@ -65,10 +65,22 @@ struct UsageCardOrderingTests {
     // MARK: Default rules
 
     @Test
-    func `upgrade default keeps the Mac source order`() {
-        let result = UsageCardOrdering.arrange(Self.sample, preferences: UsageCardPreferences())
+    func `upgrade default sorts by name A to Z`() {
+        let preferences = UsageCardPreferences()
+        #expect(preferences.usesDefaultSort)
+        #expect(preferences.defaultSortRule == .alphabeticalAscending)
+        let result = UsageCardOrdering.arrange(Self.sample, preferences: preferences)
         #expect(result.pinned.isEmpty)
-        #expect(result.others == Self.sample.map(\.key))
+        #expect(result.others == [
+            "provider:antigravity", "provider:claude", "provider:codex", "provider:openrouter", "provider:zai",
+        ])
+    }
+
+    @Test
+    func `manual mode without a stored order keeps the Mac source order`() {
+        var preferences = UsageCardPreferences()
+        preferences.usesDefaultSort = false
+        #expect(UsageCardOrdering.arrange(Self.sample, preferences: preferences).others == Self.sample.map(\.key))
     }
 
     @Test
@@ -147,6 +159,7 @@ struct UsageCardOrderingTests {
     @Test
     func `manual order places unseen cards after ordered ones in source order`() {
         var preferences = UsageCardPreferences()
+        preferences.usesDefaultSort = false
         preferences.manualOrder = ["provider:zai", "provider:claude", "provider:gone"]
         let result = UsageCardOrdering.arrange(Self.sample, preferences: preferences)
         #expect(result.others == [
@@ -157,6 +170,7 @@ struct UsageCardOrderingTests {
     @Test
     func `pinning in manual mode moves the card to the top and unpinning to the top of the rest`() {
         var preferences = UsageCardPreferences()
+        preferences.usesDefaultSort = false
         let displayed = Self.sample.map(\.key)
         preferences.setPinned(true, cardKey: "provider:openrouter", displayedOrder: displayed)
         preferences.setPinned(
@@ -589,8 +603,8 @@ struct UsageCardOrderingTests {
         ].groupedByProvider()
         store.setExpanded(true, group: groups[0])
         store.setPinned(true, cardKey: "account:codex|r2", displayedOrder: ["account:codex|r1", "account:codex|r2"])
-        store.setUsesDefaultSort(true, displayedOrder: [])
         store.setDefaultSortRule(.weeklyReset)
+        store.setUsesDefaultSort(false, displayedOrder: ["account:codex|r2", "account:codex|r1"])
 
         let reloaded = UsageCardPreferencesStore(defaults: defaults).preferences
         #expect(reloaded == store.preferences)
@@ -598,13 +612,15 @@ struct UsageCardOrderingTests {
         #expect(reloaded.accountAnchors.map(\.id) == ["codex|r1", "codex|r2"])
         #expect(reloaded.isPinned("account:codex|r2"))
         #expect(reloaded.defaultSortRule == .weeklyReset)
+        #expect(!reloaded.usesDefaultSort)
+        #expect(reloaded.manualOrder == ["account:codex|r2", "account:codex|r1"])
     }
 
     @Test @MainActor
     func `in memory demo store never touches user defaults`() {
         let store = UsageCardPreferencesStore.inMemory()
-        store.setUsesDefaultSort(true, displayedOrder: [])
-        #expect(store.preferences.usesDefaultSort)
+        store.setUsesDefaultSort(false, displayedOrder: [])
+        #expect(!store.preferences.usesDefaultSort)
         #expect(UsageCardPreferencesStore.inMemory().preferences == UsageCardPreferences())
     }
 
@@ -620,6 +636,100 @@ struct UsageCardOrderingTests {
         #expect(loaded.usesDefaultSort)
         #expect(loaded.defaultSortRule == .alphabeticalAscending)
         #expect(loaded.manualOrder.isEmpty)
+
+        // No stored sort mode: name A to Z. A manual mode stored by schema v2
+        // is the user's choice and is kept.
+        defaults.set(Data(#"{"schemaVersion":2}"#.utf8), forKey: UsageCardPreferencesStore.defaultsKey)
+        #expect(UsageCardPreferencesStore(defaults: defaults).preferences.usesDefaultSort)
+        defaults.set(
+            Data(#"{"schemaVersion":2,"usesDefaultSort":false}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        #expect(!UsageCardPreferencesStore(defaults: defaults).preferences.usesDefaultSort)
+    }
+
+    @Test @MainActor
+    func `build 231 data migrates to name A to Z and keeps pins and order`() {
+        let defaults = Self.makeDefaults()
+        let v1 = #"""
+        {"schemaVersion":1,"usesDefaultSort":false,"defaultSortRule":"weeklyReset",
+         "pinnedCardKeys":["provider:zai"],"manualOrder":["provider:zai","provider:codex"],
+         "expandedProviderIDs":["codex"]}
+        """#
+        defaults.set(Data(v1.utf8), forKey: UsageCardPreferencesStore.defaultsKey)
+        let store = UsageCardPreferencesStore(defaults: defaults)
+        #expect(store.preferences.schemaVersion == UsageCardPreferences.currentSchemaVersion)
+        #expect(store.preferences.usesDefaultSort)
+        #expect(store.preferences.defaultSortRule == .alphabeticalAscending)
+        #expect(store.preferences.isPinned("provider:zai"))
+        #expect(store.preferences.isExpanded("codex"))
+        #expect(store.preferences.manualOrder == ["provider:zai", "provider:codex"])
+
+        // A default rule a build 231 tester chose explicitly is kept.
+        let chosen = Self.makeDefaults()
+        chosen.set(
+            Data(#"{"schemaVersion":1,"usesDefaultSort":true,"defaultSortRule":"weeklyReset"}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        let kept = UsageCardPreferencesStore(defaults: chosen).preferences
+        #expect(kept.usesDefaultSort)
+        #expect(kept.defaultSortRule == .weeklyReset)
+
+        // The next write stores schema v2, so the user's later choices stick.
+        store.setUsesDefaultSort(false, displayedOrder: ["provider:codex", "provider:zai"])
+        let reloaded = UsageCardPreferencesStore(defaults: defaults).preferences
+        #expect(reloaded.schemaVersion == 2)
+        #expect(!reloaded.usesDefaultSort)
+    }
+
+    @Test @MainActor
+    func `migrating a build 231 manual order is persisted once and reshows the 2_5 notes`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        defaults.set(
+            Data(#"{"schemaVersion":1,"usesDefaultSort":false,"pinnedCardKeys":["provider:zai"]}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == nil)
+        let stored = UsageCardPreferencesStore.load(from: defaults)
+        #expect(stored.schemaVersion == 2)
+        #expect(stored.usesDefaultSort)
+        #expect(stored.isPinned("provider:zai"))
+
+        // Second launch: already v2, the marker set after viewing stays.
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
+    }
+
+    @Test @MainActor
+    func `a build 231 default rule migrates silently`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        defaults.set(
+            Data(#"{"schemaVersion":1,"usesDefaultSort":true,"defaultSortRule":"weeklyReset"}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
+        #expect(UsageCardPreferencesStore.load(from: defaults).schemaVersion == 2)
+        #expect(UsageCardPreferencesStore.load(from: defaults).defaultSortRule == .weeklyReset)
+
+        // No stored preferences at all (fresh install or 2.4 upgrade): untouched.
+        let fresh = Self.makeDefaults()
+        fresh.set("2.4.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        _ = UsageCardPreferencesStore(defaults: fresh)
+        #expect(fresh.data(forKey: UsageCardPreferencesStore.defaultsKey) == nil)
+        #expect(fresh.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.4.0")
+    }
+
+    @Test @MainActor
+    func `malformed build 231 data is neither migrated nor overwritten`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        let malformed = Data(#"{"schemaVersion":1,"usesDefaultSort":false,"pinnedCardKeys":"zai"}"#.utf8)
+        defaults.set(malformed, forKey: UsageCardPreferencesStore.defaultsKey)
+        let store = UsageCardPreferencesStore(defaults: defaults)
+        #expect(store.preferences == UsageCardPreferences())
+        #expect(defaults.data(forKey: UsageCardPreferencesStore.defaultsKey) == malformed)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
     }
 
     @Test @MainActor

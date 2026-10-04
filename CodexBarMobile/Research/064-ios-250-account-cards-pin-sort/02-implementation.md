@@ -25,8 +25,8 @@
 - `CodexBarMobileApp.swift`：`UI_TEST_RESET_DEFAULTS` 会同时清除卡片偏好；新增启动参数 `UI_TEST_MULTI_ACCOUNT_DATA`。
 - `Preview Content/PreviewData.swift`：新增 `multiAccountSnapshot`，在原有演示数据上额外加 2 个 Codex 账号和 1 个 Claude 账号。只在 UI 测试启动参数下使用，原演示数据不变。
 - `Localizable.xcstrings`：新增 27 条四语言文案（22 条界面文字和 5 条更新说明）。
-- `project.yml`：所有 target 的版本改为 2.5.0 (231)。
-- `CHANGELOG.md`：新增 2.5.0 (231) 条目。
+- `project.yml`：所有 target 的版本改为 2.5.0（TestFlight build 231；默认改为 A→Z 后为 232）。
+- `CHANGELOG.md`：新增 2.5.0 条目（现为 232）。
 
 ## 说明
 

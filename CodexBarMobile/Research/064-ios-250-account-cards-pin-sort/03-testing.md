@@ -22,7 +22,7 @@
 ### 单元测试覆盖
 
 - **排序纯函数**
-  - 升级后保持 Mac 原顺序
+  - 默认按名称 A→Z（build 232 起）；手动模式且没有存过顺序时，保持 Mac 原顺序；build 231 的 v1 数据迁移为 A→Z 默认
   - A→Z、Z→A 两栏各自排序
   - weekly reset 最近的在前，没有重置时间的排最后并按名称排
   - 名称相同时按账号副标题、再按来源顺序，保证稳定
@@ -71,7 +71,7 @@
   - 取消置顶、收起后，恢复成一张卡片
 - `testEditOrderDefaultRulesManualDragAndPersistence`：
   - 打开默认排序，依次验证 Z→A、A→Z、weekly reset
-  - 切到手动模式后拖动 Codex 到 Antigravity 上方，列表同步变化
+  - 首次打开时默认排序已开启、规则为 A→Z（build 232 起）；切到手动模式后把相邻的 AWS Bedrock 拖到 Antigravity 上方，列表同步变化（XCUITest 长距离拖动不稳定，改为相邻两行，手势没生效时重试一次；连跑 5 次全部通过）
   - 重启后仍是手动模式，顺序保持
 - `testSingleAccountProviderSettingsExplainWhyExpansionIsUnavailable`：只有一个账号时开关不可用，并有说明文字
 - `testCaptureOrganizationScreensOnCurrentDevice`：在 iPhone 和 iPad 上各截一套图（列表、服务设置、展开加置顶、编辑排序）
