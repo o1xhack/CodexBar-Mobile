@@ -721,6 +721,18 @@ struct UsageCardOrderingTests {
     }
 
     @Test @MainActor
+    func `malformed build 231 data is neither migrated nor overwritten`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        let malformed = Data(#"{"schemaVersion":1,"usesDefaultSort":false,"pinnedCardKeys":"zai"}"#.utf8)
+        defaults.set(malformed, forKey: UsageCardPreferencesStore.defaultsKey)
+        let store = UsageCardPreferencesStore(defaults: defaults)
+        #expect(store.preferences == UsageCardPreferences())
+        #expect(defaults.data(forKey: UsageCardPreferencesStore.defaultsKey) == malformed)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
+    }
+
+    @Test @MainActor
     func `a newer schema is ignored and never overwritten`() {
         let defaults = Self.makeDefaults()
         let future = Data(#"{"schemaVersion":99,"usesDefaultSort":true,"futureField":[1,2]}"#.utf8)

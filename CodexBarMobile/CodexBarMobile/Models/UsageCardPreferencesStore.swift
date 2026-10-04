@@ -30,8 +30,11 @@ final class UsageCardPreferencesStore: ObservableObject {
               let data = defaults.data(forKey: Self.defaultsKey),
               let stored = try? JSONDecoder().decode(MigrationProbe.self, from: data),
               (stored.schemaVersion ?? 1) < UsageCardPreferences.currentSchemaVersion,
-              self.preferences.schemaVersion == UsageCardPreferences.currentSchemaVersion,
-              let encoded = try? JSONEncoder().encode(self.preferences)
+              // Only a complete decode of the old payload may replace it; a
+              // malformed one fell back to defaults and must stay untouched.
+              let migrated = try? JSONDecoder().decode(UsageCardPreferences.self, from: data),
+              migrated == self.preferences,
+              let encoded = try? JSONEncoder().encode(migrated)
         else { return }
         defaults.set(encoded, forKey: Self.defaultsKey)
         if stored.usesDefaultSort == false, self.preferences.usesDefaultSort {
