@@ -69,8 +69,10 @@ struct QuotaPace: Equatable, Codable, Sendable {
     /// extra named windows after them. Native primary/secondary may keep a
     /// provider-defined id (Aixy budgets), so every window up to the last one
     /// with a standard slot id is native; extra windows after it (Codex Spark,
-    /// Claude model lanes) never carry the provider's pace. Payloads without
-    /// any standard slot id fall back to the legacy secondary/primary fields.
+    /// Claude model lanes) never carry the provider's pace. Payloads whose
+    /// windows carry ids but no standard one hold only extra windows (Kimi
+    /// with just its monthly/Code lanes) and have no pace; only id-less
+    /// payloads from older Macs fall back to the legacy secondary/primary.
     static func window(for provider: ProviderUsageSnapshot) -> SyncRateWindow? {
         let standard = ["secondary", "tertiary", "primary"]
         let windows = provider.rateWindows
@@ -80,8 +82,10 @@ struct QuotaPace: Equatable, Codable, Sendable {
             let bySlot = standard.compactMap { id in native.first { $0.id == id } }
             let customIDs = native.filter { $0.id.map(standard.contains) != true }
             candidates = bySlot + customIDs
-        } else {
+        } else if windows.allSatisfy({ $0.id == nil }) {
             candidates = [provider.secondary, provider.primary].compactMap(\.self)
+        } else {
+            return nil
         }
         return candidates.first {
             !$0.isSyntheticPlaceholder && Self.duration(of: $0, providerID: provider.providerID) != nil

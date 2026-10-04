@@ -202,10 +202,19 @@ struct ResetAndPacePresentationTests {
         let daily = SyncRateWindow(
             id: "secondary", usedPercent: 5, windowMinutes: 300, resetsAt: reset, resetDescription: nil)
         #expect(QuotaPace.window(for: snapshot(windows: [budget, daily], providerID: "aixy")) == budget)
-        // Only provider-defined ids: the legacy slots decide.
-        let monthlyBudget = SyncRateWindow(
-            id: "aixy-budget-456", usedPercent: 20, windowMinutes: 43200, resetsAt: reset, resetDescription: nil)
-        #expect(QuotaPace.window(for: snapshot(windows: [monthlyBudget], providerID: "aixy")) == monthlyBudget)
+        // Ids but no standard slot: only extra windows (Kimi monthly / Code
+        // lanes), which never carry the pace even though the legacy primary
+        // field points at the first of them.
+        let kimiMonthly = SyncRateWindow(
+            id: "kimi-monthly", label: "Monthly", usedPercent: 20, windowMinutes: 43200, resetsAt: reset,
+            resetDescription: nil)
+        let kimiCode = SyncRateWindow(
+            id: "kimi-code-7d", label: "Code 7-day", usedPercent: 20, windowMinutes: 10080, resetsAt: reset,
+            resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [kimiMonthly, kimiCode], providerID: "kimi")) == nil)
+        // Older Macs without slot ids keep the legacy fields.
+        let legacyWeekly = SyncRateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: reset, resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [legacyWeekly], providerID: "kimi")) == legacyWeekly)
     }
 
     @Test func `OpenCodeGo estimated usage has no pace like the Mac`() {

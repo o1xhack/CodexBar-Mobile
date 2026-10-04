@@ -208,6 +208,30 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    func testQuotaPaceExtraLargeKeepsAnUnavailableConfiguredProvider() {
+        let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let selection = [
+            WidgetProviderEntity(id: "codex", name: "Codex"),
+            WidgetProviderEntity(id: "gemini", name: "Gemini"),
+        ]
+        let picked = WidgetProviderSelection.pace(from: snapshot.topProviders, selected: selection, limit: 2)
+        XCTAssertEqual(picked.map(\.providerID), ["codex", "gemini"])
+        XCTAssertNil(picked.last?.quotaPace)
+        let entry = CodexBarWidgetEntry(
+            date: Date(timeIntervalSince1970: 1_800_000_060),
+            configuration: CodexBarWidgetConfigurationIntent(
+                mode: .quotaPace, colorStyle: .mono, providers: selection),
+            snapshot: snapshot)
+        let view = ZStack {
+            Color.white
+            CodexBarWidgetView(entry: entry, previewFamily: .systemExtraLarge)
+        }
+        .frame(width: 560, height: 274)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        _ = self.assertVisibleImage(renderer.uiImage, context: "quotaPace-xl-mixed")
+    }
+
     func testQuotaPaceWithoutPaceDataRendersTheEmptyMessage() {
         let placeholder = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
         let snapshot = CodexBarWidgetSnapshot(

@@ -181,7 +181,7 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 
 子智能体做了 3 轮对抗式审查，最终结论是没有遗留缺陷。主要修正如下：
 
-- **窗口选择和 Mac 对齐**：Mac 先写原生槽位，再写额外的具名窗口。因此排在最后一个标准槽位 id（secondary / tertiary / primary）之前的窗口都算原生，包括保留了自定义 id 的原生槽位（例如 Aixy 预算）；选择顺序是 secondary → tertiary → primary，然后是自定义 id 的原生窗口。之后的额外窗口（Codex Spark、Claude 模型窗口）不参与配速；payload 里一个标准 id 都没有时，退回原来的 secondary / primary 字段。
+- **窗口选择和 Mac 对齐**：Mac 先写原生槽位，再写额外的具名窗口。因此排在最后一个标准槽位 id（secondary / tertiary / primary）之前的窗口都算原生，包括保留了自定义 id 的原生槽位（例如 Aixy 预算）；选择顺序是 secondary → tertiary → primary，然后是自定义 id 的原生窗口。之后的额外窗口（Codex Spark、Claude 模型窗口）不参与配速。窗口带 id 但一个标准 id 都没有的 payload，只有额外窗口（例如 Kimi 只剩月度和 Code 周窗口），不出配速；只有完全不带 id 的旧 Mac payload 才退回原来的 secondary / primary 字段。Aixy 在 Mac 上本来就不出配速，所以只带自定义 id 的 Aixy payload 不出配速，和 Mac 一致。
 - **月度窗口时长按 Mac 各 provider 的规则**：
   - alibaba、alibabatokenplan、commandcode、doubao、mimo、notion、ollama、opencodego、stepfun：30 天占位值换算成以重置时间结尾的 UTC 日历月。
   - Zai：只换算 MCP 那个窗口。
@@ -192,7 +192,7 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 - **小组件**：
   - 没有配速时，剩余百分比改用走势线的最新值。
   - 自动选择时，有配速的排在只有走势线的前面。
-  - 手动选的 provider 不可用时，显示它的名字和“暂无配速数据”，不再悄悄换成别的 provider。
+  - 手动选的 provider 不可用时，显示它的名字和“暂无配速数据”，不再悄悄换成别的 provider；超大尺寸选了两个 provider、其中一个没有数据时，那一列也保留这个占位。
   - 车道标签和 App 用同一个 `ProviderDetailLocalization`（已移到共享目录）。
   - tinted 主屏下只给实线染色，虚线参考线和网格保持中性色。
 

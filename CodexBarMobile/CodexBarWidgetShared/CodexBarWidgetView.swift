@@ -1317,15 +1317,9 @@ extension CodexBarWidgetView {
     fileprivate var quotaPaceView: some View {
         let providers = self.paceProviders
         VStack(alignment: .leading, spacing: self.spacing.section) {
-            if let first = providers.first, providers.allSatisfy({ $0.quotaPace == nil }) {
+            if let first = providers.first, self.family != .systemExtraLarge, first.quotaPace == nil {
                 // The configured provider has no pace data right now.
-                self.paceHeader(first, accent: self.paceAccent(first), trailing: nil)
-                Spacer(minLength: 0)
-                Text(String(localized: "No pace data yet"))
-                    .font(.caption)
-                    .foregroundStyle(self.palette.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+                self.paceUnavailable(first)
             } else if let first = providers.first {
                 switch self.family {
                 case .systemSmall:
@@ -1334,8 +1328,13 @@ extension CodexBarWidgetView {
                     self.paceLarge(first)
                 case .systemExtraLarge:
                     HStack(alignment: .top, spacing: self.spacing.extraLargeColumn) {
-                        ForEach(providers.filter { $0.quotaPace != nil }) { provider in
-                            self.paceLarge(provider)
+                        // A configured provider without data keeps its column.
+                        ForEach(providers) { provider in
+                            if provider.quotaPace == nil {
+                                self.paceUnavailable(provider)
+                            } else {
+                                self.paceLarge(provider)
+                            }
                         }
                     }
                 default:
@@ -1469,6 +1468,19 @@ extension CodexBarWidgetView {
     }
 
     // MARK: Components
+
+    private func paceUnavailable(_ provider: CodexBarWidgetProviderSummary) -> some View {
+        VStack(alignment: .leading, spacing: self.spacing.section) {
+            self.paceHeader(provider, accent: self.paceAccent(provider), trailing: nil)
+            Spacer(minLength: 0)
+            Text(String(localized: "No pace data yet"))
+                .font(.caption)
+                .foregroundStyle(self.palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
 
     private func paceHeader(
         _ provider: CodexBarWidgetProviderSummary,
