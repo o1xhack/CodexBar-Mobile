@@ -1,6 +1,6 @@
 # 066 — 设置页“联系”和“我的更多 App”
 
-状态：done（2.5.0 (234)，分支 `feature/ios-250-developer-links`）
+状态：done（2.5.0 (234)；PR #176 于 2026-10-04 合并，merge commit `e3bc73cf7`，Codex 审查无问题；TestFlight 234 已上传）
 日期：2026-10-04
 相关：Research/065 第 8 节（同一个 build 的小组件调整）
 
