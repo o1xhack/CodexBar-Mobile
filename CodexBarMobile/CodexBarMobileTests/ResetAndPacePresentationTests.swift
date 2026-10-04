@@ -172,6 +172,21 @@ struct ResetAndPacePresentationTests {
             resetDescription: nil)
         #expect(QuotaPace.duration(of: grokMonthly, providerID: "grok", capturedAt: self.captured) == nil)
         #expect(QuotaPace.duration(of: grok, providerID: "codex", capturedAt: self.captured) == nil)
+        // A window without a length falls back to its declared period
+        // (Raycast monthly limit, Aixy budgets without a start date).
+        func declared(_ period: SyncRateWindowPeriod?, minutes: Int? = nil) -> SyncRateWindow {
+            SyncRateWindow(
+                usedPercent: 2, windowMinutes: minutes, period: period, resetsAt: augustReset,
+                resetDescription: nil)
+        }
+        #expect(QuotaPace.duration(of: declared(.monthly), providerID: "raycast") == TimeInterval(31 * 86400))
+        #expect(QuotaPace.duration(of: declared(.weekly), providerID: "aixy") == TimeInterval(604_800))
+        #expect(QuotaPace.duration(of: declared(.daily), providerID: "aixy") == TimeInterval(86400))
+        #expect(QuotaPace.duration(of: declared(.session), providerID: "raycast") == nil)
+        #expect(QuotaPace.duration(of: declared(.lifetime), providerID: "raycast") == nil)
+        // An explicit length still wins over the declared period.
+        #expect(QuotaPace.duration(of: declared(.monthly, minutes: 10080), providerID: "raycast")
+            == TimeInterval(604_800))
         // Day one of a 31-day month still produces a pace.
         let captured = augustReset.addingTimeInterval(-30.5 * 86400)
         let pace = try #require(QuotaPace(

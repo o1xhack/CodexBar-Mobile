@@ -119,8 +119,10 @@ struct QuotaPace: Equatable, Codable, Sendable {
     /// monthly sentinel becomes the UTC calendar month ending at the reset for
     /// the providers above, Zai's MCP window and Copilot windows without a
     /// length; an untyped Grok credits window is the weekly pool when its
-    /// reset is 4–12 days away (`GrokProviderDescriptor.primaryLabel`); every
-    /// other provider must carry its own length.
+    /// reset is 4–12 days away (`GrokProviderDescriptor.primaryLabel`). Any
+    /// other window without a length falls back to its declared period:
+    /// daily and weekly are one and seven days, monthly is the calendar month
+    /// ending at the reset (Raycast, Aixy budgets without a start date).
     static func duration(of window: SyncRateWindow, providerID: String?, capturedAt: Date? = nil) -> TimeInterval? {
         if providerID == "grok", window.windowMinutes == nil {
             guard let reset = window.resetsAt, let capturedAt else { return nil }
@@ -139,7 +141,15 @@ struct QuotaPace: Equatable, Codable, Sendable {
         case nil:
             false
         }
-        if infersCalendarMonth {
+        if !infersCalendarMonth, window.windowMinutes == nil {
+            switch window.period {
+            case .daily: return 86400
+            case .weekly: return 7 * 86400
+            case .monthly: break
+            case .session, .lifetime, nil: return nil
+            }
+        }
+        if infersCalendarMonth || window.windowMinutes == nil {
             guard let reset = window.resetsAt else { return nil }
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
