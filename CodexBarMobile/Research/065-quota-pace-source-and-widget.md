@@ -187,6 +187,10 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
   - Zai：只换算 MCP 那个窗口。
   - Copilot：只在窗口没有时长时，按日历月推算。
   - 其他 provider（包括 Codex 的 30 天滚动窗口）：按原始时长。
+- **窗口没有时长时**：对照 Mac 菜单的 `resetWindowPaceDetail` 全部规则核对过，只有两类 provider 会给没时长的窗口出配速：
+  - Copilot：按日历月算。
+  - Grok：网页额度没有时长时，离重置还剩 4–12 天就当作每周额度池，按 7 天算；剩 20–45 天是月度，不出配速；其他情况也不出。
+  - 其他 provider 都必须自带时长。
 - **OpenCodeGo** 在估算数据下不出配速，这是 Mac 唯一一个 `allowsEstimatedUsage: false` 的情况。
 - **超过 100% 时**按 100% 算，预测为“现在已用完”；窗口还没开始走时，不给预测。
 - **小组件**：

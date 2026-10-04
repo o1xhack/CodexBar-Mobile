@@ -160,6 +160,18 @@ struct ResetAndPacePresentationTests {
             == TimeInterval(31 * 86400))
         #expect(QuotaPace.duration(of: monthly(augustReset, minutes: nil), providerID: "codex") == nil)
         #expect(QuotaPace.duration(of: monthly(augustReset, minutes: 300), providerID: "codex") == nil)
+        // Untyped Grok credits: the weekly pool when the reset is 4–12 days away.
+        let grokReset = self.captured.addingTimeInterval(5 * 86400)
+        let grok = SyncRateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: grokReset, resetDescription: nil)
+        #expect(QuotaPace.duration(of: grok, providerID: "grok", capturedAt: self.captured) == TimeInterval(604_800))
+        let grokPace = try #require(QuotaPace(
+            window: grok, capturedAt: self.captured, referenceDate: self.captured, providerID: "grok"))
+        #expect(abs(grokPace.deltaPercentagePoints - (30 - 2.0 / 7 * 100)) < 0.0001)
+        let grokMonthly = SyncRateWindow(
+            usedPercent: 30, windowMinutes: nil, resetsAt: self.captured.addingTimeInterval(25 * 86400),
+            resetDescription: nil)
+        #expect(QuotaPace.duration(of: grokMonthly, providerID: "grok", capturedAt: self.captured) == nil)
+        #expect(QuotaPace.duration(of: grok, providerID: "codex", capturedAt: self.captured) == nil)
         // Day one of a 31-day month still produces a pace.
         let captured = augustReset.addingTimeInterval(-30.5 * 86400)
         let pace = try #require(QuotaPace(

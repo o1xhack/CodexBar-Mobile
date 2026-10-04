@@ -30,7 +30,7 @@ struct QuotaPace: Equatable, Codable, Sendable {
               let reset = window.resetsAt, reset.timeIntervalSince1970.isFinite,
               capturedAt.timeIntervalSince1970.isFinite, referenceDate.timeIntervalSince1970.isFinite,
               capturedAt <= referenceDate, referenceDate < reset,
-              let duration = Self.duration(of: window, providerID: providerID)
+              let duration = Self.duration(of: window, providerID: providerID, capturedAt: capturedAt)
         else { return nil }
         let remainingTime = reset.timeIntervalSince(capturedAt)
         guard remainingTime > 0, remainingTime <= duration else { return nil }
@@ -88,7 +88,8 @@ struct QuotaPace: Equatable, Codable, Sendable {
             return nil
         }
         return candidates.first {
-            !$0.isSyntheticPlaceholder && Self.duration(of: $0, providerID: provider.providerID) != nil
+            !$0.isSyntheticPlaceholder
+                && Self.duration(of: $0, providerID: provider.providerID, capturedAt: provider.lastUpdated) != nil
         }
     }
 
@@ -104,10 +105,20 @@ struct QuotaPace: Equatable, Codable, Sendable {
     ]
 
     /// Pace window length, or nil when the window is shorter than one day or
-    /// its length cannot be resolved. Mirrors the Mac's monthly rules: the
-    /// sentinel becomes the UTC calendar month ending at the reset for the
-    /// providers above, Zai's MCP window and Copilot windows without a length.
-    static func duration(of window: SyncRateWindow, providerID: String?) -> TimeInterval? {
+    /// its length cannot be resolved. Mirrors the Mac's duration rules: the
+    /// monthly sentinel becomes the UTC calendar month ending at the reset for
+    /// the providers above, Zai's MCP window and Copilot windows without a
+    /// length; an untyped Grok credits window is the weekly pool when its
+    /// reset is 4–12 days away (`GrokProviderDescriptor.primaryLabel`); every
+    /// other provider must carry its own length.
+    static func duration(of window: SyncRateWindow, providerID: String?, capturedAt: Date? = nil) -> TimeInterval? {
+        if providerID == "grok", window.windowMinutes == nil {
+            guard let reset = window.resetsAt, let capturedAt else { return nil }
+            let remaining = reset.timeIntervalSince(capturedAt)
+            guard remaining > 3600 else { return nil }
+            let days = Int((remaining / 86400).rounded(.toNearestOrAwayFromZero))
+            return (4...12).contains(days) ? 7 * 86400 : nil
+        }
         let infersCalendarMonth: Bool = switch providerID {
         case "copilot":
             window.windowMinutes == nil
