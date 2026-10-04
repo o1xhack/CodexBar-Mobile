@@ -214,6 +214,27 @@ struct ResetAndPacePresentationTests {
         let daily = SyncRateWindow(
             id: "secondary", usedPercent: 5, windowMinutes: 300, resetsAt: reset, resetDescription: nil)
         #expect(QuotaPace.window(for: snapshot(windows: [budget, daily], providerID: "aixy")) == budget)
+        // Aixy promotes its first two known budgets to primary/secondary with
+        // their own ids; the second one is checked first like a secondary.
+        func aixy(_ id: String, minutes: Int, known: Bool = true) -> SyncRateWindow {
+            SyncRateWindow(
+                id: id, usedPercent: 20, usageKnown: known, windowMinutes: minutes, resetsAt: reset,
+                resetDescription: nil)
+        }
+        let aixyDaily = aixy("aixy-daily", minutes: 1440)
+        let aixyWeekly = aixy("aixy-weekly", minutes: 10080)
+        let aixyMonthly = aixy("aixy-monthly", minutes: 43200)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyDaily, aixyWeekly], providerID: "aixy")) == aixyWeekly)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyWeekly], providerID: "aixy")) == aixyWeekly)
+        // A third known budget is an extra window and never the pace window.
+        let shortSlots = [aixy("aixy-5h", minutes: 300), aixy("aixy-1h", minutes: 60), aixyWeekly]
+        #expect(QuotaPace.window(for: snapshot(windows: shortSlots, providerID: "aixy")) == nil)
+        // With one known budget the unknown extras behind it are not native.
+        let unknownWeekly = aixy("aixy-weekly", minutes: 10080, known: false)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixy("aixy-5h", minutes: 300), unknownWeekly],
+                                               providerID: "aixy")) == nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyMonthly, unknownWeekly], providerID: "aixy"))
+            == aixyMonthly)
         // Ids but no standard slot: only extra windows (Kimi monthly / Code
         // lanes), which never carry the pace even though the legacy primary
         // field points at the first of them.
