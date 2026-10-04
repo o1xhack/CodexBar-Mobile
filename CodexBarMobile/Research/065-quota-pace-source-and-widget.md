@@ -1,6 +1,6 @@
 # 065 — Quota pace 数据来源与小组件可行性
 
-状态：draft（调研完成，待用户确认方向后再实现）
+状态：in-progress（2026-10-03 用户已确认方向，见第 4 节）
 日期：2026-10-03
 相关：iOS 2.4.0 新增的 Quota pace（配额走势图）和 Codex 配速条；Research/064（2.5.0）
 
@@ -134,8 +134,10 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 - 必须在真实 SpringBoard 上添加小组件、切到“配速”模式并截图，按 `docs/` 和 Research/036 的小组件验收流程走。
 - Widget Setting 预览页要加入新模式，复用同一个 shared view。
 
-## 4. 需要你确认
+## 4. 用户决定（2026-10-03）
 
-1. **本地计算配速**：是否让 iOS 本地按观测时间计算线性配速，并把配速条扩展到 Claude 等 provider（Codex 先保留 Mac 的值）？放进 2.5.0 还是下一版？
-2. **和 Mac 菜单口径对齐**：Mac 端“历史/工作日配速”要不要同步给 iOS？这需要 Mac 和 iOS 一起发版。
-3. **小组件**：是否按“现有小组件新增‘配速’模式”来做？large 先做单个 provider 的方案 A 还是两个 provider 对比的方案 B？放进 2.5.0 还是下一版？
+1. **配速条全部改为 iPhone 本地计算，包括 Codex**，放进 2.5.0：
+   - 按 Mac 观测时间（快照 `lastUpdated`）计算线性配速，覆盖所有有 ≥1 天窗口的 provider。
+   - 不再读 `codexWorkspace.weeklyPaceDelta`，公式和 Mac 同步值一致。
+2. **不同步 Mac 的“历史 / 工作日配速”**：用户没有开启或不确定是否开启，以后 Mac 和 iOS 一起发版时再评估。
+3. **配速小组件放进 2.5.0**：在现有小组件里新增“配速”模式，small / medium / large（方案 A：单个 provider 完整版）/ extra large 都做。
