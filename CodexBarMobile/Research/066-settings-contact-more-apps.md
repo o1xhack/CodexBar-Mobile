@@ -42,6 +42,14 @@
 
 ## 验证
 
-- 模拟器（iPhone 18 Pro，iOS 27，中文）：开发者一栏显示三行；“我的更多 App”页面的图标、简介和跳转标签都正常，文字是正常的黑色，不是强调色。
-- UI 测试 `testSettingsDeveloperContactAndMoreApps`：找到“联系”行和邮箱，进入“我的更多 App”，检查 8 个项目都在。
-- 本地子智能体审查：没有 P1 或 P2；7 个 nit 已改（描边颜色、UI 测试的滚动条件、箭头不参与 VoiceOver 朗读、超大字号下去向标签不换行、图标不和小组件设置重复、CHANGELOG 措辞、Telegram 图标）。审查时实际请求过 8 个跳转 URL，都返回 200。
+以下都是在最终代码上做的（分支已变基到合并 PR #175 之后的 `mobile-dev`）。
+
+- 模拟器（iPhone 18 Pro，iOS 27，中文）：
+  - 开发者一栏显示三行：Yuxiao、联系、我的更多 App。
+  - “我的更多 App”页面里，图标、简介和跳转标签都正常，文字用系统正文颜色，没有被染成强调色。
+  - 辅助功能超大字号（accessibility-extra-large）下，跳转标签挪到简介下面，项目名不会被挤压。
+  - 截图：`066-screenshots/`。
+- UI 测试 `testSettingsDeveloperContactAndMoreApps` 通过：找到“联系”行和邮箱，进入“我的更多 App”，检查 8 个项目都在。
+- 本地子智能体审查：
+  - 第一轮没有 P1 或 P2，7 个 nit 已改：描边颜色、UI 测试的滚动条件、箭头不参与 VoiceOver 朗读、去向标签不换行、图标不和小组件设置重复、CHANGELOG 措辞、Telegram 图标。审查时实际请求过 8 个跳转 URL，都返回 200。
+  - 第二轮提出的两点也已处理：文档里写的验证要对应最终代码；超大字号下去向标签换到简介下面。

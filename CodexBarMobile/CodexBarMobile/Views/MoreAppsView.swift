@@ -132,6 +132,7 @@ struct MoreAppItem: Identifiable {
 
 private struct MoreAppRow: View {
     let item: MoreAppItem
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: 12) {
@@ -150,23 +151,33 @@ private struct MoreAppRow: View {
                         .foregroundStyle(Color(.secondaryLabel))
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // Accessibility sizes leave no room beside the name, so the
+                // destination moves under the summary.
+                if self.dynamicTypeSize.isAccessibilitySize {
+                    self.destinationLabel
+                }
             }
 
-            Spacer(minLength: 8)
-
-            HStack(spacing: 3) {
-                Text(self.item.destination.title)
-                Image(systemName: "arrow.up.right")
-                    .accessibilityHidden(true)
+            if !self.dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: 8)
+                self.destinationLabel
+                    .lineLimit(1)
+                    .fixedSize()
+                    .layoutPriority(1)
             }
-            .font(.caption)
-            .foregroundStyle(.tint)
-            .lineLimit(1)
-            .fixedSize()
-            .layoutPriority(1)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+
+    private var destinationLabel: some View {
+        HStack(spacing: 3) {
+            Text(self.item.destination.title)
+            Image(systemName: "arrow.up.right")
+                .accessibilityHidden(true)
+        }
+        .font(.caption)
+        .foregroundStyle(.tint)
     }
 }
 
