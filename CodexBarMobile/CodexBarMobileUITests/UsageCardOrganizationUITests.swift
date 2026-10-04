@@ -41,7 +41,8 @@ final class UsageCardOrganizationUITests: XCTestCase {
                 app.swipeDown()
             }
         }
-        for _ in 0..<10 where !element.isHittable {
+        // Lazy grid cells below the fold do not exist until scrolled to.
+        for _ in 0..<10 where !(element.exists && element.isHittable) {
             app.swipeUp()
         }
     }
@@ -56,8 +57,9 @@ final class UsageCardOrganizationUITests: XCTestCase {
     @MainActor
     private func openDetail(_ identifier: String, title: String, in app: XCUIApplication) {
         let card = app.buttons[identifier]
-        XCTAssertTrue(card.waitForExistence(timeout: 8), "missing \(identifier)")
+        _ = card.waitForExistence(timeout: 3)
         self.reveal(card, in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "missing \(identifier)")
         card.tap()
         XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5))
     }
@@ -114,10 +116,12 @@ final class UsageCardOrganizationUITests: XCTestCase {
         app.launch()
         try self.requireCompactPhone(app)
 
-        // Default: one grouped Codex card with a "· 3" account badge.
-        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 8))
-        XCTAssertFalse(app.buttons["provider-account-card-codex-1"].exists)
+        // Default: name A to Z, one grouped Codex card with a "· 3" badge.
+        XCTAssertTrue(app.buttons["provider-group-antigravity"].waitForExistence(timeout: 8))
         self.capture("Usage grouped default")
+        self.reveal(app.buttons["provider-group-codex"], in: app)
+        XCTAssertTrue(app.buttons["provider-group-codex"].exists)
+        XCTAssertFalse(app.buttons["provider-account-card-codex-1"].exists)
 
         // … → Provider Settings → expand Codex accounts.
         self.openDetail("provider-group-codex", title: "Codex", in: app)
@@ -147,7 +151,8 @@ final class UsageCardOrganizationUITests: XCTestCase {
         let pinnedHeader = app.staticTexts["usage-section-pinned"]
         XCTAssertTrue(pinnedHeader.waitForExistence(timeout: 5))
         let pinnedCard = app.buttons["provider-account-card-codex-3"]
-        let firstOther = app.buttons["provider-group-claude"]
+        // Name A to Z: Antigravity leads the other cards.
+        let firstOther = app.buttons["provider-group-antigravity"]
         XCTAssertTrue(pinnedCard.exists)
         XCTAssertLessThan(pinnedCard.frame.minY, firstOther.frame.minY)
         XCTAssertGreaterThan(pinnedCard.frame.minY, pinnedHeader.frame.minY)
@@ -159,11 +164,14 @@ final class UsageCardOrganizationUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["usage-section-pinned"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["provider-account-card-codex-3"].exists)
+        self.capture("Usage after relaunch")
+        // The other Codex accounts follow the A to Z cards below the fold.
+        self.reveal(app.buttons["provider-account-card-codex-1"], in: app)
         XCTAssertTrue(app.buttons["provider-account-card-codex-1"].exists)
         XCTAssertFalse(app.buttons["provider-group-codex"].exists)
-        self.capture("Usage after relaunch")
 
         // Unpin from the menu, then collapse Codex again.
+        self.scrollToTop(app)
         self.openDetail("provider-account-card-codex-3", title: "Codex", in: app)
         self.openMenuItem("provider-menu-pin", in: app)
         self.openMenuItem("provider-menu-settings", in: app)
@@ -172,6 +180,7 @@ final class UsageCardOrganizationUITests: XCTestCase {
         self.backToList(app)
         self.scrollToTop(app)
         XCTAssertFalse(app.staticTexts["usage-section-pinned"].exists)
+        self.reveal(app.buttons["provider-group-codex"], in: app)
         XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["provider-account-card-codex-1"].exists)
     }
@@ -214,7 +223,12 @@ final class UsageCardOrganizationUITests: XCTestCase {
         XCTAssertTrue(editOrder.waitForExistence(timeout: 8))
         editOrder.tap()
         XCTAssertTrue(app.navigationBars["Edit Order"].waitForExistence(timeout: 5))
-        self.capture("Edit order manual default")
+        // Fresh install: Default Order is on with Name (A to Z).
+        XCTAssertEqual(app.switches["sort-default-toggle"].value as? String, "1")
+        XCTAssertEqual(
+            self.rowOrder(app, keys: keys),
+            ["provider:claude", "provider:codex", "provider:openrouter", "provider:zai"])
+        self.capture("Edit order default A to Z")
 
         // Default order → Name (Z to A).
         self.setSwitch(app.switches["sort-default-toggle"], on: true)
@@ -235,43 +249,50 @@ final class UsageCardOrganizationUITests: XCTestCase {
         XCTAssertEqual(order.last, "provider:openrouter")
         self.capture("Edit order weekly reset")
 
-        // Manual: starts from the visible A to Z order, then drag Codex
-        // above Antigravity (both near the top of the list).
+        // Manual: starts from the visible A to Z order, then drag AWS Bedrock
+        // (row 2) above Antigravity (row 1). Adjacent rows keep the drag short;
+        // XCUITest reorder drags over longer distances are not reliable.
         app.buttons["Name (A to Z)"].firstMatch.tap()
         self.setSwitch(app.switches["sort-default-toggle"], on: false)
-        let manualKeys = ["provider:antigravity", "provider:codex"]
+        let manualKeys = ["provider:antigravity", "provider:bedrock"]
         XCTAssertEqual(self.rowOrder(app, keys: manualKeys), manualKeys)
-        let source = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Reorder' AND label CONTAINS 'Codex'"))
+        let source = app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH 'Reorder' AND label CONTAINS 'AWS Bedrock'"))
             .firstMatch
-        let target = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH 'Reorder' AND label CONTAINS 'Antigravity'"))
+        let target = app.buttons
+            .matching(NSPredicate(format: "label BEGINSWITH 'Reorder' AND label CONTAINS 'Antigravity'"))
             .firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: 5))
         XCTAssertTrue(target.exists)
-        source.press(forDuration: 0.6, thenDragTo: target)
-        XCTAssertEqual(self.rowOrder(app, keys: manualKeys), ["provider:codex", "provider:antigravity"])
+        // Retry once if the synthesized drag gesture did not register.
+        for _ in 0..<2 where self.rowOrder(app, keys: manualKeys) == manualKeys {
+            source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+                forDuration: 1.0,
+                thenDragTo: target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
+        }
+        XCTAssertEqual(self.rowOrder(app, keys: manualKeys), ["provider:bedrock", "provider:antigravity"])
         self.capture("Edit order manual dragged")
         app.buttons["sort-editor-done"].tap()
 
         // Usage list follows the manual order.
         self.scrollToTop(app)
-        let codex = app.buttons["provider-group-codex"]
+        let bedrock = app.buttons["provider-group-bedrock"]
         let antigravity = app.buttons["provider-group-antigravity"]
-        XCTAssertTrue(codex.waitForExistence(timeout: 5))
-        XCTAssertLessThan(codex.frame.minY, antigravity.frame.minY)
+        XCTAssertTrue(bedrock.waitForExistence(timeout: 5))
+        XCTAssertLessThan(bedrock.frame.minY, antigravity.frame.minY)
 
         // Persisted across launch.
         app.terminate()
         app = self.makeApp(reset: false)
         app.launch()
-        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["provider-group-bedrock"].waitForExistence(timeout: 8))
         XCTAssertLessThan(
-            app.buttons["provider-group-codex"].frame.minY,
+            app.buttons["provider-group-bedrock"].frame.minY,
             app.buttons["provider-group-antigravity"].frame.minY)
         app.buttons["usage-edit-order"].tap()
         XCTAssertTrue(app.navigationBars["Edit Order"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.switches["sort-default-toggle"].value as? String, "0")
-        XCTAssertEqual(self.rowOrder(app, keys: manualKeys), ["provider:codex", "provider:antigravity"])
+        XCTAssertEqual(self.rowOrder(app, keys: manualKeys), ["provider:bedrock", "provider:antigravity"])
     }
 
     // MARK: - Visual capture (iPhone and iPad, run once per appearance)
@@ -281,7 +302,7 @@ final class UsageCardOrganizationUITests: XCTestCase {
         let app = self.makeApp(reset: true)
         app.launch()
         let device = app.frame.width < 600 ? "iPhone" : "iPad"
-        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["provider-group-antigravity"].waitForExistence(timeout: 8))
         self.capture("\(device) grouped")
 
         self.openDetail("provider-group-codex", title: "Codex", in: app)
@@ -300,7 +321,7 @@ final class UsageCardOrganizationUITests: XCTestCase {
 
         app.buttons["usage-edit-order"].tap()
         XCTAssertTrue(app.navigationBars["Edit Order"].waitForExistence(timeout: 5))
-        self.capture("\(device) edit order manual")
+        self.capture("\(device) edit order default")
         self.setSwitch(app.switches["sort-default-toggle"], on: true)
         app.buttons["Weekly Reset (Soonest First)"].firstMatch.tap()
         self.capture("\(device) edit order weekly")

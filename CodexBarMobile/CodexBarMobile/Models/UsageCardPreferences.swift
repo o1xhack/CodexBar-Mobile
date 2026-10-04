@@ -110,15 +110,17 @@ enum UsageAccountIdentity {
 }
 
 struct UsageCardPreferences: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 1
+    /// v1: iOS 2.5.0 build 231 (manual order by default).
+    /// v2: build 232+, name A to Z by default.
+    static let currentSchemaVersion = 2
 
     var schemaVersion = Self.currentSchemaVersion
     /// Providers whose accounts render as separate cards. Default: none.
     var expandedProviderIDs: Set<String> = []
     var pinnedCardKeys: Set<String> = []
-    /// `false` (the upgrade default) is manual order. With no stored manual
-    /// order this is exactly the pre-2.5 Mac provider order.
-    var usesDefaultSort = false
+    /// Default: sorted by the default rule (name A to Z). `false` is manual
+    /// order; with no stored manual order that is the Mac provider order.
+    var usesDefaultSort = true
     var defaultSortRule: UsageDefaultSortRule = .alphabeticalAscending
     /// Full manual order across both sections. Cards missing from it keep their
     /// source order after the ordered ones.
@@ -137,11 +139,20 @@ struct UsageCardPreferences: Codable, Equatable, Sendable {
         self.schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         self.expandedProviderIDs = try container.decodeIfPresent(Set<String>.self, forKey: .expandedProviderIDs) ?? []
         self.pinnedCardKeys = try container.decodeIfPresent(Set<String>.self, forKey: .pinnedCardKeys) ?? []
-        self.usesDefaultSort = try container.decodeIfPresent(Bool.self, forKey: .usesDefaultSort) ?? false
+        self.usesDefaultSort = try container.decodeIfPresent(Bool.self, forKey: .usesDefaultSort) ?? true
         let rawRule = try container.decodeIfPresent(String.self, forKey: .defaultSortRule)
         self.defaultSortRule = rawRule.flatMap(UsageDefaultSortRule.init(rawValue:)) ?? .alphabeticalAscending
         self.manualOrder = try container.decodeIfPresent([String].self, forKey: .manualOrder) ?? []
         self.accountAnchors = try container.decodeIfPresent([UsageAccountAnchor].self, forKey: .accountAnchors) ?? []
+        // v1 defaulted to manual order and wrote it with every pin or
+        // expansion, so a v1 manual mode was usually never chosen: move it to
+        // the new default (name A to Z). A v1 `true` was an explicit choice
+        // and keeps its rule. Pins, expansion, anchors and manual order stay.
+        if self.schemaVersion < 2, !self.usesDefaultSort {
+            self.usesDefaultSort = true
+            self.defaultSortRule = .alphabeticalAscending
+        }
+        self.schemaVersion = max(self.schemaVersion, Self.currentSchemaVersion)
     }
 
     func isExpanded(_ providerID: String) -> Bool {

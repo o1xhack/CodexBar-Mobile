@@ -29,10 +29,10 @@
 
 | 字段 | 含义 | 默认 |
 | --- | --- | --- |
-| `schemaVersion` | 当前为 1 | 1 |
+| `schemaVersion` | v1 = build 231；v2 = build 232 起（读到 v1 数据时，排序改为 A→Z 默认） | 2 |
 | `expandedProviderIDs` | 展开为独立账号卡片的 provider | 空 |
 | `pinnedCardKeys` | 已置顶的卡片 key | 空 |
-| `usesDefaultSort` | 是否使用默认排序规则 | `false` |
+| `usesDefaultSort` | 是否使用默认排序规则 | `true`（2.5.0 build 232 起；build 231 为 `false`） |
 | `defaultSortRule` | `alphabeticalAscending` / `alphabeticalDescending` / `weeklyReset` | A→Z |
 | `manualOrder` | 手动顺序（两栏合在一个列表里） | 空 |
 | `accountAnchors` | 账号锚点 | 空 |
@@ -68,7 +68,7 @@
 
 | 场景 | 规则 |
 | --- | --- |
-| 升级后第一次打开 | 手动模式、手动顺序为空，等于原来的 Mac 顺序，用户看不到任何变化 |
+| 升级后第一次打开 | 默认排序开启、规则为 A→Z（2026-10-03 用户确认）。Mac 原顺序不是字母序的用户，升级后会看到一次重排，应用内更新说明会提示“卡片现在默认按名称排序”。装过 build 231 的测试用户：v1 数据如果是手动模式，迁移到 v2 时改为 A→Z 默认（231 默认就是手动，置顶或展开时也会写入，无法区分是否主动选择）；如果 v1 已经开了默认排序，那是用户主动选的，规则保留。置顶、展开、锚点和已存的手动顺序都保留 |
 | 展开 provider | provider 卡片的置顶状态交给它的每个账号卡片；手动顺序里 provider 卡片的位置，换成它的各账号卡片（按账号顺序） |
 | 收起 provider | provider 卡片放到它排得最靠前的那个账号卡片的位置；只要有一个账号卡片置顶，provider 卡片就置顶；该 provider 的账号 key 全部从顺序和置顶里移除，锚点保留 |
 | 手动模式下置顶 | 先把当前看到的顺序固化下来，再把这张卡片放到置顶栏第一位 |

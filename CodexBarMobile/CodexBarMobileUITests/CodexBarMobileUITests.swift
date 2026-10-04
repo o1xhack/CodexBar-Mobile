@@ -46,8 +46,9 @@ final class CodexBarMobileUITests: XCTestCase {
             ]
             app.launch()
             let provider = app.buttons["provider-group-claude"]
-            XCTAssertTrue(provider.waitForExistence(timeout: 10))
-            for _ in 0..<6 where !provider.isHittable {
+            _ = provider.waitForExistence(timeout: 3)
+            // Name A to Z can place this card below the fold of the lazy grid.
+            for _ in 0..<8 where !(provider.exists && provider.isHittable) {
                 app.swipeUp()
             }
             provider.tap()
@@ -96,8 +97,9 @@ final class CodexBarMobileUITests: XCTestCase {
             ]
             app.launch()
             let provider = app.buttons["provider-group-codex"]
-            XCTAssertTrue(provider.waitForExistence(timeout: 10))
-            for _ in 0..<6 where !provider.isHittable {
+            _ = provider.waitForExistence(timeout: 3)
+            // Name A to Z can place this card below the fold of the lazy grid.
+            for _ in 0..<8 where !(provider.exists && provider.isHittable) {
                 app.swipeUp()
             }
             provider.tap()
@@ -146,13 +148,13 @@ final class CodexBarMobileUITests: XCTestCase {
         app.buttons["setup-guide-done"].tap()
         XCTAssertTrue(app.buttons["release-notes-done"].waitForExistence(timeout: 5))
         app.buttons["release-notes-done"].tap()
-        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["provider-group-antigravity"].waitForExistence(timeout: 8))
 
         app.terminate()
         app.launchArguments = ["UI_TEST_PREVIEW_DATA", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertFalse(setup.waitForExistence(timeout: 2), "Release notes should appear only once per app version.")
-        XCTAssertTrue(app.buttons["provider-group-codex"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["provider-group-antigravity"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -192,7 +194,7 @@ final class CodexBarMobileUITests: XCTestCase {
         try XCTSkipUnless(app.frame.width < 600, "Requires a compact phone")
         self.captureNavigation(app, name: "Phone Usage portrait")
         let provider = app.buttons["provider-group-codex"]
-        for _ in 0..<4 where !provider.isHittable {
+        for _ in 0..<8 where !(provider.exists && provider.isHittable) {
             app.swipeUp()
         }
         provider.tap()
@@ -203,7 +205,7 @@ final class CodexBarMobileUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5))
         // Select again after returning: catches a stale compact-column binding.
-        for _ in 0..<4 where !provider.isHittable {
+        for _ in 0..<8 where !(provider.exists && provider.isHittable) {
             app.swipeUp()
         }
         provider.tap()
@@ -253,11 +255,13 @@ final class CodexBarMobileUITests: XCTestCase {
         app.launchArguments += ["-cwlEnabled", "NO"]
         app.launch()
         try XCTSkipUnless(app.frame.width >= 600, "Requires an iPad")
+        // Default order is name A to Z: ChatGPT and Claude share the second row.
+        let chatGPT = app.buttons["provider-group-chatgpt"]
         let claude = app.buttons["provider-group-claude"]
         let codex = app.buttons["provider-group-codex"]
         XCTAssertTrue(claude.waitForExistence(timeout: 8))
-        XCTAssertEqual(claude.frame.minY, codex.frame.minY, accuracy: 4)
-        XCTAssertLessThan(claude.frame.maxX, codex.frame.minX)
+        XCTAssertEqual(chatGPT.frame.minY, claude.frame.minY, accuracy: 4)
+        XCTAssertLessThan(chatGPT.frame.maxX, claude.frame.minX)
         self.assertBottomTabs(app)
         self.captureNavigation(app, name: "iPad portrait two columns")
         let search = app.searchFields.firstMatch
@@ -608,7 +612,11 @@ final class CodexBarMobileUITests: XCTestCase {
         // Preview snapshots are intentionally not persisted to the real ledger.
         app.launchArguments += ["-cwlEnabled", "NO"]
         app.launch()
-        app.buttons["provider-group-codex"].tap()
+        let codex = app.buttons["provider-group-codex"]
+        for _ in 0..<8 where !(codex.exists && codex.isHittable) {
+            app.swipeUp()
+        }
+        codex.tap()
         let title = app.staticTexts["Token Activity"]
         for _ in 0..<10 where !title.isHittable {
             app.swipeUp()
