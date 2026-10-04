@@ -133,6 +133,21 @@
 - 归档：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20261003-170544/CodexBarMobile.xcarchive`，版本 2.5.0 (231)。主 App、推送扩展和小组件的 CloudKit 环境都是 `Production`；WidgetOptions 扩展不使用 iCloud。
 - ASC build `12b181cc-0e7f-4495-9e73-a3b23fbfc87a`：`VALID`，上传时间 2026-10-03 17:10 PDT。
 
+## 默认排序改为 A→Z（PR #173，build 232）
+
+- 用户决定：升级后默认“默认排序开启 + 名称 A→Z”；“每周重置”排序保持“数据一变就重排”。
+- 本地子智能体审查 3 轮后清零：
+  - 修正了依赖旧顺序的 UI 测试：iPad 两列测试改为比对同一行的另一对卡片；被排到屏幕下方的卡片先滚动再找；拖动改为相邻两行。
+  - 加了 schema v2 迁移：build 231 的 v1 数据如果是手动模式，迁移为 A→Z。
+- Codex 审查 3 轮：
+  - 第 1 轮：231 测试用户升级后不会再看到更新说明。改为迁移时写回 v2，并清除“已看过更新说明”的标记。
+  - 第 2 轮：损坏的 v1 数据会被覆盖。改为只有完整解码成功才写回。
+  - 第 3 轮：在 `1c10fadf6` 上没有意见。
+  - review gate 通过：rounds=3，unresolved=0。
+- 在最终提交 `1c10fadf6` 上跑全量：Swift Testing 930 项，XCTest 单元 55 项，UI 23 项（6 项条件跳过），0 失败。iPad 上补跑的 2 个布局测试和截图用例都通过。拖动用例连跑 5 次、展开用例连跑 3 次，全部通过。
+- 合并：`71e12b6fb`。合并后 Final CI（run `37169378624`）通过。
+- TestFlight 2.5.0 (232)：源码是 `71e12b6fb`。归档在 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20261003-185625/`，CloudKit 环境为 Production。ASC build `fedc0ee8-0beb-45d7-b0a1-6399dd36548c`，状态 `VALID`。build 231 已被取代。
+
 ## 未做 / 后续
 
 - 还没有提交 App Review，等 TestFlight 在真机上验收。
