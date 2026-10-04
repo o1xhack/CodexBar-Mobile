@@ -16,6 +16,7 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         .providerFocus,
         .todayCost,
         .syncHealth,
+        .quotaPace,
     ]
 
     private let colorStyles: [CodexBarWidgetColorStyle] = [
@@ -173,6 +174,67 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
                 attachment.lifetime = .keepAlways
                 self.add(attachment)
             }
+        }
+    }
+
+    /// Research/065: every Quota Pace layout, attached for visual review.
+    func testQuotaPaceLayoutsAreAvailableForVisualReview() {
+        let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let appearances: [(name: String, scheme: ColorScheme, mode: WidgetRenderingMode)] = [
+            ("light", .light, .fullColor),
+            ("dark", .dark, .fullColor),
+            ("tinted", .dark, .accented),
+        ]
+        for family in self.families {
+            for appearance in appearances {
+                for colorStyle in self.colorStyles {
+                    let image = self.renderWidget(
+                        mode: .quotaPace,
+                        colorStyle: colorStyle,
+                        colorScheme: appearance.scheme,
+                        renderingMode: appearance.mode,
+                        family: family.family,
+                        size: family.size,
+                        snapshot: snapshot)
+                    let context = "quotaPace/\(family.family)/\(appearance.name)/\(colorStyle.rawValue)"
+                    _ = self.assertVisibleImage(image, context: context)
+                    guard let image else { continue }
+                    let attachment = XCTAttachment(image: image)
+                    attachment.name = "Quota Pace \(family.family) \(appearance.name) \(colorStyle.rawValue)"
+                    attachment.lifetime = .keepAlways
+                    self.add(attachment)
+                }
+            }
+        }
+    }
+
+    func testQuotaPaceWithoutPaceDataRendersTheEmptyMessage() {
+        let placeholder = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let snapshot = CodexBarWidgetSnapshot(
+            state: .loaded,
+            generatedAt: placeholder.generatedAt,
+            latestSyncAt: placeholder.latestSyncAt,
+            deviceCount: 1,
+            providerCount: 1,
+            errorCount: 0,
+            todayCostUSD: nil,
+            thirtyDayCostUSD: nil,
+            todayTokens: nil,
+            maxUsagePercent: 30,
+            topProviders: placeholder.topProviders.filter { $0.quotaPace == nil },
+            message: nil,
+            isStale: false)
+        // The view takes its empty branch: nothing qualifies for the pace mode.
+        XCTAssertTrue(WidgetProviderSelection.pace(from: snapshot.topProviders, selected: nil, limit: 2).isEmpty)
+        for family in self.families {
+            let image = self.renderWidget(
+                mode: .quotaPace,
+                colorStyle: .mono,
+                colorScheme: .light,
+                family: family.family,
+                size: family.size,
+                snapshot: snapshot)
+            _ = self.assertVisibleImage(image, context: "quotaPace-empty/\(family.family)")
         }
     }
 

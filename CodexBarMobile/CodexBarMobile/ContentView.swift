@@ -4914,6 +4914,10 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Cards are now sorted by name. Use Edit Order to sort by the next weekly reset instead, or drag cards into your own order."),
                     String(
                         localized: "These layout settings stay on this device and don't change your Mac."),
+                    String(
+                        localized: "Quota pace now covers Claude and other providers with daily, weekly, or monthly limits, calculated on your iPhone from the latest Mac data."),
+                    String(
+                        localized: "Add the new Quota pace widget to see remaining quota, pace, and the usage trend at a glance."),
                 ]),
             ]),
         ReleaseNotesVersion(
@@ -6180,6 +6184,7 @@ private struct WidgetSettingsView: View {
         .todayCost,
         .providerFocus,
         .syncHealth,
+        .quotaPace,
     ]
 
     var body: some View {
@@ -6206,7 +6211,7 @@ private struct WidgetSettingsView: View {
                             mode: mode,
                             colorStyle: self.selectedColorStyle,
                             snapshot: self.previewSnapshot,
-                            providers: mode == .overview ? self.previewSelection : nil)
+                            providers: mode == .overview || mode == .quotaPace ? self.previewSelection : nil)
                     }
                 }
                 .animation(.snappy(duration: 0.22), value: self.selectedFamily)
@@ -6404,6 +6409,7 @@ extension CodexBarWidgetMode {
         case .providerFocus: "Provider Focus"
         case .todayCost: "Today Cost"
         case .syncHealth: "Sync Health"
+        case .quotaPace: "Quota pace"
         }
     }
 }

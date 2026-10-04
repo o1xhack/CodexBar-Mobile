@@ -3,12 +3,13 @@ import Testing
 @testable import CodexBarMobile
 
 struct StatusWidgetConfigurationTests {
-    @Test func `All four modes and both styles map to the existing renderer`() {
+    @Test func `All five modes and both styles map to the existing renderer`() {
         let modes: [(StatusWidgetMode, CodexBarWidgetMode)] = [
             (.overview, .overview),
             (.providerFocus, .providerFocus),
             (.todayCost, .todayCost),
             (.syncHealth, .syncHealth),
+            (.quotaPace, .quotaPace),
         ]
         for (input, expected) in modes {
             for style in [StatusWidgetColorStyle.mono, .colorful] {
@@ -20,6 +21,22 @@ struct StatusWidgetConfigurationTests {
                 #expect(result.colorStyle == (style == .colorful ? .colorful : .mono))
             }
         }
+    }
+
+    @Test func `Quota pace reads only its own provider parameter`() {
+        let intent = SelectStatusWidgetIntent()
+        intent.mode = .quotaPace
+        intent.provider1 = StatusWidgetProvider(identifier: "codex", display: "Codex")
+        intent.paceProvider = StatusWidgetProvider(identifier: "claude", display: "Claude")
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.map(\.id) == ["claude"])
+
+        intent.paceProvider = nil
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.isEmpty == true)
+
+        // Overview keeps ignoring the pace parameter.
+        intent.mode = .overview
+        intent.paceProvider = StatusWidgetProvider(identifier: "claude", display: "Claude")
+        #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).providers?.map(\.id) == ["codex"])
     }
 
     @Test func `Unknown enum values preserve automatic defaults`() {
