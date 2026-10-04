@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 import WidgetKit
 
@@ -45,6 +46,8 @@ struct CodexBarWidgetView: View {
     private var loadedView: some View {
         if self.entry.configuration.mode == .overview {
             self.providerOverview
+        } else if self.entry.configuration.mode == .quotaPace {
+            self.quotaPaceView
         } else {
             switch self.family {
             case .systemSmall:
@@ -89,6 +92,8 @@ struct CodexBarWidgetView: View {
                 label: relativeSyncText,
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
+        case .quotaPace:
+            EmptyView()
         }
     }
 
@@ -120,6 +125,8 @@ struct CodexBarWidgetView: View {
                 label: relativeSyncText,
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
+        case .quotaPace:
+            EmptyView()
         }
     }
 
@@ -163,6 +170,8 @@ struct CodexBarWidgetView: View {
                 systemImage: entry.snapshot.isStale ? "clock.badge.exclamationmark" : "checkmark.icloud",
                 progress: nil)
             syncHealthRows(limit: entry.snapshot.errorCount > 0 ? 3 : 2, includeLastSync: false)
+        case .quotaPace:
+            EmptyView()
         }
     }
 
@@ -204,6 +213,8 @@ struct CodexBarWidgetView: View {
                         progress: nil)
                     syncHealthRows(limit: 3, includeLastSync: false)
                 }
+            case .quotaPace:
+                EmptyView()
             }
             loadedFooterLine
         }
@@ -1211,6 +1222,8 @@ private struct CodexBarWidgetPalette {
             return metricAccent(.todayCost)
         case .syncHealth:
             return metricAccent(.syncHealth)
+        case .quotaPace:
+            return metricAccent(.usage)
         }
     }
 
@@ -1286,5 +1299,350 @@ private extension CodexBarWidgetEntry {
                 mode: mode,
                 colorStyle: colorStyle),
             snapshot: snapshot)
+    }
+}
+
+// MARK: - Quota Pace mode (Research/065)
+
+extension CodexBarWidgetView {
+    private var paceProviders: [CodexBarWidgetProviderSummary] {
+        WidgetProviderSelection.pace(
+            from: self.displayProviders,
+            selected: self.entry.configuration.providers,
+            limit: self.family == .systemExtraLarge ? 2 : 1,
+            now: self.entry.date)
+    }
+
+    @ViewBuilder
+    fileprivate var quotaPaceView: some View {
+        let providers = self.paceProviders
+        VStack(alignment: .leading, spacing: self.spacing.section) {
+            if let first = providers.first, self.family != .systemExtraLarge, first.quotaPace == nil {
+                // The configured provider has no pace data right now.
+                self.paceUnavailable(first)
+            } else if let first = providers.first {
+                switch self.family {
+                case .systemSmall:
+                    self.paceSmall(first)
+                case .systemLarge:
+                    self.paceLarge(first)
+                case .systemExtraLarge:
+                    HStack(alignment: .top, spacing: self.spacing.extraLargeColumn) {
+                        // A configured provider without data keeps its column.
+                        ForEach(providers) { provider in
+                            if provider.quotaPace == nil {
+                                self.paceUnavailable(provider)
+                            } else {
+                                self.paceLarge(provider)
+                            }
+                        }
+                    }
+                default:
+                    self.paceMedium(first)
+                }
+            } else {
+                self.modeLabel(title: String(localized: "Quota pace"), systemImage: "chart.line.downtrend.xyaxis",
+                               compact: self.family == .systemSmall)
+                Spacer(minLength: 0)
+                Text(String(localized: "No pace data yet"))
+                    .font(.caption)
+                    .foregroundStyle(self.palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            self.loadedFooterLine
+        }
+        .padding(self.spacing.padding)
+        .accessibilityIdentifier(
+            "widget-quota-pace-\(providers.first(where: { $0.quotaPace != nil })?.providerID ?? "empty")")
+    }
+
+    // MARK: Layouts
+
+    private func paceSmall(_ provider: CodexBarWidgetProviderSummary) -> some View {
+        let pace = provider.quotaPace
+        let accent = self.paceAccent(provider)
+        return VStack(alignment: .leading, spacing: self.spacing.header) {
+            self.paceHeader(provider, accent: accent, trailing: self.paceResetText(pace))
+            self.paceHero(pace?.paceRemainingPercent, accent: accent)
+            if let delta = pace?.pace {
+                self.paceDeltaText(delta, lineLimit: 2)
+            }
+            if let lane = pace?.primaryLane {
+                self.paceChart(lane, accent: accent, showsGrid: false)
+                    .frame(maxHeight: .infinity)
+            } else {
+                Spacer(minLength: 0)
+                self.progressLine(pace?.paceRemainingPercent, height: self.progressHeight, fill: accent)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private func paceMedium(_ provider: CodexBarWidgetProviderSummary) -> some View {
+        let pace = provider.quotaPace
+        let accent = self.paceAccent(provider)
+        let session = pace?.lanes.first { $0.seriesName == "session" }
+        return HStack(alignment: .top, spacing: self.spacing.metricColumn) {
+            VStack(alignment: .leading, spacing: self.spacing.row) {
+                self.paceHeader(provider, accent: accent, trailing: nil)
+                self.paceHero(pace?.paceRemainingPercent, accent: accent, label: pace?.primaryLane.map {
+                    self.paceLaneLabel($0, providerID: provider.providerID)
+                })
+                if let delta = pace?.pace {
+                    self.paceDeltaText(delta, lineLimit: 2)
+                    if let forecast = delta.forecastText() {
+                        Text(forecast)
+                            .font(.caption2)
+                            .foregroundStyle(self.palette.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let session, pace?.primaryLane?.seriesName != "session" {
+                    self.paceLaneRow(session, providerID: provider.providerID, accent: accent)
+                } else if let reset = self.paceResetText(pace) {
+                    Text(String(format: String(localized: "Resets in %@"), reset))
+                        .font(.caption2)
+                        .foregroundStyle(self.palette.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let lane = pace?.primaryLane {
+                self.paceChart(lane, accent: accent, showsGrid: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private func paceLarge(_ provider: CodexBarWidgetProviderSummary) -> some View {
+        let pace = provider.quotaPace
+        let accent = self.paceAccent(provider)
+        // Side-by-side extra large columns keep only the weekly chart so it
+        // keeps a readable height.
+        let lanes = self.family == .systemExtraLarge
+            ? (pace?.primaryLane).map { [$0] } ?? []
+            : Array((pace?.lanes ?? []).prefix(2))
+        return VStack(alignment: .leading, spacing: self.spacing.section) {
+            self.paceHeader(
+                provider,
+                accent: accent,
+                trailing: pace?.pace.map { self.relativeText(since: $0.capturedAt) })
+            if let delta = pace?.pace {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: self.paceIconName(delta))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(self.paceTrendColor(delta, accent: accent))
+                    Text(delta.summary())
+                        .font(self.rowTitleFont)
+                        .foregroundStyle(self.paceTrendColor(delta, accent: accent))
+                        .lineLimit(self.family == .systemExtraLarge ? 2 : 3)
+                        .minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if lanes.isEmpty {
+                self.paceHero(pace?.paceRemainingPercent, accent: accent)
+                self.progressLine(pace?.paceRemainingPercent, height: self.progressHeight, fill: accent)
+                Spacer(minLength: 0)
+            } else {
+                ForEach(lanes, id: \.seriesName) { lane in
+                    VStack(alignment: .leading, spacing: self.spacing.row) {
+                        self.paceLaneRow(lane, providerID: provider.providerID, accent: accent)
+                        self.paceChart(lane, accent: accent, showsGrid: true)
+                            .frame(maxHeight: .infinity)
+                    }
+                }
+            }
+            if let reset = self.paceResetText(pace) {
+                Text(String(format: String(localized: "Resets in %@"), reset))
+                    .font(self.footerFont)
+                    .foregroundStyle(self.palette.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: Components
+
+    private func paceUnavailable(_ provider: CodexBarWidgetProviderSummary) -> some View {
+        VStack(alignment: .leading, spacing: self.spacing.section) {
+            self.paceHeader(provider, accent: self.paceAccent(provider), trailing: nil)
+            Spacer(minLength: 0)
+            Text(String(localized: "No pace data yet"))
+                .font(.caption)
+                .foregroundStyle(self.palette.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func paceHeader(
+        _ provider: CodexBarWidgetProviderSummary,
+        accent: Color,
+        trailing: String?) -> some View
+    {
+        HStack(spacing: 7) {
+            self.providerMark(provider, accent: accent)
+            Text(provider.providerName)
+                .font(self.rowTitleFont)
+                .foregroundStyle(self.palette.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Spacer(minLength: 4)
+            if let trailing {
+                Text(trailing)
+                    .font(self.rowSubtitleFont.monospacedDigit())
+                    .foregroundStyle(self.palette.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+        }
+    }
+
+    private func paceHero(_ remaining: Double?, accent: Color, label: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(self.percentValueText(remaining))
+                .font(.system(size: self.heroFontSize, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(self.palette.isColorful ? accent : self.palette.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
+                .privacySensitive()
+                .widgetAccentable()
+            Text(label.map { "\($0) · " + String(localized: "Left") } ?? String(localized: "Left"))
+                .font(.caption2)
+                .foregroundStyle(self.palette.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private func paceDeltaText(_ pace: QuotaPace, lineLimit: Int) -> some View {
+        Text(pace.deltaText())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(self.paceTrendColor(pace, accent: self.palette.primary))
+            .lineLimit(lineLimit)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func paceLaneRow(_ lane: CodexBarWidgetPaceLane, providerID: String, accent: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(self.paceLaneLabel(lane, providerID: providerID))
+                .font(self.rowSubtitleFont.weight(.semibold))
+                .foregroundStyle(self.palette.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text(self.percentValueText(lane.remainingPercent))
+                .font(self.rowValueFont)
+                .foregroundStyle(self.palette.isColorful ? accent : self.palette.primary)
+                .lineLimit(1)
+                .privacySensitive()
+            Text(String(localized: "Left"))
+                .font(self.rowSubtitleFont)
+                .foregroundStyle(self.palette.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    /// Observed remaining quota against the even-pace guide, without axes.
+    /// Two layers so a tinted Home Screen accents only the observed line;
+    /// the guide and grid keep their neutral color.
+    private func paceChart(_ lane: CodexBarWidgetPaceLane, accent: Color, showsGrid: Bool) -> some View {
+        let lineColor = self.palette.isColorful ? accent : self.palette.primary
+        return ZStack {
+            Chart {
+                LineMark(
+                    x: .value("Date", lane.start),
+                    y: .value("Remaining", 100.0),
+                    series: .value("Series", "even"))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .foregroundStyle(self.palette.secondary)
+                LineMark(
+                    x: .value("Date", lane.reset),
+                    y: .value("Remaining", 0.0),
+                    series: .value("Series", "even"))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .foregroundStyle(self.palette.secondary)
+            }
+            .paceChartScales(lane: lane, showsGrid: showsGrid, gridColor: self.palette.separator)
+            Chart {
+                ForEach(Array(lane.points.enumerated()), id: \.offset) { _, point in
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("Remaining", point.remainingPercent),
+                        series: .value("Series", "observed"))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .foregroundStyle(lineColor)
+                }
+                if let last = lane.points.last {
+                    PointMark(x: .value("Date", last.date), y: .value("Remaining", last.remainingPercent))
+                        .symbolSize(self.family == .systemSmall ? 18 : 24)
+                        .foregroundStyle(lineColor)
+                }
+            }
+            .paceChartScales(lane: lane, showsGrid: false, gridColor: .clear)
+            .widgetAccentable()
+        }
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Helpers
+
+    private func paceAccent(_ provider: CodexBarWidgetProviderSummary) -> Color {
+        self.palette.isColorful && !provider.isError
+            ? ProviderColorPalette.color(for: provider.providerID)
+            : self.palette.providerAccent(index: 0, isError: provider.isError)
+    }
+
+    private func paceTrendColor(_ pace: QuotaPace, accent: Color) -> Color {
+        guard self.palette.isColorful else { return self.palette.primary }
+        switch pace.trend {
+        case .ahead: return self.palette.metricAccent(.warning)
+        case .behind: return self.palette.metricAccent(.syncHealth)
+        case .onPace: return accent
+        }
+    }
+
+    private func paceIconName(_ pace: QuotaPace) -> String {
+        switch pace.trend {
+        case .ahead: "arrow.up.circle.fill"
+        case .behind: "arrow.down.circle.fill"
+        case .onPace: "equal.circle.fill"
+        }
+    }
+
+    private func paceResetText(_ pace: CodexBarWidgetPaceSummary?) -> String? {
+        WidgetProviderResetText.days(pace?.paceResetsAt, now: self.entry.date)
+    }
+
+    /// Same lane-label localization as the app's Quota pace section.
+    private func paceLaneLabel(_ lane: CodexBarWidgetPaceLane, providerID: String) -> String {
+        ProviderDetailLocalization.localized(lane.label, providerID: providerID)
+    }
+}
+
+private extension View {
+    /// Shared scales so the guide and observed layers line up exactly.
+    func paceChartScales(lane: CodexBarWidgetPaceLane, showsGrid: Bool, gridColor: Color) -> some View {
+        self
+            .chartXScale(domain: lane.start...lane.reset)
+            .chartYScale(domain: 0...100)
+            .chartXAxis(.hidden)
+            .chartYAxis {
+                if showsGrid {
+                    AxisMarks(values: [0, 50, 100]) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                            .foregroundStyle(gridColor)
+                    }
+                }
+            }
+            .chartLegend(.hidden)
     }
 }

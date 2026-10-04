@@ -6,6 +6,7 @@ enum CodexBarWidgetMode: String, AppEnum {
     case providerFocus
     case todayCost
     case syncHealth
+    case quotaPace
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Widget Type"
 
@@ -14,6 +15,7 @@ enum CodexBarWidgetMode: String, AppEnum {
         .providerFocus: "Provider Focus",
         .todayCost: "Today Cost",
         .syncHealth: "Sync Health",
+        .quotaPace: "Quota pace",
     ]
 }
 
@@ -54,9 +56,17 @@ struct CodexBarWidgetConfigurationIntent: AppIntent, WidgetConfigurationIntent {
                 \.$providers
             }
         } otherwise: {
-            Summary {
-                \.$mode
-                \.$colorStyle
+            When(\.$mode, .equalTo, CodexBarWidgetMode.quotaPace) {
+                Summary {
+                    \.$mode
+                    \.$colorStyle
+                    \.$providers
+                }
+            } otherwise: {
+                Summary {
+                    \.$mode
+                    \.$colorStyle
+                }
             }
         }
     }

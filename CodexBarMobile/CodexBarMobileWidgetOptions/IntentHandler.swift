@@ -19,6 +19,10 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling {
         self.emptyChoice()
     }
 
+    func defaultPaceProvider(for intent: SelectStatusWidgetIntent) -> StatusWidgetProvider? {
+        self.emptyChoice()
+    }
+
     func provideProvider1OptionsCollection(
         for intent: SelectStatusWidgetIntent,
         with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
@@ -41,6 +45,13 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling {
     }
 
     func provideProvider4OptionsCollection(
+        for intent: SelectStatusWidgetIntent,
+        with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
+    {
+        self.provideOptions(with: completion)
+    }
+
+    func providePaceProviderOptionsCollection(
         for intent: SelectStatusWidgetIntent,
         with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
     {

@@ -5,6 +5,7 @@
 "CBStatusStatusWidgetModeproviderFocus" = "服务商详情";
 "CBStatusStatusWidgetModetodayCost" = "今日费用";
 "CBStatusStatusWidgetModesyncHealth" = "同步状态";
+"CBStatusStatusWidgetModequotaPace" = "额度消耗趋势";
 "CBStatusStatusWidgetColorStyleTitle" = "颜色样式";
 "CBStatusStatusWidgetColorStyleunknown" = "未知";
 "CBStatusStatusWidgetColorStylemono" = "单色";
@@ -20,3 +21,4 @@
 "CBStatusprovider2" = "服务商 2";
 "CBStatusprovider3" = "服务商 3";
 "CBStatusprovider4" = "服务商 4";
+"CBStatuspaceProvider" = "服务商";

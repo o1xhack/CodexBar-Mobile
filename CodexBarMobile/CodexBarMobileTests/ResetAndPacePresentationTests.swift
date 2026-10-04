@@ -3,27 +3,26 @@ import Foundation
 import Testing
 @testable import CodexBarMobile
 
-@Suite("Reset dates and reader-local Codex pace")
+@Suite("Reset dates and reader-local quota pace")
 struct ResetAndPacePresentationTests {
     private let captured = Date(timeIntervalSince1970: 1_791_000_000)
 
-    private func context(delta: Double? = -0.151, label: String = "节奏：余量 15% · 持续到重置 · 1.5 倍余量")
-        -> SyncCodexWorkspaceContext
+    private func window(
+        used: Double = 72,
+        remainingFraction: Double = 0.129,
+        minutes: Int = 10080,
+        usageKnown: Bool = true) -> SyncRateWindow
     {
         .init(
-            workspaceID: nil,
-            workspaceName: nil,
-            weeklyPaceDelta: delta,
-            weeklyPaceLabel: label,
-            updatedAt: self.captured)
+            usedPercent: used,
+            usageKnown: usageKnown,
+            windowMinutes: minutes,
+            resetsAt: self.captured.addingTimeInterval(Double(minutes) * 60 * remainingFraction),
+            resetDescription: nil)
     }
 
-    private func window(used: Double = 72, remainingFraction: Double = 0.129) -> SyncRateWindow {
-        .init(
-            usedPercent: used,
-            windowMinutes: 10080,
-            resetsAt: self.captured.addingTimeInterval(604_800 * remainingFraction),
-            resetDescription: nil)
+    private func pace(_ window: SyncRateWindow?, reference: Date? = nil) -> QuotaPace? {
+        QuotaPace(window: window, capturedAt: self.captured, referenceDate: reference ?? self.captured)
     }
 
     @Test func `Reset dates use Gregorian month day and a fixed 24 hour clock in the reader time zone`() throws {
@@ -35,82 +34,249 @@ struct ResetAndPacePresentationTests {
         #expect(QuotaResetDateText.compact(winter, timeZone: zone) == "12.31 23:02")
     }
 
-    @Test func `Chinese producer copy never leaks into English reader pace`() throws {
-        let pace = try #require(CodexPacePresentation(
-            context: self.context(), window: self.window(), referenceDate: self.captured))
+    @Test func `Linear pace matches the Mac formula at the observation time`() throws {
+        let pace = try #require(self.pace(self.window()))
+        // 87.1% of the week elapsed, 72% used.
         #expect(abs(pace.deltaPercentagePoints + 15.1) < 0.0001)
         #expect(pace.forecast == .lastsUntilReset(headroom: true))
-        let summary = pace.summary(locale: Locale(identifier: "en_US"))
-        #expect(summary ==
+        #expect(pace.trend == .behind)
+        #expect(pace.summary(locale: Locale(identifier: "en_US")) ==
             "15 percentage points below even pace · Estimated to last until reset · At least 1.5× pace headroom")
-        #expect(!summary.contains("节奏"))
-        #expect(!summary.contains("15%"))
     }
 
-    @Test func `All four reader languages localize independently of the producer language`() throws {
-        let pace = try #require(CodexPacePresentation(
-            context: self.context(label: "Fixture foreign producer wording"),
-            window: self.window(),
-            referenceDate: self.captured))
+    @Test func `All four reader languages localize the pace`() throws {
+        let pace = try #require(self.pace(self.window()))
         for (language, fragment) in [
             ("en", "15 percentage points below even pace"),
             ("zh-Hans", "低 15 个百分点"),
             ("zh-Hant", "低 15 個百分點"),
             ("ja", "15 ポイント低い"),
         ] {
-            let text = pace.summary(locale: Locale(identifier: language))
-            #expect(text.contains(fragment))
-            #expect(!text.contains("Fixture"))
+            #expect(pace.summary(locale: Locale(identifier: language)).contains(fragment))
         }
     }
 
     @Test func `A fast observation forecasts depletion and near even pace retains its tolerance`() throws {
-        let pace = try #require(CodexPacePresentation(
-            context: self.context(delta: 0.22),
-            window: self.window(used: 72, remainingFraction: 0.5),
-            referenceDate: self.captured))
-        #expect(pace.forecast == .emptyAt(self.captured.addingTimeInterval(28 * 302_400 / 72)))
-        #expect(pace.summary(locale: Locale(identifier: "en")).contains("22 percentage points above"))
-        let even = try #require(CodexPacePresentation(
-            context: self.context(delta: 0.01), window: nil, referenceDate: self.captured))
-        #expect(even.summary(locale: Locale(identifier: "en")) == "On even pace")
+        let fast = try #require(self.pace(self.window(used: 72, remainingFraction: 0.5)))
+        #expect(fast.forecast == .emptyAt(self.captured.addingTimeInterval(28 * 302_400 / 72)))
+        #expect(fast.trend == .ahead)
+        #expect(fast.summary(locale: Locale(identifier: "en")).contains("22 percentage points above"))
+        let even = try #require(self.pace(self.window(used: 51, remainingFraction: 0.5)))
+        #expect(even.deltaText(locale: Locale(identifier: "en")) == "On even pace")
+        #expect(even.trend == .onPace)
     }
 
-    @Test func `Headroom is a threshold and is not shown for zero use or exactly fifteen points`() throws {
-        let exact = try #require(CodexPacePresentation(
-            context: self.context(delta: -0.15), window: self.window(), referenceDate: self.captured))
-        #expect(exact.forecast == .lastsUntilReset(headroom: false))
-        let zero = try #require(CodexPacePresentation(
-            context: self.context(), window: self.window(used: 0), referenceDate: self.captured))
+    @Test func `Headroom needs more than fifteen points of slack and is not shown for zero use`() throws {
+        let under = try #require(self.pace(self.window(used: 73, remainingFraction: 0.121)))
+        #expect(under.deltaPercentagePoints > -15)
+        #expect(under.forecast == .lastsUntilReset(headroom: false))
+        let zero = try #require(self.pace(self.window(used: 0)))
         #expect(zero.forecast == .lastsUntilReset(headroom: false))
     }
 
-    @Test func `Invalid missing future or expired pace observations do not produce a translated prediction`() throws {
-        for delta in [Double.nan, .infinity, -1.1, 1.1] {
-            #expect(CodexPacePresentation(
-                context: self.context(delta: delta),
-                window: nil,
-                referenceDate: self.captured) == nil)
-        }
-        #expect(CodexPacePresentation(
-            context: self.context(delta: nil),
-            window: nil,
-            referenceDate: self.captured) == nil)
-        #expect(CodexPacePresentation(
-            context: self.context(),
-            window: self.window(),
-            referenceDate: self.captured.addingTimeInterval(-1)) == nil)
+    @Test func `Invalid windows and expired or future observations produce no pace`() throws {
+        #expect(self.pace(nil) == nil)
+        #expect(self.pace(self.window(usageKnown: false)) == nil)
+        #expect(self.pace(self.window(minutes: 300)) == nil)
+        #expect(self.pace(self.window(used: .nan)) == nil)
+        // The observation is later than the reader's clock.
+        #expect(self.pace(self.window(), reference: self.captured.addingTimeInterval(-1)) == nil)
+        // The window has already reset.
         let reset = try #require(self.window().resetsAt)
-        #expect(CodexPacePresentation(context: self.context(), window: self.window(), referenceDate: reset) == nil)
-        let unknown = SyncRateWindow(
-            usedPercent: 72,
-            usageKnown: false,
+        #expect(self.pace(self.window(), reference: reset) == nil)
+        // The reset is further away than one window: the observation predates it.
+        #expect(self.pace(self.window(remainingFraction: 1.2)) == nil)
+        // A brand-new window with usage has no pace yet.
+        #expect(self.pace(self.window(used: 5, remainingFraction: 1)) == nil)
+        let blocked = SyncRateWindow(
+            usedPercent: 100,
             windowMinutes: 10080,
             resetsAt: reset,
+            resetDescription: nil,
+            blockingQuota: SyncBlockingQuota(
+                windowID: "monthly", rawUsedPercent: 40, rawResetsAt: reset,
+                rawResetDescription: nil, rawNextRegenPercent: nil))
+        #expect(self.pace(blocked) == nil)
+    }
+
+    @Test func `Pace comes from the provider weekly window without any Mac pace field`() throws {
+        func snapshot(_ providerID: String) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: providerID,
+                providerName: providerID.capitalized,
+                primary: SyncRateWindow(
+                    usedPercent: 90,
+                    windowMinutes: 300,
+                    resetsAt: self.captured.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: self.window(),
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.captured)
+        }
+        for providerID in ["codex", "claude"] {
+            let provider = snapshot(providerID)
+            #expect(QuotaPace.window(for: provider)?.windowMinutes == 10080)
+            let pace = try #require(QuotaPace(provider: provider, referenceDate: self.captured.addingTimeInterval(60)))
+            #expect(abs(pace.deltaPercentagePoints + 15.1) < 0.0001)
+            #expect(pace.capturedAt == self.captured)
+        }
+    }
+
+    @Test func `Pace stays anchored to the observation as the reader clock moves`() throws {
+        let early = try #require(self.pace(self.window()))
+        let later = try #require(self.pace(self.window(), reference: self.captured.addingTimeInterval(3600)))
+        #expect(early == later)
+    }
+
+    @Test func `Over-limit usage clamps to empty now and a window that has not started has no forecast`() throws {
+        let over = try #require(self.pace(self.window(used: 130, remainingFraction: 0.4)))
+        #expect(over.forecast == .emptyAt(self.captured))
+        #expect(abs(over.deltaPercentagePoints - 40) < 0.0001)
+        let fresh = try #require(self.pace(self.window(used: 0, remainingFraction: 1)))
+        #expect(fresh.forecast == nil)
+    }
+
+    @Test func `The monthly sentinel follows each provider's Mac rule`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let marchReset = try #require(calendar.date(from: DateComponents(year: 2027, month: 3, day: 1)))
+        let augustReset = try #require(calendar.date(from: DateComponents(year: 2027, month: 8, day: 1)))
+        func monthly(_ reset: Date, minutes: Int? = 43200, description: String? = nil) -> SyncRateWindow {
+            SyncRateWindow(usedPercent: 2, windowMinutes: minutes, resetsAt: reset, resetDescription: description)
+        }
+        // Calendar-month providers: February and July.
+        #expect(QuotaPace.duration(of: monthly(marchReset), providerID: "alibaba") == TimeInterval(28 * 86400))
+        #expect(QuotaPace.duration(of: monthly(augustReset), providerID: "ollama") == TimeInterval(31 * 86400))
+        // Codex's 43200 minutes is a real rolling 30-day window.
+        #expect(QuotaPace.duration(of: monthly(marchReset), providerID: "codex") == TimeInterval(30 * 86400))
+        // Zai only for its MCP window; Copilot when the length is missing.
+        #expect(QuotaPace.duration(of: monthly(marchReset, description: "MCP"), providerID: "zai")
+            == TimeInterval(28 * 86400))
+        #expect(QuotaPace.duration(of: monthly(marchReset), providerID: "zai") == TimeInterval(30 * 86400))
+        #expect(QuotaPace.duration(of: monthly(augustReset, minutes: nil), providerID: "copilot")
+            == TimeInterval(31 * 86400))
+        #expect(QuotaPace.duration(of: monthly(augustReset, minutes: nil), providerID: "codex") == nil)
+        #expect(QuotaPace.duration(of: monthly(augustReset, minutes: 300), providerID: "codex") == nil)
+        // Untyped Grok credits: the weekly pool when the reset is 4–12 days away.
+        let grokReset = self.captured.addingTimeInterval(5 * 86400)
+        let grok = SyncRateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: grokReset, resetDescription: nil)
+        #expect(QuotaPace.duration(of: grok, providerID: "grok", capturedAt: self.captured) == TimeInterval(604_800))
+        let grokPace = try #require(QuotaPace(
+            window: grok, capturedAt: self.captured, referenceDate: self.captured, providerID: "grok"))
+        #expect(abs(grokPace.deltaPercentagePoints - (30 - 2.0 / 7 * 100)) < 0.0001)
+        let grokMonthly = SyncRateWindow(
+            usedPercent: 30, windowMinutes: nil, resetsAt: self.captured.addingTimeInterval(25 * 86400),
             resetDescription: nil)
-        #expect(CodexPacePresentation(
-            context: self.context(),
-            window: unknown,
-            referenceDate: self.captured)?.forecast == nil)
+        #expect(QuotaPace.duration(of: grokMonthly, providerID: "grok", capturedAt: self.captured) == nil)
+        #expect(QuotaPace.duration(of: grok, providerID: "codex", capturedAt: self.captured) == nil)
+        // A window without a length falls back to its declared period
+        // (Raycast monthly limit, Aixy budgets without a start date).
+        func declared(_ period: SyncRateWindowPeriod?, minutes: Int? = nil) -> SyncRateWindow {
+            SyncRateWindow(
+                usedPercent: 2, windowMinutes: minutes, period: period, resetsAt: augustReset,
+                resetDescription: nil)
+        }
+        #expect(QuotaPace.duration(of: declared(.monthly), providerID: "raycast") == TimeInterval(31 * 86400))
+        #expect(QuotaPace.duration(of: declared(.weekly), providerID: "aixy") == TimeInterval(604_800))
+        #expect(QuotaPace.duration(of: declared(.daily), providerID: "aixy") == TimeInterval(86400))
+        #expect(QuotaPace.duration(of: declared(.session), providerID: "raycast") == nil)
+        #expect(QuotaPace.duration(of: declared(.lifetime), providerID: "raycast") == nil)
+        // An explicit length still wins over the declared period.
+        #expect(QuotaPace.duration(of: declared(.monthly, minutes: 10080), providerID: "raycast")
+            == TimeInterval(604_800))
+        // Day one of a 31-day month still produces a pace.
+        let captured = augustReset.addingTimeInterval(-30.5 * 86400)
+        let pace = try #require(QuotaPace(
+            window: monthly(augustReset), capturedAt: captured, referenceDate: captured, providerID: "ollama"))
+        #expect(abs(pace.deltaPercentagePoints - (2 - 0.5 / 31 * 100)) < 0.0001)
+    }
+
+    @Test func `Only native slots carry the pace and extra named windows never do`() {
+        func snapshot(windows: [SyncRateWindow], providerID: String = "codex") -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: providerID,
+                providerName: providerID,
+                primary: windows.first,
+                secondary: windows.dropFirst().first,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: self.captured,
+                rateWindows: windows)
+        }
+        let reset = self.captured.addingTimeInterval(86400)
+        let weeklyPrimary = SyncRateWindow(
+            id: "primary", usedPercent: 40, windowMinutes: 10080, resetsAt: reset, resetDescription: nil)
+        let spark = SyncRateWindow(
+            id: "codex-spark", label: "Spark", usedPercent: 90, windowMinutes: 10080, resetsAt: reset,
+            resetDescription: nil)
+        // The legacy `secondary` field is Spark here; the pace must use primary.
+        #expect(QuotaPace.window(for: snapshot(windows: [weeklyPrimary, spark])) == weeklyPrimary)
+        // A Claude model lane alone never becomes the pace window.
+        let session = SyncRateWindow(
+            id: "primary", usedPercent: 10, windowMinutes: 300, resetsAt: reset, resetDescription: nil)
+        let opus = SyncRateWindow(
+            id: "claude-opus", label: "Opus", usedPercent: 10, windowMinutes: 10080, resetsAt: reset,
+            resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [session, opus], providerID: "claude")) == nil)
+        // A native slot that keeps a provider-defined id (Aixy budget) still counts.
+        let budget = SyncRateWindow(
+            id: "aixy-budget-123", usedPercent: 20, windowMinutes: 10080, resetsAt: reset, resetDescription: nil)
+        let daily = SyncRateWindow(
+            id: "secondary", usedPercent: 5, windowMinutes: 300, resetsAt: reset, resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [budget, daily], providerID: "aixy")) == budget)
+        // Aixy promotes its first two known budgets to primary/secondary with
+        // their own ids; the second one is checked first like a secondary.
+        func aixy(_ id: String, minutes: Int, known: Bool = true) -> SyncRateWindow {
+            SyncRateWindow(
+                id: id, usedPercent: 20, usageKnown: known, windowMinutes: minutes, resetsAt: reset,
+                resetDescription: nil)
+        }
+        let aixyDaily = aixy("aixy-daily", minutes: 1440)
+        let aixyWeekly = aixy("aixy-weekly", minutes: 10080)
+        let aixyMonthly = aixy("aixy-monthly", minutes: 43200)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyDaily, aixyWeekly], providerID: "aixy")) == aixyWeekly)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyWeekly], providerID: "aixy")) == aixyWeekly)
+        // A third known budget is an extra window and never the pace window.
+        let shortSlots = [aixy("aixy-5h", minutes: 300), aixy("aixy-1h", minutes: 60), aixyWeekly]
+        #expect(QuotaPace.window(for: snapshot(windows: shortSlots, providerID: "aixy")) == nil)
+        // With one known budget the unknown extras behind it are not native.
+        let unknownWeekly = aixy("aixy-weekly", minutes: 10080, known: false)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixy("aixy-5h", minutes: 300), unknownWeekly],
+                                               providerID: "aixy")) == nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [aixyMonthly, unknownWeekly], providerID: "aixy"))
+            == aixyMonthly)
+        // Ids but no standard slot: only extra windows (Kimi monthly / Code
+        // lanes), which never carry the pace even though the legacy primary
+        // field points at the first of them.
+        let kimiMonthly = SyncRateWindow(
+            id: "kimi-monthly", label: "Monthly", usedPercent: 20, windowMinutes: 43200, resetsAt: reset,
+            resetDescription: nil)
+        let kimiCode = SyncRateWindow(
+            id: "kimi-code-7d", label: "Code 7-day", usedPercent: 20, windowMinutes: 10080, resetsAt: reset,
+            resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [kimiMonthly, kimiCode], providerID: "kimi")) == nil)
+        // Older Macs without slot ids keep the legacy fields.
+        let legacyWeekly = SyncRateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: reset, resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [legacyWeekly], providerID: "kimi")) == legacyWeekly)
+    }
+
+    @Test func `OpenCodeGo estimated usage has no pace like the Mac`() {
+        let provider = ProviderUsageSnapshot(
+            providerID: "opencodego",
+            providerName: "OpenCode Go",
+            primary: nil,
+            secondary: self.window(),
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.captured,
+            usageDataConfidence: "estimated")
+        #expect(QuotaPace(provider: provider, referenceDate: self.captured) == nil)
     }
 }

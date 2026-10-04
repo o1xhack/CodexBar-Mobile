@@ -65,6 +65,16 @@
 					<key>INEnumValueName</key>
 					<string>syncHealth</string>
 				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Quota pace</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>CBStatusStatusWidgetModequotaPace</string>
+					<key>INEnumValueIndex</key>
+					<integer>5</integer>
+					<key>INEnumValueName</key>
+					<string>quotaPace</string>
+				</dict>
 			</array>
 		</dict>
 		<dict>
@@ -133,7 +143,7 @@
 			<key>INIntentKeyParameter</key>
 			<string>mode</string>
 			<key>INIntentLastParameterTag</key>
-			<integer>6</integer>
+			<integer>7</integer>
 			<key>INIntentName</key>
 			<string>SelectStatusWidget</string>
 			<key>INIntentParameters</key>
@@ -348,6 +358,39 @@
 						<string>EnumHasExactValue</string>
 						<key>INIntentParameterRelationshipPredicateValue</key>
 						<string>overview</string>
+					</dict>
+				</dict>
+				<dict>
+					<key>INIntentParameterConfigurable</key>
+					<true/>
+					<key>INIntentParameterDisplayName</key>
+					<string>Provider</string>
+					<key>INIntentParameterDisplayNameID</key>
+					<string>CBStatuspaceProvider</string>
+					<key>INIntentParameterDisplayPriority</key>
+					<integer>7</integer>
+					<key>INIntentParameterName</key>
+					<string>paceProvider</string>
+					<key>INIntentParameterObjectType</key>
+					<string>StatusWidgetProvider</string>
+					<key>INIntentParameterObjectTypeNamespace</key>
+					<string>CBStatus240</string>
+					<key>INIntentParameterRequiresDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterSupportsDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterTag</key>
+					<integer>7</integer>
+					<key>INIntentParameterType</key>
+					<string>Object</string>
+					<key>INIntentParameterRelationship</key>
+					<dict>
+						<key>INIntentParameterRelationshipParentName</key>
+						<string>mode</string>
+						<key>INIntentParameterRelationshipPredicateName</key>
+						<string>EnumHasExactValue</string>
+						<key>INIntentParameterRelationshipPredicateValue</key>
+						<string>quotaPace</string>
 					</dict>
 				</dict>
 			</array>

@@ -1,18 +1,21 @@
 import CodexBarSync
 import SwiftUI
 
-/// Codex workspace data stays verbatim; pace copy belongs to the iPhone locale.
-struct CodexWorkspaceBadge: View {
+/// Pace row on the provider detail page (Research/065): reader-local linear
+/// pace for every provider with a window of at least one day, plus the Codex
+/// workspace name when the Mac synced one. Workspace data stays verbatim; pace
+/// copy belongs to the iPhone locale.
+struct ProviderPaceBadge: View {
     @Environment(\.locale) private var locale
     @State private var showsPaceExplanation = false
-    var window: SyncRateWindow?
-    let context: SyncCodexWorkspaceContext
+    let providerID: String
+    var workspaceName: String?
+    let pace: QuotaPace?
     let tintColor: Color
-    var referenceDate: Date = .now
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let name = context.workspaceName, !name.isEmpty {
+            if let name = self.workspaceName, !name.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "rectangle.stack.fill")
                         .font(.caption)
@@ -23,17 +26,15 @@ struct CodexWorkspaceBadge: View {
                     Spacer()
                 }
             }
-            if let pace = CodexPacePresentation(
-                context: self.context, window: self.window, referenceDate: self.referenceDate)
-            {
+            if let pace = self.pace {
                 HStack(spacing: 6) {
-                    Image(systemName: self.paceIconName)
+                    Image(systemName: Self.iconName(for: pace))
                         .font(.caption)
-                        .foregroundStyle(self.paceColor)
+                        .foregroundStyle(self.color(for: pace))
                     Text(verbatim: pace.summary(locale: self.locale))
                         .font(.caption.bold())
-                        .foregroundStyle(self.paceColor)
-                        .accessibilityIdentifier("codex-pace-summary")
+                        .foregroundStyle(self.color(for: pace))
+                        .accessibilityIdentifier("\(self.providerID)-pace-summary")
                     Button {
                         self.showsPaceExplanation = true
                     } label: {
@@ -41,8 +42,8 @@ struct CodexWorkspaceBadge: View {
                             .padding(8)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(String(localized: "About the weekly pace estimate"))
-                    .accessibilityIdentifier("codex-pace-info")
+                    .accessibilityLabel(String(localized: "About the pace estimate"))
+                    .accessibilityIdentifier("\(self.providerID)-pace-info")
                 }
             }
         }
@@ -51,7 +52,7 @@ struct CodexWorkspaceBadge: View {
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.secondary.opacity(0.08)))
-        .alert(String(localized: "Weekly pace estimate"), isPresented: self.$showsPaceExplanation) {
+        .alert(String(localized: "Pace estimate"), isPresented: self.$showsPaceExplanation) {
             Button(String(localized: "OK"), role: .cancel) {}
         } message: {
             Text(
@@ -61,42 +62,43 @@ struct CodexWorkspaceBadge: View {
                     localized: "Points compare used quota with even use. Forecasts assume the latest Mac average rate continues. At least 1.5× means 50% faster use could still last until reset. This is an estimate, not a guarantee."))
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("codex-workspace-badge")
+        .accessibilityIdentifier("\(self.providerID)-workspace-badge")
     }
 
-    private var paceIconName: String {
-        guard let delta = context.weeklyPaceDelta else { return "speedometer" }
-        if delta > 0.05 { return "arrow.up.circle.fill" }
-        if delta < -0.05 { return "arrow.down.circle.fill" }
-        return "equal.circle.fill"
+    static func iconName(for pace: QuotaPace) -> String {
+        switch pace.trend {
+        case .ahead: "arrow.up.circle.fill"
+        case .behind: "arrow.down.circle.fill"
+        case .onPace: "equal.circle.fill"
+        }
     }
 
-    private var paceColor: Color {
-        guard let delta = context.weeklyPaceDelta else { return .secondary }
-        if delta > 0.05 { return .orange }
-        if delta < -0.05 { return .green }
-        return self.tintColor
+    private func color(for pace: QuotaPace) -> Color {
+        switch pace.trend {
+        case .ahead: .orange
+        case .behind: .green
+        case .onPace: self.tintColor
+        }
     }
 }
 
 #Preview {
+    let now = Date()
+    let window = SyncRateWindow(
+        usedPercent: 40,
+        windowMinutes: 10080,
+        resetsAt: now.addingTimeInterval(3 * 86400),
+        resetDescription: nil)
     VStack(spacing: 12) {
-        CodexWorkspaceBadge(
-            context: SyncCodexWorkspaceContext(
-                workspaceID: "ws-acme-prod",
-                workspaceName: "Acme Production",
-                weeklyPaceDelta: 0.12,
-                weeklyPaceLabel: "+12% ahead of pace",
-                updatedAt: Date()),
+        ProviderPaceBadge(
+            providerID: "codex",
+            workspaceName: "Acme Production",
+            pace: QuotaPace(window: window, capturedAt: now, referenceDate: now),
             tintColor: .purple)
-        CodexWorkspaceBadge(
-            context: SyncCodexWorkspaceContext(
-                workspaceID: "ws-personal",
-                workspaceName: "Personal",
-                weeklyPaceDelta: -0.08,
-                weeklyPaceLabel: "-8% under pace",
-                updatedAt: Date()),
-            tintColor: .purple)
+        ProviderPaceBadge(
+            providerID: "claude",
+            pace: QuotaPace(window: window, capturedAt: now, referenceDate: now),
+            tintColor: .orange)
     }
     .padding()
 }

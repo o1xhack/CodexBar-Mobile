@@ -5,6 +5,7 @@
 "CBStatusStatusWidgetModeproviderFocus" = "Provider Focus";
 "CBStatusStatusWidgetModetodayCost" = "Today Cost";
 "CBStatusStatusWidgetModesyncHealth" = "Sync Health";
+"CBStatusStatusWidgetModequotaPace" = "Quota pace";
 "CBStatusStatusWidgetColorStyleTitle" = "Color Style";
 "CBStatusStatusWidgetColorStyleunknown" = "Unknown";
 "CBStatusStatusWidgetColorStylemono" = "Mono";
@@ -20,3 +21,4 @@
 "CBStatusprovider2" = "Provider 2";
 "CBStatusprovider3" = "Provider 3";
 "CBStatusprovider4" = "Provider 4";
+"CBStatuspaceProvider" = "Provider";

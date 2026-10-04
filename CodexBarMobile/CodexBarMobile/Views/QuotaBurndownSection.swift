@@ -16,23 +16,8 @@ struct QuotaBurndownSection: View {
     init(provider: ProviderUsageSnapshot, tintColor: Color, referenceDate: Date) {
         self.providerID = provider.providerID
         self.tintColor = tintColor
-        guard provider.providerID == "codex" || provider.providerID == "claude" else {
-            self.lanes = []
-            return
-        }
-        self.lanes = MobileQuotaBurndown.nativeLanes(for: provider).compactMap { lane in
-            let window = lane.window
-            let name = lane.seriesName
-            let series = provider.utilizationHistory?.first {
-                $0.name == name && $0.windowMinutes == window.windowMinutes
-            }
-            guard let model = MobileQuotaBurndown(
-                series: series,
-                window: window,
-                capturedAt: provider.lastUpdated,
-                referenceDate: referenceDate)
-            else { return nil }
-            return Lane(id: lane.index, label: lane.label, model: model)
+        self.lanes = MobileQuotaBurndown.resolvedLanes(for: provider, referenceDate: referenceDate).map {
+            Lane(id: $0.lane.index, label: $0.lane.label, model: $0.model)
         }
     }
 

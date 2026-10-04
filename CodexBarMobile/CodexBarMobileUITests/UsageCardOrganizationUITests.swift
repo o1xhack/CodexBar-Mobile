@@ -92,14 +92,16 @@ final class UsageCardOrganizationUITests: XCTestCase {
     @MainActor
     private func setSwitch(_ toggle: XCUIElement, on: Bool) {
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        if (toggle.value as? String == "1") != on {
+        let expected = on ? "1" : "0"
+        // A synthesized tap occasionally lands while the List is still
+        // settling and is dropped; retry once before failing.
+        for _ in 0..<2 where toggle.value as? String != expected {
             // Tap the switch knob itself; a Form row tap can land on the label.
             toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+            let changed = NSPredicate(format: "value == %@", expected)
+            _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: changed, object: toggle)], timeout: 3)
         }
-        let expected = on ? "1" : "0"
-        let predicate = NSPredicate(format: "value == %@", expected)
-        expectation(for: predicate, evaluatedWith: toggle)
-        waitForExpectations(timeout: 5)
+        XCTAssertEqual(toggle.value as? String, expected, "switch \(toggle) did not reach \(expected)")
     }
 
     @MainActor

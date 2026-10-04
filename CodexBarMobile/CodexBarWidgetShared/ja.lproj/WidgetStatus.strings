@@ -5,6 +5,7 @@
 "CBStatusStatusWidgetModeproviderFocus" = "プロバイダー詳細";
 "CBStatusStatusWidgetModetodayCost" = "今日のコスト";
 "CBStatusStatusWidgetModesyncHealth" = "同期状況";
+"CBStatusStatusWidgetModequotaPace" = "クォータ消費の推移";
 "CBStatusStatusWidgetColorStyleTitle" = "配色";
 "CBStatusStatusWidgetColorStyleunknown" = "不明";
 "CBStatusStatusWidgetColorStylemono" = "モノクロ";
@@ -20,3 +21,4 @@
 "CBStatusprovider2" = "プロバイダー 2";
 "CBStatusprovider3" = "プロバイダー 3";
 "CBStatusprovider4" = "プロバイダー 4";
+"CBStatuspaceProvider" = "プロバイダー";

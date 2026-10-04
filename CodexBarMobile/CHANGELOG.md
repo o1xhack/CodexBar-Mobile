@@ -2,14 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.5.0 (232)] — Usage card organization
+## [2.5.0 (233)] — Usage card organization and quota pace
 
 ### Added
 - Expand multi-account providers into one Usage card per account (issue #154). Off by default and set per provider from the new provider settings sheet; account cards open a single-account detail.
 - Add a `…` menu to every provider detail page with Pin to Top / Unpin and Provider Settings; cards can also be pinned from their context menu. Pinned cards show in their own section above the rest.
 - Add Edit Order to the Usage page: pinned and other cards are separate sections. Default order sorts each section by name A–Z, Z–A, or soonest weekly reset (cards without one follow by name); manual order supports dragging in both sections.
 
+- Add a Quota pace widget mode (small, medium, large, extra large) with remaining quota, pace, forecast and the observed burndown against the even-pace guide (Codex and Claude); other providers show pace without a chart. Its provider is chosen with a dedicated widget parameter, or automatically.
+
 ### Changed
+- Quota pace is computed on the iPhone for every provider with a window of at least one day (including Codex), at the Mac's observation time with the same linear formula the Mac synced for Codex. Claude and other providers now show the pace row; Codex no longer depends on the synced `weeklyPaceDelta`.
 - Card layout preferences are stored only in this iPhone's UserDefaults as versioned JSON (key `usageCardPreferences.v1`, schema v2); nothing is written to CloudKit/KVS or reaches the Mac. Schema v1 data from TestFlight build 231 that was in manual mode moves to the name A–Z default; pins, expanded providers and manual order are kept. Widgets, Cost and share cards keep their existing order. Demo mode uses an in-memory copy.
 - Account cards are keyed by local identity anchors that union every record key and authenticated identity they have matched, so pins and manual positions survive record-key flips across Macs, label renames and added accounts.
 - Usage cards default to the name A–Z rule (Default Order on); switching from a default rule to manual starts from the order currently shown.

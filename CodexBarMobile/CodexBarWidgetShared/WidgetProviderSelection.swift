@@ -73,6 +73,60 @@ enum WidgetProviderSelection {
         }
     }
 
+    /// Providers for the Quota Pace widget. A configured provider is always
+    /// honored: without pace data it comes back without `quotaPace` (the view
+    /// says so) instead of silently showing another provider. Automatic
+    /// selection prefers providers with a pace, then a chart (Codex, Claude),
+    /// then the least remaining quota.
+    static func pace(
+        from providers: [CodexBarWidgetProviderSummary],
+        selected: [WidgetProviderEntity]?,
+        limit: Int,
+        now: Date = .now) -> [CodexBarWidgetProviderSummary]
+    {
+        let candidates = providers.filter { !$0.isError && $0.quotaPace != nil }
+        if let selected, !selected.isEmpty {
+            var seen = Set<String>()
+            return selected.filter { seen.insert($0.id).inserted }.prefix(limit).map { entity in
+                candidates.filter { $0.providerID == entity.id }
+                    .max { Self.paceRank($0) < Self.paceRank($1) }
+                    ?? CodexBarWidgetProviderSummary(
+                        id: "unavailable|\(entity.id)",
+                        providerName: entity.name,
+                        providerID: entity.id,
+                        loginMethod: nil,
+                        usagePercent: nil,
+                        todayCostUSD: nil,
+                        thirtyDayCostUSD: nil,
+                        tokensToday: nil,
+                        isError: false,
+                        statusMessage: nil,
+                        lastUpdated: now)
+            }
+        }
+        var seen = Set<String>()
+        return candidates
+            .sorted { lhs, rhs in
+                let lhsRank = Self.paceRank(lhs)
+                let rhsRank = Self.paceRank(rhs)
+                if lhsRank != rhsRank { return lhsRank > rhsRank }
+                let lhsRemaining = lhs.quotaPace?.paceRemainingPercent ?? 100
+                let rhsRemaining = rhs.quotaPace?.paceRemainingPercent ?? 100
+                if lhsRemaining != rhsRemaining { return lhsRemaining < rhsRemaining }
+                return lhs.providerName.localizedCaseInsensitiveCompare(rhs.providerName) == .orderedAscending
+            }
+            .filter { seen.insert($0.providerID).inserted }
+            .prefix(limit)
+            .map(\.self)
+    }
+
+    /// Pace outranks a chart; providers with both rank highest.
+    private static func paceRank(_ provider: CodexBarWidgetProviderSummary) -> Int {
+        let hasPace = provider.quotaPace?.pace != nil
+        let hasChart = provider.quotaPace?.lanes.isEmpty == false
+        return (hasPace ? 2 : 0) + (hasChart ? 1 : 0)
+    }
+
     static func columns(count: Int, family: WidgetFamily) -> Int {
         switch family {
         case .systemSmall: count >= 3 ? 2 : 1
