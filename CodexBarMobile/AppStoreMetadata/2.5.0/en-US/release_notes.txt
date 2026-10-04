@@ -1,0 +1,6 @@
+• Show each account as its own card. Turn it on for each provider from the … menu on its page.
+• Pin important cards to the top from the … menu, or touch and hold a card.
+• Cards are now sorted by name. Use Edit Order to sort by the next weekly reset instead, or drag cards into your own order. These layout settings stay on this device and don't change your Mac.
+• Quota pace now covers Claude and other providers with daily, weekly, or monthly limits, calculated on your iPhone from the latest Mac data.
+• Add the new Quota pace widget to see remaining quota, pace, and the usage trend at a glance.
+• Contact the developer or browse more apps from Settings.
