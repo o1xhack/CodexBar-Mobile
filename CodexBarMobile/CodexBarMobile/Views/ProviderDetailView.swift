@@ -304,23 +304,19 @@ struct ProviderDetailView: View {
                 {
                     MiniMaxBillingCard(billing: minimaxBilling, tintColor: self.providerColor)
                 }
-                if self.provider.providerID == "codex",
-                   let codexWorkspace = self.provider.codexWorkspace,
-                   codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceDelta != nil
-                {
-                    TimelineView(.periodic(from: .now, by: 60)) { clock in
-                        let referenceDate = self.isDemoMode ? self.costReferenceDate : clock.date
-                        let window = CodexPacePresentation.window(for: self.provider)
-                        if codexWorkspace.workspaceName?.isEmpty == false ||
-                            CodexPacePresentation(
-                                context: codexWorkspace, window: window, referenceDate: referenceDate) != nil
-                        {
-                            CodexWorkspaceBadge(
-                                window: window,
-                                context: codexWorkspace,
-                                tintColor: self.providerColor,
-                                referenceDate: referenceDate)
-                        }
+                // Research/065: reader-local pace for every provider with a
+                // window of at least one day; Codex also shows its workspace.
+                TimelineView(.periodic(from: .now, by: 60)) { clock in
+                    let referenceDate = self.isDemoMode ? self.costReferenceDate : clock.date
+                    let pace = QuotaPace(provider: self.provider, referenceDate: referenceDate)
+                    let workspaceName = self.provider.providerID == "codex"
+                        ? self.provider.codexWorkspace?.workspaceName : nil
+                    if workspaceName?.isEmpty == false || pace != nil {
+                        ProviderPaceBadge(
+                            providerID: self.provider.providerID,
+                            workspaceName: workspaceName,
+                            pace: pace,
+                            tintColor: self.providerColor)
                     }
                 }
                 if self.provider.providerID == "codex",

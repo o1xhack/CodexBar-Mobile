@@ -85,10 +85,10 @@ final class CodexBarMobileUITests: XCTestCase {
     func testResetDatesAndCodexPaceUseTheReaderLanguage() {
         XCUIDevice.shared.orientation = .portrait
         for (language, fragment, explanation) in [
-            ("en", "16 percentage points below even pace", "Weekly pace estimate"),
-            ("zh-Hans", "低 16 个百分点", "每周用量估算"),
-            ("zh-Hant", "低 16 個百分點", "每週用量估算"),
-            ("ja", "16 ポイント低い", "週間使用ペースの推定"),
+            ("en", "16 percentage points below even pace", "Pace estimate"),
+            ("zh-Hans", "低 16 个百分点", "用量配速估算"),
+            ("zh-Hant", "低 16 個百分點", "用量配速估算"),
+            ("ja", "16 ポイント低い", "使用ペースの推定"),
         ] {
             let app = XCUIApplication()
             app.launchArguments = [

@@ -134,3 +134,48 @@ struct MobileQuotaBurndown: Equatable, Sendable {
         self.ideal = [Sample(date: start, remainingPercent: 100), Sample(date: reset, remainingPercent: 0)]
     }
 }
+
+// MARK: - Shared lane resolution (app detail + Quota Pace widget)
+
+extension MobileQuotaBurndown {
+    struct ResolvedLane: Equatable, Sendable {
+        let lane: NativeLane
+        let model: MobileQuotaBurndown
+    }
+
+    /// Codex and Claude lanes with an observation history for the current
+    /// reset cycle, in session/weekly/opus/monthly order.
+    static func resolvedLanes(for provider: ProviderUsageSnapshot, referenceDate: Date) -> [ResolvedLane] {
+        guard provider.providerID == "codex" || provider.providerID == "claude" else { return [] }
+        return self.nativeLanes(for: provider).compactMap { lane in
+            let window = lane.window
+            let series = provider.utilizationHistory?.first {
+                $0.name == lane.seriesName && $0.windowMinutes == window.windowMinutes
+            }
+            guard let model = MobileQuotaBurndown(
+                series: series,
+                window: window,
+                capturedAt: provider.lastUpdated,
+                referenceDate: referenceDate)
+            else { return nil }
+            return ResolvedLane(lane: lane, model: model)
+        }
+    }
+
+    /// Evenly thins a monotone observation run to at most `limit` samples,
+    /// always keeping the first and the latest sample (widget memory and
+    /// render budget).
+    static func downsample(_ samples: [Sample], limit: Int) -> [Sample] {
+        guard limit >= 2, samples.count > limit else { return samples }
+        let step = Double(samples.count - 1) / Double(limit - 1)
+        var picked: [Sample] = []
+        var lastIndex = -1
+        for slot in 0..<limit {
+            let index = slot == limit - 1 ? samples.count - 1 : Int((Double(slot) * step).rounded())
+            guard index != lastIndex else { continue }
+            picked.append(samples[index])
+            lastIndex = index
+        }
+        return picked
+    }
+}
