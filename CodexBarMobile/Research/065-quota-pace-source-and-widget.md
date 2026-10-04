@@ -1,6 +1,6 @@
 # 065 — Quota pace 数据来源与小组件可行性
 
-状态：done（已实现并验证，见第 5–7 节；PR #174）
+状态：done（已实现并验证，见第 5–7 节；PR #174 于 2026-10-03 合并到 `mobile-dev`，merge commit `4652e3cc5`，Final CI 通过；TestFlight 2.5.0 (233) 已上传）
 日期：2026-10-03
 相关：iOS 2.4.0 新增的 Quota pace（配额走势图）和 Codex 配速条；Research/064（2.5.0）
 
