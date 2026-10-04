@@ -4,6 +4,9 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 
 ## [2.5.0 (234)] — Quota pace widget
 
+### Added
+- Settings → Developer gains Contact (opens Mail to codexbar@yuxiaow.com; touch and hold to copy the address) and More Apps, a list of the developer's other apps and projects that mirrors app.o1xhack.com. Each project opens its App Store page when it ships an iOS app, otherwise its website, otherwise its GitHub repository; Obsidian community plugins are listed separately.
+
 ### Changed
 - Quota pace is now its own widget ("Quota pace", small to extra large) with a Provider and a Color Style parameter, instead of a CodexBar Widget mode. SiriKit keeps the configuration schema a widget was added with, so a new mode never appeared in CodexBar widgets placed before the update; a separate widget can simply be added. CodexBar widgets added on build 233 still list the Quota pace type, but choosing it now shows Overview; remove such a widget and add it again (or add the new Quota pace widget).
 - The pre-2.4.0 "CodexBar Widget (Legacy)" is hidden from the widget gallery. Widgets already on a Home Screen keep showing how to re-add them.
