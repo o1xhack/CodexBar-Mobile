@@ -40,3 +40,32 @@ struct CodexBarStatusTimelineProvider: IntentTimelineProvider {
         }
     }
 }
+
+struct QuotaPaceTimelineProvider: IntentTimelineProvider {
+    func placeholder(in _: Context) -> CodexBarWidgetEntry {
+        CodexBarWidgetEntry(date: .now, configuration: .init(mode: .quotaPace), snapshot: .placeholder())
+    }
+
+    func getSnapshot(
+        for configuration: SelectQuotaPaceWidgetIntent,
+        in context: Context,
+        completion: @escaping @Sendable (CodexBarWidgetEntry) -> Void)
+    {
+        completion(CodexBarWidgetEntry(
+            date: .now,
+            configuration: StatusWidgetConfigurationAdapter.configuration(from: configuration),
+            snapshot: context.isPreview ? .placeholder() : .syncing()))
+    }
+
+    func getTimeline(
+        for intent: SelectQuotaPaceWidgetIntent,
+        in _: Context,
+        completion: @escaping @Sendable (Timeline<CodexBarWidgetEntry>) -> Void)
+    {
+        let configuration = StatusWidgetConfigurationAdapter.configuration(from: intent)
+        // Convert INIntent before crossing isolation, as the status widget does.
+        Task {
+            await completion(CodexBarWidgetProvider.makeTimeline(configuration: configuration))
+        }
+    }
+}

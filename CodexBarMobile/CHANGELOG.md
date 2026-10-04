@@ -2,6 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.5.0 (234)] — Quota pace widget
+
+### Changed
+- Quota pace is now its own widget ("Quota pace", small to extra large) with a Provider and a Color Style parameter, instead of a CodexBar Widget mode. SiriKit keeps the configuration schema a widget was added with, so a new mode never appeared in CodexBar widgets placed before the update; a separate widget can simply be added. CodexBar widgets added on build 233 still list the Quota pace type, but choosing it now shows Overview; remove such a widget and add it again (or add the new Quota pace widget).
+- The pre-2.4.0 "CodexBar Widget (Legacy)" is hidden from the widget gallery. Widgets already on a Home Screen keep showing how to re-add them.
+
 ## [2.5.0 (233)] — Usage card organization and quota pace
 
 ### Added
@@ -9,7 +15,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Add a `…` menu to every provider detail page with Pin to Top / Unpin and Provider Settings; cards can also be pinned from their context menu. Pinned cards show in their own section above the rest.
 - Add Edit Order to the Usage page: pinned and other cards are separate sections. Default order sorts each section by name A–Z, Z–A, or soonest weekly reset (cards without one follow by name); manual order supports dragging in both sections.
 
-- Add a Quota pace widget mode (small, medium, large, extra large) with remaining quota, pace, forecast and the observed burndown against the even-pace guide (Codex and Claude); other providers show pace without a chart. Its provider is chosen with a dedicated widget parameter, or automatically.
+- Add a Quota pace widget mode (small, medium, large, extra large) with remaining quota, pace, forecast and the observed burndown against the even-pace guide (Codex and Claude); other providers show pace without a chart. Its provider is chosen with a dedicated widget parameter, or automatically. (Build 234 moves it into its own widget.)
 
 ### Changed
 - Quota pace is computed on the iPhone for every provider with a window of at least one day (including Codex), at the Mac's observation time with the same linear formula the Mac synced for Codex. Claude and other providers now show the pace row; Codex no longer depends on the synced `weeklyPaceDelta`.

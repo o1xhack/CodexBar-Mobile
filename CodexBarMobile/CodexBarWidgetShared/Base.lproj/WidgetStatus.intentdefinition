@@ -65,16 +65,6 @@
 					<key>INEnumValueName</key>
 					<string>syncHealth</string>
 				</dict>
-				<dict>
-					<key>INEnumValueDisplayName</key>
-					<string>Quota pace</string>
-					<key>INEnumValueDisplayNameID</key>
-					<string>CBStatusStatusWidgetModequotaPace</string>
-					<key>INEnumValueIndex</key>
-					<integer>5</integer>
-					<key>INEnumValueName</key>
-					<string>quotaPace</string>
-				</dict>
 			</array>
 		</dict>
 		<dict>
@@ -360,39 +350,6 @@
 						<string>overview</string>
 					</dict>
 				</dict>
-				<dict>
-					<key>INIntentParameterConfigurable</key>
-					<true/>
-					<key>INIntentParameterDisplayName</key>
-					<string>Provider</string>
-					<key>INIntentParameterDisplayNameID</key>
-					<string>CBStatuspaceProvider</string>
-					<key>INIntentParameterDisplayPriority</key>
-					<integer>7</integer>
-					<key>INIntentParameterName</key>
-					<string>paceProvider</string>
-					<key>INIntentParameterObjectType</key>
-					<string>StatusWidgetProvider</string>
-					<key>INIntentParameterObjectTypeNamespace</key>
-					<string>CBStatus240</string>
-					<key>INIntentParameterRequiresDynamicEnumeration</key>
-					<true/>
-					<key>INIntentParameterSupportsDynamicEnumeration</key>
-					<true/>
-					<key>INIntentParameterTag</key>
-					<integer>7</integer>
-					<key>INIntentParameterType</key>
-					<string>Object</string>
-					<key>INIntentParameterRelationship</key>
-					<dict>
-						<key>INIntentParameterRelationshipParentName</key>
-						<string>mode</string>
-						<key>INIntentParameterRelationshipPredicateName</key>
-						<string>EnumHasExactValue</string>
-						<key>INIntentParameterRelationshipPredicateValue</key>
-						<string>quotaPace</string>
-					</dict>
-				</dict>
 			</array>
 			<key>INIntentResponse</key>
 			<dict>
@@ -414,6 +371,117 @@
 			<string>CodexBar Widget</string>
 			<key>INIntentTitleID</key>
 			<string>CBStatusTitle</string>
+			<key>INIntentType</key>
+			<string>Custom</string>
+			<key>INIntentVerb</key>
+			<string>View</string>
+		</dict>
+		<dict>
+			<key>INIntentCategory</key>
+			<string>information</string>
+			<key>INIntentDescription</key>
+			<string>See whether a provider's quota lasts until it resets.</string>
+			<key>INIntentDescriptionID</key>
+			<string>CBPaceDescription</string>
+			<key>INIntentEligibleForWidgets</key>
+			<true/>
+			<key>INIntentIneligibleForSuggestions</key>
+			<true/>
+			<key>INIntentInput</key>
+			<string>provider</string>
+			<key>INIntentKeyParameter</key>
+			<string>provider</string>
+			<key>INIntentLastParameterTag</key>
+			<integer>2</integer>
+			<key>INIntentName</key>
+			<string>SelectQuotaPaceWidget</string>
+			<key>INIntentParameters</key>
+			<array>
+				<dict>
+					<key>INIntentParameterConfigurable</key>
+					<true/>
+					<key>INIntentParameterDisplayName</key>
+					<string>Color Style</string>
+					<key>INIntentParameterDisplayNameID</key>
+					<string>CBPacecolorStyle</string>
+					<key>INIntentParameterDisplayPriority</key>
+					<integer>1</integer>
+					<key>INIntentParameterEnumType</key>
+					<string>StatusWidgetColorStyle</string>
+					<key>INIntentParameterEnumTypeNamespace</key>
+					<string>CBStatus240</string>
+					<key>INIntentParameterMetadata</key>
+					<dict>
+						<key>INIntentParameterMetadataDefaultValue</key>
+						<string>mono</string>
+					</dict>
+					<key>INIntentParameterName</key>
+					<string>colorStyle</string>
+					<key>INIntentParameterPromptDialogs</key>
+					<array>
+						<dict>
+							<key>INIntentParameterPromptDialogCustom</key>
+							<true/>
+							<key>INIntentParameterPromptDialogType</key>
+							<string>Configuration</string>
+						</dict>
+						<dict>
+							<key>INIntentParameterPromptDialogCustom</key>
+							<true/>
+							<key>INIntentParameterPromptDialogType</key>
+							<string>Primary</string>
+						</dict>
+					</array>
+					<key>INIntentParameterTag</key>
+					<integer>1</integer>
+					<key>INIntentParameterType</key>
+					<string>Integer</string>
+				</dict>
+				<dict>
+					<key>INIntentParameterConfigurable</key>
+					<true/>
+					<key>INIntentParameterDisplayName</key>
+					<string>Provider</string>
+					<key>INIntentParameterDisplayNameID</key>
+					<string>CBPaceprovider</string>
+					<key>INIntentParameterDisplayPriority</key>
+					<integer>2</integer>
+					<key>INIntentParameterName</key>
+					<string>provider</string>
+					<key>INIntentParameterObjectType</key>
+					<string>StatusWidgetProvider</string>
+					<key>INIntentParameterObjectTypeNamespace</key>
+					<string>CBStatus240</string>
+					<key>INIntentParameterRequiresDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterSupportsDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterTag</key>
+					<integer>2</integer>
+					<key>INIntentParameterType</key>
+					<string>Object</string>
+				</dict>
+			</array>
+			<key>INIntentResponse</key>
+			<dict>
+				<key>INIntentResponseCodes</key>
+				<array>
+					<dict>
+						<key>INIntentResponseCodeName</key>
+						<string>success</string>
+						<key>INIntentResponseCodeSuccess</key>
+						<true/>
+					</dict>
+					<dict>
+						<key>INIntentResponseCodeName</key>
+						<string>failure</string>
+					</dict>
+				</array>
+			</dict>
+			<key>INIntentTitle</key>
+			<string>Quota pace</string>
+			<key>INIntentTitleID</key>
+			<string>CBPaceTitle</string>
 			<key>INIntentType</key>
 			<string>Custom</string>
 			<key>INIntentVerb</key>

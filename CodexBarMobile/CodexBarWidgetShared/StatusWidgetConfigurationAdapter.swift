@@ -7,25 +7,35 @@ enum StatusWidgetConfigurationAdapter {
         case .providerFocus: .providerFocus
         case .todayCost: .todayCost
         case .syncHealth: .syncHealth
-        case .quotaPace: .quotaPace
         default: .overview
         }
-        let colorStyle: CodexBarWidgetColorStyle = intent.colorStyle == .colorful ? .colorful : .mono
+        return CodexBarWidgetConfigurationIntent(
+            mode: mode,
+            colorStyle: self.colorStyle(intent.colorStyle),
+            providers: self.providers([intent.provider1, intent.provider2, intent.provider3, intent.provider4]))
+    }
+
+    /// Quota pace is its own widget kind rather than a status widget mode:
+    /// SiriKit keeps the configuration schema a widget was added with, so a
+    /// new mode never reaches status widgets placed before the update.
+    static func configuration(from intent: SelectQuotaPaceWidgetIntent) -> CodexBarWidgetConfigurationIntent {
+        CodexBarWidgetConfigurationIntent(
+            mode: .quotaPace,
+            colorStyle: self.colorStyle(intent.colorStyle),
+            providers: self.providers([intent.provider]))
+    }
+
+    private static func colorStyle(_ style: StatusWidgetColorStyle) -> CodexBarWidgetColorStyle {
+        style == .colorful ? .colorful : .mono
+    }
+
+    private static func providers(_ slots: [StatusWidgetProvider?]) -> [WidgetProviderEntity] {
         var seen = Set<String>()
-        // Quota pace has its own single provider parameter: a parameter can
-        // only be shown for one mode value in an intent definition.
-        let slots = mode == .quotaPace
-            ? [intent.paceProvider]
-            : [intent.provider1, intent.provider2, intent.provider3, intent.provider4]
-        let providers = slots.compactMap { provider -> WidgetProviderEntity? in
+        return slots.compactMap { provider -> WidgetProviderEntity? in
             guard let provider, let id = provider.identifier, !id.isEmpty,
                   id != StatusWidgetProviderChoice.emptyIdentifier, seen.insert(id).inserted
             else { return nil }
             return WidgetProviderEntity(id: id, name: provider.displayString.isEmpty ? id : provider.displayString)
         }
-        return CodexBarWidgetConfigurationIntent(
-            mode: mode,
-            colorStyle: colorStyle,
-            providers: providers)
     }
 }

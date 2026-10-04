@@ -5,7 +5,6 @@
 "CBStatusStatusWidgetModeproviderFocus" = "服務商詳情";
 "CBStatusStatusWidgetModetodayCost" = "今日費用";
 "CBStatusStatusWidgetModesyncHealth" = "同步狀態";
-"CBStatusStatusWidgetModequotaPace" = "額度消耗趨勢";
 "CBStatusStatusWidgetColorStyleTitle" = "顏色樣式";
 "CBStatusStatusWidgetColorStyleunknown" = "未知";
 "CBStatusStatusWidgetColorStylemono" = "單色";
@@ -21,4 +20,13 @@
 "CBStatusprovider2" = "服務商 2";
 "CBStatusprovider3" = "服務商 3";
 "CBStatusprovider4" = "服務商 4";
+
+/* Quota pace widget configuration labels. */
+"CBPaceTitle" = "額度消耗趨勢";
+"CBPaceDescription" = "查看服務商的額度能否撐到重置。";
+"CBPacecolorStyle" = "顏色樣式";
+"CBPaceprovider" = "服務商";
+
+/* Build 233 status widgets keep their schema; keep these labels translated. */
+"CBStatusStatusWidgetModequotaPace" = "額度消耗趨勢";
 "CBStatuspaceProvider" = "服務商";
