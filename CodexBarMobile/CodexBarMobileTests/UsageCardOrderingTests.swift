@@ -681,6 +681,46 @@ struct UsageCardOrderingTests {
     }
 
     @Test @MainActor
+    func `migrating a build 231 manual order is persisted once and reshows the 2_5 notes`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        defaults.set(
+            Data(#"{"schemaVersion":1,"usesDefaultSort":false,"pinnedCardKeys":["provider:zai"]}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == nil)
+        let stored = UsageCardPreferencesStore.load(from: defaults)
+        #expect(stored.schemaVersion == 2)
+        #expect(stored.usesDefaultSort)
+        #expect(stored.isPinned("provider:zai"))
+
+        // Second launch: already v2, the marker set after viewing stays.
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
+    }
+
+    @Test @MainActor
+    func `a build 231 default rule migrates silently`() {
+        let defaults = Self.makeDefaults()
+        defaults.set("2.5.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        defaults.set(
+            Data(#"{"schemaVersion":1,"usesDefaultSort":true,"defaultSortRule":"weeklyReset"}"#.utf8),
+            forKey: UsageCardPreferencesStore.defaultsKey)
+        _ = UsageCardPreferencesStore(defaults: defaults)
+        #expect(defaults.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.5.0")
+        #expect(UsageCardPreferencesStore.load(from: defaults).schemaVersion == 2)
+        #expect(UsageCardPreferencesStore.load(from: defaults).defaultSortRule == .weeklyReset)
+
+        // No stored preferences at all (fresh install or 2.4 upgrade): untouched.
+        let fresh = Self.makeDefaults()
+        fresh.set("2.4.0", forKey: UsageCardPreferencesStore.releaseNotesSeenKey)
+        _ = UsageCardPreferencesStore(defaults: fresh)
+        #expect(fresh.data(forKey: UsageCardPreferencesStore.defaultsKey) == nil)
+        #expect(fresh.string(forKey: UsageCardPreferencesStore.releaseNotesSeenKey) == "2.4.0")
+    }
+
+    @Test @MainActor
     func `a newer schema is ignored and never overwritten`() {
         let defaults = Self.makeDefaults()
         let future = Data(#"{"schemaVersion":99,"usesDefaultSort":true,"futureField":[1,2]}"#.utf8)
