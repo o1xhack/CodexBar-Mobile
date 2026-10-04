@@ -125,8 +125,16 @@
 - 在最终提交 `fb32df66f` 上跑全量：Swift Testing 925 项，XCTest 单元 55 项，UI 23 项（6 项条件跳过），0 失败。2 个 iPad 布局测试在 iPad 上补跑后通过。
 - 2026-10-03 合并进 `mobile-dev`，merge commit 是 `1ebd058e1`。Todoist 任务已移到 QA。
 
+## TestFlight
+
+- 合并后的 Final CI（run `37163341203`）通过。这次只改了 iOS，所以 lint 和 lint-build-test 运行，Mac/Linux 矩阵按路径选择被跳过。
+- 2026-10-03 用 `Scripts/upload_ios_testflight.sh` 上传，源码是 `mobile-dev` 的 `93f7a08ce`。产品输入与审查通过的 PR head `fb32df66f` 完全一致，合并之后只追加了文档提交。
+  - 第一次上传时，脚本自带的 lint 里 `test_swift_test_sharding.sh` 偶发超时（退出码 124）。单独重跑两次都通过，第二次上传正常完成。
+- 归档：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/TestFlight-20261003-170544/CodexBarMobile.xcarchive`，版本 2.5.0 (231)。主 App、推送扩展和小组件的 CloudKit 环境都是 `Production`；WidgetOptions 扩展不使用 iCloud。
+- ASC build `12b181cc-0e7f-4495-9e73-a3b23fbfc87a`：`VALID`，上传时间 2026-10-03 17:10 PDT。
+
 ## 未做 / 后续
 
-- 还没有上传 TestFlight，也没有提交审核。
+- 还没有提交 App Review，等 TestFlight 在真机上验收。
 - 发布前要核对 App Store Connect 上 2.4.0 是否已正式上架。如果没有，按惯例把 2.4.0 的应用内更新说明并入 2.5.0。
 - 用户有多个真实账号时，最好在真机上再验证一次多账号展开（例如 issue #154 的提交者场景）。
