@@ -44,8 +44,11 @@ struct StatusWidgetConfigurationTests {
     @Test func `A status widget never renders quota pace`() {
         // Build 233 offered quota pace as status widget mode 5; such widgets
         // fall back to the overview now that quota pace is its own widget.
+        // The stored value is not a declared case, so it cannot come from
+        // `init(rawValue:)`; reinterpret the raw integer as WidgetKit would.
         let intent = SelectStatusWidgetIntent()
-        intent.mode = StatusWidgetMode(rawValue: 5) ?? .unknown
+        intent.mode = unsafeBitCast(5, to: StatusWidgetMode.self)
+        #expect(intent.mode.rawValue == 5)
         #expect(StatusWidgetConfigurationAdapter.configuration(from: intent).mode == .overview)
     }
 

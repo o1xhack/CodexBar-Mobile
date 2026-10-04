@@ -5,7 +5,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 ## [2.5.0 (234)] — Quota pace widget
 
 ### Changed
-- Quota pace is now its own widget ("Quota pace", small to extra large) with a Provider and a Color Style parameter, instead of a CodexBar Widget mode. SiriKit keeps the configuration schema a widget was added with, so a new mode never appeared in CodexBar widgets placed before the update; a separate widget can simply be added. CodexBar widgets set to the build 233 Quota pace mode fall back to Overview.
+- Quota pace is now its own widget ("Quota pace", small to extra large) with a Provider and a Color Style parameter, instead of a CodexBar Widget mode. SiriKit keeps the configuration schema a widget was added with, so a new mode never appeared in CodexBar widgets placed before the update; a separate widget can simply be added. CodexBar widgets added on build 233 still list the Quota pace type, but choosing it now shows Overview; remove such a widget and add it again (or add the new Quota pace widget).
 - The pre-2.4.0 "CodexBar Widget (Legacy)" is hidden from the widget gallery. Widgets already on a Home Screen keep showing how to re-add them.
 
 ## [2.5.0 (233)] — Usage card organization and quota pace

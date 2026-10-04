@@ -48,6 +48,14 @@ struct CodexBarTokenActivityComparisonWidget: Widget {
 struct CodexBarLegacyStatusWidget: Widget {
     private let kind = "CodexBarStatusWidget"
 
+    private static var galleryLocations: [WidgetLocation] {
+        var locations: [WidgetLocation] = [.homeScreen, .lockScreen, .standBy, .iPhoneWidgetsOnMac]
+        if #available(iOS 26.0, *) {
+            locations.append(.carPlay)
+        }
+        return locations
+    }
+
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: self.kind,
@@ -68,7 +76,7 @@ struct CodexBarLegacyStatusWidget: Widget {
         // Kept only so widgets placed before 2.4.0 explain how to re-add
         // themselves; hidden from the gallery so it is never picked anew.
         .disfavoredLocations(
-            [.homeScreen, .lockScreen, .standBy, .iPhoneWidgetsOnMac],
+            Self.galleryLocations,
             for: [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
         .contentMarginsDisabled()
     }
