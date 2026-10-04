@@ -141,3 +141,59 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
    - 不再读 `codexWorkspace.weeklyPaceDelta`，公式和 Mac 同步值一致。
 2. **不同步 Mac 的“历史 / 工作日配速”**：用户没有开启或不确定是否开启，以后 Mac 和 iOS 一起发版时再评估。
 3. **配速小组件放进 2.5.0**：在现有小组件里新增“配速”模式，small / medium / large（方案 A：单个 provider 完整版）/ extra large 都做。
+
+## 5. 实现（分支 `feature/ios-250-quota-pace`）
+
+- **共享模型**（`CodexBarWidgetShared/`，App 和小组件共用）：
+  - `QuotaPace.swift`：替代原来的 `CodexPacePresentation`。按 Mac 观测时间（快照的 `lastUpdated`）计算线性配速，公式和 Mac 的 `UsagePace.weekly` 一致。
+    - 窗口选择沿用原来的偏好顺序：先 secondary，再 tertiary、primary，最后取剩下的、时长至少一天的窗口。
+    - 窗口被 block、没有已知用量、时长不到一天、已经重置、观测时间晚于“现在”，或者新窗口刚开始就已有用量，这些情况都不出配速。
+  - `MobileQuotaBurndown.swift`、`QuotaResetDateText.swift`、`MobileLocalizedString.swift` 从 App target 移过来。新增 `resolvedLanes(for:referenceDate:)`，详情页的走势图和小组件共用这一个入口；新增 `downsample`，每条线最多 60 个点。
+- **详情页**：`ProviderPaceBadge` 替代 `CodexWorkspaceBadge`，配速条对所有 provider 显示，Codex 另外显示工作区名称。说明弹窗的标题改为不限于“每周”的“Pace estimate / 用量配速估算”。
+- **小组件**：
+  - `CodexBarWidgetProviderSummary.quotaPace`：`CodexBarWidgetPaceSummary`，包含配速、剩余百分比、重置时间和抽样后的走势线。
+  - 新模式 `quotaPace`，在 `WidgetStatus.intentdefinition` 里加了枚举值和四语言文案。显示名沿用 App 里已有的译法：额度消耗趋势 / 額度消耗趨勢 / クォータ消費の推移。
+  - 意图定义里，一个参数只能对应模式的一个取值显示，所以新增了独立的单选参数 `paceProvider`，只在配速模式下显示，选项来自同一份 provider 列表。
+  - 自动选择的顺序：先选有走势线的（Codex、Claude），再按剩余额度从少到多。
+  - 四个尺寸：
+    - small：剩余百分比，加配速一句话和迷你曲线。
+    - medium：左边是剩余百分比、配速、预估和当前周期的剩余；右边是周曲线。
+    - large（方案 A）：配速加预估，下面是当前周期和每周两条曲线。
+    - extra large：两个 provider 并排，每个只画周曲线。
+  - 单色模式下实线用主文字色，彩色模式下用 provider 自己的颜色。曲线带 `widgetAccentable`，适配 tinted 主屏。
+  - App 的“小组件设置”预览页加入了新模式。
+- 版本 2.5.0 (233)，CHANGELOG 和四语言更新说明已更新。
+
+## 6. 验证
+
+- **单元测试**：
+  - `ResetAndPacePresentationTests` 改写为 `QuotaPace`，覆盖：公式和 Mac 一致、四种语言、预估、1.5 倍余量阈值、各种无效窗口、Codex 和 Claude 都不依赖 Mac 字段、观测时间锚定。
+  - 新增 `QuotaPaceWidgetTests`，覆盖：小组件数据提取、抽样、自动和手动选择 provider、占位数据。
+  - `StatusWidgetConfigurationTests` 新增“配速模式只读取自己的参数”。
+- **渲染矩阵**：`CodexBarWidgetRenderMatrixTests` 的模式里加入配速，覆盖 4 种尺寸 × 浅色 / 深色 / tinted × 单色 / 彩色，还有空状态。所有渲染图都作为附件保存，供人工检查。
+- **真实 SpringBoard**（模拟器 iPhone 18 Pro，iOS 27）：
+  - 添加 CodexBar 小组件，在“编辑小组件”里能看到并选中“额度消耗趋势”。选中后配置面板只剩一个“服务商”参数。
+  - 中尺寸（浅色）、大尺寸（深色）、小尺寸（深色）在主屏上渲染正常。
+- **App**：演示数据下，Claude 和 ChatGPT 的详情页都出现了配速条，Claude 显示“低于平均配速 27 个百分点”，和手算结果一致。
+- **截图**：`065-quota-pace-screenshots/`。
+
+## 7. 本地审查与已知局限
+
+子智能体做了 3 轮对抗式审查，最终结论是没有遗留缺陷。主要修正如下：
+
+- **窗口选择和 Mac 对齐**：payload 带槽位 id 时，只认原生的 secondary → tertiary → primary，额外的具名窗口（Codex Spark、Claude 模型窗口）不再参与配速；旧 payload 没有 id 时，退回原来的 secondary / primary 字段。
+- **月度窗口时长按 Mac 各 provider 的规则**：
+  - alibaba、alibabatokenplan、commandcode、doubao、mimo、notion、ollama、opencodego、stepfun：30 天占位值换算成以重置时间结尾的 UTC 日历月。
+  - Zai：只换算 MCP 那个窗口。
+  - Copilot：只在窗口没有时长时，按日历月推算。
+  - 其他 provider（包括 Codex 的 30 天滚动窗口）：按原始时长。
+- **OpenCodeGo** 在估算数据下不出配速，这是 Mac 唯一一个 `allowsEstimatedUsage: false` 的情况。
+- **超过 100% 时**按 100% 算，预测为“现在已用完”；窗口还没开始走时，不给预测。
+- **小组件**：
+  - 没有配速时，剩余百分比改用走势线的最新值。
+  - 自动选择时，有配速的排在只有走势线的前面。
+  - 手动选的 provider 不可用时，显示它的名字和“暂无配速数据”，不再悄悄换成别的 provider。
+  - 车道标签和 App 用同一个 `ProviderDetailLocalization`（已移到共享目录）。
+  - tinted 主屏下只给实线染色，虚线参考线和网格保持中性色。
+
+**已知局限**：多台 Mac 合并时，Kimi 的额度窗口、Claude 从较旧 Mac 补进来的窗口，和 `lastUpdated` 可能不是同一台 Mac 的观测。误差约为两台 Mac 的同步时间差除以窗口时长（差 1 小时，周窗口约 0.6 个百分点）。Codex 不在这类合并逻辑里，不受影响。2.4 版的走势图用的也是同一个锚点。要彻底解决，需要在共享的同步数据里给每个窗口带上观测时间，这要改 `Shared/`，所以留到以后 Mac 和 iOS 一起发版时再做。
