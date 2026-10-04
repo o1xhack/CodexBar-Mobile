@@ -196,6 +196,16 @@ struct ResetAndPacePresentationTests {
             id: "claude-opus", label: "Opus", usedPercent: 10, windowMinutes: 10080, resetsAt: reset,
             resetDescription: nil)
         #expect(QuotaPace.window(for: snapshot(windows: [session, opus], providerID: "claude")) == nil)
+        // A native slot that keeps a provider-defined id (Aixy budget) still counts.
+        let budget = SyncRateWindow(
+            id: "aixy-budget-123", usedPercent: 20, windowMinutes: 10080, resetsAt: reset, resetDescription: nil)
+        let daily = SyncRateWindow(
+            id: "secondary", usedPercent: 5, windowMinutes: 300, resetsAt: reset, resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [budget, daily], providerID: "aixy")) == budget)
+        // Only provider-defined ids: the legacy slots decide.
+        let monthlyBudget = SyncRateWindow(
+            id: "aixy-budget-456", usedPercent: 20, windowMinutes: 43200, resetsAt: reset, resetDescription: nil)
+        #expect(QuotaPace.window(for: snapshot(windows: [monthlyBudget], providerID: "aixy")) == monthlyBudget)
     }
 
     @Test func `OpenCodeGo estimated usage has no pace like the Mac`() {

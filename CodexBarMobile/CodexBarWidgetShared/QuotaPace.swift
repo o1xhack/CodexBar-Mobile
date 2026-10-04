@@ -64,16 +64,28 @@ struct QuotaPace: Equatable, Codable, Sendable {
 
     /// The window pace describes, matching the Mac (`codexWeeklyWindow`):
     /// the native secondary, tertiary, then primary slot of at least one day.
-    /// Extra named windows (Codex Spark, Claude model lanes) never carry the
-    /// provider's pace. Payloads without slot ids (older Macs) fall back to
-    /// the legacy secondary/primary fields.
+    ///
+    /// The Mac writes native slots first (primary, secondary, tertiary) and
+    /// extra named windows after them. Native primary/secondary may keep a
+    /// provider-defined id (Aixy budgets), so every window up to the last one
+    /// with a standard slot id is native; extra windows after it (Codex Spark,
+    /// Claude model lanes) never carry the provider's pace. Payloads without
+    /// any standard slot id fall back to the legacy secondary/primary fields.
     static func window(for provider: ProviderUsageSnapshot) -> SyncRateWindow? {
-        let windows = provider.rateWindows.filter { !$0.isSyntheticPlaceholder }
-        let native = ["secondary", "tertiary", "primary"].compactMap { id in windows.first { $0.id == id } }
-        let candidates = windows.contains(where: { $0.id != nil })
-            ? native
-            : [provider.secondary, provider.primary].compactMap(\.self).filter { !$0.isSyntheticPlaceholder }
-        return candidates.first { Self.duration(of: $0, providerID: provider.providerID) != nil }
+        let standard = ["secondary", "tertiary", "primary"]
+        let windows = provider.rateWindows
+        let candidates: [SyncRateWindow]
+        if let lastNative = windows.lastIndex(where: { $0.id.map(standard.contains) == true }) {
+            let native = windows[...lastNative]
+            let bySlot = standard.compactMap { id in native.first { $0.id == id } }
+            let customIDs = native.filter { $0.id.map(standard.contains) != true }
+            candidates = bySlot + customIDs
+        } else {
+            candidates = [provider.secondary, provider.primary].compactMap(\.self)
+        }
+        return candidates.first {
+            !$0.isSyntheticPlaceholder && Self.duration(of: $0, providerID: provider.providerID) != nil
+        }
     }
 
     static let monthlySentinelMinutes = 30 * 24 * 60

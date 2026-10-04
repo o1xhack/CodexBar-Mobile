@@ -1,6 +1,6 @@
 # 065 — Quota pace 数据来源与小组件可行性
 
-状态：in-progress（2026-10-03 用户已确认方向，见第 4 节）
+状态：done（已实现并验证，见第 5–7 节；PR #174）
 日期：2026-10-03
 相关：iOS 2.4.0 新增的 Quota pace（配额走势图）和 Codex 配速条；Research/064（2.5.0）
 
@@ -181,7 +181,7 @@ iPhone 拿不到任何 provider 的用量。用量都是 Mac 通过 CLI、Cookie
 
 子智能体做了 3 轮对抗式审查，最终结论是没有遗留缺陷。主要修正如下：
 
-- **窗口选择和 Mac 对齐**：payload 带槽位 id 时，只认原生的 secondary → tertiary → primary，额外的具名窗口（Codex Spark、Claude 模型窗口）不再参与配速；旧 payload 没有 id 时，退回原来的 secondary / primary 字段。
+- **窗口选择和 Mac 对齐**：Mac 先写原生槽位，再写额外的具名窗口。因此排在最后一个标准槽位 id（secondary / tertiary / primary）之前的窗口都算原生，包括保留了自定义 id 的原生槽位（例如 Aixy 预算）；选择顺序是 secondary → tertiary → primary，然后是自定义 id 的原生窗口。之后的额外窗口（Codex Spark、Claude 模型窗口）不参与配速；payload 里一个标准 id 都没有时，退回原来的 secondary / primary 字段。
 - **月度窗口时长按 Mac 各 provider 的规则**：
   - alibaba、alibabatokenplan、commandcode、doubao、mimo、notion、ollama、opencodego、stepfun：30 天占位值换算成以重置时间结尾的 UTC 日历月。
   - Zai：只换算 MCP 那个窗口。
