@@ -1173,12 +1173,21 @@ public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
         public let deviceName: String
         public let reportedAt: Date
         public let message: String?
+        /// When the failing Mac last synced at all; a Mac that stopped syncing is no longer reported.
+        public let deviceSyncedAt: Date?
 
-        public init(deviceID: String, deviceName: String, reportedAt: Date, message: String?) {
+        public init(
+            deviceID: String,
+            deviceName: String,
+            reportedAt: Date,
+            message: String?,
+            deviceSyncedAt: Date? = nil)
+        {
             self.deviceID = deviceID
             self.deviceName = deviceName
             self.reportedAt = reportedAt
             self.message = message
+            self.deviceSyncedAt = deviceSyncedAt
         }
     }
 

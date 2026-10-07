@@ -70,6 +70,7 @@ enum ProviderSnapshotMerger {
         var sourceSyncTimestamps: [Date] = []
         var sourceHistoryTimestamps: [Date] = []
         var sourceDeviceNames: [String] = []
+        var sourceDeviceSyncTimestamps: [Date] = []
         for snapshot in snapshots {
             let providers = providersForSnapshot(snapshot)
             allProviders.append(contentsOf: providers)
@@ -77,6 +78,7 @@ enum ProviderSnapshotMerger {
             let deviceID = snapshot.deviceID ?? "legacy:\(snapshot.deviceName)"
             sourceDeviceIDs.append(contentsOf: repeatElement(deviceID, count: providers.count))
             sourceDeviceNames.append(contentsOf: repeatElement(snapshot.deviceName, count: providers.count))
+            sourceDeviceSyncTimestamps.append(contentsOf: repeatElement(snapshot.syncTimestamp, count: providers.count))
             sourceSyncTimestamps.append(contentsOf: providers.map { snapshot.publicationTimestamp(for: $0) })
             sourceQuotaSources.append(contentsOf: providers.map { provider in
                 snapshot.providerQuotaSources[SyncedUsageSnapshot.providerPublicationKey(for: provider)]
@@ -143,7 +145,9 @@ enum ProviderSnapshotMerger {
         // Merging two Macs: a failure without any observation must not replace or sit beside the
         // account another Mac observed. An identity-less failure is absorbed into the provider's
         // only observed account, so its local costs still merge while its error stays explainable.
-        // Ambiguous multi-account cases and user-unmerged pairs keep the separate failure entry. Alias collapse of one
+        // Ambiguous multi-account cases, user-unmerged pairs and a failure from a Mac that already
+        // contributes to the account (one Mac's local costs must not count twice) keep the separate
+        // failure entry. Alias collapse of one
         // physical Mac passes `false` so that Mac's newest state still wins over its retired ID.
         var absorbedIndices = Set<Int>()
         var absorbedIdentitiesByRoot: [Int: Set<String>] = [:]
@@ -159,6 +163,7 @@ enum ProviderSnapshotMerger {
                 guard observedRoots.count == 1, let target = observedRoots.first else { continue }
                 let legacyIdentifier = "\(providerID):legacy-no-identity"
                 let targetIdentifiers = Set(groupedIndices[target, default: []].flatMap { effectiveIdentifiers[$0] })
+                let targetDeviceIDs = Set(groupedIndices[target, default: []].map { sourceDeviceIDs[$0] })
                 // The user explicitly separated the identity-less entry from this account.
                 let userSeparated = unmergeLinkages.contains { linkage in
                     linkage.providerID == providerID
@@ -170,6 +175,7 @@ enum ProviderSnapshotMerger {
                     let members = groupedIndices[root, default: []]
                     guard members.allSatisfy({
                         Self.isFailureOnly(allProviders[$0]) && effectiveIdentifiers[$0] == [legacyIdentifier]
+                            && !targetDeviceIDs.contains(sourceDeviceIDs[$0])
                     }) else { continue }
                     groupedIndices[target, default: []].append(contentsOf: members)
                     groupedIndices[root] = nil
@@ -223,6 +229,7 @@ enum ProviderSnapshotMerger {
                     deviceIDs: indices.map { sourceDeviceIDs[$0] },
                     deviceNames: indices.map { sourceDeviceNames[$0] },
                     reportedAt: indices.map { sourceHistoryTimestamps[$0] },
+                    deviceSyncedAt: indices.map { sourceDeviceSyncTimestamps[$0] },
                     absorbedAccountIdentities: absorbedIdentitiesByRoot[root, default: []].sorted())
             }
             mergedProviders.append((provider, sortIdentity, publication, quotaSource))
@@ -323,6 +330,7 @@ enum ProviderSnapshotMerger {
         deviceIDs: [String],
         deviceNames: [String],
         reportedAt: [Date],
+        deviceSyncedAt: [Date]? = nil,
         absorbedAccountIdentities: [String] = []) -> SyncProviderSourceReport
     {
         let sourceCapturedAt = sourcePosition.map { _ in shownCapturedAt }
@@ -332,7 +340,8 @@ enum ProviderSnapshotMerger {
                 deviceID: deviceIDs[position],
                 deviceName: deviceNames[position],
                 reportedAt: reportedAt[position],
-                message: group[position].statusMessage)
+                message: group[position].statusMessage,
+                deviceSyncedAt: deviceSyncedAt?[position])
         }
         .sorted { $0.reportedAt == $1.reportedAt ? $0.deviceID > $1.deviceID : $0.reportedAt > $1.reportedAt }
         return SyncProviderSourceReport(

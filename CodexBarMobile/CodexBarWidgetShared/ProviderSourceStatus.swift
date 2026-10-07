@@ -5,8 +5,10 @@ import Foundation
 /// Macs currently fail to refresh. The merger computes the report while grouping, so it always
 /// describes exactly the entries that formed the card.
 struct ProviderSourceStatus: Equatable {
-    /// Data older than this is called out even without a newer failure.
+    /// Data older than this is called out even without a failure.
     static let staleInterval: TimeInterval = 6 * 3600
+    /// A failing Mac that has not synced at all for this long is treated as no longer in use.
+    static let inactiveDeviceInterval: TimeInterval = 7 * 86400
 
     let report: SyncProviderSourceReport
 
@@ -16,17 +18,6 @@ struct ProviderSourceStatus: Equatable {
 
     var sourceCapturedAt: Date? {
         self.report.sourceCapturedAt
-    }
-
-    /// Each listed failure is that Mac's latest state, newest first.
-    var failures: [SyncProviderSourceReport.Failure] {
-        self.report.failures
-    }
-
-    /// The shown data comes from a Mac other than one that is failing.
-    var showsDataFromAnotherMac: Bool {
-        guard let sourceDeviceID = self.report.sourceDeviceID else { return false }
-        return self.failures.contains { $0.deviceID != sourceDeviceID }
     }
 
     var allFailed: Bool {
@@ -41,6 +32,21 @@ struct ProviderSourceStatus: Equatable {
         provider.sourceReport.map(ProviderSourceStatus.init(report:))
     }
 
+    /// Each failure is that Mac's latest state, newest first. Macs that stopped syncing are left out
+    /// (the user can archive them in Settings) so a retired Mac cannot keep a notice up forever.
+    func failures(at now: Date) -> [SyncProviderSourceReport.Failure] {
+        self.report.failures.filter { failure in
+            guard let syncedAt = failure.deviceSyncedAt else { return true }
+            return now.timeIntervalSince(syncedAt) <= Self.inactiveDeviceInterval
+        }
+    }
+
+    /// The shown data comes from a Mac other than one that is failing.
+    func showsDataFromAnotherMac(at now: Date) -> Bool {
+        guard let sourceDeviceID = self.report.sourceDeviceID else { return false }
+        return self.failures(at: now).contains { $0.deviceID != sourceDeviceID }
+    }
+
     func isStale(at now: Date) -> Bool {
         guard let sourceCapturedAt else { return false }
         return now.timeIntervalSince(sourceCapturedAt) > Self.staleInterval
@@ -50,11 +56,12 @@ struct ProviderSourceStatus: Equatable {
     /// Macs are involved or the shown data is old.
     func needsNotice(at now: Date) -> Bool {
         if self.allFailed { return self.report.deviceCount >= 2 }
-        return !self.failures.isEmpty || self.isStale(at: now)
+        return !self.failures(at: now).isEmpty || self.isStale(at: now)
     }
 
-    /// Failures make the notice a warning; old data alone is informational.
-    var isWarning: Bool {
-        self.allFailed || !self.failures.isEmpty
+    /// Fresh data from another Mac is informational even while one Mac keeps failing (for example
+    /// a provider never signed in there); old data next to a failure, or no data at all, is a warning.
+    func isWarning(at now: Date) -> Bool {
+        self.allFailed || (!self.failures(at: now).isEmpty && self.isStale(at: now))
     }
 }

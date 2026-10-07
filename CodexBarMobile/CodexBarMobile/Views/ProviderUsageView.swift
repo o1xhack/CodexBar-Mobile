@@ -241,13 +241,15 @@ struct ProviderUsageView: View {
 
             HStack(spacing: 4) {
                 Text(self.provider.lastUpdated.formatted(.relative(presentation: .named)))
-                if let device = self.sourceStatus?.sourceDeviceName,
-                   self.sourceStatus?.showsDataFromAnotherMac == true
+                if let status = self.sourceStatus, let device = status.sourceDeviceName,
+                   status.showsDataFromAnotherMac(at: Date())
                 {
-                    // Another Mac is failing; say whose data this is.
-                    Image(systemName: "exclamationmark.circle")
-                        .foregroundStyle(.orange)
-                        .accessibilityHidden(true)
+                    // Another Mac is failing; say whose data this is. Orange only once the data is old.
+                    if status.isWarning(at: Date()) {
+                        Image(systemName: "exclamationmark.circle")
+                            .foregroundStyle(.orange)
+                            .accessibilityHidden(true)
+                    }
                     Text(String(format: String(localized: "from %@"), device))
                         .lineLimit(1)
                 }

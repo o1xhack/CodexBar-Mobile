@@ -713,6 +713,7 @@ enum CostLedgerService {
         asOf: Date = Date(),
         activeDeviceIDs: Set<String>? = nil,
         sourceSnapshots: [SyncedUsageSnapshot] = [],
+        accountLinks: [CostLedgerAccountLink] = [],
         readerTimeZone: TimeZone = .current) throws -> CostLedgerProviderRollup
     {
         let full = try Self.aggregate(
@@ -721,6 +722,7 @@ enum CostLedgerService {
             asOf: asOf,
             activeDeviceIDs: activeDeviceIDs,
             sourceSnapshots: sourceSnapshots,
+            accountLinks: accountLinks,
             readerTimeZone: readerTimeZone)
         let rollupKey = Self.rollupKey(
             providerID: providerID,

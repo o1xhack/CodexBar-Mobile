@@ -8,6 +8,9 @@ struct ProviderSourceNoticeContent: Equatable {
         let detail: String?
     }
 
+    static let resolutionHintKey =
+        "To clear this, fix the error on that Mac or turn the provider off there. Archive Macs you no longer use in Settings → About & Sync."
+
     let title: String
     let lines: [Line]
     let isWarning: Bool
@@ -30,7 +33,7 @@ struct ProviderSourceNoticeContent: Equatable {
 
         var lines: [Line] = []
         if let device = status.sourceDeviceName, let captured = status.sourceCapturedAt {
-            self.title = status.showsDataFromAnotherMac
+            self.title = status.showsDataFromAnotherMac(at: now)
                 ? MobileLocalizedString.value(
                     "Showing data from another Mac",
                     defaultValue: "Showing data from another Mac",
@@ -46,14 +49,25 @@ struct ProviderSourceNoticeContent: Equatable {
                 defaultValue: "No Mac could refresh this provider",
                 locale: locale)
         }
-        for failure in status.failures {
+        let failures = status.failures(at: now)
+        for failure in failures {
             let message = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
             lines.append(Line(
                 text: format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)]),
                 detail: message?.isEmpty == false ? message : nil))
         }
+        if let sourceDeviceID = status.report.sourceDeviceID,
+           failures.contains(where: { $0.deviceID != sourceDeviceID })
+        {
+            lines.append(Line(
+                text: MobileLocalizedString.value(
+                    Self.resolutionHintKey,
+                    defaultValue: Self.resolutionHintKey,
+                    locale: locale),
+                detail: nil))
+        }
         self.lines = lines
-        self.isWarning = status.isWarning
+        self.isWarning = status.isWarning(at: now)
     }
 }
 
@@ -69,7 +83,7 @@ struct ProviderSourceNoticeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(
                         content.title,
-                        systemImage: content.isWarning ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
+                        systemImage: content.isWarning ? "exclamationmark.triangle.fill" : "info.circle")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(content.isWarning ? Color.orange : Color.secondary)
                     ForEach(Array(content.lines.enumerated()), id: \.offset) { _, line in
