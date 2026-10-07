@@ -39,13 +39,14 @@ Date: 2026-10-06
 - [02-implementation.md](02-implementation.md) — 冲突决策与实现记录
 - [03-testing.md](03-testing.md) — 测试计划、命令证据、16 组合兼容矩阵
 - [04-mac-release.md](04-mac-release.md) — Mac 签名、Draft、Final CI 与公开发布
+- [05-ios-release.md](05-ios-release.md) — iOS 2.6.0 (235) 上传与提交审核
 - [06-ios-impact-audit.md](06-ios-impact-audit.md) — 上游逐项 iOS 影响审计
 
 ## 最终交付状态（2026-10-07）
 
 - **Mac**：`0.72.0.1 / 164.1 / Mobile 2.6.0` 已签名、公证并**公开发布**（用户在本 Goal 中明确授权 Mac 全流程发布）：https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.72.0.1-mobile.2.6.0 ，appcast 已更新（`825f68e86`）。详见 04。
 - **PR**：[#180](https://github.com/o1xhack/CodexBar-Mobile/pull/180) 3 轮 Codex review 后 clean（head `000bd2570`），review gate 通过，合并为 `5948797ec`；Final CI 全绿。
-- **iOS**：2.6.0 (235) 代码、四语言说明、CHANGELOG、App Store 说明与审核备注已合并；完整单测 958 Swift Testing + 58/12/9 XCTest 通过；**未上传 TestFlight / 未提交审核**（本轮用户只授权 Mac 发布）。
+- **iOS**：2.6.0 (235) 已上传（build VALID）并于 2026-10-07 提交审核，`WAITING_FOR_REVIEW` / MANUAL，详见 05；完整单测 958 Swift Testing + 58/12/9 XCTest 通过。
 - **测试**：Mac 最终 head 隔离全量 1593 selections / 144 组（1 组 WebKit fixture 超时重试恢复）；lint 全绿；16 组合同步兼容 gate 全部 substituted 且通过（见 03）。
 - **CloudKit**：`NO_DEPLOY`。
 - **issue**：#177/#178/#179 已回复正式 release 并关闭。
