@@ -101,6 +101,25 @@ struct UsageCardView: View {
                 }.accessibilityIdentifier("usage.monthly-blocked")
             }
 
+            // Newer Macs flag descriptions that state a balance rather than a reset, so they
+            // stay visible next to the reset countdown as on the Mac card.
+            if !self.presentation.isBlocked, self.presentation.resetDate != nil,
+               let balance = self.window.balanceDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !balance.isEmpty
+            {
+                HStack(spacing: 6) {
+                    Image(systemName: "creditcard")
+                        .font(.caption)
+                    Text(ProviderDetailLocalization.localizedValue(
+                        balance,
+                        providerID: self.providerID ?? ""))
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("usage.balance-description")
+            }
+
             // A blocked lane's reset belongs to the monthly availability pool.
             if !self.presentation.isBlocked, let resetsAt = self.presentation.resetDate {
                 self.resetDateRow(resetsAt, prefix: String(localized: "Resets"))

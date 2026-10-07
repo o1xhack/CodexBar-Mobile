@@ -367,6 +367,8 @@ struct V056SyncSemanticsTests {
         }
         #expect(providerDetailsView.contains("ProviderDetailLocalization.localized("))
         #expect(providerDetailsView.contains("ProviderDetailLocalization.localizedValue("))
+        // v0.72: row values and secondary text are localized through the row presentation.
+        #expect(providerDetailsView.contains("ProviderDetailRowPresentation("))
 
         // Raw Sync Data is the deliberate exception: it must expose canonical
         // payload labels for diagnostics, and the source makes that choice explicit.

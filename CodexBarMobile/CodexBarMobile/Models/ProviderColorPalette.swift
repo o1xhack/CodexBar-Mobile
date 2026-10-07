@@ -157,6 +157,19 @@ enum ProviderColorPalette {
         if normalized.contains("aixy") {
             return Color(red: 0.07, green: 0.21, blue: 0.34)
         }
+        // iOS 2.6.0 — upstream v0.71-v0.72 providers. "museai" (muse.ai) must
+        // never fall into Muse Code's exact "muse" entry below.
+        if normalized.contains("museai") || normalized.contains("muse.ai"),
+           let color = self.color(fromHex: "0668E1")
+        {
+            return color
+        }
+        if normalized.contains("lithosai"), let color = self.color(fromHex: "6B7280") {
+            return color
+        }
+        if normalized.contains("workbuddy"), let color = self.color(fromHex: "0DC8A6") {
+            return color
+        }
 
         if let hex = self.updatedBrandHex(for: providerIdentifier), let color = self.color(fromHex: hex) {
             return color

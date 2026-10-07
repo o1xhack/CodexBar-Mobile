@@ -544,6 +544,32 @@ struct ProviderColorPaletteTests {
                     .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
         }
     }
+
+    @Test("v0.72 provider colors use upstream brand tints")
+    func v072ProviderColorsMatchUpstreamBrands() {
+        let expected = [
+            ("museai", UIColor(red: 6 / 255, green: 104 / 255, blue: 225 / 255, alpha: 1)),
+            ("lithosai", UIColor(red: 107 / 255, green: 114 / 255, blue: 128 / 255, alpha: 1)),
+            ("workbuddy", UIColor(red: 13 / 255, green: 200 / 255, blue: 166 / 255, alpha: 1)),
+        ]
+        for (id, color) in expected {
+            #expect(UIColor(ProviderColorPalette.color(for: id)).isApproximately(color), "\(id)")
+        }
+    }
+
+    @Test("muse.ai never borrows the Muse Code tint")
+    func v072MuseAIIsDistinctFromMuseCode() {
+        let museCode = UIColor(ProviderColorPalette.color(for: "muse"))
+        for name in ["museai", "Muse (muse.ai)"] {
+            #expect(!UIColor(ProviderColorPalette.color(for: name)).isApproximately(museCode), "\(name)")
+        }
+        let pairs = [("museai", "Muse (muse.ai)"), ("lithosai", "LithosAI"), ("workbuddy", "WorkBuddy")]
+        for (id, name) in pairs {
+            #expect(
+                UIColor(ProviderColorPalette.color(for: id))
+                    .isApproximately(UIColor(ProviderColorPalette.color(for: name))))
+        }
+    }
 }
 
 @Suite("Provider color dark-mode contrast")

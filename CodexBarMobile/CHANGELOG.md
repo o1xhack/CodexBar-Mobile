@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.6.0 (235)] — Upstream v0.71–v0.72 companion update
+
+### Added
+- WorkBuddy (`workbuddy`), Muse (muse.ai, `museai`) and LithosAI (`lithosai`) from upstream v0.71–v0.72: upstream brand tints (`#0DC8A6`, `#0668E1`, `#6B7280`) with display-name normalization, first-party detail-label localization, and QuotaTransition alert subscriptions for the two percentage providers (`museai`, `workbuddy`, appended at the tail so existing subscription IDs stay stable; LithosAI is balance-only). `museai` never matches Muse Code's exact `muse` tint or labels.
+- Detail rows decode the optional `id`, `progress {used,total}` and `usageValue` fields newer Macs forward from `ProviderDetailSection.Row`. Rows with progress draw a bar (e.g. muse.ai top-ups); the Claude `claude-cloud-credits` row is re-rendered locally as "remaining of total", with a localized expiry, and shows Expired once the Mac-observed expiry passes. Older payloads keep their verbatim text.
+- Rate windows decode the optional `balanceDescription` (Mac descriptor `showsPrimary/SecondaryBalanceDescription`); cards show it next to the reset countdown instead of hiding it whenever a reset time exists. Localized WorkBuddy "X / Y credits left" and muse.ai "N tokens left" values.
+- LithosAI prepaid balance (`Prepaid credits` period, localized) and Grok purchased Extra Usage Credits arrive through the existing `providerAmount` balance card.
+
+### Changed
+- Version 2.6.0 (235) for all targets; release notes require Mac 0.72.0.1.
+
 ## [2.5.0 (234)] — Quota pace widget
 
 ### Added

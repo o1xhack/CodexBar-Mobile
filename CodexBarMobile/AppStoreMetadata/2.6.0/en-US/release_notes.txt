@@ -1,0 +1,6 @@
+• See WorkBuddy, Muse (muse.ai), and LithosAI from your Mac, each with its own color.
+• Cards show remaining credits or tokens next to the reset time when your Mac reports them.
+• See the LithosAI prepaid balance and Grok purchased credits on their cards.
+• Claude cloud credits show the remaining amount, a progress bar, and when they expire. Expired credits are marked as expired.
+• Provider details show progress bars where your Mac reports both used and total amounts.
+• Update CodexBar on Mac to 0.72.0.1 or later for these providers and balances.

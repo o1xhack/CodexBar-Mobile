@@ -4942,8 +4942,30 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "2.5.0",
+            version: "2.6.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "CodexBar 2.6 brings new providers and clearer balances from your Mac."),
+            sections: [
+                .init(title: String(localized: "What's New"), items: [
+                    String(
+                        localized: "See WorkBuddy, Muse (muse.ai), and LithosAI from your Mac, each with its own color."),
+                    String(
+                        localized: "Cards show remaining credits or tokens next to the reset time when your Mac reports them."),
+                    String(
+                        localized: "See the LithosAI prepaid balance and Grok purchased credits on their cards."),
+                    String(
+                        localized: "Claude cloud credits show the remaining amount, a progress bar, and when they expire. Expired credits are marked as expired."),
+                    String(
+                        localized: "Provider details show progress bars where your Mac reports both used and total amounts."),
+                ]),
+                .init(title: String(localized: "Required Mac version"), items: [
+                    String(
+                        localized: "Update CodexBar on Mac to 0.72.0.1 or later for these providers and balances."),
+                ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "2.5.0",
+            status: "",
             summary: String(localized: "CodexBar 2.5 lets you organize the Usage page your way."),
             sections: [
                 .init(title: String(localized: "What's New"), items: [

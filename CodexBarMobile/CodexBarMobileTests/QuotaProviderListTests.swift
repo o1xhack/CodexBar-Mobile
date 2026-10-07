@@ -19,7 +19,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 81 after the v0.67 catch-up")
+    @Test("Total count is 83 after the v0.72 catch-up")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -37,14 +37,15 @@ struct QuotaProviderListTests {
         // iOS 1.20.0 (Qwen Cloud, ZoomMate, xAI, Notion AI from v0.46-v0.47) →
         // 70 in iOS 1.21.0 (IBM Bob from v0.49; Fireworks has spend only) →
         // 78 in iOS 2.1.0 (quota providers through Mac v0.66) → 81 in
-        // iOS 2.3.0 (xKiro, Raycast, and Aixy from Mac v0.67).
+        // iOS 2.3.0 (xKiro, Raycast, and Aixy from Mac v0.67) → 83 in
+        // iOS 2.6.0 (Muse (muse.ai) and WorkBuddy from Mac v0.72).
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 81)
+        #expect(QuotaProviderList.providers.count == 83)
     }
 
-    @Test("Subscription zone count is 243 (81 providers × 3 states)")
+    @Test("Subscription zone count is 249 (83 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -66,10 +67,11 @@ struct QuotaProviderListTests {
         // iOS 1.21.0 / Mac 0.49.2.1: 70 × 3 = 210 zones (+ibmbob).
         // iOS 2.1.0 / Mac 0.66.0: 78 × 3 = 234 zones.
         // iOS 2.3.0 / Mac 0.67.0: 81 × 3 = 243 zones (+xkiro, +raycast, +aixy).
+        // iOS 2.6.0 / Mac 0.72.0: 83 × 3 = 249 zones (+museai, +workbuddy).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 243)
+        #expect(QuotaProviderList.providers.count * 3 == 249)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -158,11 +160,12 @@ struct QuotaProviderListTests {
         //  - iOS 1.21.0 appended IBM Bob after the v0.46/v0.47 tail.
         //  - iOS 2.1.0 appended eight quota providers through v0.66.
         //  - iOS 2.3.0 appended xKiro, Raycast, and Aixy after that.
-        let tail = providers.suffix(11).map(\.id)
+        //  - iOS 2.6.0 appended Muse (muse.ai) and WorkBuddy after that.
+        let tail = providers.suffix(13).map(\.id)
         #expect(tail == [
             "bifrost", "helmcode", "nous", "muse", "huggingface", "v0",
-            "gitkraken", "devpass", "xkiro", "raycast", "aixy",
-        ], "v0.66 and v0.67 quota additions must stay appended in this order")
+            "gitkraken", "devpass", "xkiro", "raycast", "aixy", "museai", "workbuddy",
+        ], "v0.66, v0.67, and v0.72 quota additions must stay appended in this order")
     }
 
     @Test("Sakana AI present (v0.38)")
@@ -314,10 +317,10 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 81/243 numbers match the actual list")
+    @Test("Cause: catalog 83/249 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 81)
-        #expect(QuotaProviderList.providers.count * 3 == 243)
+        #expect(QuotaProviderList.providers.count == 83)
+        #expect(QuotaProviderList.providers.count * 3 == 249)
     }
 
     @Test("IBM Bob is appended for v0.49 monthly quota pushes")
@@ -388,5 +391,17 @@ struct QuotaProviderListTests {
             #expect(actual[id] == name)
             #expect(QuotaProviderList.quotaZoneName(providerID: id, state: "warning") == "Quota-\(id)-warningZone")
         }
+    }
+
+    @Test("v0.72 percentage providers are appended; balance-only LithosAI is not")
+    func v072ProvidersPresent() {
+        let expected = ["museai": "Muse (muse.ai)", "workbuddy": "WorkBuddy"]
+        let actual = Dictionary(uniqueKeysWithValues: QuotaProviderList.providers.map { ($0.id, $0.displayName) })
+        for (id, name) in expected {
+            #expect(actual[id] == name)
+            #expect(QuotaProviderList.quotaZoneName(providerID: id, state: "depleted") == "Quota-\(id)-depletedZone")
+        }
+        #expect(actual["lithosai"] == nil)
+        #expect(actual["muse"] == "Muse Code")
     }
 }
