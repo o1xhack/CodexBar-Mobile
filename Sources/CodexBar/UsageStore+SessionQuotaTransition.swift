@@ -136,9 +136,9 @@ extension UsageStore {
 
     /// Writes the CloudKit quota transition for iPhone alerts.
     ///
-    /// iOS push is intentionally independent of the Mac notification gate and of the Mac's
-    /// reset-banner arbitration: a user may disable local notifications, or receive a reset
-    /// banner on the Mac instead of a restored banner, while still expecting the iPhone alert.
+    /// The iPhone record is independent of the Mac's reset-banner arbitration and of whether
+    /// the Mac banner itself is posted. Transitions are only detected while session quota
+    /// notifications or a matching quota hook are active.
     private func publishSessionQuotaTransitionToiOS(
         _ transition: SessionQuotaTransition,
         provider: UsageProvider,

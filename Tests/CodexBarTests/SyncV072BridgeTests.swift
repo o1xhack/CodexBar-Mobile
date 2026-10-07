@@ -158,4 +158,27 @@ struct SyncV072BridgeTests {
         #expect(old.balanceDescription == nil)
         #expect(old.resetDescription == "2.8B tokens left")
     }
+
+    @Test
+    func `blocking projections drop the lane balance description`() throws {
+        let snapshot = try KimiMonthlyBlockingTests.snapshot(ratio: 1)
+        let raw = try #require(snapshot.primary)
+        let annotated = SyncCoordinator.withBalanceDescription(
+            SyncCoordinator.syncRateWindow(
+                id: "primary",
+                label: "Weekly",
+                window: RateWindow(
+                    usedPercent: raw.usedPercent,
+                    windowMinutes: raw.windowMinutes,
+                    resetsAt: raw.resetsAt,
+                    resetDescription: "12 credits left")),
+            shows: true)
+        #expect(annotated.balanceDescription == "12 credits left")
+        let projected = try #require(SyncCoordinator.projectingBlockingQuota(
+            [annotated],
+            provider: .kimi,
+            snapshot: snapshot).first)
+        #expect(projected.blockingQuota != nil)
+        #expect(projected.balanceDescription == nil)
+    }
 }

@@ -144,6 +144,7 @@ struct V072ProviderPresentationTests {
 
     @Test func `LithosAI prepaid credits period localizes`() {
         #expect(ProviderAmountCard.localizedPeriod("Prepaid credits").isEmpty == false)
+        #expect(ProviderAmountCard.localizedPeriod("Purchased credits").isEmpty == false)
         #expect(ProviderAmountCard.localizedPeriod("Custom period") == "Custom period")
     }
 
