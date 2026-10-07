@@ -113,6 +113,7 @@
 		6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */; };
 		6ADB4204532DA45C1D7BCA8B /* V058SyncSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848EEFAAA8465FD3900A107C /* V058SyncSemanticsTests.swift */; };
 		6B09013A53AB897492346AEF /* WidgetActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA751A1638AFC94E23C38FA /* WidgetActivityView.swift */; };
+		6BA35AD07BBAE80220C68836 /* ProviderSourceNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8DC4580179398C294E7398 /* ProviderSourceNoticeView.swift */; };
 		6BDEE365DD4A92F13A88ED72 /* SyncModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */; };
 		6BEB6B051976D09ED07BFFD3 /* UtilizationAggregateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */; };
 		6C1FECC502FD2DD3FF666618 /* QuotaProviderListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D273F51CDB63F11D2E772A /* QuotaProviderListTests.swift */; };
@@ -122,6 +123,7 @@
 		7073F4D69C1C36A686395006 /* CodexBarWidgetTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAC28C0DE37814E0D17EF05B /* CodexBarWidgetTimeline.swift */; };
 		724CDFD257C13ABA5020E7C9 /* V030Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29AF435AB2A4FE691117704 /* V030Snapshots.swift */; };
 		728CF23CFF13DD0CA289EE7F /* CodexBarWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2C3390F97E462D74C5A28D /* CodexBarWidgets.swift */; };
+		7293FA86FFD75B43ACC34E66 /* ProviderSourceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */; };
 		753F40CEB17DC47E704E5EDE /* ElevenLabsCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777FFCFF0443DD9AC52685CD /* ElevenLabsCreditsCard.swift */; };
 		76E3F686898A6853AA32783C /* MobileAdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184B00DD94E1D273C99C173C /* MobileAdaptiveLayout.swift */; };
 		775BADB70AF2174D2847494B /* TestFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474666AF420748DBF714EED5 /* TestFixtures.swift */; };
@@ -172,6 +174,7 @@
 		A82C861A5C7DDDB86F0CBD21 /* CrossModelUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026226E3F5DB8E1DD9E87257 /* CrossModelUsageCard.swift */; };
 		A8ECDA27E9F213AFA6A13FAB /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3A52976034BA3F0CA44327 /* CodexBarMobileApp.swift */; };
+		A925E0A6BF1C1AD4179ADB52 /* ProviderSourceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */; };
 		A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */; };
 		A9BDE220C1106C420FCBECAF /* CodexResetCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9DEF83A84D41E10E1D6B2B /* CodexResetCreditsCard.swift */; };
 		AAD38B49F341E26428134603 /* WidgetActivityProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1BB1B7D889AC7E25520F356 /* WidgetActivityProjectionTests.swift */; };
@@ -198,6 +201,7 @@
 		C20843320D1FDBB2568E1590 /* WidgetProviderCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40401457B31DE8E1ADEC1641 /* WidgetProviderCatalogue.swift */; };
 		C32BC6E03F98362AB2AF7957 /* MultiAccountLinkageDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A35B8172E4530311B55BE4C /* MultiAccountLinkageDetectorTests.swift */; };
 		C41E99EEEAFD859D56F08AD2 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBF160B317AF2B0C136E2B /* NotificationService.swift */; };
+		C5E60279E0480395AA7A2173 /* MultiMacFailureFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA13B9FFD33839726199D1E /* MultiMacFailureFallbackTests.swift */; };
 		C726D4D9AD05090D24B6072F /* V047SyncCompatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FFDF15F388840A5925EF1B /* V047SyncCompatTests.swift */; };
 		C87E63885A58161DEE788B56 /* EmailRedaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */; };
 		C88251CF2987E9D135DFA5C0 /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
@@ -448,6 +452,7 @@
 		6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerplexityCreditsCard.swift; sourceTree = "<group>"; };
 		6F8B2EE4A4A283389BC42245 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7254D548254F139B35339EF7 /* NSEInvocationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSEInvocationLog.swift; sourceTree = "<group>"; };
+		731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSourceStatus.swift; sourceTree = "<group>"; };
 		734E172567E501F3041FA875 /* V072ProviderPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V072ProviderPresentationTests.swift; sourceTree = "<group>"; };
 		7406876C2D5012BFF418FB11 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/WidgetActivity.strings; sourceTree = "<group>"; };
 		74B0A596604D1C8CA137C073 /* CostMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostMetricCard.swift; sourceTree = "<group>"; };
@@ -475,6 +480,7 @@
 		8900C2A779C4153DEEF02EBC /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/WidgetActivity.strings"; sourceTree = "<group>"; };
 		8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroqMetricsCard.swift; sourceTree = "<group>"; };
 		8D15EF2654204A9652A1F59F /* SubscriptionUtilizationCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUtilizationCompatTests.swift; sourceTree = "<group>"; };
+		8EA13B9FFD33839726199D1E /* MultiMacFailureFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiMacFailureFallbackTests.swift; sourceTree = "<group>"; };
 		8FCFA2CD6DDD6B5D6E307AF3 /* UsageCardSettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardSettingsViews.swift; sourceTree = "<group>"; };
 		90F827FC679B27C274F30777 /* CodexServiceMixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexServiceMixView.swift; sourceTree = "<group>"; };
 		91D669E4E22F7C5868623D33 /* PushExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushExtension.entitlements; sourceTree = "<group>"; };
@@ -554,6 +560,7 @@
 		DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkageRecordMergeTests.swift; sourceTree = "<group>"; };
 		DDDD1BE193D78E1F8BA7E3C7 /* CodexBarMobileWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CodexBarMobileWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDF19DFB181532F757F35E7C /* CWLPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLPerformanceTests.swift; sourceTree = "<group>"; };
+		DE8DC4580179398C294E7398 /* ProviderSourceNoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSourceNoticeView.swift; sourceTree = "<group>"; };
 		E024B1E38E5CEBF63EDB05E3 /* CodexBarWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarWidgetIntent.swift; sourceTree = "<group>"; };
 		E143BBA8CCF436071E8DFE5F /* WidgetActivityTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetActivityTimeline.swift; sourceTree = "<group>"; };
 		E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceProviderZoneSubscription.swift; sourceTree = "<group>"; };
@@ -661,6 +668,7 @@
 				1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */,
 				4A35B8172E4530311B55BE4C /* MultiAccountLinkageDetectorTests.swift */,
 				25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */,
+				8EA13B9FFD33839726199D1E /* MultiMacFailureFallbackTests.swift */,
 				621D68074A776C6DDAE3E81D /* ProviderAccountGroupTests.swift */,
 				CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */,
 				96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */,
@@ -727,6 +735,7 @@
 				D317FDA7B59C971619973C86 /* MobileQuotaBurndown.swift */,
 				7EBCCACB7D410FD3499739C1 /* ProviderDetailLocalization.swift */,
 				B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */,
+				731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */,
 				EE3202DAC5E01D0784FDD137 /* QuotaPace.swift */,
 				D0B98567B9A16E271635294A /* QuotaResetDateText.swift */,
 				9A25EEBB3E3FBDE9B81C34FF /* StatusWidgetConfigurationAdapter.swift */,
@@ -997,6 +1006,7 @@
 				6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */,
 				56E892AA32E52BD7EA6D63CE /* ProviderDetailsView.swift */,
 				CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */,
+				DE8DC4580179398C294E7398 /* ProviderSourceNoticeView.swift */,
 				3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */,
 				64D58D7EEA01A597CFBC160C /* QuotaBurndownSection.swift */,
 				1F6D955B355B9CDF255AF8DB /* SyncedDailyActivityView.swift */,
@@ -1286,6 +1296,7 @@
 				2B9A62B0ADAF89ADBD8826DA /* MultiAccountForEachIdentityTests.swift in Sources */,
 				C32BC6E03F98362AB2AF7957 /* MultiAccountLinkageDetectorTests.swift in Sources */,
 				90C9167325DF5561725CA16A /* MultiAccountTabRenderingTests.swift in Sources */,
+				C5E60279E0480395AA7A2173 /* MultiMacFailureFallbackTests.swift in Sources */,
 				36890D62A476E10C3211107E /* ProviderAccountGroupTests.swift in Sources */,
 				F78F3508FDA61D1B36D66800 /* ProviderColorPaletteTests.swift in Sources */,
 				E7948A0383825AE3E4A49801 /* ProviderUsageViewSubtitleTests.swift in Sources */,
@@ -1398,6 +1409,8 @@
 				B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */,
 				E18D8313EEDFF2093F589700 /* ProviderDetailsView.swift in Sources */,
 				44E3492D9285BDA200F789FB /* ProviderSnapshotMerger.swift in Sources */,
+				6BA35AD07BBAE80220C68836 /* ProviderSourceNoticeView.swift in Sources */,
+				7293FA86FFD75B43ACC34E66 /* ProviderSourceStatus.swift in Sources */,
 				6DCDD71DAADD02D424FB0660 /* ProviderUsageSnapshot+Identity.swift in Sources */,
 				0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */,
 				A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */,
@@ -1509,6 +1522,7 @@
 				905ADC7606341C62FC1D9032 /* ProviderColorPalette.swift in Sources */,
 				D2647B185A2C748136B3D5CF /* ProviderDetailLocalization.swift in Sources */,
 				57C973F513DAC5CC5E587DDE /* ProviderSnapshotMerger.swift in Sources */,
+				A925E0A6BF1C1AD4179ADB52 /* ProviderSourceStatus.swift in Sources */,
 				2B1AC6777541784ADE44A218 /* QuotaPace.swift in Sources */,
 				2ED2BFB2E678A74BE222660F /* QuotaResetDateText.swift in Sources */,
 				A0F0786008170C7ACFB83925 /* StatusWidgetConfigurationAdapter.swift in Sources */,
@@ -1618,7 +1632,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1638,7 +1652,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1663,7 +1677,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1838,7 +1852,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1859,7 +1873,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1881,7 +1895,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1918,7 +1932,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1940,7 +1954,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1976,7 +1990,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -2000,7 +2014,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 235;
+				CURRENT_PROJECT_VERSION = 236;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

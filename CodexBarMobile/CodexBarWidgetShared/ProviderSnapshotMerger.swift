@@ -137,10 +137,26 @@ enum ProviderSnapshotMerger {
             groupedIndices[root, default: []].append(idx)
         }
 
+        // An identity-less failure from one Mac must not become a separate "account" next to the
+        // account another Mac actually observed; the per-device failure stays visible in details.
+        let observedProviderIDs = Set(groupedIndices.values.compactMap { indices -> String? in
+            indices.contains { !Self.isFailureOnly(allProviders[$0]) } ? allProviders[indices[0]].providerID : nil
+        })
+        let identityLessFailureGroups = Set(groupedIndices.compactMap { root, indices -> Int? in
+            let providerID = allProviders[indices[0]].providerID
+            guard observedProviderIDs.contains(providerID),
+                  indices.allSatisfy({
+                      Self.isFailureOnly(allProviders[$0])
+                          && effectiveIdentifiers[$0] == ["\(providerID):legacy-no-identity"]
+                  })
+            else { return nil }
+            return root
+        })
+
         var mergedProviders: [(
             provider: ProviderUsageSnapshot, sortIdentity: String,
             publicationTimestamp: Date, quotaSource: SyncProviderQuotaSource)] = []
-        for (_, indices) in groupedIndices {
+        for (root, indices) in groupedIndices where !identityLessFailureGroups.contains(root) {
             let group = indices.map { allProviders[$0] }
             let sortIdentity = Set(indices.flatMap { effectiveIdentifiers[$0] })
                 .sorted()
@@ -213,6 +229,21 @@ enum ProviderSnapshotMerger {
                     (SyncedUsageSnapshot.providerPublicationKey(for: $0.provider), $0.quotaSource)
                 },
                 uniquingKeysWith: { first, _ in first }))
+    }
+
+    /// A Mac that could not refresh a provider and had no earlier data publishes an error with no
+    /// observation at all (no quota lanes, details, balances or account). It proves only that this Mac
+    /// failed; it must never replace another Mac's real observation of the same account.
+    static func isFailureOnly(_ provider: ProviderUsageSnapshot) -> Bool {
+        provider.isError
+            && provider.primary == nil
+            && provider.secondary == nil
+            && provider.rateWindows.isEmpty
+            && provider.details.isEmpty
+            && provider.providerAmount == nil
+            && provider.budget == nil
+            && (provider.accountEmail?.isEmpty ?? true)
+            && (provider.loginMethod?.isEmpty ?? true)
     }
 
     static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {
@@ -600,7 +631,14 @@ enum ProviderSnapshotMerger {
         precondition(entries.count == sourceSyncTimestamps.count)
         precondition(entries.count == sourceQuotaSources.count)
         precondition(entries.count == sourceHistoryTimestamps.count)
-        let baseIndex = entries.indices.max { lhs, rhs in
+        // Quota, status, account and details come only from real observations. A newer
+        // failure-only entry from another Mac is not data; it stays visible per device instead.
+        let observedIndices = entries.indices.filter { !Self.isFailureOnly(entries[$0]) }
+        let presentationIndices = observedIndices.isEmpty ? Array(entries.indices) : observedIndices
+        let presentationEntries = presentationIndices.map { entries[$0] }
+        let presentationAppVersions = presentationIndices.map { sourceAppVersions[$0] }
+        let presentationDeviceIDs = presentationIndices.map { sourceDeviceIDs[$0] }
+        let baseIndex = presentationIndices.max { lhs, rhs in
             if entries[lhs].lastUpdated != entries[rhs].lastUpdated {
                 return entries[lhs].lastUpdated < entries[rhs].lastUpdated
             }
@@ -647,9 +685,9 @@ enum ProviderSnapshotMerger {
             },
             accountEmail: base.accountEmail,
             loginMethod: Self.mergedLoginMethod(
-                entries,
-                sourceAppVersions: sourceAppVersions,
-                sourceDeviceIDs: sourceDeviceIDs),
+                presentationEntries,
+                sourceAppVersions: presentationAppVersions,
+                sourceDeviceIDs: presentationDeviceIDs),
             statusMessage: base.statusMessage,
             isError: base.isError,
             lastUpdated: base.lastUpdated,
@@ -662,10 +700,11 @@ enum ProviderSnapshotMerger {
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.subscriptionRenewsAt),
             rateWindows: kimiQuotaIndex != nil ? quotaBase.rateWindows.map {
                 Self.kimiEffectiveWindow($0, blocker: kimiBlocker, capturedAt: quotaCapturedAt)
-            } : Self.mergedRateWindows(entries, base: base),
+            } : Self.mergedRateWindows(presentationEntries, base: base),
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.perplexityCredits),
-            accountIdentities: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountIdentities),
+            accountIdentities: Self.latestNonNil(
+                presentationEntries, sourceDeviceIDs: presentationDeviceIDs, \.accountIdentities),
             quotaWarnings: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.quotaWarnings),
             openAIAPIDashboard: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.openAIAPIDashboard),
             zaiHourlyUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.zaiHourlyUsage),
@@ -693,13 +732,15 @@ enum ProviderSnapshotMerger {
             wayfinderUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.wayfinderUsage),
             sub2APIUsage: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.sub2APIUsage),
             providerAmount: Self.latestProviderAmount(entries, sourceDeviceIDs: sourceDeviceIDs),
-            accountRecordKey: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountRecordKey),
-            accountOrganization: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.accountOrganization),
+            accountRecordKey: Self.latestNonNil(
+                presentationEntries, sourceDeviceIDs: presentationDeviceIDs, \.accountRecordKey),
+            accountOrganization: Self.latestNonNil(
+                presentationEntries, sourceDeviceIDs: presentationDeviceIDs, \.accountOrganization),
             zoomMateCredits: Self.latestNonNil(entries, sourceDeviceIDs: sourceDeviceIDs, \.zoomMateCredits),
             details: Self.mergedDetails(
-                entries,
-                sourceAppVersions: sourceAppVersions,
-                sourceDeviceIDs: sourceDeviceIDs),
+                presentationEntries,
+                sourceAppVersions: presentationAppVersions,
+                sourceDeviceIDs: presentationDeviceIDs),
             providerIconMonogram: Self.latestNonNil(
                 entries, sourceDeviceIDs: sourceDeviceIDs, \.providerIconMonogram),
             providerIconTintHex: Self.latestNonNil(

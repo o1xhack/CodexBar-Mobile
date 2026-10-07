@@ -2,6 +2,13 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.6.0 (236)] — Multi-Mac failure fallback
+
+### Fixed
+- When several Macs publish the same provider account and one of them cannot refresh it (for example no browser session for a cookie provider on that Mac), that Mac's error-only entry (error with no quota lanes, details, balance, budget or account) no longer replaces another Mac's real observation. Quota, status, account, details and window unions come from the newest real observation; costs and utilization history still merge from every Mac. Previously the newest entry by `lastUpdated` always won, and an error-only entry carries its publication time. Only Kimi skipped errors before.
+- An identity-less error-only entry no longer appears as a second account beside an account another Mac observed.
+- The provider detail page explains the source when another Mac failed more recently, when every Mac failed, or when the shown data is older than 6 hours (which Mac, how old, and each failure message); the Usage card adds "from <Mac>" when another Mac's newer refresh failed. Applies to cards, details and widgets (shared merger). iOS-only; no Mac release or CloudKit change.
+
 ## [2.6.0 (235)] — Upstream v0.71–v0.72 companion update
 
 ### Added

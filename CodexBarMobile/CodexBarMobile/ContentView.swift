@@ -774,6 +774,9 @@ private struct ProviderListView: View {
                             provider: card.snapshot,
                             costReferenceDate: self.costReferenceDate,
                             duplicateOrdinal: card.accountOrdinal,
+                            sourceStatus: self.isDemoMode ? nil : ProviderSourceStatus.resolve(
+                                provider: card.snapshot,
+                                deviceSnapshots: self.usageData.deviceSnapshots),
                             accountCount: card.isAccountCard || !card.providerGroup.hasMultipleAccounts
                                 ? nil : card.providerGroup.accounts.count,
                             isPinned: isPinned,
@@ -4957,6 +4960,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Claude cloud credits show the remaining amount, a progress bar, and when they expire. Expired credits are marked as expired."),
                     String(
                         localized: "Provider details show progress bars where your Mac reports both used and total amounts."),
+                    String(
+                        localized: "With more than one Mac, a Mac that can't refresh a provider no longer hides another Mac's data. Details show which Mac the data came from, how old it is, and any refresh errors."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

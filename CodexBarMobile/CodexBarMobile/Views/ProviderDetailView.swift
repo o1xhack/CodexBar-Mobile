@@ -139,6 +139,13 @@ struct ProviderDetailView: View {
                 if self.isMockProvider {
                     self.mockBanner
                 }
+                if !self.isDemoMode,
+                   let sourceStatus = ProviderSourceStatus.resolve(
+                       provider: self.provider,
+                       deviceSnapshots: self.sourceSnapshots)
+                {
+                    ProviderSourceNoticeView(status: sourceStatus)
+                }
 
                 // Rate limit cards (or Perplexity credit breakdown when available)
                 self.primaryUsageSection
