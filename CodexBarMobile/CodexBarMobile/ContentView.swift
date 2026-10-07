@@ -774,9 +774,7 @@ private struct ProviderListView: View {
                             provider: card.snapshot,
                             costReferenceDate: self.costReferenceDate,
                             duplicateOrdinal: card.accountOrdinal,
-                            sourceStatus: self.isDemoMode ? nil : ProviderSourceStatus.resolve(
-                                provider: card.snapshot,
-                                deviceSnapshots: self.usageData.deviceSnapshots),
+                            sourceStatus: self.isDemoMode ? nil : ProviderSourceStatus.resolve(provider: card.snapshot),
                             accountCount: card.isAccountCard || !card.providerGroup.hasMultipleAccounts
                                 ? nil : card.providerGroup.accounts.count,
                             isPinned: isPinned,

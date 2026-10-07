@@ -1166,6 +1166,51 @@ extension KeyedDecodingContainer {
 }
 
 /// A single provider's usage snapshot for iCloud sync.
+/// iPhone-local explanation of a merged provider card: which Mac supplied the shown observation and
+/// which Macs reported newer refresh failures. Computed by the iOS merger; Macs never publish it.
+public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
+    public struct Failure: Codable, Sendable, Equatable {
+        public let deviceID: String
+        public let deviceName: String
+        public let reportedAt: Date
+        public let message: String?
+
+        public init(deviceID: String, deviceName: String, reportedAt: Date, message: String?) {
+            self.deviceID = deviceID
+            self.deviceName = deviceName
+            self.reportedAt = reportedAt
+            self.message = message
+        }
+    }
+
+    /// Nil when no Mac has an observation for this account (every contribution failed).
+    public let sourceDeviceID: String?
+    public let sourceDeviceName: String?
+    public let sourceCapturedAt: Date?
+    /// Failures reported after the shown observation was captured (all failures when none exists), newest first.
+    public let failures: [Failure]
+    /// Number of distinct Macs that contributed an entry to this card.
+    public let deviceCount: Int
+
+    public var allFailed: Bool {
+        self.sourceDeviceID == nil
+    }
+
+    public init(
+        sourceDeviceID: String?,
+        sourceDeviceName: String?,
+        sourceCapturedAt: Date?,
+        failures: [Failure],
+        deviceCount: Int)
+    {
+        self.sourceDeviceID = sourceDeviceID
+        self.sourceDeviceName = sourceDeviceName
+        self.sourceCapturedAt = sourceCapturedAt
+        self.failures = failures
+        self.deviceCount = deviceCount
+    }
+}
+
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// Stable pseudo-account used only to transport provider-level OpenRouter
     /// Management Activity spend. It must not inherit the currently selected
@@ -1210,6 +1255,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let details: [SyncProviderDetailSection]
     public let providerIconMonogram: String?
     public let providerIconTintHex: String?
+    /// iPhone-local merge explanation; never published by a Mac and nil on per-device snapshots.
+    public var sourceReport: SyncProviderSourceReport?
 
     /// Mac-side stable identifiers for the logical account this snapshot
     /// represents. iOS uses these as grouping evidence: any two snapshots

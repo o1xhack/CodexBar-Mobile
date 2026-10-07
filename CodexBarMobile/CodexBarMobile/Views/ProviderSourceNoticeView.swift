@@ -18,6 +18,7 @@ struct ProviderSourceNoticeContent: Equatable {
             let formatter = RelativeDateTimeFormatter()
             formatter.locale = locale
             formatter.unitsStyle = .full
+            formatter.dateTimeStyle = .named
             return formatter.localizedString(for: min(date, now), relativeTo: now)
         }
         func format(_ key: String, _ arguments: [String]) -> String {
@@ -49,7 +50,7 @@ struct ProviderSourceNoticeContent: Equatable {
                 detail: message?.isEmpty == false ? message : nil))
         }
         self.lines = lines
-        self.isWarning = status.allFailed || !status.newerFailures.isEmpty || status.isStale(at: now)
+        self.isWarning = status.isWarning
     }
 }
 
@@ -62,7 +63,9 @@ struct ProviderSourceNoticeView: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             if let content = ProviderSourceNoticeContent(status: self.status, now: context.date) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label(content.title, systemImage: "exclamationmark.triangle.fill")
+                    Label(
+                        content.title,
+                        systemImage: content.isWarning ? "exclamationmark.triangle.fill" : "clock.arrow.circlepath")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(content.isWarning ? Color.orange : Color.secondary)
                     ForEach(Array(content.lines.enumerated()), id: \.offset) { _, line in

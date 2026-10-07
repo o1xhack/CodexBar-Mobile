@@ -139,11 +139,7 @@ struct ProviderDetailView: View {
                 if self.isMockProvider {
                     self.mockBanner
                 }
-                if !self.isDemoMode,
-                   let sourceStatus = ProviderSourceStatus.resolve(
-                       provider: self.provider,
-                       deviceSnapshots: self.sourceSnapshots)
-                {
+                if !self.isDemoMode, let sourceStatus = ProviderSourceStatus.resolve(provider: self.provider) {
                     ProviderSourceNoticeView(status: sourceStatus)
                 }
 

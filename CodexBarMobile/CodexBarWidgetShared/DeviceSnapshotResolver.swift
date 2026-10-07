@@ -132,7 +132,9 @@ enum DeviceSnapshotResolver {
                   snapshots,
                   linkages: providerLinkages,
                   sumLocalCostsAcrossDevices: false,
-                  providerFilter: providerFilter)
+                  providerFilter: providerFilter,
+                  // One physical Mac: its newest state wins, including a current failure.
+                  prefersObservationsOverFailures: false)
         else {
             return snapshots[0]
         }
